@@ -13,3 +13,39 @@
 > I think disque is a really nice option
 
 ## Overview
+> plant uml goes here
+
+## Example
+
+Server code
+```go
+//server code should be something like that
+type Service struct{}
+
+func (s *Service) MyMethod(a int, b string) (string, error) {
+    //do something
+    return "hello", nil
+}
+
+func main() {
+    server = zbus.New() // config ?
+    var s Service
+    server.Register("my-service", "1.0", s)
+
+    server.Run()
+}
+```
+
+Client code
+```go
+
+func main() {
+    client = zbus.Client() // config?
+
+    //client is a low level client we should have some stubs on top of that that hide the call
+
+    c := ServiceStub{client}
+
+    res, err := c.MyMethod(10, "hello")
+}
+```
