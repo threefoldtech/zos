@@ -24,20 +24,24 @@ Responsible to discover and prepare all the disk available on a node to be ready
 ### Interface
 
 ```go
+//Policy defines the preparation policy (raid level, disk types, etc..)
+type Policy struct {
+    //TODO: to be defines
+}
+
 type DiskModule interface {
-    // walk over all the disks of the node
-    // create a partition table
-    // create a single partition that takes the full size of the disk
-    Prepare() (DiskInfo[],error)
+    // Apply the prepare policy to all connected devices
+    // Return a list of disk info
+    Prepare(policy Policy) (PoolInfo[],error)
 
     // Will wipe completely all the content of a disk
     // this is done by overwriting the partition table with random data
-    Wipe(deviceName string) (error)
+    Wipe(pool string) (error)
 
     // Starts a process that will monitor if some disks are added/removed during the
     // lifetime of the node. This can be used by a higher layer to propagate event up the stack
     // if some application needs to be made aware of disks being added/removed
-    Monitor(ctx context.Context) (<-DiskEvent)
+    Monitor(ctx context.Context) (<-PoolEvent)
 
     // TODO:  to be be further defined, but we will need something that can give us the exact amount of storage
     // a node has. This is used to compute the resource unit provided by the node.
@@ -61,10 +65,10 @@ type StoragePoolModule interface {
     // Reserve creates a storage space that can be used to mount
     // as a volume into a container/VM
     // Reserve is responsible to choose the best suited storage pool to use
-    Reserve(diskType DiskType, size int64) (StoragePool, error)
+    Reserve(diskType DiskType, size int64) (Space, error)
     // Release releases a storage pool acquired by Reserve
     // after this the storage pool need to be considered null and should not be used anymore.
-    Release(storagePool) (error)
+    Release(space string) (error)
 }
 ```
 
@@ -75,20 +79,12 @@ Responsible to do the capacity planning of the 0-db on top of the disk prepare b
 
 ```go
 type ZDBNamespace struct {
-    Name string
+    ID string
     DiskType DiskType
     Size int64
-    mode ZdbMode
+    Mode ZdbMode
     Password string
     Port int // Listen port of the 0-db owning the namespace
-}
-
-type ZDB struct {
-    DiskType DiskType
-    Size int64
-    mode ZdbMode
-    AdminPassword string
-    Port int // Listen port of the 0-db process
 }
 
 type ZDBModule interface {
@@ -99,13 +95,6 @@ type ZDBModule interface {
     ReserveNamespace(diskType DiskType, size int64, mode ZdbMode, password string) (ZDBNamespace, error)
 
     // ReleaseNamespace delete a 0-db namespace acquired by ReserveNamespace
-    ReleaseNamespace(ZDBNamespace) (error)
-
-    // ReserveZdb will always create a new 0-db process
-    // ReserveZdb is responsible for the capacity planning and must decide what is the
-    // best disk where to deploy this 0-db.
-    ReserveZdb(diskType DiskType, size int64, mode ZdbMode, adminPassword string) (ZDB, error)
-    // ReleaseZdb stop the 0-db process and delete all its data.
-    ReleaseNamespace(zdb ZDB) (error)
+    ReleaseNamespace(id string) (error)
 }
 ```
