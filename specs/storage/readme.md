@@ -55,10 +55,10 @@ type DiskModule interface {
 Responsible to do the capacity planning of the storage pools on top of the disk prepare by the disk sub-module
 
 ```go
-type StoragePool interface{
-    ID() string
-    Path() string
-    Size() string
+type Space struct {
+    ID string
+    Path string
+    Size string
 }
 
 type StoragePoolModule interface {
@@ -68,7 +68,7 @@ type StoragePoolModule interface {
     Reserve(diskType DiskType, size int64) (Space, error)
     // Release releases a storage pool acquired by Reserve
     // after this the storage pool need to be considered null and should not be used anymore.
-    Release(space string) (error)
+    Release(spaceID string) (error)
 }
 ```
 
@@ -95,6 +95,6 @@ type ZDBModule interface {
     ReserveNamespace(diskType DiskType, size int64, mode ZdbMode, password string) (ZDBNamespace, error)
 
     // ReleaseNamespace delete a 0-db namespace acquired by ReserveNamespace
-    ReleaseNamespace(id string) (error)
+    ReleaseNamespace(nsID string) (error)
 }
 ```
