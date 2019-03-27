@@ -13,6 +13,9 @@ This means a PID1 in zos must do minimal tasks as follows:
 - [`runit`](http://smarden.org/runit/) (very light and configurable)
 - `systemd` (too much)
 - `ignite` (written in rust, pretty immature and no active development)
+- Build our own pid 1 in rust, use the ignite as base (or as a reference)
 
-> Other options ?
+# Discussions
+After some internal discussion, runit might not be the best option due to how it was built, and the its purpose (mainly run in containers).
+We are strongly leaning toward using our own init based on ignite.
 
