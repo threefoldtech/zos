@@ -48,7 +48,7 @@ A unix socket interface (named pipe? may be) can be used to control the init pro
   are not going to re-spawn.
 - Reload
   - Reload is given a specific service name, to reload the config in case the parameter or the env list has changed. Reload is NOT done automatically with `sync`. Must be explicitly called with certain services.
-- ٌRestart a service by name
+- Signal a service by name.
 
 # Configuration
 Each service must have a configuration file that defines how a service should start.
