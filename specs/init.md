@@ -36,7 +36,7 @@ it's own service, make sure it's always running by re-spawning (if needed), a `o
 - once a service update it's status, other `waiting` threads (that depends on this one) will get freed to take start.
 
 ## Controlling
-A unix socket interface can be used to control the init process as follows
+A unix socket interface (named pipe? may be) can be used to control the init process as follows
 - Shutdown, Reboot:
   - the manager, will set global runlevel to shutdown, ask individual services to die.
   - once each service exits, their monitor threads will not re-spawn due to global runtime state
@@ -48,6 +48,7 @@ A unix socket interface can be used to control the init process as follows
   are not going to re-spawn.
 - Reload
   - Reload is given a specific service name, to reload the config in case the parameter or the env list has changed. Reload is NOT done automatically with `sync`. Must be explicitly called with certain services.
+- ٌRestart a service by name
 
 # Configuration
 Each service must have a configuration file that defines how a service should start.
