@@ -3,7 +3,7 @@ The init process is very important to the system, and this process specifically 
 This means a PID1 in zos must do minimal tasks as follows:
 
 - Start configured system processes
-  - udev, syslogd, klogd, redis, haveged, etc... 
+  - udev, syslogd, klogd, redis, haveged, etc...
   - API, and separate modules
 - init, must make sure all theses services are always up and running, re-spawn if needed
 - networking ? (may be this should delegated to a separate module)
@@ -13,6 +13,7 @@ This means a PID1 in zos must do minimal tasks as follows:
 - [`runit`](http://smarden.org/runit/) (very light and configurable)
 - `systemd` (too much)
 - `ignite` (written in rust, pretty immature and no active development)
+- [finit](https://github.com/troglobit/finit) :  http://troglobit.com/finit.html
 - Build our own pid 1 in rust, use the ignite as base (or as a reference)
 
 # Discussions
@@ -40,6 +41,6 @@ A unix socket interface can be used to control the init process as follows
   - once each service exits, their monitor threads will not re-spawn due to global runtime state
   - once all services are down, a shutdown (or reboot) is performed.
 - Status inquiry
-  - List all configured services and their status.  
+  - List all configured services and their status.
 
 > Do we need to support starting and stopping individual services ? with start/stop commands ?
