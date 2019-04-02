@@ -1,6 +1,6 @@
 @startuml
 actor User as user 
-entity Framer as farmer
+entity Farmer as farmer
 boundary Node as node
 
 user -> farmer: Request space
