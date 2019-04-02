@@ -30,3 +30,12 @@ A market, is a platform where u can find and compare [farmers](#farmer). After s
 ## Process
 ![process](market.png)
 
+
+The communication between the market and the farmer doesn't have to be direct as shown, a block chain transactions can be done to provision spaces on a certain provider. This above design will make the node agnostic to the actual payments, and technologies used to ask the farmer for capacity.
+
+This also allows the following:
+- Nodes that are not used, can be turned off, but their capacity can still be announced by the farmer controller. Only when they are needed
+they can be brought up to save electricity.
+- Nodes management can be much easier, since they provide `traditional` interface with communication, regardless of what technology is used to ask for the capacity (blockchain, centeralized market, etc...)
+- Easier to secure the node.
+- No resources are wasted on the node to join the global nodes network. since it's only accessible from within the farmer network. and later after the user reserve a space. 
