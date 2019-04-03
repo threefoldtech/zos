@@ -1,5 +1,8 @@
 @startuml
 actor User as user 
+box "To Be Defined" #LightBlue
+    participant Market
+end box
 entity Farmer as farmer
 boundary Node as node
 

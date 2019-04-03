@@ -22,13 +22,15 @@ The node farmer API will provide the following:
 - read the node health signals
 
 ### Farm
-A farm is a set of [nodes](#node) that are owned by a single [farmer](#farmer).
+A farm is a set of [nodes](#node) that are directly connected on the same LAN, and are owned by a single [farmer](#farmer).
 
 ### Market
 A market, is a platform where u can find and compare [farmers](#farmer). After selecting the proper provider in terms of price, up time, rating, etc... A user can ask for space reservation. After a space is reserved, user can have direct access to his space(s) to deploy high level solutions.
 
+Check [Market Proposal](global_market_proposal.md)
+
 ## Process
-![process](market.png)
+![process](../../../assets/market.png)
 
 
 The communication between the market and the farmer doesn't have to be direct as shown, a block chain transactions can be done to provision spaces on a certain provider. This above design will make the node agnostic to the actual payments, and technologies used to ask the farmer for capacity.

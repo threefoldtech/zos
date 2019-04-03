@@ -25,7 +25,7 @@ If a user and a node agree on a request/offer, a sell is initiated. A sell is an
 - The transaction is now finished, both parties have done their part, the money is unlocked
 - The user can start deploying workload in its resource space.
 
-![sequence_diagram](../../assets/grid_provisioning.png)
+![sequence_diagram](../../../assets/grid_provisioning.png)
 
 ## Remarks
 
