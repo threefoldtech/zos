@@ -1,0 +1,21 @@
+@startuml
+title How to create a tunnel between 2 network space
+entity space1
+actor user
+entity space2
+
+== Creation of spaces ==
+user -> space1: create space1
+activate space1
+user <-- space1: return space1 detail
+user -> space2: create space2,  don't use network ID from space1
+activate space2
+user <-- space2: return space2 detail
+== Interconnection ==
+user -> space1: connect to space2
+note left: send public key of space1
+user -> space2: connect to space1
+note right: send public key of space2
+== Communication is open between spaces ==
+...
+@enduml
