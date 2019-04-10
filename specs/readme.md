@@ -1,6 +1,7 @@
 # Overview
 - [PID 1](init.md)
 - [IPC](ipc.md)
+- [DSL](dsl.md)
 - Components
   - [storage](storage/readme.md)
   - [flist](flist/readme.md)
