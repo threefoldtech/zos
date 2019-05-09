@@ -25,7 +25,7 @@ fmt:
 
 lint:
 	@echo "Running $@"
-	@${GOPATH}/bin/golint -set_exit_status github.com/threefoldtech/zosv2/modules...
+	@${GOPATH}/bin/golint -set_exit_status $(shell go list ./... | grep -v stubs)
 
 ineffassign:
 	@echo "Running $@"
@@ -47,7 +47,13 @@ check: test
 test: verifiers build
 	@echo "Running unit tests with GOFLAGS=${GOFLAGS}"
 	# we already ran vet separately, so safe to turn it off here
-	@CGO_ENABLED=0 go test -vet=off -tags kqueue ./...
+	@CGO_ENABLED=0 go test -vet=off ./...
+
+testrace: verifiers build
+	@echo "Running unit tests with GOFLAGS=${GOFLAGS}"
+	# we already ran vet separately, so safe to turn it off here
+	@CGO_ENABLED=1 go test -vet=off -race ./...
+
 coverage: build
 	@echo "Running all coverage for minio"
 	@(env bash $(PWD)/buildscripts/go-coverage.sh)
