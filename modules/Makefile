@@ -47,12 +47,12 @@ check: test
 test: verifiers build
 	@echo "Running unit tests with GOFLAGS=${GOFLAGS}"
 	# we already ran vet separately, so safe to turn it off here
-	@CGO_ENABLED=0 go test -vet=off ./...
+	@CGO_ENABLED=0 go test -v -vet=off ./...
 
 testrace: verifiers build
 	@echo "Running unit tests with GOFLAGS=${GOFLAGS}"
 	# we already ran vet separately, so safe to turn it off here
-	@CGO_ENABLED=1 go test -vet=off -race ./...
+	@CGO_ENABLED=1 go test -v -vet=off -race ./...
 
 coverage: build
 	@echo "Running all coverage for minio"
