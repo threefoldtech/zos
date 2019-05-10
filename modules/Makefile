@@ -58,6 +58,10 @@ coverage: build
 	@echo "Running all coverage for minio"
 	@(env bash $(PWD)/buildscripts/go-coverage.sh)
 
-# Builds minio locally.
+generate:
+	@echo "Generating modules client stubs"
+	go generate
+
 build:
-	@CGO_ENABLED=0 go build -v -tags kqueue ./...
+	@CGO_ENABLED=0 go build -v ./...
+
