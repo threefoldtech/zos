@@ -42,6 +42,10 @@ func TestMountUmount(t *testing.T) {
 	_, err = os.Stat(pidPath)
 	assert.NoError(err)
 
+	// try to unmount other part of the filesystem
+	err = f.Umount("/mnt/media/disk1")
+	assert.Error(err)
+
 	err = f.Umount(path)
 	assert.NoError(err)
 

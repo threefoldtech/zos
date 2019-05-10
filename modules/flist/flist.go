@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -124,13 +125,38 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 
 // Umount implements the Flister.Umount interface
 func (f *flistModule) Umount(path string) error {
-	err := syscall.Unmount(path, syscall.MNT_DETACH)
+	log.Info().Str("path", path).Msg("request unmount flist")
+
+	info, err := os.Stat(path)
 	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("specified path is not a directory")
+	}
+
+	if !strings.HasPrefix(path, f.root) {
+		return fmt.Errorf("trying to unmount a directory outside of the flist module boundraries")
+	}
+
+	if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil {
 		log.Error().Err(err).Str("path", path).Msg("fail to umount flist")
 	}
 	_, name := filepath.Split(path)
 	pidPath := filepath.Join(f.pid, name) + ".pid"
-	return waitPidFile(time.Second*2, pidPath, false)
+	if err := waitPidFile(time.Second*2, pidPath, false); err != nil {
+		log.Error().Err(err).Str("path", path).Msg("0-fs daemon did not stopped properly")
+		return err
+	}
+
+	// clean up working dirs
+	logPath := filepath.Join(f.log, name) + ".log"
+	backend := filepath.Join(f.root, "backend", name)
+	_ = os.RemoveAll(logPath)
+	_ = os.RemoveAll(backend)
+	_ = os.RemoveAll(path)
+
+	return nil
 }
 
 func downloadFlist(url string) (io.ReadCloser, error) {
