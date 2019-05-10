@@ -2,20 +2,31 @@ package main
 
 import (
 	"context"
-	"log"
+	"flag"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
 )
 
+var (
+	moduleRoot = flag.String("root", defaultRoot, "root working directory of the module")
+)
+
+const module = "flist"
+
 func main() {
-	server, err := zbus.NewRedisServer("server", "tcp://localhost:6379", 1)
+	flag.Parse()
+
+	server, err := zbus.NewRedisServer(module, "tcp://localhost:6379", 1)
 	if err != nil {
-		log.Fatalf("fail to connect to message broker server: %v\n", err)
+		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
 	}
 
-	var f flistModule
-	server.Register(zbus.ObjectID{Name: "flist", Version: "0.0.1"}, &f)
+	flist := New(*moduleRoot)
+	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, flist)
+	log.Info().Msg("starting flist module")
 	if err := server.Run(context.Background()); err != nil {
-		log.Printf("unexpected error: %v\n", err)
+		log.Error().Err(err).Msg("unexpected error")
 	}
 }
