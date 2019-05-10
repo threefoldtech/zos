@@ -3,26 +3,22 @@ package main
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zosv2/modules"
 )
 
-func testFlistModule(t *testing.T) (*flistModule, func()) {
-	backend, err := ioutil.TempDir("", "backend")
-	require.NoError(t, err)
-	flist, err := ioutil.TempDir("", "flist")
-	require.NoError(t, err)
-	mountpoint, err := ioutil.TempDir("", "mounpoint")
+func testFlistModule(t *testing.T) (modules.Flister, func()) {
+	root, err := ioutil.TempDir("", "flist_root")
 	require.NoError(t, err)
 
 	cleanup := func() {
-		os.RemoveAll(backend)
-		os.RemoveAll(mountpoint)
-		os.RemoveAll(flist)
+		os.RemoveAll(root)
 	}
-	return New(backend, flist, mountpoint), cleanup
+	return New(root), cleanup
 }
 func TestMountUmount(t *testing.T) {
 	require := require.New(t)
@@ -33,11 +29,59 @@ func TestMountUmount(t *testing.T) {
 	path, err := f.Mount("https://hub.grid.tf/zaibon/ubuntu_bionic.flist", "")
 	require.NoError(err)
 
+	// check file are accessible
 	assert.NotEqual("", path)
 	infos, err := ioutil.ReadDir(path)
 	require.NoError(err)
-	assert.NotNil(infos)
+	assert.True(len(infos) > 0)
+
+	// check pid file exsists
+	dir, name := filepath.Split(path)
+	dir, _ = filepath.Split(dir[:len(dir)-1])
+	pidPath := filepath.Join(dir, "pid", name) + ".pid"
+	_, err = os.Stat(pidPath)
+	assert.NoError(err)
 
 	err = f.Umount(path)
 	assert.NoError(err)
+
+	// check pid file is gone after unmount
+	_, err = os.Stat(pidPath)
+	assert.Error(err)
+	assert.True(os.IsNotExist(err))
+}
+
+func TestIsolation(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	f, cleanup := testFlistModule(t)
+	defer cleanup()
+
+	path1, err := f.Mount("https://hub.grid.tf/zaibon/ubuntu_bionic.flist", "")
+	require.NoError(err)
+
+	path2, err := f.Mount("https://hub.grid.tf/zaibon/ubuntu_bionic.flist", "")
+	require.NoError(err)
+
+	defer f.Umount(path1)
+	defer f.Umount(path2)
+
+	t.Run("new file isolated", func(t *testing.T) {
+		err = ioutil.WriteFile(filepath.Join(path1, "newfile"), []byte("hello world"), 0660)
+		require.NoError(err)
+
+		_, err = os.Open(filepath.Join(path2, "newfile"))
+		assert.True(os.IsNotExist(err))
+	})
+
+	t.Run("common file isolation", func(t *testing.T) {
+		targetFile := "etc/resolv.conf"
+		content := []byte("nameserver 1.1.1.1")
+		err = ioutil.WriteFile(filepath.Join(path1, targetFile), content, 0660)
+		require.NoError(err)
+
+		b, err := ioutil.ReadFile(filepath.Join(path2, targetFile))
+		require.NoError(err)
+		assert.NotEqual(content, b)
+	})
 }
