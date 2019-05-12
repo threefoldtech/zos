@@ -89,3 +89,28 @@ func TestIsolation(t *testing.T) {
 		assert.NotEqual(content, b)
 	})
 }
+
+func TestDownloadFlist(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	x, cleanup := testFlistModule(t)
+	defer cleanup()
+
+	f, ok := x.(*flistModule)
+	require.True(ok)
+	path1, err := f.downloadFlist("https://hub.grid.tf/zaibon/ubuntu_bionic.flist")
+	require.NoError(err)
+
+	info1, err := os.Stat(path1)
+	require.NoError(err)
+
+	path2, err := f.downloadFlist("https://hub.grid.tf/zaibon/ubuntu_bionic.flist")
+	require.NoError(err)
+
+	assert.Equal(path1, path2)
+
+	// mod time should be the same, this proof the second download
+	// didn't actually re-wrote the file a second time
+	info2, err := os.Stat(path2)
+	assert.Equal(info1.ModTime(), info2.ModTime())
+}

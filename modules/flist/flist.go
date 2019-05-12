@@ -69,16 +69,9 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 		storage = defaultStorage
 	}
 
-	rc, err := downloadFlist(url)
+	flistPath, err := f.downloadFlist(url)
 	if err != nil {
 		sublog.Err(err).Msg("fail to download flist")
-		return "", err
-	}
-	defer rc.Close()
-
-	flistPath, err := f.saveFlist(rc)
-	if err != nil {
-		sublog.Err(err).Msg("fail to save flist on disk")
 		return "", err
 	}
 
@@ -159,33 +152,80 @@ func (f *flistModule) Umount(path string) error {
 	return nil
 }
 
-func downloadFlist(url string) (io.ReadCloser, error) {
-	// todo check if we don't already have it
-	resp, err := http.Get(url)
+// downloadFlist downloads an flits from a URL
+// if the flist location also provide and md5 hash of the flist
+// this function will use it to avoid downloading an flist that is
+// already present locally
+func (f *flistModule) downloadFlist(url string) (string, error) {
+	// first check if the md5 of the flist is available
+	md5URL := url + ".md5"
+	resp, err := http.Get(md5URL)
 	if err != nil {
-		return nil, err
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		hash, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+
+		flistPath := filepath.Join(f.flist, strings.TrimSpace(string(hash)))
+		_, err = os.Stat(flistPath)
+		if err != nil && !os.IsNotExist(err) {
+			return "", err
+		}
+		if err == nil {
+			log.Info().Str("url", url).Msg("flist already in cache")
+			// flist is already present locally, just return its path
+			return flistPath, nil
+		}
 	}
 
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("fail to download flist: %v", resp.Status)
-	}
-
-	return resp.Body, nil
-}
-
-func (f *flistModule) saveFlist(r io.Reader) (string, error) {
-	b, err := ioutil.ReadAll(r)
+	log.Info().Str("url", url).Msg("flist not in cache, downloading")
+	// we don't have the flist locally yet, let's download it
+	resp, err = http.Get(url)
 	if err != nil {
 		return "", err
 	}
 
-	hash := fmt.Sprintf("%x", md5.Sum(b))
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("fail to download flist: %v", resp.Status)
+	}
+
+	return f.saveFlist(resp.Body)
+}
+
+// saveFlist save the flist contained in r
+// it save the flist by its md5 hash
+// to avoid loading the full flist in memory to compute the hash
+// it uses a MultiWriter to write the flist in a temporary file and fill up
+// the md5 hash then it rename the file to the hash
+func (f *flistModule) saveFlist(r io.Reader) (string, error) {
+	tmp, err := ioutil.TempFile(f.flist, "*_flist_temp")
+	if err != nil {
+		return "", err
+	}
+	defer tmp.Close()
+
+	h := md5.New()
+	mr := io.MultiWriter(tmp, h)
+	if _, err := io.Copy(mr, r); err != nil {
+		return "", err
+	}
+
+	hash := fmt.Sprintf("%x", h.Sum(nil))
 	path := filepath.Join(f.flist, hash)
 	if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
 		return "", err
 	}
 
-	return path, ioutil.WriteFile(path, b, 0440)
+	if os.Rename(tmp.Name(), path); err != nil {
+		return "", err
+	}
+
+	return path, nil
 }
 
 func random() (string, error) {
