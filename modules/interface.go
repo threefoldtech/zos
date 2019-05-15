@@ -3,7 +3,7 @@ package modules
 //go:generate rm -rf stubs
 //go:generate mkdir stubs
 
-//go:generate zbus -module flist -version 0.0.1 -name flist -package stubs github.com/threefoldtech/zosv2/modules+Flister stubs/flist_stub.go
+//go:generate zbusc -module flist -version 0.0.1 -name flist -package stubs github.com/threefoldtech/zosv2/modules+Flister stubs/flist_stub.go
 
 //Flister is the interface for the flist module
 type Flister interface {
