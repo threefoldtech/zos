@@ -135,7 +135,7 @@ func (f *flistModule) Umount(path string) error {
 	}
 
 	if !strings.HasPrefix(path, f.root) {
-		return fmt.Errorf("trying to unmount a directory outside of the flist module boundraries")
+		return fmt.Errorf("trying to unmount a directory outside of the flist module boundaries")
 	}
 
 	if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil {
@@ -151,9 +151,12 @@ func (f *flistModule) Umount(path string) error {
 	// clean up working dirs
 	logPath := filepath.Join(f.log, name) + ".log"
 	backend := filepath.Join(f.root, "backend", name)
-	_ = os.RemoveAll(logPath)
-	_ = os.RemoveAll(backend)
-	_ = os.RemoveAll(path)
+	for _, path := range []string{logPath, backend, path} {
+		if err := os.RemoveAll(path); err != nil {
+			log.Error().Err(err).Msg("fail to remove %s")
+			return err
+		}
+	}
 
 	return nil
 }
