@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,6 +15,16 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/stubs"
 )
+
+var (
+	rpcTest = flag.Bool("rpc", false, "run RPC tests")
+)
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	os.Exit(m.Run())
+}
 
 func testPrepareRPC(t *testing.T) (modules.Flister, func()) {
 	const redisAddr = "tcp://localhost:6379"
@@ -38,7 +49,12 @@ func testPrepareRPC(t *testing.T) (modules.Flister, func()) {
 	return flist, cleanup
 }
 
-func TestRPCMount(t *testing.T) {
+func TestRPCMountUmount(t *testing.T) {
+	// only run these test when rpc flag is passed
+	if !*rpcTest {
+		t.SkipNow()
+	}
+
 	require := require.New(t)
 	assert := assert.New(t)
 
