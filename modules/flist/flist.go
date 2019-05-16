@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"crypto/md5"
 	"crypto/rand"
 	"fmt"
@@ -94,7 +96,7 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 		"-storage-url", storage,
 		"-daemon",
 		"-pid", pidPath,
-		"-logfile", logPath,
+		"-log", logPath,
 		mountpoint,
 	}
 	sublog.Info().Strs("args", args).Msg("starting 0-fs daemon")
@@ -105,11 +107,15 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 		return "", err
 	}
 
-	//FIXME: find a better way to know when 0-fs is read
-	// if I don't sleep here, the pid file can already be created while the
-	// filesystem might be not ready yet
-	time.Sleep(time.Second)
-	if err := waitPidFile(time.Second*2, pidPath, true); err != nil {
+	// wait for the daemon to be ready
+	// we check the pid file is created
+	if err := waitPidFile(time.Second*5, pidPath, true); err != nil {
+		sublog.Error().Err(err).Msg("pid file of 0-fs daemon not created")
+		return "", err
+	}
+	// and scan the logs after "mount ready"
+	if err := waitMountedLog(time.Second*5, logPath); err != nil {
+		sublog.Error().Err(err).Msg("0-fs daemon did not start properly")
 		return "", err
 	}
 
@@ -239,37 +245,81 @@ func random() (string, error) {
 // is exists is true, it waits for the file to exists
 // else it waits for the file to be deleted
 func waitPidFile(timeout time.Duration, path string, exists bool) error {
-	delay := time.Millisecond * 100
-	cTimeout := time.After(timeout)
-	cDone := make(chan struct{})
+	const delay = time.Millisecond * 100
+	cErr := make(chan error)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
 	go func() {
 		for {
-			_, err := os.Stat(path)
-			if exists {
-				if err != nil {
-					time.Sleep(delay)
-					continue
+			select {
+			case <-ctx.Done():
+				cErr <- ctx.Err()
+			default:
+				_, err := os.Stat(path)
+				if exists {
+					if err != nil {
+						time.Sleep(delay)
+						continue
+					}
+					cErr <- nil
 				} else {
-					break
-				}
-			} else {
-				if err == nil {
-					time.Sleep(delay)
-				} else {
-					break
+					if err == nil {
+						time.Sleep(delay)
+						continue
+					}
+					cErr <- nil
 				}
 			}
 		}
-		cDone <- struct{}{}
 	}()
 
-	select {
-	case <-cTimeout:
-		return fmt.Errorf("timeout wait for pid file")
-	case <-cDone:
-		return nil
+	return <-cErr
+}
+
+func waitMountedLog(timeout time.Duration, logfile string) error {
+	const target = "mount ready"
+	const delay = time.Millisecond * 500
+
+	f, err := os.Open(logfile)
+	if err != nil {
+		return err
 	}
+	defer f.Close()
+	br := bufio.NewReader(f)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// this goroutine looks for "mount ready"
+	// in the logs of the 0-fs
+	cErr := make(chan error)
+	go func(ctx context.Context, r io.Reader, cErr chan<- error) {
+		for {
+			select {
+			case <-ctx.Done():
+				// ensure we don't leak the goroutine
+				cErr <- ctx.Err()
+			default:
+				line, err := br.ReadString('\n')
+				if err != nil {
+					time.Sleep(delay)
+					continue
+				}
+
+				if strings.Index(line, target) == -1 {
+					time.Sleep(delay)
+					continue
+				}
+				// found
+				cErr <- nil
+				return
+			}
+		}
+	}(ctx, br, cErr)
+
+	return <-cErr
 }
 
 var _ modules.Flister = (*flistModule)(nil)
