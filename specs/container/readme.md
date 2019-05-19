@@ -39,3 +39,25 @@ type ContainerModule interface {
     Ps(ID string) (error)
 }
 ```
+
+## OCI bundle
+The oci bundle must define `rootfs` and a `config.json`. currently flist defines only the `rootfs` of a container. There are no attached meta to define entrypoint, env variables, exposed ports, etc ...
+
+Since the flist is a tar that container only one file (the rootfs db), it's okay we add more files to the tar. I suggest we add custom meta file that containes
+the messing pieces of the bundle that we need to construct the final `config.json` file.
+
+### Flist meta
+List of config.json entries that can be defined during the flist build stage.
+- args (this defines entrypoing exec and full arguments list)
+- env (environ variable to be available inside the contianer)
+- exposed ports (this will allow auto port forward to the application ports automatically if asked)
+- available mount destinations (?)
+
+### Runtime meta
+Parts of the `config.json` that must be chosen during the `runtime` or the time of creating the container on the node
+- Privilege profile. We will probably have few pre-defined profiles for privilege (privileged and non-privileged).
+  - cgroups (cpu, memory, devices, etc...)
+  - capabilities (libcap)
+- Mounts.
+- Hostname.
+- Network namespaces and configurations.
