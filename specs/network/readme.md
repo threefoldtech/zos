@@ -32,3 +32,4 @@ Basic flow for network space creation:
 
 Wireguard inter connection:
 ![inter_node_wireguard](../../assets/inter_node_wireguard.png)
+
