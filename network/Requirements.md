@@ -74,6 +74,8 @@ That means that, because of the very existence of the Internet, we can basically
 
 In order to keep things simple (for users, that is), the idea would be to have an IPv6-only network up until some 4->6 translation (be it over l3 or l4/7) for services that need to be reachable over IPv4. 
 
+Of course, for IPv6 to be a viable thing, every service will need to be named, as it is virtually impossible to use IPv6 addresses as service endpoint definitions. IPv6 addresses need to be resolved by name services in any case. That also means that all applications need to be able to resolve.
+
 ## Routing
 
 When using IPv6, we'll need to handle routing to the services that have by definition their own IPv6 address, noting that a 'service' is mostly a container with a single process running in it.
@@ -89,10 +91,17 @@ But the other way around tends to get less simple.
 
 IPv6 allocations differ per site and availabilty. 
   - in a DC that hands out IPv6 allocations, you can get them as well static as through BGP. Most ISP's/DC's will require that you request an allocation from the RIR , or if a DC is a LIR they can allocate one to you from their pool. Mostly you'll get a /48, i.e. 16K subnets.  
-  In IPV6-land static routing is severely frowned upon, and most will just setup a filter in their router so that they allow you to announce your subnet to your BGP peer(the provider's router). Hence: in 90% of the cases, you'll be bound to have a BGP router installed and configured, from where you can subclass your prefix. 
+  In IPv6-land static routing is severely frowned upon, and most will just setup a filter in their router so that they allow you to announce your subnet to your BGP peer(the provider's router). Hence: in 90% of the cases, you'll be bound to have a BGP router installed and configured, from where you can subclass your prefix.  
 
   - in a home network with an ISP-provided wifi AP/router, there will be 'just' a (one) `/64` available, so if you would wish to provide the same type of networking setup to a node in a home network, we'll need to establish a tunnel to an exit with a prefix that is routable through that tunnel. TODO: more explanation.
 
   - the same applies for home routers that only have IPv4 (e.g 192.168.0.0/24).
 
 
+## IPv4 <-> IPv6 communications
+
+## IPv6 prefixes for tenant networks (l2/l3) and prefix delegations.
+
+However a tenant network or endpoint providing a service is set-up, 
+
+## Service Registration and Discovery
