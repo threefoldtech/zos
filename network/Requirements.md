@@ -91,7 +91,7 @@ But the other way around tends to get less simple.
 
 IPv6 allocations differ per site and availabilty. 
   - in a DC that hands out IPv6 allocations, you can get them as well static as through BGP. Most ISP's/DC's will require that you request an allocation from the RIR , or if a DC is a LIR they can allocate one to you from their pool. Mostly you'll get a /48, i.e. 16K subnets.  
-  In IPv6-land static routing is severely frowned upon, and most will just setup a filter in their router so that they allow you to announce your subnet to your BGP peer(the provider's router). Hence: in 90% of the cases, you'll be bound to have a BGP router installed and configured, from where you can subclass your prefix.  
+  In IPv6-land static routing is severely frowned upon, and most will just setup a filter in their router so that they allow you to announce your full prefix to your BGP peer(the provider's router). Hence: in 90% of the cases, you'll be bound to have a BGP router installed and configured, from where you can subclass your prefix. 
 
   - in a home network with an ISP-provided wifi AP/router, there will be 'just' a (one) `/64` available, so if you would wish to provide the same type of networking setup to a node in a home network, we'll need to establish a tunnel to an exit with a prefix that is routable through that tunnel. TODO: more explanation.
 
@@ -100,8 +100,25 @@ IPv6 allocations differ per site and availabilty.
 
 ## IPv4 <-> IPv6 communications
 
+TODO
+
 ## IPv6 prefixes for tenant networks (l2/l3) and prefix delegations.
 
-However a tenant network or endpoint providing a service is set-up, 
+However a tenant network or endpoint providing a service is set-up, we need to establish on how we will interconnect a user's network. 
+
+Given that we want to define that a node is a completely stand-alone entity, we will also need to establish if and how we want to segregate multiple users their networks. It will be important that some networks are publicly reachable and some will only be reachable for specific networks.
+
+There are several ways to do this, each with their proper caveats and difficulties.
+
+1. ## Pure IPv6 routing with handling of firewall rules for each service/prefix/IP/port
+
+2. ## Tunneled networks in separate network namespaces
+
+3. ## 
+
+
+
+
 
 ## Service Registration and Discovery
+
