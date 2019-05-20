@@ -5,37 +5,23 @@ Its only focus is about starting a process with the proper isolation. So there i
 
 The container runtime used will be compatible with the [OCI specification](https://github.com/opencontainers/runtime-spec), but which one in particular is still to be decided.
 
-### Interface
+## Design
 
-```go
-type Container struct{
-    ID string
-    // ...TODO
-}
+One of the requirements of the container module is that any container running on 0-OS should not be affected by an upgrade/restart of any 0-OS module.
+In order to do that, we need to have shim process that keeps the file descriptor of the container open in case of a restart of the container module. The shim process is going to be the one responsible to talk to the OCI runtime to manage the container itself.
 
-type ContainerConfig struct {
-    // Path to the root of the filesystem bundle of the container
-    RootFS string
-    // Volume to mount bind in the container
-    Volume map[string]string
-    // Environment variable to set in the container
-    Env map[string]string
-}
+Next is a simplify version of the lifetime flow a container:
 
-type ContainerModule interface {
-    // Create creates a container
-    Create(config ContainerConfig) (c Container, err error)
-    // Delete deletes any resources held by the container
-    Delete(ID string) (error)
-    //create and run a container
-    Run(config ContainerConfig) (c Container, err error)
-    //executes the user defined process in a created container
-    Start(ID string) (error)
-    // pause suspends all processes inside the container
-    Pause(ID string) (error)
-    // resumes all processes that have been previously paused
-    Resume(ID string) (error)
-    // Ps displays the processes running inside a container
-    Ps(ID string) (error)
-}
-```
+![flow](../../assets/Container_module_flow.png)
+
+## Implementation
+
+Most of the work to implement such a system as already been done by other. Mainly containerd has some very nice libraries around
+shim and runc.
+
+Here is a list of link of interest:
+- [containerd](https://github.com/containerd/containerd)
+  - specifically the runtime package: https://github.com/containerd/containerd/tree/master/runtime
+- [containerd client example](https://github.com/containerd/containerd/blob/master/docs/getting-started.md)
+- [list of project that have integrated containerd](https://github.com/containerd/containerd/blob/master/ADOPTERS.md)
+- [firecracker shim design](https://github.com/firecracker-microvm/firecracker-containerd/blob/master/docs/shim-design.md)
