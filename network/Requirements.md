@@ -110,11 +110,15 @@ Given that we want to define that a node is a completely stand-alone entity, we 
 
 There are several ways to do this, each with their proper caveats and difficulties.
 
-1. ## Pure IPv6 routing with handling of firewall rules for each service/prefix/IP/port
+1. ### Pure IPv6 routing with handling of firewall rules for each service/prefix/IP/port
 
-2. ## Tunneled networks in separate network namespaces
+2. ### Tunneled networks in separate network namespaces
 
-3. ## 
+3. ### Tunneled networks with ULA prefixes for private networks and NAT
+
+4. ### Jool as a means to NAT ipv6 to ipv4 (snat/dnat)
+
+5. ### 
 
 
 
