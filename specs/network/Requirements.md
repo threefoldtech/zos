@@ -117,6 +117,10 @@ For this to work properly there are a few requisites:
   - Who is going to hand out a prefix that is :
     1. part of the prefixes allocated to a node
     2. will be grouped into a network of prefixes for a user
+  - Where do we store prefix allocations for a node/site:
+    1. When in a DC and we received an allocation (like a /48 or even /40)
+    2. When a node is deployed in a home network with or without IPv6. That means that we need to know where we'll have an exit container running, have the tunnel set-up, and have an allocation for the prefix.
+    3. When multiple nodes are interconnected from home networks, we'll also need to provide for some hole punchers for the wireguards in the pause containers of the users.
 
 2. ### Tunneled networks in separate network namespaces
 
