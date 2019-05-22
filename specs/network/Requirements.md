@@ -112,17 +112,29 @@ There are several ways to do this, each with their proper caveats and difficulti
 
 1. ### Pure IPv6 routing with handling of firewall rules for each service/prefix/IP/port
 
+A tenant network is a group of prefixes per user of the grid. Each prefix is owned by a node. In a node, services of the same user live within the same prefix, be it in a pause container, over a bridge , or in a vm connected to that bridge.  
+For this to work properly there are a few requisites:
+  - Who is going to hand out a prefix that is :
+    1. part of the prefixes allocated to a node
+    2. will be grouped into a network of prefixes for a user
+
 2. ### Tunneled networks in separate network namespaces
 
 3. ### Tunneled networks with ULA prefixes for private networks and NAT
 
-4. ### Jool as a means to NAT ipv6 to ipv4 (snat/dnat)
+4. ### Jool as a means to NAT ipv6 to ipv4 (snat/dnat) and vice-versa
 
-5. ### 
+5. ### Considerations for farms (or nodes that live in a same subnet/prefix)
+
+6. ### Building tunnels 
 
 
 
 
 
-## Service Registration and Discovery
+## Service Registration and Discovery (aka DNS)
+
+1. ### IPv4/IPv6 Considerations and crossing boundaries
+
+2. ### Exposing an IPv4 address in an IPv6 world (DNS64)
 
