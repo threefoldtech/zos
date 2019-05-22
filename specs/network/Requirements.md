@@ -110,6 +110,10 @@ Given that we want to define that a node is a completely stand-alone entity, we 
 
 There are several ways to do this, each with their proper caveats and difficulties.
 
+But most of all things will need some configuration management that is stored __somewhere__. Every prefix has a link to a user __and__ a list of tunnel endpoints, with their routable prefixes.
+
+![Preliminary layout](Nodes.svg)
+
 1. ### Pure IPv6 routing with handling of firewall rules for each service/prefix/IP/port
 
 A tenant network is a group of prefixes per user of the grid. Each prefix is owned by a node. In a node, services of the same user live within the same prefix, be it in a pause container, over a bridge , or in a vm connected to that bridge.  
@@ -125,6 +129,7 @@ For this to work properly there are a few requisites:
 2. ### Tunneled networks in separate network namespaces
 
 3. ### Tunneled networks with ULA prefixes for private networks and NAT
+No need to work for this, as that can be viewed in the future
 
 4. ### Jool as a means to NAT ipv6 to ipv4 (snat/dnat) and vice-versa
 
