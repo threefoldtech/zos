@@ -5,7 +5,7 @@ Its only focus is about starting a process with the proper isolation. So there i
 
 The container runtime used will be compatible with the [OCI specification](https://github.com/opencontainers/runtime-spec), but which one in particular is still to be decided.
 
-### Interface
+## Interface
 
 ```go
 type Container struct{
@@ -40,48 +40,57 @@ type ContainerModule interface {
 }
 ```
 
-# OCI bundle
+## OCI bundle
+
 The oci bundle must define `rootfs` and a `config.json`. currently flist defines only the `rootfs` of a container. There are no attached meta to define entrypoint, env variables, exposed ports, etc ...
 
-Since the flist is a tar that container only one file (the rootfs db), it's okay we add more files to the tar. I suggest we add custom meta file that containes
-the messing pieces of the bundle that we need to construct the final `config.json` file.
+Since the flist is a tar that container only one file (the rootfs db), it's okay we add more files to the tar. I suggest we add custom meta file that contains
+the missing pieces of the bundle that we need to construct the final `config.json` file.
 
-## Flist meta
-List of config.json entries that can be defined during the flist build stage.
-- args (this defines entrypoing exec and full arguments list)
-- env (environ variable to be available inside the contianer)
+### Flist meta
+
+Part of the `config.json` entries that can be defined byt the user during the flist build stage or when creating a container:
+
+- process.terminal
+- process.user
+- process.args
+- process.env
+- process.cwd
+- hostname
+- mounts (for persistent storage)
+
+Next to these field we will also authorized:
+
 - exposed ports (this will allow auto port forward to the application ports automatically if asked)
-- available mount destinations (?)
 
-## Runtime meta
-Parts of the `config.json` that must be chosen during the `runtime` or the time of creating the container on the node
-- Privilege profile. We will probably have few pre-defined profiles for privilege (privileged and non-privileged).
-  - cgroups (cpu, memory, devices, etc...)
-  - capabilities (libcap)
-- Mounts.
-- Hostname.
-- Network namespaces and configurations.
+### Runtime meta
 
-# Profiles
-We supported only 2 profiles with zos v1 as follows:
+Parts of the `config.json` that must be chosen by 0-OS during the creating the container on the node:
 
-## Unprivileged
-- No access to node devices (device cgrpups)
-- Reduced capabilities (libcap)
-- CPU and Memory cgroups
-- Isolated users, pids, ns, and uts namespaces
+TODO: The value for each of these field needs to be defined (@maxux, @muhamadazmy, @delandtj), full example for linux: https://github.com/opencontainers/runtime-spec/blob/master/config.md#configuration-schema-example
 
-TODO: define the base `config.json` that limit the container to these limitations
+- process.capabilities
+- rlimits
+- apparmorProfile
+- oomScoreAdj
+- selinuxLabel
+- noNewPrivileges
+- mounts (default one)
+- hooks (used for network configuration)
+- linux.devices
+- linux.sysctl
+- cgroupsPath
+- resources.network
+- resources.pids
+- resources.hugepageLimits
+- resources.memory
+- resources.cpu
+- resources.devices
+- resources.blockIO
+- rootfsPropagation
+- seccomp
+- namespaces
+- maskedPaths
+- readonlyPaths
+- mountLabel
 
-## Privileged
-- Full access to device nodes
-- Full capabilities
-- No CPU, Memory limits
-- Isolated users, pids, ns, and uts namespaces
-
-TODO: define the base `config.json` that applies these limitations
-
-## Host networking
-This is not a separate profile, but actually can be applied with both Privileged and Unprivileged profiles.
-Once the host network is set, no new `ns` (network namespace) is created so containers shares the same networks
-stack with the node.
