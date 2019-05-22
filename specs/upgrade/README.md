@@ -40,7 +40,7 @@ Example:
 root
 ├── bin
     ├── containerd
-
+    └── runc
 ```
 
 upgrade flist:
