@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"syscall"
 	"time"
@@ -12,7 +11,7 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
-	"github.com/threefoldtech/zosv2/modules/flist/flister"
+	"github.com/threefoldtech/zosv2/modules/flist"
 )
 
 func main() {
@@ -33,11 +32,7 @@ func caddyExample() error {
 	ctx := namespaces.WithNamespace(context.Background(), "example")
 
 	// download and mount the caddy flist
-	flistRoot, err := ioutil.TempDir("", "")
-	if err != nil {
-		return err
-	}
-	flister := flister.New(flistRoot)
+	flister := flist.New("")
 
 	path, err := flister.Mount("https://hub.grid.tf/tf-official-apps/caddy.flist", "")
 	if err != nil {
