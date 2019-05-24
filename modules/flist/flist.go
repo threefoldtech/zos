@@ -45,7 +45,7 @@ func New(root string) modules.Flister {
 		root = defaultRoot
 	}
 
-	if err := os.MkdirAll(root, 0750); err != nil {
+	if err := os.MkdirAll(root, 0770); err != nil {
 		panic(err)
 	}
 
