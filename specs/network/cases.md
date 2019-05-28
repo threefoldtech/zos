@@ -81,7 +81,6 @@ type connected {
 enum connection {
     wireguard
     localvxlan
-    localgre
 }
 
 // see above for the type definition.
@@ -103,12 +102,18 @@ type wireguard {
 }
 
 // definition for later usage
+// an l2vxlan wil be connected to a default bridge that gets attached to the
+// network resource. That way we can easily add a vxlan to that bridge for 
+// local interconnectivity
 type l2vxlan {
+    // deterministic or stored... 
     nicname
-    peer
-    id
+    // Or it's through fdb entries 
+    Option<peer>
+    // Or it's in a multicast vxlan
     Option<group>
-    ll_fe80
+    // a vxlan always has an ID
+    id
 }
 
 ```
@@ -116,7 +121,7 @@ type l2vxlan {
 ### QUESTIONS:
 
   - Storage of network objects.
-  It has been said that we will use the 'blockchain' to store 'things'. A network/network resource could very well be such a 'thing', but at the moment there is no clear view on how to do that and how big these 'things' can be.
+  It has been said that we will use the 'blockchain' to store 'things'. A network/network resource could very well be such a 'thing', but at the moment there is no clear view on how to do that and how big these 'things' can be. Also, that 'thing' needs to be encrypted to make sure we don't enlarge a possible attack surface towards a tenant network.
   - notification of change of network objects to interested parties. 
   In case we can use the blockchain to store things, how will other nodes be notified a new network resource is created so that tunnels and routing can be built to establish connectivity to all network resources of a tenant network
   - static routing 
