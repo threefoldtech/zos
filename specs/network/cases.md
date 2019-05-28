@@ -133,21 +133,20 @@ type l2vxlan {
 
 ### QUESTIONS:
 
-  - #### Storage of network objects.
+  - Storage of network objects.
   It has been said that we will use the 'blockchain' to store 'things'. A network/network resource could very well be such a 'thing', but at the moment there is no clear view on how to do that and how big these 'things' can be. Also, that 'thing' needs to be encrypted to make sure we don't enlarge a possible attack surface towards a tenant network. 
   
-  - ####  Allocation handouts for network resources and their respective exits.
-  there is a big difference between a node hosted in a home network or an IPv4-only network and a node that lives in a network that allows for multiple subnets. Case in point:
-    1. A node in an IPv4 Home network.
-    Network resources in that node will have an exit in a node that lives in a network that can hand out IPv6 allocations. Which also means that tenant networks are basically entities on their own, totally detached from the concept of a farmer selling a 'full stack resource'. A farmer sells normally cpu/storage/memory, but there is no mention of Networking in most of our calculations.  
+  - Allocation handouts for network resources and their respective exits.
+  There is a big difference between a node hosted in a home network or an IPv4-only network and a node that lives in a network that allows for multiple subnets. Case in point:  
+    1. A node in an IPv4 Home network. Network resources in that node will have an exit in a node that lives in a network that can hand out IPv6 allocations. Which also means that tenant networks are basically entities on their own, totally detached from the concept of a farmer selling a full stack resource. A farmer sells normally cpu,storage,memory, but there is no mention of Networking in most of our calculations.  
     But to alow for these resources to be available, that farmer will have to rely on Threefold or another farmer to have a network.
     1. A node in a farm that lives in an IPv4-only DC: same as above.
     1. A node in a farm in a DC or home that can hand out IPv6 allocations.
-    'Something' in that DC, or something that knows the alocations/farmer releationship has to hand out IPv6 allocations for requested network resources, __that are not in use__.
+    Something in that DC, or something that knows the alocations/farmer releationship has to hand out IPv6 allocations for requested network resources, that are not in use.
  
-  - #### Notification of change of network objects to interested parties. 
+  - Notification of change of network objects to interested parties. 
   In case we can use the blockchain to store things, how will other nodes be notified a new network resource is created so that tunnels and routing can be built to establish connectivity to all network resources of a tenant network
 
-  - #### Static routing 
+  - Static routing 
   With all these network resources, static routing can get very hairy very fast. I still think a dynamic routing protocol will make life a lot easier. The advantage is also that routing protocols can detect unavailable links and update routes and/or circumvent the broken link.  
   That being said, there is still some research and testing to do on how to handle erroneous wg links, and redefine a route through another. Depending on the size of a tenant network, most standard peer-to-peer meshes will just be allright for now.
