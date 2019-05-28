@@ -2,14 +2,11 @@ package container
 
 import (
 	"context"
-	"fmt"
-	"syscall"
-	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
-	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
+	"github.com/google/shlex"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/stubs"
@@ -24,7 +21,7 @@ type containerModule struct {
 	containerd string
 }
 
-func New(zcl zbus.Client, containerd string) modules.Container {
+func New(zcl zbus.Client, containerd string) modules.ContainerModule {
 	if len(containerd) == 0 {
 		containerd = containerdSock
 	}
@@ -37,20 +34,23 @@ func New(zcl zbus.Client, containerd string) modules.Container {
 
 // NOTE:
 // THIS IS A WIP Create action and it's not fully implemented atm
-func (c *containerModule) Create(ns, flist string) (err error) {
+func (c *containerModule) Run(name string, flist string, tags []string, network modules.NetworkInfo,
+	mounts []modules.MountInfo, entrypoint string) (id modules.ContainerID, err error) {
 	// create a new client connected to the default socket path for containerd
 	client, err := containerd.New(c.containerd)
 	if err != nil {
-		return err
+		return id, err
 	}
 	defer client.Close()
 
-	// create a new context with an "example" namespace
-	ctx := namespaces.WithNamespace(context.Background(), ns)
+	args, _ := shlex.Split(entrypoint)
 
-	path, err := c.flister.Mount("https://hub.grid.tf/tf-official-apps/caddy.flist", "")
+	// create a new context with an "example" namespace
+	// ctx := namespaces.WithNamespace(context.Background(), ns)
+	ctx := context.Background()
+	path, err := c.flister.Mount(flist, "")
 	if err != nil {
-		return err
+		return id, err
 	}
 
 	defer func() {
@@ -62,15 +62,15 @@ func (c *containerModule) Create(ns, flist string) (err error) {
 	// create a container
 	container, err := client.NewContainer(
 		ctx,
-		"caddy-server",
+		name,
 		containerd.WithNewSpec(
 			oci.WithDefaultSpecForPlatform("linux/amd64"),
 			oci.WithRootFSPath(path),
-			oci.WithProcessArgs("caddy")),
+			oci.WithProcessArgs(args...)),
 	)
 
 	if err != nil {
-		return err
+		return id, err
 	}
 
 	defer func() {
@@ -80,38 +80,25 @@ func (c *containerModule) Create(ns, flist string) (err error) {
 	}()
 
 	// create a task from the container
+	// TODO: change the creator to use a redirected output to a log
+	// file instead.
 	task, err := container.NewTask(ctx, cio.NewCreator(cio.WithStdio))
 	if err != nil {
-		return err
-	}
-	defer task.Delete(ctx)
-
-	// make sure we wait before calling start
-	exitStatusC, err := task.Wait(ctx)
-	if err != nil {
-		fmt.Println(err)
+		return id, err
 	}
 
 	// call start on the task to execute the redis server
 	if err := task.Start(ctx); err != nil {
-		return err
+		return id, err
 	}
 
-	// sleep for a lil bit to see the logs
-	time.Sleep(3 * time.Second)
+	return id, nil
+}
 
-	// kill the process and get the exit status
-	if err := task.Kill(ctx, syscall.SIGTERM); err != nil {
-		return err
-	}
+func (c *containerModule) Inspect(id modules.ContainerID) (modules.ContainerInfo, error) {
+	return modules.ContainerInfo{}, nil
+}
 
-	// wait for the process to fully exit and print out the exit status
-	status := <-exitStatusC
-	code, _, err := status.Result()
-	if err != nil {
-		return err
-	}
-	fmt.Printf("caddy exited with status: %d\n", code)
-
+func (c *containerModule) Delete(id modules.ContainerID) error {
 	return nil
 }
