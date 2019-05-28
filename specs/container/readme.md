@@ -65,14 +65,13 @@ type ContainerInfo struct {
 
 
 type ContainerModule interface {
-    // Run creates and starts a container on the node. It optionally starts
-    // the `entrypoint` if provided, otherwise, the entrypoint from the flist
-    // meta data is started instead.
-    func Run(name string, flist string, tags []string, network NetworkInfo, 
+    // Run creates and starts a container on the node. It auto starts commnad line
+    // defined by `entrypoint`
+    Run(name string, flist string, tags []string, network NetworkInfo, 
             mounts []MountInfo, entrypoint string) (ContainerID, error)
 
     // Inspect, return information about the container, given its container id
-    func Inspect(id ContainerID) (ContainerInfo, error)
-    func Delete(id ContainerID) error
+    Inspect(id ContainerID) (ContainerInfo, error)
+    Delete(id ContainerID) error
 }
 ```
