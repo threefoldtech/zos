@@ -1,5 +1,5 @@
 
-### A Network ID defines interconnected networks and their (single?) exit.
+### A (tenant) network defines interconnected networks and their (single?) exit.
 
 ```
 type network {
