@@ -32,3 +32,8 @@ Basic flow for network space creation:
 
 Wireguard inter connection:
 ![inter_node_wireguard](../../assets/inter_node_wireguard.png)
+
+
+1. user asks for a new network resource in farm F 
+2. 3bot verifies if a network resource is paid for in Farm F for User U -> Network resource ID
+3. 3bot requests in Farm F an IPv6 allocation (/64) for network resource ID -> /64
