@@ -44,13 +44,34 @@ allow zos0
 
 ### Build our Bridge
 
-- Next step, just create a new empty bridge: `brctl addbr zos0`
-- Set an ip address to this bridge: `ip a add 10.244.0.254/24 dev zos0`
-- Set bridge up: `ip l set dev zos0 up`
-- Ensure you can route internet traffic: `echo 1 > /proc/sys/net/ipv4/ip_forward`
-- Set your host as DNAT router (replace eth0 with your internet interface): `iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE`
-- Ensure your firewall allows forwarding packets: `iptables -P FORWARD ACCEPT`
-- Start dnsmasq: `dnsmasq --interface vm0 --no-daemon --dhcp-range=10.244.0.100,10.244.0.200,2h`
+- Next step, just create a new empty bridge:
+```
+brctl addbr zos0
+```
+- Set an ip address to this bridge:
+```
+ip a add 10.244.0.254/24 dev zos0
+```
+- Set bridge up:
+```
+ip l set dev zos0 up
+```
+- Ensure you can route internet traffic:
+```
+echo 1 > /proc/sys/net/ipv4/ip_forward
+```
+- Set your host as DNAT router (replace eth0 with your internet interface):
+```
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+```
+- Ensure your firewall allows forwarding packets:
+```
+iptables -P FORWARD ACCEPT
+```
+- Start dnsmasq:
+```
+dnsmasq --interface zos0 --no-daemon --dhcp-range=10.244.0.100,10.244.0.200,2h
+```
 
 You can now start your virtual machine !
 
