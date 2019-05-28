@@ -1,4 +1,4 @@
-module github.com/threefoldtech/zosv2
+module github.com/threefoldtech/zosv2/modules
 
 go 1.12
 

@@ -1,5 +1,8 @@
 package modules
 
+//go:generate mkdir -p stubs
+//go:generate zbusc -module container -version 0.0.1 -name container -package stubs github.com/threefoldtech/zosv2/modules+ContainerModule stubs/container_stub.go
+
 type ContainerID string
 
 type NetworkInfo struct {
