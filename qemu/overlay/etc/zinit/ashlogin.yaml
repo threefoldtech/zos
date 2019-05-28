@@ -1,0 +1,1 @@
+exec: bash /etc/zinit/init/ashlogin.sh
