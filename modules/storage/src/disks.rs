@@ -1,13 +1,20 @@
 use crate::executor;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 const USB_SUBSYSTEM: &'static str = "block:scsi:usb:pci";
 const CD_TYPE: &'static str = "rom";
 const PARTITION_TYPE: &'static str = "part";
+
 const CACHE_LABEL: &'static str = "sp_zos_cache";
+
+const CACHE_DIR: &'static str = "/var/cache";
+const SHARED_CACHE: &'static str = "/var/cache/zerofs";
+
+const CONTAINER_DIR: &'static str = "/var/cache/containers";
+const VM_DIR: &'static str = "/var/cache/vms";
 
 const MOUNT_DIR_STR: &'static str = "/mnt/storagepools/sp_zos_cache";
 const DISK_LABEL_PATH: &'static str = "/dev/disk/by-label";
@@ -42,11 +49,15 @@ impl<'a> DiskManager<'a> {
             });
         }
 
-        DiskManager {
+        let mut dm = DiskManager {
             executor,
 
             device_nodes: nodes,
-        }
+        };
+
+        dm.ensure_cache().expect("Failed to mount cache");
+
+        dm
     }
 
     /// list all free nodes on the system. A free node is defined as not having a filesystem, and,
@@ -86,7 +97,7 @@ impl<'a> DiskManager<'a> {
         }
 
         let disk = {
-            let mut base = std::path::PathBuf::from(DISK_LABEL_PATH);
+            let mut base = PathBuf::from(DISK_LABEL_PATH);
             base.push(CACHE_LABEL);
 
             base
@@ -109,6 +120,67 @@ impl<'a> DiskManager<'a> {
 
         self.executor
             .mount(disk.to_str().unwrap(), &mount_dir, None)?;
+
+        if self.executor.is_directory_mountpoint(mount_dir)? {
+            info!("Create and mount subvolume for {}", CACHE_LABEL);
+
+            // cache subvol
+            debug!("Mounting cache dir");
+            let cache_path = {
+                let mut buf = PathBuf::from(mount_dir);
+                buf.push("cache");
+
+                buf
+            };
+            self.executor.create_btrfs_subvol(cache_path.as_path())?;
+            self.executor.mount(
+                cache_path.as_path().to_str().unwrap(),
+                &Path::new(CACHE_DIR),
+                None,
+            )?;
+
+            // cleanup old dirs
+            debug!("Cleanup old vm and container working dirs");
+            for p in &[CONTAINER_DIR, VM_DIR] {
+                let dir = Path::new(p);
+                let vols = self.executor.list_dir(dir)?;
+                for vol in vols {
+                    self.executor.delete_btrfs_subvol(&vol.path())?;
+                    self.executor.delete_dir(&vol.path())?;
+                }
+            }
+
+            // log subvol
+            debug!("Mounting log dir");
+            let mut log_path = {
+                let mut buf = PathBuf::from(mount_dir);
+                buf.push("logs");
+
+                buf
+            };
+            self.executor.create_btrfs_subvol(log_path.as_path())?;
+            let time = chrono::Local::now();
+            let log_dir_name = format!("log-{}", time.format("%Y%m%d-%H:%M"));
+            log_path.push(log_dir_name);
+            self.executor.create_btrfs_subvol(log_path.as_path())?;
+
+            debug!("Copy old logs to log dir");
+            self.executor
+                .copy_dir(Path::new("/var/log/*"), log_path.as_path())?;
+            self.executor.mount(
+                log_path.as_path().to_str().unwrap(),
+                Path::new("/var/log"),
+                None,
+            )?;
+
+            info!("Try to mount shared cache");
+            let shared_cache = Path::new(SHARED_CACHE);
+            self.executor.make_dir(shared_cache)?;
+            match self.executor.mount("zoscache", shared_cache, Some("9p"))? {
+                true => debug!("Shared cache mounted"),
+                false => debug!("Failed to mount shared cache"),
+            }
+        }
 
         Ok(())
     }
@@ -159,9 +231,9 @@ impl<'a> DiskManager<'a> {
                             disk_empty = false;
                             break;
                         }
-                        if disk_empty {
-                            return Ok(Some(disk.node_info));
-                        }
+                    }
+                    if disk_empty {
+                        return Ok(Some(disk.node_info));
                     }
                 }
             }

@@ -110,7 +110,7 @@ impl super::Executor for System {
         Ok(results)
     }
 
-    fn mount(&mut self, device: &str, dir: &Path, fs_type: Option<&str>) -> super::Result<()> {
+    fn mount(&mut self, device: &str, dir: &Path, fs_type: Option<&str>) -> super::Result<bool> {
         // mount (-t {fs_type}) {device} {dir}
         let mut cmd = Command::new("mount");
         if let Some(fs_type) = fs_type {
@@ -120,9 +120,13 @@ impl super::Executor for System {
         cmd.arg(device);
         cmd.arg(dir);
 
-        cmd.spawn()?.wait()?;
-
-        Ok(())
+        match cmd.status()?.code() {
+            Some(code) => match code {
+                0 => Ok(true),
+                _ => Ok(false),
+            },
+            None => Err(super::Error::UnknownExitCode),
+        }
     }
 
     fn copy_dir(&mut self, source: &Path, target: &Path) -> super::Result<()> {

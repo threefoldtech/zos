@@ -13,7 +13,7 @@ pub trait Executor {
     fn delete_btrfs_subvol(&mut self, path: &Path) -> Result<()>;
     fn delete_dir(&mut self, path: &Path) -> Result<()>;
     fn list_dir(&mut self, path: &Path) -> Result<Vec<std::fs::DirEntry>>;
-    fn mount(&mut self, device: &str, dir: &Path, fs_type: Option<&str>) -> Result<()>;
+    fn mount(&mut self, device: &str, dir: &Path, fs_type: Option<&str>) -> Result<bool>;
     fn copy_dir(&mut self, source: &Path, target: &Path) -> Result<()>;
     fn make_dir(&mut self, path: &Path) -> Result<()>;
     fn is_directory_mountpoint(&self, path: &Path) -> Result<bool>;
