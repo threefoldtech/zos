@@ -25,3 +25,54 @@ Here is a list of link of interest:
 - [containerd client example](https://github.com/containerd/containerd/blob/master/docs/getting-started.md)
 - [list of project that have integrated containerd](https://github.com/containerd/containerd/blob/master/ADOPTERS.md)
 - [firecracker shim design](https://github.com/firecracker-microvm/firecracker-containerd/blob/master/docs/shim-design.md)
+
+
+## Module interface
+
+```go
+type ContainerID string
+
+type NetworkInfo struct{
+    // Currently a container can only join one (and only one)
+    // network namespace that has to be pre defined on the node
+    // for the container tenant
+    
+    // Containers don't need to know about anything about bridges,
+    // IPs, wireguards since this is all is only known by the network
+    // resource which is out of the scope of this module
+    Namespace string
+}
+
+type MountInfo struct {
+    Source string // source of the mount point on the host
+    Target string // target of mount inside the container
+}
+
+type ContainerInfo struct {
+    ID ContainerID
+    //Container info
+    Name string
+    Flist string 
+    Tags []string
+    Network NetworkInfo
+    Mounts []MountInfo
+
+    // NOTE:
+    // Port forwards are not defined by the container. It can be defined
+    // by the Network namespace resource. BUT ideally, no port forwards 
+    // will ever be needed since all is gonna be routing based.
+}
+
+
+type ContainerModule interface {
+    // Run creates and starts a container on the node. It optionally starts
+    // the `entrypoint` if provided, otherwise, the entrypoint from the flist
+    // meta data is started instead.
+    func Run(name string, flist string, tags []string, network NetworkInfo, 
+            mounts []MountInfo, entrypoint string) (ContainerID, error)
+
+    // Inspect, return information about the container, given its container id
+    func Inspect(id ContainerID) (ContainerInfo, error)
+    func Delete(id ContainerID) error
+}
+```
