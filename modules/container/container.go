@@ -114,6 +114,20 @@ func (c *containerModule) Run(ns string, name string, flist string, tags, env []
 		)
 	}
 
+	for _, mount := range mounts {
+		opts = append(
+			opts,
+			oci.WithMounts([]specs.Mount{
+				{
+					Destination: mount.Target,
+					Type:        mount.Type,
+					Source:      mount.Source,
+					Options:     mount.Options,
+				},
+			}),
+		)
+	}
+
 	ctx := namespaces.WithNamespace(context.Background(), ns)
 
 	container, err := client.NewContainer(
