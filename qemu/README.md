@@ -9,25 +9,6 @@ For ease of use a Makefile is also provided. To prepare your environment call `m
 
 You also need to create a bridge called `zos0` and have a dhcp server giving out IP on the bridge range.
 
-Example bridge config:
-
-```
-Description="zos0"
-Interface=zos0
-Connection=bridge
-IP=static
-Address=172.20.0.1/24 # use a range that fits your network
-DNS=(8.8.8.8)
-```
-
-Example dnsmasq config:
-
-```
-domain=172.20.0.0/24,local
-interface=lxc0
-dhcp-range=172.20.0.10,172.20.0.100,24h
-```
-
 To start the 0-OS VM, do `make start`
 
 ## Prepare the bridge manually
@@ -36,6 +17,7 @@ To start the 0-OS VM, do `make start`
 
 First thing to do, ensure your qemu's bridge configuration allows our bridge, edit file `/etc/qemu/bridge.conf`.
 The bridge we will use is called `zos0`, you need to allow this bridge:
+
 ```
 # This should have the following permissions: root:qemu 0640
 # [...]
@@ -71,6 +53,24 @@ iptables -P FORWARD ACCEPT
 - Start dnsmasq:
 ```
 dnsmasq --interface zos0 --no-daemon --dhcp-range=10.244.0.100,10.244.0.200,2h
+```
+
+If you are using netctl to configure you bridge, here is an example config:
+
+```
+Description="zos0"
+Interface=zos0
+Connection=bridge
+IP=static
+Address=10.244.0.254/24 # use a range that fits your network
+DNS=(8.8.8.8)
+```
+
+Example dnsmasq config:
+
+```
+interface=zos0
+dhcp-range=10.244.0.100,10.244.0.244,2h
 ```
 
 You can now start your virtual machine !
