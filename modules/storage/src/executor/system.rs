@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 
@@ -88,14 +89,7 @@ impl super::Executor for System {
     }
 
     fn delete_dir(&mut self, path: &Path) -> super::Result<()> {
-        // rm -rf {dir}
-        let mut cmd = Command::new("rm");
-        cmd.arg("-rf");
-        cmd.arg(path);
-
-        cmd.spawn()?.wait()?;
-
-        Ok(())
+        Ok(fs::remove_dir_all(path)?)
     }
 
     fn list_dir(&mut self, path: &Path) -> super::Result<Vec<std::fs::DirEntry>> {
@@ -143,14 +137,7 @@ impl super::Executor for System {
     }
 
     fn make_dir(&mut self, path: &Path) -> super::Result<()> {
-        // mkdir -p {path}
-        let mut cmd = Command::new("mkdir");
-        cmd.arg("-p");
-        cmd.arg(path);
-
-        cmd.spawn()?.wait()?;
-
-        Ok(())
+        Ok(fs::create_dir_all(path)?)
     }
 
     fn is_directory_mountpoint(&self, path: &Path) -> super::Result<bool> {
