@@ -100,7 +100,13 @@ IPv6 allocations differ per site and availabilty.
 
 ## IPv4 <-> IPv6 communications
 
-TODO
+1. ### Tunneled networks with ULA prefixes for private networks and NAT
+No need to work for this, as that can be viewed in the future
+
+1. ### Jool as a means to NAT ipv6 to ipv4 (snat/dnat) and vice-versa
+
+
+
 
 ## IPv6 prefixes for tenant networks (l2/l3) and prefix delegations.
 
@@ -128,10 +134,6 @@ For this to work properly there are a few requisites:
 
 2. ### Tunneled networks in separate network namespaces
 
-3. ### Tunneled networks with ULA prefixes for private networks and NAT
-No need to work for this, as that can be viewed in the future
-
-4. ### Jool as a means to NAT ipv6 to ipv4 (snat/dnat) and vice-versa
 
 5. ### Considerations for farms (or nodes that live in a same subnet/prefix)
 
