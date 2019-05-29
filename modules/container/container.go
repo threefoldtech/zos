@@ -5,6 +5,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/google/shlex"
 	"github.com/threefoldtech/zbus"
@@ -34,7 +35,7 @@ func New(zcl zbus.Client, containerd string) modules.ContainerModule {
 
 // NOTE:
 // THIS IS A WIP Create action and it's not fully implemented atm
-func (c *containerModule) Run(name string, flist string, tags []string, network modules.NetworkInfo,
+func (c *containerModule) Run(ns string, name string, flist string, tags []string, network modules.NetworkInfo,
 	mounts []modules.MountInfo, entrypoint string) (id modules.ContainerID, err error) {
 	// create a new client connected to the default socket path for containerd
 	client, err := containerd.New(c.containerd)
@@ -47,7 +48,8 @@ func (c *containerModule) Run(name string, flist string, tags []string, network 
 
 	// create a new context with an "example" namespace
 	// ctx := namespaces.WithNamespace(context.Background(), ns)
-	ctx := context.Background()
+	ctx := namespaces.WithNamespace(context.Background(), ns)
+
 	path, err := c.flister.Mount(flist, "")
 	if err != nil {
 		return id, err

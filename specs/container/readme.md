@@ -67,7 +67,7 @@ type ContainerInfo struct {
 type ContainerModule interface {
     // Run creates and starts a container on the node. It auto starts commnad line
     // defined by `entrypoint`
-    Run(name string, flist string, tags []string, network NetworkInfo, 
+    Run(ns string, name string, flist string, tags []string, network NetworkInfo, 
             mounts []MountInfo, entrypoint string) (ContainerID, error)
 
     // Inspect, return information about the container, given its container id

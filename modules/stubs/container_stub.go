@@ -52,7 +52,7 @@ func (s *ContainerModuleStub) Inspect(arg0 modules.ContainerID) (ret0 modules.Co
 }
 
 //name string, flist string, tags []string, network NetworkInfo, mounts []MountInfo, entrypoint string
-func (s *ContainerModuleStub) Run(name string, flist string, tags []string, network modules.NetworkInfo, mounts []modules.MountInfo, entrypoint string) (ret0 modules.ContainerID, ret1 error) {
+func (s *ContainerModuleStub) Run(ns string, name string, flist string, tags []string, network modules.NetworkInfo, mounts []modules.MountInfo, entrypoint string) (ret0 modules.ContainerID, ret1 error) {
 	args := []interface{}{name, flist, tags, network, mounts, entrypoint}
 	result, err := s.client.Request(s.module, s.object, "Run", args...)
 	if err != nil {
