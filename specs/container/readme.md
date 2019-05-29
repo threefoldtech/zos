@@ -46,6 +46,8 @@ type NetworkInfo struct{
 type MountInfo struct {
     Source string // source of the mount point on the host
     Target string // target of mount inside the container
+    Type string // mount type
+    Options []string // mount options
 }
 
 type ContainerInfo struct {
@@ -67,11 +69,18 @@ type ContainerInfo struct {
 type ContainerModule interface {
     // Run creates and starts a container on the node. It auto starts commnad line
     // defined by `entrypoint`
-    Run(ns string, name string, flist string, tags []string, network NetworkInfo, 
+    Run(ns string, name string, flist string, tags, env []string, network NetworkInfo, 
             mounts []MountInfo, entrypoint string) (ContainerID, error)
 
     // Inspect, return information about the container, given its container id
-    Inspect(id ContainerID) (ContainerInfo, error)
-    Delete(id ContainerID) error
+    Inspect(ns string, id ContainerID) (ContainerInfo, error)
+    Delete(ns string, id ContainerID) error
 }
 ```
+
+Currently, the container module only expose a single entity (container) where u can only create or delete as is. there
+is no exposure to the underlying processes or task running inside the container. This is only to keep things as simple
+as possible, until its necessary to expose these internals.
+
+## Logs
+Container stdin/stderr is written to `/var/log/<ns>/<name>.log`

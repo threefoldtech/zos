@@ -17,8 +17,10 @@ type NetworkInfo struct {
 }
 
 type MountInfo struct {
-	Source string // source of the mount point on the host
-	Target string // target of mount inside the container
+	Source  string   // source of the mount point on the host
+	Target  string   // target of mount inside the container
+	Type    string   // mount type
+	Options []string // mount options
 }
 
 type ContainerInfo struct {
@@ -42,10 +44,10 @@ type ContainerModule interface {
 	// ns: tenant namespace
 	// name: name of container
 	// flist: flist of container
-	Run(ns, name, flist string, tags []string, network NetworkInfo,
+	Run(ns, name, flist string, tags, env []string, network NetworkInfo,
 		mounts []MountInfo, entrypoint string) (ContainerID, error)
 
 	// Inspect, return information about the container, given its container id
-	Inspect(id ContainerID) (ContainerInfo, error)
-	Delete(id ContainerID) error
+	Inspect(ns string, id ContainerID) (ContainerInfo, error)
+	Delete(ns string, id ContainerID) error
 }
