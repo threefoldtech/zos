@@ -1,4 +1,0 @@
-exec: udevadm trigger --action=add; udevadm settle
-oneshot: true
-after:
-  - udevd

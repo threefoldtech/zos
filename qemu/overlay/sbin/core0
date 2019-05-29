@@ -1,3 +1,0 @@
-#!/bin/ash
-echo "start zinit"
-exec /sbin/zinit init
