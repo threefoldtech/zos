@@ -2,28 +2,30 @@
 title TN Object Creation
 ' fpa : Farmer Prefix Allocator
 database fpa
-' storage: TN Object storage
-database storage
-' nrr : Network Resource Request
-actor nrr
+' TNoDB: TN Object TNoDB
+database TNoDB
+' NRR : Network Resource Request
+box Network Module
+participant NRR
 ' node : 0-OS
 entity node
 ' 
 control watcher
+endbox
 
 == Request network Resource ==
-nrr -> storage : request network\nresource
-storage -> fpa : request prefix allocation
-fpa --> storage : here you go
-storage->storage :update TN object\n(TNo+1)
-storage --> nrr : new version TN object
+NRR -> TNoDB : request network\nresource
+TNoDB -> fpa : request prefix allocation
+fpa --> TNoDB : here you go
+TNoDB->TNoDB :update TN object\n(TNo+1)
+TNoDB --> NRR : TN object
 == Applying TN == 
-nrr -> node : new TN
-node <- node : apply NR
+NRR -> node : TNo
+node <- node : apply NR of TNo
 == TN updates ==
-watcher -> storage : TN new version?
-watcher <-- storage : TNo
-watcher -> node : apply NR
+watcher -> TNoDB : TN new version?
+watcher <-- TNoDB : TNo
+watcher -> node : apply NR of TNo
 
 
 legend
@@ -31,8 +33,8 @@ legend
 |TN:      | Tenant Network|
 |TNo:     | Tenant Network Object |
 |fpa:     | Farmer Prefix allocator|
-|storage: | distributed storage space to keep Tenant Network Objects|
-|nrr:     | Network Resource request(er)|
+|TNoDB:   | distributed TNoDB space to keep Tenant Network Objects|
+|NRR:     | Network Resource Request (incoming request)|
 |watcher: | request new versions of Tenant Network Objects|
 endlegend
 @enduml
