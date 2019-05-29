@@ -1,7 +1,7 @@
 
 ### A Network ID defines interconnected networks and their (single?) exit.
 
-```
+```rust
 type network {
     // some type of ientification... an uuid ?
     // that netid is bound to a user and an allowed (bought) creation of a
