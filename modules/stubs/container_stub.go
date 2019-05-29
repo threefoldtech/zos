@@ -51,9 +51,8 @@ func (s *ContainerModuleStub) Inspect(arg0 modules.ContainerID) (ret0 modules.Co
 	return
 }
 
-//name string, flist string, tags []string, network NetworkInfo, mounts []MountInfo, entrypoint string
-func (s *ContainerModuleStub) Run(ns string, name string, flist string, tags []string, network modules.NetworkInfo, mounts []modules.MountInfo, entrypoint string) (ret0 modules.ContainerID, ret1 error) {
-	args := []interface{}{name, flist, tags, network, mounts, entrypoint}
+func (s *ContainerModuleStub) Run(arg0 string, arg1 string, arg2 string, arg3 []string, arg4 modules.NetworkInfo, arg5 []modules.MountInfo, arg6 string) (ret0 modules.ContainerID, ret1 error) {
+	args := []interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6}
 	result, err := s.client.Request(s.module, s.object, "Run", args...)
 	if err != nil {
 		panic(err)
