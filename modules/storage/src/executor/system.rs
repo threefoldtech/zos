@@ -16,6 +16,7 @@ impl super::Executor for System {
         cmd.arg("--json"); // json output
         cmd.arg("--bytes");
         cmd.arg("--output-all");
+        cmd.arg("--paths"); // use device patch as name
 
         Ok(String::from_utf8(cmd.output()?.stdout).expect("Could not parse lsblk output"))
     }
@@ -24,7 +25,7 @@ impl super::Executor for System {
         // parted -s {node.path} mktable gpt
         let mut cmd = Command::new("parted");
         cmd.arg("-s");
-        cmd.arg(&node.path);
+        cmd.arg(&node.name);
         cmd.arg("mktable");
         cmd.arg("gpt");
 
@@ -37,7 +38,7 @@ impl super::Executor for System {
         // parted -s {node.path} mkpart primary btrfs 1 100%
         let mut cmd = Command::new("parted");
         cmd.arg("-s");
-        cmd.arg(&node.path);
+        cmd.arg(&node.name);
         cmd.arg("mkpart");
         cmd.arg("primary"); // TODO: make dynamic
         cmd.arg("btrfs"); // TODO: multiple fs types
@@ -52,7 +53,7 @@ impl super::Executor for System {
     fn make_fs(&mut self, node: &crate::disks::Node, label: &str) -> super::Result<()> {
         // mkfs.{fs} {node.path} -f -L ${LABEL}
         let mut cmd = Command::new(format!("mkfs.{}", "btrfs"));
-        cmd.arg(&node.path);
+        cmd.arg(&node.name);
         cmd.arg("-f");
         cmd.arg("-L");
         cmd.arg(label);
