@@ -2,9 +2,17 @@ package container
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path"
+	"syscall"
+	"time"
+
+	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/google/shlex"
@@ -33,9 +41,31 @@ func New(zcl zbus.Client, containerd string) modules.ContainerModule {
 	}
 }
 
+func getNetworkSpec(network modules.NetworkInfo) oci.SpecOpts {
+	ns := network.Namespace
+	if !path.IsAbs(ns) {
+		// just name
+		ns = path.Join("/var/run/netns", ns)
+	}
+
+	return oci.WithLinuxNamespace(
+		specs.LinuxNamespace{
+			Type: specs.NetworkNamespace,
+			Path: ns,
+		},
+	)
+}
+
+func withHooks(hooks specs.Hooks) oci.SpecOpts {
+	return func(_ context.Context, _ oci.Client, _ *containers.Container, spec *oci.Spec) error {
+		spec.Hooks = &hooks
+		return nil
+	}
+}
+
 // NOTE:
 // THIS IS A WIP Create action and it's not fully implemented atm
-func (c *containerModule) Run(ns string, name string, flist string, tags []string, network modules.NetworkInfo,
+func (c *containerModule) Run(ns string, name string, flist string, tags, env []string, network modules.NetworkInfo,
 	mounts []modules.MountInfo, entrypoint string) (id modules.ContainerID, err error) {
 	// create a new client connected to the default socket path for containerd
 	client, err := containerd.New(c.containerd)
@@ -46,29 +76,50 @@ func (c *containerModule) Run(ns string, name string, flist string, tags []strin
 
 	args, _ := shlex.Split(entrypoint)
 
-	// create a new context with an "example" namespace
-	// ctx := namespaces.WithNamespace(context.Background(), ns)
-	ctx := namespaces.WithNamespace(context.Background(), ns)
-
-	path, err := c.flister.Mount(flist, "")
+	root, err := c.flister.Mount(flist, "")
 	if err != nil {
 		return id, err
 	}
 
 	defer func() {
 		if err != nil {
-			c.flister.Umount(path)
+			c.flister.Umount(root)
 		}
 	}()
 
-	// create a container
+	opts := []oci.SpecOpts{
+		oci.WithDefaultSpecForPlatform("linux/amd64"),
+		oci.WithRootFSPath(root),
+		oci.WithProcessArgs(args...),
+		oci.WithEnv(env),
+
+		// NOTE: the hooks run inside runc namespace
+		// it means that we can't do the unmount of the
+		// root fs from here.
+
+		// withHooks(specs.Hooks{
+		// 	Poststop: []specs.Hook{
+		// 		{
+		// 			Path: "umount",
+		// 			Args: []string{path},
+		// 		},
+		// 	},
+		// }),
+	}
+
+	if len(network.Namespace) != 0 {
+		opts = append(
+			opts,
+			getNetworkSpec(network),
+		)
+	}
+
+	ctx := namespaces.WithNamespace(context.Background(), ns)
+
 	container, err := client.NewContainer(
 		ctx,
 		name,
-		containerd.WithNewSpec(
-			oci.WithDefaultSpecForPlatform("linux/amd64"),
-			oci.WithRootFSPath(path),
-			oci.WithProcessArgs(args...)),
+		containerd.WithNewSpec(opts...),
 	)
 
 	if err != nil {
@@ -81,10 +132,9 @@ func (c *containerModule) Run(ns string, name string, flist string, tags []strin
 		}
 	}()
 
-	// create a task from the container
-	// TODO: change the creator to use a redirected output to a log
-	// file instead.
-	task, err := container.NewTask(ctx, cio.NewCreator(cio.WithStdio))
+	logs := path.Join("/var/log", ns)
+	os.MkdirAll(logs, 0755)
+	task, err := container.NewTask(ctx, cio.LogFile(path.Join(logs, fmt.Sprintf("%s.log", container.ID()))))
 	if err != nil {
 		return id, err
 	}
@@ -94,13 +144,62 @@ func (c *containerModule) Run(ns string, name string, flist string, tags []strin
 		return id, err
 	}
 
-	return id, nil
+	return modules.ContainerID(container.ID()), nil
 }
 
-func (c *containerModule) Inspect(id modules.ContainerID) (modules.ContainerInfo, error) {
+func (c *containerModule) Inspect(ns string, id modules.ContainerID) (modules.ContainerInfo, error) {
 	return modules.ContainerInfo{}, nil
 }
 
-func (c *containerModule) Delete(id modules.ContainerID) error {
-	return nil
+func (c *containerModule) Delete(ns string, id modules.ContainerID) error {
+	client, err := containerd.New(c.containerd)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	ctx := namespaces.WithNamespace(context.Background(), ns)
+
+	container, err := client.LoadContainer(ctx, string(id))
+	if err != nil {
+		return err
+	}
+
+	task, err := container.Task(ctx, nil)
+	if err == nil {
+		// err == nil, there is a task running inside the container
+		exitC, err := task.Wait(ctx)
+		if err != nil {
+			return err
+		}
+		trials := 3
+	loop:
+		for {
+			signal := syscall.SIGTERM
+			if trials <= 0 {
+				signal = syscall.SIGKILL
+			}
+			task.Kill(ctx, signal)
+			trials--
+			select {
+			case <-exitC:
+				break loop
+			case <-time.After(1 * time.Second):
+			}
+		}
+
+		if _, err := task.Delete(ctx); err != nil {
+			return err
+		}
+	}
+	spec, err := container.Spec(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := container.Delete(ctx); err != nil {
+		return err
+	}
+
+	return syscall.Unmount(spec.Root.Path, syscall.MNT_DETACH)
 }
