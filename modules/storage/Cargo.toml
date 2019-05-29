@@ -11,3 +11,11 @@ log = "0.4"
 chrono = "0.4"
 
 [build-dependencies]
+
+[lib]
+name = "storage_primitives"
+path = "src/lib.rs"
+
+[[bin]]
+name = "storage"
+path = "src/main.rs"
