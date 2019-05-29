@@ -1,6 +1,6 @@
 @startuml
 start 
-:API (DSL);
+:(DSL);
 if (requires networking) then (yes)
     if (network does not exist) then (yes)
         :create networ;

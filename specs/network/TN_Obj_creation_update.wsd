@@ -1,0 +1,38 @@
+@startuml
+title TN Object Creation
+' fpa : Farmer Prefix Allocator
+database fpa
+' storage: TN Object storage
+database storage
+' nrr : Network Resource Request
+actor nrr
+' node : 0-OS
+entity node
+' 
+control watcher
+
+== Request network Resource ==
+nrr -> storage : request network\nresource
+storage -> fpa : request prefix allocation
+fpa --> storage : here you go
+storage->storage :update TN object\n(TNo+1)
+storage --> nrr : new version TN object
+== Applying TN == 
+nrr -> node : new TN
+node <- node : apply NR
+== TN updates ==
+watcher -> storage : TN new version?
+watcher <-- storage : TNo
+watcher -> node : apply NR
+
+
+legend
+|=abbrev  | definition   |
+|TN:      | Tenant Network|
+|TNo:     | Tenant Network Object |
+|fpa:     | Farmer Prefix allocator|
+|storage: | distributed storage space to keep Tenant Network Objects|
+|nrr:     | Network Resource request(er)|
+|watcher: | request new versions of Tenant Network Objects|
+endlegend
+@enduml

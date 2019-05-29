@@ -9,6 +9,7 @@ Network module should be responsible for the following:
   - A user network space should be able to route traffic in the space between containers, VM and to the outside.
   - Allow to configure "fast" network when available. This is use for farm that have GB NICs between nodes of the farm. support for bonding, ...
 ## [Some considerations](Requirements.md)
+
 ## Interface
 
 Some definitions first :
@@ -28,6 +29,9 @@ Some definitions first :
     - services to run that network (IPv6 is not plug and play all the way)
     - contains routes to other NRs throug which wg/bridge/vxlan/IPSec GRE
     - contains the watcher for new versions of the TN
+
+[an idea of how](TN_obj_creation_update.wsd)
+
 
 ## Implementation
 
