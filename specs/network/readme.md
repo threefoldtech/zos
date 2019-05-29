@@ -30,7 +30,7 @@ Some definitions first :
     - contains routes to other NRs throug which wg/bridge/vxlan/IPSec GRE
     - contains the watcher for new versions of the TN
 
-[an idea of how](TN_obj_creation_update.wsd)
+[an idea of how](TN_Obj_creation_update.wsd)
 
 
 ## Implementation
