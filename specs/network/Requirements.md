@@ -146,13 +146,17 @@ Separating public from private can then be done properly by firewalls in the bou
 So:
 For public communications we don't have to do anything, except set-up the exit node (containter) and make sure it's reachable. The packets already traversed an untrusted network, we can keep it that way.  
 But for packets that are supposedly private but traverse an untrusted network, we'll need to encrypt the packets before they hit the wire, as in private networks applications are typically not encrypted.  
-For every part of services in a node that is from a user, each part needs to connect to the same contex in terms of networking to all other nodes where the user has services that need to communicate. To do that, the grid sets up a circular mesh of wireguard tunnels, where one point on the circle is an exit/firewall.
+For every part of services in a node that is from a user, each part needs to connect to the same contex in terms of networking to all other nodes where the user has services that need to communicate. To do that, the grid sets up a circular mesh of wireguard tunnels, where one point on the circle is an exit/firewall.  
 
 The IPv6 allocations we receive are like in the good'ol times where every PC had a public IP address. They are globally routable. There is no NAT (TODO explain NAT), none, zip, nada. That means that protecting /64 prefixes need to be done by firewalling or to have ULA prefixes that are not routable. (ULA is like rfc1918 private IPv4 addresses).  
 Having Tenant networks mixed address space numberings add to complexity, so we'll go with firewalling. That has the added benefit that in a later phase we can add functionality to have multiple exit, as multiple routers as gateway is one of the features built in IPv6.
 
 
 5. ### Considerations for farms (or nodes that live in a same subnet/prefix)
+
+Noded being part of a farm and all of them deployed in the same Datacentre, connected to same switches, and mostly with multiple network interfaces are different beasts altogether. There we might envision to have specific containers that are using more performant interfaces.  
+We can surmise that these are 'trusted' networks, if the user trusts the farmer. Given that, in order to keep an interconnect between sone customer workloads performant, and not using encryption for tunneling (also alleviating cpu usage, as encryption is either way an expensive thing to do), we can use basically the same concept but over vxlans or GRE tunnels.
+
 
 6. ### Building tunnels 
 
