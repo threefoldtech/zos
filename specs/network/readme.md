@@ -8,24 +8,24 @@ Network module should be responsible for the following:
   - creation of any number of private network spaces per user
   - A user network space should be able to route traffic in the space between containers, VM and to the outside.
   - Allow to configure "fast" network when available. This is use for farm that have GB NICs between nodes of the farm. support for bonding, ...
-## [Some considerations](Requirements.md)
+## [Some considerations](Requirements.md) (read first)
 
 ## Interface
 
-Some definitions first :
+Some definitions first : (nomenclature)
 
   - A network, Tenant Network, TN
   A Tenant Network is all the network resources (netresource, NR) that a user (tenant) has bought and for which a transaction exists.
   That means:
     - in every node there is a watcher that verifies if the TN has a new version
     - for every new version of that network, a node applies the configuration of the NR, that is:
-      - update the NR contaner/vrf
+      - update the NR container/vrf
       - update the wireguard configuration
       - update eventual IPv{6,4?} necessary service (dnsmasq/radvd...)
 
   - A Network Resource (netresource, NR)
   A netresource is a single entity in a node that contains:
-    - a routing namespace (or a VRF, tbd) like a kubernetes pause container, that holds interconnects to other NR of a network, can have a bridge attached for connecting standalone containers/vms
+    - a routing namespace (or a VRF, tbd) like a kubernetes pause container, that holds interconnects to other NR of a network, can have a bridge attached for connecting standalone containers/vms. 
     - services to run that network (IPv6 is not plug and play all the way)
     - contains routes to other NRs throug which wg/bridge/vxlan/IPSec GRE
     - contains the watcher for new versions of the TN
