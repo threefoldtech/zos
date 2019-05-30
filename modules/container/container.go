@@ -222,5 +222,5 @@ func (c *containerModule) Delete(ns string, id modules.ContainerID) error {
 		return err
 	}
 
-	return syscall.Unmount(spec.Root.Path, syscall.MNT_DETACH)
+	return c.flister.Umount(spec.Root.Path)
 }
