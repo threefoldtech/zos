@@ -26,21 +26,6 @@ type MountInfo struct {
 	Options []string // mount options
 }
 
-type ContainerInfo struct {
-	ID ContainerID
-	//Container info
-	Name    string
-	Flist   string
-	Tags    []string
-	Network NetworkInfo
-	Mounts  []MountInfo
-
-	// NOTE:
-	// Port forwards are not defined by the container. It can be defined
-	// by the Network namespace resource. BUT ideally, no port forwards
-	// will ever be needed since all is gonna be routing based.
-}
-
 //Container creation info
 type Container struct {
 	// Name of container
@@ -66,6 +51,6 @@ type ContainerModule interface {
 	Run(ns string, data Container) (ContainerID, error)
 
 	// Inspect, return information about the container, given its container id
-	Inspect(ns string, id ContainerID) (ContainerInfo, error)
+	Inspect(ns string, id ContainerID) (Container, error)
 	Delete(ns string, id ContainerID) error
 }

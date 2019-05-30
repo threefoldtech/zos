@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,6 +24,16 @@ import (
 
 const (
 	containerdSock = "/run/containerd/containerd.sock"
+)
+
+var (
+	ignoreMntTypes = map[string]struct{}{
+		"proc":   struct{}{},
+		"tmpfs":  struct{}{},
+		"devpts": struct{}{},
+		"mqueue": struct{}{},
+		"sysfs":  struct{}{},
+	}
 )
 
 type containerModule struct {
@@ -85,12 +96,6 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		return id, err
 	}
 
-	defer func() {
-		if err != nil {
-			c.flister.Umount(root)
-		}
-	}()
-
 	opts := []oci.SpecOpts{
 		oci.WithDefaultSpecForPlatform("linux/amd64"),
 		oci.WithRootFSPath(root),
@@ -134,6 +139,14 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 
 	ctx := namespaces.WithNamespace(context.Background(), ns)
 
+	defer func() {
+		// if container creation below fails, make sure
+		// we unmount the root fs before we return
+		if err != nil {
+			c.flister.Umount(root)
+		}
+	}()
+
 	container, err := client.NewContainer(
 		ctx,
 		data.Name,
@@ -145,12 +158,15 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 	}
 
 	defer func() {
+		// if any of the next steps below fails, make sure
+		// we delete the container.
+		// (preparing, creating, and starting a task)
 		if err != nil {
 			container.Delete(ctx, containerd.WithSnapshotCleanup)
 		}
 	}()
 
-	logs := path.Join(c.root, ns)
+	logs := path.Join(c.root, "logs", ns)
 	if err = os.MkdirAll(logs, 0755); err != nil {
 		return id, err
 	}
@@ -168,8 +184,52 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 	return modules.ContainerID(container.ID()), nil
 }
 
-func (c *containerModule) Inspect(ns string, id modules.ContainerID) (modules.ContainerInfo, error) {
-	return modules.ContainerInfo{}, nil
+func (c *containerModule) Inspect(ns string, id modules.ContainerID) (result modules.Container, err error) {
+	client, err := containerd.New(c.containerd)
+	if err != nil {
+		return result, err
+	}
+	defer client.Close()
+
+	ctx := namespaces.WithNamespace(context.Background(), ns)
+
+	container, err := client.LoadContainer(ctx, string(id))
+	if err != nil {
+		return result, err
+	}
+
+	spec, err := container.Spec(ctx)
+	if err != nil {
+		return result, err
+	}
+
+	result.Name = container.ID()
+	if process := spec.Process; process != nil {
+		result.Entrypoint = strings.Join(process.Args, " ")
+		result.Env = process.Env
+	}
+
+	for _, mount := range spec.Mounts {
+		if _, ok := ignoreMntTypes[mount.Type]; ok {
+			continue
+		}
+		result.Mounts = append(result.Mounts,
+			modules.MountInfo{
+				Source:  mount.Source,
+				Target:  mount.Destination,
+				Type:    mount.Type,
+				Options: mount.Options,
+			},
+		)
+	}
+
+	for _, namespace := range spec.Linux.Namespaces {
+		if namespace.Type == "network" {
+			result.Network.Namespace = namespace.Path
+		}
+	}
+
+	return
 }
 
 func (c *containerModule) Delete(ns string, id modules.ContainerID) error {

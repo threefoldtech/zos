@@ -35,7 +35,7 @@ func (s *ContainerModuleStub) Delete(arg0 string, arg1 modules.ContainerID) (ret
 	return
 }
 
-func (s *ContainerModuleStub) Inspect(arg0 string, arg1 modules.ContainerID) (ret0 modules.ContainerInfo, ret1 error) {
+func (s *ContainerModuleStub) Inspect(arg0 string, arg1 modules.ContainerID) (ret0 modules.Container, ret1 error) {
 	args := []interface{}{arg0, arg1}
 	result, err := s.client.Request(s.module, s.object, "Inspect", args...)
 	if err != nil {
