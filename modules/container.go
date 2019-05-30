@@ -1,7 +1,12 @@
 package modules
 
+//go:generate mkdir -p stubs
+//go:generate zbusc -module container -version 0.0.1 -name container -package stubs github.com/threefoldtech/zosv2/modules+ContainerModule stubs/container_stub.go
+
+// ContainerID type
 type ContainerID string
 
+// NetworkInfo defines a network configuration for a container
 type NetworkInfo struct {
 	// Currently a container can only join one (and only one)
 	// network namespace that has to be pre defined on the node
@@ -13,6 +18,7 @@ type NetworkInfo struct {
 	Namespace string
 }
 
+// MountInfo defines a mount point
 type MountInfo struct {
 	Source  string   // source of the mount point on the host
 	Target  string   // target of mount inside the container
@@ -35,14 +41,29 @@ type ContainerInfo struct {
 	// will ever be needed since all is gonna be routing based.
 }
 
+//Container creation info
+type Container struct {
+	// Name of container
+	Name string
+	// FList rootfs flist
+	FList string
+	// Env env variables to container in format {'KEY=VALUE', 'KEY2=VALUE2'}
+	Env []string
+	// Network network info for container
+	Network NetworkInfo
+	// Mounts extra mounts for container
+	Mounts []MountInfo
+	// Entrypoint the process to start inside the container
+	Entrypoint string
+}
+
+// ContainerModule defines rpc interface to containerd
 type ContainerModule interface {
 	// Run creates and starts a container on the node. It also auto
 	// starts command defined by `entrypoint` inside the container
 	// ns: tenant namespace
-	// name: name of container
-	// flist: flist of container
-	Run(ns, name, flist string, tags, env []string, network NetworkInfo,
-		mounts []MountInfo, entrypoint string) (ContainerID, error)
+	// data: Container info
+	Run(ns string, data Container) (ContainerID, error)
 
 	// Inspect, return information about the container, given its container id
 	Inspect(ns string, id ContainerID) (ContainerInfo, error)

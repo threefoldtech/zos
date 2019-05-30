@@ -28,9 +28,10 @@ const (
 type containerModule struct {
 	flister    *stubs.FlisterStub
 	containerd string
+	root       string
 }
 
-func New(zcl zbus.Client, containerd string) modules.ContainerModule {
+func New(root string, zcl zbus.Client, containerd string) modules.ContainerModule {
 	if len(containerd) == 0 {
 		containerd = containerdSock
 	}
@@ -38,6 +39,7 @@ func New(zcl zbus.Client, containerd string) modules.ContainerModule {
 	return &containerModule{
 		flister:    stubs.NewFlisterStub(zcl),
 		containerd: containerd,
+		root:       root,
 	}
 }
 
@@ -65,8 +67,7 @@ func withHooks(hooks specs.Hooks) oci.SpecOpts {
 
 // NOTE:
 // THIS IS A WIP Create action and it's not fully implemented atm
-func (c *containerModule) Run(ns string, name string, flist string, tags, env []string, network modules.NetworkInfo,
-	mounts []modules.MountInfo, entrypoint string) (id modules.ContainerID, err error) {
+func (c *containerModule) Run(ns string, data modules.Container) (id modules.ContainerID, err error) {
 	// create a new client connected to the default socket path for containerd
 	client, err := containerd.New(c.containerd)
 	if err != nil {
@@ -74,9 +75,12 @@ func (c *containerModule) Run(ns string, name string, flist string, tags, env []
 	}
 	defer client.Close()
 
-	args, _ := shlex.Split(entrypoint)
+	args, err := shlex.Split(data.Entrypoint)
+	if err != nil || len(args) == 0 {
+		return id, fmt.Errorf("invalid entrypoint definition '%s'", data.Entrypoint)
+	}
 
-	root, err := c.flister.Mount(flist, "")
+	root, err := c.flister.Mount(data.FList, "")
 	if err != nil {
 		return id, err
 	}
@@ -91,7 +95,7 @@ func (c *containerModule) Run(ns string, name string, flist string, tags, env []
 		oci.WithDefaultSpecForPlatform("linux/amd64"),
 		oci.WithRootFSPath(root),
 		oci.WithProcessArgs(args...),
-		oci.WithEnv(env),
+		oci.WithEnv(data.Env),
 
 		// NOTE: the hooks run inside runc namespace
 		// it means that we can't do the unmount of the
@@ -107,14 +111,14 @@ func (c *containerModule) Run(ns string, name string, flist string, tags, env []
 		// }),
 	}
 
-	if len(network.Namespace) != 0 {
+	if len(data.Network.Namespace) != 0 {
 		opts = append(
 			opts,
-			getNetworkSpec(network),
+			getNetworkSpec(data.Network),
 		)
 	}
 
-	for _, mount := range mounts {
+	for _, mount := range data.Mounts {
 		opts = append(
 			opts,
 			oci.WithMounts([]specs.Mount{
@@ -132,7 +136,7 @@ func (c *containerModule) Run(ns string, name string, flist string, tags, env []
 
 	container, err := client.NewContainer(
 		ctx,
-		name,
+		data.Name,
 		containerd.WithNewSpec(opts...),
 	)
 
@@ -146,8 +150,11 @@ func (c *containerModule) Run(ns string, name string, flist string, tags, env []
 		}
 	}()
 
-	logs := path.Join("/var/log", ns)
-	os.MkdirAll(logs, 0755)
+	logs := path.Join(c.root, ns)
+	if err = os.MkdirAll(logs, 0755); err != nil {
+		return id, err
+	}
+
 	task, err := container.NewTask(ctx, cio.LogFile(path.Join(logs, fmt.Sprintf("%s.log", container.ID()))))
 	if err != nil {
 		return id, err
