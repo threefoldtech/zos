@@ -25,7 +25,7 @@ Some definitions first : (nomenclature)
 
   - A Network Resource (netresource, NR)
   A netresource is a single entity in a node that contains:
-    - a routing namespace (or a VRF, tbd) like a kubernetes pause container, that holds interconnects to other NR of a network, can have a bridge attached for connecting standalone containers/vms. 
+    - a routing namespace (or a VRF, tbd) like a kubernetes pause container, that holds interconnects to other NR of a network, can have a bridge attached for connecting standalone containers/vms.
     - services to run that network (IPv6 is not plug and play all the way)
     - contains routes to other NRs throug which wg/bridge/vxlan/IPSec GRE
     - contains the watcher for new versions of the TN
@@ -35,7 +35,7 @@ Some definitions first : (nomenclature)
 
 ## Implementation
 
-[A preliminary layout of how a `Network` should look like](cases.md)
+[A preliminary layout of how a `Network` should look like](datastructs.md)
 
 ## Research
 So far the choice of technologies to research on:
