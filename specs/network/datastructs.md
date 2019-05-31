@@ -29,6 +29,8 @@ type netresource {
     // what endpoint. Basically this `connected` array will be used to build 
     // up the wireguard config in each netresource.
     []connected
+    // a list of firewall rules to open access directly, IF that netresource
+    // would be directly routed (future)
     Option<[]ipv6_allow>
 }
 
@@ -86,6 +88,7 @@ type connected {
 enum connection {
     wireguard
     localvxlan
+    
 }
 
 // see above for the type definition.
@@ -114,7 +117,7 @@ type l2vxlan {
     // deterministic or stored... 
     nicname
     // Or it's through fdb entries 
-    Option<peer>
+    Option<Vec<peer>>
     // Or it's in a multicast vxlan
     Option<group>
     // a vxlan always has an ID
