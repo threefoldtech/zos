@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use nix::mount::{mount, MsFlags};
 
@@ -32,7 +32,10 @@ impl super::Executor for System {
         cmd.arg("mktable");
         cmd.arg("gpt");
 
-        cmd.spawn()?.wait()?;
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?
+            .wait()?;
 
         Ok(())
     }
@@ -48,7 +51,10 @@ impl super::Executor for System {
         cmd.arg("1");
         cmd.arg("100%");
 
-        cmd.spawn()?.wait()?;
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?
+            .wait()?;
 
         Ok(())
     }
@@ -61,7 +67,10 @@ impl super::Executor for System {
         cmd.arg("-L");
         cmd.arg(label);
 
-        cmd.spawn()?.wait()?;
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?
+            .wait()?;
 
         Ok(())
     }
@@ -73,7 +82,10 @@ impl super::Executor for System {
         cmd.arg("create");
         cmd.arg(path);
 
-        cmd.spawn()?.wait()?;
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?
+            .wait()?;
 
         Ok(())
     }
@@ -85,7 +97,10 @@ impl super::Executor for System {
         cmd.arg("delete");
         cmd.arg(path);
 
-        cmd.spawn()?.wait()?;
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?
+            .wait()?;
 
         Ok(())
     }
@@ -135,7 +150,10 @@ impl super::Executor for System {
         cmd.arg(source);
         cmd.arg(target);
 
-        cmd.spawn()?.wait()?;
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?
+            .wait()?;
 
         Ok(())
     }
@@ -150,7 +168,12 @@ impl super::Executor for System {
         cmd.arg("-q");
         cmd.arg(path);
 
-        match cmd.status()?.code() {
+        match cmd
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?
+            .code()
+        {
             Some(code) => match code {
                 0 => Ok(true),
                 _ => Ok(false),
@@ -166,7 +189,12 @@ impl super::Executor for System {
         cmd.arg("--repair");
         cmd.arg(path);
 
-        match cmd.status()?.code() {
+        match cmd
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?
+            .code()
+        {
             Some(code) => match code {
                 0 => Ok(true),
                 _ => Ok(false),
