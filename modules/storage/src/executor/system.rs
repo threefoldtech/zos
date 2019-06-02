@@ -2,6 +2,8 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use nix::mount::{mount, MsFlags};
+
 #[derive(Debug)]
 pub struct System;
 
@@ -105,23 +107,25 @@ impl super::Executor for System {
         Ok(results)
     }
 
-    fn mount(&mut self, device: &str, dir: &Path, fs_type: Option<&str>) -> super::Result<bool> {
-        // mount (-t {fs_type}) {device} {dir}
-        let mut cmd = Command::new("mount");
-        if let Some(fs_type) = fs_type {
-            cmd.arg("-t");
-            cmd.arg(fs_type);
+    fn mount(&mut self, device: &Path, dir: &Path, fs_type: Option<&str>) -> super::Result<()> {
+        let mut flags = MsFlags::MS_SILENT;
+        if device.is_dir() {
+            trace!(
+                "Mount device ({}) is directory, creating bind mount",
+                device.display()
+            );
+            flags |= MsFlags::MS_BIND;
         }
-        cmd.arg(device);
-        cmd.arg(dir);
-
-        match cmd.status()?.code() {
-            Some(code) => match code {
-                0 => Ok(true),
-                _ => Ok(false),
-            },
-            None => Err(super::Error::UnknownExitCode),
-        }
+        trace!("Filesystem type {:?}", fs_type);
+        trace!("Mount flags {:?}", flags);
+        trace!("mount {} -> {}", device.display(), dir.display());
+        Ok(mount::<Path, Path, str, Path>(
+            Some(&device),
+            dir,
+            fs_type,
+            flags,
+            None,
+        )?)
     }
 
     fn copy_dir(&mut self, source: &Path, target: &Path) -> super::Result<()> {

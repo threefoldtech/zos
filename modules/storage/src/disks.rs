@@ -138,8 +138,7 @@ impl<'a> DiskManager<'a> {
             disk.to_str().unwrap(),
             &mount_dir.display()
         );
-        self.executor
-            .mount(disk.to_str().unwrap(), &mount_dir, None)?;
+        self.executor.mount(&disk, &mount_dir, Some("btrfs"))?;
 
         if self.executor.is_directory_mountpoint(mount_dir)? {
             info!("Create and mount subvolume for {}", CACHE_LABEL);
@@ -152,12 +151,9 @@ impl<'a> DiskManager<'a> {
 
                 buf
             };
-            self.executor.create_btrfs_subvol(cache_path.as_path())?;
-            self.executor.mount(
-                cache_path.as_path().to_str().unwrap(),
-                &Path::new(CACHE_DIR),
-                None,
-            )?;
+            self.executor.create_btrfs_subvol(&cache_path)?;
+            self.executor
+                .mount(&cache_path, &Path::new(CACHE_DIR), Some("btrfs"))?;
 
             // cleanup old dirs
             debug!("Cleanup old vm and container working dirs");
@@ -184,11 +180,11 @@ impl<'a> DiskManager<'a> {
 
                 buf
             };
-            self.executor.create_btrfs_subvol(log_path.as_path())?;
+            self.executor.create_btrfs_subvol(&log_path)?;
             let time = chrono::Local::now();
             let log_dir_name = format!("log-{}", time.format("%Y%m%d-%H%M"));
             log_path.push(log_dir_name);
-            self.executor.create_btrfs_subvol(log_path.as_path())?;
+            self.executor.create_btrfs_subvol(&log_path)?;
 
             debug!(
                 "Copy old logs ({}) to log dir ({})",
@@ -202,19 +198,15 @@ impl<'a> DiskManager<'a> {
                     &log_entry.path().display(),
                     log_path.as_path().display()
                 );
-                self.executor
-                    .copy_dir(&log_entry.path(), log_path.as_path())?;
+                self.executor.copy_dir(&log_entry.path(), &log_path)?;
             }
             debug!(
                 "Mounting logs ({}) to {}",
                 LOG_PATH,
-                log_path.as_path().to_str().unwrap()
+                log_path.as_path().display()
             );
-            self.executor.mount(
-                log_path.as_path().to_str().unwrap(),
-                Path::new(LOG_PATH),
-                None,
-            )?;
+            self.executor
+                .mount(&log_path, Path::new(LOG_PATH), Some("btrfs"))?;
 
             // vm inside vm stuff, ignore for now
             //info!("Try to mount shared cache");

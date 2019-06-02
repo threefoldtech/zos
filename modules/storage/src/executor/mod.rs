@@ -13,7 +13,7 @@ pub trait Executor {
     fn delete_btrfs_subvol(&mut self, path: &Path) -> Result<()>;
     fn delete_dir(&mut self, path: &Path) -> Result<()>;
     fn list_dir(&mut self, path: &Path) -> Result<Vec<std::fs::DirEntry>>;
-    fn mount(&mut self, device: &str, dir: &Path, fs_type: Option<&str>) -> Result<bool>;
+    fn mount(&mut self, device: &Path, dir: &Path, fs_type: Option<&str>) -> Result<()>;
     fn copy_dir(&mut self, source: &Path, target: &Path) -> Result<()>;
     fn make_dir(&mut self, path: &Path) -> Result<()>;
     fn is_directory_mountpoint(&self, path: &Path) -> Result<bool>;
@@ -23,6 +23,7 @@ pub trait Executor {
 #[derive(Debug)]
 pub enum Error {
     IOError(std::io::Error),
+    NixError(nix::Error),
     UnknownExitCode,
 }
 
@@ -32,6 +33,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Error::IOError(x) => write!(f, "IO Error: {}", x),
+            Error::NixError(x) => write!(f, "Nix Error: {}", x),
             Error::UnknownExitCode => write!(f, "Couldn't determine exit code"),
         }
     }
@@ -40,6 +42,12 @@ impl std::fmt::Display for Error {
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
         Error::IOError(e)
+    }
+}
+
+impl From<nix::Error> for Error {
+    fn from(e: nix::Error) -> Self {
+        Error::NixError(e)
     }
 }
 
