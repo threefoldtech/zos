@@ -29,8 +29,16 @@ func main() {
 	// make sure u have a network namespace ready using ip
 	// sudo ip netns add mynetns
 
-	id, err := containerd.Run(namespace, "test", "https://hub.grid.tf/thabet/redis.flist", nil, nil,
-		modules.NetworkInfo{Namespace: "mynetns"}, nil, "redis-server")
+	info := modules.Container{
+		Name: "test",
+		FList: "https://hub.grid.tf/thabet/redis.flist",
+		Env: []string{},
+		Network: modules.NetworkInfo{Namespace: "mynetns"},
+		Mounts: nil,
+		Entrypoint: "redis-server",
+	}
+
+	id, err := containerd.Run(namespace, info)
 
 	if err != nil {
 		panic(err)
