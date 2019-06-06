@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 const USB_SUBSYSTEM: &'static str = "block:scsi:usb:pci";
+const FLOPPY_SUBSYSTEM: &'static str = "block:platform";
 const CD_TYPE: &'static str = "rom";
 const PARTITION_TYPE: &'static str = "part";
 
@@ -35,8 +36,12 @@ impl<'a> DiskManager<'a> {
         let filtered_disks: Vec<Blockdevice> = disks
             .blockdevices
             .into_iter()
-            // ignore USB and CD_ROM
-            .filter(|bd| bd.node_info.subsystems != USB_SUBSYSTEM && bd.node_info._type != CD_TYPE)
+            // ignore USB and CD_ROM and floppy
+            .filter(|bd| {
+                bd.node_info.subsystems != USB_SUBSYSTEM
+                    && bd.node_info._type != CD_TYPE
+                    && bd.node_info.subsystems != FLOPPY_SUBSYSTEM
+            })
             .collect();
 
         let mut nodes = Vec::new();
@@ -116,7 +121,7 @@ impl<'a> DiskManager<'a> {
             self.executor.create_fs(&empty_disk)?;
             let disk_part = match self.get_child_partition(&empty_disk)? {
                 None => {
-                    error!("Could not get child partition of just partition disk");
+                    error!("Could not get child partition of just partitioned disk");
                     return Err(executor::Error::IOError(std::io::Error::from(
                         std::io::ErrorKind::NotFound,
                     )));
@@ -230,8 +235,12 @@ impl<'a> DiskManager<'a> {
         let filtered_disks: Vec<Blockdevice> = disks
             .blockdevices
             .into_iter()
-            // ignore USB and CD_ROM
-            .filter(|bd| bd.node_info.subsystems != USB_SUBSYSTEM && bd.node_info._type != CD_TYPE)
+            // ignore USB and CD_ROM and floppy
+            .filter(|bd| {
+                bd.node_info.subsystems != USB_SUBSYSTEM
+                    && bd.node_info._type != CD_TYPE
+                    && bd.node_info.subsystems != FLOPPY_SUBSYSTEM
+            })
             .collect();
 
         let mut nodes = Vec::new();
@@ -259,7 +268,11 @@ impl<'a> DiskManager<'a> {
             .blockdevices
             .into_iter()
             // ignore USB and CD_ROM
-            .filter(|bd| bd.node_info.subsystems != USB_SUBSYSTEM && bd.node_info._type != CD_TYPE)
+            .filter(|bd| {
+                bd.node_info.subsystems != USB_SUBSYSTEM
+                    && bd.node_info._type != CD_TYPE
+                    && bd.node_info.subsystems != FLOPPY_SUBSYSTEM
+            })
             .collect();
 
         for disk in filtered_disks {
