@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"os"
 
 	"github.com/threefoldtech/zosv2/modules"
@@ -11,59 +10,106 @@ import (
 
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zosv2/modules/stubs"
+	"github.com/urfave/cli"
 )
 
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
 	var (
-		msgBrokerCon string
-		flist        string
-		name         string
-		// netns        string
-		entrypoint string
+		client    zbus.Client
+		container *stubs.ContainerModuleStub
 	)
+	app := cli.NewApp()
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "broker",
+			Value: "unix:///var/run/redis.sock",
+		},
+	}
+	app.Before = func(c *cli.Context) error {
+		broker := c.String("broker")
 
-	flag.StringVar(&msgBrokerCon, "broker", "tcp://localhost:6379", "connection string to the message broker")
-	flag.StringVar(&flist, "flist", "", "URL to flist")
-	flag.StringVar(&name, "name", "", "name of the container")
-	// flag.StringVar(&netns, "netns", "netcont1", "network namespace name")
-	flag.StringVar(&entrypoint, "entrypoint", "", "process to start in the container")
-	flag.Parse()
+		cl, err := zbus.NewRedisClient(broker)
+		if err != nil {
+			log.Error().Msgf("fail to connect to message broker client: %v", err)
+			return err
+		}
+		client = cl
+		container = stubs.NewContainerModuleStub(client)
+		return nil
+	}
+	app.Commands = []cli.Command{
+		{
+			Name:  "run",
+			Usage: "start a container",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "flist",
+					Value: "",
+				},
+				cli.StringFlag{
+					Name:  "name",
+					Value: "",
+				},
+				cli.StringFlag{
+					Name:  "entrypoint",
+					Value: "",
+				},
+			},
+			Before: func(c *cli.Context) error {
+				log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+				return nil
+			},
+			Action: func(c *cli.Context) error {
 
-	action := flag.Arg(0)
+				flist := c.String("flist")
+				name := c.String("name")
+				entrypoint := c.String("entrypoint")
 
-	client, err := zbus.NewRedisClient(msgBrokerCon)
-	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker client: %v", err)
+				data := modules.Container{
+					FList: flist,
+					Name:  name,
+					Network: modules.NetworkInfo{
+						Namespace: name,
+					},
+					Entrypoint: entrypoint,
+				}
+				log.Info().Msgf("start container with %+v", data)
+				containerID, err := container.Run(name, data)
+				if err != nil {
+					log.Error().Err(err).Msgf("fail to create container %v", err)
+					return err
+				}
+				log.Info().Str("id", string(containerID)).Msg("container created")
+				return nil
+			},
+		},
+		{
+			Name:  "stop",
+			Usage: "stop a container",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "name",
+					Value: "",
+				},
+			},
+			Before: func(c *cli.Context) error {
+				log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+				return nil
+			},
+			Action: func(c *cli.Context) error {
+				name := c.String("name")
+				if err := container.Delete(name, modules.ContainerID(name)); err != nil {
+					log.Error().Err(err).Msgf("fail to delete container %v", err)
+					return err
+				}
+				log.Info().Msg("container created")
+				return nil
+			},
+		},
 	}
 
-	c := stubs.NewContainerModuleStub(client)
-
-	if action == "run" {
-		data := modules.Container{
-			FList: flist,
-			Name:  name,
-			Network: modules.NetworkInfo{
-				Namespace: name,
-			},
-			Entrypoint: entrypoint,
-		}
-		log.Info().Msgf("start container with %+v", data)
-		containerID, err := c.Run(name, data)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("fail to create container %v", err)
-			return
-		}
-		log.Info().Str("id", string(containerID)).Msg("container created")
-	} else if action == "stop" {
-		// // id =
-		// if err := c.Delete(name, name); err != nil {
-		// 	log.Fatal().Err(err).Msgf("fail to delete container %v", err)
-		// 	return
-		// }
-		// log.Info().Msg("container created")
-	} else {
-		log.Info().Msgf("action %snot supported", action)
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal().Msg(err.Error())
 	}
 }
