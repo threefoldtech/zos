@@ -19,5 +19,5 @@ name = "storage_primitives"
 path = "src/lib.rs"
 
 [[bin]]
-name = "storage"
+name = "storaged"
 path = "src/main.rs"
