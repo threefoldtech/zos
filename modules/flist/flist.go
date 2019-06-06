@@ -73,7 +73,7 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 
 	flistPath, err := f.downloadFlist(url)
 	if err != nil {
-		sublog.Err(err).Msg("fail to download flist")
+		sublog.Error().Err(err).Msg("fail to download flist")
 		return "", err
 	}
 
