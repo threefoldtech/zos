@@ -116,12 +116,12 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		// }),
 	}
 
-	if len(data.Network.Namespace) != 0 {
-		opts = append(
-			opts,
-			getNetworkSpec(data.Network),
-		)
-	}
+	// if len(data.Network.Namespace) != 0 {
+	// 	opts = append(
+	// 		opts,
+	// 		getNetworkSpec(data.Network),
+	// 	)
+	// }
 
 	for _, mount := range data.Mounts {
 		opts = append(
