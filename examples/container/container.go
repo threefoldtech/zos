@@ -13,17 +13,26 @@ func main() {
 	}
 
 	containerd := stubs.NewContainerModuleStub(client)
+	flistd := stubs.NewFlisterStub(client)
 	namespace := "example"
 
 	// make sure u have a network namespace ready using ip
 	// sudo ip netns add mynetns
 
+	rootfs, err := flistd.Mount("https://hub.grid.tf/thabet/redis.flist", "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = flistd.Umount(rootfs)
+	}()
+
 	info := modules.Container{
-		Name: "test",
-		FList: "https://hub.grid.tf/thabet/redis.flist",
-		Env: []string{},
-		Network: modules.NetworkInfo{Namespace: "mynetns"},
-		Mounts: nil,
+		Name:       "test",
+		RootFS:     rootfs,
+		Env:        []string{},
+		Network:    modules.NetworkInfo{Namespace: "mynetns"},
+		Mounts:     nil,
 		Entrypoint: "redis-server",
 	}
 

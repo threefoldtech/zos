@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -17,9 +18,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/google/shlex"
-	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zosv2/modules"
-	"github.com/threefoldtech/zosv2/modules/stubs"
 )
 
 const (
@@ -36,19 +35,21 @@ var (
 	}
 )
 
+var (
+	ErrEmptyRootFS = errors.New("RootFS of the container creation data cannot be empty")
+)
+
 type containerModule struct {
-	flister    *stubs.FlisterStub
 	containerd string
 	root       string
 }
 
-func New(root string, zcl zbus.Client, containerd string) modules.ContainerModule {
+func New(root string, containerd string) modules.ContainerModule {
 	if len(containerd) == 0 {
 		containerd = containerdSock
 	}
 
 	return &containerModule{
-		flister:    stubs.NewFlisterStub(zcl),
 		containerd: containerd,
 		root:       root,
 	}
@@ -91,14 +92,13 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		return id, fmt.Errorf("invalid entrypoint definition '%s'", data.Entrypoint)
 	}
 
-	root, err := c.flister.Mount(data.FList, "")
-	if err != nil {
-		return id, err
+	if data.RootFS == "" {
+		return id, ErrEmptyRootFS
 	}
 
 	opts := []oci.SpecOpts{
 		oci.WithDefaultSpecForPlatform("linux/amd64"),
-		oci.WithRootFSPath(root),
+		oci.WithRootFSPath(data.RootFS),
 		oci.WithProcessArgs(args...),
 		oci.WithEnv(data.Env),
 
@@ -116,12 +116,13 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		// }),
 	}
 
-	if len(data.Network.Namespace) != 0 {
-		opts = append(
-			opts,
-			getNetworkSpec(data.Network),
-		)
-	}
+	// uncomment once we have network support
+	// if len(data.Network.Namespace) != 0 {
+	// 	opts = append(
+	// 		opts,
+	// 		getNetworkSpec(data.Network),
+	// 	)
+	// }
 
 	for _, mount := range data.Mounts {
 		opts = append(
@@ -138,14 +139,6 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 	}
 
 	ctx := namespaces.WithNamespace(context.Background(), ns)
-
-	defer func() {
-		// if container creation below fails, make sure
-		// we unmount the root fs before we return
-		if err != nil {
-			c.flister.Umount(root)
-		}
-	}()
 
 	container, err := client.NewContainer(
 		ctx,
@@ -203,6 +196,7 @@ func (c *containerModule) Inspect(ns string, id modules.ContainerID) (result mod
 		return result, err
 	}
 
+	result.RootFS = spec.Root.Path
 	result.Name = container.ID()
 	if process := spec.Process; process != nil {
 		result.Entrypoint = strings.Join(process.Args, " ")
@@ -273,14 +267,6 @@ func (c *containerModule) Delete(ns string, id modules.ContainerID) error {
 			return err
 		}
 	}
-	spec, err := container.Spec(ctx)
-	if err != nil {
-		return err
-	}
 
-	if err := container.Delete(ctx); err != nil {
-		return err
-	}
-
-	return c.flister.Umount(spec.Root.Path)
+	return container.Delete(ctx)
 }

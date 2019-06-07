@@ -30,8 +30,8 @@ type MountInfo struct {
 type Container struct {
 	// Name of container
 	Name string
-	// FList rootfs flist
-	FList string
+	// path to the rootfs of the container
+	RootFS string
 	// Env env variables to container in format {'KEY=VALUE', 'KEY2=VALUE2'}
 	Env []string
 	// Network network info for container

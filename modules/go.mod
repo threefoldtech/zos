@@ -25,6 +25,7 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/threefoldtech/zbus v0.0.0-20190520101306-8ea27921e251
+	github.com/urfave/cli v1.20.0
 	google.golang.org/grpc v1.21.0 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
 )
