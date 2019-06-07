@@ -86,6 +86,8 @@ github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 h1:b6uOv7YOFK0
 github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/threefoldtech/zbus v0.0.0-20190520101306-8ea27921e251 h1:ufgqyJH77xbCkjg8Q8ifKWsBFoTCVjpjEqWeEeKW01A=
 github.com/threefoldtech/zbus v0.0.0-20190520101306-8ea27921e251/go.mod h1:IId8hP6MPwTavStNstJ5NnPJKGXzJPlTPqRhLs+7ADg=
+github.com/urfave/cli v1.20.0 h1:fDqGv3UG/4jbVl/QkFwEdddtEDjh/5Ov6X+0B/3bPaw=
+github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/vmihailenco/msgpack v4.0.3+incompatible h1:g+G529Dqo4BY2Gxn5GKENa/3NVK+mu/6hM7G3jEWszQ=
 github.com/vmihailenco/msgpack v4.0.3+incompatible/go.mod h1:fy3FlTQTDXWkZ7Bh6AcGMlsjHatGryHQYUTf1ShIgkk=
 github.com/zenazn/goji v0.9.0/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxtB1Q=
