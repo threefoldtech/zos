@@ -40,6 +40,8 @@ type Container struct {
 	Mounts []MountInfo
 	// Entrypoint the process to start inside the container
 	Entrypoint string
+	// Interactivity enable Core X as PID 1 on the container
+	Interactive bool
 }
 
 // ContainerModule defines rpc interface to containerd

@@ -96,6 +96,13 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		return id, err
 	}
 
+	if data.Interactive {
+		// FIXME
+		fmt.Println("Interactive mode enabled")
+		args = []string{"/usr/bin/corex"}
+		root = "/"
+	}
+
 	opts := []oci.SpecOpts{
 		oci.WithDefaultSpecForPlatform("linux/amd64"),
 		oci.WithRootFSPath(root),

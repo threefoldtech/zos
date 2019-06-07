@@ -54,6 +54,10 @@ func main() {
 					Name:  "entrypoint",
 					Value: "",
 				},
+				cli.BoolFlag{
+					Name:  "interactive",
+					Usage: "Enable webui console",
+				},
 			},
 			Before: func(c *cli.Context) error {
 				log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
@@ -64,6 +68,7 @@ func main() {
 				flist := c.String("flist")
 				name := c.String("name")
 				entrypoint := c.String("entrypoint")
+				interactive := c.Bool("interactive")
 
 				data := modules.Container{
 					FList: flist,
@@ -71,7 +76,8 @@ func main() {
 					Network: modules.NetworkInfo{
 						Namespace: name,
 					},
-					Entrypoint: entrypoint,
+					Entrypoint:  entrypoint,
+					Interactive: interactive,
 				}
 				log.Info().Msgf("start container with %+v", data)
 				containerID, err := container.Run(name, data)
