@@ -1,3 +1,5 @@
 # editors
 .vscode/
 out/
+
+qemu/node*
