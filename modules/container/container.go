@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 
@@ -77,6 +80,47 @@ func withHooks(hooks specs.Hooks) oci.SpecOpts {
 	}
 }
 
+func withNoNetworkNamespace() oci.SpecOpts {
+	return func(ctx context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+		namespaces := []specs.LinuxNamespace{}
+		for _, ns := range s.Linux.Namespaces {
+			if ns.Type != specs.NetworkNamespace {
+				namespaces = append(namespaces, ns)
+			}
+		}
+		s.Linux.Namespaces = namespaces
+		return nil
+	}
+}
+
+func capsContain(caps []string, s string) bool {
+	for _, c := range caps {
+		if c == s {
+			return true
+		}
+	}
+	return false
+}
+
+func withAddedCapabilities(caps []string) oci.SpecOpts {
+	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+		// setCapabilities(s)
+		for _, c := range caps {
+			for _, cl := range []*[]string{
+				&s.Process.Capabilities.Bounding,
+				&s.Process.Capabilities.Effective,
+				&s.Process.Capabilities.Permitted,
+				&s.Process.Capabilities.Inheritable,
+			} {
+				if !capsContain(*cl, c) {
+					*cl = append(*cl, c)
+				}
+			}
+		}
+		return nil
+	}
+}
+
 // NOTE:
 // THIS IS A WIP Create action and it's not fully implemented atm
 func (c *containerModule) Run(ns string, data modules.Container) (id modules.ContainerID, err error) {
@@ -87,13 +131,27 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 	}
 	defer client.Close()
 
+	if data.RootFS == "" {
+		return id, ErrEmptyRootFS
+	}
+
+	if data.Interactive {
+		if err := os.MkdirAll(filepath.Join(data.RootFS, "sandbox"), 0770); err != nil {
+			return id, err
+		}
+		data.Mounts = append(data.Mounts, modules.MountInfo{
+			Source:  data.RootFS,
+			Target:  "/sandbox",
+			Type:    "bind",
+			Options: []string{"rbind"}, // mount options
+		})
+		data.RootFS = "/usr/lib/corex"
+		data.Entrypoint = "/bin/corex --chroot /sandbox"
+	}
+
 	args, err := shlex.Split(data.Entrypoint)
 	if err != nil || len(args) == 0 {
 		return id, fmt.Errorf("invalid entrypoint definition '%s'", data.Entrypoint)
-	}
-
-	if data.RootFS == "" {
-		return id, ErrEmptyRootFS
 	}
 
 	opts := []oci.SpecOpts{
@@ -114,6 +172,17 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		// 		},
 		// 	},
 		// }),
+	}
+	if data.Interactive {
+		// FIXME
+		fmt.Println("Interactive mode enabled")
+		opts = append(
+			opts,
+			withNoNetworkNamespace(),
+			withAddedCapabilities([]string{
+				"CAP_SYS_ADMIN",
+			}),
+		)
 	}
 
 	// uncomment once we have network support
@@ -145,9 +214,19 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		data.Name,
 		containerd.WithNewSpec(opts...),
 	)
-
 	if err != nil {
 		return id, err
+	}
+
+	spec, err := container.Spec(ctx)
+	if err != nil {
+		return id, err
+	}
+	log.Info().Msgf("args %+v", spec.Process.Args)
+	log.Info().Msgf("root %+v", spec.Root)
+	for _, ns := range spec.Linux.Namespaces {
+		log.Info().Msgf("namespace %+v", ns.Type)
+
 	}
 
 	defer func() {
