@@ -8,8 +8,7 @@ import (
 func CreateBridge(name string) (*netlink.Bridge, error) {
 	bridge := &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
-			Name: name,
-			// HardwareAddr: hw,
+			Name:   name,
 			TxQLen: 1000, //needed other wise bridge won't work
 		},
 	}
@@ -40,4 +39,8 @@ func ListBridges() ([]*netlink.Bridge, error) {
 
 func BridgeAttachNic(device *netlink.Device, bridge *netlink.Bridge) error {
 	return netlink.LinkSetMaster(device, bridge)
+}
+
+func BridgeDetachNic(bridge *netlink.Bridge) error {
+	return netlink.LinkSetNoMaster(bridge)
 }

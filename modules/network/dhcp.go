@@ -1,71 +1,105 @@
 package network
 
-// import (
-// 	"bytes"
-// 	"fmt"
-// 	"io/ioutil"
-// 	"os"
+import (
+	"os/exec"
+	"time"
 
-// 	"github.com/threefoldtech/0-core/base/mgr"
-// 	"github.com/threefoldtech/0-core/base/pm"
-// )
+	"github.com/rs/zerolog/log"
+	"github.com/vishvananda/netlink"
+)
 
-// const (
-// 	ProtocolDHCP = "dhcp"
+// DHCPProbe will do a dhcp request on the interface inf
+// if the interface gets a lease from the dhcp server, dhcpProbe return true and a nil error
+// if something unexpected happens a non nil error is return
+// if the interface didn't receive an lease, false and a nil error is returns
+func dhcpProbe(inf string) (bool, error) {
+	link, err := netlink.LinkByName(inf)
+	if err != nil {
+		return false, err
+	}
 
-// 	carrierFile = "/sys/class/net/%s/carrier"
-// )
+	cmd := exec.Command("udhcpc",
+		"-f", //foreground
+		"-i", inf,
+		"-t", "3", //try 3 times before giving up
+		"-A", "3", //wait 3 seconds between each trial
+		"-s", "/usr/share/udhcp/simple.script",
+		"--now", // exit if lease is not obtained
+	)
 
-// func init() {
-// 	protocols[ProtocolDHCP] = &dhcpProtocol{}
-// }
+	if err := cmd.Start(); err != nil {
+		return false, err
+	}
 
-// type dhcpProtocol struct {
-// }
+	defer func() {
+		if err := cmd.Process.Kill(); err != nil {
+			log.Error().Err(err).Msg("")
+		}
 
-// func (d *dhcpProtocol) isPlugged(inf string) error {
-// 	data, err := ioutil.ReadFile(fmt.Sprintf(carrierFile, inf))
-// 	if err != nil {
-// 		return err
-// 	}
-// 	data = bytes.TrimSpace(data)
-// 	if string(data) == "1" {
-// 		return nil
-// 	}
+		cmd.Wait()
+	}()
 
-// 	return fmt.Errorf("interface %s has no carrier(%s)", inf, string(data))
-// }
+	timeout := time.After(time.Second * 10)
+	var (
+		hasGW = false
+		stay  = true
+	)
 
-// func (d *dhcpProtocol) Configure(_ NetworkManager, inf string) error {
-// 	// if err := d.isPlugged(inf); err != nil {
-// 	// 	return err
-// 	// }
+	for hasGW == false && stay == true {
+		time.Sleep(time.Second)
+		select {
+		case <-timeout:
+			stay = false
+		default:
+			for _, family := range []int{netlink.FAMILY_V6, netlink.FAMILY_V4} {
+				hasGW, err = hasDefaultGW(link, family)
+				if err != nil {
+					return false, err
+				}
+				if hasGW {
+					break
+				}
+			}
+		}
+	}
 
-// 	hostname, _ := os.Hostname()
-// 	hostid := fmt.Sprintf("hostname:%s", hostname)
+	return hasGW, nil
+}
 
-// 	cmd := &pm.Command{
-// 		ID:      fmt.Sprintf("udhcpc/%s", inf),
-// 		Command: pm.CommandSystem,
-// 		Arguments: pm.MustArguments(
-// 			pm.SystemCommandArguments{
-// 				Name: "udhcpc",
-// 				Args: []string{
-// 					"-f", //foreground
-// 					"-i", inf,
-// 					"-t", "10", //try 10 times before giving up
-// 					"-A", "3", //wait 3 seconds between each trial
-// 					"-s", "/usr/share/udhcp/simple.script",
-// 					"--now",      // exit if lease is not optained
-// 					"-x", hostid, //set hostname on dhcp request
-// 				},
-// 			},
-// 		),
-// 	}
+func hasDefaultGW(link netlink.Link, family int) (bool, error) {
 
-// 	if _, err := mgr.Run(cmd); err != nil {
-// 		return err
-// 	}
+	addrs, err := netlink.AddrList(link, family)
+	if err != nil {
+		return false, err
+	}
 
-// 	return nil
-// }
+	if len(addrs) <= 0 {
+		return false, nil
+	}
+
+	log.Info().Msg("IP addresses found")
+	for i, addr := range addrs {
+		log.Info().
+			Str("interface", link.Attrs().Name).
+			IPAddr(string(i), addr.IP).Msg("")
+	}
+
+	routes, err := netlink.RouteList(link, family)
+	if err != nil {
+		return false, err
+	}
+	log.Info().Msg("routes found")
+	for i, route := range routes {
+		log.Info().
+			Str("interface", link.Attrs().Name).
+			Str(string(i), route.String())
+	}
+
+	for _, route := range routes {
+		if route.Gw != nil {
+			return true, err
+		}
+	}
+
+	return false, nil
+}
