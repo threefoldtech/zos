@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/threefoldtech/zosv2/modules/zinit"
+
 	"github.com/blang/semver"
 	"github.com/rs/zerolog/log"
 
@@ -29,6 +31,7 @@ type UpgradeModule struct {
 	root    string
 	version semver.Version
 	flister modules.Flister
+	zinit   *zinit.ZinitClient
 }
 
 func New(root string, flister modules.Flister) (*UpgradeModule, error) {
@@ -53,11 +56,17 @@ func New(root string, flister modules.Flister) (*UpgradeModule, error) {
 		}
 	}
 
+	zinit := zinit.New("/var/run/unix.sock")
+	if err := zinit.Connect(); err != nil {
+		return nil, err
+	}
+
 	log.Info().Msgf("current version %s", version.String())
 	return &UpgradeModule{
 		version: version,
 		root:    root,
 		flister: flister,
+		zinit:   zinit,
 	}, nil
 }
 
@@ -213,17 +222,20 @@ func (u *UpgradeModule) applyUpgrade(upgrade Upgrade) error {
 
 	for _, service := range services {
 		log.Info().Str("service", service).Msg("stop service")
-		// zinit.Stop(service)
+		if err := u.zinit.Stop(service); err != nil {
+			return err
+		}
 	}
 
 	if err := executeHook(filepath.Join(flistRoot, string(hookMigrate))); err != nil {
 		log.Error().Err(err).Msg("fail to execute migrate script")
-		// u.rollback()
 	}
 
 	for _, service := range services {
 		log.Info().Str("service", service).Msg("restart service")
-		// zinit.Stop(service)
+		if err := u.zinit.Start(service); err != nil {
+			return err
+		}
 	}
 
 	if err := executeHook(filepath.Join(flistRoot, string(hookPostStart))); err != nil {
