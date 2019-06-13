@@ -9,19 +9,20 @@ import (
 )
 
 func TestParseList(t *testing.T) {
-	s := `ntp: Running
-	telnetd: Running
-	network-dhcp: Success
-	haveged: Success
-	debug-tty: Running
-	routing: Success
-	udevd: Running
-	dhcp_zos: Running
-	udev-trigger: Success
-	sshd-setup: Success
-	local-modprobe: Success
-	networkd: Success
-	sshd: Running`
+	s := `
+ntp: Running
+telnetd: Running
+network-dhcp: Success
+haveged: Success
+debug-tty: Running
+routing: Success
+udevd: Running
+dhcp_zos: Running
+udev-trigger: Success
+sshd-setup: Success
+local-modprobe: Success
+networkd: Success
+sshd: Running`
 	services, err := parseList(s)
 	require.NoError(t, err)
 
@@ -43,12 +44,13 @@ func TestParseList(t *testing.T) {
 }
 
 func TestParseStatus(t *testing.T) {
-	s := `name: ntp
-		  pid: 223
-		  state: Running
-		  target: Up
-		  after:
- 			- network-dhcp: Success`
+	s := `
+name: ntp
+pid: 223
+state: Running
+target: Up
+after:
+  - network-dhcp: Success`
 	status, err := parseStatus(s)
 	require.NoError(t, err)
 
