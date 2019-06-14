@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/threefoldtech/zosv2/modules/zinit"
 
@@ -77,52 +76,51 @@ func ensureVersionFile(root string) (version semver.Version, err error) {
 	return version, nil
 }
 
-// FIXME: not sure about the public interface of this package yet
-// most probably will need to run as a daemon too
-func (u *UpgradeModule) Run(period time.Duration, p Publisher) error {
-	ticker := time.NewTicker(period)
+func (u *UpgradeModule) Upgrade(p Publisher) error {
 
-	for range ticker.C {
-		ok, latest, err := isNewVersionAvailable(u.version, p)
-		if err != nil || !ok {
-			continue
-		}
+	ok, latest, err := isNewVersionAvailable(u.version, p)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		// no new version available
+		return nil
+	}
 
-		toApply, err := versionsToApply(u.version, latest, p)
+	toApply, err := versionsToApply(u.version, latest, p)
+	if err != nil {
+		return err
+	}
+
+	for _, version := range toApply {
+		upgrade, err := p.Get(version)
 		if err != nil {
-			continue
+			log.Error().
+				Err(err).
+				Str("version", version.String()).
+				Msg("fail to retrieve upgrade from publisher")
+			break
 		}
 
-		for _, version := range toApply {
-			upgrade, err := p.Get(version)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("version", version.String()).
-					Msg("fail to retrieve upgrade from publisher")
-				break
-			}
+		log.Info().
+			Str("curent version", u.version.String()).
+			Str("new version", version.String()).
+			Msg("start upgrade")
 
-			log.Info().
-				Str("curent version", u.version.String()).
-				Str("new version", version.String()).
-				Msg("start upgrade")
+		if err := u.applyUpgrade(upgrade); err != nil {
+			log.Error().
+				Err(err).
+				Str("version", version.String()).
+				Msg("fail to apply upgrade")
+			break
+		}
 
-			if err := u.applyUpgrade(upgrade); err != nil {
-				log.Error().
-					Err(err).
-					Str("version", version.String()).
-					Msg("fail to apply upgrade")
-				break
-			}
-
-			u.version = version
-			if err := writeVersion(filepath.Join(u.root, "version"), version); err != nil {
-				log.Error().
-					Err(err).
-					Str("version", version.String()).
-					Msg("fail to write version to disks")
-			}
+		u.version = version
+		if err := writeVersion(filepath.Join(u.root, "version"), version); err != nil {
+			log.Error().
+				Err(err).
+				Str("version", version.String()).
+				Msg("fail to write version to disks")
 		}
 	}
 
