@@ -23,3 +23,32 @@ func TestNewPeer(t *testing.T) {
 	require.NoError(t, err)
 
 }
+
+// func TestNamespaceWireguard(t *testing.T) {
+
+// 	_, err := namespace.CreateNetNS("testns")
+// 	require.NoError(t, err)
+
+// 	hostIfaces, err := netlink.LinkList()
+// 	require.NoError(t, err)
+
+// 	nsCtx := namespace.NSContext{}
+// 	nsCtx.Enter("testns")
+// 	defer nsCtx.Exit()
+
+// 	wg, err := New("wgtest")
+// 	require.NoError(t, err)
+
+// 	nsIfaces, err := netlink.LinkList()
+// 	require.NoError(t, err)
+// 	assert.NotEqual(t, len(hostIfaces), len(nsIfaces))
+
+// 	found := false
+// 	for _, iface := range nsIfaces {
+// 		if iface.Attrs().Name == wg.Attrs().Name {
+// 			found = true
+// 			break
+// 		}
+// 	}
+// 	assert.True(t, found)
+// }
