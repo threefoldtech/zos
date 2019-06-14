@@ -292,8 +292,6 @@ func servicesToRestart(files []string) []string {
 		name := filepath.Base(file)
 		if exists(fmt.Sprintf("/etc/zinit/%s.yaml", name)) || exists(fmt.Sprintf("/etc/zinit/%sd.yaml", name)) {
 			services = append(services, name)
-		} else {
-
 		}
 	}
 	return services
@@ -327,7 +325,7 @@ func mergeFs(files []string, destination string) error {
 		}
 
 		// make sure the directory of the file exists
-		if err := os.MkdirAll(filepath.Dir(dest), 770); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dest), 0770); err != nil {
 			return err
 		}
 
