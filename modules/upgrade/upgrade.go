@@ -39,21 +39,9 @@ func New(root string, flister modules.Flister) (*UpgradeModule, error) {
 		return nil, err
 	}
 
-	var version semver.Version
-	versionPath := filepath.Join(root, "version")
-	version, err := readVersion(versionPath)
+	version, err := ensureVersionFile(root)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			log.Error().Err(err).Msg("read version")
-			return nil, err
-		}
-		log.Info().Msg("no version found, assuming fresh install")
-		// the file doesn't exist yet. So we are on a fresh system
-		version = semver.MustParse("0.0.1")
-		if err := writeVersion(versionPath, version); err != nil {
-			log.Error().Err(err).Msg("fail to write version")
-			return nil, err
-		}
+		return nil, err
 	}
 
 	zinit := zinit.New("/var/run/unix.sock")
@@ -68,6 +56,25 @@ func New(root string, flister modules.Flister) (*UpgradeModule, error) {
 		flister: flister,
 		zinit:   zinit,
 	}, nil
+}
+
+func ensureVersionFile(root string) (version semver.Version, err error) {
+	versionPath := filepath.Join(root, "version")
+	version, err = readVersion(versionPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Error().Err(err).Msg("read version")
+			return version, err
+		}
+		log.Info().Msg("no version found, assuming fresh install")
+		// the file doesn't exist yet. So we are on a fresh system
+		version = semver.MustParse("0.0.1")
+		if err := writeVersion(versionPath, version); err != nil {
+			log.Error().Err(err).Msg("fail to write version")
+			return version, err
+		}
+	}
+	return version, nil
 }
 
 // FIXME: not sure about the public interface of this package yet
