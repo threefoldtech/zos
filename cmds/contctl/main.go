@@ -1,7 +1,10 @@
 package main
 
 import (
+	"net"
 	"os"
+
+	"github.com/vishvananda/netlink"
 
 	"github.com/threefoldtech/zosv2/modules"
 
@@ -74,15 +77,34 @@ func main() {
 				entrypoint := c.String("entrypoint")
 				interactive := c.Bool("interactive")
 
-				// create wg interface in host net namespace
+				log.Info().Msg("create new wireguard iface")
 				wg, err := wireguard.New("wg0")
 				if err != nil {
 					return err
 				}
 
-				// create container net namespace
+				err = nil
+				defer func() {
+					if err != nil {
+						log.Info().Msg("cleanup wigreguard iface")
+						if err := netlink.LinkDel(wg); err != nil {
+							log.Error().Err(err).Msg("fail to cleanup wg iface")
+						}
+					}
+				}()
+
+				log.Info().Msg("create new net ns")
 				_, err = namespace.CreateNetNS(name)
 				if err != nil {
+					return err
+				}
+
+				log.Info().Msg("move wg iface into container netns")
+				if err := namespace.SetLinkNS(wg, name); err != nil {
+					log.Error().
+						Err(err).
+						Str("namespce", name).
+						Msg("failed to move wireguard iface to containre namespace")
 					return err
 				}
 
@@ -90,13 +112,8 @@ func main() {
 				nsCtx := namespace.NSContext{}
 				nsCtx.Enter(name)
 
-				// move wg iface into container netns
-				if err := namespace.SetLinkNS(wg, name); err != nil {
-					nsCtx.Exit()
-					return err
-				}
-
 				// configure wg iface
+				log.Info().Msg("configure wireguard iface")
 				err = wg.Configure("172.21.0.10/24", "2MDD+PDklXfOd+1jRWXE/aIwVurvbI6I7I10KBaNvHg=", []wireguard.Peer{
 					{
 						PublicKey:  "mR5fBXohKe2MZ6v+GLwlKwrvkFxo1VvV3bPNHDBhOAI=",
@@ -111,6 +128,17 @@ func main() {
 
 				// exit containe net ns
 				nsCtx.Exit()
+				if err != nil {
+					return err
+				}
+
+				err = namespace.RouteAdd(name, &netlink.Route{
+					Src: net.ParseIP("172.21.0.10"),
+					Gw:  net.ParseIP("172.21.0.1"),
+				})
+				if err != nil {
+					return err
+				}
 
 				rootfs, err := flistd.Mount(flist, "")
 				if err != nil {

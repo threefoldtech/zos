@@ -105,6 +105,7 @@ func withAddedCapabilities(caps []string) oci.SpecOpts {
 // NOTE:
 // THIS IS A WIP Create action and it's not fully implemented atm
 func (c *containerModule) Run(ns string, data modules.Container) (id modules.ContainerID, err error) {
+	log.Info().Msgf("create new container %v", data)
 	// create a new client connected to the default socket path for containerd
 	client, err := containerd.New(c.containerd)
 	if err != nil {
@@ -127,7 +128,7 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 			Options: []string{"rbind"}, // mount options
 		})
 		data.RootFS = "/usr/lib/corex"
-		data.Entrypoint = "/bin/corex --chroot /sandbox"
+		data.Entrypoint = "/bin/corex --chroot /sandbox -d 7"
 	}
 
 	args, err := shlex.Split(data.Entrypoint)
@@ -140,28 +141,17 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		oci.WithRootFSPath(data.RootFS),
 		oci.WithProcessArgs(args...),
 		oci.WithEnv(data.Env),
-
-		// NOTE: the hooks run inside runc namespace
-		// it means that we can't do the unmount of the
-		// root fs from here.
-
-		// withHooks(specs.Hooks{
-		// 	Poststop: []specs.Hook{
-		// 		{
-		// 			Path: "umount",
-		// 			Args: []string{path},
-		// 		},
-		// 	},
-		// }),
 	}
 	if data.Interactive {
-		// FIXME
-		fmt.Println("Interactive mode enabled")
 		opts = append(
 			opts,
 			withAddedCapabilities([]string{
 				"CAP_SYS_ADMIN",
 			}),
+			// in interactive mode, since we start the container
+			// from /usr/lib/corex
+			// we make it read-only
+			oci.WithReadonlyPaths([]string{"/"}),
 		)
 	}
 

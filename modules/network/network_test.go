@@ -9,15 +9,17 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// func TestInterfaces(t *testing.T) {
+func TestInterfaces(t *testing.T) {
+	link, err := netlink.LinkByName("wlan0")
+	require.NoError(t, err)
 
-// 	links, err := interfaces()
-// 	require.NoError(t, err)
+	routes, err := netlink.RouteList(link, netlink.FAMILY_V4)
+	require.NoError(t, err)
 
-// 	for _, link := range links {
-// 		fmt.Printf("%v - %v", link.Attrs().Name, link.Type())
-// 	}
-// }
+	for _, route := range routes {
+		fmt.Printf("%v\n", route)
+	}
+}
 
 func TestCreateBridge(t *testing.T) {
 	const ifName = "bro0"
