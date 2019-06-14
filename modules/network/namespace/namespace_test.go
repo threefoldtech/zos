@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,6 +34,24 @@ func TestCreateNetNS(t *testing.T) {
 	out, err = exec.Command("ip", "netns").CombinedOutput()
 	require.NoError(t, err)
 	assert.False(t, strings.Contains(string(out), name))
+}
+
+func TestSetLinkNS(t *testing.T) {
+	link := &netlink.Dummy{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: "dummy0",
+		},
+	}
+	err := netlink.LinkAdd(link)
+	require.NoError(t, err)
+	defer netlink.LinkDel(link)
+
+	_, err = CreateNetNS("testns")
+	require.NoError(t, err)
+	defer DeleteNetNS("testns")
+
+	err = SetLinkNS(link, "testns")
+	assert.NoError(t, err)
 }
 
 func printIfaces(ifaces []netlink.Link) {
@@ -108,6 +127,24 @@ func TestNSContext(t *testing.T) {
 
 	current, _ = netns.Get()
 	assert.True(t, origin.Equal(current))
+}
+
+func TestAddRoute(t *testing.T) {
+	nsName := "testns"
+	_, err := CreateNetNS(nsName)
+	require.NoError(t, err)
+	defer DeleteNetNS(nsName)
+
+	ns, err := netns.GetFromName(nsName)
+	require.NoError(t, err)
+
+	h, err := netlink.NewHandleAt(ns)
+	require.NoError(t, err)
+	err = h.RouteAdd(&netlink.Route{
+		Src: net.ParseIP("172.21.0.10"),
+		Gw:  net.ParseIP("172.21.0.1"),
+	})
+	require.NoError(t, err)
 }
 
 // func TestCreateNetNSMultiple(t *testing.T) {

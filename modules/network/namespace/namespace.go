@@ -1,7 +1,6 @@
 package namespace
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -36,21 +35,21 @@ func CreateNetNS(name string) (netns.NsHandle, error) {
 	}
 	defer ns.Close()
 
-	// set its ID
-	// In an attempt to avoid namespace id collisions, set this to something
-	// insanely high. When the kernel assigns IDs, it does so starting from 0
-	// So, just use our pid shifted up 16 bits
-	wantID := os.Getpid() << 16
+	// // set its ID
+	// // In an attempt to avoid namespace id collisions, set this to something
+	// // insanely high. When the kernel assigns IDs, it does so starting from 0
+	// // So, just use our pid shifted up 16 bits
+	// wantID := os.Getpid() << 16
 
-	h, err := netlink.NewHandle()
-	if err != nil {
-		return 0, err
-	}
+	// h, err := netlink.NewHandle()
+	// if err != nil {
+	// 	return 0, err
+	// }
 
-	err = h.SetNetNsIdByFd(int(ns), wantID)
-	if err != nil {
-		return 0, err
-	}
+	// err = h.SetNetNsIdByFd(int(ns), wantID)
+	// if err != nil {
+	// 	return 0, err
+	// }
 
 	if err := mountBindNetNS(name); err != nil {
 		return 0, err
@@ -70,16 +69,13 @@ func DeleteNetNS(name string) error {
 		return err
 	}
 
-	fmt.Println("ns found")
 	if err := syscall.Unmount(path, syscall.MNT_FORCE); err != nil {
 		return err
 	}
-	fmt.Println("umounted")
 
 	if err := os.Remove(path); err != nil {
 		return err
 	}
-	fmt.Println("removed")
 
 	return nil
 }
@@ -101,7 +97,12 @@ func mountBindNetNS(name string) error {
 		Str("src", src).
 		Str("dest", nsPath).
 		Msg("bind mount")
-	return syscall.Mount("/proc/self/ns/net", nsPath, "bind", syscall.MS_BIND, "")
+
+	if err := syscall.Mount(src, nsPath, "bind", syscall.MS_BIND, ""); err != nil {
+		os.Remove(nsPath)
+		return err
+	}
+	return nil
 }
 
 func touch(path string) error {
@@ -113,18 +114,30 @@ func touch(path string) error {
 }
 
 func SetLinkNS(link netlink.Link, name string) error {
+	log.Info().Msg("get ns")
 	ns, err := netns.GetFromName(name)
 	if err != nil {
 		return err
 	}
 	defer ns.Close()
 
-	handle, err := netlink.NewHandleAt(ns)
+	log.Info().Msg("linkSetNsFd")
+	return netlink.LinkSetNsFd(link, int(ns))
+}
+
+// RouteAddNS adds a route into a named network namespace
+func RouteAdd(name string, route *netlink.Route) error {
+	ns, err := netns.GetFromName(name)
 	if err != nil {
 		return err
 	}
+	defer ns.Close()
 
-	return handle.LinkSetNsFd(link, int(ns))
+	h, err := netlink.NewHandleAt(ns)
+	if err != nil {
+		return err
+	}
+	return h.RouteAdd(route)
 }
 
 // NSContext allows the caller to define a portion of the code
@@ -135,6 +148,7 @@ type NSContext struct {
 }
 
 func (c *NSContext) Enter(nsName string) error {
+	log.Info().Str("name", nsName).Msg("enter network namespace")
 	// Lock thread to prevent switching of namespaces
 	runtime.LockOSThread()
 
@@ -156,6 +170,7 @@ func (c *NSContext) Enter(nsName string) error {
 }
 
 func (c *NSContext) Exit() error {
+	log.Info().Msg("exit network namespace")
 	// always unlock thread
 	defer runtime.UnlockOSThread()
 
