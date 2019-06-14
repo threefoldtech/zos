@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/threefoldtech/zosv2/modules/network/namespace"
-
 	"github.com/rs/zerolog/log"
 
 	"github.com/vishvananda/netlink"
@@ -59,21 +57,7 @@ type Peer struct {
 	AllowedIPs []string
 }
 
-func (w *Wireguard) Configure(addr, privateKey string, peers []Peer, ns string) error {
-
-	if ns != "" {
-		log.Info().Str("namespace", ns).Msg("configure wg interface in network namespace")
-		nsCtx := namespace.NSContext{}
-		if err := nsCtx.Enter(ns); err != nil {
-			log.Error().Err(err).Msg("error during enter of network namespace")
-			return err
-		}
-		defer func() {
-			if err := nsCtx.Exit(); err != nil {
-				log.Error().Err(err).Msg("error during exit of network namespace")
-			}
-		}()
-	}
+func (w *Wireguard) Configure(addr, privateKey string, peers []Peer) error {
 
 	if err := netlink.LinkSetDown(w); err != nil {
 		return err

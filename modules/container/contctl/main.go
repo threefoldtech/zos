@@ -9,6 +9,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
+	"github.com/threefoldtech/zosv2/modules/network/namespace"
+	"github.com/threefoldtech/zosv2/modules/network/wireguard"
 	"github.com/threefoldtech/zosv2/modules/stubs"
 	"github.com/urfave/cli"
 )
@@ -71,6 +73,44 @@ func main() {
 				name := c.String("name")
 				entrypoint := c.String("entrypoint")
 				interactive := c.Bool("interactive")
+
+				// create wg interface in host net namespace
+				wg, err := wireguard.New("wg0")
+				if err != nil {
+					return err
+				}
+
+				// create container net namespace
+				_, err = namespace.CreateNetNS(name)
+				if err != nil {
+					return err
+				}
+
+				// enter container net ns
+				nsCtx := namespace.NSContext{}
+				nsCtx.Enter(name)
+
+				// move wg iface into container netns
+				if err := namespace.SetLinkNS(wg, name); err != nil {
+					nsCtx.Exit()
+					return err
+				}
+
+				// configure wg iface
+				err = wg.Configure("172.21.0.10/24", "2MDD+PDklXfOd+1jRWXE/aIwVurvbI6I7I10KBaNvHg=", []wireguard.Peer{
+					{
+						PublicKey:  "mR5fBXohKe2MZ6v+GLwlKwrvkFxo1VvV3bPNHDBhOAI=",
+						Endpoint:   "37.187.124.71:51820",
+						AllowedIPs: []string{"0.0.0.0/0"},
+					},
+				})
+				if err != nil {
+					nsCtx.Exit()
+					return err
+				}
+
+				// exit containe net ns
+				nsCtx.Exit()
 
 				rootfs, err := flistd.Mount(flist, "")
 				if err != nil {

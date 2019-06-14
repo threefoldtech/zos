@@ -18,10 +18,21 @@ const (
 )
 
 func CreateNetNS(name string) (netns.NsHandle, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	origin, err := netns.Get()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		netns.Set(origin)
+	}()
+
 	// create a network namespace
 	ns, err := netns.New()
 	if err != nil {
-		return ns, err
+		return 0, err
 	}
 	defer ns.Close()
 
@@ -29,19 +40,23 @@ func CreateNetNS(name string) (netns.NsHandle, error) {
 	// In an attempt to avoid namespace id collisions, set this to something
 	// insanely high. When the kernel assigns IDs, it does so starting from 0
 	// So, just use our pid shifted up 16 bits
-	// wantID := os.Getpid() << 16
+	wantID := os.Getpid() << 16
 
-	// h, err := netlink.NewHandle()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// h.SetNetNsIdByFd
-	// err = h.SetNetNsIdByFd(int(ns), wantID)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	h, err := netlink.NewHandle()
+	if err != nil {
+		return 0, err
+	}
 
-	return ns, mountBindNetNS(name)
+	err = h.SetNetNsIdByFd(int(ns), wantID)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := mountBindNetNS(name); err != nil {
+		return 0, err
+	}
+
+	return ns, nil
 }
 
 func DeleteNetNS(name string) error {
@@ -81,7 +96,11 @@ func mountBindNetNS(name string) error {
 		return err
 	}
 
-	log.Info().Msg("bind mount")
+	src := "/proc/self/ns/net"
+	log.Info().
+		Str("src", src).
+		Str("dest", nsPath).
+		Msg("bind mount")
 	return syscall.Mount("/proc/self/ns/net", nsPath, "bind", syscall.MS_BIND, "")
 }
 
@@ -108,39 +127,10 @@ func SetLinkNS(link netlink.Link, name string) error {
 	return handle.LinkSetNsFd(link, int(ns))
 }
 
-func ExecInNS(ns string, f func() error) error {
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	log.Info().Msg("get origin ns")
-	origin, err := netns.Get()
-	if err != nil {
-		return err
-	}
-	defer origin.Close()
-
-	log.Info().Msg("getfrom name")
-	workingNS, err := netns.GetFromName(ns)
-	if err != nil {
-		return err
-	}
-
-	log.Info().Msg("switch to ns")
-	if err := netns.Set(workingNS); err != nil {
-		return err
-	}
-	defer workingNS.Close()
-
-	log.Info().Msg("exec f")
-	err = f()
-
-	log.Info().Msg("reset to origin ns")
-	return netns.Set(origin)
-}
-
+// NSContext allows the caller to define a portion of the code
+// where the network namespace is switched
 type NSContext struct {
-	origin  netns.NsHandle
+	origins netns.NsHandle
 	working netns.NsHandle
 }
 
@@ -149,16 +139,19 @@ func (c *NSContext) Enter(nsName string) error {
 	runtime.LockOSThread()
 
 	var err error
-	c.origin, err = netns.Get()
+	// save handle to host namespace
+	c.origins, err = netns.Get()
 	if err != nil {
 		return err
 	}
 
+	// get handle to target namespace
 	c.working, err = netns.GetFromName(nsName)
 	if err != nil {
 		return err
 	}
 
+	// set working namespace to target namespace
 	return netns.Set(c.working)
 }
 
@@ -167,7 +160,7 @@ func (c *NSContext) Exit() error {
 	defer runtime.UnlockOSThread()
 
 	// Switch back to the original namespace
-	if err := netns.Set(c.origin); err != nil {
+	if err := netns.Set(c.origins); err != nil {
 		return err
 	}
 	// close working namespace

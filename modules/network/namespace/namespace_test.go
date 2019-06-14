@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,8 +44,6 @@ func TestNamespace(t *testing.T) {
 	ifaces, err := netlink.LinkList()
 	ifacesNr := len(ifaces)
 	assert.True(t, ifacesNr > 0)
-	// fmt.Println("before")
-	// printIfaces(ifaces)
 
 	nsName := "testns"
 	_, err = CreateNetNS(nsName)
@@ -56,8 +55,6 @@ func TestNamespace(t *testing.T) {
 	require.NoError(t, err)
 
 	ifaces, err = netlink.LinkList()
-	// fmt.Println("in namespace")
-	// printIfaces(ifaces)
 	assert.True(t, len(ifaces) == 1)
 
 	err = netlink.LinkAdd(&netlink.Dummy{
@@ -69,16 +66,13 @@ func TestNamespace(t *testing.T) {
 
 	ifaces, err = netlink.LinkList()
 	assert.True(t, len(ifaces) == 2)
-	// fmt.Println("in namespace after add")
-	// printIfaces(ifaces)
 
 	err = nsCtx.Exit()
 	require.NoError(t, err)
 
 	ifaces, err = netlink.LinkList()
 	require.NoError(t, err)
-	// fmt.Println("after exit")
-	// printIfaces(ifaces)
+
 	found := false
 	for _, iface := range ifaces {
 		if iface.Attrs().Name == "dummy1" {
@@ -89,17 +83,32 @@ func TestNamespace(t *testing.T) {
 	assert.False(t, found)
 }
 
-// func TestWG(t *testing.T) {
-// 	client, err := wgctrl.New()
-// 	require.NoError(t, err)
+func TestNSContext(t *testing.T) {
+	nsName := "testns"
 
-// 	devices, err := client.Devices()
-// 	require.NoError(t, err)
+	origin, err := netns.Get()
+	require.NoError(t, err)
 
-// 	for _, device := range devices {
-// 		fmt.Printf("%+v\n", device)
-// 	}
-// }
+	_, err = CreateNetNS(nsName)
+	require.NoError(t, err)
+	defer DeleteNetNS(nsName)
+
+	nsCtx := NSContext{}
+	err = nsCtx.Enter(nsName)
+	require.NoError(t, err)
+
+	current, err := netns.Get()
+	require.NoError(t, err)
+
+	assert.True(t, nsCtx.origins.Equal(origin))
+	assert.True(t, nsCtx.working.Equal(current))
+
+	err = nsCtx.Exit()
+	require.NoError(t, err)
+
+	current, _ = netns.Get()
+	assert.True(t, origin.Equal(current))
+}
 
 // func TestCreateNetNSMultiple(t *testing.T) {
 // 	name := "testns"
