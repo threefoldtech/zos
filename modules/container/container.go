@@ -58,17 +58,11 @@ func New(root string, containerd string) modules.ContainerModule {
 	}
 }
 
-func getNetworkSpec(network modules.NetworkInfo) oci.SpecOpts {
-	ns := network.Namespace
-	if !path.IsAbs(ns) {
-		// just name
-		ns = path.Join("/var/run/netns", ns)
-	}
-
+func WithNetworkNamespace(name string) oci.SpecOpts {
 	return oci.WithLinuxNamespace(
 		specs.LinuxNamespace{
 			Type: specs.NetworkNamespace,
-			Path: ns,
+			Path: path.Join("/var/run/netns", name),
 		},
 	)
 }
@@ -76,19 +70,6 @@ func getNetworkSpec(network modules.NetworkInfo) oci.SpecOpts {
 func withHooks(hooks specs.Hooks) oci.SpecOpts {
 	return func(_ context.Context, _ oci.Client, _ *containers.Container, spec *oci.Spec) error {
 		spec.Hooks = &hooks
-		return nil
-	}
-}
-
-func withNoNetworkNamespace() oci.SpecOpts {
-	return func(ctx context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
-		namespaces := []specs.LinuxNamespace{}
-		for _, ns := range s.Linux.Namespaces {
-			if ns.Type != specs.NetworkNamespace {
-				namespaces = append(namespaces, ns)
-			}
-		}
-		s.Linux.Namespaces = namespaces
 		return nil
 	}
 }
@@ -178,20 +159,18 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 		fmt.Println("Interactive mode enabled")
 		opts = append(
 			opts,
-			withNoNetworkNamespace(),
 			withAddedCapabilities([]string{
 				"CAP_SYS_ADMIN",
 			}),
 		)
 	}
 
-	// uncomment once we have network support
-	// if len(data.Network.Namespace) != 0 {
-	// 	opts = append(
-	// 		opts,
-	// 		getNetworkSpec(data.Network),
-	// 	)
-	// }
+	if data.Network.Namespace != "" {
+		opts = append(
+			opts,
+			WithNetworkNamespace(data.Network.Namespace),
+		)
+	}
 
 	for _, mount := range data.Mounts {
 		opts = append(
