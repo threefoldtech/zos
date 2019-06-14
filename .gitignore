@@ -9,3 +9,4 @@ cmds/contctl/contctl
 cmds/contd/contd
 cmds/flistd/flistd
 cmds/storaged/storaged
+cmds/upgraded/upgraded
