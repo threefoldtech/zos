@@ -22,14 +22,14 @@ func TestIsExecutable(t *testing.T) {
 
 	stat, err := f.Stat()
 	require.NoError(t, err)
-	assert.True(t, IsExecutable(stat.Mode()))
+	assert.True(t, isExecutable(stat.Mode()))
 
 	f, err = os.OpenFile(filepath.Join(dir, "normal"), os.O_CREATE|os.O_RDONLY|os.O_EXCL, 0440)
 	require.NoError(t, err)
 
 	stat, err = f.Stat()
 	require.NoError(t, err)
-	assert.False(t, IsExecutable(stat.Mode().Perm()))
+	assert.False(t, isExecutable(stat.Mode().Perm()))
 }
 
 func TestTrimMounpoint(t *testing.T) {
