@@ -13,7 +13,7 @@ getdeps:
 	@echo "Installing misspell" && go get -u github.com/client9/misspell/cmd/misspell
 	@echo "Installing ineffassign" && go get -u github.com/gordonklaus/ineffassign
 
-verifiers: vet fmt lint cyclo deadcode spelling
+verifiers: vet fmt lint cyclo spelling #deadcode
 
 vet:
 	@echo "Running $@"
@@ -55,7 +55,6 @@ testrace: verifiers build
 	@CGO_ENABLED=1 go test -v -vet=off -race ./...
 
 coverage: build
-	@echo "Running all coverage for minio"
 	@(env bash $(PWD)/buildscripts/go-coverage.sh)
 
 generate:

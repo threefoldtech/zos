@@ -18,7 +18,7 @@ import (
 
 func TestCreateNetNS(t *testing.T) {
 	name := "testns"
-	_, err := CreateNetNS(name)
+	_, err := Create(name)
 	require.NoError(t, err)
 
 	_, err = os.Stat(filepath.Join(netNSPath, name))
@@ -28,7 +28,7 @@ func TestCreateNetNS(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, strings.Contains(string(out), name))
 
-	err = DeleteNetNS(name)
+	err = Delete(name)
 	require.NoError(t, err)
 
 	out, err = exec.Command("ip", "netns").CombinedOutput()
@@ -46,11 +46,11 @@ func TestSetLinkNS(t *testing.T) {
 	require.NoError(t, err)
 	defer netlink.LinkDel(link)
 
-	_, err = CreateNetNS("testns")
+	_, err = Create("testns")
 	require.NoError(t, err)
-	defer DeleteNetNS("testns")
+	defer Delete("testns")
 
-	err = SetLinkNS(link, "testns")
+	err = SetLink(link, "testns")
 	assert.NoError(t, err)
 }
 
@@ -66,9 +66,9 @@ func TestNamespace(t *testing.T) {
 	assert.True(t, ifacesNr > 0)
 
 	nsName := "testns"
-	_, err = CreateNetNS(nsName)
+	_, err = Create(nsName)
 	require.NoError(t, err)
-	defer DeleteNetNS(nsName)
+	defer Delete(nsName)
 
 	nsCtx := NSContext{}
 	err = nsCtx.Enter(nsName)
@@ -111,9 +111,9 @@ func TestNSContext(t *testing.T) {
 	origin, err := netns.Get()
 	require.NoError(t, err)
 
-	_, err = CreateNetNS(nsName)
+	_, err = Create(nsName)
 	require.NoError(t, err)
-	defer DeleteNetNS(nsName)
+	defer Delete(nsName)
 
 	nsCtx := NSContext{}
 	err = nsCtx.Enter(nsName)
@@ -134,9 +134,9 @@ func TestNSContext(t *testing.T) {
 
 func TestAddRoute(t *testing.T) {
 	nsName := "testns"
-	_, err := CreateNetNS(nsName)
+	_, err := Create(nsName)
 	require.NoError(t, err)
-	defer DeleteNetNS(nsName)
+	defer Delete(nsName)
 
 	ns, err := netns.GetFromName(nsName)
 	require.NoError(t, err)

@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 )
 
-var ModeExecutable os.FileMode = 0100
+var modeExecutable os.FileMode = 0100
 
-func IsExecutable(perm os.FileMode) bool {
-	return (perm & ModeExecutable) != 0
+func isExecutable(perm os.FileMode) bool {
+	return (perm & modeExecutable) != 0
 }
 
 func exists(path string) bool {

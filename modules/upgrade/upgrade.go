@@ -17,23 +17,26 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 )
 
-type HookType string
+type hookType string
 
 const (
-	hookPreCopy   HookType = "pre-copy"
-	hookPostCopy  HookType = "post-copy"
-	hookMigrate   HookType = "migrate"
-	hookPostStart HookType = "post-start"
+	hookPreCopy   hookType = "pre-copy"
+	hookPostCopy  hookType = "post-copy"
+	hookMigrate   hookType = "migrate"
+	hookPostStart hookType = "post-start"
 )
 
-type UpgradeModule struct {
+// Upgrader is the component that is responsible
+// to keep 0-OS up to date
+type Upgrader struct {
 	root    string
 	version semver.Version
 	flister modules.Flister
-	zinit   *zinit.ZinitClient
+	zinit   *zinit.Client
 }
 
-func New(root string, flister modules.Flister) (*UpgradeModule, error) {
+// New creates a new UpgradeModule object
+func New(root string, flister modules.Flister) (*Upgrader, error) {
 	if err := os.MkdirAll(root, 0770); err != nil {
 		return nil, err
 	}
@@ -49,7 +52,7 @@ func New(root string, flister modules.Flister) (*UpgradeModule, error) {
 	}
 
 	log.Info().Msgf("current version %s", version.String())
-	return &UpgradeModule{
+	return &Upgrader{
 		version: version,
 		root:    root,
 		flister: flister,
@@ -76,7 +79,10 @@ func ensureVersionFile(root string) (version semver.Version, err error) {
 	return version, nil
 }
 
-func (u *UpgradeModule) Upgrade(p Publisher) error {
+// Upgrade is the method that does a full upgrade flow
+// first check if a new version is available
+// if yes, applies the upgrade
+func (u *Upgrader) Upgrade(p Publisher) error {
 
 	ok, latest, err := isNewVersionAvailable(u.version, p)
 	if err != nil {
@@ -188,7 +194,7 @@ func versionsToApply(current, latest semver.Version, p Publisher) ([]semver.Vers
 	return toApply, nil
 }
 
-func (u *UpgradeModule) applyUpgrade(upgrade Upgrade) error {
+func (u *Upgrader) applyUpgrade(upgrade Upgrade) error {
 
 	log.Info().Str("flist", upgrade.Flist).Msg(("start applying upgrade"))
 
@@ -266,7 +272,7 @@ func executeHook(path string) error {
 		return err
 	}
 
-	if !IsExecutable(info.Mode().Perm()) {
+	if !isExecutable(info.Mode().Perm()) {
 		return fmt.Errorf("%s exists but is not executable", name)
 	}
 
