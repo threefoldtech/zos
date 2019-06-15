@@ -39,7 +39,7 @@ var (
 )
 
 var (
-	// ErrEmptyRootFS is returned when RootFS fiels is empty when trying to create a container
+	// ErrEmptyRootFS is returned when RootFS field is empty when trying to create a container
 	ErrEmptyRootFS = errors.New("RootFS of the container creation data cannot be empty")
 )
 

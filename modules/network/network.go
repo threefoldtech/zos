@@ -34,7 +34,7 @@ func Bootstrap() error {
 	var defaultGW *netlink.Device
 
 	for _, device := range filterDevices(links) {
-		log.Info().Str("interace", device.Name).Msg("probe interface")
+		log.Info().Str("interface", device.Name).Msg("probe interface")
 		// TODO: support noautonic kernel params
 		if device.Name == "lo" {
 			continue
