@@ -1,4 +1,4 @@
-# 0-OS research
+# 0-OS research [![Build Status](https://travis-ci.com/threefoldtech/zosv2.svg?branch=master)](https://travis-ci.com/threefoldtech/zosv2) [![Go Report Card](https://goreportcard.com/badge/github.com/threefoldtech/zosv2)](https://goreportcard.com/report/github.com/threefoldtech/zosv2)
 
 This repository will host some research and design work around 0-OS
 
