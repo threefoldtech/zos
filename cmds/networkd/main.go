@@ -23,6 +23,10 @@ func main() {
 	flag.Parse()
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	if err := network.LinkUp("lo"); err != nil {
+		log.Error().Err(err).Msg("failed to bring interface lo up")
+	}
+
 	err := backoff.Retry(bootstrap, backoff.NewExponentialBackOff())
 	if err != nil {
 		return
