@@ -25,14 +25,58 @@ type BtrfsDevice struct {
 	Path    string `json:"path"`
 }
 
+// BtrfsVolume holds metadata about a single subvolume
+type BtrfsVolume struct {
+	Path       string
+	ID         uint64
+	Generation uint64
+	ParentID   uint64
+}
+
 // BtrfsList lists all availabel btrfs pools
-func BtrfsList(ctx context.Context) ([]Btrfs, error) {
-	output, err := run(ctx, "btrfs", "filesystem", "show", "--raw")
+// if label is provided, only get fs of that label, if mounted = True, only return
+// mounted filesystems, otherwise any.
+func BtrfsList(ctx context.Context, label string, mounted bool) ([]Btrfs, error) {
+	args := []string{
+		"filesystem", "show", "--raw",
+	}
+
+	if mounted {
+		args = append(args, "-m")
+	}
+
+	if len(label) != 0 {
+		args = append(args, label)
+	}
+
+	output, err := run(ctx, "btrfs", args...)
 	if err != nil {
 		return nil, err
 	}
 
 	return parseList(string(output))
+}
+
+// BtrfsSubvolumeList list direct subvolumes of this location
+func BtrfsSubvolumeList(ctx context.Context, root string) ([]BtrfsVolume, error) {
+	output, err := run(ctx, "btrfs", "subvolume", "list", "-o", root)
+	if err != nil {
+		return nil, err
+	}
+
+	var volumes []BtrfsVolume
+	for _, line := range strings.Split(string(output), "\n") {
+		// ID 263 gen 45 top level 261 path root/home
+		var volume BtrfsVolume
+		if _, err := fmt.Sscanf(line, "ID %d gen %d top level %d path %s",
+			&volume.ID, &volume.Generation, &volume.ParentID, &volume.Path); err != nil {
+			return nil, err
+		}
+
+		volumes = append(volumes, volume)
+	}
+
+	return volumes, nil
 }
 
 func parseList(output string) ([]Btrfs, error) {

@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 )
 
+type DeviceManager interface {
+	Devices(ctx context.Context) ([]Device, error)
+}
+
 // Device represents a physical device
 type Device struct {
 	Name  string `json:"name"`
@@ -13,8 +17,15 @@ type Device struct {
 	Label string `json:"label"`
 }
 
+type lsblkDeviceManager struct{}
+
+// DefaultDeviceManager returns a default device manager implementation
+func DefaultDeviceManager() DeviceManager {
+	return &lsblkDeviceManager{}
+}
+
 // Devices gets available block devices
-func Devices(ctx context.Context) ([]Device, error) {
+func (l *lsblkDeviceManager) Devices(ctx context.Context) ([]Device, error) {
 	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2")
 	if err != nil {
 		return nil, err

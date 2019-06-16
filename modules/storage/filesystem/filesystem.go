@@ -8,9 +8,10 @@ import (
 
 // Volume represents a logical volume in the pool. Volumes can be nested
 type Volume interface {
+	Path() string
 	Volumes() ([]Volume, error)
-	AddVolume(size uint64) (Volume, error)
-	RemoveVolume(volume Volume) error
+	AddVolume(name string, size uint64) (Volume, error)
+	RemoveVolume(name string) error
 }
 
 // Pool represents a created filesystem
@@ -27,5 +28,5 @@ type Pool interface {
 
 // Filesystem defines a filesystem interface
 type Filesystem interface {
-	Create(ctx context.Context, name string, devices []string, policy modules.RaidProfile) (Pool, error)
+	Create(ctx context.Context, name string, devices []string, profile modules.RaidProfile) error
 }
