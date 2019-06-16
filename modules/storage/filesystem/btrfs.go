@@ -38,15 +38,15 @@ func (b *btrfs) btrfs(ctx context.Context, args ...string) ([]byte, error) {
 	return run(ctx, "btrfs", args...)
 }
 
-func (b *btrfs) Create(ctx context.Context, name string, devices []string, policy modules.RaidProfile) error {
+func (b *btrfs) Create(ctx context.Context, name string, devices []string, policy modules.RaidProfile) (Pool, error) {
 	block, err := b.devices.Devices(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, device := range block {
 		if device.Label == name {
-			return fmt.Errorf("unique name is required")
+			return nil, fmt.Errorf("unique name is required")
 		}
 	}
 
@@ -58,10 +58,10 @@ func (b *btrfs) Create(ctx context.Context, name string, devices []string, polic
 
 	args = append(args, devices...)
 	if _, err := run(ctx, "mkfs.btrfs", args...); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return btrfsPool(name), nil
 }
 
 func (b *btrfs) List(ctx context.Context) ([]Btrfs, error) {
