@@ -1,8 +1,12 @@
 #!/usr/bin/bash
 
+# setup NUM network namespaces that are connecte via a circular mesh:
+# i.e. every namespace has an encrypted tunnel to the other, with the
+# associated route
+
+NUM=50
 # setup 2 network namespaces, generate keys for 2 wg's
 
-NUM=5
 function genkeys() {
 	for i in $(seq 1 $NUM); do
 		wg genkey | tee wg${i}.priv | wg pubkey >wg${i}.pub
@@ -11,14 +15,16 @@ function genkeys() {
 
 function genconf() {
 	for i in $(seq 1 $NUM); do
+		echo -n "${i}.."
 		PRIV=$(cat wg${i}.priv)
+		h=$(printf '%x' $i)
+		port=$((16000 + $i))
 		cat <<EOF >wg${i}.conf
 # WG${i}
 [Interface]
 ListenPort = ${port}
 PrivateKey = $PRIV
 EOF
-
 		for wg in $(seq 1 $NUM); do
 			if [ "$wg" -ne "$i" ]; then
 				port=$((16000 + $wg))
@@ -30,6 +36,8 @@ EOF
 [Peer]
 PublicKey = $PUB
 Endpoint = 127.0.0.1:${port}
+AllowedIPs = fe80::${h},192.168.255.${wg},2001:1:1:${h}::/64
+PersistentKeepalive = 20
 EEOF
 				if [ "$wg" -eq "1" ]; then
 					cat <<EEEOF >>wg${i}.conf
@@ -51,10 +59,11 @@ EEEOF
 
 function ns() {
 	for i in $(seq 1 $NUM); do
+		echo -n "${i}.."
+		h=$(printf '%x' $i)
 		ip netns add wg${i}
 
 		ip link add wg${i} type wireguard
-
 		ip link set wg${i} netns wg${i}
 
 		ip link add int${i} type dummy
@@ -108,6 +117,13 @@ function deleteall() {
 
 function main() {
 	genkeys
+	echo
 	genconf
+	echo
 	ns
+	echo
+	addroutes
+	echo
 }
+
+# main
