@@ -1,3 +1,18 @@
+/*
+NOTE:
+  This test file tries to create loop devices to work against on some
+  sparse files, to avoid causing any actual changes to permenant storage
+  on the test machine. This comes with a price that this test file
+  need to run as root to be able to run the `losetup` commands.
+
+  this can be easily done as
+  `sudo GOPATH=$GOPATH go test -v ./...`
+
+   (
+	  we set the gopath to the current user gopath to make it use the same go cache and src from the
+	  current user
+   )
+*/
 package filesystem
 
 import (
