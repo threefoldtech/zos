@@ -295,3 +295,48 @@ func TestBtrfsRaid1(t *testing.T) {
 		}
 	})
 }
+
+func TestBtrfsList(t *testing.T) {
+	devices, err := setupDevices(2)
+	if err != nil {
+		t.Fatal("failed to initialize devices", err)
+	}
+
+	defer devices.Destroy()
+
+	fs := NewBtrfs(TestDeviceManager{devices})
+
+	loops := devices.Loops()
+	names := make(map[string]struct{})
+	for i, loop := range loops {
+		name := fmt.Sprintf("test-list-%d", i)
+		names[name] = struct{}{}
+		_, err := fs.Create(context.Background(), name, []string{loop}, modules.Single)
+
+		if ok := assert.NoError(t, err); !ok {
+			t.Fatal()
+		}
+	}
+
+	pools, err := fs.List(context.Background())
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	for _, pool := range pools {
+		if !strings.HasPrefix(pool.Name(), "test-list") {
+			continue
+		}
+
+		_, exist := names[pool.Name()]
+		if !exist {
+			t.Fatalf("pool %s is not listed", pool)
+		}
+
+		delete(names, pool.Name())
+	}
+
+	if ok := assert.Len(t, names, 0); !ok {
+		t.Fatal("not all pools were listed")
+	}
+}

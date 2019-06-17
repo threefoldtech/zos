@@ -30,4 +30,5 @@ type Pool interface {
 // Filesystem defines a filesystem interface
 type Filesystem interface {
 	Create(ctx context.Context, name string, devices []string, profile modules.RaidProfile) (Pool, error)
+	List(ctx context.Context) ([]Pool, error)
 }

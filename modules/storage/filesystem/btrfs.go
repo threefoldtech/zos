@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"syscall"
 
 	"github.com/threefoldtech/zosv2/modules"
@@ -44,6 +45,11 @@ func (b *btrfs) btrfs(ctx context.Context, args ...string) ([]byte, error) {
 }
 
 func (b *btrfs) Create(ctx context.Context, name string, devices []string, policy modules.RaidProfile) (Pool, error) {
+	name = strings.TrimSpace(name)
+	if len(name) == 0 {
+		return nil, fmt.Errorf("invalid name")
+	}
+
 	block, err := b.devices.WithLabel(ctx, name)
 	if err != nil {
 		return nil, err
@@ -78,8 +84,23 @@ func (b *btrfs) Create(ctx context.Context, name string, devices []string, polic
 	return btrfsPool(name), nil
 }
 
-func (b *btrfs) List(ctx context.Context) ([]Btrfs, error) {
-	return BtrfsList(ctx, "", false)
+func (b *btrfs) List(ctx context.Context) ([]Pool, error) {
+	var pools []Pool
+	available, err := BtrfsList(ctx, "", false)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fs := range available {
+		if len(fs.Label) == 0 {
+			// we only assume labeled devices are managed
+			continue
+		}
+
+		pools = append(pools, btrfsPool(fs.Label))
+	}
+
+	return pools, nil
 }
 
 type btrfsPool string
