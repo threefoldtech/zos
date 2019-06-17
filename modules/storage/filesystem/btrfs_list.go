@@ -28,9 +28,9 @@ type BtrfsDevice struct {
 // BtrfsVolume holds metadata about a single subvolume
 type BtrfsVolume struct {
 	Path       string
-	ID         uint64
-	Generation uint64
-	ParentID   uint64
+	ID         int
+	Generation int
+	ParentID   int
 }
 
 // BtrfsList lists all availabel btrfs pools
@@ -64,9 +64,17 @@ func BtrfsSubvolumeList(ctx context.Context, root string) ([]BtrfsVolume, error)
 		return nil, err
 	}
 
+	return parseSubvolList(string(output))
+}
+
+func parseSubvolList(output string) ([]BtrfsVolume, error) {
 	var volumes []BtrfsVolume
-	for _, line := range strings.Split(string(output), "\n") {
+	for _, line := range strings.Split(output, "\n") {
 		// ID 263 gen 45 top level 261 path root/home
+		line = strings.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
 		var volume BtrfsVolume
 		if _, err := fmt.Sscanf(line, "ID %d gen %d top level %d path %s",
 			&volume.ID, &volume.Generation, &volume.ParentID, &volume.Path); err != nil {
