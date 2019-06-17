@@ -23,6 +23,11 @@ type btrfs struct {
 	devices DeviceManager
 }
 
+// NewBtrfs creates a new filesystem that implements btrfs
+func NewBtrfs(manager DeviceManager) Filesystem {
+	return &btrfs{manager}
+}
+
 func run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	output, err := exec.CommandContext(ctx, name, args...).Output()
 	if err != nil {
@@ -101,7 +106,7 @@ func (p btrfsPool) Path() string {
 // Mount mounts the pool in it's default mount location under /mnt/name
 func (p btrfsPool) Mount() (string, error) {
 	ctx := context.Background()
-	list, _ := BtrfsList(ctx, string(p), true)
+	list, _ := BtrfsList(ctx, string(p), false)
 	if len(list) != 1 {
 		return "", fmt.Errorf("unknown pool '%s'", p)
 	}
@@ -192,7 +197,7 @@ func (p btrfsPool) RemoveVolume(name string) error {
 	}
 
 	mnt = path.Join(mnt, name)
-	_, err := run(context.Background(), "btrfs", "subvolume", "remove", mnt)
+	_, err := run(context.Background(), "btrfs", "subvolume", "delete", mnt)
 
 	return err
 }
