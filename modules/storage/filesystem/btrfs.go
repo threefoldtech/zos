@@ -99,6 +99,10 @@ func (p btrfsPool) mounted(fs *Btrfs) (string, bool) {
 	return "", false
 }
 
+func (p btrfsPool) Name() string {
+	return string(p)
+}
+
 func (p btrfsPool) Path() string {
 	return path.Join("/mnt", string(p))
 }
@@ -113,8 +117,8 @@ func (p btrfsPool) Mount() (string, error) {
 
 	fs := list[0]
 
-	if _, mounted := p.mounted(&fs); mounted {
-		return "", DeviceAlreadyMountedError
+	if mnt, mounted := p.mounted(&fs); mounted {
+		return mnt, nil
 	}
 
 	mnt := p.Path()

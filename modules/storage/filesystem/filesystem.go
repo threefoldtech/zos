@@ -17,6 +17,7 @@ type Volume interface {
 // Pool represents a created filesystem
 type Pool interface {
 	Volume
+	Name() string
 	Mounted() (string, bool)
 	Mount() (string, error)
 	UnMount() error

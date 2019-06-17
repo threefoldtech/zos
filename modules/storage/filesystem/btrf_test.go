@@ -115,23 +115,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestBtrfsCreateSingle(t *testing.T) {
-	devices, err := setupDevices(1)
-	if err != nil {
-		t.Fatal("failed to initialize devices", err)
-	}
-	defer devices.Destroy()
-
-	fs := NewBtrfs(TestDeviceManager{devices})
-
-	var pool Pool
-	t.Run("create pool", func(t *testing.T) {
-		pool, err = fs.Create(context.Background(), "test-single", devices.Loops(), modules.Single)
-
-		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
-		}
-	})
+func basePoolTest(t *testing.T, pool Pool) {
 
 	t.Run("test mounted", func(t *testing.T) {
 		_, mounted := pool.Mounted()
@@ -141,7 +125,7 @@ func TestBtrfsCreateSingle(t *testing.T) {
 	})
 
 	t.Run("test path", func(t *testing.T) {
-		if ok := assert.Equal(t, "/mnt/test-single", pool.Path()); !ok {
+		if ok := assert.Equal(t, path.Join("/mnt", pool.Name()), pool.Path()); !ok {
 			t.Error()
 		}
 	})
@@ -173,13 +157,14 @@ func TestBtrfsCreateSingle(t *testing.T) {
 	})
 
 	var volume Volume
+	var err error
 	t.Run("test create volume", func(t *testing.T) {
 		volume, err = pool.AddVolume("subvol1", 0)
 		if ok := assert.NoError(t, err); !ok {
 			t.Fail()
 		}
 
-		if ok := assert.Equal(t, "/mnt/test-single/subvol1", volume.Path()); !ok {
+		if ok := assert.Equal(t, path.Join("/mnt", pool.Name(), "subvol1"), volume.Path()); !ok {
 			t.Error()
 		}
 	})
@@ -219,6 +204,77 @@ func TestBtrfsCreateSingle(t *testing.T) {
 
 		if ok := assert.Empty(t, volumes); !ok {
 			t.Error()
+		}
+	})
+}
+
+func TestBtrfsSingle(t *testing.T) {
+	devices, err := setupDevices(1)
+	if err != nil {
+		t.Fatal("failed to initialize devices", err)
+	}
+	defer devices.Destroy()
+
+	fs := NewBtrfs(TestDeviceManager{devices})
+	pool, err := fs.Create(context.Background(), "test-single", devices.Loops(), modules.Single)
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fail()
+	}
+
+	basePoolTest(t, pool)
+}
+
+func TestBtrfsRaid1(t *testing.T) {
+	devices, err := setupDevices(3)
+	if err != nil {
+		t.Fatal("failed to initialize devices", err)
+	}
+
+	defer devices.Destroy()
+
+	loops := devices.Loops()
+	fs := NewBtrfs(TestDeviceManager{devices})
+	pool, err := fs.Create(context.Background(), "test-raid1", loops[:2], modules.Raid1) //use the first 2 disks
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fail()
+	}
+
+	basePoolTest(t, pool)
+
+	//make sure pool is mounted
+	_, err = pool.Mount()
+	if ok := assert.NoError(t, err); !ok {
+		t.Fail()
+	}
+
+	defer pool.UnMount()
+
+	// raid  specific tests
+
+	t.Run("add device", func(t *testing.T) {
+		// add a device to array
+		err = pool.AddDevice(loops[2])
+		if ok := assert.NoError(t, err); !ok {
+			t.Fail()
+		}
+	})
+
+	t.Run("remove device", func(t *testing.T) {
+		// remove device from array
+		err = pool.RemoveDevice(loops[0])
+		if ok := assert.NoError(t, err); !ok {
+			t.Fail()
+		}
+	})
+
+	t.Run("remove second device", func(t *testing.T) {
+		// remove a 2nd device should fail because raid1 should
+		// have at least 2 devices
+		err = pool.RemoveDevice(loops[1])
+		if ok := assert.Error(t, err); !ok {
+			t.Fail()
 		}
 	})
 }
