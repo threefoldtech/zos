@@ -93,9 +93,27 @@ type TestDeviceManager struct {
 	devices TestDevices
 }
 
+func (m TestDeviceManager) Device(ctx context.Context, device string) (Device, error) {
+	for _, loop := range m.devices {
+		if loop == device {
+			return Device{
+				Path: loop,
+				Name: path.Base(loop),
+				Type: "loop",
+			}, nil
+		}
+	}
+
+	return Device{}, fmt.Errorf("device not found")
+}
+
+func (m TestDeviceManager) WithLabel(ctx context.Context, label string) ([]Device, error) {
+	return nil, nil
+}
+
 func (m TestDeviceManager) Devices(ctx context.Context) ([]Device, error) {
 	var devices []Device
-	for loop := range m.devices {
+	for _, loop := range m.devices {
 		devices = append(devices, Device{
 			Path: loop,
 			Name: path.Base(loop),
@@ -116,7 +134,6 @@ func TestMain(m *testing.M) {
 }
 
 func basePoolTest(t *testing.T, pool Pool) {
-
 	t.Run("test mounted", func(t *testing.T) {
 		_, mounted := pool.Mounted()
 		if ok := assert.False(t, mounted); !ok {
@@ -134,7 +151,7 @@ func basePoolTest(t *testing.T, pool Pool) {
 		// mount device
 		target, err := pool.Mount()
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 
 		if ok := assert.Equal(t, target, pool.Path()); !ok {
@@ -148,7 +165,7 @@ func basePoolTest(t *testing.T, pool Pool) {
 		// no volumes
 		volumes, err := pool.Volumes()
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 
 		if ok := assert.Empty(t, volumes); !ok {
@@ -161,7 +178,7 @@ func basePoolTest(t *testing.T, pool Pool) {
 	t.Run("test create volume", func(t *testing.T) {
 		volume, err = pool.AddVolume("subvol1", 0)
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 
 		if ok := assert.Equal(t, path.Join("/mnt", pool.Name(), "subvol1"), volume.Path()); !ok {
@@ -172,7 +189,7 @@ func basePoolTest(t *testing.T, pool Pool) {
 	t.Run("test list volumes", func(t *testing.T) {
 		volumes, err := pool.Volumes()
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 
 		if ok := assert.Len(t, volumes, 1); !ok {
@@ -183,7 +200,7 @@ func basePoolTest(t *testing.T, pool Pool) {
 	t.Run("test subvolume list no subvolumes", func(t *testing.T) {
 		volumes, err := volume.Volumes()
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 
 		if ok := assert.Empty(t, volumes); !ok {
@@ -194,12 +211,12 @@ func basePoolTest(t *testing.T, pool Pool) {
 	t.Run("test remove subvolume", func(t *testing.T) {
 		err = pool.RemoveVolume("subvol1")
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 		// no volumes after delete
 		volumes, err := pool.Volumes()
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 
 		if ok := assert.Empty(t, volumes); !ok {
@@ -219,7 +236,7 @@ func TestBtrfsSingle(t *testing.T) {
 	pool, err := fs.Create(context.Background(), "test-single", devices.Loops(), modules.Single)
 
 	if ok := assert.NoError(t, err); !ok {
-		t.Fail()
+		t.Fatal()
 	}
 
 	basePoolTest(t, pool)
@@ -238,7 +255,7 @@ func TestBtrfsRaid1(t *testing.T) {
 	pool, err := fs.Create(context.Background(), "test-raid1", loops[:2], modules.Raid1) //use the first 2 disks
 
 	if ok := assert.NoError(t, err); !ok {
-		t.Fail()
+		t.Fatal()
 	}
 
 	basePoolTest(t, pool)
@@ -246,7 +263,7 @@ func TestBtrfsRaid1(t *testing.T) {
 	//make sure pool is mounted
 	_, err = pool.Mount()
 	if ok := assert.NoError(t, err); !ok {
-		t.Fail()
+		t.Fatal()
 	}
 
 	defer pool.UnMount()
@@ -257,7 +274,7 @@ func TestBtrfsRaid1(t *testing.T) {
 		// add a device to array
 		err = pool.AddDevice(loops[2])
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 	})
 
@@ -265,7 +282,7 @@ func TestBtrfsRaid1(t *testing.T) {
 		// remove device from array
 		err = pool.RemoveDevice(loops[0])
 		if ok := assert.NoError(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 	})
 
@@ -274,7 +291,7 @@ func TestBtrfsRaid1(t *testing.T) {
 		// have at least 2 devices
 		err = pool.RemoveDevice(loops[1])
 		if ok := assert.Error(t, err); !ok {
-			t.Fail()
+			t.Fatal()
 		}
 	})
 }

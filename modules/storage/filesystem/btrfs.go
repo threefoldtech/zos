@@ -44,14 +44,23 @@ func (b *btrfs) btrfs(ctx context.Context, args ...string) ([]byte, error) {
 }
 
 func (b *btrfs) Create(ctx context.Context, name string, devices []string, policy modules.RaidProfile) (Pool, error) {
-	block, err := b.devices.Devices(ctx)
+	block, err := b.devices.WithLabel(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, device := range block {
-		if device.Label == name {
-			return nil, fmt.Errorf("unique name is required")
+	if len(block) != 0 {
+		return nil, fmt.Errorf("unique name is required")
+	}
+
+	for _, device := range devices {
+		dev, err := b.devices.Device(ctx, device)
+		if err != nil {
+			return nil, err
+		}
+
+		if dev.Used() {
+			return nil, fmt.Errorf("device '%s' is already used", dev)
 		}
 	}
 
