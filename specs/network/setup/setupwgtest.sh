@@ -76,7 +76,6 @@ function ns() {
 }
 
 function addroutes() {
-
 	for i in $(seq 1 $NUM); do
 		echo -n "${i}.."
 		for wg in $(seq 1 $NUM); do
