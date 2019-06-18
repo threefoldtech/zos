@@ -67,8 +67,8 @@ func Exists(name string) bool {
 }
 
 // AttachNic attaches an interface to a bridge
-func AttachNic(device *netlink.Device, bridge *netlink.Bridge) error {
-	return netlink.LinkSetMaster(device, bridge)
+func AttachNic(link netlink.Link, bridge *netlink.Bridge) error {
+	return netlink.LinkSetMaster(link, bridge)
 }
 
 // DetachNic detaches an interface to a bridge
