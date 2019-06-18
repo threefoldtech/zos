@@ -10,6 +10,8 @@ type RaidProfile string
 const (
 	// Single profile
 	Single RaidProfile = "single"
+	// Raid0 profile
+	Raid0 RaidProfile = "raid0"
 	// Raid1 profile
 	Raid1 RaidProfile = "raid1"
 	// Raid10 profile

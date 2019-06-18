@@ -3,6 +3,8 @@ package filesystem
 import (
 	"testing"
 
+	"github.com/threefoldtech/zosv2/modules"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -142,34 +144,43 @@ func TestParseFSWithWarnings2(t *testing.T) {
 
 }
 
-// var (
-// 	dfString = `Data, single: total=8388608, used=65536
-// System, single: total=4194304, used=16384
-// Metadata, single: total=276824064, used=163840
-// GlobalReserve, single: total=16777216, used=0
-// `
-// )
+func TestParseDF(t *testing.T) {
+	const dfString = `Data, single: total=8388608, used=65536
+System, single: total=4194304, used=16384
+Metadata, single: total=276824064, used=163840
+GlobalReserve, single: total=16777216, used=0
+	`
 
-// func TestParseDF(t *testing.T) {
+	df, err := parseFilesystemDF(dfString)
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
 
-// 	fsinfo := btrfsFSInfo{}
-// 	m.parseFilesystemDF(dfString, &fsinfo)
-// 	assert.Equal(t, "single", fsinfo.Data.Profile)
-// 	assert.Equal(t, int64(8388608), fsinfo.Data.Total)
-// 	assert.Equal(t, int64(65536), fsinfo.Data.Used)
-// 	assert.Equal(t, "single", fsinfo.System.Profile)
-// 	assert.Equal(t, int64(4194304), fsinfo.System.Total)
-// 	assert.Equal(t, int64(16384), fsinfo.System.Used)
-// }
+	if ok := assert.Equal(t, BtrfsDiskUsage{
+		Data: DiskUsage{
+			Profile: modules.Single, Total: 8388608, Used: 65536,
+		},
+		System: DiskUsage{
+			Profile: modules.Single, Total: 4194304, Used: 16384,
+		},
+		Metadata: DiskUsage{
+			Profile: modules.Single, Total: 276824064, Used: 163840,
+		},
+		GlobalReserve: DiskUsage{
+			Profile: modules.Single, Total: 16777216, Used: 0,
+		},
+	}, df); !ok {
+		t.Fail()
+	}
 
-var (
-	subvolStr = `ID 259 gen 14 top level 5 path svol
-ID 262 gen 21 top level 5 path cobavol
-
-`
-)
+}
 
 func TestParseSubvolume(t *testing.T) {
+	const subvolStr = `ID 259 gen 14 top level 5 path svol
+	ID 262 gen 21 top level 5 path cobavol
+
+	`
+
 	svs, err := parseSubvolList(subvolStr)
 
 	assert.Nil(t, err)

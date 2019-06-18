@@ -208,6 +208,33 @@ func basePoolTest(t *testing.T, pool Pool) {
 		}
 	})
 
+	t.Run("test limit subvolume", func(t *testing.T) {
+		usage, err := volume.Usage()
+		if ok := assert.NoError(t, err); !ok {
+			t.Fatal()
+		}
+
+		// Note: an empty subvolume has an overhead of 16384 bytes
+		if ok := assert.Equal(t, Usage{Used: 16384}, usage); !ok {
+			t.Fail()
+		}
+
+		err = volume.Limit(50 * 1024 * 1024)
+		if ok := assert.NoError(t, err); !ok {
+			t.Fatal()
+		}
+
+		usage, err = volume.Usage()
+		if ok := assert.NoError(t, err); !ok {
+			t.Fatal()
+		}
+
+		// Note: an empty subvolume has an overhead of 16384 bytes
+		if ok := assert.Equal(t, Usage{Used: 16384, Size: 50 * 1024 * 1024}, usage); !ok {
+			t.Fail()
+		}
+	})
+
 	t.Run("test remove subvolume", func(t *testing.T) {
 		err = pool.RemoveVolume("subvol1")
 		if ok := assert.NoError(t, err); !ok {

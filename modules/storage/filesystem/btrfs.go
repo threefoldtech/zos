@@ -246,8 +246,14 @@ func (p btrfsPool) RemoveVolume(name string) error {
 }
 
 // Size return the pool size
-func (p btrfsPool) Usage() (Usage, error) {
-	return Usage{}, nil
+func (p btrfsPool) Usage() (usage Usage, err error) {
+	mnt, ok := p.Mounted()
+	if !ok {
+		return usage, DeviceNotMountedError
+	}
+
+	du, err := BtrfsGetDiskUsage(context.Background(), mnt)
+	return Usage{Size: du.Data.Total, Used: du.Data.Used}, nil
 }
 
 // Limit on a pool is not supported yet

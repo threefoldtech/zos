@@ -6,10 +6,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/threefoldtech/zosv2/modules"
 )
 
 var (
-	reBtrfsQgroup = regexp.MustCompile(`(?m:^(\d+/\d+)\s+(\d+)\s+(\d+)\s+(\d+|none)\s+(\d+|none).*$)`)
+	reBtrfsFilesystemDf = regexp.MustCompile(`(?m:(\w+),\s(\w+):\s+total=(\d+),\s+used=(\d+))`)
+	reBtrfsQgroup       = regexp.MustCompile(`(?m:^(\d+/\d+)\s+(\d+)\s+(\d+)\s+(\d+|none)\s+(\d+|none).*$)`)
 )
 
 // Btrfs holds metadata of underlying btrfs filesystem
@@ -45,6 +48,19 @@ type BtrfsQGroup struct {
 	Excl    uint64
 	MaxRfer uint64
 	MaxExcl uint64
+}
+
+type DiskUsage struct {
+	Profile modules.RaidProfile `json:"profile"`
+	Total   uint64              `json:"total"`
+	Used    uint64              `json:"used"`
+}
+
+type BtrfsDiskUsage struct {
+	Data          DiskUsage `json:"data"`
+	System        DiskUsage `json:"system"`
+	Metadata      DiskUsage `json:"metadata"`
+	GlobalReserve DiskUsage `json:"globalreserve"`
 }
 
 // BtrfsList lists all availabel btrfs pools
@@ -258,4 +274,47 @@ func parseQGroups(output string) map[string]BtrfsQGroup {
 	}
 
 	return qgroups
+}
+
+// BtrfsGetDiskUsage get btrfs usage
+func BtrfsGetDiskUsage(ctx context.Context, path string) (usage BtrfsDiskUsage, err error) {
+	output, err := run(ctx, "btrfs", "filesystem", "df", "--raw", path)
+	if err != nil {
+		return usage, err
+	}
+
+	return parseFilesystemDF(string(output))
+}
+
+func parseFilesystemDF(output string) (usage BtrfsDiskUsage, err error) {
+	lines := reBtrfsFilesystemDf.FindAllStringSubmatch(output, -1)
+	for _, line := range lines {
+		name := line[1]
+		var datainfo *DiskUsage
+		switch name {
+		case "Data":
+			datainfo = &usage.Data
+		case "System":
+			datainfo = &usage.System
+		case "Metadata":
+			datainfo = &usage.Metadata
+		case "GlobalReserve":
+			datainfo = &usage.GlobalReserve
+		default:
+			continue
+		}
+		datainfo.Profile = modules.RaidProfile(line[2])
+		datainfo.Total, err = strconv.ParseUint(line[3], 10, 64)
+		if err != nil {
+			return
+		}
+
+		datainfo.Used, err = strconv.ParseUint(line[4], 10, 64)
+		if err != nil {
+			return
+		}
+
+	}
+
+	return
 }
