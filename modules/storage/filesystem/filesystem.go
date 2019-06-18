@@ -10,8 +10,10 @@ import (
 type Volume interface {
 	Path() string
 	Volumes() ([]Volume, error)
-	AddVolume(name string, size uint64) (Volume, error)
+	AddVolume(name string) (Volume, error)
 	RemoveVolume(name string) error
+	Size() (uint64, error)
+	Limit(size uint64) error
 }
 
 // Pool represents a created filesystem

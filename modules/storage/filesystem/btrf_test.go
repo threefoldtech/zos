@@ -176,7 +176,7 @@ func basePoolTest(t *testing.T, pool Pool) {
 	var volume Volume
 	var err error
 	t.Run("test create volume", func(t *testing.T) {
-		volume, err = pool.AddVolume("subvol1", 0)
+		volume, err = pool.AddVolume("subvol1")
 		if ok := assert.NoError(t, err); !ok {
 			t.Fatal()
 		}

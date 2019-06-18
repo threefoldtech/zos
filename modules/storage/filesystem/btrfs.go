@@ -137,6 +137,11 @@ func (p btrfsPool) Path() string {
 	return path.Join("/mnt", string(p))
 }
 
+func (p btrfsPool) enableQuota(mnt string) error {
+	_, err := run(context.Background(), "btrfs", "quota", "enable", mnt)
+	return err
+}
+
 // Mount mounts the pool in it's default mount location under /mnt/name
 func (p btrfsPool) Mount() (string, error) {
 	ctx := context.Background()
@@ -156,7 +161,11 @@ func (p btrfsPool) Mount() (string, error) {
 		return "", err
 	}
 
-	return mnt, syscall.Mount(fs.Devices[0].Path, mnt, "btrfs", 0, "")
+	if err := syscall.Mount(fs.Devices[0].Path, mnt, "btrfs", 0, ""); err != nil {
+		return "", err
+	}
+
+	return mnt, p.enableQuota(mnt)
 }
 
 func (p btrfsPool) UnMount() error {
@@ -210,7 +219,7 @@ func (p btrfsPool) Volumes() ([]Volume, error) {
 	return volumes, nil
 }
 
-func (p btrfsPool) AddVolume(name string, size uint64) (Volume, error) {
+func (p btrfsPool) AddVolume(name string) (Volume, error) {
 	mnt, ok := p.Mounted()
 	if !ok {
 		return nil, DeviceNotMountedError
@@ -236,6 +245,16 @@ func (p btrfsPool) RemoveVolume(name string) error {
 	return err
 }
 
+// Size return the pool size
+func (p btrfsPool) Size() (uint64, error) {
+	return 0, nil
+}
+
+// Limit on a pool is not supported yet
+func (p btrfsPool) Limit(size uint64) error {
+	return fmt.Errorf("not implemented")
+}
+
 type btrfsVolume string
 
 func (v btrfsVolume) Path() string {
@@ -257,7 +276,7 @@ func (v btrfsVolume) Volumes() ([]Volume, error) {
 	return volumes, nil
 }
 
-func (v btrfsVolume) AddVolume(name string, size uint64) (Volume, error) {
+func (v btrfsVolume) AddVolume(name string) (Volume, error) {
 	mnt := path.Join(string(v), name)
 	if _, err := run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
 		return nil, err
@@ -271,4 +290,19 @@ func (v btrfsVolume) RemoveVolume(name string) error {
 	_, err := run(context.Background(), "btrfs", "subvolume", "remove", mnt)
 
 	return err
+}
+
+// Size return the pool size
+func (p btrfsVolume) Size() (uint64, error) {
+	// info, err := BtrfsSubvolumeInfo(context.Background(), string(p))
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	return 0, nil
+}
+
+// Limit on a pool is not supported yet
+func (p btrfsVolume) Limit(size uint64) error {
+	return fmt.Errorf("not implemented")
 }

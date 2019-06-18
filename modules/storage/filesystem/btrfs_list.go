@@ -3,7 +3,13 @@ package filesystem
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
+)
+
+var (
+	reBtrfsQgroup = regexp.MustCompile(`(?m:^(\d+/\d+)\s+(\d+)\s+(\d+)\s+(\d+|none)\s+(\d+|none).*$)`)
 )
 
 // Btrfs holds metadata of underlying btrfs filesystem
@@ -31,6 +37,14 @@ type BtrfsVolume struct {
 	ID         int
 	Generation int
 	ParentID   int
+}
+
+type BtrfsQGroup struct {
+	ID      string
+	Rfer    uint64
+	Excl    uint64
+	MaxRfer uint64
+	MaxExcl uint64
 }
 
 // BtrfsList lists all availabel btrfs pools
@@ -65,6 +79,49 @@ func BtrfsSubvolumeList(ctx context.Context, root string) ([]BtrfsVolume, error)
 	}
 
 	return parseSubvolList(string(output))
+}
+
+// BtrfsSubvolumeInfo get info of a subvolume giving its path
+func BtrfsSubvolumeInfo(ctx context.Context, path string) (volume BtrfsVolume, err error) {
+	output, err := run(context.Background(), "btrfs", "subvolume", "show", path)
+	if err != nil {
+		return
+	}
+
+	volume, err = parseSubvolInfo(string(output))
+	volume.Path = path
+
+	return
+}
+
+func parseSubvolInfo(output string) (volume BtrfsVolume, err error) {
+	values := make(map[string]string)
+	for _, line := range strings.Split(output, "\n") {
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		value := strings.TrimSpace(parts[1])
+		if value == "-" {
+			continue
+		}
+		values[strings.TrimSpace(parts[0])] = value
+	}
+
+	if _, err := fmt.Sscanf(values["Subvolume ID"], "%d", &volume.ID); err != nil {
+		return volume, err
+	}
+
+	if _, err := fmt.Sscanf(values["Parent ID"], "%d", &volume.ParentID); err != nil {
+		return volume, err
+	}
+
+	if _, err := fmt.Sscanf(values["Generation"], "%d", &volume.Generation); err != nil {
+		return volume, err
+	}
+
+	return
 }
 
 func parseSubvolList(output string) ([]BtrfsVolume, error) {
@@ -168,4 +225,37 @@ func parseDevices(lines []string) ([]BtrfsDevice, error) {
 		}
 	}
 	return devs, nil
+}
+
+// BtrfsQGroupList list available qgroups
+func BtrfsQGroupList(ctx context.Context, path string) (map[string]BtrfsQGroup, error) {
+	output, err := run(ctx, "btrfs", "qgroup", "show", "-re", "--raw", path)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseQGroups(string(output)), nil
+}
+
+func parseQGroups(output string) map[string]BtrfsQGroup {
+	qgroups := make(map[string]BtrfsQGroup)
+	for _, line := range reBtrfsQgroup.FindAllStringSubmatch(output, -1) {
+		qgroup := BtrfsQGroup{
+			ID: line[1],
+		}
+
+		qgroup.Rfer, _ = strconv.ParseUint(line[2], 10, 64)
+		qgroup.Excl, _ = strconv.ParseUint(line[3], 10, 64)
+		if line[4] != "none" {
+			qgroup.MaxRfer, _ = strconv.ParseUint(line[4], 10, 64)
+		}
+
+		if line[5] != "none" {
+			qgroup.MaxExcl, _ = strconv.ParseUint(line[5], 10, 64)
+		}
+
+		qgroups[qgroup.ID] = qgroup
+	}
+
+	return qgroups
 }

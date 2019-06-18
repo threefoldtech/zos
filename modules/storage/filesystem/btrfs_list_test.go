@@ -182,36 +182,62 @@ func TestParseSubvolume(t *testing.T) {
 	assert.Equal(t, sv.Path, "svol")
 }
 
-// func TestQGroupParse(t *testing.T) {
-// 	s := `
-// qgroupid         rfer         excl     max_rfer     max_excl
-// --------         ----         ----     --------     --------
-// 0/5             16384        16384         none         none
-// 0/257           16384        16384         none         none
-// 0/258         5804032      5804032   1073741824         none
-// 0/259           16384        16384         none         none
-// 	`
+func TestBtrfsSubvolumeInfo(t *testing.T) {
+	const input = `
+a/b
+	Name: 			b
+	UUID: 			4dd82d3b-71fe-fb4b-9f5d-72d6a83e3bb6
+	Parent UUID: 		-
+	Received UUID: 		-
+	Creation time: 		2019-06-18 12:05:53 +0200
+	Subvolume ID: 		263
+	Generation: 		24
+	Gen at creation: 	24
+	Parent ID: 		261
+	Top level ID: 		261
+	Flags: 			-
+	Snapshot(s):
+`
 
-// 	var m Manager
+	volume, err := parseSubvolInfo(input)
 
-// 	groups := m.parseQGroups(s)
-// 	if ok := assert.Len(t, groups, 4); !ok {
-// 		t.Fail()
-// 	}
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
 
-// 	g, ok := groups["0/258"]
+	if ok := assert.Equal(t, BtrfsVolume{ID: 263, ParentID: 261, Generation: 24}, volume); !ok {
+		t.Error()
+	}
+}
 
-// 	if ok := assert.True(t, ok); !ok {
-// 		t.Fail()
-// 	}
+func TestQGroupParse(t *testing.T) {
+	const s = `
+qgroupid         rfer         excl     max_rfer     max_excl
+--------         ----         ----     --------     --------
+0/5             16384        16384         none         none
+0/257           16384        16384         none         none
+0/258         5804032      5804032   1073741824         none
+0/259           16384        16384         none         none
+	`
 
-// 	if ok := assert.Equal(t, btrfsQGroup{
-// 		ID:      "0/258",
-// 		Rfer:    5804032,
-// 		Excl:    5804032,
-// 		MaxRfer: 1073741824,
-// 		MaxExcl: 0,
-// 	}, g); !ok {
-// 		t.Fail()
-// 	}
-// }
+	groups := parseQGroups(s)
+	if ok := assert.Len(t, groups, 4); !ok {
+		t.Fail()
+	}
+
+	g, ok := groups["0/258"]
+
+	if ok := assert.True(t, ok); !ok {
+		t.Fail()
+	}
+
+	if ok := assert.Equal(t, BtrfsQGroup{
+		ID:      "0/258",
+		Rfer:    5804032,
+		Excl:    5804032,
+		MaxRfer: 1073741824,
+		MaxExcl: 0,
+	}, g); !ok {
+		t.Fail()
+	}
+}
