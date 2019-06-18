@@ -246,8 +246,8 @@ func (p btrfsPool) RemoveVolume(name string) error {
 }
 
 // Size return the pool size
-func (p btrfsPool) Size() (uint64, error) {
-	return 0, nil
+func (p btrfsPool) Usage() (Usage, error) {
+	return Usage{}, nil
 }
 
 // Limit on a pool is not supported yet
@@ -292,17 +292,41 @@ func (v btrfsVolume) RemoveVolume(name string) error {
 	return err
 }
 
-// Size return the pool size
-func (p btrfsVolume) Size() (uint64, error) {
-	// info, err := BtrfsSubvolumeInfo(context.Background(), string(p))
-	// if err != nil {
-	// 	return 0, err
-	// }
+// Usage return the volume usage
+func (v btrfsVolume) Usage() (usage Usage, err error) {
+	ctx := context.Background()
+	info, err := BtrfsSubvolumeInfo(ctx, string(v))
+	if err != nil {
+		return usage, err
+	}
 
-	return 0, nil
+	groups, err := BtrfsQGroupList(ctx, string(v))
+	if err != nil {
+		return usage, err
+	}
+
+	group, ok := groups[fmt.Sprintf("0/%d", info.ID)]
+	if !ok {
+		// no qgroup associated with the subvolume id! means no limit, but we also
+		// cannot read the usage.
+		return
+	}
+
+	// otherwise, we return the size as maxrefer and usage as the rfer of the
+	// associated group
+	// todo: size should be the size of the pool, if maxrfer is 0
+	return Usage{Used: group.Rfer, Size: group.MaxRfer}, nil
 }
 
-// Limit on a pool is not supported yet
-func (p btrfsVolume) Limit(size uint64) error {
-	return fmt.Errorf("not implemented")
+// Limit size of volume, setting size to 0 means unlimited
+func (v btrfsVolume) Limit(size uint64) error {
+	ctx := context.Background()
+
+	limit := "none"
+	if size > 0 {
+		limit = fmt.Sprint(size)
+	}
+	_, err := run(ctx, "btrfs", "qgroup", "limit", limit, string(v))
+
+	return err
 }

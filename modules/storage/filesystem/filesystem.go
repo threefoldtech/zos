@@ -6,13 +6,19 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 )
 
+// Usage struct
+type Usage struct {
+	Size uint64
+	Used uint64
+}
+
 // Volume represents a logical volume in the pool. Volumes can be nested
 type Volume interface {
 	Path() string
 	Volumes() ([]Volume, error)
 	AddVolume(name string) (Volume, error)
 	RemoveVolume(name string) error
-	Size() (uint64, error)
+	Usage() (Usage, error)
 	Limit(size uint64) error
 }
 
