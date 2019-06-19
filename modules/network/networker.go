@@ -7,9 +7,13 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
+	"github.com/containernetworking/cni/pkg/types/current"
+	"github.com/containernetworking/plugins/pkg/ip"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules/network/bridge"
 	"github.com/threefoldtech/zosv2/modules/network/wireguard"
+	"github.com/vishvananda/netlink"
 
 	"github.com/threefoldtech/zosv2/modules/network/namespace"
 
@@ -40,71 +44,126 @@ func (n *networker) ApplyNetResource(netID modules.NetID, resource modules.NetRe
 }
 
 func applyNetResource(storageDir string, netID modules.NetID, netRes modules.NetResource) error {
-	network := string(netID)
-	if err := createNetwork(network); err != nil {
+	if err := createNetworkResource(netID, netRes); err != nil {
 		return err
 	}
 
-	storage := filepath.Join(storageDir, network)
-	if err := configureWG(storage, network, netRes); err != nil {
+	if _, err := configureWG(storageDir, netRes); err != nil {
 		return err
 	}
 	return nil
 }
 
-// createNetwork creates a network namespace and a bridge
+// createNetworkResource creates a network namespace and a bridge
 // and a wireguard interface and then move it interface inside
 // the net namespace
-func createNetwork(name string) error {
+func createNetworkResource(netID modules.NetID, resource modules.NetResource) error {
 	var (
-		netnsName  = netnsName(name)
-		bridgeName = bridgeName(name)
-		wgName     = wgName(name)
+		// prefix     = prefixStr(resource.Prefix)
+		netnsName  = netnsName(resource.Prefix)
+		bridgeName = bridgeName(resource.Prefix)
+		wgName     = wgName(resource.Prefix)
+		vethName   = vethName(resource.Prefix)
 	)
 
-	if !namespace.Exists(netnsName) {
-		log.Info().Str("name", netnsName).Msg("create network namespace")
-		_, err := namespace.Create(netnsName)
-		if err != nil {
-			return err
-		}
-
-		log.Info().Str("name", wgName).Msg("create wireguard interface")
-		wg, err := wireguard.New(wgName)
-		if err != nil {
-			return err
-		}
-
-		log.Info().
-			Str("wg", wgName).
-			Str("namespace", netnsName).
-			Msg("move wireguard into network namespace")
-		if err := namespace.SetLink(wg, netnsName); err != nil {
-			return err
-		}
+	log.Info().Str("bridge", bridgeName).Msg("Create bridge")
+	br, err := bridge.New(bridgeName)
+	if err != nil {
+		return err
 	}
 
-	if !bridge.Exists(bridgeName) {
-		if _, err := bridge.New(bridgeName); err != nil {
+	log.Info().Str("namesapce", netnsName).Msg("Create namesapce")
+	netns, err := namespace.Create(netnsName)
+	if err != nil {
+		return err
+	}
+
+	hostIface := &current.Interface{}
+	var handler = func(hostNS ns.NetNS) error {
+		log.Info().
+			Str("namespace", netnsName).
+			Str("veth", vethName).
+			Msg("Create veth pair in net namespace")
+		hostVeth, containerVeth, err := ip.SetupVeth(vethName, 1500, hostNS)
+		if err != nil {
 			return err
 		}
+		hostIface.Name = hostVeth.Name
+
+		link, err := netlink.LinkByName(containerVeth.Name)
+		if err != nil {
+			return err
+		}
+
+		log.Info().Str("addr", resource.Prefix.String()).Msg("set address on veth interface")
+		addr := &netlink.Addr{IPNet: &resource.Prefix, Label: ""}
+		if err = netlink.AddrAdd(link, addr); err != nil {
+			return err
+		}
+
+		a, b := ipv4Nibble(resource.Prefix)
+		ip, ipNet, err := net.ParseCIDR(fmt.Sprintf("10.%d.%d.1/24", a, b))
+		if err != nil {
+			return err
+		}
+		ipNet.IP = ip
+		addr = &netlink.Addr{IPNet: ipNet, Label: ""}
+		if err = netlink.AddrAdd(link, addr); err != nil {
+			return err
+		}
+
+		return nil
+	}
+	if err := netns.Do(handler); err != nil {
+		return err
+	}
+
+	hostVeth, err := netlink.LinkByName(hostIface.Name)
+	if err != nil {
+		return err
+	}
+
+	log.Info().
+		Str("veth", vethName).
+		Str("bridge", bridgeName).
+		Msg("attach veth to bridge")
+	if err := bridge.AttachNic(hostVeth, br); err != nil {
+		return err
+	}
+
+	log.Info().Str("wg", wgName).Msg("create wireguard interface")
+	wg, err := wireguard.New(wgName)
+	if err != nil {
+		return err
+	}
+
+	log.Info().
+		Str("wg", wgName).
+		Str("namespace", netnsName).
+		Msg("move wireguard into network namespace")
+	if err := namespace.SetLink(wg, netnsName); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func deleteNetwork(network string) error {
-	if err := bridge.Delete(bridgeName(network)); err != nil {
+func deleteNetworkResource(resource modules.NetResource) error {
+	var (
+		netnsName  = netnsName(resource.Prefix)
+		bridgeName = bridgeName(resource.Prefix)
+	)
+	if err := bridge.Delete(bridgeName); err != nil {
 		return err
 	}
-	return namespace.Delete(netnsName(network))
+	return namespace.Delete(netnsName)
 }
 
-func configureWG(storageDir, network string, netRes modules.NetResource) error {
+func configureWG(storageDir string, resource modules.NetResource) (wgtypes.Key, error) {
 	var (
-		netnsName   = netnsName(network)
-		wgName      = wgName(network)
-		storagePath = filepath.Join(storageDir, network)
+		netnsName   = netnsName(resource.Prefix)
+		wgName      = wgName(resource.Prefix)
+		storagePath = filepath.Join(storageDir, prefixStr(resource.Prefix))
 		key         wgtypes.Key
 		err         error
 	)
@@ -113,73 +172,85 @@ func configureWG(storageDir, network string, netRes modules.NetResource) error {
 	if err != nil {
 		key, err = wireguard.GenerateKey(storagePath)
 		if err != nil {
-			return err
+			return key, err
 		}
-	}
-
-	// enter container net ns
-	nsCtx := namespace.NSContext{}
-	if err := nsCtx.Enter(netnsName); err != nil {
-		return err
-	}
-
-	wg, err := wireguard.GetByName(wgName)
-	if err != nil {
-		return err
 	}
 
 	// configure wg iface
-	peers := make([]wireguard.Peer, len(netRes.Connected))
-	for i, connected := range netRes.Connected {
-		if connected.Type != modules.ConnTypeWireguard {
+	peers := make([]wireguard.Peer, len(resource.Connected))
+	for i, peer := range resource.Connected {
+		if peer.Type != modules.ConnTypeWireguard {
 			continue
 		}
 
-		conn := connected.Connection
-
-		var endpoint string
-		if conn.Peer.To16() != nil {
-			endpoint = fmt.Sprintf("[%s]:%d", conn.Peer.String(), conn.PeerPort)
-		} else {
-			endpoint = fmt.Sprintf("%s:%d", conn.Peer.String(), conn.PeerPort)
-		}
-
+		a, b := ipv4Nibble(peer.Prefix)
 		peers[i] = wireguard.Peer{
-			PublicKey:  conn.Key,
-			Endpoint:   endpoint,
-			AllowedIPs: []string{"0.0.0.0/0"},
+			PublicKey: peer.Connection.Key,
+			Endpoint:  endpoint(peer),
+			AllowedIPs: []string{
+				fmt.Sprintf("fe80::%s/128", prefixStr(peer.Prefix)),
+				fmt.Sprintf("172.16.%d.%d/32", a, b),
+			},
 		}
 	}
 
-	wgIPNet, err := wgIP(netRes.Prefix)
+	netns, err := namespace.GetByName(netnsName)
 	if err != nil {
-		return err
+		return key, err
 	}
 
-	log.Info().Msg("configure wireguard interface")
+	var handler = func(_ ns.NetNS) error {
 
-	err = wg.Configure(wgIPNet.String(), key.String(), peers)
-	if err != nil {
-		nsCtx.Exit()
-		return err
+		wg, err := wireguard.GetByName(wgName)
+		if err != nil {
+			return err
+		}
+
+		log.Info().Msg("configure wireguard interface")
+		if err = wg.Configure(resource.LinkLocal.String(), key.String(), peers); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := netns.Do(handler); err != nil {
+		return key, err
 	}
 
-	// exit containe net ns
-	if err := nsCtx.Exit(); err != nil {
-		return err
+	return key, nil
+}
+
+func endpoint(peer modules.Connected) string {
+	var endpoint string
+	if peer.Connection.IP.To16() != nil {
+		endpoint = fmt.Sprintf("[%s]:%d", peer.Connection.IP.String(), peer.Connection.Port)
+	} else {
+		endpoint = fmt.Sprintf("%s:%d", peer.Connection.IP.String(), peer.Connection.Port)
 	}
-
-	return nil
+	return endpoint
 }
 
-func bridgeName(name string) string {
-	return fmt.Sprintf("br%s", name)
+func prefixStr(prefix net.IPNet) string {
+	b := []byte(prefix.IP)[6:8]
+	return fmt.Sprintf("%x", b)
 }
-func wgName(name string) string {
-	return fmt.Sprintf("wg%s", name)
+func bridgeName(prefix net.IPNet) string {
+	return fmt.Sprintf("br%s", prefixStr(prefix))
 }
-func netnsName(name string) string {
-	return fmt.Sprintf("ns%s", name)
+func wgName(prefix net.IPNet) string {
+	return fmt.Sprintf("wg%s", prefixStr(prefix))
+}
+func netnsName(prefix net.IPNet) string {
+	return fmt.Sprintf("ns%s", prefixStr(prefix))
+}
+func vethName(prefix net.IPNet) string {
+	return fmt.Sprintf("veth%s", prefixStr(prefix))
+}
+
+func ipv4Nibble(prefix net.IPNet) (uint8, uint8) {
+	x := []byte(prefix.IP)
+	a := uint8(x[6])
+	b := uint8(x[7])
+	return a, b
 }
 
 func wgIP(prefix net.IPNet) (*net.IPNet, error) {
@@ -245,9 +316,8 @@ func NewTestNetResourceAllocator() NetResourceAllocator {
 					Type:   modules.ConnTypeWireguard,
 					Prefix: MustParseCIDR("2a02:1802:5e:cc02::/64"),
 					Connection: modules.Wireguard{
-						NICName: "cc02",
-						Peer:    net.ParseIP("2001::1"),
-						Key:     "",
+						IP:  net.ParseIP("2001::1"),
+						Key: "",
 						// LinkLocal: net.
 					},
 				},
@@ -261,9 +331,10 @@ func (a *TestNetResourceAllocator) Get(txID string) (modules.NetResource, error)
 }
 
 func MustParseCIDR(cidr string) net.IPNet {
-	_, ipnet, err := net.ParseCIDR(cidr)
+	ip, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		panic(err)
 	}
+	ipnet.IP = ip
 	return *ipnet
 }

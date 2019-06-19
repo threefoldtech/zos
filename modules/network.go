@@ -13,7 +13,7 @@ import (
 //Networker is the interface for the network module
 type Networker interface {
 	GetNetResource(id string) (NetResource, error)
-	ApplyNetResource(resource NetResource) error
+	ApplyNetResource(netID NetID, resource NetResource) error
 }
 
 // NetID is a type defining the ID of a network
@@ -45,6 +45,12 @@ type NetResource struct {
 	// prefix is the IPv6 allocation that will be connected to the
 	// bridge/container/vm
 	Prefix net.IPNet
+	// Gateways in IPv6 are link-local. To be able to use IPv6 in any way,
+	// an interface needs an IPv6 link-local address. As wireguard interfaces
+	// are l3-only, the kernel doesn't assign one, so we need to assign one
+	// ourselves. (we need to come up with a deterministic way, so we can be
+	// sure we now which/where)
+	LinkLocal net.IPNet
 	// what are the peers:
 	// each netresource needs to know what prefixes are reachable through
 	// what endpoint. Basically this `connected` array will be used to build
@@ -128,21 +134,13 @@ const (
 // the key would be a public key, with the private key only available
 // locally and stored locally.
 type Wireguard struct {
-	// deterministic, based on the prefix
-	NICName string
 	// TBD, a peer can be IPv6, IPv6-ll or IPv4
-	Peer net.IP
+	IP net.IP
 	// Listen port of wireguard
-	PeerPort uint16
+	Port uint16
 	// base64 encoded public key
 	// Key []byte
 	Key string
-	// Gateways in IPv6 are link-local. To be able to use IPv6 in any way,
-	// an interface needs an IPv6 link-local address. As wireguard interfaces
-	// are l3-only, the kernel doesn't assign one, so we need to assign one
-	// ourselves. (we need to come up with a deterministic way, so we can be
-	// sure we now which/where)
-	LinkLocal net.IP
 }
 
 // definition for later usage
