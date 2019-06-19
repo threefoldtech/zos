@@ -81,6 +81,7 @@ func Exists(name string) bool {
 	return err == nil
 }
 
+// GetByName return a namespace by its name
 func GetByName(name string) (ns.NetNS, error) {
 	nsPath := filepath.Join(netNSPath, name)
 	return ns.GetNS(nsPath)

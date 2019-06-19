@@ -22,6 +22,7 @@ type NetID string
 // NodeID is a type defining a node ID
 type NodeID string
 
+// Network represent a full network owned by a user
 type Network struct {
 	// some type of identification... an uuid ?
 	// that netid is bound to a user and an allowed (bought) creation of a

@@ -34,6 +34,7 @@ func New(name string) (*Wireguard, error) {
 	return wg, nil
 }
 
+// GetByName return a wireguard object by its name
 func GetByName(name string) (*Wireguard, error) {
 	link, err := netlink.LinkByName(name)
 	if err != nil {
@@ -59,6 +60,8 @@ func (w *Wireguard) Attrs() *netlink.LinkAttrs {
 	return w.attrs
 }
 
+// Device returns the detail of the configuration of the
+// wireguard interface
 func (w *Wireguard) Device() (*wgtypes.Device, error) {
 	wg, err := wgctrl.New()
 	if err != nil {
@@ -176,6 +179,7 @@ func newPeer(pubkey, endpoint string, allowedIPs []string) (wgtypes.PeerConfig, 
 	return peer, nil
 }
 
+// GenerateKey generates a new private key
 func GenerateKey(dir string) (wgtypes.Key, error) {
 	key, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
@@ -192,6 +196,7 @@ func GenerateKey(dir string) (wgtypes.Key, error) {
 	return key, nil
 }
 
+// LoadKey tries to read a private key from disk
 func LoadKey(dir string) (wgtypes.Key, error) {
 	path := filepath.Join(dir, "key.priv")
 	b, err := ioutil.ReadFile(path)

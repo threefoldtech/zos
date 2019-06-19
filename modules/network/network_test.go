@@ -39,12 +39,12 @@ var networks = []modules.Network{
 		Resources: []modules.NetResource{
 			{
 				NodeID:    modules.NodeID("node1"),
-				Prefix:    MustParseCIDR("2a02:1802:5e:ff02::/64"),
-				LinkLocal: MustParseCIDR("fe80::ff02/64"),
+				Prefix:    mustParseCIDR("2a02:1802:5e:ff02::/64"),
+				LinkLocal: mustParseCIDR("fe80::ff02/64"),
 				Connected: []modules.Connected{
 					{
 						Type:   modules.ConnTypeWireguard,
-						Prefix: MustParseCIDR("2a02:1802:5e:cc02::/64"),
+						Prefix: mustParseCIDR("2a02:1802:5e:cc02::/64"),
 						Connection: modules.Wireguard{
 							IP:   net.ParseIP("2001:1:1:2::1"),
 							Port: 1602,
@@ -53,7 +53,7 @@ var networks = []modules.Network{
 					},
 					{
 						Type:   modules.ConnTypeWireguard,
-						Prefix: MustParseCIDR("2a02:1802:5e:aaaa::/64"),
+						Prefix: mustParseCIDR("2a02:1802:5e:aaaa::/64"),
 						Connection: modules.Wireguard{
 							IP:   net.ParseIP("2001:3:3:3::3"),
 							Port: 1603,
@@ -169,4 +169,13 @@ func TestConfigureWG(t *testing.T) {
 	err = netns.Do(handler)
 	require.NoError(t, err)
 
+}
+
+func mustParseCIDR(cidr string) net.IPNet {
+	ip, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		panic(err)
+	}
+	ipnet.IP = ip
+	return *ipnet
 }
