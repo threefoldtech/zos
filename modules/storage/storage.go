@@ -144,6 +144,22 @@ func (s *storageModule) CreateFilesystem(size uint64) (string, error) {
 }
 
 func (s *storageModule) ReleaseFilesystem(path string) error {
+	log.Info().Msgf("Deleting volume at %v", path)
+
+	for _, volume := range s.volumes {
+		filesystems, err := volume.Volumes()
+		if err != nil {
+			return err
+		}
+		for _, fs := range filesystems {
+			if fs.Path() == path {
+				log.Debug().Msgf("Removing filesystem %v in volume %v", fs.Name(), volume.Name())
+				return volume.RemoveVolume(fs.Name())
+			}
+		}
+	}
+
+	log.Warn().Msgf("Could not find filesystem %v", path)
 	return nil
 }
 
