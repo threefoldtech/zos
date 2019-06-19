@@ -59,6 +59,16 @@ func (w *Wireguard) Attrs() *netlink.LinkAttrs {
 	return w.attrs
 }
 
+func (w *Wireguard) Device() (*wgtypes.Device, error) {
+	wg, err := wgctrl.New()
+	if err != nil {
+		return nil, err
+	}
+	defer wg.Close()
+
+	return wg.Device(w.attrs.Name)
+}
+
 // SetAddr sets an IP address on the interface
 func (w *Wireguard) SetAddr(cidr string) error {
 	addr, err := netlink.ParseAddr(cidr)
@@ -130,7 +140,7 @@ func newPeer(pubkey, endpoint string, allowedIPs []string) (wgtypes.PeerConfig, 
 	}
 	var err error
 
-	duration := time.Second * 10
+	duration := time.Second * 20
 	peer.PersistentKeepaliveInterval = &duration
 
 	peer.PublicKey, err = wgtypes.ParseKey(pubkey)
@@ -154,11 +164,13 @@ func newPeer(pubkey, endpoint string, allowedIPs []string) (wgtypes.PeerConfig, 
 	}
 
 	for _, allowedIP := range allowedIPs {
-		_, ip, err := net.ParseCIDR(allowedIP)
+		ip, ipNet, err := net.ParseCIDR(allowedIP)
 		if err != nil {
 			return peer, err
 		}
-		peer.AllowedIPs = append(peer.AllowedIPs, *ip)
+		ipNet.IP = ip
+		fmt.Printf("allowed ips %+v\n", ipNet)
+		peer.AllowedIPs = append(peer.AllowedIPs, *ipNet)
 	}
 
 	return peer, nil

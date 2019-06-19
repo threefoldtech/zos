@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/threefoldtech/zosv2/modules/network/bridge"
 	"github.com/threefoldtech/zosv2/modules/network/wireguard"
 
@@ -32,104 +33,86 @@ func TestInterfaces(t *testing.T) {
 	}
 }
 
-func TestCreateBridge(t *testing.T) {
-	const ifName = "bro0"
-	br, err := bridge.New(ifName)
-	require.NoError(t, err)
-
-	defer func() {
-		netlink.LinkDel(br)
-	}()
-
-	bridges, err := bridge.List()
-	require.NoError(t, err)
-
-	found := false
-	for _, link := range bridges {
-		fmt.Println(link.Attrs().Name)
-		if link.Type() == "bridge" && link.Attrs().Name == ifName {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found)
-}
-
-func TestAttachBridge(t *testing.T) {
-	const ifName = "bro0"
-	br, err := bridge.New(ifName)
-	require.NoError(t, err)
-
-	defer func() {
-		netlink.LinkDel(br)
-	}()
-
-	err = bridge.AttachNic(&netlink.Device{LinkAttrs: netlink.LinkAttrs{Name: "dummy0"}}, br)
-	assert.NoError(t, err)
-}
-
 var networks = []modules.Network{
 	{
 		NetID: "net1",
 		Resources: []modules.NetResource{
 			{
-				NodeID: modules.NodeID("node1"),
-				Prefix: MustParseCIDR("2a02:1802:5e:f002::/64"),
+				NodeID:    modules.NodeID("node1"),
+				Prefix:    MustParseCIDR("2a02:1802:5e:ff02::/64"),
+				LinkLocal: MustParseCIDR("fe80::ff02/64"),
 				Connected: []modules.Connected{
 					{
 						Type:   modules.ConnTypeWireguard,
 						Prefix: MustParseCIDR("2a02:1802:5e:cc02::/64"),
 						Connection: modules.Wireguard{
-							NICName:  "cc02",
-							Peer:     net.ParseIP("2001::1"),
-							PeerPort: 51820,
-							Key:      "4w4woC+AuDUAaRipT49M8SmTkzERps3xA5i0BW4hPiw=",
-							// LinkLocal: net.
+							IP:   net.ParseIP("2001:1:1:2::1"),
+							Port: 1602,
+							Key:  "4w4woC+AuDUAaRipT49M8SmTkzERps3xA5i0BW4hPiw=",
+						},
+					},
+					{
+						Type:   modules.ConnTypeWireguard,
+						Prefix: MustParseCIDR("2a02:1802:5e:aaaa::/64"),
+						Connection: modules.Wireguard{
+							IP:   net.ParseIP("2001:3:3:3::3"),
+							Port: 1603,
+							Key:  "5Adc456lkjlRtRipT49M8SmTkzERps3xA5i0BW4hPiw=",
 						},
 					},
 				},
 			},
 		},
-		// Exit: modules.ExitPoint{
-
-		// },
 	},
 }
 
 func TestCreateNetwork(t *testing.T) {
-	network := networks[0]
-	netName := string(network.NetID)
+	var (
+		network    = networks[0]
+		resource   = network.Resources[0]
+		netName    = netnsName(resource.Prefix)
+		vethName   = vethName(resource.Prefix)
+		bridgeName = bridgeName(resource.Prefix)
+	)
 
 	defer func() {
-		_ = deleteNetwork(netName)
+		_ = deleteNetworkResource(resource)
 	}()
 
-	err := createNetwork(netName)
+	err := createNetworkResource(network.NetID, resource)
 	require.NoError(t, err)
 
-	assert.True(t, bridge.Exists(bridgeName(netName)))
-	assert.True(t, namespace.Exists(netnsName(netName)))
+	assert.True(t, bridge.Exists(bridgeName))
+	assert.True(t, namespace.Exists(netName))
 
-	nsCtx := namespace.NSContext{}
-	err = nsCtx.Enter(netnsName(netName))
-	require.NoError(t, err)
+	netns, err := namespace.GetByName(netName)
+	var handler = func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(vethName)
+		require.NoError(t, err)
 
-	_, err = wireguard.GetByName(wgName(netName))
+		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(addrs))
+		assert.Equal(t, "10.255.2.1/24", addrs[0].IPNet.String())
+
+		addrs, err = netlink.AddrList(link, netlink.FAMILY_V6)
+		require.NoError(t, err)
+		assert.Equal(t, 2, len(addrs))
+		assert.Equal(t, "2a02:1802:5e:ff02::/64", addrs[0].IPNet.String())
+
+		return nil
+	}
+	err = netns.Do(handler)
 	assert.NoError(t, err)
 
-	err = nsCtx.Exit()
-	require.NoError(t, err)
-
-	// createNetwork should be idempotent,
-	// so calling it a second time should be a no-op
-	err = createNetwork(netName)
-	require.NoError(t, err)
 }
 
 func TestConfigureWG(t *testing.T) {
 	var (
-		network = networks[0]
-		netName = string(network.NetID)
+		network  = networks[0]
+		resource = network.Resources[0]
+		netName  = netnsName(resource.Prefix)
+		wgName   = wgName(resource.Prefix)
 	)
 
 	dir, err := ioutil.TempDir("", netName)
@@ -138,13 +121,52 @@ func TestConfigureWG(t *testing.T) {
 	storage := filepath.Join(dir, netName)
 
 	defer func() {
-		_ = deleteNetwork(netName)
+		_ = deleteNetworkResource(resource)
 		_ = os.RemoveAll(dir)
 	}()
 
-	err = createNetwork(netName)
+	err = createNetworkResource(network.NetID, resource)
 	require.NoError(t, err)
 
-	err = configureWG(storage, netName, network.Resources[0])
+	key, err := configureWG(storage, network.Resources[0])
 	assert.NoError(t, err)
+
+	netns, err := namespace.GetByName(netName)
+	require.NoError(t, err)
+
+	// verifty the configfuration of the wg interface
+	// for this we need to swtich into the network namespace created for
+	// this network resource
+	var handler = func(_ ns.NetNS) error {
+		wg, err := wireguard.GetByName(wgName)
+		require.NoError(t, err)
+
+		device, err := wg.Device()
+		require.NoError(t, err)
+
+		assert.Equal(t, wgName, device.Name)
+		assert.Equal(t, key, device.PrivateKey)
+		assert.Equal(t, key.PublicKey(), device.PublicKey)
+
+		for i, peer := range device.Peers {
+			// asserts endpoint
+			assert.Equal(t, endpoint(resource.Connected[i]), peer.Endpoint.String())
+
+			// asserts allowedIPs
+			a, b := ipv4Nibble(resource.Connected[i].Prefix)
+			expected := []string{
+				fmt.Sprintf("fe80::%s/128", prefixStr(resource.Connected[i].Prefix)),
+				fmt.Sprintf("172.16.%d.%d/32", a, b),
+			}
+			actual := make([]string, len(peer.AllowedIPs))
+			for y, ip := range peer.AllowedIPs {
+				actual[y] = ip.String()
+			}
+			assert.Equal(t, expected, actual)
+		}
+		return nil
+	}
+	err = netns.Do(handler)
+	require.NoError(t, err)
+
 }
