@@ -65,4 +65,14 @@ type StorageModule interface {
 	// profile, and 1 disk, will create a pool out of each free disk
 	// on the node.
 	Initialize(policy StoragePolicy) error
+
+	// CreateFilesystem creates a filesystem with a given size. The filesystem
+	// is mounted, and the path to the mountpoint is returned.
+	CreateFilesystem(size uint64) (string, error)
+
+	// ReleaseFilesystem signals that the filesystem at the given mountpoint
+	// is no longer needed. The filesystem will be unmounted and subsequently
+	// removed. All data contained in the filesystem will be lost, and the
+	// space which has been reserved for this filesystem will be reclaimed.
+	ReleaseFilesystem(path string) error
 }
