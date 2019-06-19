@@ -106,23 +106,27 @@ NOTE: we're working here with an Allocation of `/48` which makes life easy with 
 
 `2a02:1802:0000:: to 2a02:1802:00ff::`
 
+----
 But we have already an allocation and an AS in RIPE (RIR for Europe,Russia and Middle-East)  
 [Reference here](https://en.wikipedia.org/wiki/Regional_Internet_registry)
 
-ThreeFold allocation ;-) prefix = `2a05:2380::/29`  
+ThreeFold allocation ;-)  
+prefix = `2a05:2380::/29`  
+
 The allocation is `2a05:2380:: to 2a05:2387:ffff:ffff:ffff:ffff:ffff:ffff`  
-In short +- 34 Billion /64 networks  
+In short +- 34 Billion /64 networks  (yes, Beelion, like, a lot).  
 Since we have a `/29`, we can divide it up in 2048 `/40`, each having +16 million `/64`.
 
 To put that a little bit in perspective : In Europe alone, we can have 400+ node farms, where each farm having 16 million Network Resources of size `/64`. That would be that each node can have +40000 Network Resources that have a `/64` for services to run. (O_o)
 
-The more, we will be easily allowed by Providers to announce a `/40`, as the smallest announcement on IPv6 is a `/48`
+The more, we will be easily allowed by Providers to announce a `/40`, as the smallest announcement on IPv6 is a `/48`  
 That is : for __our__ Ripe allocation, but most DC's will just give us a `/40` with the flick of a pen.
 
 That as a side-note.  
 [If you want to play with numbers a little, go here ;-)](http://www.gestioip.net/cgi-bin/subnet_calculator.cgi).  
 [Or look at big numbers, they're mind boggling](https://www.mediawiki.org/wiki/Help:Range_blocks/IPv6)
 
+----
 To have a route back to our exit node we need to handle these routes: every exit node has it's own routes to the Network Resource `/64`'s behind the wireguards.  
 So we can leverage the User Network Object that is stored somewhere to insert the routes to the prefixes of the User Network.
 
@@ -134,7 +138,19 @@ This also gives us an easy way to do self healing, in case a Node containing the
 
 ### IP Address Allocations for containers
 -----
+Most Containers (or services running in containers) will 'just' need to attach to the Network Resource container (the one holding the wireguard tunnel) and get on with it, but some might need a separate IP to be able to listen on a conflicting port (or any other constraint).  
+Then that Container gets created with a veth pair and attached to the (already existing) bridge for that network resource.  
+Rest now to know how to allocate an IP address to that container, and in case of a VM, how that vm can get an IP address (dnsmasq on the NR Container)? Or a DHCP Relay to the dnsmasq of an exit container? Are we missing things in the Network struct?
 
-### IP Address Allocations for VMs
+## Service discovery/registration of DNS.
 ----
+
+This is a hot point, as with the arrival of IPv6, a user will be hard pressed to always have to copy-paste (or god forbid, TYPE in) that address...
+
+We need to address that. We're missing:
+  - how will a service (running flist with an UTS namespace) be registered and associated with a Network Resource?
+  - where will these services be registered so they can be found by hostname or SRV record
+  - how will the Network Resources do DNS, where are these nameservices going to run
+  - ... etc ...
+
 
