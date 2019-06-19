@@ -25,6 +25,7 @@ type networker struct {
 	netResAlloc NetResourceAllocator
 }
 
+// NewNetworker create a new modules.Networker that can be used with zbus
 func NewNetworker(storageDir string, allocator NetResourceAllocator) modules.Networker {
 	return &networker{
 		storageDir:  storageDir,
@@ -34,11 +35,13 @@ func NewNetworker(storageDir string, allocator NetResourceAllocator) modules.Net
 
 var _ modules.Networker = (*networker)(nil)
 
+// GetNetResource implements modules.Networker interface
 func (n *networker) GetNetResource(id string) (modules.NetResource, error) {
 	// TODO check signature
 	return n.netResAlloc.Get(id)
 }
 
+// ApplyNetResource implements modules.Networker interface
 func (n *networker) ApplyNetResource(netID modules.NetID, resource modules.NetResource) error {
 	return applyNetResource(n.storageDir, netID, resource)
 }
@@ -261,80 +264,4 @@ func wgIP(prefix net.IPNet) (*net.IPNet, error) {
 		return nil, err
 	}
 	return ipnet, nil
-}
-
-type NetResourceAllocator interface {
-	Get(txID string) (modules.NetResource, error)
-}
-
-// type httpNetResourceAllocator struct {
-// 	baseURL string
-// }
-
-// func NewHTTPNetResourceAllocator(url string) *httpNetResourceAllocator {
-// 	return &httpNetResourceAllocator{url}
-// }
-
-// func (a *httpNetResourceAllocator) Get(txID string) (modules.NetResource, error) {
-// 	netRes := modules.NetResource{}
-
-// 	url, err := joinURL(a.baseURL, txID)
-
-// 	resp, err := http.Get(url)
-// 	if err != nil {
-// 		return netRes, err
-// 	}
-// 	defer resp.Body.Close()
-
-// 	if err := json.NewDecoder(resp.Body).Decode(&netRes); err != nil {
-// 		return netRes, err
-// 	}
-
-// 	return netRes, nil
-// }
-
-// func joinURL(base, path string) (string, error) {
-// 	u, err := url.Parse(base)
-// 	if err != nil {
-// 		return "nil", err
-// 	}
-// 	u.Path = filepath.Join(u.Path, path)
-// 	return u.String(), nil
-// }
-
-type TestNetResourceAllocator struct {
-	Resource modules.NetResource
-}
-
-func NewTestNetResourceAllocator() NetResourceAllocator {
-	return &TestNetResourceAllocator{
-		Resource: modules.NetResource{
-			NodeID: modules.NodeID("supernode"),
-			Prefix: MustParseCIDR("2a02:1802:5e:f002::/64"),
-			Connected: []modules.Connected{
-				{
-					Type:   modules.ConnTypeWireguard,
-					Prefix: MustParseCIDR("2a02:1802:5e:cc02::/64"),
-					Connection: modules.Wireguard{
-						IP:  net.ParseIP("2001::1"),
-						Key: "",
-						// LinkLocal: net.
-					},
-				},
-			},
-		},
-	}
-}
-
-func (a *TestNetResourceAllocator) Get(txID string) (modules.NetResource, error) {
-	return a.Resource, nil
-}
-
-func MustParseCIDR(cidr string) net.IPNet {
-	ip, ipnet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		panic(err)
-	}
-	ipnet.IP = ip
-	return *ipnet
 }
