@@ -20,12 +20,13 @@ type Volume interface {
 	RemoveVolume(name string) error
 	Usage() (Usage, error)
 	Limit(size uint64) error
+	Name() string
+	Type() string
 }
 
 // Pool represents a created filesystem
 type Pool interface {
 	Volume
-	Name() string
 	Mounted() (string, bool)
 	Mount() (string, error)
 	UnMount() error

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -261,6 +262,11 @@ func (p btrfsPool) Limit(size uint64) error {
 	return fmt.Errorf("not implemented")
 }
 
+// Type of the filesystem of this volume
+func (p btrfsPool) Type() string {
+	return "btrfs"
+}
+
 type btrfsVolume string
 
 func (v btrfsVolume) Path() string {
@@ -335,4 +341,15 @@ func (v btrfsVolume) Limit(size uint64) error {
 	_, err := run(ctx, "btrfs", "qgroup", "limit", limit, string(v))
 
 	return err
+}
+
+// Name of the filesystem
+func (v btrfsVolume) Name() string {
+	_, name := filepath.Split(string(v))
+	return name
+}
+
+// Type of the filesystem
+func (v btrfsVolume) Type() string {
+	return "btrfs"
 }

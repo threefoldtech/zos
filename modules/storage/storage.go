@@ -10,12 +10,19 @@ import (
 	"github.com/threefoldtech/zosv2/modules/storage/filesystem"
 )
 
+const (
+	cacheTarget = "/var/cache"
+	cacheLabel  = "zos-cache"
+	cacheSize   = 20 * 1024 * 1024 * 1024 // 20GB
+)
+
 type storageModule struct {
+	volumes []filesystem.Pool
 }
 
 // New create a new storage module service
 func New() modules.StorageModule {
-	return &storageModule{}
+	return &storageModule{volumes: []filesystem.Pool{}}
 }
 
 /**
@@ -54,6 +61,7 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 		}
 		log.Debug().Msgf("Mounted volume %s", volume.Name())
 	}
+	s.volumes = append(s.volumes, existingPools...)
 
 	// list disks
 	log.Info().Msgf("Finding free disks")
@@ -120,13 +128,85 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 		}
 	}
 
-	return nil
+	s.volumes = append(s.volumes, newPools...)
+
+	return s.ensureCache()
 }
 
 func (s *storageModule) CreateFilesystem(size uint64) (string, error) {
-	return "", nil
+	log.Info().Msgf("Creating new volume with size %d", size)
+
+	fs, err := s.createFs(size, uuid.New().String())
+	if err != nil {
+		return "", err
+	}
+	return fs.Path(), nil
 }
 
 func (s *storageModule) ReleaseFilesystem(path string) error {
 	return nil
+}
+
+// ensureCache creates a "cache" subvolume and mounts it in /var
+func (s *storageModule) ensureCache() error {
+	log.Info().Msgf("Setting up cache")
+
+	// TODO: Need to make sure the cache is in an SSD pool
+
+	log.Debug().Msgf("Checking pools for existing cache")
+
+	var cacheFs filesystem.Volume
+
+	// check if we already have a cache
+	for _, volume := range s.volumes {
+		filesystems, err := volume.Volumes()
+		if err != nil {
+			return err
+		}
+		for _, fs := range filesystems {
+			if fs.Name() == cacheLabel {
+				log.Debug().Msgf("Found existing cache at %v", fs.Path())
+				cacheFs = fs
+				break
+			}
+		}
+		if cacheFs != nil {
+			break
+		}
+	}
+
+	if cacheFs == nil {
+		log.Debug().Msgf("No cache found, try to create new cache")
+
+		fs, err := s.createFs(cacheSize, cacheLabel)
+		if err != nil {
+			return err
+		}
+		cacheFs = fs
+	}
+
+	log.Debug().Msgf("Mounting cache partition in %s", cacheTarget)
+	return filesystem.BindMount(cacheFs, cacheTarget)
+}
+
+func (s *storageModule) createFs(size uint64, name string) (filesystem.Volume, error) {
+	var filesystem filesystem.Volume
+	var err error
+
+	// for now randomly select a volume
+	for _, volume := range s.volumes {
+		fs, err := volume.AddVolume(name)
+		if err != nil {
+			log.Error().Msgf("Failed to create new filesystem: %v", err)
+			continue
+		}
+		if err = fs.Limit(size); err != nil {
+			log.Error().Msgf("Failed to set size limit on new filesystem: %v", err)
+			continue
+		}
+		filesystem = fs
+		break
+	}
+
+	return filesystem, err
 }

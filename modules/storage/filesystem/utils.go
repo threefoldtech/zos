@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 )
 
 // getMountTarget returns the mount target of a device or false if the
@@ -28,4 +29,10 @@ func getMountTarget(device string) (string, bool) {
 	}
 
 	return "", false
+}
+
+// BindMount remounts an existing directory in a given target using the mount
+// syscall with the BIND flag set
+func BindMount(src Volume, target string) error {
+	return syscall.Mount(src.Path(), target, "btrfs", syscall.MS_BIND, "")
 }
