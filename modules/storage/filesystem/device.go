@@ -22,16 +22,16 @@ const (
 
 // Device represents a physical device
 type Device struct {
-	Name       string `json:"name"`
-	Type       string `json:"type"`
-	Path       string `json:"path"`
-	Label      string `json:"label"`
-	Filesystem FSType `json:"fstype"`
+	Type       string   `json:"type"`
+	Path       string   `json:"name"`
+	Label      string   `json:"label"`
+	Filesystem FSType   `json:"fstype"`
+	Children   []Device `json:"children"`
 }
 
 // Used assumes that the device is used if it has custom label of fstype
 func (d *Device) Used() bool {
-	return len(d.Label) != 0 || len(d.Filesystem) != 0
+	return len(d.Label) != 0 || len(d.Filesystem) != 0 || len(d.Children) > 0
 }
 
 type lsblkDeviceManager struct{}
@@ -43,7 +43,7 @@ func DefaultDeviceManager() DeviceManager {
 
 // Devices gets available block devices
 func (l *lsblkDeviceManager) Devices(ctx context.Context) ([]Device, error) {
-	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2")
+	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path")
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (l *lsblkDeviceManager) WithLabel(ctx context.Context, label string) ([]Dev
 }
 
 func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device Device, err error) {
-	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2")
+	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path", path)
 	if err != nil {
 		return device, err
 	}
@@ -94,4 +94,15 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 	}
 
 	return devices.BlockDevices[0], nil
+}
+
+func flattenDevices(devices []Device) []Device {
+	list := []Device{}
+	for _, d := range devices {
+		list = append(devices, d)
+		if d.Children != nil {
+			list = append(devices, flattenDevices(d.Children)...)
+		}
+	}
+	return list
 }

@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -28,13 +27,16 @@ What Initialize will do is the following:
 **/
 func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 	log.Info().Msgf("Initializing storage module")
+	defer log.Info().Msgf("Finished initializing storage module")
 
 	ctx := context.Background()
 
-	// remount all existing pools
 	devices := filesystem.DefaultDeviceManager()
 	fs := filesystem.NewBtrfs(devices)
 
+	// remount all existing pools
+	log.Info().Msgf("Remounting existing volumes")
+	log.Debug().Msgf("Searching for existing volumes")
 	existingPools, err := fs.List(ctx)
 	if err != nil {
 		return err
@@ -42,6 +44,7 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 
 	for _, volume := range existingPools {
 		if _, mounted := volume.Mounted(); mounted {
+			log.Debug().Msgf("Volume %s already mounted", volume.Name())
 			// volume is aready mounted, skip mounting it again
 			continue
 		}
@@ -49,9 +52,11 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 		if err != nil {
 			return err
 		}
+		log.Debug().Msgf("Mounted volume %s", volume.Name())
 	}
 
 	// list disks
+	log.Info().Msgf("Finding free disks")
 	disks, err := devices.Devices(ctx)
 	if err != nil {
 		return err
@@ -61,38 +66,54 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 	freeDisks := []filesystem.Device{}
 	for _, device := range disks {
 		if !device.Used() {
+			log.Debug().Msgf("Found free device %s", device.Path)
 			freeDisks = append(freeDisks, device)
 		}
 	}
 
-	// create new pools if applicable
-	newPools := []filesystem.Pool{}
+	log.Info().Msgf("Creating new volumes using policy %s", policy.Raid)
+
+	// sanity check for disk amount
+	var diskBase int
 	switch policy.Raid {
 	case modules.Single:
-		possiblePools := len(freeDisks) / int(policy.Disks)
-		for i := 0; i < possiblePools; i++ {
-			poolDevices := []string{}
-			for j := 0; j < int(policy.Disks); j++ {
-				poolDevices = append(poolDevices, freeDisks[i*int(policy.Disks)+j].Path)
-			}
-			pool, err := fs.Create(ctx, uuid.New().String(), poolDevices, policy.Raid)
-			if err != nil {
-				return err
-			}
-			newPools = append(newPools, pool)
-		}
-
+		diskBase = 1
 	case modules.Raid1:
-		return errors.New("not implemented yet")
+		diskBase = 2
 	case modules.Raid10:
-		return errors.New("not implemented yet")
+		diskBase = 4
 	default:
 		return fmt.Errorf("unrecognized storage policy %s", policy.Raid)
 	}
+	if diskBase%int(policy.Disks) != 0 {
+		return fmt.Errorf("invalid amount of disks (%d) for volume for configuration %v", policy.Disks, policy.Raid)
+	}
+
+	// create new pools if applicable
+	newPools := []filesystem.Pool{}
+
+	possiblePools := len(freeDisks) / int(policy.Disks)
+	log.Debug().Msgf("Creating %d new volumes", possiblePools)
+
+	for i := 0; i < possiblePools; i++ {
+		log.Debug().Msgf("Creating new volume %d", i)
+		poolDevices := []string{}
+		for j := 0; j < int(policy.Disks); j++ {
+			log.Debug().Msgf("Grabbing device %d: %s for new volume", i*int(policy.Disks)+j, freeDisks[i*int(policy.Disks)+j].Path)
+			poolDevices = append(poolDevices, freeDisks[i*int(policy.Disks)+j].Path)
+		}
+		pool, err := fs.Create(ctx, uuid.New().String(), poolDevices, policy.Raid)
+		if err != nil {
+			return err
+		}
+		newPools = append(newPools, pool)
+	}
 
 	// make sure new pools are mounted
+	log.Info().Msgf("Making sure new volumes are mounted")
 	for _, pool := range newPools {
 		if _, mounted := pool.Mounted(); !mounted {
+			log.Debug().Msgf("Mounting volume %s", pool.Name())
 			if _, err = pool.Mount(); err != nil {
 				return err
 			}
@@ -101,8 +122,6 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 
 	return nil
 }
-<<<<<<< Updated upstream
-=======
 
 func (s *storageModule) CreateFilesystem(size uint64) (string, error) {
 	return "", nil
@@ -111,4 +130,3 @@ func (s *storageModule) CreateFilesystem(size uint64) (string, error) {
 func (s *storageModule) ReleaseFilesystem(path string) error {
 	return nil
 }
->>>>>>> Stashed changes
