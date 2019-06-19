@@ -8,6 +8,8 @@ Either way we want IPv6 to function, there will be a need for that circular netw
 **READ THIS, it's important**  
 _That also means that the Upstream Router needs to know the route back to the Prefixes/subnets that live in that circular net._ (more on that later)
 
+Also, [Get  yourself a little acquainted with IPv6]()
+
 ### Network Resource Containers
 ----
 
@@ -102,14 +104,33 @@ If for an Exit container we have an allocation of `$prefix:aaaa::/64` :
 
 NOTE: we're working here with an Allocation of `/48` which makes life easy with the 1st 6 nibbles as a static thing, but any other allocation works, where e.g a `/40` is more like:
 
+`2a02:1802:0000:: to 2a02:1802:00ff::`
+
+But we have already an allocation and an AS in RIPE (RIR for Europe,Russia and Middle-East)  
+[Reference here](https://en.wikipedia.org/wiki/Regional_Internet_registry)
+
 ThreeFold allocation ;-) prefix = `2a05:2380::/29`  
 The allocation is `2a05:2380:: to 2a05:2387:ffff:ffff:ffff:ffff:ffff:ffff`  
 In short +- 34 Billion /64 networks  
 Since we have a `/29`, we can divide it up in 2048 `/40`, each having +16 million `/64`.
 
-To put that a little bit in perspective : In Europe alone, we can have Bancadati*Bancadati Datacenters, each having 16 million Network Resources of size `/64`.
+To put that a little bit in perspective : In Europe alone, we can have 400+ node farms, where each farm having 16 million Network Resources of size `/64`. That would be that each node can have +40000 Network Resources that have a `/64` for services to run. (O_o)
 
 The more, we will be easily allowed by Providers to announce a `/40`, as the smallest announcement on IPv6 is a `/48`
+That is : for __our__ Ripe allocation, but most DC's will just give us a `/40` with the flick of a pen.
+
+That as a side-note.  
+[If you want to play with numbers a little, go here ;-)](http://www.gestioip.net/cgi-bin/subnet_calculator.cgi).  
+[Or look at big numbers, they're mind boggling](https://www.mediawiki.org/wiki/Help:Range_blocks/IPv6)
+
+To have a route back to our exit node we need to handle these routes: every exit node has it's own routes to the Network Resource `/64`'s behind the wireguards.  
+So we can leverage the User Network Object that is stored somewhere to insert the routes to the prefixes of the User Network.
+
+Seen that there are linux boxes that can contain a full BGP database, we can assume that adding 1000's of routes into a kernel will not be a big problem, but these tests have not been done, we can only surmise that it will work.
+
+Also havind __all__ routes in a container is not really necessary, as we can configure multiple router containers to be responsible for only a part fo the User Networks.
+
+This also gives us an easy way to do self healing, in case a Node containing the Routing Container fails, as we can just reapply the same User Network Objects to a new container in another node.
 
 ### IP Address Allocations for containers
 -----
