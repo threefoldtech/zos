@@ -31,7 +31,7 @@ const (
 	// ULA : The Node lives in an ULA prefix (IPv6 private space)
 	ULA    Type6 = 1
 	// PUBLIC : The Node's Wireguard interfaces listen address is reachable publicly
-	PUBLIC Type6 = 2
+	PUBLIC6 Type6 = 2
 	// There is a necessary difference between the two, as both types can be different
 )
 // NodeID is a type defining a node ID
@@ -67,7 +67,7 @@ type Network struct {
 	// be added to the pool for Prefix allocations.
 	// this is needed as we set up deterministic interface names, that could conflict with
 	// the already existing allocation-derived names
-	AllocationNR int8 = 0
+	AllocationNR int8
 }
 
 // NetResource represent a part of a network configuration
