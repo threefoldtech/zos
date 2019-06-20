@@ -6,8 +6,9 @@ exec: "true"
 oneshot: true
 after:
   # list of all services that must be running before moving on
+  # note, these services are defined by 0-initramfs repo
   - local-modprobe
-  - udev-trigger # note, this service is part of 0-initramfs
+  - udev-trigger 
   - redis
   - haveged
   - cgroup
