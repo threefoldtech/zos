@@ -1,0 +1,3 @@
+exec: flistd
+after:
+  - boot
