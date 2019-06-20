@@ -12,8 +12,8 @@ import (
 
 //Networker is the interface for the network module
 type Networker interface {
-	GetNetResource(id string) (NetResource, error)
-	ApplyNetResource(netID NetID, resource NetResource) error
+	GetNetResource(id string) (*Network, error)
+	ApplyNetResource(*Network) error
 }
 
 // NetID is a type defining the ID of a network
@@ -43,14 +43,14 @@ const (
 type NodeID struct {
 	ID string
 	// FarmeerID is needed for when a Node is HIDDEN, but lives in the same farm.
-	// that way if a network resource is started on a HIDDEN Node, and the peer 
+	// that way if a network resource is started on a HIDDEN Node, and the peer
 	// is also HIDDEN, but part of the same farm, we can surmise that that peer
 	// can be included for that network resource
-	// https://www.wireguard.com/protocol/ -> we could send a handshake request 
+	// https://www.wireguard.com/protocol/ -> we could send a handshake request
 	// to a HIDDEN peer and in case we receive a reply, include the peer in the list
-	FarmerID string
-	Type4 Type4
-	Type6 Type6
+	FarmerID       string
+	ReachabilityV4 ReachabilityV4
+	ReachabilityV6 ReachabilityV6
 }
 
 // Network represent a full network owned by a user
@@ -68,7 +68,7 @@ type Network struct {
 	// - the prefix from the grid
 	// - the exit prefix and default gw from the local allocation
 	Exit ExitPoint
-	// AllocationNr is for when a new allocation has been necessary and needs to 
+	// AllocationNr is for when a new allocation has been necessary and needs to
 	// be added to the pool for Prefix allocations.
 	// this is needed as we set up deterministic interface names, that could conflict with
 	// the already existing allocation-derived names

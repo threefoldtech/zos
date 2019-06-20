@@ -54,7 +54,7 @@ func (n *networker) ApplyNetResource(network *modules.Network) error {
 		}
 	}
 	if resource == nil {
-		return fmt.Errorf("not network resource for this node: %s", n.nodeID)
+		return fmt.Errorf("not network resource for this node: %s", n.nodeID.ID)
 	}
 
 	return applyNetResource(n.storageDir, network.NetID, resource, network.AllocationNR)

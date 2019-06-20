@@ -74,7 +74,6 @@ func TestCreateNetwork(t *testing.T) {
 		nibble     = zosip.NewNibble(resource.Prefix, network.AllocationNR)
 		netName    = nibble.NetworkName()
 		bridgeName = nibble.BridgeName()
-		wgName     = nibble.WiregardName()
 		vethName   = nibble.VethName()
 	)
 
@@ -82,7 +81,7 @@ func TestCreateNetwork(t *testing.T) {
 		_ = deleteNetworkResource(resource)
 	}()
 
-	err := createNetworkResource(network.NetID, resource, network.AllocationNR)
+	err := createNetworkResource(network.NetID, &resource, network.AllocationNR)
 	require.NoError(t, err)
 
 	assert.True(t, bridge.Exists(bridgeName))
@@ -128,10 +127,10 @@ func TestConfigureWG(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	err = createNetworkResource(network.NetID, resource, network.AllocationNR)
+	err = createNetworkResource(network.NetID, &resource, network.AllocationNR)
 	require.NoError(t, err)
 
-	key, err := configureWG(storage, network.Resources[0], network.AllocationNR)
+	key, err := configureWG(storage, &resource, network.AllocationNR)
 	assert.NoError(t, err)
 
 	netns, err := namespace.GetByName(netName)
