@@ -1,6 +1,6 @@
 ```
 for netresources of network
-  if netresource.node.conntype == hidden
+  if netresource.node.conntype == hidden --and-- netresource NOT in same farm
      wgpeer = exitnode
      allowedips.append(netresource.prefix)
      routes.append(netresource.prefix via exitnode.fe80:netresource.prefix.nibble)
