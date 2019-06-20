@@ -10,6 +10,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/threefoldtech/zosv2/modules/network/bridge"
+	zosip "github.com/threefoldtech/zosv2/modules/network/ip"
 	"github.com/threefoldtech/zosv2/modules/network/wireguard"
 
 	"github.com/threefoldtech/zosv2/modules/network/namespace"
@@ -38,7 +39,7 @@ var networks = []modules.Network{
 		NetID: "net1",
 		Resources: []modules.NetResource{
 			{
-				NodeID:    modules.NodeID("node1"),
+				NodeID:    modules.NodeID{ID: "node1"},
 				Prefix:    mustParseCIDR("2a02:1802:5e:ff02::/64"),
 				LinkLocal: mustParseCIDR("fe80::ff02/64"),
 				Connected: []modules.Connected{
@@ -70,16 +71,18 @@ func TestCreateNetwork(t *testing.T) {
 	var (
 		network    = networks[0]
 		resource   = network.Resources[0]
-		netName    = netnsName(resource.Prefix)
-		vethName   = vethName(resource.Prefix)
-		bridgeName = bridgeName(resource.Prefix)
+		nibble     = zosip.NewNibble(resource.Prefix, network.AllocationNR)
+		netName    = nibble.NetworkName()
+		bridgeName = nibble.BridgeName()
+		wgName     = nibble.WiregardName()
+		vethName   = nibble.VethName()
 	)
 
 	defer func() {
 		_ = deleteNetworkResource(resource)
 	}()
 
-	err := createNetworkResource(network.NetID, resource)
+	err := createNetworkResource(network.NetID, resource, network.AllocationNR)
 	require.NoError(t, err)
 
 	assert.True(t, bridge.Exists(bridgeName))
@@ -125,10 +128,10 @@ func TestConfigureWG(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	err = createNetworkResource(network.NetID, resource)
+	err = createNetworkResource(network.NetID, resource, network.AllocationNR)
 	require.NoError(t, err)
 
-	key, err := configureWG(storage, network.Resources[0])
+	key, err := configureWG(storage, network.Resources[0], network.AllocationNR)
 	assert.NoError(t, err)
 
 	netns, err := namespace.GetByName(netName)

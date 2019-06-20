@@ -18,9 +18,11 @@ import (
 	"github.com/threefoldtech/zosv2/modules/network/namespace"
 
 	"github.com/threefoldtech/zosv2/modules"
+	zosip "github.com/threefoldtech/zosv2/modules/network/ip"
 )
 
 type networker struct {
+	nodeID      modules.NodeID
 	storageDir  string
 	netResAlloc NetResourceAllocator
 }
@@ -36,22 +38,34 @@ func NewNetworker(storageDir string, allocator NetResourceAllocator) modules.Net
 var _ modules.Networker = (*networker)(nil)
 
 // GetNetResource implements modules.Networker interface
-func (n *networker) GetNetResource(id string) (modules.NetResource, error) {
+func (n *networker) GetNetResource(id string) (*modules.Network, error) {
 	// TODO check signature
 	return n.netResAlloc.Get(id)
 }
 
 // ApplyNetResource implements modules.Networker interface
-func (n *networker) ApplyNetResource(netID modules.NetID, resource modules.NetResource) error {
-	return applyNetResource(n.storageDir, netID, resource)
+func (n *networker) ApplyNetResource(network *modules.Network) error {
+
+	var resource *modules.NetResource
+	for _, res := range network.Resources {
+		if res.NodeID == n.nodeID {
+			resource = &res
+			break
+		}
+	}
+	if resource == nil {
+		return fmt.Errorf("not network resource for this node: %s", n.nodeID)
+	}
+
+	return applyNetResource(n.storageDir, network.NetID, resource, network.AllocationNR)
 }
 
-func applyNetResource(storageDir string, netID modules.NetID, netRes modules.NetResource) error {
-	if err := createNetworkResource(netID, netRes); err != nil {
+func applyNetResource(storageDir string, netID modules.NetID, netRes *modules.NetResource, allocNr int8) error {
+	if err := createNetworkResource(netID, netRes, allocNr); err != nil {
 		return err
 	}
 
-	if _, err := configureWG(storageDir, netRes); err != nil {
+	if _, err := configureWG(storageDir, netRes, allocNr); err != nil {
 		return err
 	}
 	return nil
@@ -60,13 +74,13 @@ func applyNetResource(storageDir string, netID modules.NetID, netRes modules.Net
 // createNetworkResource creates a network namespace and a bridge
 // and a wireguard interface and then move it interface inside
 // the net namespace
-func createNetworkResource(netID modules.NetID, resource modules.NetResource) error {
+func createNetworkResource(netID modules.NetID, resource *modules.NetResource, allorNr int8) error {
 	var (
-		// prefix     = prefixStr(resource.Prefix)
-		netnsName  = netnsName(resource.Prefix)
-		bridgeName = bridgeName(resource.Prefix)
-		wgName     = wgName(resource.Prefix)
-		vethName   = vethName(resource.Prefix)
+		nibble     = zosip.NewNibble(resource.Prefix, allorNr)
+		netnsName  = nibble.NetworkName()
+		bridgeName = nibble.BridgeName()
+		wgName     = nibble.WiregardName()
+		vethName   = nibble.VethName()
 	)
 
 	log.Info().Str("bridge", bridgeName).Msg("Create bridge")
@@ -162,10 +176,11 @@ func deleteNetworkResource(resource modules.NetResource) error {
 	return namespace.Delete(netnsName)
 }
 
-func configureWG(storageDir string, resource modules.NetResource) (wgtypes.Key, error) {
+func configureWG(storageDir string, resource *modules.NetResource, allocNr int8) (wgtypes.Key, error) {
 	var (
-		netnsName   = netnsName(resource.Prefix)
-		wgName      = wgName(resource.Prefix)
+		nibble      = zosip.NewNibble(resource.Prefix, allocNr)
+		netnsName   = nibble.NetworkName()
+		wgName      = nibble.WiregardName()
 		storagePath = filepath.Join(storageDir, prefixStr(resource.Prefix))
 		key         wgtypes.Key
 		err         error
