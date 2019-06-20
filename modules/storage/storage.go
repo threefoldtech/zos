@@ -94,7 +94,7 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 	if !exists {
 		return fmt.Errorf("unrecognized storage policy %s", policy.Raid)
 	}
-	if diskBase%int(policy.Disks) != 0 {
+	if int(policy.Disks)%diskBase != 0 {
 		return fmt.Errorf("invalid amount of disks (%d) for volume for configuration %v", policy.Disks, policy.Raid)
 	}
 
@@ -102,6 +102,10 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 	newPools := []filesystem.Pool{}
 
 	possiblePools := len(freeDisks) / int(policy.Disks)
+	// only create up to the specified amount of pools
+	if policy.MaxPools != 0 && int(policy.MaxPools) < possiblePools {
+		possiblePools = int(policy.MaxPools)
+	}
 	log.Debug().Msgf("Creating %d new volumes", possiblePools)
 
 	for i := 0; i < possiblePools; i++ {
@@ -134,6 +138,7 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 	return s.ensureCache()
 }
 
+// CreateFilesystem with the given size in a storage pool.
 func (s *storageModule) CreateFilesystem(size uint64) (string, error) {
 	log.Info().Msgf("Creating new volume with size %d", size)
 
@@ -144,6 +149,9 @@ func (s *storageModule) CreateFilesystem(size uint64) (string, error) {
 	return fs.Path(), nil
 }
 
+// ReleaseFilesystem at the given path, this will unmount and then delete
+// the filesystem. After this call, the caller must not perform any more actions
+// on this filesystem
 func (s *storageModule) ReleaseFilesystem(path string) error {
 	log.Info().Msgf("Deleting volume at %v", path)
 
@@ -168,7 +176,7 @@ func (s *storageModule) ReleaseFilesystem(path string) error {
 func (s *storageModule) ensureCache() error {
 	log.Info().Msgf("Setting up cache")
 
-	// TODO: Need to make sure the cache is in an SSD pool
+	// TODO: Need to make sure the cache is in an SSD pool, if possible
 
 	log.Debug().Msgf("Checking pools for existing cache")
 
@@ -206,6 +214,7 @@ func (s *storageModule) ensureCache() error {
 	return filesystem.BindMount(cacheFs, cacheTarget)
 }
 
+// createFs creates a filesystem with the given name and limits it to the given size
 func (s *storageModule) createFs(size uint64, name string) (filesystem.Volume, error) {
 	var filesystem filesystem.Volume
 	var err error
