@@ -18,9 +18,35 @@ type Networker interface {
 
 // NetID is a type defining the ID of a network
 type NetID string
+// Type4 is the Node's IPv4 reachability:
+type Type4 int
 
+// Type6 is the Node's IPv6 reachability
+type Type6 int
+const (
+	// HIDDEN : The Node lives in an RFC1918 space, can't listen publically
+	HIDDEN Type4 = 1
+	// PUBLIC : The Node's Wireguard interfaces listen address is reachable publicly
+	PUBLIC Type4 = 2
+	// ULA : The Node lives in an ULA prefix (IPv6 private space)
+	ULA    Type6 = 1
+	// PUBLIC : The Node's Wireguard interfaces listen address is reachable publicly
+	PUBLIC Type6 = 2
+	// There is a necessary difference between the two, as both types can be different
+)
 // NodeID is a type defining a node ID
-type NodeID string
+type NodeID struct {
+	ID string
+	// FarmeerID is needed for when a Node is HIDDEN, but lives in the same farm.
+	// that way if a network resource is started on a HIDDEN Node, and the peer 
+	// is also HIDDEN, but part of the same farm, we can surmise that that peer
+	// can be included for that network resource
+	// https://www.wireguard.com/protocol/ -> we could send a handshake request 
+	// to a HIDDEN peer and in case we receive a reply, include the peer in the list
+	FarmerID string
+	Type4 Type4
+	Type6 Type6
+}
 
 // Network represent a full network owned by a user
 type Network struct {
@@ -37,6 +63,11 @@ type Network struct {
 	// - the prefix from the grid
 	// - the exit prefix and default gw from the local allocation
 	Exit ExitPoint
+	// AllocationNr is for when a new allocation has been necessary and needs to 
+	// be added to the pool for Prefix allocations.
+	// this is needed as we set up deterministic interface names, that could conflict with
+	// the already existing allocation-derived names
+	AllocationNR int8 = 0
 }
 
 // NetResource represent a part of a network configuration
