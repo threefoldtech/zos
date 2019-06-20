@@ -1,6 +1,7 @@
 package ip
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
@@ -33,6 +34,14 @@ func TestNibble(t *testing.T) {
 			network: "net-ff02-2",
 		},
 		{
+			prefix:  mustParseCIDR("2a02:1802:5e:ff02::/48"),
+			allocNr: 2,
+			wg:      "wg-ff02-2",
+			bridge:  "br-ff02-2",
+			veth:    "veth-ff02-2",
+			network: "net-ff02-2",
+		},
+		{
 			prefix:  mustParseCIDR("2a02:1802:5e:ff02::/40"),
 			allocNr: 0,
 			wg:      "wg-005eff02-0",
@@ -41,11 +50,14 @@ func TestNibble(t *testing.T) {
 			network: "net-005eff02-0",
 		},
 	} {
-		nibble := NewNibble(tc.prefix, tc.allocNr)
-		assert.Equal(t, tc.wg, nibble.WiregardName())
-		assert.Equal(t, tc.bridge, nibble.BridgeName())
-		assert.Equal(t, tc.veth, nibble.VethName())
-		assert.Equal(t, tc.network, nibble.NetworkName())
+		name := fmt.Sprintf("%s-%d", tc.prefix.String(), tc.allocNr)
+		t.Run(name, func(t *testing.T) {
+			nibble := NewNibble(tc.prefix, tc.allocNr)
+			assert.Equal(t, tc.wg, nibble.WiregardName())
+			assert.Equal(t, tc.bridge, nibble.BridgeName())
+			assert.Equal(t, tc.veth, nibble.VethName())
+			assert.Equal(t, tc.network, nibble.NetworkName())
+		})
 	}
 }
 

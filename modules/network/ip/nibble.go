@@ -18,7 +18,7 @@ func NewNibble(prefix net.IPNet, allocNr int8) *Nibble {
 
 	var b []byte
 	size, _ := prefix.Mask.Size()
-	if size <= 40 {
+	if size < 48 {
 		b = []byte(prefix.IP)[4:8]
 	} else {
 		b = []byte(prefix.IP)[6:8]
