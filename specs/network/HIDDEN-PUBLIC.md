@@ -23,4 +23,4 @@ That way
     - PersistentKeepalive starts the connection regardless of packets ?
 
 
-[a little drawing ;-) ](HIDDEN-PUBLIC.png)
+![a little drawing ;-) ](HIDDEN-PUBLIC.png)
