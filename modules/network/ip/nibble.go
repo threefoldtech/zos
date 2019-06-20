@@ -6,10 +6,11 @@ import (
 )
 
 // Nibble is an helper struct used to generate
-// deterministic name based on an IP address
+// deterministic name based on an IPv6 address
 type Nibble struct {
-	allocNr   int8
-	hexNibble string
+	allocNr int8
+	nibble  []byte
+	// hexNibble string
 }
 
 // NewNibble create a new Nibble object
@@ -24,27 +25,40 @@ func NewNibble(prefix net.IPNet, allocNr int8) *Nibble {
 	}
 
 	return &Nibble{
-		hexNibble: fmt.Sprintf("%x", b),
-		allocNr:   allocNr,
+		nibble:  b,
+		allocNr: allocNr,
 	}
+}
+
+// Hex return the hexadecimal version of the meaningfull nibble
+func (n *Nibble) Hex() string {
+	return fmt.Sprintf("%x", n.nibble)
 }
 
 // WiregardName return the deterministic wireguard name
 func (n *Nibble) WiregardName() string {
-	return fmt.Sprintf("wg-%s-%d", n.hexNibble, n.allocNr)
+	return fmt.Sprintf("wg-%s-%d", n.Hex(), n.allocNr)
 }
 
 // BridgeName return the deterministic bridge name
 func (n *Nibble) BridgeName() string {
-	return fmt.Sprintf("br-%s-%d", n.hexNibble, n.allocNr)
+	return fmt.Sprintf("br-%s-%d", n.Hex(), n.allocNr)
 }
 
 // NetworkName return the deterministic network name
 func (n *Nibble) NetworkName() string {
-	return fmt.Sprintf("net-%s-%d", n.hexNibble, n.allocNr)
+	return fmt.Sprintf("net-%s-%d", n.Hex(), n.allocNr)
 }
 
 // VethName return the deterministic veth interface name
 func (n *Nibble) VethName() string {
-	return fmt.Sprintf("veth-%s-%d", n.hexNibble, n.allocNr)
+	return fmt.Sprintf("veth-%s-%d", n.Hex(), n.allocNr)
+}
+
+// ToV4 returns 2 uint8 that can be used as the last 2 bytes of an IPv4 address
+func (n *Nibble) ToV4() (uint8, uint8, error) {
+	if len(n.nibble) > 2 {
+		return 0, 0, fmt.Errorf("cannot call ToV4 with a nibble of size %d", len(n.nibble))
+	}
+	return n.nibble[0], n.nibble[1], nil
 }

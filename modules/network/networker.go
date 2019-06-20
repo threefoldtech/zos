@@ -37,8 +37,8 @@ func NewNetworker(storageDir string, allocator NetResourceAllocator) modules.Net
 
 var _ modules.Networker = (*networker)(nil)
 
-// GetNetResource implements modules.Networker interface
-func (n *networker) GetNetResource(id string) (*modules.Network, error) {
+// GetNetwork implements modules.Networker interface
+func (n *networker) GetNetwork(id string) (*modules.Network, error) {
 	// TODO check signature
 	return n.netResAlloc.Get(id)
 }
@@ -58,6 +58,20 @@ func (n *networker) ApplyNetResource(network *modules.Network) error {
 	}
 
 	return applyNetResource(n.storageDir, network.NetID, resource, network.AllocationNR)
+}
+
+func (n *networker) DeleteNetResource(network *modules.Network) error {
+	var resource *modules.NetResource
+	for _, res := range network.Resources {
+		if res.NodeID == n.nodeID {
+			resource = &res
+			break
+		}
+	}
+	if resource == nil {
+		return fmt.Errorf("not network resource for this node: %s", n.nodeID.ID)
+	}
+	return deleteNetResource(resource, network.AllocationNR)
 }
 
 func applyNetResource(storageDir string, netID modules.NetID, netRes *modules.NetResource, allocNr int8) error {
@@ -118,7 +132,10 @@ func createNetworkResource(netID modules.NetID, resource *modules.NetResource, a
 			return err
 		}
 
-		a, b := ipv4Nibble(resource.Prefix)
+		a, b, err := nibble.ToV4()
+		if err != nil {
+			return err
+		}
 		ip, ipNet, err := net.ParseCIDR(fmt.Sprintf("10.%d.%d.1/24", a, b))
 		if err != nil {
 			return err
@@ -165,10 +182,11 @@ func createNetworkResource(netID modules.NetID, resource *modules.NetResource, a
 	return nil
 }
 
-func deleteNetworkResource(resource modules.NetResource) error {
+func deleteNetResource(resource *modules.NetResource, allocNr int8) error {
 	var (
-		netnsName  = netnsName(resource.Prefix)
-		bridgeName = bridgeName(resource.Prefix)
+		nibble     = zosip.NewNibble(resource.Prefix, allocNr)
+		netnsName  = nibble.NetworkName()
+		bridgeName = nibble.BridgeName()
 	)
 	if err := bridge.Delete(bridgeName); err != nil {
 		return err
@@ -181,7 +199,7 @@ func configureWG(storageDir string, resource *modules.NetResource, allocNr int8)
 		nibble      = zosip.NewNibble(resource.Prefix, allocNr)
 		netnsName   = nibble.NetworkName()
 		wgName      = nibble.WiregardName()
-		storagePath = filepath.Join(storageDir, prefixStr(resource.Prefix))
+		storagePath = filepath.Join(storageDir, nibble.Hex())
 		key         wgtypes.Key
 		err         error
 	)
@@ -201,12 +219,15 @@ func configureWG(storageDir string, resource *modules.NetResource, allocNr int8)
 			continue
 		}
 
-		a, b := ipv4Nibble(peer.Prefix)
+		a, b, err := nibble.ToV4()
+		if err != nil {
+			return key, err
+		}
 		peers[i] = wireguard.Peer{
 			PublicKey: peer.Connection.Key,
 			Endpoint:  endpoint(peer),
 			AllowedIPs: []string{
-				fmt.Sprintf("fe80::%s/128", prefixStr(peer.Prefix)),
+				fmt.Sprintf("fe80::%s/128", nibble.Hex()),
 				fmt.Sprintf("172.16.%d.%d/32", a, b),
 			},
 		}
@@ -245,30 +266,6 @@ func endpoint(peer modules.Connected) string {
 		endpoint = fmt.Sprintf("%s:%d", peer.Connection.IP.String(), peer.Connection.Port)
 	}
 	return endpoint
-}
-
-func prefixStr(prefix net.IPNet) string {
-	b := []byte(prefix.IP)[6:8]
-	return fmt.Sprintf("%x", b)
-}
-func bridgeName(prefix net.IPNet) string {
-	return fmt.Sprintf("br%s", prefixStr(prefix))
-}
-func wgName(prefix net.IPNet) string {
-	return fmt.Sprintf("wg%s", prefixStr(prefix))
-}
-func netnsName(prefix net.IPNet) string {
-	return fmt.Sprintf("ns%s", prefixStr(prefix))
-}
-func vethName(prefix net.IPNet) string {
-	return fmt.Sprintf("veth%s", prefixStr(prefix))
-}
-
-func ipv4Nibble(prefix net.IPNet) (uint8, uint8) {
-	x := []byte(prefix.IP)
-	a := uint8(x[6])
-	b := uint8(x[7])
-	return a, b
 }
 
 func wgIP(prefix net.IPNet) (*net.IPNet, error) {
