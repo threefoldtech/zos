@@ -16,6 +16,14 @@ const (
 	cacheSize   = 20 * 1024 * 1024 * 1024 // 20GB
 )
 
+var (
+	diskBase = map[modules.RaidProfile]int{
+		modules.Single: 1,
+		modules.Raid1:  2,
+		modules.Raid10: 4,
+	}
+)
+
 type storageModule struct {
 	volumes []filesystem.Pool
 }
@@ -82,15 +90,8 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 	log.Info().Msgf("Creating new volumes using policy %s", policy.Raid)
 
 	// sanity check for disk amount
-	var diskBase int
-	switch policy.Raid {
-	case modules.Single:
-		diskBase = 1
-	case modules.Raid1:
-		diskBase = 2
-	case modules.Raid10:
-		diskBase = 4
-	default:
+	diskBase, exists := diskBase[policy.Raid]
+	if !exists {
 		return fmt.Errorf("unrecognized storage policy %s", policy.Raid)
 	}
 	if diskBase%int(policy.Disks) != 0 {
