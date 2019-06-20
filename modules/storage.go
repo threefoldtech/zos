@@ -4,6 +4,9 @@ import (
 	"fmt"
 )
 
+//go:generate mkdir -p stubs
+//go:generate zbusc -module storage -version 0.0.1 -name storage -package stubs github.com/threefoldtech/zosv2/modules+StorageModule stubs/storage_stub.go
+
 // RaidProfile type
 type RaidProfile string
 
