@@ -126,24 +126,23 @@ func createNetworkResource(netID modules.NetID, resource *modules.NetResource, a
 			return err
 		}
 
-		log.Info().Str("addr", resource.Prefix.String()).Msg("set address on veth interface")
-		addr := &netlink.Addr{IPNet: &resource.Prefix, Label: ""}
-		if err = netlink.AddrAdd(link, addr); err != nil {
-			return err
-		}
-
+		ipnetv6 := &resource.Prefix
 		a, b, err := nibble.ToV4()
 		if err != nil {
 			return err
 		}
-		ip, ipNet, err := net.ParseCIDR(fmt.Sprintf("10.%d.%d.1/24", a, b))
+		ip, ipnetv4, err := net.ParseCIDR(fmt.Sprintf("10.%d.%d.1/24", a, b))
 		if err != nil {
 			return err
 		}
-		ipNet.IP = ip
-		addr = &netlink.Addr{IPNet: ipNet, Label: ""}
-		if err = netlink.AddrAdd(link, addr); err != nil {
-			return err
+		ipnetv4.IP = ip
+
+		for _, ipnet := range []*net.IPNet{ipnetv6, ipnetv4} {
+			log.Info().Str("addr", ipnet.String()).Msg("set address on veth interface")
+			addr := &netlink.Addr{IPNet: ipnet, Label: ""}
+			if err = netlink.AddrAdd(link, addr); err != nil {
+				return err
+			}
 		}
 
 		return nil
