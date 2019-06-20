@@ -18,22 +18,27 @@ type Networker interface {
 
 // NetID is a type defining the ID of a network
 type NetID string
-// Type4 is the Node's IPv4 reachability:
-type Type4 int
 
-// Type6 is the Node's IPv6 reachability
-type Type6 int
+// ReachabilityV4 is the Node's IPv4 reachability:
+type ReachabilityV4 int
+
 const (
-	// HIDDEN : The Node lives in an RFC1918 space, can't listen publically
-	HIDDEN Type4 = 1
-	// PUBLIC : The Node's Wireguard interfaces listen address is reachable publicly
-	PUBLIC Type4 = 2
-	// ULA : The Node lives in an ULA prefix (IPv6 private space)
-	ULA    Type6 = 1
-	// PUBLIC : The Node's Wireguard interfaces listen address is reachable publicly
-	PUBLIC6 Type6 = 2
-	// There is a necessary difference between the two, as both types can be different
+	// ReachabilityV4Hidden The Node lives in an RFC1918 space, can't listen publically
+	ReachabilityV4Hidden ReachabilityV4 = iota
+	// ReachabilityV4Public The Node's Wireguard interfaces listen address is reachable publicly
+	ReachabilityV4Public
 )
+
+// ReachabilityV6 is the Node's IPv6 reachability
+type ReachabilityV6 int
+
+const (
+	// ReachabilityV6ULA The Node lives in an ULA prefix (IPv6 private space)
+	ReachabilityV6ULA ReachabilityV6 = iota
+	// ReachabilityV6Public The Node's Wireguard interfaces listen address is reachable publicly
+	ReachabilityV6Public
+)
+
 // NodeID is a type defining a node ID
 type NodeID struct {
 	ID string
