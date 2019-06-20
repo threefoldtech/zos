@@ -12,8 +12,9 @@ import (
 
 //Networker is the interface for the network module
 type Networker interface {
-	GetNetResource(id string) (*Network, error)
+	GetNetwork(id string) (*Network, error)
 	ApplyNetResource(*Network) error
+	DeleteNetResource(*Network) error
 }
 
 // NetID is a type defining the ID of a network

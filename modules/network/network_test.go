@@ -78,7 +78,7 @@ func TestCreateNetwork(t *testing.T) {
 	)
 
 	defer func() {
-		_ = deleteNetworkResource(resource)
+		_ = deleteNetResource(&resource, network.AllocationNR)
 	}()
 
 	err := createNetworkResource(network.NetID, &resource, network.AllocationNR)
@@ -113,8 +113,9 @@ func TestConfigureWG(t *testing.T) {
 	var (
 		network  = networks[0]
 		resource = network.Resources[0]
-		netName  = netnsName(resource.Prefix)
-		wgName   = wgName(resource.Prefix)
+		nibble   = zosip.NewNibble(resource.Prefix, network.AllocationNR)
+		netName  = nibble.NetworkName()
+		wgName   = nibble.WiregardName()
 	)
 
 	dir, err := ioutil.TempDir("", netName)
@@ -123,7 +124,7 @@ func TestConfigureWG(t *testing.T) {
 	storage := filepath.Join(dir, netName)
 
 	defer func() {
-		_ = deleteNetworkResource(resource)
+		_ = deleteNetResource(&resource, network.AllocationNR)
 		_ = os.RemoveAll(dir)
 	}()
 
@@ -155,9 +156,10 @@ func TestConfigureWG(t *testing.T) {
 			assert.Equal(t, endpoint(resource.Connected[i]), peer.Endpoint.String())
 
 			// asserts allowedIPs
-			a, b := ipv4Nibble(resource.Connected[i].Prefix)
+			a, b, err := nibble.ToV4()
+			require.NoError(t, err)
 			expected := []string{
-				fmt.Sprintf("fe80::%s/128", prefixStr(resource.Connected[i].Prefix)),
+				fmt.Sprintf("fe80::%s/128", nibble.Hex()),
 				fmt.Sprintf("172.16.%d.%d/32", a, b),
 			}
 			actual := make([]string, len(peer.AllowedIPs))

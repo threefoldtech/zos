@@ -41,7 +41,6 @@ func TestNibble(t *testing.T) {
 			network: "net-005eff02-0",
 		},
 	} {
-
 		nibble := NewNibble(tc.prefix, tc.allocNr)
 		assert.Equal(t, tc.wg, nibble.WiregardName())
 		assert.Equal(t, tc.bridge, nibble.BridgeName())
