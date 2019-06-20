@@ -1,0 +1,3 @@
+exec: storaged
+after:
+  - node-ready
