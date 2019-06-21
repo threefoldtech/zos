@@ -14,7 +14,7 @@ type Nibble struct {
 }
 
 // NewNibble create a new Nibble object
-func NewNibble(prefix net.IPNet, allocNr int8) *Nibble {
+func NewNibble(prefix *net.IPNet, allocNr int8) *Nibble {
 
 	var b []byte
 	size, _ := prefix.Mask.Size()
