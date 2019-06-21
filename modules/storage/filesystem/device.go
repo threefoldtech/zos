@@ -3,13 +3,18 @@ package filesystem
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
+
+	log "github.com/rs/zerolog/log"
 )
 
 type DeviceManager interface {
 	Device(ctx context.Context, device string) (Device, error)
 	Devices(ctx context.Context) ([]Device, error)
 	WithLabel(ctx context.Context, label string) ([]Device, error)
+	PoolType(ctx context.Context, pool Pool) (DeviceType, error)
 }
 
 // FSType type of filesystem on device
@@ -20,6 +25,16 @@ const (
 	BtrfsFSType FSType = "btrfs"
 )
 
+// DeviceType is the actual type of hardware that the storage device runs on,
+// i.e. SSD or HDD
+type DeviceType string
+
+// Known device types
+const (
+	SSDDevice = "SSD"
+	HDDDevice = "HDD"
+)
+
 // Device represents a physical device
 type Device struct {
 	Type       string   `json:"type"`
@@ -27,6 +42,8 @@ type Device struct {
 	Label      string   `json:"label"`
 	Filesystem FSType   `json:"fstype"`
 	Children   []Device `json:"children"`
+	DiskType   DeviceType
+	ReadTime   uint64
 }
 
 // Used assumes that the device is used if it has custom label of fstype
@@ -56,7 +73,7 @@ func (l *lsblkDeviceManager) Devices(ctx context.Context) ([]Device, error) {
 		return nil, err
 	}
 
-	return devices.BlockDevices, nil
+	return setDeviceTypes(flattenDevices(devices.BlockDevices)), nil
 }
 
 func (l *lsblkDeviceManager) WithLabel(ctx context.Context, label string) ([]Device, error) {
@@ -96,13 +113,74 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 	return devices.BlockDevices[0], nil
 }
 
+func (l *lsblkDeviceManager) PoolType(ctx context.Context, pool Pool) (DeviceType, error) {
+	devices, err := l.Devices(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	poolDevices := []Device{}
+
+	for _, d := range devices {
+		if d.Label == pool.Name() {
+			poolDevices = append(poolDevices, d)
+		}
+	}
+
+	if len(poolDevices) == 0 {
+		return "", errors.New("Pool has no known devices")
+	}
+
+	// assume homogenous pools for now
+	return poolDevices[0].DiskType, nil
+}
+
 func flattenDevices(devices []Device) []Device {
 	list := []Device{}
 	for _, d := range devices {
-		list = append(devices, d)
+		list = append(list, d)
 		if d.Children != nil {
-			list = append(devices, flattenDevices(d.Children)...)
+			list = append(list, flattenDevices(d.Children)...)
 		}
 	}
 	return list
 }
+
+func setDeviceTypes(devices []Device) []Device {
+	list := []Device{}
+	for _, d := range devices {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		typ, rt, err := seektime(ctx, d.Path)
+		if err != nil {
+			// don't include errored devices in the result
+			log.Error().Msgf("Failed to get disk read time: %v", err)
+			continue
+		}
+		d.DiskType = deviceTypeFromString(typ)
+		d.ReadTime = rt
+		list = append(list, d)
+	}
+
+	return list
+}
+
+func deviceTypeFromString(typ string) DeviceType {
+	switch typ {
+	case string(SSDDevice):
+		return SSDDevice
+	case string(HDDDevice):
+		return HDDDevice
+	default:
+		// if we have an error or unrecognized type, set type to HDD
+		return HDDDevice
+	}
+}
+
+// ByReadTime implements sort.Interface for []Device based on the ReadTime field
+type ByReadTime []Device
+
+func (a ByReadTime) Len() int           { return len(a) }
+func (a ByReadTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByReadTime) Less(i, j int) bool { return a[i].ReadTime < a[j].ReadTime }

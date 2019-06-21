@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -28,17 +27,6 @@ type btrfs struct {
 // NewBtrfs creates a new filesystem that implements btrfs
 func NewBtrfs(manager DeviceManager) Filesystem {
 	return &btrfs{manager}
-}
-
-func run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	output, err := exec.CommandContext(ctx, name, args...).Output()
-	if err != nil {
-		if err, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("%s", string(err.Stderr))
-		}
-	}
-
-	return output, nil
 }
 
 func (b *btrfs) btrfs(ctx context.Context, args ...string) ([]byte, error) {
@@ -262,8 +250,8 @@ func (p btrfsPool) Limit(size uint64) error {
 	return fmt.Errorf("not implemented")
 }
 
-// Type of the filesystem of this volume
-func (p btrfsPool) Type() string {
+// FsType of the filesystem of this volume
+func (p btrfsPool) FsType() string {
 	return "btrfs"
 }
 
@@ -349,7 +337,7 @@ func (v btrfsVolume) Name() string {
 	return name
 }
 
-// Type of the filesystem
-func (v btrfsVolume) Type() string {
+// FsType of the filesystem
+func (v btrfsVolume) FsType() string {
 	return "btrfs"
 }

@@ -21,7 +21,7 @@ type Volume interface {
 	Usage() (Usage, error)
 	Limit(size uint64) error
 	Name() string
-	Type() string
+	FsType() string
 }
 
 // Pool represents a created filesystem

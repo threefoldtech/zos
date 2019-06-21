@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -26,11 +28,15 @@ var (
 
 type storageModule struct {
 	volumes []filesystem.Pool
+	devices filesystem.DeviceManager
 }
 
 // New create a new storage module service
 func New() modules.StorageModule {
-	return &storageModule{volumes: []filesystem.Pool{}}
+	return &storageModule{
+		volumes: []filesystem.Pool{},
+		devices: filesystem.DefaultDeviceManager(),
+	}
 }
 
 /**
@@ -46,8 +52,7 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 
 	ctx := context.Background()
 
-	devices := filesystem.DefaultDeviceManager()
-	fs := filesystem.NewBtrfs(devices)
+	fs := filesystem.NewBtrfs(s.devices)
 
 	// remount all existing pools
 	log.Info().Msgf("Remounting existing volumes")
@@ -73,12 +78,13 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 
 	// list disks
 	log.Info().Msgf("Finding free disks")
-	disks, err := devices.Devices(ctx)
+	disks, err := s.devices.Devices(ctx)
 	if err != nil {
 		return err
 	}
 
-	// collect free disks
+	// collect free disks, sort by read time so faster disks are first
+	sort.Sort(filesystem.ByReadTime(disks))
 	freeDisks := []filesystem.Device{}
 	for _, device := range disks {
 		if !device.Used() {
@@ -99,27 +105,47 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 	}
 
 	// create new pools if applicable
+	// for now create as much pools as we can, need to think more about this
 	newPools := []filesystem.Pool{}
 
-	possiblePools := len(freeDisks) / int(policy.Disks)
-	// only create up to the specified amount of pools
-	if policy.MaxPools != 0 && int(policy.MaxPools) < possiblePools {
-		possiblePools = int(policy.MaxPools)
-	}
-	log.Debug().Msgf("Creating %d new volumes", possiblePools)
+	// also make sure pools are homogenous, only 1 type of device per pool
+	ssds := []filesystem.Device{}
+	hdds := []filesystem.Device{}
 
-	for i := 0; i < possiblePools; i++ {
-		log.Debug().Msgf("Creating new volume %d", i)
-		poolDevices := []string{}
-		for j := 0; j < int(policy.Disks); j++ {
-			log.Debug().Msgf("Grabbing device %d: %s for new volume", i*int(policy.Disks)+j, freeDisks[i*int(policy.Disks)+j].Path)
-			poolDevices = append(poolDevices, freeDisks[i*int(policy.Disks)+j].Path)
+	for _, d := range freeDisks {
+		if d.DiskType == filesystem.SSDDevice {
+			ssds = append(ssds, d)
+		} else {
+			hdds = append(hdds, d)
 		}
-		pool, err := fs.Create(ctx, uuid.New().String(), poolDevices, policy.Raid)
-		if err != nil {
-			return err
+	}
+
+	createdPools := 0
+	for _, fdisks := range [][]filesystem.Device{ssds, hdds} {
+		possiblePools := len(fdisks) / int(policy.Disks)
+		// only create up to the specified amount of pools
+		if policy.MaxPools != 0 && int(policy.MaxPools) < possiblePools-createdPools {
+			possiblePools = int(policy.MaxPools)
 		}
-		newPools = append(newPools, pool)
+		log.Debug().Msgf("Creating %d new volumes", possiblePools)
+
+		for i := 0; i < possiblePools; i++ {
+			log.Debug().Msgf("Creating new volume %d", i)
+			poolDevices := []string{}
+
+			for j := 0; j < int(policy.Disks); j++ {
+				log.Debug().Msgf("Grabbing device %d: %s for new volume", i*int(policy.Disks)+j, fdisks[i*int(policy.Disks)+j].Path)
+				poolDevices = append(poolDevices, fdisks[i*int(policy.Disks)+j].Path)
+			}
+
+			pool, err := fs.Create(ctx, uuid.New().String(), poolDevices, policy.Raid)
+			if err != nil {
+				return err
+			}
+
+			newPools = append(newPools, pool)
+			createdPools++
+		}
 	}
 
 	// make sure new pools are mounted
@@ -142,7 +168,7 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 func (s *storageModule) CreateFilesystem(size uint64) (string, error) {
 	log.Info().Msgf("Creating new volume with size %d", size)
 
-	fs, err := s.createFs(size, uuid.New().String())
+	fs, err := s.createFs(size, uuid.New().String(), false)
 	if err != nil {
 		return "", err
 	}
@@ -176,8 +202,6 @@ func (s *storageModule) ReleaseFilesystem(path string) error {
 func (s *storageModule) ensureCache() error {
 	log.Info().Msgf("Setting up cache")
 
-	// TODO: Need to make sure the cache is in an SSD pool, if possible
-
 	log.Debug().Msgf("Checking pools for existing cache")
 
 	var cacheFs filesystem.Volume
@@ -203,7 +227,7 @@ func (s *storageModule) ensureCache() error {
 	if cacheFs == nil {
 		log.Debug().Msgf("No cache found, try to create new cache")
 
-		fs, err := s.createFs(cacheSize, cacheLabel)
+		fs, err := s.createFs(cacheSize, cacheLabel, true)
 		if err != nil {
 			return err
 		}
@@ -215,24 +239,49 @@ func (s *storageModule) ensureCache() error {
 }
 
 // createFs creates a filesystem with the given name and limits it to the given size
-func (s *storageModule) createFs(size uint64, name string) (filesystem.Volume, error) {
-	var filesystem filesystem.Volume
+// if the requested disk type does not have a storage pool available, an error is
+// returned
+func (s *storageModule) createFs(size uint64, name string, preferSSD bool) (filesystem.Volume, error) {
+	var fs filesystem.Volume
 	var err error
 
-	// for now randomly select a volume
-	for _, volume := range s.volumes {
-		fs, err := volume.AddVolume(name)
+	possiblePools := s.volumes
+	if preferSSD {
+		ssdPools := []filesystem.Pool{}
+		hddPools := []filesystem.Pool{}
+		for _, pool := range s.volumes {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
+			poolType, err := s.devices.PoolType(ctx, pool)
+			if err != nil {
+				return nil, err
+			}
+			if poolType == filesystem.SSDDevice {
+				ssdPools = append(ssdPools, pool)
+			} else {
+				hddPools = append(hddPools, pool)
+			}
+		}
+		possiblePools = append(ssdPools, hddPools...)
+	}
+
+	// for now take the first volume, if an ssd is prefered ssds will be sorted
+	// first
+	for _, volume := range possiblePools {
+
+		fsn, err := volume.AddVolume(name)
 		if err != nil {
 			log.Error().Msgf("Failed to create new filesystem: %v", err)
 			continue
 		}
-		if err = fs.Limit(size); err != nil {
+		if err = fsn.Limit(size); err != nil {
 			log.Error().Msgf("Failed to set size limit on new filesystem: %v", err)
 			continue
 		}
-		filesystem = fs
+		fs = fsn
 		break
 	}
 
-	return filesystem, err
+	return fs, err
 }

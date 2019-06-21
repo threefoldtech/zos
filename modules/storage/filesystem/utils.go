@@ -2,8 +2,11 @@ package filesystem
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"syscall"
 )
@@ -34,5 +37,34 @@ func getMountTarget(device string) (string, bool) {
 // BindMount remounts an existing directory in a given target using the mount
 // syscall with the BIND flag set
 func BindMount(src Volume, target string) error {
-	return syscall.Mount(src.Path(), target, "btrfs", syscall.MS_BIND, "")
+	return syscall.Mount(src.Path(), target, src.FsType(), syscall.MS_BIND, "")
+}
+
+// seektime uses the seektime binary to try and determine the type of a disk
+// This function returns the type of the device, as reported by seektime,
+// and the elapsed time in microseconds (also reported by seektime)
+func seektime(ctx context.Context, path string) (string, uint64, error) {
+	bytes, err := run(ctx, "seektime", "-j", path)
+	if err != nil {
+		return "", 0, err
+	}
+
+	var seekTime struct {
+		Typ  string `json:"type"`
+		Time uint64 `json:"elapsed"`
+	}
+
+	err = json.Unmarshal(bytes, &seekTime)
+	return seekTime.Typ, seekTime.Time, err
+}
+
+func run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	output, err := exec.CommandContext(ctx, name, args...).Output()
+	if err != nil {
+		if err, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("%s", string(err.Stderr))
+		}
+	}
+
+	return output, nil
 }
