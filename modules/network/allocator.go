@@ -5,7 +5,7 @@ import (
 )
 
 // NetResourceAllocator is the interface that define how
-// the network module can retreive NetResource object
+// the network module can retrieve NetResource object
 type NetResourceAllocator interface {
 	Get(txID string) (*modules.Network, error)
 }

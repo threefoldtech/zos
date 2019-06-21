@@ -52,7 +52,7 @@ func TestNibble(t *testing.T) {
 	} {
 		name := fmt.Sprintf("%s-%d", tc.prefix.String(), tc.allocNr)
 		t.Run(name, func(t *testing.T) {
-			nibble := NewNibble(tc.prefix, tc.allocNr)
+			nibble := NewNibble(&tc.prefix, tc.allocNr)
 			assert.Equal(t, tc.wg, nibble.WiregardName())
 			assert.Equal(t, tc.bridge, nibble.BridgeName())
 			assert.Equal(t, tc.veth, nibble.VethName())

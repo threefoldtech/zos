@@ -63,12 +63,12 @@ type Network struct {
 	NetID NetID
 	// a netresource is a group of interconnected prefixes for a netid
 	// needs to be queried and updated when the netresource is created
-	Resources []NetResource
+	Resources []*NetResource
 	// the exit is the ultimate default gateway container
 	// as well the prefix as the local config needs to be queried.
 	// - the prefix from the grid
 	// - the exit prefix and default gw from the local allocation
-	Exit ExitPoint
+	Exit *ExitPoint
 	// AllocationNr is for when a new allocation has been necessary and needs to
 	// be added to the pool for Prefix allocations.
 	// this is needed as we set up deterministic interface names, that could conflict with
@@ -82,18 +82,18 @@ type NetResource struct {
 	NodeID NodeID
 	// prefix is the IPv6 allocation that will be connected to the
 	// bridge/container/vm
-	Prefix net.IPNet
+	Prefix *net.IPNet
 	// Gateways in IPv6 are link-local. To be able to use IPv6 in any way,
 	// an interface needs an IPv6 link-local address. As wireguard interfaces
 	// are l3-only, the kernel doesn't assign one, so we need to assign one
 	// ourselves. (we need to come up with a deterministic way, so we can be
 	// sure we now which/where)
-	LinkLocal net.IPNet
+	LinkLocal *net.IPNet
 	// what are the peers:
 	// each netresource needs to know what prefixes are reachable through
-	// what endpoint. Basically this `connected` array will be used to build
+	// what endpoint. Basically this `peers` array will be used to build
 	// up the wireguard config in each netresource.
-	Connected []Connected
+	Peers []*Peer
 	// a list of firewall rules to open access directly, IF that netresource
 	// would be directly routed (future)
 	// IPv6Allow []net.IPNet
@@ -108,7 +108,7 @@ type NetResource struct {
 // through tunnels (like nodes in ipv4-only networks or home networks)
 type ExitPoint struct {
 	// netresource is the same as on all other netresources of a tenant network
-	NetResource
+	*NetResource
 	// the ultimate IPv{4,6} config of the exit container.
 	ipv4Conf ipv4Conf
 	ipv4DNAT []DNAT
@@ -146,16 +146,16 @@ type ipv6Conf struct {
 	Iface   netlink.Link
 }
 
-// Connected are the peers for which we have a tunnel established, and the
+// Peer is a peer for which we have a tunnel established and the
 // prefix it routes to. The connection, as it is a peer to peer connection,
 // can be of type wireguard, but also any other type that can bring
 // a packet to a node containing a netresource.
 // If for instance that node lives in the same subnet, it'll be a lot more
 // efficient to set up a vxlan (multicast or with direct fdb entries), than
 // using wireguard tunnels (that can be seen in a later phase)
-type Connected struct {
+type Peer struct {
 	Type       ConnType
-	Prefix     net.IPNet
+	Prefix     *net.IPNet
 	Connection Wireguard
 }
 
