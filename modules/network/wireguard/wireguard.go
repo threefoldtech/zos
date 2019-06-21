@@ -1,7 +1,11 @@
 package wireguard
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -30,6 +34,22 @@ func New(name string) (*Wireguard, error) {
 	return wg, nil
 }
 
+// GetByName return a wireguard object by its name
+func GetByName(name string) (*Wireguard, error) {
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	if link.Type() != "wireguard" {
+		return nil, fmt.Errorf("link %s is not of type wireguard", name)
+	}
+	wg := &Wireguard{
+		attrs: link.Attrs(),
+	}
+	return wg, nil
+}
+
 // Type implements the netlink.Link interface
 func (w *Wireguard) Type() string {
 	return "wireguard"
@@ -38,6 +58,18 @@ func (w *Wireguard) Type() string {
 // Attrs implements the netlink.Link interface
 func (w *Wireguard) Attrs() *netlink.LinkAttrs {
 	return w.attrs
+}
+
+// Device returns the detail of the configuration of the
+// wireguard interface
+func (w *Wireguard) Device() (*wgtypes.Device, error) {
+	wg, err := wgctrl.New()
+	if err != nil {
+		return nil, err
+	}
+	defer wg.Close()
+
+	return wg.Device(w.attrs.Name)
 }
 
 // SetAddr sets an IP address on the interface
@@ -61,13 +93,9 @@ type Peer struct {
 }
 
 // Configure configures the wiregard configuration
-func (w *Wireguard) Configure(addr, privateKey string, peers []Peer) error {
+func (w *Wireguard) Configure(privateKey string, peers []Peer) error {
 
 	if err := netlink.LinkSetDown(w); err != nil {
-		return err
-	}
-
-	if err := w.SetAddr(addr); err != nil {
 		return err
 	}
 
@@ -92,8 +120,9 @@ func (w *Wireguard) Configure(addr, privateKey string, peers []Peer) error {
 	}
 
 	config := wgtypes.Config{
-		PrivateKey: &key,
-		Peers:      peersConfig,
+		PrivateKey:   &key,
+		Peers:        peersConfig,
+		ReplacePeers: true,
 	}
 	log.Info().Msg("configure wg device")
 
@@ -105,10 +134,12 @@ func (w *Wireguard) Configure(addr, privateKey string, peers []Peer) error {
 }
 
 func newPeer(pubkey, endpoint string, allowedIPs []string) (wgtypes.PeerConfig, error) {
-	peer := wgtypes.PeerConfig{}
+	peer := wgtypes.PeerConfig{
+		ReplaceAllowedIPs: true,
+	}
 	var err error
 
-	duration := time.Second * 10
+	duration := time.Second * 20
 	peer.PersistentKeepaliveInterval = &duration
 
 	peer.PublicKey, err = wgtypes.ParseKey(pubkey)
@@ -116,28 +147,59 @@ func newPeer(pubkey, endpoint string, allowedIPs []string) (wgtypes.PeerConfig, 
 		return peer, err
 	}
 
-	host, p, err := net.SplitHostPort(endpoint)
-	if err != nil {
-		return peer, err
-	}
-
-	port, err := strconv.Atoi(p)
-	if err != nil {
-		return peer, err
-	}
-
-	peer.Endpoint = &net.UDPAddr{
-		IP:   net.ParseIP(host),
-		Port: port,
-	}
-
-	for _, allowedIP := range allowedIPs {
-		_, ip, err := net.ParseCIDR(allowedIP)
+	if endpoint != "" {
+		host, p, err := net.SplitHostPort(endpoint)
 		if err != nil {
 			return peer, err
 		}
-		peer.AllowedIPs = append(peer.AllowedIPs, *ip)
+
+		port, err := strconv.Atoi(p)
+		if err != nil {
+			return peer, err
+		}
+
+		peer.Endpoint = &net.UDPAddr{
+			IP:   net.ParseIP(host),
+			Port: port,
+		}
+	}
+
+	for _, allowedIP := range allowedIPs {
+		ip, ipNet, err := net.ParseCIDR(allowedIP)
+		if err != nil {
+			return peer, err
+		}
+		ipNet.IP = ip
+		fmt.Printf("allowed ips %+v\n", ipNet)
+		peer.AllowedIPs = append(peer.AllowedIPs, *ipNet)
 	}
 
 	return peer, nil
+}
+
+// GenerateKey generates a new private key
+func GenerateKey(dir string) (wgtypes.Key, error) {
+	key, err := wgtypes.GeneratePrivateKey()
+	if err != nil {
+		return wgtypes.Key{}, err
+	}
+	if err := os.MkdirAll(dir, 700); err != nil {
+		return wgtypes.Key{}, err
+	}
+
+	path := filepath.Join(dir, "key.priv")
+	if err := ioutil.WriteFile(path, []byte(key.String()), 400); err != nil {
+		return wgtypes.Key{}, err
+	}
+	return key, nil
+}
+
+// LoadKey tries to read a private key from disk
+func LoadKey(dir string) (wgtypes.Key, error) {
+	path := filepath.Join(dir, "key.priv")
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return wgtypes.Key{}, err
+	}
+	return wgtypes.ParseKey(string(b))
 }
