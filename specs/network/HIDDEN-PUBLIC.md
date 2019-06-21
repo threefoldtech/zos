@@ -27,3 +27,21 @@ That way
 
 
 ![a little drawing ;-) ](HIDDEN-PUBLIC.png)
+
+  - Unidirectional : the node that receive the connections don't have an `EndPoint` configured for peers that are HIDDEN and NOT in same localnet of farm.
+
+```
+[Peer]
+PublicKey = h/NU9Qnpcxo+n5Px7D4dupiHPaW2i3J9+pygRhLcp14=
+AllowedIPs = 2a02:1807:1100:01bb::/64,....
+
+```
+  - Bidirectional : standard wireguard config with EndPoint on both sides.
+
+```
+[Peer]
+PublicKey = frILGCtt5/55b9ysgyeSdzIv777cmvTNvIsvJGWd/Qc=
+AllowedIPs =  2a02:1807:1100:11cd::/64,...
+EndPoint = 91.85.221.101:23123
+PersistentKeepalive = 25
+```
