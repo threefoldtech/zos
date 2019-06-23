@@ -1,6 +1,6 @@
 
 ## Services Boot Sequence
-- node-read
+- node-ready
   - storaged
   - netwokrd
 - boot
