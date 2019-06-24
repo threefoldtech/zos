@@ -98,7 +98,6 @@ func (m TestDeviceManager) Device(ctx context.Context, device string) (Device, e
 		if loop == device {
 			return Device{
 				Path: loop,
-				Name: path.Base(loop),
 				Type: "loop",
 			}, nil
 		}
@@ -116,12 +115,15 @@ func (m TestDeviceManager) Devices(ctx context.Context) ([]Device, error) {
 	for _, loop := range m.devices {
 		devices = append(devices, Device{
 			Path: loop,
-			Name: path.Base(loop),
 			Type: "loop",
 		})
 	}
 
 	return devices, nil
+}
+
+func (m TestDeviceManager) PoolType(ctx context.Context, pool Pool) (DeviceType, error) {
+	return HDDDevice, nil
 }
 
 func TestMain(m *testing.M) {
