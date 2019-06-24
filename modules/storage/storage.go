@@ -33,20 +33,31 @@ type storageModule struct {
 
 // New create a new storage module service
 func New() modules.StorageModule {
-	return &storageModule{
+	s := &storageModule{
 		volumes: []filesystem.Pool{},
 		devices: filesystem.DefaultDeviceManager(),
 	}
+
+	// go for a simple linear setup right now
+	if err := s.initialize(modules.StoragePolicy{
+		Raid:     modules.Single,
+		Disks:    1,
+		MaxPools: 0,
+	}); err != nil {
+		panic(err)
+	}
+
+	return s
 }
 
 /**
-Initialize, must be called at least onetime each boot.
+initialize, must be called at least onetime each boot.
 What Initialize will do is the following:
  - Try to mount prepared pools (if they are not mounted already)
  - Scan free devices, apply the policy.
  - If new pools were created, the pool is going to be mounted automatically
 **/
-func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
+func (s *storageModule) initialize(policy modules.StoragePolicy) error {
 	log.Info().Msgf("Initializing storage module")
 	defer log.Info().Msgf("Finished initializing storage module")
 
@@ -168,7 +179,7 @@ func (s *storageModule) Initialize(policy modules.StoragePolicy) error {
 func (s *storageModule) CreateFilesystem(size uint64) (string, error) {
 	log.Info().Msgf("Creating new volume with size %d", size)
 
-	fs, err := s.createFs(size, uuid.New().String(), false)
+	fs, err := s.createSubvol(size, uuid.New().String(), false)
 	if err != nil {
 		return "", err
 	}
@@ -227,7 +238,7 @@ func (s *storageModule) ensureCache() error {
 	if cacheFs == nil {
 		log.Debug().Msgf("No cache found, try to create new cache")
 
-		fs, err := s.createFs(cacheSize, cacheLabel, true)
+		fs, err := s.createSubvol(cacheSize, cacheLabel, true)
 		if err != nil {
 			return err
 		}
@@ -238,10 +249,10 @@ func (s *storageModule) ensureCache() error {
 	return filesystem.BindMount(cacheFs, cacheTarget)
 }
 
-// createFs creates a filesystem with the given name and limits it to the given size
+// createSubvol creates a subvolume with the given name and limits it to the given size
 // if the requested disk type does not have a storage pool available, an error is
 // returned
-func (s *storageModule) createFs(size uint64, name string, preferSSD bool) (filesystem.Volume, error) {
+func (s *storageModule) createSubvol(size uint64, name string, preferSSD bool) (filesystem.Volume, error) {
 	var fs filesystem.Volume
 	var err error
 
@@ -269,6 +280,16 @@ func (s *storageModule) createFs(size uint64, name string, preferSSD bool) (file
 	// for now take the first volume, if an ssd is prefered ssds will be sorted
 	// first
 	for _, volume := range possiblePools {
+		usage, err := volume.Usage()
+		if err != nil {
+			log.Error().Msgf("Failed to get current volume usage: %v", err)
+			continue
+		}
+		// Make sure adding this filesystem would not bring us over the disk limit
+		if usage.Used+size > usage.Size {
+			log.Info().Msgf("Disk does not have enough space left to hold filessytem")
+			continue
+		}
 
 		fsn, err := volume.AddVolume(name)
 		if err != nil {

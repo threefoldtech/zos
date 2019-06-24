@@ -39,7 +39,7 @@ func (b *btrfs) Create(ctx context.Context, name string, devices []string, polic
 		return nil, fmt.Errorf("invalid name")
 	}
 
-	block, err := b.devices.WithLabel(ctx, name)
+	block, err := b.devices.ByLabel(ctx, name)
 	if err != nil {
 		return nil, err
 	}

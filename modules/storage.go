@@ -63,12 +63,6 @@ type StoragePolicy struct {
 
 // StorageModule defines the api for storage
 type StorageModule interface {
-	// Initialize, Scans available disks, then group them in `pools` to satisfy
-	// the provided policy. For example, a Policy with `single` raid
-	// profile, and 1 disk, will create a pool out of each free disk
-	// on the node.
-	Initialize(policy StoragePolicy) error
-
 	// CreateFilesystem creates a filesystem with a given size. The filesystem
 	// is mounted, and the path to the mountpoint is returned.
 	CreateFilesystem(size uint64) (string, error)

@@ -106,7 +106,7 @@ func (m TestDeviceManager) Device(ctx context.Context, device string) (Device, e
 	return Device{}, fmt.Errorf("device not found")
 }
 
-func (m TestDeviceManager) WithLabel(ctx context.Context, label string) ([]Device, error) {
+func (m TestDeviceManager) ByLabel(ctx context.Context, label string) ([]Device, error) {
 	return nil, nil
 }
 

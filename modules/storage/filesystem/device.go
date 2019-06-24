@@ -10,10 +10,15 @@ import (
 	log "github.com/rs/zerolog/log"
 )
 
+// DeviceManager is able to list all/specific devices on a system
 type DeviceManager interface {
+	// Device returns the device at the specified path
 	Device(ctx context.Context, device string) (Device, error)
+	// Devices finds all devices on a system
 	Devices(ctx context.Context) ([]Device, error)
-	WithLabel(ctx context.Context, label string) ([]Device, error)
+	// ByLabel finds all devices with the specified label
+	ByLabel(ctx context.Context, label string) ([]Device, error)
+	// PoolType finds the type of a storagepool
 	PoolType(ctx context.Context, pool Pool) (DeviceType, error)
 }
 
@@ -37,13 +42,13 @@ const (
 
 // Device represents a physical device
 type Device struct {
-	Type       string   `json:"type"`
-	Path       string   `json:"name"`
-	Label      string   `json:"label"`
-	Filesystem FSType   `json:"fstype"`
-	Children   []Device `json:"children"`
-	DiskType   DeviceType
-	ReadTime   uint64
+	Type       string     `json:"type"`
+	Path       string     `json:"name"`
+	Label      string     `json:"label"`
+	Filesystem FSType     `json:"fstype"`
+	Children   []Device   `json:"children"`
+	DiskType   DeviceType `json:"-"`
+	ReadTime   uint64     `json:"-"`
 }
 
 // Used assumes that the device is used if it has custom label of fstype
@@ -76,7 +81,7 @@ func (l *lsblkDeviceManager) Devices(ctx context.Context) ([]Device, error) {
 	return setDeviceTypes(flattenDevices(devices.BlockDevices)), nil
 }
 
-func (l *lsblkDeviceManager) WithLabel(ctx context.Context, label string) ([]Device, error) {
+func (l *lsblkDeviceManager) ByLabel(ctx context.Context, label string) ([]Device, error) {
 	devices, err := l.Devices(ctx)
 	if err != nil {
 		return nil, err
@@ -114,17 +119,9 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 }
 
 func (l *lsblkDeviceManager) PoolType(ctx context.Context, pool Pool) (DeviceType, error) {
-	devices, err := l.Devices(ctx)
+	poolDevices, err := l.ByLabel(ctx, pool.Name())
 	if err != nil {
 		return "", err
-	}
-
-	poolDevices := []Device{}
-
-	for _, d := range devices {
-		if d.Label == pool.Name() {
-			poolDevices = append(poolDevices, d)
-		}
 	}
 
 	if len(poolDevices) == 0 {

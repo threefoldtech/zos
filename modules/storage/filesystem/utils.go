@@ -64,6 +64,7 @@ func run(ctx context.Context, name string, args ...string) ([]byte, error) {
 		if err, ok := err.(*exec.ExitError); ok {
 			return nil, fmt.Errorf("%s", string(err.Stderr))
 		}
+		return nil, err
 	}
 
 	return output, nil
