@@ -1,19 +1,5 @@
-```
-for netresources of network
-  if netresource.node.conntype == hidden --and-- netresource NOT in same farm
-     wgpeer = exitnode
-     allowedips.append(netresource.prefix)
-     routes.append(netresource.prefix via exitnode.fe80:netresource.prefix.nibble)
-  else if netresource == public --or-- netresource in same farm
-     wgpeer = netresource.peer
-     allowedips = netresource.prefix
-     route = netresource.prefix via netresource.fe80:netresource.prefix.nibble
-  fi
-endfor
-```
 
-
-That way
+What needs to be implemented
   - all hidden nodes establish connections to public peers
   - all hidden nodes do not connect to hidden nodes, but only to the exit node.
   for that, they add the prefixes for that netresource that is hidden and the route to
@@ -34,7 +20,7 @@ That way
 [Peer]
 PublicKey = h/NU9Qnpcxo+n5Px7D4dupiHPaW2i3J9+pygRhLcp14=
 AllowedIPs = 2a02:1807:1100:01bb::/64,....
-
+EndPoint = 91.85.221.101:23123
 ```
   - Bidirectional : standard wireguard config with EndPoint on both sides.
 

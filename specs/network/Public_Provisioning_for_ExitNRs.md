@@ -35,13 +35,13 @@ Physcally Nodes can be connected in several ways:
 #### A Network resource allocation.
 We define Network Resource as a routable IPv6 `/64` Prefix, so for every time a TNoDB needs to update the Tenant Network, to add a Network Resource to it, we need to get an allocation from the Farm Allocation.
 
-Basically it's just a list of allocations in that prefix, that are in use. Any free will do, as we do routing in the exit nodes with a `/64` granularity. 
+Basically it's just a list of allocations in that prefix, that are in use. Any free Prefix will do, as we do routing in the exit nodes with a `/64` granularity. 
 
 The TNoDB then creates/updates the Tenant Network object with that new Network Resource.
 
 #### The Nodes responsible for ExitPoints 
 
-A Node responsible for ExitPoints will know so because of how it's registered in the Global Registry. That is :
+A Node responsible for ExitPoints as wel as a Public endpoint will know so because of how it's registered in the Global Registry. That is :
   - it is defined as an exit node
   - the registry hands out an Object that describes it's public connectivity. i.e. :
     - the public IPv4 address(es) it can use
@@ -52,7 +52,22 @@ With that information, a Node can then build the Network Namespace from which it
 
 
 
-So the Global Registry hands out 
+So the Global Registry hands out
+  - Tenant Network Objects
+  - Public Interface Objects
+
+They are related :
+  - A Node can have Network Resources
+  - A Network Resource can have (1) Public Interface
+  - Both are part of a Tenant Network
+
+A TNo defines a Network where ONLY the ExitPoint is flagged as being one. No more.  
+When the Node (networkd) needs to setup a Public node, it will need to act differently.
+  - Verify if the Node is **really** public, if so use standard WG interface setup
+  - If not, verify if there is already a Public Exit Namespace defined, create WG interface there.
+    - If there is Public Exit Namespace, request one, and set it up first.
+
+
 FarmerID
 NodeID
 TenantNetworks []Network
