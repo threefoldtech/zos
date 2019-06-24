@@ -55,7 +55,7 @@ func (b *btrfs) Create(ctx context.Context, name string, devices []string, polic
 		}
 
 		if dev.Used() {
-			return nil, fmt.Errorf("device '%s' is already used", dev)
+			return nil, fmt.Errorf("device '%v' is already used", dev)
 		}
 	}
 
