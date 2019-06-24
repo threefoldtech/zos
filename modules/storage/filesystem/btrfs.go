@@ -94,7 +94,7 @@ func (b *btrfs) List(ctx context.Context) ([]Pool, error) {
 
 type btrfsPool string
 
-// Mounted checks is the pool is mounted
+// Mounted checks if the pool is mounted
 // It doesn't check the default mount location of the pool
 // but instead check if any of the pool devices is mounted
 // under any location
@@ -123,7 +123,7 @@ func (p btrfsPool) Name() string {
 }
 
 func (p btrfsPool) Path() string {
-	return path.Join("/mnt", string(p))
+	return filepath.Join("/mnt", string(p))
 }
 
 func (p btrfsPool) enableQuota(mnt string) error {
@@ -202,7 +202,7 @@ func (p btrfsPool) Volumes() ([]Volume, error) {
 	}
 
 	for _, sub := range subs {
-		volumes = append(volumes, btrfsVolume(path.Join(mnt, sub.Path)))
+		volumes = append(volumes, btrfsVolume(filepath.Join(mnt, sub.Path)))
 	}
 
 	return volumes, nil
@@ -214,7 +214,7 @@ func (p btrfsPool) AddVolume(name string) (Volume, error) {
 		return nil, DeviceNotMountedError
 	}
 
-	mnt = path.Join(mnt, name)
+	mnt = filepath.Join(mnt, name)
 	if _, err := run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
 		return nil, err
 	}
@@ -270,7 +270,7 @@ func (v btrfsVolume) Volumes() ([]Volume, error) {
 	}
 
 	for _, sub := range subs {
-		volumes = append(volumes, btrfsVolume(path.Join(string(v), sub.Path)))
+		volumes = append(volumes, btrfsVolume(filepath.Join(string(v), sub.Path)))
 	}
 
 	return volumes, nil
