@@ -2,7 +2,7 @@
 # zinit unit files provided by the base image
 # have been booted correctly
 
-exec: "true"
+exec: sh init/node-ready.sh
 oneshot: true
 after:
   # list of all services that must be running before moving on
