@@ -1,26 +1,22 @@
 
 What needs to be implemented
   - all hidden nodes establish connections to public peers
-  - all hidden nodes do not connect to hidden nodes, but only to the exit node.
-  for that, they add the prefixes for that netresource that is hidden and the route to
-  the exit node
-  - public nodes behave the same, where all hidden nodes have allowedips
-  and routes via the exit node
+  - all hidden nodes do not connect to hidden nodes, but only to the publicly reachable nodes.
+  for that, they add the prefixes for that netresource that is hidden and the route through the exit node
   - the public nodes do not need to add a peer destination address for hidden nodes,
   as they will be contacted by the hidden nodes for 2 reasons
     - the setup of fe80::xxxx does a neighbor discovery so a packet gets sent
     - PersistentKeepalive starts the connection regardless of packets ?
 
-
 ![a little drawing ;-) ](HIDDEN-PUBLIC.png)
 
-  - Unidirectional : the node that receive the connections don't have an `EndPoint` configured for peers that are HIDDEN and NOT in same localnet of farm.
+  - Unidirectional : the nodes that receive the connections don't have an `EndPoint` (in WireGuard terms) configured for peers that are HIDDEN and NOT in same localnet of farm.
 
 ```
 [Peer]
 PublicKey = h/NU9Qnpcxo+n5Px7D4dupiHPaW2i3J9+pygRhLcp14=
 AllowedIPs = 2a02:1807:1100:01bb::/64,....
-EndPoint = 91.85.221.101:23123
+PersistentKeepalive = 20
 ```
   - Bidirectional : standard wireguard config with EndPoint on both sides.
 
@@ -29,5 +25,62 @@ EndPoint = 91.85.221.101:23123
 PublicKey = frILGCtt5/55b9ysgyeSdzIv777cmvTNvIsvJGWd/Qc=
 AllowedIPs =  2a02:1807:1100:11cd::/64,...
 EndPoint = 91.85.221.101:23123
-PersistentKeepalive = 25
+PersistentKeepalive = 20
 ```
+
+### Differentiation beween hidden and public
+
+  - Node is fully Public (IPv[46])
+    Then the Wireguard Interface can be created in Namespace 1 of the Kernel
+  
+  - Node is fully Private :
+    - it has an RFC1918 IPv4 Address and/or
+    - it has a routable but firewalled IPv6
+
+    Then the Wireguard Interface can be created in Namespace 1 of the Kernel
+
+  - Node is part of a farm, so Namespace 1 is hidden, but it can connect Publicly
+    - through a physical connection (direct interface, vlan, macvlan, ...)
+    - through special routing over tunnels (vxlan, GRE, mpls, ...)
+
+    Then the Wireguard Interface needs to be created in a Namespace that holds the public IP address(es), so it is reachable with a default route.
+
+    For this to work, the Node that is flagged as a Node responsible for providing ExitPoints of Tenant Networks needs to:
+      - request a prefix for the Network Resource of the Tenant Network
+      - request the public setup for it's public namespace
+      - set up the public namespace
+        - add publicly connected interface in the namespace
+        - add the public IPv[46] to it
+      - from there wireguard Interfaces can be created to be sent into the Network Resources of the ExitPoints
+      - once such a Public namespace is created, there needs to be a new one created for every X (TODO: define max number of running wireguards in a Public Namespace)
+
+NOTE: there is a strong distinction beween
+  - a public namespace for Wireguard interfaces
+  - an exitpoint with it's own Public IP
+    - for IPv4, that needs to be bought, without it, there is no NAT to the Routable Internet available. (although we actually could provide a global Routing namespace that does NAT for all IPv4 Network resources in all Tenant Networks, it's just setting it up with correct firewall rules, wich would live in the Wireguard public namespace anyway)
+
+So for the Wireguard Public namespace:
+```bash
+#!/usr/bin/env bash
+ip link add Public type bridge
+ip link add public type veth peer name onpubbridge
+ip link set onpubbridge master Public
+ip link set onpubbridge up
+ip link set Public up
+# Namespace
+ip link set public netns Public
+ip -n Public set public up
+ip -n Public set lo up
+ip -n Public address add 185.69.166.121/24 dev public
+ip -n Public route add default via 185.69.166.1
+
+```
+It's nftables setup:
+
+```
+
+```
+When an ExitPoint is created, in order to be able to NAT:
+
+    - For IPv6 the ExitPoint has a Public Interface connected to the Router Segment of the Public Prefix (i.e. the one with the penultimate Default GW)
+
