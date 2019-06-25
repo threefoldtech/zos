@@ -84,10 +84,27 @@ ip -n Public route add default via 185.69.166.1
 # public exit config struct
 struct ExitIface {
   IfaceName string
-  Vlan int16
+  Vlan int16 //how to define 'optional'
+  Macvlan *macaddr //also optional, mutually exclusive
   IPv4 *net.IP
   IPv6 *net.IP
+  GW4 *net.IP
+  GW6 *net.IP
 }
 
+```
+
+TODO: IPv4
+
+For IPv6 :
+
+If a farmer has received a `/48` for example, we have 16 bits of `/64`, we will reserve the first byte (`00 to FF`) as being not part of the Prefix allocator.
+For the Router network, we use the 1st Prefix available: e.g.:
+
+```
+Allocation: 2a02:1807:1100::/48
+  - First Prefix: 2a02:1807:1100:0000::/64 = 2a02:1807:1100::/64
+  - Gateway IP : 2a02:1807:1100::1/64 and fe80::1/64 (static configured from Allocation)
+  - ExitPoint IP : 2a02:1807:1100:::100 -> because NR has 2a02:1807:1100:100::/64
 ```
 
