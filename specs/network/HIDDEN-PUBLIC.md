@@ -33,17 +33,17 @@ PersistentKeepalive = 20
   - Node is fully Public (IPv[46])
     Then the Wireguard Interface can be created in Namespace 1 of the Kernel
   
-  - Node is fully Private :
+  - __Node is fully Private :__
     - it has an RFC1918 IPv4 Address and/or
     - it has a routable but firewalled IPv6
 
-    Then the Wireguard Interface can be created in Namespace 1 of the Kernel
+    -> Then the Wireguard Interface can be created in Namespace 1 of the Kernel
 
-  - Node is part of a farm, so Namespace 1 is hidden, but it can connect Publicly
+  - __Node is part of a farm, so Namespace 1 is hidden, but it can connect Publicly__
     - through a physical connection (direct interface, vlan, macvlan, ...)
     - through special routing over tunnels (vxlan, GRE, mpls, ...)
 
-    Then the Wireguard Interface needs to be created in a Namespace that holds the public IP address(es), so it is reachable with a default route.
+    -> Then the Wireguard Interface needs to be created in a Namespace that holds the public IP address(es), so it is reachable with a default route.
 
     For this to work, the Node that is flagged as a Node responsible for providing ExitPoints of Tenant Networks needs to:
       - request a prefix for the Network Resource of the Tenant Network
@@ -52,13 +52,16 @@ PersistentKeepalive = 20
         - add publicly connected interface in the namespace
         - add the public IPv[46] to it
       - from there wireguard Interfaces can be created to be sent into the Network Resources of the ExitPoints
-      - once such a Public namespace is created, there needs to be a new one created for every X (TODO: define max number of running wireguards in a Public Namespace)
+      - once such a Public namespace is created, there needs to be a new one created for every X (TODO: define max number of running Wireguards in a Public Namespace)
 
-NOTE: there is a strong distinction beween
+**NOTE: there is a strong distinction beween**
   - a public namespace for Wireguard interfaces
   - an exitpoint with it's own Public IP
-    - for IPv4, that needs to be bought, without it, there is no NAT to the Routable Internet available. (although we actually could provide a global Routing namespace that does NAT for all IPv4 Network resources in all Tenant Networks, it's just setting it up with correct firewall rules, wich would live in the Wireguard public namespace anyway)
+    - for IPv4, that means that and IPv4 address needs to be bought, as without it, there is no NAT to the Routable Internet available. 
+    - Although we actually could provide a global Routing Namespace that does NAT for all IPv4 Network resources in all Tenant Networks, it's just setting it up with correct firewall rules, and proper vrf with route leaking and conntrack zones (LATER). 
+    NOTE: This might aver to be really necesary for reaching to the internet, as IPv6 coverage is still very low in a lot of regions, let alone implemented at ISP level. E.g. Telenet has less than 60% coverage of the home networks, as many routers are not updatable and until they break will not be replaced.
 
+As it is, there are no firewall rules necessary, as nothing lives in that namespace, it's only used as a conduit for Wireguard listening ports and their associated traffic.
 So for the Wireguard Public namespace:
 ```bash
 #!/usr/bin/env bash
@@ -73,14 +76,18 @@ ip -n Public set public up
 ip -n Public set lo up
 ip -n Public address add 185.69.166.121/24 dev public
 ip -n Public route add default via 185.69.166.1
-
-```
-It's nftables setup:
-
 ```
 
-```
-When an ExitPoint is created, in order to be able to NAT, add a veth pair to a bridge connected to the Public Wireguard Namespace, in `172.17.0.0/16` and....
+  - For IPv6 the ExitPoint has a Public Interface connected to the Router Segment of the Public Prefix (i.e. the one with the penultimate Default GW)
 
-    - For IPv6 the ExitPoint has a Public Interface connected to the Router Segment of the Public Prefix (i.e. the one with the penultimate Default GW)
+```
+# public exit config struct
+struct ExitIface {
+  IfaceName string
+  Vlan int16
+  IPv4 *net.IP
+  IPv6 *net.IP
+}
+
+```
 
