@@ -14,9 +14,9 @@ control watcher
 endbox
 
 == Request network Resource ==
-alt #green TNo doesn't exist
-NRRH -> TNoDB : request network\nresource
-TNoDB -> FPA : request prefix allocation
+alt #yellow TNo doesn't exist
+NRRH -> TNoDB : request networe\nresource
+TNoDB -> FPA : request prefix\nallocation
 TNoDB -> FPA : request Exit setup
 FPA --> TNoDB : here you go
 TNoDB -->TNoDB :new TN object\n(New Network\n+ExitPoint)
@@ -26,10 +26,10 @@ TNoDB --> NRRH : Exit Setup
 NRRH -> node : TNo
 NRRH -> node : Exit Setup
 node <- node : apply NR of TNo
-node <- node : apply Exit setup
-else #blue TNo exists, just new NR
+node <- node : apply Exit Setup 
+else #gray TNo exists, just new NR
 NRRH -> TNoDB : request network\nresource
-TNoDB -> FPA : request prefix allocation
+TNoDB -> FPA : request prefix\nallocation
 FPA --> TNoDB : here you go
 TNoDB->TNoDB :update TN object\n(Add new NR)
 TNoDB --> NRRH : TN object
