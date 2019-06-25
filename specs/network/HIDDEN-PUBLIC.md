@@ -80,7 +80,7 @@ It's nftables setup:
 ```
 
 ```
-When an ExitPoint is created, in order to be able to NAT:
+When an ExitPoint is created, in order to be able to NAT, add a veth pair to a bridge connected to the Public Wireguard Namespace, in `172.17.0.0/16` and....
 
     - For IPv6 the ExitPoint has a Public Interface connected to the Router Segment of the Public Prefix (i.e. the one with the penultimate Default GW)
 
