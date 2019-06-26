@@ -1,6 +1,6 @@
-# ready is a pseudo boot stage to mark that all
-# zinit unit files provided by the base image 
-# has been booted correctly
+# boot is a pseudo boot stage to make sure that
+# storaged and networkd are running before any 
+# of the other modules
 
 exec: "true"
 oneshot: true
