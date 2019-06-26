@@ -15,14 +15,16 @@ import (
 )
 
 const (
-	IPv4InterfaceArpProxySysctlTemplate = "net.ipv4.conf.%s.proxy_arp"
+	ipv4InterfaceArpProxySysctlTemplate = "net.ipv4.conf.%s.proxy_arp"
 )
 
+// PublicNamespace is the name of the public namespace of a node
+// the public namespace is currently uniq for a node so we hardcode its name
 const PublicNamespace = "public"
 
-type ExitNode struct {
-	PublicPrefix *net.IPNet
-}
+// type ExitNode struct {
+// 	PublicPrefix *net.IPNet
+// }
 
 // IfaceType define the different public interface
 // supported
@@ -115,7 +117,7 @@ func createMacVlan(master string, netns ns.NetNS) (*current.Interface, error) {
 
 	err = netns.Do(func(_ ns.NetNS) error {
 		// TODO: duplicate following lines for ipv6 support, when it will be added in other places
-		ipv4SysctlValueName := fmt.Sprintf(IPv4InterfaceArpProxySysctlTemplate, tmpName)
+		ipv4SysctlValueName := fmt.Sprintf(ipv4InterfaceArpProxySysctlTemplate, tmpName)
 		if _, err := sysctl.Sysctl(ipv4SysctlValueName, "1"); err != nil {
 			// remove the newly added link and ignore errors, because we already are in a failed state
 			_ = netlink.LinkDel(mv)
