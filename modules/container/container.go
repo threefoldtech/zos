@@ -105,12 +105,7 @@ func withAddedCapabilities(caps []string) oci.SpecOpts {
 	}
 }
 
-func (c *containerModule) ensureNamespace(ctx context.Context, namespace string) error {
-	client, err := containerd.New(c.containerd)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
+func (c *containerModule) ensureNamespace(ctx context.Context, client *containerd.Client, namespace string) error {
 	service := client.NamespaceService()
 	namespaces, err := service.List(ctx)
 	if err != nil {
@@ -139,7 +134,7 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 
 	ctx := namespaces.WithNamespace(context.Background(), ns)
 
-	if err := c.ensureNamespace(ctx, ns); err != nil {
+	if err := c.ensureNamespace(ctx, client, ns); err != nil {
 		return id, err
 	}
 
