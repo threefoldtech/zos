@@ -125,7 +125,9 @@ func (s *httpSource) Reservations(ctx context.Context) <-chan Reservation {
 			res, err := s.getReservation()
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get reservation")
+				continue
 			}
+
 			select {
 			case ch <- res:
 			case <-ctx.Done():
@@ -142,11 +144,12 @@ type compinedSource struct {
 	s2 ReservationSource
 }
 
+// CompinedSource compines 2 different sources into one source
+// Then it can be nested for any number of sources
 func CompinedSource(s1, s2 ReservationSource) ReservationSource {
 	return &compinedSource{s1, s2}
 }
 
-// CompineSource compine source compines 2 sources into one channel
 func (s *compinedSource) Reservations(ctx context.Context) <-chan Reservation {
 	ch := make(chan Reservation)
 	go func() {
