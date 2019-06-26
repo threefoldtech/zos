@@ -25,10 +25,19 @@ const (
 // ReplyTo defines how report the result of the provisioning operation
 type ReplyTo string
 
+// Tenant defines the tenant identity
+type Tenant string
+
+func (t Tenant) String() string {
+	return string(t)
+}
+
 // Reservation struct
 type Reservation struct {
 	// ID of the reservation
 	ID string `json:"id"`
+	// Tenant ID
+	Tenant Tenant `json:"tenant"`
 	// ReplyTo is a dummy attribute to hold the 3bot address
 	// we need to report to once the reservation is done
 	ReplyTo ReplyTo `json:"reply-to"`

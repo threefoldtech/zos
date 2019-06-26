@@ -1,7 +1,14 @@
 package provision
 
 import (
+	"encoding/json"
 	"fmt"
+
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
+
+	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/stubs"
 
 	"github.com/threefoldtech/zbus"
 )
@@ -49,5 +56,42 @@ type Container struct {
 
 // ContainerProvision is entry point to container reservation
 func ContainerProvision(client zbus.Client, reservation Reservation) error {
-	return fmt.Errorf("not implemented")
+	containerClient := stubs.NewContainerModuleStub(client)
+	flistClient := stubs.NewFlisterStub(client)
+
+	var config Container
+	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+		return err
+	}
+
+	mnt, err := flistClient.Mount(config.FList, "")
+	if err != nil {
+		return err
+	}
+	var env []string
+	for k, v := range config.Env {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	id, err := containerClient.Run(
+		reservation.Tenant.String(),
+		modules.Container{
+			Name:   uuid.New().String(),
+			RootFS: mnt,
+			Env:    env,
+			// TODO:
+			//   Network: this requires network module
+			//   Mounts: this required storage module
+			Entrypoint:  config.Entrypoint,
+			Interactive: config.Interactive,
+		},
+	)
+
+	if err != nil {
+		flistClient.Umount(mnt)
+		return err
+	}
+
+	log.Info().Msgf("container created with id: '%s'", id)
+	return nil
 }
