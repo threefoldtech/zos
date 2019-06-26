@@ -123,13 +123,6 @@ func (c *containerModule) ensureNamespace(ctx context.Context, namespace string)
 		}
 	}
 
-	// defer func() {
-	// 	// for some mysterious reason, we can't create
-	// 	// and immediately use a namespace. otherwise
-	// 	// containerd will complain that namespace does not exist
-	// 	<-time.After(3 * time.Second)
-	// }()
-
 	return service.Create(ctx, namespace, nil)
 }
 
@@ -144,7 +137,8 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 	}
 	defer client.Close()
 
-	ctx := context.Background()
+	ctx := namespaces.WithNamespace(context.Background(), ns)
+
 	if err := c.ensureNamespace(ctx, ns); err != nil {
 		return id, err
 	}
@@ -211,8 +205,6 @@ func (c *containerModule) Run(ns string, data modules.Container) (id modules.Con
 			}),
 		)
 	}
-
-	ctx = namespaces.WithNamespace(ctx, ns)
 
 	container, err := client.NewContainer(
 		ctx,
