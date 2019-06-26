@@ -9,11 +9,6 @@ import (
 	"github.com/threefoldtech/zbus"
 )
 
-// Engine interface
-type Engine interface {
-	Run(ctx context.Context) error
-}
-
 type defaultEngine struct {
 	client zbus.Client
 	source ReservationSource

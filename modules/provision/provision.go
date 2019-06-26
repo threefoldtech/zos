@@ -46,6 +46,11 @@ type ReservationSource interface {
 	Reservations(ctx context.Context) <-chan Reservation
 }
 
+// Engine interface
+type Engine interface {
+	Run(ctx context.Context) error
+}
+
 type provisioner func(client zbus.Client, reservation Reservation) error
 
 var (
