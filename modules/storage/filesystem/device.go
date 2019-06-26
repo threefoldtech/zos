@@ -3,7 +3,6 @@ package filesystem
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -18,8 +17,9 @@ type DeviceManager interface {
 	Devices(ctx context.Context) ([]Device, error)
 	// ByLabel finds all devices with the specified label
 	ByLabel(ctx context.Context, label string) ([]Device, error)
-	// PoolType finds the type of a storagepool
-	PoolType(ctx context.Context, pool Pool) (DeviceType, error)
+	// Scan the system for devices. This must be called after all actions which
+	// make persistent changes on the disk layout.
+	Scan(ctx context.Context) error
 }
 
 // FSType type of filesystem on device
@@ -56,39 +56,31 @@ func (d *Device) Used() bool {
 	return len(d.Label) != 0 || len(d.Filesystem) != 0 || len(d.Children) > 0
 }
 
-type lsblkDeviceManager struct{}
+// lsblkDeviceManager uses the lsblk utility to scann the disk for devices, and
+// caches the result.
+//
+// Found devices are cached, and the cache is only repopulated after the `Scan`
+// method is called.
+type lsblkDeviceManager struct {
+	devices []Device
+}
 
 // DefaultDeviceManager returns a default device manager implementation
 func DefaultDeviceManager() DeviceManager {
-	return &lsblkDeviceManager{}
+	return &lsblkDeviceManager{
+		devices: []Device{},
+	}
 }
 
 // Devices gets available block devices
 func (l *lsblkDeviceManager) Devices(ctx context.Context) ([]Device, error) {
-	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path")
-	if err != nil {
-		return nil, err
-	}
-
-	var devices struct {
-		BlockDevices []Device `json:"blockdevices"`
-	}
-
-	if err := json.Unmarshal(bytes, &devices); err != nil {
-		return nil, err
-	}
-
-	return setDeviceTypes(flattenDevices(devices.BlockDevices)), nil
+	return flattenDevices(l.devices), nil
 }
 
 func (l *lsblkDeviceManager) ByLabel(ctx context.Context, label string) ([]Device, error) {
-	devices, err := l.Devices(ctx)
-	if err != nil {
-		return nil, err
-	}
 	var filtered []Device
 
-	for _, device := range devices {
+	for _, device := range l.devices {
 		if device.Label == label {
 			filtered = append(filtered, device)
 		}
@@ -98,9 +90,20 @@ func (l *lsblkDeviceManager) ByLabel(ctx context.Context, label string) ([]Devic
 }
 
 func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device Device, err error) {
-	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path", path)
+	for _, device := range l.devices {
+		if device.Path == path {
+			return device, nil
+		}
+	}
+
+	return Device{}, fmt.Errorf("device not found")
+
+}
+
+func (l *lsblkDeviceManager) Scan(ctx context.Context) error {
+	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path")
 	if err != nil {
-		return device, err
+		return err
 	}
 
 	var devices struct {
@@ -108,28 +111,11 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 	}
 
 	if err := json.Unmarshal(bytes, &devices); err != nil {
-		return device, err
+		return err
 	}
 
-	if len(devices.BlockDevices) != 1 {
-		return device, fmt.Errorf("device not found")
-	}
-
-	return devices.BlockDevices[0], nil
-}
-
-func (l *lsblkDeviceManager) PoolType(ctx context.Context, pool Pool) (DeviceType, error) {
-	poolDevices, err := l.ByLabel(ctx, pool.Name())
-	if err != nil {
-		return "", err
-	}
-
-	if len(poolDevices) == 0 {
-		return "", errors.New("Pool has no known devices")
-	}
-
-	// assume homogenous pools for now
-	return poolDevices[0].DiskType, nil
+	l.devices, err = setDeviceTypes(devices.BlockDevices)
+	return err
 }
 
 func flattenDevices(devices []Device) []Device {
@@ -143,7 +129,7 @@ func flattenDevices(devices []Device) []Device {
 	return list
 }
 
-func setDeviceTypes(devices []Device) []Device {
+func setDeviceTypes(devices []Device) ([]Device, error) {
 	list := []Device{}
 	for _, d := range devices {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -153,14 +139,26 @@ func setDeviceTypes(devices []Device) []Device {
 		if err != nil {
 			// don't include errored devices in the result
 			log.Error().Msgf("Failed to get disk read time: %v", err)
-			continue
+			return nil, err
 		}
-		d.DiskType = deviceTypeFromString(typ)
-		d.ReadTime = rt
+
+		setDeviceType(&d, deviceTypeFromString(typ), rt)
+
 		list = append(list, d)
 	}
 
-	return list
+	return list, nil
+}
+
+// setDeviceType recursively sets a device type and read time on a device and
+// all of its children
+func setDeviceType(device *Device, typ DeviceType, readTime uint64) {
+	device.DiskType = typ
+	device.ReadTime = readTime
+
+	for _, dev := range device.Children {
+		setDeviceType(&dev, typ, readTime)
+	}
 }
 
 func deviceTypeFromString(typ string) DeviceType {

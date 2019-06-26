@@ -61,7 +61,13 @@ func (s *storageModule) initialize(policy modules.StoragePolicy) error {
 	log.Info().Msgf("Initializing storage module")
 	defer log.Info().Msgf("Finished initializing storage module")
 
-	ctx := context.Background()
+	// Make sure we finish in 1 minute
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
+	defer cancel()
+
+	if err := s.devices.Scan(context.Background()); err != nil {
+		return (err)
+	}
 
 	fs := filesystem.NewBtrfs(s.devices)
 
@@ -142,11 +148,11 @@ func (s *storageModule) initialize(policy modules.StoragePolicy) error {
 
 		for i := 0; i < possiblePools; i++ {
 			log.Debug().Msgf("Creating new volume %d", i)
-			poolDevices := []string{}
+			poolDevices := []filesystem.Device{}
 
 			for j := 0; j < int(policy.Disks); j++ {
 				log.Debug().Msgf("Grabbing device %d: %s for new volume", i*int(policy.Disks)+j, fdisks[i*int(policy.Disks)+j].Path)
-				poolDevices = append(poolDevices, fdisks[i*int(policy.Disks)+j].Path)
+				poolDevices = append(poolDevices, fdisks[i*int(policy.Disks)+j])
 			}
 
 			pool, err := fs.Create(ctx, uuid.New().String(), poolDevices, policy.Raid)
@@ -171,6 +177,11 @@ func (s *storageModule) initialize(policy modules.StoragePolicy) error {
 	}
 
 	s.volumes = append(s.volumes, newPools...)
+
+	// rescan disks
+	if err = s.devices.Scan(ctx); err != nil {
+		return err
+	}
 
 	return s.ensureCache()
 }
@@ -256,19 +267,14 @@ func (s *storageModule) createSubvol(size uint64, name string, preferSSD bool) (
 	var fs filesystem.Volume
 	var err error
 
+	// sort possible types
 	possiblePools := s.volumes
 	if preferSSD {
 		ssdPools := []filesystem.Pool{}
 		hddPools := []filesystem.Pool{}
 		for _, pool := range s.volumes {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-			defer cancel()
 
-			poolType, err := s.devices.PoolType(ctx, pool)
-			if err != nil {
-				return nil, err
-			}
-			if poolType == filesystem.SSDDevice {
+			if pool.Type() == filesystem.SSDDevice {
 				ssdPools = append(ssdPools, pool)
 			} else {
 				hddPools = append(hddPools, pool)
@@ -285,9 +291,10 @@ func (s *storageModule) createSubvol(size uint64, name string, preferSSD bool) (
 			log.Error().Msgf("Failed to get current volume usage: %v", err)
 			continue
 		}
+
 		// Make sure adding this filesystem would not bring us over the disk limit
 		if usage.Used+size > usage.Size {
-			log.Info().Msgf("Disk does not have enough space left to hold filessytem")
+			log.Info().Msgf("Disk does not have enough space left to hold filesytem")
 			continue
 		}
 

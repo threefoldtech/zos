@@ -31,10 +31,10 @@ import (
 
 type TestDevices map[string]string
 
-func (d TestDevices) Loops() []string {
-	var loops []string
+func (d TestDevices) Loops() []Device {
+	var loops []Device
 	for _, loop := range d {
-		loops = append(loops, loop)
+		loops = append(loops, Device{Path: loop})
 	}
 
 	return loops
@@ -122,8 +122,8 @@ func (m TestDeviceManager) Devices(ctx context.Context) ([]Device, error) {
 	return devices, nil
 }
 
-func (m TestDeviceManager) PoolType(ctx context.Context, pool Pool) (DeviceType, error) {
-	return HDDDevice, nil
+func (m TestDeviceManager) Scan(ctx context.Context) error {
+	return nil
 }
 
 func TestMain(m *testing.M) {
@@ -340,7 +340,7 @@ func TestBtrfsList(t *testing.T) {
 	for i, loop := range loops {
 		name := fmt.Sprintf("test-list-%d", i)
 		names[name] = struct{}{}
-		_, err := fs.Create(context.Background(), name, []string{loop}, modules.Single)
+		_, err := fs.Create(context.Background(), name, []Device{loop}, modules.Single)
 
 		if ok := assert.NoError(t, err); !ok {
 			t.Fatal()

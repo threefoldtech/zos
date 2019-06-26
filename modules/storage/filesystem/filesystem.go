@@ -42,10 +42,12 @@ type Pool interface {
 	Mount() (string, error)
 	// UnMount the pool
 	UnMount() error
-	//AddDevice with the given path to the pool
-	AddDevice(device string) error
-	// RemoveDevice with the given path from the pool
-	RemoveDevice(device string) error
+	//AddDevice to the pool
+	AddDevice(device Device) error
+	// RemoveDevice from the pool
+	RemoveDevice(device Device) error
+	// Type of the physical storage in this pool
+	Type() DeviceType
 
 	// Health() ?
 }
@@ -55,9 +57,9 @@ type Filesystem interface {
 	// Create a new filesystem.
 	//
 	// name: name of the filesystem
-	// devices: list of paths for the devices to use in the filesystem
+	// devices: list of devices to use in the filesystem
 	// profile: Raid profile of the filesystem
-	Create(ctx context.Context, name string, devices []string, profile modules.RaidProfile) (Pool, error)
+	Create(ctx context.Context, name string, devices []Device, profile modules.RaidProfile) (Pool, error)
 	// List all existing filesystems on the node
 	List(ctx context.Context) ([]Pool, error)
 }
