@@ -303,7 +303,7 @@ func parseFilesystemDF(output string) (usage BtrfsDiskUsage, err error) {
 		default:
 			continue
 		}
-		datainfo.Profile = modules.RaidProfile(line[2])
+		datainfo.Profile = modules.RaidProfile(strings.ToLower(line[2]))
 		datainfo.Total, err = strconv.ParseUint(line[3], 10, 64)
 		if err != nil {
 			return

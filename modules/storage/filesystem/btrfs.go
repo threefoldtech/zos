@@ -19,6 +19,17 @@ var (
 	DeviceNotMountedError     = fmt.Errorf("device is not mounted")
 )
 
+var (
+	// divisors for the total usable size of a filesystem
+	// an efficiency multiplier would probably make slightly more sense,
+	// but this way we don't have to cast uints to floats later
+	raidSizeDivisor = map[modules.RaidProfile]uint64{
+		modules.Single: 1,
+		modules.Raid1:  2,
+		modules.Raid10: 2,
+	}
+)
+
 // btrfs is the filesystem implementation for btrfs
 type btrfs struct {
 	devices DeviceManager
@@ -242,7 +253,25 @@ func (p btrfsPool) Usage() (usage Usage, err error) {
 	}
 
 	du, err := BtrfsGetDiskUsage(context.Background(), mnt)
-	return Usage{Size: du.Data.Total, Used: du.Data.Used}, nil
+	if err != nil {
+		return Usage{}, err
+	}
+
+	fsi, err := BtrfsList(context.Background(), p.name, true)
+	if err != nil {
+		return Usage{}, err
+	}
+
+	if len(fsi) == 0 {
+		return Usage{}, fmt.Errorf("could not find total size of pool %v", p.name)
+	}
+
+	var totalSize uint64
+	for _, dev := range fsi[0].Devices {
+		totalSize += uint64(dev.Size)
+	}
+
+	return Usage{Size: totalSize / raidSizeDivisor[du.Data.Profile], Used: uint64(fsi[0].Used)}, nil
 }
 
 // Limit on a pool is not supported yet
