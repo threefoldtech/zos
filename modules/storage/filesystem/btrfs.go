@@ -15,8 +15,12 @@ import (
 var (
 	_ Filesystem = (*btrfs)(nil)
 
-	DeviceAlreadyMountedError = fmt.Errorf("device is already mounted")
-	DeviceNotMountedError     = fmt.Errorf("device is not mounted")
+	// ErrDeviceAlreadyMounted indicates that a mounted device is attempted
+	// to be mounted again (without MS_BIND flag).
+	ErrDeviceAlreadyMounted = fmt.Errorf("device is already mounted")
+	// ErrDeviceNotMounted is returned when an action is performed on a device
+	// which requires the device to be mounted, while it is not.
+	ErrDeviceNotMounted = fmt.Errorf("device is not mounted")
 )
 
 var (
@@ -198,7 +202,7 @@ func (p *btrfsPool) UnMount() error {
 func (p *btrfsPool) AddDevice(device Device) error {
 	mnt, ok := p.Mounted()
 	if !ok {
-		return DeviceNotMountedError
+		return ErrDeviceNotMounted
 	}
 	ctx := context.Background()
 
@@ -214,7 +218,7 @@ func (p *btrfsPool) AddDevice(device Device) error {
 func (p *btrfsPool) RemoveDevice(device Device) error {
 	mnt, ok := p.Mounted()
 	if !ok {
-		return DeviceNotMountedError
+		return ErrDeviceNotMounted
 	}
 	ctx := context.Background()
 
@@ -235,7 +239,7 @@ func (p *btrfsPool) RemoveDevice(device Device) error {
 func (p *btrfsPool) Volumes() ([]Volume, error) {
 	mnt, ok := p.Mounted()
 	if !ok {
-		return nil, DeviceNotMountedError
+		return nil, ErrDeviceNotMounted
 	}
 
 	var volumes []Volume
@@ -255,7 +259,7 @@ func (p *btrfsPool) Volumes() ([]Volume, error) {
 func (p *btrfsPool) AddVolume(name string) (Volume, error) {
 	mnt, ok := p.Mounted()
 	if !ok {
-		return nil, DeviceNotMountedError
+		return nil, ErrDeviceNotMounted
 	}
 
 	mnt = filepath.Join(mnt, name)
@@ -269,7 +273,7 @@ func (p *btrfsPool) AddVolume(name string) (Volume, error) {
 func (p *btrfsPool) RemoveVolume(name string) error {
 	mnt, ok := p.Mounted()
 	if !ok {
-		return DeviceNotMountedError
+		return ErrDeviceNotMounted
 	}
 
 	mnt = path.Join(mnt, name)
@@ -282,7 +286,7 @@ func (p *btrfsPool) RemoveVolume(name string) error {
 func (p *btrfsPool) Usage() (usage Usage, err error) {
 	mnt, ok := p.Mounted()
 	if !ok {
-		return usage, DeviceNotMountedError
+		return usage, ErrDeviceNotMounted
 	}
 
 	du, err := BtrfsGetDiskUsage(context.Background(), mnt)

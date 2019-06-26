@@ -42,6 +42,7 @@ type BtrfsVolume struct {
 	ParentID   int
 }
 
+// BtrfsQGroup is parsed btrfs qgroup information
 type BtrfsQGroup struct {
 	ID      string
 	Rfer    uint64
@@ -50,12 +51,14 @@ type BtrfsQGroup struct {
 	MaxExcl uint64
 }
 
+// DiskUsage is parsed information from a btrfs fi df line
 type DiskUsage struct {
 	Profile modules.RaidProfile `json:"profile"`
 	Total   uint64              `json:"total"`
 	Used    uint64              `json:"used"`
 }
 
+// BtrfsDiskUsage is parsed information form btrfs fi df
 type BtrfsDiskUsage struct {
 	Data          DiskUsage `json:"data"`
 	System        DiskUsage `json:"system"`
