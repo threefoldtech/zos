@@ -12,8 +12,6 @@ import (
 	"github.com/threefoldtech/zosv2/modules/provision"
 )
 
-const module = "container"
-
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
