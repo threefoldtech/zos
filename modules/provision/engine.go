@@ -29,23 +29,26 @@ func New(client zbus.Client, source ReservationSource) Engine {
 func (e *defaultEngine) Run(ctx context.Context) error {
 	for reservation := range e.source.Reservations(ctx) {
 		fn, ok := types[reservation.Type]
-		var err error
-		if ok {
-			err = fn(e.client, reservation)
-		} else {
-			err = fmt.Errorf("unknown reservation type '%s'", reservation.Type)
+		if !ok {
+			e.reply(reservation.ReplyTo, reservation.ID, nil, fmt.Errorf("unknown reservation type '%s'", reservation.Type))
+			continue
 		}
 
-		e.reply(reservation.ReplyTo, reservation.ID, err)
+		result, err := fn(e.client, reservation)
+		e.reply(reservation.ReplyTo, reservation.ID, result, err)
 	}
 
 	return nil
 }
 
-func (e *defaultEngine) reply(to ReplyTo, id string, err error) {
+func (e *defaultEngine) reply(to ReplyTo, id string, result interface{}, err error) {
 	//TODO: actually push the reply to the endpoint defined by `to`
 	if err != nil {
 		log.Error().Err(err).Str("reply-to", string(to)).
 			Str("id", id).Msgf("failed to apply provision")
+
+		return
 	}
+
+	log.Info().Str("reservation", id).Str("result", fmt.Sprint(result)).Msg("reservation result")
 }

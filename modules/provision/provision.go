@@ -20,6 +20,8 @@ type ReservationType string
 const (
 	// ContainerReservation type
 	ContainerReservation ReservationType = "container"
+	// VolumeReservation type
+	VolumeReservation ReservationType = "volume"
 )
 
 // ReplyTo defines how report the result of the provisioning operation
@@ -60,7 +62,7 @@ type Engine interface {
 	Run(ctx context.Context) error
 }
 
-type provisioner func(client zbus.Client, reservation Reservation) error
+type provisioner func(client zbus.Client, reservation Reservation) (interface{}, error)
 
 var (
 	// types defines the entry point for the different
@@ -68,5 +70,6 @@ var (
 	// supported.
 	types = map[ReservationType]provisioner{
 		ContainerReservation: ContainerProvision,
+		VolumeReservation:    VolumeProvision,
 	}
 )

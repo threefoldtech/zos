@@ -3,6 +3,8 @@ package provision
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -18,23 +20,9 @@ type Network struct {
 	NetwokID string
 }
 
-// DiskType defines disk type
-type DiskType string
-
-const (
-	// HDDDiskType for hdd disks
-	HDDDiskType DiskType = "HDD"
-	// SSDDiskType for ssd disks
-	SSDDiskType DiskType = "SSD"
-)
-
-// Volume defines a mount point
-type Volume struct {
-	// Size of the volume in GiB
-	Size uint64 `json:"size"`
-	// Type of disk underneath the volume
-	Type DiskType `json:"type"`
-	// Where to attach the volume in the container
+// Mount defines a container volume mounted inside the container
+type Mount struct {
+	VolumeID   string `json:"volume-id"`
 	Mountpoint string `json:"mountpoint"`
 }
 
@@ -49,28 +37,48 @@ type Container struct {
 	// Interactivity enable Core X as PID 1 on the container
 	Interactive bool `json:"interactive"`
 	// Mounts extra mounts in the container
-	Volumes []Volume `json:"volumes"`
+	Mounts []Mount `json:"mounts"`
 	// Network network info for container
 	Network Network `json:"network"`
 }
 
 // ContainerProvision is entry point to container reservation
-func ContainerProvision(client zbus.Client, reservation Reservation) error {
+func ContainerProvision(client zbus.Client, reservation Reservation) (interface{}, error) {
 	containerClient := stubs.NewContainerModuleStub(client)
 	flistClient := stubs.NewFlisterStub(client)
 
 	var config Container
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
-		return err
+		return nil, err
 	}
 
 	mnt, err := flistClient.Mount(config.FList, "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var env []string
 	for k, v := range config.Env {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	var mounts []modules.MountInfo
+	for _, mount := range config.Mounts {
+		// we make sure that mountpoint in config doesn't have relative parts
+		mountpoint := path.Join("/", mount.Mountpoint)
+
+		if err := os.MkdirAll(path.Join(mnt, mountpoint), 0755); err != nil {
+			return nil, err
+		}
+
+		mounts = append(
+			mounts,
+			modules.MountInfo{
+				Source:  mount.VolumeID,
+				Target:  mountpoint,
+				Type:    "none",
+				Options: []string{"bind"},
+			},
+		)
 	}
 
 	id, err := containerClient.Run(
@@ -81,7 +89,7 @@ func ContainerProvision(client zbus.Client, reservation Reservation) error {
 			Env:    env,
 			// TODO:
 			//   Network: this requires network module
-			//   Mounts: this required storage module
+			Mounts:      mounts,
 			Entrypoint:  config.Entrypoint,
 			Interactive: config.Interactive,
 		},
@@ -89,9 +97,9 @@ func ContainerProvision(client zbus.Client, reservation Reservation) error {
 
 	if err != nil {
 		flistClient.Umount(mnt)
-		return err
+		return nil, err
 	}
 
 	log.Info().Msgf("container created with id: '%s'", id)
-	return nil
+	return id, nil
 }
