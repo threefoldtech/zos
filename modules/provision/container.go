@@ -96,7 +96,10 @@ func ContainerProvision(client zbus.Client, reservation Reservation) (interface{
 	)
 
 	if err != nil {
-		flistClient.Umount(mnt)
+		if err := flistClient.Umount(mnt); err != nil {
+			log.Error().Err(err).Str("path", mnt).Msgf("failed to unmount")
+		}
+
 		return nil, err
 	}
 
