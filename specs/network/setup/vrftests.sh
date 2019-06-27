@@ -5,6 +5,7 @@ NUM=5
 
 function prepare(){
 	# mock NR (Network REsource) IPv4
+	echo "[+] Mockk NR (Network REsource) IPv4"
 	for i in $(seq 1 $NUM) ; do
 		ip netns add z${i}
 		ip -n z${i} link set lo up
@@ -14,9 +15,11 @@ function prepare(){
 	done
 
 	# Namespace for getting IPv4 NATed
+	echo "[+] Namespace for getting IPv4 NATed"
 	ip netns add vrf
 
 	# Ultimate exit: ovrf has penultimate route
+	echo "[+] Ultimate exit: ovrf has penultimate route"
 	ip link add ivrf type veth peer name ovrf
 	ip link set ivrf netns vrf
 	ip -n vrf link set ivrf up
@@ -25,6 +28,7 @@ function prepare(){
 	ip -n vrf link add cvrf type dummy
 
 	# connect NRs to vrf instance
+	echo "[+] Connect NRs to vrf instance"
 	for i in $(seq 1 $NUM) ; do
 		ip link add oz${i} type veth peer name iz${i}
 		ip link set iz${i} netns z${i}
@@ -38,12 +42,13 @@ function prepare(){
 	ip link set ovrf up
 
 	# setup vrf
+	echo "[+] Setup vrf"
 	for i in $(seq 1 $NUM) ; do
-		ip link add vz${i} type vrf table ${i}
-		ip link set oz${i} master vz${i}
-		ip addr add 172.16.0.254/24 dev oz${i}
-		ip link set vz${i} up
-		ip linl set oz${I} up
+		ip -n vrf link add vz${i} type vrf table ${i}
+		ip -n vrf link set oz${i} master vz${i}
+		ip -n vrf addr add 172.16.0.254/24 dev oz${i}
+		ip -n vrf link set vz${i} up
+		ip -n vrf link set oz${i} up
 	done
 
 }
@@ -51,7 +56,6 @@ function prepare(){
 function delete(){
 	for i in $(seq 1 $NUM) ; do
 		ip netns del z${i}
-		ip link del oz${i}
 	done
 	ip netns del vrf
 	ip link del ovrf
