@@ -1,9 +1,6 @@
 package stubs
 
-import (
-	zbus "github.com/threefoldtech/zbus"
-	modules "github.com/threefoldtech/zosv2/modules"
-)
+import zbus "github.com/threefoldtech/zbus"
 
 type StorageModuleStub struct {
 	client zbus.Client
