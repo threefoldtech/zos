@@ -6,11 +6,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"github.com/containernetworking/cni/pkg/types/current"
-	"github.com/containernetworking/plugins/pkg/ip"
-	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zosv2/modules/network/macvlan"
 	"github.com/threefoldtech/zosv2/modules/network/namespace"
 )
 
@@ -52,9 +49,12 @@ type ExitIface struct {
 
 	GW4 net.IP
 	GW6 net.IP
+
+	Version int
 }
 
-func createPublicNS(iface *ExitIface) error {
+// CreatePublicNS creates a public namespace in a node
+func CreatePublicNS(iface *ExitIface) error {
 	// create net ns
 	// configure the public interface inside the namespace
 
@@ -65,11 +65,11 @@ func createPublicNS(iface *ExitIface) error {
 	}
 	defer pubNS.Close()
 
-	var pubIface *current.Interface
+	var pubIface *netlink.Macvlan
 
 	switch iface.Type {
 	case MacVlanIface:
-		pubIface, err = createMacVlan(iface.Master, pubNS)
+		pubIface, err = macvlan.Create("public", iface.Master, pubNS)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to create public mac vlan interface")
 			return err
@@ -78,107 +78,48 @@ func createPublicNS(iface *ExitIface) error {
 		return fmt.Errorf("unsupported iface type %s", iface.Type)
 	}
 
-	if err := configurePubIface(pubIface.Name, iface.IPv6, iface.GW6, pubNS); err != nil {
+	if iface.IPv6 != nil && iface.GW6 != nil {
+		routes := []*netlink.Route{
+			{
+				Dst: &net.IPNet{
+					IP:   net.ParseIP("::"),
+					Mask: net.CIDRMask(0, 128),
+				},
+				Gw:        iface.GW6,
+				LinkIndex: pubIface.Attrs().Index,
+			},
+		}
+		if err := macvlan.Install(pubIface, iface.IPv6, routes, pubNS); err != nil {
+			return err
+		}
+
+	} else if iface.IPv4 != nil && iface.GW4 != nil {
+		routes := []*netlink.Route{
+			{
+				Dst: &net.IPNet{
+					IP:   net.ParseIP("0.0.0.0"),
+					Mask: net.CIDRMask(0, 32),
+				},
+				Gw:        iface.GW4,
+				LinkIndex: pubIface.Attrs().Index,
+			},
+		}
+		if err := macvlan.Install(pubIface, iface.IPv4, routes, pubNS); err != nil {
+			return err
+		}
+	} else {
+		err = fmt.Errorf("missing some information in the exit iface object")
 		log.Error().Err(err).Msg("failed to configure public interface")
 		return err
 	}
 
+	master, err := netlink.LinkByName(iface.Master)
+	if err != nil {
+		return err
+	}
+	if err := netlink.LinkSetUp(master); err != nil {
+		return err
+	}
+
 	return nil
-}
-
-func createMacVlan(master string, netns ns.NetNS) (*current.Interface, error) {
-	macvlan := &current.Interface{}
-
-	m, err := netlink.LinkByName(master)
-	if err != nil {
-		return nil, fmt.Errorf("failed to lookup master %q: %v", master, err)
-	}
-
-	// due to kernel bug we have to create with tmpName or it might
-	// collide with the name on the host and error out
-	tmpName, err := ip.RandomVethName()
-	if err != nil {
-		return nil, err
-	}
-
-	mv := &netlink.Macvlan{
-		LinkAttrs: netlink.LinkAttrs{
-			MTU:         1500,
-			Name:        tmpName,
-			ParentIndex: m.Attrs().Index,
-			Namespace:   netlink.NsFd(int(netns.Fd())),
-		},
-		Mode: netlink.MACVLAN_MODE_BRIDGE,
-	}
-
-	if err := netlink.LinkAdd(mv); err != nil {
-		return nil, fmt.Errorf("failed to create macvlan: %v", err)
-	}
-
-	err = netns.Do(func(_ ns.NetNS) error {
-		// TODO: duplicate following lines for ipv6 support, when it will be added in other places
-		ipv4SysctlValueName := fmt.Sprintf(ipv4InterfaceArpProxySysctlTemplate, tmpName)
-		if _, err := sysctl.Sysctl(ipv4SysctlValueName, "1"); err != nil {
-			// remove the newly added link and ignore errors, because we already are in a failed state
-			_ = netlink.LinkDel(mv)
-			return fmt.Errorf("failed to set proxy_arp on newly added interface %q: %v", tmpName, err)
-		}
-
-		err := ip.RenameLink(tmpName, "public")
-		if err != nil {
-			_ = netlink.LinkDel(mv)
-			return fmt.Errorf("failed to rename macvlan to %q: %v", "public", err)
-		}
-		macvlan.Name = "public"
-
-		// Re-fetch macvlan to get all properties/attributes
-		contMacvlan, err := netlink.LinkByName("public")
-		if err != nil {
-			return fmt.Errorf("failed to refetch macvlan %q: %v", "public", err)
-		}
-		macvlan.Mac = contMacvlan.Attrs().HardwareAddr.String()
-		macvlan.Sandbox = netns.Path()
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return macvlan, nil
-}
-
-func configurePubIface(name string, ip *net.IPNet, gw net.IP, netns ns.NetNS) error {
-	err := netns.Do(func(_ ns.NetNS) error {
-		pubLink, err := netlink.LinkByName(name)
-		if err != nil {
-			return fmt.Errorf("failed to find interface name %q: %v", name, err)
-		}
-
-		addr := &netlink.Addr{
-			IPNet: ip,
-		}
-
-		if err := netlink.AddrAdd(pubLink, addr); err != nil {
-			return err
-		}
-
-		if err := netlink.LinkSetUp(pubLink); err != nil {
-			return fmt.Errorf("failed to set %q UP: %v", name, err)
-		}
-
-		if err := netlink.RouteAdd(&netlink.Route{
-			Dst: &net.IPNet{
-				IP:   net.ParseIP("::"),
-				Mask: net.CIDRMask(0, 128),
-			},
-			Gw:        gw,
-			LinkIndex: pubLink.Attrs().Index,
-		}); err != nil {
-			return err
-		}
-
-		return nil
-	})
-	return err
 }
