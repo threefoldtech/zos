@@ -3,6 +3,7 @@ package network
 import (
 	"io/ioutil"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -35,7 +36,7 @@ var peers = []*modules.Peer{
 		Connection: modules.Wireguard{
 			IP:   net.ParseIP("2001:1:1:2::1"),
 			Port: 1602,
-			Key:  "4w4woC+AuDUAaRipT49M8SmTkzERps3xA5i0BW4hPiw=",
+			Key:  "HXnTmizQdGlAuE9PpVPw1Drg2WygUsxwGnJY+A5xgVo=",
 		},
 	},
 	{
@@ -144,7 +145,7 @@ func TestCreateNetwork(t *testing.T) {
 			}()
 
 			if tc.exitIface != nil {
-				err := createPublicNS(tc.exitIface)
+				err := CreatePublicNS(tc.exitIface)
 				require.NoError(t, err)
 			}
 
@@ -193,14 +194,14 @@ func TestConfigureWG(t *testing.T) {
 	require.NoError(t, err)
 
 	networker := &networker{
-		nodeID:      node2.NodeID,
+		nodeID:      node3.NodeID,
 		storageDir:  dir,
 		netResAlloc: nil,
 	}
 
 	defer func() {
-		// _ = networker.DeleteNetResource(network)
-		// _ = os.RemoveAll(dir)
+		_ = networker.DeleteNetResource(network)
+		_ = os.RemoveAll(dir)
 	}()
 
 	err = networker.ApplyNetResource(network)

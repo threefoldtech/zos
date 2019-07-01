@@ -22,6 +22,6 @@ func TestCreatePublicNS(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err := createPublicNS(iface)
+	err := CreatePublicNS(iface)
 	require.NoError(t, err)
 }
