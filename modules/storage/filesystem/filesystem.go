@@ -35,7 +35,7 @@ type Volume interface {
 // Pool represents a created filesystem
 type Pool interface {
 	Volume
-	// Mounted retuns whether the pool is mounted or not. If it is mounted,
+	// Mounted returns whether the pool is mounted or not. If it is mounted,
 	// the mountpoint is returned
 	Mounted() (string, bool)
 	// Mount the pool, the mountpoint is returned

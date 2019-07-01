@@ -82,7 +82,7 @@ func (s *storageModule) initialize(policy modules.StoragePolicy) error {
 	for _, volume := range existingPools {
 		if _, mounted := volume.Mounted(); mounted {
 			log.Debug().Msgf("Volume %s already mounted", volume.Name())
-			// volume is aready mounted, skip mounting it again
+			// volume is already mounted, skip mounting it again
 			continue
 		}
 		_, err = volume.Mount()
@@ -283,7 +283,7 @@ func (s *storageModule) createSubvol(size uint64, name string, preferSSD bool) (
 		possiblePools = append(ssdPools, hddPools...)
 	}
 
-	// for now take the first volume, if an ssd is prefered ssds will be sorted
+	// for now take the first volume, if an ssd is preferred ssds will be sorted
 	// first
 	for _, volume := range possiblePools {
 		usage, err := volume.Usage()
