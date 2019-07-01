@@ -1,7 +1,7 @@
 /*
 NOTE:
   This test file tries to create loop devices to work against on some
-  sparse files, to avoid causing any actual changes to permenant storage
+  sparse files, to avoid causing any actual changes to permanent storage
   on the test machine. This comes with a price that this test file
   need to run as root to be able to run the `losetup` commands.
 

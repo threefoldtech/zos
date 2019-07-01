@@ -128,6 +128,7 @@ type DNAT struct {
 	Protocol string
 }
 
+//Ipv4Conf represents the the IPv4 configuration of an exit container
 type Ipv4Conf struct {
 	// cidr
 	CIDR    *net.IPNet
@@ -140,7 +141,7 @@ type Ipv4Conf struct {
 	EnableNAT bool
 }
 
-// comments: see above
+//Ipv6Conf represents the the IPv6 configuration of an exit container
 type Ipv6Conf struct {
 	Addr    net.IP
 	Gateway net.IP

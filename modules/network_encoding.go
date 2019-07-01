@@ -214,6 +214,7 @@ func (e *ExitPoint) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// UnmarshalJSON implements encoding/json.Unmarshaler
 func (d *Network) UnmarshalJSON(b []byte) error {
 	tmp := struct {
 		NetworkID    string         `json:"network_id"`
