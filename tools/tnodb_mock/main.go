@@ -1,13 +1,20 @@
 package main
 
 import (
+	"context"
+	"encoding/gob"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zosv2/modules"
@@ -27,15 +34,21 @@ type ifaceInfo struct {
 }
 
 type FarmInfo struct {
-	ID   string `json:"farm_id"`
-	Name string `json:"name"`
+	ID        string   `json:"farm_id"`
+	Name      string   `json:"name"`
+	ExitNodes []string `json:"exit_nodes"`
+}
+
+type NetworkInfo struct {
+	Network   *modules.Network
+	ExitPoint *modules.ExitPoint
 }
 
 var (
 	nodeStore    map[string]*NodeInfo
 	exitNodes    map[string]*network.ExitIface
 	farmStore    map[string]*FarmInfo
-	networkStore map[string]*modules.Network
+	networkStore map[string]*NetworkInfo
 )
 
 type allocationStore struct {
@@ -100,8 +113,15 @@ func registerIfaces(w http.ResponseWriter, r *http.Request) {
 
 func chooseExit(w http.ResponseWriter, r *http.Request) {
 	nodeID := mux.Vars(r)["node_id"]
-	if _, ok := nodeStore[nodeID]; !ok {
+	node, ok := nodeStore[nodeID]
+	if !ok {
 		http.Error(w, fmt.Sprintf("node id %s not found", nodeID), http.StatusNotFound)
+		return
+	}
+
+	farm, ok := farmStore[node.FarmID]
+	if !ok {
+		http.Error(w, fmt.Sprintf("farm id %s not found", node.FarmID), http.StatusNotFound)
 		return
 	}
 
@@ -121,7 +141,7 @@ func chooseExit(w http.ResponseWriter, r *http.Request) {
 
 	// TODO verifiy the iface sent by user actually exists
 	var exitIface *network.ExitIface
-	exitIface, ok := exitNodes[nodeID]
+	exitIface, ok = exitNodes[nodeID]
 	if !ok {
 		exitIface = &network.ExitIface{}
 		exitNodes[nodeID] = exitIface
@@ -147,6 +167,18 @@ func chooseExit(w http.ResponseWriter, r *http.Request) {
 		exitIface.GW4 = gw
 	} else if gw.To16() != nil {
 		exitIface.GW6 = gw
+	}
+
+	// add the node id to the list of possible exit node of the farm
+	var found = false
+	for _, nodeID := range farm.ExitNodes {
+		if nodeID == node.NodeID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		farm.ExitNodes = append(farm.ExitNodes, node.NodeID)
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -300,30 +332,144 @@ func getAlloc(w http.ResponseWriter, r *http.Request) {
 func getNetwork(w http.ResponseWriter, r *http.Request) {
 	netid := mux.Vars(r)["netid"]
 
-	network, ok := networkStore[netid]
+	ni, ok := networkStore[netid]
 	if !ok {
 		http.Error(w, fmt.Sprintf("network not found"), http.StatusNotFound)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(network)
+	json.NewEncoder(w).Encode(ni.Network)
 }
 
 func createNetwork(w http.ResponseWriter, r *http.Request) {
-	network := modules.Network{}
+
+	networkReq := struct {
+		ExitFarm string `json:"exit_farm"`
+	}{}
 
 	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(&network); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&networkReq); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	fmt.Printf("%+v", network)
-	networkStore[string(network.NetID)] = &network
-	fmt.Println(networkStore)
+	farm, ok := farmStore[networkReq.ExitFarm]
+	if !ok {
+		http.Error(w, fmt.Sprintf("farm %s not found", networkReq.ExitFarm), http.StatusNotFound)
+		return
+	}
+
+	if len(farm.ExitNodes) <= 0 {
+		http.Error(w, fmt.Sprintf("farm %s doesn't have any exit node configured", networkReq.ExitFarm), http.StatusNotFound)
+		return
+	}
+
+	allocZero, allocSize, err := getNetworkZero(networkReq.ExitFarm, allocStore)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	alloc, err := requestAllocation(networkReq.ExitFarm, allocStore)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	exitNodeID := farm.ExitNodes[0]
+	exitNibble := meaningfullNibble(alloc, allocSize)
+
+	netid, err := uuid.NewRandom()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	ipZero := netZeroIP(allocZero, alloc, allocSize)
+
+	exitPeer := &modules.Peer{
+		Type:   modules.ConnTypeWireguard,
+		Prefix: alloc,
+		Connection: modules.Wireguard{
+			IP:   ipZero,
+			Port: 1600,
+			Key:  "",
+		},
+	}
+	linkLocal := &net.IPNet{
+		IP:   net.ParseIP(fmt.Sprintf("fe80::%s", exitNibble.Hex())),
+		Mask: net.CIDRMask(64, 128),
+	}
+	exitResource := &modules.NetResource{
+		NodeID: &modules.NodeID{
+			ID:             exitNodeID,
+			FarmerID:       networkReq.ExitFarm,
+			ReachabilityV6: modules.ReachabilityV6Public,
+			ReachabilityV4: modules.ReachabilityV4Public,
+		},
+		Prefix:    alloc,
+		LinkLocal: linkLocal,
+		Peers:     []*modules.Peer{exitPeer},
+		ExitPoint: true,
+	}
+
+	exitPoint := &modules.ExitPoint{
+		Ipv6Conf: &modules.Ipv6Conf{
+			Addr:    linkLocal,
+			Gateway: net.ParseIP("fe80::1"),
+			Iface:   "public",
+		},
+	}
+	network := &modules.Network{
+		NetID: modules.NetID(netid.String()),
+		Resources: []*modules.NetResource{
+			exitResource,
+		},
+		PrefixZero: allocZero,
+	}
+
+	networkStore[string(network.NetID)] = &NetworkInfo{
+		Network:   network,
+		ExitPoint: exitPoint,
+	}
 
 	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(network); err != nil {
+		log.Println("error while marshalling network into json")
+	}
+}
+
+type nibble []byte
+
+func (n nibble) Hex() string {
+	if len(n) == 2 {
+		return fmt.Sprintf("%x", n)
+	}
+	if len(n) == 4 {
+		return fmt.Sprintf("%x:%x", n[:2], n[2:])
+	}
+	panic("wrong nibble size")
+}
+
+func meaningfullNibble(prefix *net.IPNet, size int) nibble {
+	var n []byte
+
+	if size < 48 {
+		n = []byte(prefix.IP)[4:8]
+	} else {
+		n = []byte(prefix.IP)[6:8]
+	}
+	return nibble(n)
+}
+
+func netZeroIP(netZero *net.IPNet, alloc *net.IPNet, allocSize int) net.IP {
+	nibble := meaningfullNibble(alloc, allocSize)
+
+	ipZero := make([]byte, net.IPv6len)
+	copy(ipZero[:], netZero.IP)
+	copy(ipZero[net.IPv6len-len(nibble):], nibble)
+	return net.IP(ipZero[:])
 }
 
 func publishWGKey(w http.ResponseWriter, r *http.Request) {
@@ -331,14 +477,14 @@ func publishWGKey(w http.ResponseWriter, r *http.Request) {
 	netid := vars["netid"]
 	nodeid := vars["nodeid"]
 
-	network, ok := networkStore[netid]
+	ni, ok := networkStore[netid]
 	if !ok {
 		http.Error(w, fmt.Sprintf("network not found"), http.StatusNotFound)
 		return
 	}
 
 	var netR *modules.NetResource
-	for _, res := range network.Resources {
+	for _, res := range ni.Network.Resources {
 		if res.NodeID.ID == nodeid {
 			netR = res
 			break
@@ -363,7 +509,7 @@ func publishWGKey(w http.ResponseWriter, r *http.Request) {
 
 	// update all the peers arrays in all the network resources
 	// with the key published by the node
-	for _, res := range network.Resources {
+	for _, res := range ni.Network.Resources {
 		for _, peer := range res.Peers {
 			if peer.Prefix.String() == netR.Prefix.String() {
 				peer.Connection.Key = key.Key
@@ -371,7 +517,7 @@ func publishWGKey(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	networkStore[string(network.NetID)] = network
+	networkStore[string(ni.Network.NetID)] = ni
 
 	w.WriteHeader(http.StatusCreated)
 }
@@ -386,8 +532,17 @@ func main() {
 	nodeStore = make(map[string]*NodeInfo)
 	exitNodes = make(map[string]*network.ExitIface)
 	farmStore = make(map[string]*FarmInfo)
-	networkStore = make(map[string]*modules.Network)
+	networkStore = make(map[string]*NetworkInfo)
 	allocStore = &allocationStore{Allocations: make(map[string]*Allocation)}
+
+	// if err := load(); err != nil {
+	// 	log.Fatalf("failed to load data: %v\n", err)
+	// }
+	// defer func() {
+	// 	if err := save(); err != nil {
+	// 		log.Printf("failed to save data: %v\n", err)
+	// 	}
+	// }()
 
 	router := mux.NewRouter()
 
@@ -406,5 +561,65 @@ func main() {
 	router.HandleFunc("/networks/{netid}/{nodeid}/wgkeys", publishWGKey).Methods("POST")
 
 	log.Printf("start on %s\n", listen)
-	http.ListenAndServe(listen, router)
+	s := &http.Server{
+		Addr:    listen,
+		Handler: router,
+	}
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt)
+
+	go s.ListenAndServe()
+
+	<-c
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	if err := s.Shutdown(ctx); err != nil {
+		log.Printf("error during server shutdown: %v\n", err)
+	}
+}
+
+func save() error {
+	stores := map[string]interface{}{
+		"nodes":   nodeStore,
+		"exits":   exitNodes,
+		"farms":   farmStore,
+		"network": networkStore,
+	}
+	for name, store := range stores {
+		f, err := os.OpenFile(name+".gob", os.O_CREATE|os.O_WRONLY, 0660)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if err := gob.NewEncoder(f).Encode(store); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func load() error {
+	stores := map[string]interface{}{
+		"nodes":   nodeStore,
+		"exits":   exitNodes,
+		"farms":   farmStore,
+		"network": networkStore,
+	}
+	for name, store := range stores {
+		f, err := os.OpenFile(name+".gob", os.O_RDONLY, 0660)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		defer f.Close()
+		if err := gob.NewDecoder(f).Decode(&store); err != nil {
+			return err
+		}
+	}
+	return nil
 }
