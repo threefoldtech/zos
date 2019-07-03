@@ -265,6 +265,37 @@ func (s *httpTNoDB) PublishWireguarKey(key string, nodeID modules.NodeID, netID 
 // 	}
 // }
 
+func (s *httpTNoDB) CreateNetwork(farmID string) (*modules.Network, error) {
+	networkReq := struct {
+		ExitFarm string `json:"exit_farm"`
+	}{ExitFarm: farmID}
+
+	buf := &bytes.Buffer{}
+
+	if err := json.NewEncoder(buf).Encode(networkReq); err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s/networks", s.baseURL)
+	resp, err := http.Post(url, "application/json", buf)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("wrong response status received: %s", resp.Status)
+	}
+
+	defer resp.Body.Close()
+
+	network := &modules.Network{}
+	if err := json.NewDecoder(resp.Body).Decode(network); err != nil {
+		log.Error().Err(err).Msg("failed to decode network json")
+		return nil, err
+	}
+
+	return network, nil
+}
+
 func linkAddrs(l netlink.Link) ([]string, error) {
 	addrs, err := netlink.AddrList(l, netlink.FAMILY_ALL)
 	if err != nil {

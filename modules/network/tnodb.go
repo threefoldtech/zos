@@ -17,4 +17,5 @@ type TNoDB interface {
 	ReadExitNode(node identity.Identifier) (*ExitIface, error)
 	// ReadNetworkObj(node identity.Identifier) ([]*modules.Network, error)
 	PublishWireguarKey(string, modules.NodeID, modules.NetID) error
+	CreateNetwork(farmID string) (*modules.Network, error)
 }

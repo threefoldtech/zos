@@ -393,12 +393,12 @@ func hiddenPrefixes(resources []*modules.NetResource) []string {
 	return output
 }
 
-func isPublic(nodeID modules.NodeID) bool {
+func isPublic(nodeID *modules.NodeID) bool {
 	return nodeID.ReachabilityV6 == modules.ReachabilityV6Public ||
 		nodeID.ReachabilityV4 == modules.ReachabilityV4Public
 }
 
-func isHidden(nodeID modules.NodeID) bool {
+func isHidden(nodeID *modules.NodeID) bool {
 	return nodeID.ReachabilityV6 == modules.ReachabilityV6ULA ||
 		nodeID.ReachabilityV4 == modules.ReachabilityV4Hidden
 }
