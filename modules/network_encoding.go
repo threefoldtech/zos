@@ -142,6 +142,7 @@ func (r *NetResource) UnmarshalJSON(b []byte) error {
 		Prefix    string  `json:"prefix"`
 		LinkLocal string  `json:"link_local"`
 		Peers     []*Peer `json:"peers"`
+		ExitPoint bool    `json:"exit_point"`
 	}{}
 
 	if err := json.Unmarshal(b, &tmp); err != nil {
@@ -163,6 +164,7 @@ func (r *NetResource) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	r.LinkLocal.IP = ip
+	r.ExitPoint = tmp.ExitPoint
 
 	return nil
 }
@@ -174,11 +176,13 @@ func (r *NetResource) MarshalJSON() ([]byte, error) {
 		Prefix    string  `json:"prefix"`
 		LinkLocal string  `json:"link_local"`
 		Peers     []*Peer `json:"peers"`
+		ExitPoint bool    `json:"exit_point"`
 	}{
 		NodeID:    r.NodeID,
 		Prefix:    r.Prefix.String(),
 		LinkLocal: r.LinkLocal.String(),
 		Peers:     r.Peers,
+		ExitPoint: r.ExitPoint,
 	}
 	return json.Marshal(tmp)
 }
@@ -321,11 +325,10 @@ func (d *DNAT) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements encoding/json.Unmarshaler
 func (e *ExitPoint) UnmarshalJSON(b []byte) error {
 	tmp := struct {
-		NetResource *NetResource `json:"net_resource"`
-		Ipv4Conf    *Ipv4Conf    `json:"ipv4_conf"`
-		Ipv4Dnat    []*DNAT      `json:"ipv4_dnat"`
-		Ipv6Conf    *Ipv6Conf    `json:"ipv6_conf"`
-		Ipv6Allow   []net.IP     `json:"ipv6_allow"`
+		Ipv4Conf  *Ipv4Conf `json:"ipv4_conf"`
+		Ipv4Dnat  []*DNAT   `json:"ipv4_dnat"`
+		Ipv6Conf  *Ipv6Conf `json:"ipv6_conf"`
+		Ipv6Allow []net.IP  `json:"ipv6_allow"`
 	}{}
 
 	if err := json.Unmarshal(b, &tmp); err != nil {
@@ -333,7 +336,6 @@ func (e *ExitPoint) UnmarshalJSON(b []byte) error {
 	}
 
 	*e = ExitPoint{}
-	e.NetResource = tmp.NetResource
 	e.Ipv4Conf = tmp.Ipv4Conf
 	e.Ipv4DNAT = tmp.Ipv4Dnat
 	e.Ipv6Conf = tmp.Ipv6Conf
@@ -345,16 +347,14 @@ func (e *ExitPoint) UnmarshalJSON(b []byte) error {
 // MarshalJSON implements encoding/json.Marshaler
 func (e *ExitPoint) MarshalJSON() ([]byte, error) {
 	tmp := struct {
-		NetResource *NetResource `json:"net_resource"`
-		Ipv4Conf    *Ipv4Conf    `json:"ipv4_conf"`
-		Ipv4Dnat    []*DNAT      `json:"ipv4_dnat"`
-		Ipv6Conf    *Ipv6Conf    `json:"ipv6_conf"`
-		Ipv6Allow   []string     `json:"ipv6_allow"`
+		Ipv4Conf  *Ipv4Conf `json:"ipv4_conf"`
+		Ipv4Dnat  []*DNAT   `json:"ipv4_dnat"`
+		Ipv6Conf  *Ipv6Conf `json:"ipv6_conf"`
+		Ipv6Allow []string  `json:"ipv6_allow"`
 	}{
-		NetResource: e.NetResource,
-		Ipv4Conf:    e.Ipv4Conf,
-		Ipv4Dnat:    e.Ipv4DNAT,
-		Ipv6Conf:    e.Ipv6Conf,
+		Ipv4Conf: e.Ipv4Conf,
+		Ipv4Dnat: e.Ipv4DNAT,
+		Ipv6Conf: e.Ipv6Conf,
 	}
 	ips := make([]string, 0, len(e.Ipv6Allow))
 	for i, ip := range e.Ipv6Allow {
@@ -365,10 +365,11 @@ func (e *ExitPoint) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON implements encoding/json.Unmarshaler
-func (d *Network) UnmarshalJSON(b []byte) error {
+func (d *Network) UnmarshalJSON(b []byte) (err error) {
 	tmp := struct {
 		NetworkID    string         `json:"network_id"`
 		Resources    []*NetResource `json:"resources"`
+		PrefixZero   string         `json:"prefix_zero"`
 		ExitPoint    *ExitPoint     `json:"exit_point"`
 		AllocationNR int8           `json:"allocation_nr"`
 	}{}
@@ -382,6 +383,10 @@ func (d *Network) UnmarshalJSON(b []byte) error {
 	d.Resources = tmp.Resources
 	d.Exit = tmp.ExitPoint
 	d.AllocationNR = tmp.AllocationNR
+	_, d.PrefixZero, err = net.ParseCIDR(tmp.PrefixZero)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -391,12 +396,14 @@ func (d *Network) MarshalJSON() ([]byte, error) {
 	tmp := struct {
 		NetworkID    string         `json:"network_id"`
 		Resources    []*NetResource `json:"resources"`
+		PrefixZero   string         `json:"prefix_zero"`
 		ExitPoint    *ExitPoint     `json:"exit_point"`
 		AllocationNR int8           `json:"allocation_nr"`
 	}{
 		NetworkID:    string(d.NetID),
 		Resources:    d.Resources,
 		ExitPoint:    d.Exit,
+		PrefixZero:   d.PrefixZero.String(),
 		AllocationNR: d.AllocationNR,
 	}
 	return json.Marshal(tmp)

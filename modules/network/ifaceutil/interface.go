@@ -89,3 +89,16 @@ func HasDefaultGW(link netlink.Link) (bool, net.IP, error) {
 
 	return false, nil, nil
 }
+
+func SetLoUp() error {
+	lo, err := netlink.LinkByName("lo")
+	if err != nil {
+		log.Error().Err(err).Msg("fail to get lo interface")
+		return err
+	}
+	if err := netlink.LinkSetUp(lo); err != nil {
+		log.Error().Err(err).Msg("fail to bring lo interface up")
+		return err
+	}
+	return err
+}
