@@ -12,7 +12,7 @@ import (
 type Networker interface {
 	GetNetwork(id string) (*Network, error)
 	GenerateWireguarKeyPair(NetID) (string, error)
-	PublishWireguarKeyPair(string, NodeID, NetID) error
+	PublishWGPubKey(string, NodeID, NetID) error
 	ApplyNetResource(*Network) error
 	DeleteNetResource(*Network) error
 }
@@ -61,6 +61,9 @@ type Network struct {
 	// node-local prefix for a bridge/container/vm
 	// needs to be queried from somewhere(TBD) to be filled in
 	NetID NetID `json:"network_id"`
+
+	PrefixZero *net.IPNet
+
 	// a netresource is a group of interconnected prefixes for a netid
 	// needs to be queried and updated when the netresource is created
 	Resources []*NetResource `json:"resources"`
@@ -97,6 +100,44 @@ type NetResource struct {
 	// a list of firewall rules to open access directly, IF that netresource
 	// would be directly routed (future)
 	// IPv6Allow []net.IPNet
+
+	// Mark this NetResource as the exit point of the network
+	ExitPoint bool `json:"exit_point"`
+}
+
+// Peer is a peer for which we have a tunnel established and the
+// prefix it routes to. The connection, as it is a peer to peer connection,
+// can be of type wireguard, but also any other type that can bring
+// a packet to a node containing a netresource.
+// If for instance that node lives in the same subnet, it'll be a lot more
+// efficient to set up a vxlan (multicast or with direct fdb entries), than
+// using wireguard tunnels (that can be seen in a later phase)
+type Peer struct {
+	Type       ConnType   `json:"type"`
+	Prefix     *net.IPNet `json:"prefix"`
+	Connection Wireguard  `json:"connection"`
+}
+
+// ConnType is an enum
+type ConnType int
+
+const (
+	// ConnTypeWireguard is an ConnType enum value for wireguard
+	ConnTypeWireguard ConnType = iota
+	// ConnTypeLocalVxlan
+)
+
+// Wireguard represent a wireguard interface configuration
+// the key would be a public key, with the private key only available
+// locally and stored locally.
+type Wireguard struct {
+	// TBD, a peer can be IPv6, IPv6-ll or IPv4
+	IP net.IP `json:"ip"`
+	// Listen port of wireguard
+	Port uint16 `json:"port"`
+	// base64 encoded public key
+	// Key []byte
+	Key string `json:"key"`
 }
 
 // ExitPoint represents the exit container(ns) hold as well a prefix as netresource as well
@@ -107,8 +148,6 @@ type NetResource struct {
 // An upstream router is the entry point toward nodes that have only IPv6 access
 // through tunnels (like nodes in ipv4-only networks or home networks)
 type ExitPoint struct {
-	// netresource is the same as on all other netresources of a tenant network
-	*NetResource `json:"net_resource"`
 	// the ultimate IPv{4,6} config of the exit container.
 	Ipv4Conf *Ipv4Conf `json:"ipv4_conf"`
 	Ipv4DNAT []*DNAT   `json:"ipv4_dnat"`
@@ -147,41 +186,6 @@ type Ipv6Conf struct {
 	Gateway net.IP     `json:"gateway"`
 	Metric  uint32     `json:"metric"`
 	Iface   string     `json:"iface"`
-}
-
-// Peer is a peer for which we have a tunnel established and the
-// prefix it routes to. The connection, as it is a peer to peer connection,
-// can be of type wireguard, but also any other type that can bring
-// a packet to a node containing a netresource.
-// If for instance that node lives in the same subnet, it'll be a lot more
-// efficient to set up a vxlan (multicast or with direct fdb entries), than
-// using wireguard tunnels (that can be seen in a later phase)
-type Peer struct {
-	Type       ConnType   `json:"type"`
-	Prefix     *net.IPNet `json:"prefix"`
-	Connection Wireguard  `json:"connection"`
-}
-
-// ConnType is an enum
-type ConnType int
-
-const (
-	// ConnTypeWireguard is an ConnType enum value for wireguard
-	ConnTypeWireguard ConnType = iota
-	// ConnTypeLocalVxlan
-)
-
-// Wireguard represent a wireguard interface configuration
-// the key would be a public key, with the private key only available
-// locally and stored locally.
-type Wireguard struct {
-	// TBD, a peer can be IPv6, IPv6-ll or IPv4
-	IP net.IP `json:"ip"`
-	// Listen port of wireguard
-	Port uint16 `json:"port"`
-	// base64 encoded public key
-	// Key []byte
-	Key string `json:"key"`
 }
 
 // definition for later usage
