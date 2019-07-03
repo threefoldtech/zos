@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/threefoldtech/zosv2/modules/identity"
+
 	"github.com/threefoldtech/zosv2/modules/network/wireguard"
 
 	"github.com/rs/zerolog/log"
@@ -16,27 +18,25 @@ import (
 )
 
 type networker struct {
-	nodeID      modules.NodeID
-	storageDir  string
-	netResAlloc NetResourceAllocator
-	tnodb       TNoDB
+	nodeID     identity.Identifier
+	storageDir string
+	tnodb      TNoDB
 }
 
 // NewNetworker create a new modules.Networker that can be used over zbus
-func NewNetworker(storageDir string, allocator NetResourceAllocator, nodeID modules.NodeID) modules.Networker {
+func NewNetworker(nodeID identity.Identifier, tnodb TNoDB, storageDir string) modules.Networker {
 	return &networker{
-		nodeID:      nodeID,
-		storageDir:  storageDir,
-		netResAlloc: allocator,
+		nodeID:     nodeID,
+		storageDir: storageDir,
+		tnodb:      tnodb,
 	}
 }
 
 var _ modules.Networker = (*networker)(nil)
 
 // GetNetwork implements modules.Networker interface
-func (n *networker) GetNetwork(id string) (*modules.Network, error) {
-	// TODO check signature
-	return n.netResAlloc.Get(id)
+func (n *networker) GetNetwork(id modules.NetID) (*modules.Network, error) {
+	return n.tnodb.GetNetwork(id)
 }
 
 // ApplyNetResource implements modules.Networker interface
@@ -56,7 +56,7 @@ func (n *networker) ApplyNetResource(network *modules.Network) (err error) {
 
 	localResource := n.localResource(network.Resources)
 	if localResource == nil {
-		return fmt.Errorf("not network resource for this node: %s", n.nodeID.ID)
+		return fmt.Errorf("not network resource for this node: %s", n.nodeID.Identity())
 	}
 	exitNetRes, err := exitResource(network.Resources)
 	if err != nil {
@@ -154,6 +154,6 @@ func (n *networker) GenerateWireguarKeyPair(netID modules.NetID) (string, error)
 	}
 	return key.PublicKey().String(), nil
 }
-func (n *networker) PublishWGPubKey(key string, nodeID modules.NodeID, netID modules.NetID) error {
-	return n.tnodb.PublishWireguarKey(key, nodeID, netID)
+func (n *networker) PublishWGPubKey(key string, netID modules.NetID) error {
+	return n.tnodb.PublishWireguarKey(key, n.nodeID.Identity(), netID)
 }

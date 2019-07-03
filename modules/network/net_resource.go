@@ -346,7 +346,7 @@ func configWG(localResource *modules.NetResource, network *modules.Network, wgPe
 func (n *networker) localResource(resources []*modules.NetResource) *modules.NetResource {
 	for _, resource := range resources {
 		log.Info().Msgf("try to find local net resource %+v", resource)
-		if resource.NodeID.ID == n.nodeID.ID {
+		if resource.NodeID.ID == n.nodeID.Identity() {
 			return resource
 		}
 	}

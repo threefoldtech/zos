@@ -10,9 +10,9 @@ import (
 
 //Networker is the interface for the network module
 type Networker interface {
-	GetNetwork(id string) (*Network, error)
+	GetNetwork(id NetID) (*Network, error)
 	GenerateWireguarKeyPair(NetID) (string, error)
-	PublishWGPubKey(string, NodeID, NetID) error
+	PublishWGPubKey(string, NetID) error
 	ApplyNetResource(*Network) error
 	DeleteNetResource(*Network) error
 }
