@@ -32,7 +32,13 @@ func NewNibble(prefix *net.IPNet, allocNr int8) *Nibble {
 
 // Hex return the hexadecimal version of the meaningfull nibble
 func (n *Nibble) Hex() string {
-	return fmt.Sprintf("%x", n.nibble)
+	if len(n.nibble) == 2 {
+		return fmt.Sprintf("%x", n.nibble)
+	}
+	if len(n.nibble) == 4 {
+		return fmt.Sprintf("%x:%x", n.nibble[:2], n.nibble[2:])
+	}
+	panic("wrong nibble size")
 }
 
 // WiregardName return the deterministic wireguard name
