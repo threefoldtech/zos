@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,13 +33,13 @@ type storageModule struct {
 }
 
 // New create a new storage module service
-func New() modules.StorageModule {
+func New() (modules.StorageModule, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	m, err := filesystem.DefaultDeviceManager(ctx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	s := &storageModule{
@@ -47,15 +48,12 @@ func New() modules.StorageModule {
 	}
 
 	// go for a simple linear setup right now
-	if err := s.initialize(modules.StoragePolicy{
+	err = s.initialize(modules.StoragePolicy{
 		Raid:     modules.Single,
 		Disks:    1,
 		MaxPools: 0,
-	}); err != nil {
-		panic(err)
-	}
-
-	return s
+	})
+	return s, err
 }
 
 /**
@@ -204,6 +202,9 @@ func (s *storageModule) ReleaseFilesystem(path string) error {
 	log.Info().Msgf("Deleting volume at %v", path)
 
 	for idx := range s.volumes {
+		if !strings.HasPrefix(path, s.volumes[idx].Path()) {
+			continue
+		}
 		filesystems, err := s.volumes[idx].Volumes()
 		if err != nil {
 			return err
