@@ -48,7 +48,7 @@ func (b *btrfs) btrfs(ctx context.Context, args ...string) ([]byte, error) {
 	return run(ctx, "btrfs", args...)
 }
 
-func (b *btrfs) Create(ctx context.Context, name string, devices []Device, policy modules.RaidProfile) (Pool, error) {
+func (b *btrfs) Create(ctx context.Context, name string, devices DeviceCache, policy modules.RaidProfile) (Pool, error) {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {
 		return nil, fmt.Errorf("invalid name")
@@ -81,6 +81,12 @@ func (b *btrfs) Create(ctx context.Context, name string, devices []Device, polic
 	args = append(args, paths...)
 	if _, err := run(ctx, "mkfs.btrfs", args...); err != nil {
 		return nil, err
+	}
+
+	// update cached devices
+	for _, dev := range devices {
+		dev.Label = name
+		dev.Filesystem = BtrfsFSType
 	}
 
 	return newBtrfsPool(name, devices), nil
@@ -117,10 +123,10 @@ func (b *btrfs) List(ctx context.Context) ([]Pool, error) {
 
 type btrfsPool struct {
 	name    string
-	devices []Device
+	devices DeviceCache
 }
 
-func newBtrfsPool(name string, devices []Device) *btrfsPool {
+func newBtrfsPool(name string, devices DeviceCache) *btrfsPool {
 	return &btrfsPool{
 		name:    name,
 		devices: devices,
@@ -199,7 +205,7 @@ func (p *btrfsPool) UnMount() error {
 	return syscall.Unmount(mnt, syscall.MNT_DETACH)
 }
 
-func (p *btrfsPool) AddDevice(device Device) error {
+func (p *btrfsPool) AddDevice(device *Device) error {
 	mnt, ok := p.Mounted()
 	if !ok {
 		return ErrDeviceNotMounted
@@ -212,10 +218,14 @@ func (p *btrfsPool) AddDevice(device Device) error {
 
 	p.devices = append(p.devices, device)
 
+	// update cached device
+	device.Label = p.name
+	device.Filesystem = BtrfsFSType
+
 	return nil
 }
 
-func (p *btrfsPool) RemoveDevice(device Device) error {
+func (p *btrfsPool) RemoveDevice(device *Device) error {
 	mnt, ok := p.Mounted()
 	if !ok {
 		return ErrDeviceNotMounted
@@ -232,6 +242,10 @@ func (p *btrfsPool) RemoveDevice(device Device) error {
 			p.devices = append(p.devices[:idx], p.devices[idx+1:]...)
 		}
 	}
+
+	// update cached device
+	device.Filesystem = ""
+	device.Label = ""
 
 	return nil
 }

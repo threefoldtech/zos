@@ -12,15 +12,15 @@ import (
 // DeviceManager is able to list all/specific devices on a system
 type DeviceManager interface {
 	// Device returns the device at the specified path
-	Device(ctx context.Context, device string) (Device, error)
+	Device(ctx context.Context, device string) (*Device, error)
 	// Devices finds all devices on a system
-	Devices(ctx context.Context) ([]Device, error)
+	Devices(ctx context.Context) (DeviceCache, error)
 	// ByLabel finds all devices with the specified label
-	ByLabel(ctx context.Context, label string) ([]Device, error)
-	// Scan the system for devices. This must be called after all actions which
-	// make persistent changes on the disk layout.
-	Scan(ctx context.Context) error
+	ByLabel(ctx context.Context, label string) (DeviceCache, error)
 }
+
+// DeviceCache represents a list of cached in memory devices
+type DeviceCache []*Device
 
 // FSType type of filesystem on device
 type FSType string
@@ -51,7 +51,7 @@ type Device struct {
 	ReadTime   uint64     `json:"-"`
 }
 
-// Used assumes that the device is used if it has custom label of fstype
+// Used assumes that the device is used if it has custom label or fstype or children
 func (d *Device) Used() bool {
 	return len(d.Label) != 0 || len(d.Filesystem) != 0 || len(d.Children) > 0
 }
@@ -62,45 +62,49 @@ func (d *Device) Used() bool {
 // Found devices are cached, and the cache is only repopulated after the `Scan`
 // method is called.
 type lsblkDeviceManager struct {
-	devices []Device
+	devices DeviceCache
 }
 
 // DefaultDeviceManager returns a default device manager implementation
-func DefaultDeviceManager() DeviceManager {
-	return &lsblkDeviceManager{
-		devices: []Device{},
+func DefaultDeviceManager(ctx context.Context) (DeviceManager, error) {
+	m := &lsblkDeviceManager{
+		devices: DeviceCache{},
 	}
+
+	err := m.scan(ctx)
+	return m, err
 }
 
 // Devices gets available block devices
-func (l *lsblkDeviceManager) Devices(ctx context.Context) ([]Device, error) {
+func (l *lsblkDeviceManager) Devices(ctx context.Context) (DeviceCache, error) {
 	return flattenDevices(l.devices), nil
 }
 
-func (l *lsblkDeviceManager) ByLabel(ctx context.Context, label string) ([]Device, error) {
-	var filtered []Device
+func (l *lsblkDeviceManager) ByLabel(ctx context.Context, label string) (DeviceCache, error) {
+	var filtered DeviceCache
 
-	for _, device := range l.devices {
-		if device.Label == label {
-			filtered = append(filtered, device)
+	for idx := range l.devices {
+		if l.devices[idx].Label == label {
+			filtered = append(filtered, l.devices[idx])
 		}
 	}
 
 	return filtered, nil
 }
 
-func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device Device, err error) {
-	for _, device := range l.devices {
-		if device.Path == path {
-			return device, nil
+func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device *Device, err error) {
+	for idx := range l.devices {
+		if l.devices[idx].Path == path {
+			return l.devices[idx], nil
 		}
 	}
 
-	return Device{}, fmt.Errorf("device not found")
+	return nil, fmt.Errorf("device not found")
 
 }
 
-func (l *lsblkDeviceManager) Scan(ctx context.Context) error {
+// scan the system for disks using the `lsblk` command
+func (l *lsblkDeviceManager) scan(ctx context.Context) error {
 	bytes, err := run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path")
 	if err != nil {
 		return err
@@ -114,16 +118,31 @@ func (l *lsblkDeviceManager) Scan(ctx context.Context) error {
 		return err
 	}
 
-	l.devices, err = setDeviceTypes(devices.BlockDevices)
-	return err
+	typedDevs, err := setDeviceTypes(devices.BlockDevices)
+	if err != nil {
+		return err
+	}
+
+	devs := DeviceCache{}
+	for idx := range typedDevs {
+		devs = append(devs, &typedDevs[idx])
+	}
+
+	l.devices = devs
+
+	return nil
 }
 
-func flattenDevices(devices []Device) []Device {
-	list := []Device{}
-	for _, d := range devices {
-		list = append(list, d)
-		if d.Children != nil {
-			list = append(list, flattenDevices(d.Children)...)
+func flattenDevices(devices DeviceCache) DeviceCache {
+	list := DeviceCache{}
+	for idx := range devices {
+		list = append(list, devices[idx])
+		if devices[idx].Children != nil {
+			childCache := DeviceCache{}
+			for jdx := range devices[idx].Children {
+				childCache = append(childCache, &devices[idx].Children[jdx])
+			}
+			list = append(list, flattenDevices(childCache)...)
 		}
 	}
 	return list
@@ -174,7 +193,7 @@ func deviceTypeFromString(typ string) DeviceType {
 }
 
 // ByReadTime implements sort.Interface for []Device based on the ReadTime field
-type ByReadTime []Device
+type ByReadTime DeviceCache
 
 func (a ByReadTime) Len() int           { return len(a) }
 func (a ByReadTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
