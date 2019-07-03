@@ -90,6 +90,7 @@ func HasDefaultGW(link netlink.Link) (bool, net.IP, error) {
 	return false, nil, nil
 }
 
+// SetLoUp brings the lo interface up
 func SetLoUp() error {
 	lo, err := netlink.LinkByName("lo")
 	if err != nil {

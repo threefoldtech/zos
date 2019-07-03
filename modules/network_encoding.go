@@ -58,6 +58,7 @@ func (n *NodeID) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// MarshalJSON implements encoding/json.Marshaler
 func (n *NodeID) MarshalJSON() ([]byte, error) {
 	tmp := struct {
 		ID             string `json:"id"`
@@ -107,9 +108,10 @@ func (p *Peer) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (r *Peer) MarshalJSON() ([]byte, error) {
+// MarshalJSON implements encoding/json.Marshaler
+func (p *Peer) MarshalJSON() ([]byte, error) {
 
-	if r.Type != ConnTypeWireguard {
+	if p.Type != ConnTypeWireguard {
 		return nil, fmt.Errorf("unsupported connection type")
 	}
 
@@ -124,11 +126,11 @@ func (r *Peer) MarshalJSON() ([]byte, error) {
 		Connection Connection
 	}{
 		Type:   "wireguard",
-		Prefix: r.Prefix.String(),
+		Prefix: p.Prefix.String(),
 		Connection: Connection{
-			IP:   r.Connection.IP.String(),
-			Port: r.Connection.Port,
-			Key:  r.Connection.Key,
+			IP:   p.Connection.IP.String(),
+			Port: p.Connection.Port,
+			Key:  p.Connection.Key,
 		},
 	}
 
