@@ -5,9 +5,9 @@
 
 ## How does a farmer configure a node as exit node
 
-For the network of the grid to work properly, some of the node in the grid needs to be configured as "exit nodes".  An "exit node" is a node that has a publicly accessible IP address and that is responsible to proxy the traffic from the inside of the grid to the outside internet.
+For the network of the grid to work properly, some of the nodes in the grid need to be configured as "exit nodes".  An "exit node" is a node that has a publicly accessible IP address and that is responsible routing IPv6 traffic, or proxy IPv4 traffic.
 
-A farmer that wants to configure one of his node as "exit node", needs to register it in the TNODB. The node will then automatically detect it has been configure to be an exit node and do the necessary network configuration to start acting as one.
+A farmer that wants to configure one of his nodes as "exit node", needs to register it in the TNODB. The node will then automatically detect it has been configured to be an exit node and do the necessary network configuration to start acting as one.
 
 At the current state of the development, we have a [TNODB mock](../../tools/tnodb_mock) server and a [tffarmer CLI](../../tools/tffarm) tool that can be used to do these configuration.
 
@@ -26,7 +26,7 @@ Identity: ZF6jtCblLhTgAqp2jvxKkOxBgSSIlrRh1mRGiZaRr7E=
 
 Take that farm identity create at step 1 and boot your node with the kernel parameters `farmer_id=<identity>`
 
-for you test farm that would be `farmer_id=ZF6jtCblLhTgAqp2jvxKkOxBgSSIlrRh1mRGiZaRr7E=`
+for your test farm that would be `farmer_id=ZF6jtCblLhTgAqp2jvxKkOxBgSSIlrRh1mRGiZaRr7E=`
 
 Once the node is booted, it will automatically register itself as being part of your farm into the [TNODB](../../tools/tnodb_mock) server.
 
@@ -50,8 +50,14 @@ In this step the farmer will tell his node how it needs to connect to the public
 
 ```bash
 tffarmer configure-public --ip 172.20.0.2/24 --gw 172.20.0.1 --iface eth1 --node kV3u7GJKWA7Js32LmNA5+G3A0WWnUG9h+5gnL6kr6lA=
-exit node configured
+# exit node configured
 ```
+In a first phase, we create the internet access in 2 ways:
+  - the node is fully public: then this previous step is not necessary 
+  - the node has a management interface and a nic for public
+    then `configure-public` is necessary, and the farmer has the public interface connected to a specific public segment with a router to the internet in front.
+
+We still need to figure out a way to get the routes properly installed, we'll do static on the toplevel router for now to do a demo.
 
 The node is now configured to be used as an exit node.
 
