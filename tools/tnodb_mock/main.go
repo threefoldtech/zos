@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/gob"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -49,19 +48,18 @@ var (
 	exitNodes    map[string]*network.ExitIface
 	farmStore    map[string]*FarmInfo
 	networkStore map[string]*NetworkInfo
+	allocStore   *allocationStore
 )
 
 type allocationStore struct {
 	sync.Mutex
-	Allocations map[string]*Allocation
+	Allocations map[string]*Allocation `json:"allocations"`
 }
 
 type Allocation struct {
 	Allocation *net.IPNet
 	SubNetUsed []uint64
 }
-
-var allocStore *allocationStore
 
 func registerNode(w http.ResponseWriter, r *http.Request) {
 	log.Println("node register request received")
@@ -535,14 +533,14 @@ func main() {
 	networkStore = make(map[string]*NetworkInfo)
 	allocStore = &allocationStore{Allocations: make(map[string]*Allocation)}
 
-	// if err := load(); err != nil {
-	// 	log.Fatalf("failed to load data: %v\n", err)
-	// }
-	// defer func() {
-	// 	if err := save(); err != nil {
-	// 		log.Printf("failed to save data: %v\n", err)
-	// 	}
-	// }()
+	if err := load(); err != nil {
+		log.Fatalf("failed to load data: %v\n", err)
+	}
+	defer func() {
+		if err := save(); err != nil {
+			log.Printf("failed to save data: %v\n", err)
+		}
+	}()
 
 	router := mux.NewRouter()
 
@@ -583,18 +581,19 @@ func main() {
 
 func save() error {
 	stores := map[string]interface{}{
-		"nodes":   nodeStore,
-		"exits":   exitNodes,
-		"farms":   farmStore,
-		"network": networkStore,
+		"nodes":       nodeStore,
+		"exits":       exitNodes,
+		"farms":       farmStore,
+		"network":     networkStore,
+		"allocations": allocStore,
 	}
 	for name, store := range stores {
-		f, err := os.OpenFile(name+".gob", os.O_CREATE|os.O_WRONLY, 0660)
+		f, err := os.OpenFile(name+".json", os.O_CREATE|os.O_WRONLY, 0660)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
-		if err := gob.NewEncoder(f).Encode(store); err != nil {
+		if err := json.NewEncoder(f).Encode(store); err != nil {
 			return err
 		}
 	}
@@ -603,13 +602,14 @@ func save() error {
 
 func load() error {
 	stores := map[string]interface{}{
-		"nodes":   nodeStore,
-		"exits":   exitNodes,
-		"farms":   farmStore,
-		"network": networkStore,
+		"nodes":       &nodeStore,
+		"exits":       &exitNodes,
+		"farms":       &farmStore,
+		"network":     &networkStore,
+		"allocations": &allocStore,
 	}
 	for name, store := range stores {
-		f, err := os.OpenFile(name+".gob", os.O_RDONLY, 0660)
+		f, err := os.OpenFile(name+".json", os.O_RDONLY, 0660)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -617,7 +617,7 @@ func load() error {
 			return err
 		}
 		defer f.Close()
-		if err := gob.NewDecoder(f).Decode(&store); err != nil {
+		if err := json.NewDecoder(f).Decode(store); err != nil {
 			return err
 		}
 	}
