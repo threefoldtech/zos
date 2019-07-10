@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 
 	"github.com/cenkalti/backoff"
@@ -12,6 +13,13 @@ import (
 const seedPath = "/var/cache/seed.txt"
 
 func main() {
+	var (
+		tnodbURL string
+	)
+
+	flag.StringVar(&tnodbURL, "tnodb", "http://172.20.0.1:8080", "address of tenant network object database")
+	flag.Parse()
+
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	nodeID, err := loadIdentify()
@@ -25,7 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	store := identity.NewHTTPIDStore("http://172.20.0.1:8080")
+	store := identity.NewHTTPIDStore(tnodbURL)
 	f := func() error {
 		log.Info().Msg("start registration of the node")
 		if err := store.RegisterNode(nodeID, farmID); err != nil {

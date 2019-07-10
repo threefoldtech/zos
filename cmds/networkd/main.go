@@ -24,10 +24,17 @@ import (
 const redisSocket = "unix:///var/run/redis.sock"
 const module = "network"
 
-var root = flag.String("root", "/var/modules/network", "root path of the module")
-var broker = flag.String("broker", redisSocket, "connection string to broker")
-
 func main() {
+	var (
+		tnodbURL string
+		root     string
+		broker   string
+	)
+
+	flag.StringVar(&root, "root", "/var/modules/network", "root path of the module")
+	flag.StringVar(&broker, "broker", redisSocket, "connection string to broker")
+	flag.StringVar(&tnodbURL, "tnodb", "http://172.20.0.1:8080", "address of tenant network object database")
+
 	flag.Parse()
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
@@ -42,7 +49,7 @@ func main() {
 
 	time.Sleep(5 * time.Second)
 
-	db := tnodb.NewHTTPHTTPTNoDB("http://172.20.0.1:8080")
+	db := tnodb.NewHTTPHTTPTNoDB(tnodbURL)
 	f := func() error {
 		log.Info().Msg("try to publish interfaces to TNoDB")
 		return db.PublishInterfaces()
@@ -62,7 +69,7 @@ func main() {
 		return pollExitIface(db)
 	}(db)
 
-	startServer(*root, *broker, db)
+	startServer(root, broker, db)
 }
 
 func bootstrap() error {
