@@ -22,7 +22,7 @@ func main() {
 
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	nodeID, err := loadIdentify()
+	nodeID, err := loadIdentity()
 	if err != nil {
 		os.Exit(1)
 	}
@@ -51,28 +51,27 @@ func main() {
 	log.Info().Msg("node registered successfully")
 }
 
-func loadIdentify() (*identity.NodeID, error) {
+func loadIdentity() (identity.Identifier, error) {
 	if !exists(seedPath) {
 		log.Info().Msg("seed not found, generating new key pair")
-		keypair, err := identity.GenerateKeyPair()
+		nodeID, err := identity.GenerateKeyPair()
 		if err != nil {
 			log.Error().Err(err).Msg("fail to generate key pair for node identity")
 			return nil, err
 		}
 
-		if err := identity.SerializeSeed(keypair, seedPath); err != nil {
+		if err := identity.SerializeSeed(nodeID, seedPath); err != nil {
 			log.Error().Err(err).Msg("fail to save identity seed on disk")
 			return nil, err
 		}
 	}
 
-	keypair, err := identity.LoadSeed(seedPath)
+	nodeID, err := identity.LoadSeed(seedPath)
 	if err != nil {
 		log.Error().Err(err).Msg("fail to save identity seed on disk")
 		return nil, err
 	}
 
-	nodeID := identity.NewNodeID(keypair)
 	log.Info().
 		Str("identify", nodeID.Identity()).
 		Msg("node identity loaded")
