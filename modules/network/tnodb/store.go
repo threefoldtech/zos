@@ -193,7 +193,7 @@ func (s *httpTNoDB) SelectExitNode(node identity.Identifier) error {
 	return nil
 }
 
-func (s *httpTNoDB) ReadExitNode(node identity.Identifier) (*network.ExitIface, error) {
+func (s *httpTNoDB) ReadPubIface(node identity.Identifier) (*network.ExitIface, error) {
 
 	input := struct {
 		Master  string
@@ -208,6 +208,14 @@ func (s *httpTNoDB) ReadExitNode(node identity.Identifier) (*network.ExitIface, 
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, network.ErrNoPubIface
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("wrong response status: %v", resp.Status)
 	}
 
 	defer resp.Body.Close()

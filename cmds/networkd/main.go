@@ -16,7 +16,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules/network"
 	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
-	"github.com/threefoldtech/zosv2/modules/network/namespace"
 	"github.com/threefoldtech/zosv2/modules/network/tnodb"
 	"github.com/threefoldtech/zosv2/modules/zinit"
 )
@@ -64,10 +63,20 @@ func main() {
 		log.Error().Err(err).Msg("failed to publish interfaces to TNoDB")
 		return
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	go func(db network.TNoDB) error {
-		return pollExitIface(db)
-	}(db)
+	ch := watchPubIface(ctx, db)
+	go func(ctx context.Context, ch <-chan *network.ExitIface) {
+		for {
+			select {
+			case iface := <-ch:
+				_ = configuePubIface(iface)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}(ctx, ch)
 
 	startServer(root, broker, db)
 }
@@ -95,53 +104,6 @@ func bootstrap() error {
 	}
 
 	return z.Monitor("dhcp_zos")
-}
-
-func pollExitIface(db network.TNoDB) error {
-	currentVersion := -1
-
-	ticker := time.NewTicker(time.Minute * 10)
-	for range ticker.C {
-		log.Info().Msg("check if a exit iface if configured for us")
-		nodeID, err := identity.LocalNodeID()
-		if err != nil {
-			log.Error().Err(err).Msg("failed to get local node ID")
-			return err
-		}
-
-		exitIface, err := db.ReadExitNode(nodeID)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to read exit iface")
-			continue
-		}
-
-		if exitIface.Version <= currentVersion {
-			log.Info().
-				Int("current version", currentVersion).
-				Int("received version", exitIface.Version).
-				Msg("exit node config already applied")
-			continue
-		}
-
-		// TODO support change of exit iface config
-
-		if err := network.CreatePublicNS(exitIface); err != nil {
-			pubNs, err := namespace.GetByName(network.PublicNamespace)
-			if err != nil {
-				log.Error().Err(err).Msg("failed to find public namespace")
-				continue
-			}
-			if err = namespace.Delete(pubNs); err != nil {
-				log.Error().Err(err).Msg("failed to delete public namespace")
-				continue
-			}
-			log.Error().Err(err).Msg("failed to configure public namespace")
-			continue
-		}
-		break
-	}
-
-	return nil
 }
 
 func startServer(root, broker string, db network.TNoDB) error {

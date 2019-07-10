@@ -1,6 +1,7 @@
 package network
 
 import (
+	"errors"
 	"net"
 
 	"github.com/threefoldtech/zosv2/modules"
@@ -16,12 +17,16 @@ type TNoDB interface {
 	PublishInterfaces() error
 
 	ConfigurePublicIface(node identity.Identifier, ip *net.IPNet, gw net.IP, iface string) error
+	ReadPubIface(node identity.Identifier) (*ExitIface, error)
 
 	SelectExitNode(node identity.Identifier) error
-	ReadExitNode(node identity.Identifier) (*ExitIface, error)
 
 	CreateNetwork(farmID string) (*modules.Network, error)
 	GetNetwork(netID modules.NetID) (*modules.Network, error)
 
 	PublishWireguarKey(key string, nodeID string, netID modules.NetID) error
 }
+
+// ErrNoPubIface is the error returns by ReadPubIface when no public
+// interface is configured
+var ErrNoPubIface = errors.New("no public interface configured for this node")
