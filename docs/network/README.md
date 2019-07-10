@@ -1,6 +1,6 @@
 # Network
 
-- [How does a farmer configure a node as exit node](How-does-a-farmer-configure-a-node-as-exit-node)
+- [How does a farmer configure a node as exit node](#How-does-a-farmer-configure-a-node-as-exit-node)
 - [How to create a user private network](#How-to-create-a-user-private-network)
 
 ## How does a farmer configure a node as exit node
