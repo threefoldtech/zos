@@ -44,23 +44,34 @@ tffarmer give-alloc 2a02:2788:0000::/32 --seed myfarm.seed
 prefix registered successfully
 ```
 
-4. Configure your node to be an exit node
+4. Configure the public interface of the exit node if needed
 
 In this step the farmer will tell his node how it needs to connect to the public internet. This configuration depends on the farm network setup, this is why this is up to the farmer to provide the detail on how the node needs to configure itself.
 
-```bash
-tffarmer configure-public --ip 172.20.0.2/24 --gw 172.20.0.1 --iface eth1 --node kV3u7GJKWA7Js32LmNA5+G3A0WWnUG9h+5gnL6kr6lA=
-# exit node configured
-```
 In a first phase, we create the internet access in 2 ways:
-  - the node is fully public: then this previous step is not necessary 
-  - the node has a management interface and a nic for public
-    then `configure-public` is necessary, and the farmer has the public interface connected to a specific public segment with a router to the internet in front.
+
+- the node is fully public: you don't need to configure a public interface, you can skip this step
+- the node has a management interface and a nic for public
+    then `configure-public` is required, and the farmer has the public interface connected to a specific public segment with a router to the internet in front.
+
+```bash
+tffarmer configure-public --ip 172.20.0.2/24 --gw 172.20.0.1 --iface eth1 kV3u7GJKWA7Js32LmNA5+G3A0WWnUG9h+5gnL6kr6lA=
+#public interface configured on node kV3u7GJKWA7Js32LmNA5+G3A0WWnUG9h+5gnL6kr6lA=
+```
+
 
 We still need to figure out a way to get the routes properly installed, we'll do static on the toplevel router for now to do a demo.
 
 The node is now configured to be used as an exit node.
 
+5. Mark a node a being an exit node
+
+The farmer then needs to select which node he agrees to use as an exit node for the grid
+
+```bash
+tffarmer select-exit kV3u7GJKWA7Js32LmNA5+G3A0WWnUG9h+5gnL6kr6lA=
+#Node kV3u7GJKWA7Js32LmNA5+G3A0WWnUG9h+5gnL6kr6lA= marked as exit node
+```
 
 ## How to create a user private network
 

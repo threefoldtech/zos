@@ -126,7 +126,7 @@ func main() {
 			Name:      "configure-public",
 			Category:  "network",
 			Usage:     "configure the public interface of a node",
-			ArgsUsage: "farm_id",
+			ArgsUsage: "node ID",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "ip",
@@ -140,10 +140,6 @@ func main() {
 					Name:  "iface",
 					Usage: "name of the interface to use as public interface",
 				},
-				cli.StringFlag{
-					Name:  "node",
-					Usage: "node id to use as exit node",
-				},
 			},
 			Action: func(c *cli.Context) error {
 				ip, ipnet, err := net.ParseCIDR(c.String("ip"))
@@ -153,12 +149,27 @@ func main() {
 				ipnet.IP = ip
 				gw := net.ParseIP(c.String("gw"))
 				iface := c.String("iface")
-				node := c.String("node")
+				node := c.Args().First()
 
-				if err := db.ConfigureExitNode(strID(node), ipnet, gw, iface); err != nil {
+				if err := db.ConfigurePublicIface(strID(node), ipnet, gw, iface); err != nil {
 					return err
 				}
-				fmt.Printf("exit node configured\n")
+				fmt.Printf("public interface configured on node %s\n", node)
+				return nil
+			},
+		},
+		{
+			Name:      "select-exit",
+			Category:  "network",
+			Usage:     "mark a node as being an exit",
+			ArgsUsage: "node ID",
+			Action: func(c *cli.Context) error {
+				node := c.Args().First()
+
+				if err := db.SelectExitNode(strID(node)); err != nil {
+					return err
+				}
+				fmt.Printf("Node %s marked as exit node\n", node)
 				return nil
 			},
 		},

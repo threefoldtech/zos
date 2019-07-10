@@ -151,7 +151,7 @@ func (s *httpTNoDB) PublishInterfaces() error {
 	return nil
 }
 
-func (s *httpTNoDB) ConfigureExitNode(node identity.Identifier, ip *net.IPNet, gw net.IP, iface string) error {
+func (s *httpTNoDB) ConfigurePublicIface(node identity.Identifier, ip *net.IPNet, gw net.IP, iface string) error {
 	output := struct {
 		Iface string `json:"iface"`
 		IP    string `json:"ip"`
@@ -163,7 +163,7 @@ func (s *httpTNoDB) ConfigureExitNode(node identity.Identifier, ip *net.IPNet, g
 		GW:    gw.String(),
 	}
 
-	url := fmt.Sprintf("%s/nodes/%s/enable_exit", s.baseURL, node.Identity())
+	url := fmt.Sprintf("%s/nodes/%s/configure_public", s.baseURL, node.Identity())
 
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(output); err != nil {
@@ -171,6 +171,19 @@ func (s *httpTNoDB) ConfigureExitNode(node identity.Identifier, ip *net.IPNet, g
 	}
 
 	resp, err := http.Post(url, "application/json", buf)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("wrong response status received: %s", resp.Status)
+	}
+	return nil
+}
+
+func (s *httpTNoDB) SelectExitNode(node identity.Identifier) error {
+	url := fmt.Sprintf("%s/nodes/%s/select_exit", s.baseURL, node.Identity())
+
+	resp, err := http.Post(url, "application/json", nil)
 	if err != nil {
 		return err
 	}
