@@ -51,7 +51,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				seedPath := c.String("seed")
 
-				keyPair, err := generateKeyPair(seedPath)
+				farmID, err := generateKeyPair(seedPath)
 				if err != nil {
 					return err
 				}
@@ -59,13 +59,12 @@ func main() {
 				if name == "" {
 					return fmt.Errorf("A farm name needs to be specified")
 				}
-				farm := identity.NewFarm(name, keyPair)
-				if err := idStore.RegisterFarm(farm, name); err != nil {
+				if err := idStore.RegisterFarm(farmID, name); err != nil {
 					return err
 				}
 				fmt.Println("Farm registered successfully")
 				fmt.Printf("Name: %s\n", name)
-				fmt.Printf("Identity: %s\n", farm.Identity())
+				fmt.Printf("Identity: %s\n", farmID.Identity())
 				return nil
 			},
 		},
@@ -218,15 +217,15 @@ func loadFarmID(seedPath string) (identity.Identifier, error) {
 	}
 
 	log.Debug().Msgf("loading seed from %s", seedPath)
-	keypair, err := identity.LoadSeed(seedPath)
+	farmID, err := identity.LoadSeed(seedPath)
 	if err != nil {
 		return nil, err
 	}
-	farm := identity.NewFarm("", keypair)
-	return farm, nil
+
+	return farmID, nil
 }
 
-func generateKeyPair(seedPath string) (*identity.KeyPair, error) {
+func generateKeyPair(seedPath string) (identity.Identifier, error) {
 
 	if seedPath != "" {
 		log.Debug().Msgf("loading seed from %s", seedPath)
