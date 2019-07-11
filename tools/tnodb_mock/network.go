@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/network"
 )
 
 func registerIfaces(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +63,65 @@ func chooseExit(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found {
 		farm.ExitNodes = append(farm.ExitNodes, node.NodeID)
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func configurePublic(w http.ResponseWriter, r *http.Request) {
+	nodeID := mux.Vars(r)["node_id"]
+	node, ok := nodeStore[nodeID]
+	if !ok {
+		http.Error(w, fmt.Sprintf("node id %s not found", nodeID), http.StatusNotFound)
+		return
+	}
+
+	if _, ok = farmStore[node.FarmID]; !ok {
+		http.Error(w, fmt.Sprintf("farm id %s not found", node.FarmID), http.StatusNotFound)
+		return
+	}
+
+	i := struct {
+		Iface string `json:"iface,omitempty"`
+		IP    string `json:"ip,omitempty"`
+		GW    string `json:"gateway,omitempty"`
+		// Type todo allow to chose type of connection
+	}{}
+
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&i); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// TODO verify the iface sent by user actually exists
+	var exitIface *network.ExitIface
+	exitIface, ok = exitIfaces[nodeID]
+	if !ok {
+		exitIface = &network.ExitIface{}
+		exitIfaces[nodeID] = exitIface
+	}
+
+	exitIface.Version++
+	exitIface.Master = i.Iface
+	ip, ipnet, err := net.ParseCIDR(i.IP)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ipnet.IP = ip
+
+	if ip.To4() != nil {
+		exitIface.IPv4 = ipnet
+	} else if ip.To16() != nil {
+		exitIface.IPv6 = ipnet
+	}
+
+	gw := net.ParseIP(i.GW)
+	if gw.To4() != nil {
+		exitIface.GW4 = gw
+	} else if gw.To16() != nil {
+		exitIface.GW6 = gw
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -239,6 +299,7 @@ func createNetwork(w http.ResponseWriter, r *http.Request) {
 			exitResource,
 		},
 		PrefixZero: allocZero,
+		Exit:       exitPoint,
 	}
 
 	networkStore[string(network.NetID)] = &NetworkInfo{
