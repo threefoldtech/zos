@@ -51,8 +51,13 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return nil, err
 	}
-	log.Debug().Str("network-id", config.Network.NetwokID).Msg("deploying network")
-	network, err := networkProvision(ctx, modules.NetID(config.Network.NetwokID))
+
+	log.Debug().
+		Str("network-id", config.Network.NetwokID).
+		Str("config", fmt.Sprintf("%+v", config)).
+		Msg("deploying network")
+
+	ns, err := networkProvision(ctx, modules.NetID(config.Network.NetwokID))
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +99,7 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 			RootFS: mnt,
 			Env:    env,
 			Network: modules.NetworkInfo{
-				Namespace: networkGetNamespace(network),
+				Namespace: ns,
 			},
 			Mounts:      mounts,
 			Entrypoint:  config.Entrypoint,

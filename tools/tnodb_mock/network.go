@@ -211,7 +211,7 @@ func getNetwork(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(network)
+	json.NewEncoder(w).Encode(network.Network)
 }
 
 func createNetwork(w http.ResponseWriter, r *http.Request) {
