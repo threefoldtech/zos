@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
+	"github.com/threefoldtech/zosv2/modules/identity"
 	"github.com/threefoldtech/zosv2/modules/provision"
 )
 
@@ -27,6 +28,11 @@ func main() {
 
 	flag.Parse()
 
+	nodeID, err := identity.LocalNodeID()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to load node identity")
+	}
+
 	pipe, err := provision.FifoSource("/var/run/reservation.pipe")
 	if err != nil {
 		log.Fatal().Err(err).Msgf("failed to allocation reservation pipe")
@@ -36,7 +42,7 @@ func main() {
 	if len(resURL) != 0 {
 		source = provision.CompinedSource(
 			pipe,
-			provision.HTTPSource(resURL),
+			provision.HTTPSource(resURL, nodeID),
 		)
 	}
 

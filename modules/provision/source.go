@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/threefoldtech/zosv2/modules/identity"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -77,19 +79,23 @@ func (s *pipeSource) Reservations(ctx context.Context) <-chan Reservation {
 }
 
 type httpSource struct {
-	a string
+	a      string
+	nodeID string
 }
 
 // HTTPSource does a long poll on address to get new
 // reservations. the server should only return unique reservations
 // stall the connection as long as possible if no new reservations
 // are available.
-func HTTPSource(address string) ReservationSource {
-	return &httpSource{address}
+func HTTPSource(address string, nodeID identity.Identifier) ReservationSource {
+	return &httpSource{
+		a:      address,
+		nodeID: nodeID.Identity(),
+	}
 }
 
-func (s *httpSource) getReservation() (res Reservation, err error) {
-	response, err := http.Get(s.a)
+func (s *httpSource) getReservations() (res []Reservation, err error) {
+	response, err := http.Get(s.a + "/" + s.nodeID)
 	if err != nil {
 		return res, err
 	}
@@ -113,25 +119,25 @@ func (s *httpSource) getReservation() (res Reservation, err error) {
 }
 
 func (s *httpSource) Reservations(ctx context.Context) <-chan Reservation {
-	// request, err := http.NewRequest(http.MethodGet, s.a, nil)
-	// cl := http.Client{}
-	// cl.
 	ch := make(chan Reservation)
 	go func() {
 		defer close(ch)
 		for {
 			// backing off of 1 second
 			<-time.After(time.Second)
-			res, err := s.getReservation()
+			res, err := s.getReservations()
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get reservation")
 				continue
 			}
 
 			select {
-			case ch <- res:
 			case <-ctx.Done():
 				break
+			default:
+				for _, r := range res {
+					ch <- r
+				}
 			}
 		}
 
