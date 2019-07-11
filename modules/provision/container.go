@@ -16,7 +16,7 @@ import (
 
 // Network struct
 type Network struct {
-	NetwokID string
+	NetwokID string `json:"network_id"`
 }
 
 // Mount defines a container volume mounted inside the container
