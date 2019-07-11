@@ -24,7 +24,7 @@ func main() {
 	)
 
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.StringVar(&tnodbURL, "tnodb", "http://172.20.0.1:8080", "address of tenant network object database")
+	flag.StringVar(&tnodbURL, "tnodb", "https://tnodb.dev.grid.tf", "address of tenant network object database")
 	flag.StringVar(&resURL, "url", "", "reservation url to poll from")
 	flag.BoolVar(&debug, "debug", false, "enable debug logging")
 
