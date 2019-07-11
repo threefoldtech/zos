@@ -7,25 +7,42 @@ import (
 	"github.com/threefoldtech/zosv2/modules/stubs"
 
 	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/network/ip"
 )
 
-// VolumeProvision is entry point to provision a volume
+func networkProvision(ctx context.Context, netID modules.NetID) (network *modules.Network, err error) {
+	db := GetTnoDB(ctx)
+	network, err = db.GetNetwork(netID)
+	if err != nil {
+		return nil, err
+	}
+
+	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
+	_, err = mgr.GenerateWireguarKeyPair(network.NetID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := mgr.ApplyNetResource(*network); err != nil {
+		return nil, err
+	}
+
+	return nil, err
+}
+
+func networkGetNamespace(network *modules.Network) string {
+	nib := ip.NewNibble(network.PrefixZero, network.AllocationNR)
+	return nib.NetworkName()
+}
+
+// NetworkProvision is entry point to provision a network
 func NetworkProvision(ctx context.Context, reservation Reservation) (interface{}, error) {
 	var netID modules.NetID
 	if err := json.Unmarshal(reservation.Data, &netID); err != nil {
 		return nil, err
 	}
 
-	db := GetTnoDB(ctx)
-	no, err := db.GetNetwork(netID)
-	if err != nil {
-		return nil, err
-	}
-
-	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
-	if err := mgr.ApplyNetResource(*no); err != nil {
-		return nil, err
-	}
-
-	return nil, nil
+	_, err := networkProvision(ctx, netID)
+	return nil, err
 }

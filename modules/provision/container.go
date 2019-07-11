@@ -16,12 +16,12 @@ import (
 
 // Network struct
 type Network struct {
-	NetwokID string
+	NetwokID string `json:"network_id"`
 }
 
 // Mount defines a container volume mounted inside the container
 type Mount struct {
-	VolumeID   string `json:"volume-id"`
+	VolumeID   string `json:"volume_id"`
 	Mountpoint string `json:"mountpoint"`
 }
 
@@ -51,7 +51,13 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return nil, err
 	}
+	log.Debug().Str("network-id", config.Network.NetwokID).Msg("deploying network")
+	network, err := networkProvision(ctx, modules.NetID(config.Network.NetwokID))
+	if err != nil {
+		return nil, err
+	}
 
+	log.Debug().Str("flist", config.FList).Msg("mounting flist")
 	mnt, err := flistClient.Mount(config.FList, "")
 	if err != nil {
 		return nil, err
@@ -87,8 +93,9 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 			Name:   uuid.New().String(),
 			RootFS: mnt,
 			Env:    env,
-			// TODO:
-			//   Network: this requires network module
+			Network: modules.NetworkInfo{
+				Namespace: networkGetNamespace(network),
+			},
 			Mounts:      mounts,
 			Entrypoint:  config.Entrypoint,
 			Interactive: config.Interactive,

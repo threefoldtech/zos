@@ -25,6 +25,8 @@ func New(source ReservationSource) Engine {
 // reservations
 func (e *defaultEngine) Run(ctx context.Context) error {
 	for reservation := range e.source.Reservations(ctx) {
+		log.Info().Str("type", string(reservation.Type)).Msg("got reservation")
+
 		fn, ok := types[reservation.Type]
 		if !ok {
 			e.reply(reservation.ReplyTo, reservation.ID, nil, fmt.Errorf("unknown reservation type '%s'", reservation.Type))
