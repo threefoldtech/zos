@@ -34,6 +34,31 @@ func NewNetworker(nodeID identity.Identifier, tnodb TNoDB, storageDir string) mo
 
 var _ modules.Networker = (*networker)(nil)
 
+func validateNetwork(n *modules.Network) error {
+	if n.NetID == "" {
+		return fmt.Errorf("network ID cannot be empty")
+	}
+
+	if n.PrefixZero == nil {
+		return fmt.Errorf("PrefixZero cannot be empty")
+	}
+
+	if len(n.Resources) < 1 {
+		return fmt.Errorf("Network needs at least one network ressource")
+	}
+	// TODO validate each resource
+
+	if n.Exit == nil {
+		return fmt.Errorf("Exit point cannot be empty")
+	}
+
+	if n.AllocationNR < 0 {
+		return fmt.Errorf("AllocationNR cannot be negative")
+	}
+
+	return nil
+}
+
 // GetNetwork implements modules.Networker interface
 func (n *networker) GetNetwork(id modules.NetID) (*modules.Network, error) {
 	return n.tnodb.GetNetwork(id)
@@ -41,6 +66,12 @@ func (n *networker) GetNetwork(id modules.NetID) (*modules.Network, error) {
 
 // ApplyNetResource implements modules.Networker interface
 func (n *networker) ApplyNetResource(network *modules.Network) (err error) {
+
+	if err := validateNetwork(network); err != nil {
+		log.Error().Err(err).Msg("network object format invalid")
+		return err
+	}
+
 	log.Info().Msg("apply netresource")
 
 	path := filepath.Join(n.storageDir, string(network.NetID))
