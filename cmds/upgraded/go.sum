@@ -21,6 +21,7 @@ github.com/containernetworking/plugins v0.8.1/go.mod h1:dagHaAhNjXjT9QYOklkKJDGa
 github.com/coreos/go-iptables v0.4.1/go.mod h1:/mVI274lEDI2ns62jHCDnCyBF9Iwsmekav8Dbxlm1MU=
 github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/go-systemd v0.0.0-20190612170431-362f06ec6bc1/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
+github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/dave/jennifer v1.3.0/go.mod h1:fIb+770HOpJ2fmN9EPPKOqm1vMGhB+TwXKMZhrIygKg=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -113,6 +114,8 @@ github.com/threefoldtech/zbus v0.0.0-20190613083559-f8f4719d6595 h1:TaAtoAsEBh5J
 github.com/threefoldtech/zbus v0.0.0-20190613083559-f8f4719d6595/go.mod h1:IId8hP6MPwTavStNstJ5NnPJKGXzJPlTPqRhLs+7ADg=
 github.com/threefoldtech/zbus v0.0.0-20190711111853-91783e8e0ebb h1:XO+BUfsb7d88/ldUBf/KcSaSBgU5gcEGhmJv6PkiRJY=
 github.com/threefoldtech/zbus v0.0.0-20190711111853-91783e8e0ebb/go.mod h1:IId8hP6MPwTavStNstJ5NnPJKGXzJPlTPqRhLs+7ADg=
+github.com/threefoldtech/zbus v0.0.0-20190711124326-09379d5f12e0 h1:k+e+laNT3indP3ToSnw4yrD9d9nDTOjLKlc11QzspFo=
+github.com/threefoldtech/zbus v0.0.0-20190711124326-09379d5f12e0/go.mod h1:ZtiRpcqzEBJetVQDsEbw0p48h/AF3O1kf0tvd30I0BU=
 github.com/threefoldtech/zosv2/modules v0.0.0-20190614135932-35b94bfa4dbe h1:WjA6a7U0wRibw1NYa+l4MRmcGL2Yw4/rtSvUTrPFHuM=
 github.com/threefoldtech/zosv2/modules v0.0.0-20190614135932-35b94bfa4dbe/go.mod h1:wz/meDvAFUCqxE4Mqhd0UIL/pUKlnB94LLlBDQOOD1U=
 github.com/vishvananda/netlink v1.0.0 h1:bqNY2lgheFIu1meHUFSH3d7vG93AFyqg3oGbJCOJgSM=

@@ -18,7 +18,7 @@ require (
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/rs/zerolog v1.14.3
 	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/threefoldtech/zbus v0.0.0-20190711111853-91783e8e0ebb
+	github.com/threefoldtech/zbus v0.0.0-20190711124326-09379d5f12e0
 	github.com/threefoldtech/zosv2/modules v0.0.0-20190711080824-231c81c6ccb4
 	github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f // indirect
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect

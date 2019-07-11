@@ -131,6 +131,8 @@ github.com/threefoldtech/zbus v0.0.0-20190613083559-f8f4719d6595 h1:TaAtoAsEBh5J
 github.com/threefoldtech/zbus v0.0.0-20190613083559-f8f4719d6595/go.mod h1:IId8hP6MPwTavStNstJ5NnPJKGXzJPlTPqRhLs+7ADg=
 github.com/threefoldtech/zbus v0.0.0-20190711111853-91783e8e0ebb h1:XO+BUfsb7d88/ldUBf/KcSaSBgU5gcEGhmJv6PkiRJY=
 github.com/threefoldtech/zbus v0.0.0-20190711111853-91783e8e0ebb/go.mod h1:IId8hP6MPwTavStNstJ5NnPJKGXzJPlTPqRhLs+7ADg=
+github.com/threefoldtech/zbus v0.0.0-20190711124326-09379d5f12e0 h1:k+e+laNT3indP3ToSnw4yrD9d9nDTOjLKlc11QzspFo=
+github.com/threefoldtech/zbus v0.0.0-20190711124326-09379d5f12e0/go.mod h1:ZtiRpcqzEBJetVQDsEbw0p48h/AF3O1kf0tvd30I0BU=
 github.com/vishvananda/netlink v1.0.0 h1:bqNY2lgheFIu1meHUFSH3d7vG93AFyqg3oGbJCOJgSM=
 github.com/vishvananda/netlink v1.0.0/go.mod h1:+SR5DhBJrl6ZM7CoCKvpw5BKroDKQ+PJqOg65H/2ktk=
 github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc h1:R83G5ikgLMxrBvLh22JhdfI8K6YXEPHx5P03Uu3DRs4=
