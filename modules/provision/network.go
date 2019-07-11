@@ -14,15 +14,19 @@ import (
 )
 
 func networkProvision(ctx context.Context, netID modules.NetID) (namespace string, err error) {
-	db := GetTnoDB(ctx)
-	network, err := db.GetNetwork(netID)
+
+	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
+	wgK, err := mgr.GenerateWireguarKeyPair(netID)
 	if err != nil {
 		return "", err
 	}
 
-	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
-	_, err = mgr.GenerateWireguarKeyPair(network.NetID)
+	if err := mgr.PublishWGPubKey(wgK, netID); err != nil {
+		return "", err
+	}
 
+	db := GetTnoDB(ctx)
+	network, err := db.GetNetwork(netID)
 	if err != nil {
 		return "", err
 	}
