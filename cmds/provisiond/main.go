@@ -18,17 +18,14 @@ func main() {
 	var (
 		msgBrokerCon string
 		resURL       string
+		tnodbURL     string
 	)
 
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
+	flag.StringVar(&tnodbURL, "tnodb", "http://172.20.0.1:8080", "address of tenant network object database")
 	flag.StringVar(&resURL, "url", "", "reservation url to poll from")
 
 	flag.Parse()
-
-	client, err := zbus.NewRedisClient(msgBrokerCon)
-	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
-	}
 
 	pipe, err := provision.FifoSource("/var/run/reservation.pipe")
 	if err != nil {
@@ -43,13 +40,23 @@ func main() {
 		)
 	}
 
-	engine := provision.New(client, source)
+	engine := provision.New(source)
+
+	// create context and add middlewares
+	ctx := context.Background()
+	client, err := zbus.NewRedisClient(msgBrokerCon)
+	if err != nil {
+		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
+	}
+
+	ctx = provision.WithZBus(ctx, client)
+	ctx = provision.WithTnoDB(ctx, tnodbURL)
 
 	log.Info().
 		Str("broker", msgBrokerCon).
 		Msg("starting provision module")
 
-	if err := engine.Run(context.Background()); err != nil {
+	if err := engine.Run(ctx); err != nil {
 		log.Error().Err(err).Msg("unexpected error")
 	}
 }

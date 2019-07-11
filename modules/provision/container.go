@@ -1,6 +1,7 @@
 package provision
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,8 +12,6 @@ import (
 
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/stubs"
-
-	"github.com/threefoldtech/zbus"
 )
 
 // Network struct
@@ -43,7 +42,8 @@ type Container struct {
 }
 
 // ContainerProvision is entry point to container reservation
-func ContainerProvision(client zbus.Client, reservation Reservation) (interface{}, error) {
+func ContainerProvision(ctx context.Context, reservation Reservation) (interface{}, error) {
+	client := GetZBus(ctx)
 	containerClient := stubs.NewContainerModuleStub(client)
 	flistClient := stubs.NewFlisterStub(client)
 

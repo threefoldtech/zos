@@ -1,9 +1,11 @@
 package provision
 
 import (
+	"context"
 	"encoding/json"
 
-	"github.com/threefoldtech/zbus"
+	"github.com/threefoldtech/zosv2/modules"
+
 	"github.com/threefoldtech/zosv2/modules/stubs"
 )
 
@@ -26,7 +28,8 @@ type Volume struct {
 }
 
 // VolumeProvision is entry point to provision a volume
-func VolumeProvision(client zbus.Client, reservation Reservation) (interface{}, error) {
+func VolumeProvision(ctx context.Context, reservation Reservation) (interface{}, error) {
+	client := GetZBus(ctx)
 	var config Volume
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return nil, err
@@ -34,5 +37,5 @@ func VolumeProvision(client zbus.Client, reservation Reservation) (interface{}, 
 
 	storageClient := stubs.NewStorageModuleStub(client)
 
-	return storageClient.CreateFilesystem(config.Size)
+	return storageClient.CreateFilesystem(config.Size, modules.DeviceType(config.Type))
 }

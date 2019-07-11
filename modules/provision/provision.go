@@ -10,8 +10,6 @@ package provision
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/threefoldtech/zbus"
 )
 
 // ReservationType type
@@ -22,6 +20,8 @@ const (
 	ContainerReservation ReservationType = "container"
 	// VolumeReservation type
 	VolumeReservation ReservationType = "volume"
+	// NetworkReservation type
+	NetworkReservation ReservationType = "network"
 )
 
 // ReplyTo defines how report the result of the provisioning operation
@@ -62,7 +62,7 @@ type Engine interface {
 	Run(ctx context.Context) error
 }
 
-type provisioner func(client zbus.Client, reservation Reservation) (interface{}, error)
+type provisioner func(ctx context.Context, reservation Reservation) (interface{}, error)
 
 var (
 	// types defines the entry point for the different
@@ -71,5 +71,6 @@ var (
 	types = map[ReservationType]provisioner{
 		ContainerReservation: ContainerProvision,
 		VolumeReservation:    VolumeProvision,
+		NetworkReservation:   NetworkProvision,
 	}
 )

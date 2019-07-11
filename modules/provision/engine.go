@@ -5,12 +5,9 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-
-	"github.com/threefoldtech/zbus"
 )
 
 type defaultEngine struct {
-	client zbus.Client
 	source ReservationSource
 }
 
@@ -20,8 +17,8 @@ type defaultEngine struct {
 // the default implementation is a single threaded worker. so it process
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
-func New(client zbus.Client, source ReservationSource) Engine {
-	return &defaultEngine{client, source}
+func New(source ReservationSource) Engine {
+	return &defaultEngine{source}
 }
 
 // Run starts processing reservation resource. Then try to allocate
@@ -34,7 +31,7 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 			continue
 		}
 
-		result, err := fn(e.client, reservation)
+		result, err := fn(ctx, reservation)
 		e.reply(reservation.ReplyTo, reservation.ID, result, err)
 	}
 
