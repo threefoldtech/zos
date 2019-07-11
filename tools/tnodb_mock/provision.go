@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -53,30 +52,19 @@ func getReservations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	ch := make(chan []*provision.Reservation)
-
 	// start long polling
-	go func(ctx context.Context, ch chan<- []*provision.Reservation) {
-		for {
-			output := getRes(nodeID)
-			if len(output) > 0 {
-				ch <- output
-				return
-			}
-
-			select {
-			case <-ctx.Done():
-				ch <- []*provision.Reservation{}
-				return
-			default:
-				time.Sleep(time.Second)
-			}
+	timeout := time.Now().Add(time.Second * 10)
+	output := []*provision.Reservation{}
+	for {
+		output = getRes(nodeID)
+		if len(output) > 0 {
+			break
 		}
-	}(ctx, ch)
 
-	output := <-ch
+		if time.Now().After(timeout) {
+			break
+		}
+	}
 
 	w.Header().Add("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
