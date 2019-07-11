@@ -64,6 +64,7 @@ func getReservations(w http.ResponseWriter, r *http.Request) {
 		if time.Now().After(timeout) {
 			break
 		}
+		time.Sleep(time.Second)
 	}
 
 	w.Header().Add("content-type", "application/json")
