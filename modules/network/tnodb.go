@@ -17,7 +17,7 @@ type TNoDB interface {
 	PublishInterfaces() error
 
 	ConfigurePublicIface(node identity.Identifier, ip *net.IPNet, gw net.IP, iface string) error
-	ReadPubIface(node identity.Identifier) (*ExitIface, error)
+	ReadPubIface(node identity.Identifier) (*PubIface, error)
 
 	SelectExitNode(node identity.Identifier) error
 

@@ -193,7 +193,7 @@ func (s *httpTNoDB) SelectExitNode(node identity.Identifier) error {
 	return nil
 }
 
-func (s *httpTNoDB) ReadPubIface(node identity.Identifier) (*network.ExitIface, error) {
+func (s *httpTNoDB) ReadPubIface(node identity.Identifier) (*network.PubIface, error) {
 
 	input := struct {
 		Master  string
@@ -223,7 +223,7 @@ func (s *httpTNoDB) ReadPubIface(node identity.Identifier) (*network.ExitIface, 
 		return nil, err
 	}
 
-	exitIface := &network.ExitIface{}
+	exitIface := &network.PubIface{}
 	exitIface.Version = input.Version
 	exitIface.Master = input.Master
 	exitIface.Type = network.MacVlanIface

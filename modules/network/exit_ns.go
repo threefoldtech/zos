@@ -42,9 +42,9 @@ const (
 	MacVlanIface IfaceType = "macvlan"
 )
 
-// ExitIface is the configuration of the interface
+// PubIface is the configuration of the interface
 // that is connected to the public internet
-type ExitIface struct {
+type PubIface struct {
 	Master string
 	// Type define if we need to use
 	// the Vlan field or the MacVlan
@@ -62,7 +62,7 @@ type ExitIface struct {
 }
 
 // CreatePublicNS creates a public namespace in a node
-func CreatePublicNS(iface *ExitIface) error {
+func CreatePublicNS(iface *PubIface) error {
 	// create net ns
 	// configure the public interface inside the namespace
 
