@@ -70,13 +70,12 @@ func (n *networker) GetNetwork(id modules.NetID) (net modules.Network, err error
 }
 
 // ApplyNetResource implements modules.Networker interface
-func (n *networker) ApplyNetResource(network *modules.Network) (err error) {
+func (n *networker) ApplyNetResource(network modules.Network) (err error) {
 
-	if err := validateNetwork(network); err != nil {
+	if err := validateNetwork(&network); err != nil {
 		log.Error().Err(err).Msg("network object format invalid")
 		return err
 	}
-
 
 	log.Info().Msg("apply netresource")
 
