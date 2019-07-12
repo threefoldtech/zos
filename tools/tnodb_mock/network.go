@@ -95,10 +95,10 @@ func configurePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO verify the iface sent by user actually exists
-	var exitIface *network.ExitIface
+	var exitIface *network.PubIface
 	exitIface, ok = exitIfaces[nodeID]
 	if !ok {
-		exitIface = &network.ExitIface{}
+		exitIface = &network.PubIface{}
 		exitIfaces[nodeID] = exitIface
 	}
 

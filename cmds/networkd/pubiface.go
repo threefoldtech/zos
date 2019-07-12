@@ -10,14 +10,14 @@ import (
 	"github.com/threefoldtech/zosv2/modules/network/namespace"
 )
 
-func watchPubIface(ctx context.Context, db network.TNoDB) <-chan *network.ExitIface {
+func watchPubIface(ctx context.Context, db network.TNoDB) <-chan *network.PubIface {
 	var (
 		currentVersion = -1
 		err            error
 		nodeID         identity.Identifier
 	)
 
-	ch := make(chan *network.ExitIface)
+	ch := make(chan *network.PubIface)
 	go func() {
 		defer func() {
 			close(ch)
@@ -64,7 +64,7 @@ func watchPubIface(ctx context.Context, db network.TNoDB) <-chan *network.ExitIf
 	return ch
 }
 
-func configuePubIface(iface *network.ExitIface) error {
+func configuePubIface(iface *network.PubIface) error {
 	cleanup := func() error {
 		pubNs, err := namespace.GetByName(network.PublicNamespace)
 		if err != nil {
