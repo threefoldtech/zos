@@ -54,7 +54,7 @@ func allocate(allocation *Allocation) (*net.IPNet, error) {
 
 	// random from 1 to subnetCount-1
 	// we never hand out the network 0 cause we keep it for the routing segment of the farm
-	nth := rand.Int63n(int64(subnetCount)-1) + 1
+	nth := rand.Int63n(int64(subnetCount)-16) + 16
 	for {
 		if !isIn(nth, allocation.SubNetUsed) {
 			allocation.SubNetUsed = append(allocation.SubNetUsed, uint64(nth))
