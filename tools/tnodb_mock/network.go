@@ -300,6 +300,7 @@ func createNetwork(w http.ResponseWriter, r *http.Request) {
 		},
 		PrefixZero: allocZero,
 		Exit:       exitPoint,
+		Version:    0,
 	}
 
 	networkStore[string(network.NetID)] = &NetworkInfo{
@@ -358,6 +359,7 @@ func publishWGKey(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	ni.Network.Version++
 	networkStore[string(ni.Network.NetID)] = ni
 
 	w.WriteHeader(http.StatusCreated)
