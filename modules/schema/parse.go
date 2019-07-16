@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 var (
 	directiveRe = regexp.MustCompile(`@(\w+)\s*=\s*([^\#]+)`)
 	propertyRe  = regexp.MustCompile(`(\w+)(\*)?\s*=\s*([^\#]+)`)
-	typeRe      = regexp.MustCompile(`([^\(]*)\(([^\)]+)\)`)
+	typeRe      = regexp.MustCompile(`([^\(]*)\(([^\)]+)\)\s*(?:!(.+))?`)
 )
 
 // Schema is a container for all objects defined in the source
@@ -101,9 +102,9 @@ func directive(line string) (dir Directive, err error) {
 
 // Property defines a schema property
 type Property struct {
-	Name     string
-	Indexed  bool
-	TypeText string
+	Name    string
+	Indexed bool
+	Type    Type
 }
 
 func property(line string) (property Property, err error) {
@@ -114,29 +115,161 @@ func property(line string) (property Property, err error) {
 
 	property.Name = m[1]
 	property.Indexed = m[2] == "*"
-	property.TypeText = strings.TrimSpace(m[3])
+	typ, err := typeDef(strings.TrimSpace(m[3]))
+	if err != nil {
+		return property, nil
+	}
+	property.Type = *typ
 
 	return
 }
 
+type Kind int
+
+const (
+	UnknownKind Kind = iota
+	IntegerKind
+	FloatKind
+	BoolKind
+	StringKind
+	MobileKind
+	EmailKind
+	IpPortKind
+	IpAddressKind
+	IpRangeKind
+	DateKind
+	DateTimeKind
+	NumericKind
+	GuidKind
+	DictKind
+	ListKind
+	ObjectKind
+	YamlKind
+	MultilineKind
+	HashKind
+	BytesKind
+	PercentKind
+	URLKind
+)
+
+var (
+	symbols = map[string]Kind{
+		// short symbols, they must be upper case
+		"S": StringKind,
+		"I": IntegerKind,
+		"F": FloatKind,
+		"B": BoolKind,
+		"D": DateKind,
+		"T": DateTimeKind,
+		"N": NumericKind,
+		"L": ListKind,
+		"O": ObjectKind,
+		"P": PercentKind,
+		"U": URLKind,
+		"H": HashKind,
+
+		// long symbols, they must be lower case
+		"str":       StringKind,
+		"string":    StringKind,
+		"int":       IntegerKind,
+		"integer":   IntegerKind,
+		"float":     FloatKind,
+		"bool":      BoolKind,
+		"mobile":    MobileKind,
+		"email":     EmailKind,
+		"ipport":    IpPortKind,
+		"ipaddr":    IpAddressKind,
+		"iprange":   IpRangeKind,
+		"date":      DateKind,
+		"time":      DateTimeKind,
+		"numeric":   NumericKind,
+		"guid":      GuidKind,
+		"dict":      DictKind,
+		"yaml":      YamlKind,
+		"multiline": MultilineKind,
+		"hash":      HashKind,
+		"bin":       BytesKind,
+		"percent":   PercentKind,
+		"url":       URLKind,
+		"object":    ObjectKind,
+	}
+)
+
 // Type holds type information for a property
 type Type struct {
-	Default string
-	Type    string
+	Kind      Kind
+	Default   string
+	Reference string
+	Element   *Type
 }
 
-func typeDef(def string) (t Type, err error) {
+func tokenSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if len(data) == 0 && atEOF {
+		return 0, nil, nil
+	}
+
+	if unicode.IsUpper(rune(data[0])) {
+		return 1, data[0:1], nil
+	}
+
+	var i int
+	for i = 0; i < len(data) && unicode.IsLower(rune(data[i])); i++ {
+
+	}
+
+	if i < len(data) {
+		// we hit an upper case char
+		return i, data[0:i], nil
+	}
+
+	// we didn't hit eof yet. it means we can still continue
+	// scanning and fine more lower case letters
+	if !atEOF {
+		return 0, nil, nil
+	}
+
+	// otherwise we return the whole thing
+	return len(data), data, nil
+}
+
+func typeDef(def string) (*Type, error) {
 	// typeDef parses a type text and create a solid type definition
 	// current default values is ignored!
 	// <default> (Type)
 
 	m := typeRe.FindStringSubmatch(def)
 	if m == nil {
-		return t, fmt.Errorf("invalid type definition")
+		return nil, fmt.Errorf("invalid type definition")
 	}
 
-	t.Default = strings.TrimSpace(m[1])
-	t.Type = m[2]
+	var root Type
+	root.Default = strings.TrimSpace(m[1])
+	typeStr := m[2]
+	reference := strings.TrimSpace(m[3])
 
-	return t, nil
+	scanner := bufio.NewScanner(strings.NewReader(typeStr))
+	scanner.Split(tokenSplit)
+
+	current := &root
+
+	for scanner.Scan() {
+		if current.Kind != UnknownKind {
+			current.Element = new(Type)
+			current = current.Element
+		}
+
+		symbol := scanner.Text()
+		kind, ok := symbols[symbol]
+		if !ok {
+			return nil, fmt.Errorf("unknown kind: '%s'", symbol)
+		}
+
+		current.Kind = kind
+		if current.Kind == ObjectKind {
+			current.Reference = reference
+		}
+
+	}
+
+	return &root, nil
 }
