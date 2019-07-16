@@ -141,3 +141,55 @@ func TestTokenScan(t *testing.T) {
 		})
 	}
 }
+
+func TestSimpleNew(t *testing.T) {
+	input := `
+# this is a comment
+
+@url =  jumpscale.digitalme.package
+name = "UNKNOWN" (S)    #official name of the package, there can be no overlap (can be dot notation)
+enable = true (B)
+args = (LO) !jumpscale.digitalme.package.arg
+loaders= (LO) !jumpscale.digitalme.package.loader
+	`
+
+	schema, err := New(strings.NewReader(input))
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Len(t, schema, 1); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, &Object{
+		URL: "jumpscale.digitalme.package",
+		Properties: []Property{
+			Property{Name: "name", Type: Type{
+				Default: `"UNKNOWN"`,
+				Kind:    StringKind,
+			}},
+			Property{Name: "enable", Type: Type{
+				Default: `true`,
+				Kind:    BoolKind,
+			}},
+			Property{Name: "args", Type: Type{
+				Kind: ListKind,
+				Element: &Type{
+					Kind:      ObjectKind,
+					Reference: "jumpscale.digitalme.package.arg",
+				},
+			}},
+			Property{Name: "loaders", Type: Type{
+				Kind: ListKind,
+				Element: &Type{
+					Kind:      ObjectKind,
+					Reference: "jumpscale.digitalme.package.loader",
+				},
+			}},
+		},
+	}, schema[0]); !ok {
+		t.Error()
+	}
+}

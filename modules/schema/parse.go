@@ -21,12 +21,11 @@ var (
 )
 
 // Schema is a container for all objects defined in the source
-type Schema struct {
-	Objects []*Object
-}
+type Schema []*Object
 
 // Object defines a schema object
 type Object struct {
+	URL        string
 	Directives []Directive
 	Properties []Property
 }
@@ -57,7 +56,12 @@ func New(r io.Reader) (schema Schema, err error) {
 
 			if dir.Key == URL {
 				//push current
-				current = new(Object)
+				if current != nil {
+					schema = append(schema, current)
+				}
+				current = &Object{
+					URL: dir.Value,
+				}
 			} else if current == nil {
 				//directive out of scoop!
 				return schema, fmt.Errorf("unexpected directive [line %d]: %s", nr, dir)
@@ -76,6 +80,10 @@ func New(r io.Reader) (schema Schema, err error) {
 
 			current.Properties = append(current.Properties, prop)
 		}
+	}
+
+	if current != nil {
+		schema = append(schema, current)
 	}
 
 	return
