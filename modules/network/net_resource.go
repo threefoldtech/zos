@@ -319,20 +319,26 @@ func configWG(localResource *modules.NetResource, network *modules.Network, wgPe
 		if err != nil {
 			return err
 		}
+
 		addr := fmt.Sprintf("10.255.%d.%d/16", a, b)
 		if err := wg.SetAddr(addr); err != nil {
 			return errors.Wrapf(err, "fail to set address %s on wireguard interface %s",
 				addr, localNibble.WiregardName())
 		}
 
+		localPeer, err := getPeer(localResource.Prefix.String(), localResource.Peers)
+		if err != nil {
+			return fmt.Errorf("not peer found for local network resource: %s", err)
+		}
+
 		log.Info().Msg("configure wireguard interface")
-		if err = wg.Configure(wgKey.String(), wgPeers); err != nil {
+		if err = wg.Configure(wgKey.String(), int(localPeer.Connection.Port), wgPeers); err != nil {
 			return errors.Wrap(err, "fail to configure wireguard interface")
 		}
 
 		for _, route := range routes {
 			route.LinkIndex = wg.Attrs().Index
-			if err := netlink.RouteAdd(route); err != nil {
+			if err := netlink.RouteAdd(route); err != nil && err != syscall.EEXIST {
 				log.Error().
 					Err(err).
 					Str("route", route.String()).
