@@ -3,10 +3,12 @@ module github.com/threefoldtech/zosv2/cmds/networkd
 go 1.12
 
 require (
+	github.com/NebulousLabs/entropy-mnemonics v0.0.0-20181203154559-bc7e13c5ccd8 // indirect
 	github.com/cenkalti/backoff v2.1.1+incompatible
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/kr/pty v1.1.8 // indirect
+	github.com/pkg/errors v0.8.1
 	github.com/rs/zerolog v1.14.3
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/threefoldtech/zbus v0.0.0-20190711124326-09379d5f12e0
