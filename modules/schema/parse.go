@@ -17,7 +17,7 @@ const (
 var (
 	directiveRe = regexp.MustCompile(`@(\w+)\s*=\s*([^\#]+)`)
 	propertyRe  = regexp.MustCompile(`(\w+)(\*)?\s*=\s*([^\#]+)`)
-	typeRe      = regexp.MustCompile(`([^\(]*)\(([^\)]+)\)\s*(?:!(.+))?`)
+	typeRe      = regexp.MustCompile(`^([^\(]*)\(([^\)]+)\)\s*(?:!(.+))?$`)
 )
 
 // Schema is a container for all objects defined in the source
@@ -132,6 +132,7 @@ func property(line string) (property Property, err error) {
 	return
 }
 
+// Kind defines the kind of a type
 type Kind int
 
 const (

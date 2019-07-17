@@ -53,7 +53,6 @@ func TestProperty(t *testing.T) {
 }
 
 func TestTypeDef(t *testing.T) {
-
 	cases := []struct {
 		Input  string
 		Output *Type
@@ -110,6 +109,17 @@ func TestTypeDef(t *testing.T) {
 		})
 	}
 
+	failures := []string{
+		"(i)", "(Iunknown)", `"default" (S) garbage`,
+	}
+
+	for _, c := range failures {
+		_, err := typeDef(c)
+
+		if ok := assert.Error(t, err); !ok {
+			t.Error()
+		}
+	}
 }
 
 func TestTokenScan(t *testing.T) {
@@ -140,6 +150,7 @@ func TestTokenScan(t *testing.T) {
 			}
 		})
 	}
+
 }
 
 func TestSimpleNew(t *testing.T) {
