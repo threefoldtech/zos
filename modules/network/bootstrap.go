@@ -10,9 +10,9 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-const (
-	defaultBridge = "zos"
-)
+// DefaultBridge is the name of the default bridge created
+// by the bootstrap of networkd
+const DefaultBridge = "zos"
 
 // Bootstrap creates the default bridge of 0-OS
 // it then walk over all plugged network interfaces and attaches them to the bridge
@@ -21,9 +21,9 @@ const (
 func Bootstrap() error {
 
 	log.Info().Msg("Create default bridge")
-	br, err := bridge.New(defaultBridge)
+	br, err := bridge.New(DefaultBridge)
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to create bridge %s", defaultBridge)
+		log.Error().Err(err).Msgf("failed to create bridge %s", DefaultBridge)
 		return err
 	}
 
@@ -96,10 +96,4 @@ func Bootstrap() error {
 
 	log.Info().Str("device", defaultGW.Name).Msg("default gateway found")
 	return nil
-}
-
-// DefaultBridgeName return the name of the default bridge
-// created by the network bootstrap
-func DefaultBridgeName() string {
-	return defaultBridge
 }
