@@ -27,6 +27,10 @@ func main() {
 			Name:  "debug, d",
 			Usage: "enable debug logging",
 		},
+		cli.StringFlag{
+			Name:  "tnodb, u",
+			Usage: "URL of the TNODB",
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		debug := c.Bool("debug")
@@ -34,6 +38,11 @@ func main() {
 			zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		}
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+		url := c.String("tnodb")
+		idStore = identity.NewHTTPIDStore(url)
+		db = tnodb.NewHTTPHTTPTNoDB(url)
+
 		return nil
 	}
 	app.Commands = []cli.Command{
