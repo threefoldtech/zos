@@ -26,7 +26,7 @@ type networker struct {
 }
 
 // NewNetworker create a new modules.Networker that can be used over zbus
-func NewNetworker(nodeID identity.Identifier, tnodb TNoDB, storageDir string) *networker {
+func NewNetworker(nodeID identity.Identifier, tnodb TNoDB, storageDir string) modules.Networker {
 	nw := &networker{
 		nodeID:     nodeID,
 		storageDir: storageDir,
