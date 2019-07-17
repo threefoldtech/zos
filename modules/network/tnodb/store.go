@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -46,6 +47,7 @@ func (s *httpTNoDB) RegisterAllocation(farm identity.Identifier, allocation *net
 		return err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusCreated {
 		b, err := httputil.DumpResponse(resp, true)
 		if err != nil {
@@ -65,6 +67,7 @@ func (s *httpTNoDB) RequestAllocation(farm identity.Identifier) (*net.IPNet, err
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		b, err := httputil.DumpResponse(resp, true)
 		if err != nil {
@@ -225,7 +228,6 @@ func (s *httpTNoDB) ReadPubIface(node identity.Identifier) (*network.PubIface, e
 		return nil, fmt.Errorf("wrong response status: %v", resp.Status)
 	}
 
-	defer resp.Body.Close()
 	if err := json.NewDecoder(resp.Body).Decode(&input); err != nil {
 		return nil, err
 	}
@@ -336,9 +338,44 @@ func (s *httpTNoDB) CreateNetwork(farmID string) (*modules.Network, error) {
 
 	return network, nil
 }
+func (s *httpTNoDB) JoinNetwork(nodeID identity.Identifier, id modules.NetID, WGPort uint16, WGPubKey string) (*modules.Network, error) {
+
+	req := struct {
+		WGPort   uint16 `json:"wg_port"`
+		WGPubKey string `json:"wg_public_key"`
+		NodeID   string `json:"node_id"`
+	}{
+		WGPort:   WGPort,
+		WGPubKey: WGPubKey,
+		NodeID:   nodeID.Identity(),
+	}
+
+	buf := &bytes.Buffer{}
+	if err := json.NewEncoder(buf).Encode(req); err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s/networks/%s", s.baseURL, id)
+	resp, err := http.Post(url, "application/json", buf)
+	if err != nil {
+		return nil, err
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("wrong response status received: %s %s", resp.Status, string(body))
+	}
+
+	b, err := httputil.DumpResponse(resp, true)
+	if err != nil {
+		panic(err)
+	}
+	log.Debug().Msgf("%s", string(b))
 
 	network := &modules.Network{}
 	if err := json.NewDecoder(resp.Body).Decode(network); err != nil {
@@ -346,7 +383,25 @@ func (s *httpTNoDB) CreateNetwork(farmID string) (*modules.Network, error) {
 		return nil, err
 	}
 
+	log.Debug().Msgf("tnodb client join network %+v", network)
+
 	return network, nil
+}
+
+func (s *httpTNoDB) GetNetworksVersion(nodeID identity.Identifier) (map[modules.NetID]uint32, error) {
+	url := fmt.Sprintf("%s/networks/%s/versions", s.baseURL, nodeID.Identity())
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	versions := make(map[modules.NetID]uint32)
+	if err := json.NewDecoder(resp.Body).Decode(&versions); err != nil {
+		return nil, err
+	}
+
+	return versions, nil
 }
 
 func linkAddrs(l netlink.Link) ([]string, error) {
