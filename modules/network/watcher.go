@@ -11,22 +11,25 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 )
 
-// watcher is an object that is responsible to
+// Watcher is an object that is responsible to
 // watch the tnodb for update networks object
-type watcher struct {
+type Watcher struct {
 	nodeID identity.Identifier
 	db     TNoDB
 }
 
 // NewWatcher creates a new watcher for a specific node
-func NewWatcher(nodeID identity.Identifier, db TNoDB) *watcher {
-	return &watcher{
+func NewWatcher(nodeID identity.Identifier, db TNoDB) *Watcher {
+	return &Watcher{
 		nodeID: nodeID,
 		db:     db,
 	}
 }
 
-func (w *watcher) Watch(ctx context.Context) <-chan modules.NetID {
+// Watch starts a gorountine that will poll the tnodb for new version
+// of a network object
+// it returns a channel of network ID that have a new version
+func (w *Watcher) Watch(ctx context.Context) <-chan modules.NetID {
 	versions := make(map[modules.NetID]uint32)
 
 	ch := make(chan modules.NetID)
