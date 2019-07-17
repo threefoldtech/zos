@@ -209,7 +209,7 @@ func genWireguardPeers(localResource *modules.NetResource, network *modules.Netw
 			PublicKey: peer.Connection.Key,
 			AllowedIPs: []string{
 				fmt.Sprintf("fe80::%s/128", nibble.Hex()),
-				fmt.Sprintf("172.16.%d.%d/32", a, b),
+				fmt.Sprintf("10.255.%d.%d/32", a, b),
 				peer.Prefix.String(),
 			},
 		}
@@ -281,7 +281,7 @@ func genWireguardExitPeers(localResource *modules.NetResource, network *modules.
 			IP:   net.ParseIP(fmt.Sprintf("10.%d.%d.0", a, b)),
 			Mask: net.CIDRMask(24, 32),
 		},
-		Gw: net.ParseIP(fmt.Sprintf("172.16.%d.%d", a, b)),
+		Gw: net.ParseIP(fmt.Sprintf("10.255.%d.%d", a, b)),
 	})
 
 	// add default ipv4 route to the exit node
@@ -290,7 +290,7 @@ func genWireguardExitPeers(localResource *modules.NetResource, network *modules.
 			IP:   net.ParseIP("0.0.0.0"),
 			Mask: net.CIDRMask(0, 32),
 		},
-		Gw: net.ParseIP(fmt.Sprintf("172.16.%d.%d", a, b)),
+		Gw: net.ParseIP(fmt.Sprintf("10.255.%d.%d", a, b)),
 	})
 
 	return peers, routes, nil
@@ -319,7 +319,7 @@ func configWG(localResource *modules.NetResource, network *modules.Network, wgPe
 		if err != nil {
 			return err
 		}
-		addr := fmt.Sprintf("172.16.%d.%d/16", a, b)
+		addr := fmt.Sprintf("10.255.%d.%d/16", a, b)
 		if err := wg.SetAddr(addr); err != nil {
 			return errors.Wrapf(err, "fail to set address %s on wireguard interface %s",
 				addr, localNibble.WiregardName())
