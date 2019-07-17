@@ -6,6 +6,7 @@ replace github.com/threefoldtech/zosv2/modules => ../../modules/
 
 require (
 	cloud.google.com/go v0.41.0 // indirect
+	github.com/NebulousLabs/entropy-mnemonics v0.0.0-20181203154559-bc7e13c5ccd8 // indirect
 	github.com/containerd/cgroups v0.0.0-20190710130057-d596c78861b1 // indirect
 	github.com/containerd/containerd v1.2.7 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
@@ -14,8 +15,6 @@ require (
 	github.com/kr/pty v1.1.8 // indirect
 	github.com/mdlayher/genetlink v0.0.0-20190617154021-985b2115c31a // indirect
 	github.com/mdlayher/netlink v0.0.0-20190617153422-f82a9b10b2bc // indirect
-	github.com/onsi/ginkgo v1.8.0 // indirect
-	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/rs/zerolog v1.14.3
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/threefoldtech/zbus v0.0.0-20190711124326-09379d5f12e0
