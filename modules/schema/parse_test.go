@@ -193,3 +193,96 @@ loaders= (LO) !jumpscale.digitalme.package.loader
 		t.Error()
 	}
 }
+
+func TestNew(t *testing.T) {
+	input := `
+	@url =  jumpscale.digitalme.package
+	name = "UNKNOWN" (S)    #official name of the package, there can be no overlap (can be dot notation)
+	enable = true (B)
+	args = (LO) !jumpscale.digitalme.package.arg
+	loaders= (LO) !jumpscale.digitalme.package.loader
+	
+	@url =  jumpscale.digitalme.package.arg
+	key = "" (S)
+	val =  "" (S)
+	
+	@url =  jumpscale.digitalme.package.loader
+	giturl =  (S)
+	dest =  (S)
+	enable = true (B)
+	`
+
+	schema, err := New(strings.NewReader(input))
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Len(t, schema, 3); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, &Object{
+		URL: "jumpscale.digitalme.package",
+		Properties: []Property{
+			Property{Name: "name", Type: Type{
+				Default: `"UNKNOWN"`,
+				Kind:    StringKind,
+			}},
+			Property{Name: "enable", Type: Type{
+				Default: `true`,
+				Kind:    BoolKind,
+			}},
+			Property{Name: "args", Type: Type{
+				Kind: ListKind,
+				Element: &Type{
+					Kind:      ObjectKind,
+					Reference: "jumpscale.digitalme.package.arg",
+				},
+			}},
+			Property{Name: "loaders", Type: Type{
+				Kind: ListKind,
+				Element: &Type{
+					Kind:      ObjectKind,
+					Reference: "jumpscale.digitalme.package.loader",
+				},
+			}},
+		},
+	}, schema[0]); !ok {
+		t.Error()
+	}
+
+	if ok := assert.Equal(t, &Object{
+		URL: "jumpscale.digitalme.package.arg",
+		Properties: []Property{
+			Property{Name: "key", Type: Type{
+				Default: `""`,
+				Kind:    StringKind,
+			}},
+			Property{Name: "val", Type: Type{
+				Default: `""`,
+				Kind:    StringKind,
+			}},
+		},
+	}, schema[1]); !ok {
+		t.Error()
+	}
+
+	if ok := assert.Equal(t, &Object{
+		URL: "jumpscale.digitalme.package.loader",
+		Properties: []Property{
+			Property{Name: "giturl", Type: Type{
+				Kind: StringKind,
+			}},
+			Property{Name: "dest", Type: Type{
+				Kind: StringKind,
+			}},
+			Property{Name: "enable", Type: Type{
+				Default: "true",
+				Kind:    BoolKind,
+			}},
+		},
+	}, schema[2]); !ok {
+		t.Error()
+	}
+}
