@@ -125,7 +125,7 @@ func bootstrap() error {
 		log.Info().Msg("writing udhcp init service")
 
 		err := zinit.AddService("dhcp_zos", zinit.InitService{
-			Exec:    fmt.Sprintf("/sbin/udhcpc -v -f -i %s -s /usr/share/udhcp/simple.script", network.DefaultBridgeName()),
+			Exec:    fmt.Sprintf("/sbin/udhcpc -v -f -i %s -s /usr/share/udhcp/simple.script", network.DefaultBridge),
 			Oneshot: false,
 			After:   []string{},
 		})
