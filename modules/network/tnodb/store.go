@@ -45,6 +45,7 @@ func (s *httpTNoDB) RegisterAllocation(farm identity.Identifier, allocation *net
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		b, err := httputil.DumpResponse(resp, true)
 		if err != nil {
@@ -63,6 +64,7 @@ func (s *httpTNoDB) RequestAllocation(farm identity.Identifier) (*net.IPNet, err
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		b, err := httputil.DumpResponse(resp, true)
 		if err != nil {
@@ -144,6 +146,7 @@ func (s *httpTNoDB) PublishInterfaces() error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("wrong response status received: %s", resp.Status)
 	}
@@ -174,6 +177,7 @@ func (s *httpTNoDB) ConfigurePublicIface(node identity.Identifier, ip *net.IPNet
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("wrong response status received: %s", resp.Status)
 	}
@@ -187,6 +191,8 @@ func (s *httpTNoDB) SelectExitNode(node identity.Identifier) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("wrong response status received: %s", resp.Status)
 	}
@@ -209,6 +215,7 @@ func (s *httpTNoDB) ReadPubIface(node identity.Identifier) (*network.PubIface, e
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, network.ErrNoPubIface
@@ -271,6 +278,7 @@ func (s *httpTNoDB) PublishWireguarKey(key string, nodeID string, netID modules.
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("wrong response status received: %s", resp.Status)
 	}
@@ -310,8 +318,24 @@ func (s *httpTNoDB) CreateNetwork(farmID string) (*modules.Network, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("wrong response status received: %s", resp.Status)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("wrong response status received: %s %s", resp.Status, string(body))
+	}
+
+	network := &modules.Network{}
+	if err := json.NewDecoder(resp.Body).Decode(network); err != nil {
+		log.Error().Err(err).Msg("failed to decode network json")
+		return nil, err
+	}
+
+	return network, nil
+}
 	}
 
 	defer resp.Body.Close()
@@ -332,7 +356,7 @@ func linkAddrs(l netlink.Link) ([]string, error) {
 	}
 	output := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
-		output = append(output, addr.String())
+		output = append(output, addr.IPNet.String())
 	}
 	return output, nil
 }
