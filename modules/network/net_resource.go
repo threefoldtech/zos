@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	"net"
+	"syscall"
 
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
