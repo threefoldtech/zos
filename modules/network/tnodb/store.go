@@ -157,16 +157,21 @@ func (s *httpTNoDB) PublishInterfaces() error {
 	return nil
 }
 
-func (s *httpTNoDB) ConfigurePublicIface(node identity.Identifier, ip *net.IPNet, gw net.IP, iface string) error {
+func (s *httpTNoDB) ConfigurePublicIface(node identity.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error {
 	output := struct {
-		Iface string `json:"iface"`
-		IP    string `json:"ip"`
-		GW    string `json:"gateway"`
+		Iface string   `json:"iface"`
+		IPs   []string `json:"ips"`
+		GWs   []string `json:"gateways"`
 		// Type todo allow to chose type of connection
 	}{
 		Iface: iface,
-		IP:    ip.String(),
-		GW:    gw.String(),
+		IPs:   make([]string, len(ips)),
+		GWs:   make([]string, len(gws)),
+	}
+
+	for i := range ips {
+		output.IPs[i] = ips[i].String()
+		output.GWs[i] = gws[i].String()
 	}
 
 	url := fmt.Sprintf("%s/nodes/%s/configure_public", s.baseURL, node.Identity())

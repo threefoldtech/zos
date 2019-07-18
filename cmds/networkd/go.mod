@@ -9,7 +9,6 @@ require (
 	github.com/juju/errors v0.0.0-20190207033735-e65537c515d7 // indirect
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/juju/utils v0.0.0-20180820210520-bf9cc5bdd62d // indirect
-	github.com/minio/minio-go v6.0.14+incompatible // indirect
 	github.com/rs/zerolog v1.14.3
 	github.com/threefoldtech/zbus v0.0.0-20190711124326-09379d5f12e0
 	github.com/threefoldtech/zosv2/modules v0.0.0-20190614135932-35b94bfa4dbe

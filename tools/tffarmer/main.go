@@ -93,16 +93,17 @@ func main() {
 					Action:    getAlloc,
 				},
 				{
-					Name:      "configure-public",
-					Category:  "network",
-					Usage:     "configure the public interface of a node",
+					Name:     "configure-public",
+					Category: "network",
+					Usage: `configure the public interface of a node.
+You can specify multime time the ip and gw flag to configure multiple IP on the public interface`,
 					ArgsUsage: "node ID",
 					Flags: []cli.Flag{
-						cli.StringFlag{
+						cli.StringSliceFlag{
 							Name:  "ip",
 							Usage: "ip address to set to the exit interface",
 						},
-						cli.StringFlag{
+						cli.StringSliceFlag{
 							Name:  "gw",
 							Usage: "gw address to set to the exit interface",
 						},

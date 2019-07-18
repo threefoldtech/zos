@@ -46,16 +46,28 @@ func getAlloc(c *cli.Context) error {
 }
 
 func configPublic(c *cli.Context) error {
-	ip, ipnet, err := net.ParseCIDR(c.String("ip"))
-	if err != nil {
-		return err
+	var (
+		ips   []*net.IPNet
+		gws   []net.IP
+		iface = c.String("iface")
+	)
+
+	for _, ip := range c.StringSlice("ip") {
+		i, ipnet, err := net.ParseCIDR(ip)
+		if err != nil {
+			return err
+		}
+		ipnet.IP = i
+		ips = append(ips, ipnet)
 	}
-	ipnet.IP = ip
-	gw := net.ParseIP(c.String("gw"))
-	iface := c.String("iface")
+
+	for _, gw := range c.StringSlice("gw") {
+		gws = append(gws, net.ParseIP(gw))
+	}
+
 	node := c.Args().First()
 
-	if err := db.ConfigurePublicIface(strID(node), ipnet, gw, iface); err != nil {
+	if err := db.ConfigurePublicIface(strID(node), ips, gws, iface); err != nil {
 		return err
 	}
 	fmt.Printf("public interface configured on node %s\n", node)

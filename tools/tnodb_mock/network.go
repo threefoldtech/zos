@@ -81,15 +81,15 @@ func configurePublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	i := struct {
-		Iface string `json:"iface,omitempty"`
-		IP    string `json:"ip,omitempty"`
-		GW    string `json:"gateway,omitempty"`
+	input := struct {
+		Iface string   `json:"iface"`
+		IPs   []string `json:"ips"`
+		GWs   []string `json:"gateways"`
 		// Type todo allow to chose type of connection
 	}{}
 
 	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(&i); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -103,8 +103,9 @@ func configurePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	exitIface.Version++
-	exitIface.Master = i.Iface
-	ip, ipnet, err := net.ParseCIDR(i.IP)
+	exitIface.Master = input.Iface
+	for i := range input.IPs {
+		ip, ipnet, err := net.ParseCIDR(input.IPs[i])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -117,11 +118,12 @@ func configurePublic(w http.ResponseWriter, r *http.Request) {
 		exitIface.IPv6 = ipnet
 	}
 
-	gw := net.ParseIP(i.GW)
+		gw := net.ParseIP(input.GWs[i])
 	if gw.To4() != nil {
 		exitIface.GW4 = gw
 	} else if gw.To16() != nil {
 		exitIface.GW6 = gw
+	}
 	}
 
 	w.WriteHeader(http.StatusCreated)
