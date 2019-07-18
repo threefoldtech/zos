@@ -89,6 +89,21 @@ func main() {
 					},
 					Action: addMember,
 				},
+				{
+					Name:  "local",
+					Usage: "add a user to a private network. Use this command if you want to be able to connect to a network from your own computer",
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "network",
+							Usage: "ID of the network",
+						},
+						cli.StringFlag{
+							Name:  "user",
+							Usage: "user ID",
+						},
+					},
+					Action: addLocal,
+				},
 			},
 		},
 		{

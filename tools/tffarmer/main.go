@@ -33,6 +33,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "tnodb, u",
 			Usage: "URL of the TNODB",
+			Value: "https://tnodb.dev.grid.tf",
 		},
 	}
 	app.Before = func(c *cli.Context) error {
