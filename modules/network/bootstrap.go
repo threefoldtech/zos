@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules/network/bridge"
@@ -46,16 +47,14 @@ func Bootstrap() error {
 			continue
 		}
 
-		if !ifaceutil.IsVirtEth(device.Name) {
-			if !ifaceutil.IsPlugged(device.Name) {
-				log.Info().Str("interface", device.Name).Msg("interface is not plugged in, skipping")
-				continue
-			}
-		}
-
 		// TODO: see if we need to set the if down
 		if err := netlink.LinkSetUp(device); err != nil {
 			log.Info().Str("interface", device.Name).Msg("failed to bring interface up")
+			continue
+		}
+
+		if !ifaceutil.IsVirtEth(device.Name) && !testPlugged(device.Name) {
+			log.Info().Str("interface", device.Name).Msg("interface is not plugged in, skipping")
 			continue
 		}
 
@@ -96,4 +95,24 @@ func Bootstrap() error {
 
 	log.Info().Str("device", defaultGW.Name).Msg("default gateway found")
 	return nil
+}
+
+func testPlugged(name string) bool {
+	plugged := false
+	c := time.After(time.Second * 5)
+	for out := false; out == false; {
+		select {
+		case <-c:
+			out = true
+			break
+		default:
+			plugged = ifaceutil.IsPlugged(name)
+			if plugged {
+				out = true
+				break
+			}
+		}
+		time.Sleep(time.Second)
+	}
+	return plugged
 }
