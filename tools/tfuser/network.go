@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"net"
 	"os"
 	"strings"
+	"text/template"
 
 	"github.com/threefoldtech/zosv2/modules/network/ip"
 	"github.com/threefoldtech/zosv2/modules/network/wireguard"
