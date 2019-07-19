@@ -15,3 +15,4 @@ Please check the [specs](specs/readme.md) here
 The team holds a update meeting twice a week, on monday and thursday at 10AM.
 
 Zoom URL: https://tinyurl.com/zosv2update
+
