@@ -41,6 +41,12 @@ func main() {
 			Usage: "URL of the provision store",
 			Value: "https://tnodb.dev.grid.tf",
 		},
+
+		cli.StringFlag{
+			Name:  "id",
+			Usage: "URL of the ID store",
+			Value: "https://tnodb.dev.grid.tf",
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		debug := c.Bool("debug")
@@ -58,6 +64,16 @@ func main() {
 		{
 			Name:  "network",
 			Usage: "Manage private networks",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "output,o",
+					Usage: "file name where to write the result of the command",
+				},
+				cli.StringFlag{
+					Name:  "input,i",
+					Usage: "file name to a json encoded network definition",
+				},
+			},
 			Subcommands: []cli.Command{
 				{
 					Name:  "create",
@@ -72,7 +88,7 @@ func main() {
 							Usage: "node ID of the node where to install this network, you can specify multiple time this flag",
 						},
 					},
-					Action: createNetwork,
+					Action: cmdCreateNetwork,
 				},
 				{
 					Name:  "add",
@@ -87,7 +103,7 @@ func main() {
 							Usage: "node ID of the node where to install this network, you can specify multiple time this flag",
 						},
 					},
-					Action: addMember,
+					Action: cmdsAddNode,
 				},
 				{
 					Name:  "local",
@@ -102,7 +118,12 @@ func main() {
 							Usage: "user ID",
 						},
 					},
-					Action: addLocal,
+					Action: cmdsAddUser,
+				},
+				{
+					Name:   "reserve",
+					Usage:  "reserve a network",
+					Action: cmdsReserveNetwork,
 				},
 			},
 		},

@@ -29,9 +29,9 @@ func createContainer(c *cli.Context) error {
 		Entrypoint:  c.String("entrypoint"),
 		Interactive: c.Bool("corex"),
 		Mounts:      mounts,
-		Network: provision.Network{
-			NetwokID: c.String("network"),
-		},
+		// Network: provision.Network{
+		// 	NetwokID: c.String("network"),
+		// },
 	}
 
 	fmt.Printf("reservation:\n%+v\n", container)
