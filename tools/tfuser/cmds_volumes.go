@@ -1,20 +1,25 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 
-	"github.com/google/uuid"
-	"github.com/threefoldtech/zosv2/modules/identity"
+	"github.com/threefoldtech/zosv2/modules"
+
 	"github.com/threefoldtech/zosv2/modules/provision"
 	"github.com/urfave/cli"
 )
 
-func createVolume(c *cli.Context) error {
+func generateVolume(c *cli.Context) error {
 	s := c.Uint64("size")
-	t := c.String("type")
-	if t != "HDD" && t != "SSD" {
+	t := strings.ToUpper(c.String("type"))
+
+	if t != modules.HDDDevice && t != modules.SSDDevice {
 		return fmt.Errorf("volume type can only HHD or SSD")
+	}
+
+	if s < 1 { //TODO: upper bound ?
+		return fmt.Errorf("size cannot be less then 1")
 	}
 
 	v := provision.Volume{
@@ -22,39 +27,10 @@ func createVolume(c *cli.Context) error {
 		Type: provision.DiskType(t),
 	}
 
-	fmt.Printf("reservation:\n%+v\n", v)
-	asn, err := confirm("do you want to reserve this volume? [Y/n]")
-	if err != nil {
-		return err
-	}
-	if asn != "y" {
-		return nil
-	}
-
-	raw, err := json.Marshal(v)
+	p, err := embed(v, provision.VolumeReservation)
 	if err != nil {
 		return err
 	}
 
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return err
-	}
-	r := provision.Reservation{
-		ID:   id.String(),
-		Type: provision.VolumeReservation,
-		Data: raw,
-	}
-
-	nodeID := c.Args().First()
-	if nodeID == "" {
-		return fmt.Errorf("missing argument, node ID must be specified")
-	}
-
-	if err := store.Reserve(r, identity.StrIdentifier(nodeID)); err != nil {
-		return err
-	}
-
-	fmt.Printf("volume reservation sent\n")
-	return nil
+	return output(c.GlobalString("output"), p)
 }

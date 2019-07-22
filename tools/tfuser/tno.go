@@ -48,7 +48,6 @@ func createNetwork(farmID string) (*modules.Network, error) {
 	err = tno.Configure(network, []tno.Opts{
 		tno.GenerateID(),
 		tno.ConfigurePrefixZero(farmAlloc),
-		tno.ConfigureExitPoint(allocation, farmAllocSize),
 		tno.ConfigureExitResource(exitNodeID, allocation, key, farmAllocSize),
 	})
 	if err != nil {

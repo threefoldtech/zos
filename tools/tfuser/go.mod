@@ -6,7 +6,6 @@ replace github.com/threefoldtech/zosv2/modules => ../../modules/
 
 require (
 	github.com/deckarep/golang-set v1.7.1
-	github.com/dspinhirne/netaddr-go v0.0.0-20180510133009-a6cfb692cb10 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/pkg/errors v0.8.1
 	github.com/rs/zerolog v1.14.3
