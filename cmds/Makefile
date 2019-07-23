@@ -1,4 +1,4 @@
-OUT = ../bin
+OUT = ../../bin
 
 # _base is a hack to only build modules that we know are building atm
 _base: contd flistd storaged upgraded networkd identityd provisiond
