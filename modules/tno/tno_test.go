@@ -52,8 +52,10 @@ func TestConfigureExitResource(t *testing.T) {
 	key, err := wgtypes.GeneratePrivateKey()
 	require.NoError(t, err)
 
+	publicIP := net.ParseIP("2a02:1802:5e::223")
+
 	err = Configure(n, []Opts{
-		ConfigureExitResource("DLFF6CAshvyhCrpyTHq1dMd6QP6kFyhrVGegTgudk6xk", allocation, key, 48),
+		ConfigureExitResource("DLFF6CAshvyhCrpyTHq1dMd6QP6kFyhrVGegTgudk6xk", allocation, publicIP, key, 48),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(n.Resources))
@@ -65,7 +67,7 @@ func TestConfigureExitResource(t *testing.T) {
 	assert.Equal(t, 1, len(n.Resources[0].Peers))
 	assert.Equal(t, "2a02:1802:5e:afba::/64", n.Resources[0].Peers[0].Prefix.String())
 	assert.Equal(t, modules.ConnTypeWireguard, n.Resources[0].Peers[0].Type)
-	assert.Equal(t, "2a02:1802:5e::afba", n.Resources[0].Peers[0].Connection.IP.String())
+	assert.Equal(t, "2a02:1802:5e::223", n.Resources[0].Peers[0].Connection.IP.String())
 	assert.Equal(t, uint16(1600), n.Resources[0].Peers[0].Connection.Port)
 	assert.Equal(t, key.PublicKey().String(), n.Resources[0].Peers[0].Connection.Key)
 
