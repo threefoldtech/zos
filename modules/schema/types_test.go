@@ -8,67 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStringFromDefault(t *testing.T) {
-	cases := []struct {
-		Input  string
-		Output string
-	}{
-		{"", ""},
-		{`"hello"`, "hello"},
-		{`'hello'`, "hello"},
-	}
-
-	for _, c := range cases {
-		t.Run(c.Input, func(t *testing.T) {
-			if ok := assert.Equal(t, c.Output, StringFromDefault(c.Input)); !ok {
-				t.Error()
-			}
-		})
-	}
-
-	panics := []string{
-		`"`, `'`, `"hello`,
-	}
-
-	for _, c := range panics {
-		if ok := assert.Panics(t, func() {
-			StringFromDefault(c)
-		}); !ok {
-			t.Error()
-		}
-	}
-}
-
-func TestIntegerFromDefault(t *testing.T) {
-	cases := []struct {
-		Input  string
-		Output int64
-	}{
-		{"", 0},
-		{`123`, 123},
-	}
-
-	for _, c := range cases {
-		t.Run(c.Input, func(t *testing.T) {
-			if ok := assert.Equal(t, c.Output, IntegerFromDefault(c.Input)); !ok {
-				t.Error()
-			}
-		})
-	}
-
-	panics := []string{
-		`"`, `'`, `"hello"`,
-	}
-
-	for _, c := range panics {
-		if ok := assert.Panics(t, func() {
-			IntegerFromDefault(c)
-		}); !ok {
-			t.Error()
-		}
-	}
-}
-
 func TestParseDate(t *testing.T) {
 	year := time.Now().Year()
 	cases := []struct {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -22,64 +21,6 @@ var (
 		"0":     false,
 	}
 )
-
-// StringFromDefault parse default value for string type.
-func StringFromDefault(def string) string {
-	// default data for string must be in format `"xxxx"` or `'xxxxx'`
-	if len(def) == 0 {
-		// no default is set
-		return ""
-	} else if len(def) < 2 {
-		// a string must be quoted so it's either "" or '' no less
-		panic("invalid string default value")
-	} else if def[0] == '"' && def[len(def)-1] == '"' || def[0] == '\'' && def[len(def)-1] == '\'' {
-		return def[1 : len(def)-1]
-	}
-
-	panic("invalid string default value")
-}
-
-// IntegerFromDefault return int64 from default value
-func IntegerFromDefault(def string) int64 {
-	if len(def) == 0 {
-		return 0
-	}
-
-	value, err := strconv.ParseInt(def, 10, 64)
-	if err != nil {
-		panic(err)
-	}
-
-	return value
-}
-
-// FloatFromDefault return int64 from default value
-func FloatFromDefault(def string) float64 {
-	if len(def) == 0 {
-		return 0
-	}
-
-	value, err := strconv.ParseFloat(def, 64)
-	if err != nil {
-		panic(err)
-	}
-
-	return value
-}
-
-// BoolFromDefault return int64 from default value
-func BoolFromDefault(def string) bool {
-	if len(def) == 0 {
-		return false
-	}
-
-	value, ok := boolMap[strings.ToLower(def)]
-	if !ok {
-		panic("invalid bool default value")
-	}
-
-	return value
-}
 
 // Numeric type. this type is tricky so we just going to handle it as string
 // for now.
@@ -102,19 +43,10 @@ func (n *Numeric) UnmarshalJSON(in []byte) error {
 	return nil
 }
 
-// NumericFromDefault loads numeric value from default
-func NumericFromDefault(def string) Numeric {
-	var n Numeric
-	if err := json.Unmarshal([]byte(def), &n); err != nil {
-		panic("invalid numeric default value")
-	}
-
-	return n
-}
-
 // Date a jumpscale date wrapper
 type Date struct{ time.Time }
 
+// UnmarshalJSON method
 func (d *Date) UnmarshalJSON(bytes []byte) error {
 	var in string
 	if err := json.Unmarshal(bytes, &in); err != nil {
@@ -182,7 +114,7 @@ func (d *Date) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-// MarshalJSOn formats a text
+// MarshalJSON formats a text
 func (d Date) MarshalJSON() ([]byte, error) {
 	return []byte(d.Format("02/01/2006 15:04")), nil
 }
