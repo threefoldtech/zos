@@ -79,6 +79,7 @@ func TestConfigureExitResource(t *testing.T) {
 func TestAddNode(t *testing.T) {
 	type args struct {
 		nodeID     string
+		farmID     string
 		allocation *net.IPNet
 		key        wgtypes.Key
 		publicIP   net.IP
@@ -96,6 +97,7 @@ func TestAddNode(t *testing.T) {
 			name: "public",
 			args: args{
 				nodeID: "DLFF6CAshvyhCrpyTHq1dMd6QP6kFyhrVGegTgudk6xk",
+				farmID: "7koUE4nRbdsqEbtUVBhx3qvRqF58gfeHGMRGJxjqwfZi",
 				allocation: &net.IPNet{
 					IP:   net.ParseIP("2a02:1802:5e:afba::"),
 					Mask: net.CIDRMask(64, 128),
@@ -109,6 +111,7 @@ func TestAddNode(t *testing.T) {
 			name: "private",
 			args: args{
 				nodeID: "DLFF6CAshvyhCrpyTHq1dMd6QP6kFyhrVGegTgudk6xk",
+				farmID: "7koUE4nRbdsqEbtUVBhx3qvRqF58gfeHGMRGJxjqwfZi",
 				allocation: &net.IPNet{
 					IP:   net.ParseIP("2a02:1802:5e:afba::"),
 					Mask: net.CIDRMask(64, 128),
@@ -124,7 +127,7 @@ func TestAddNode(t *testing.T) {
 			n := &modules.Network{}
 
 			err = Configure(n, []Opts{
-				AddNode(tt.args.nodeID, tt.args.allocation, tt.args.key, tt.args.publicIP, tt.args.port),
+				AddNode(tt.args.nodeID, tt.args.farmID, tt.args.allocation, tt.args.key, tt.args.publicIP, tt.args.port),
 			})
 			assert.Error(t, err, "AddNode should return an error if the network does not have a PrefixZero configured")
 
@@ -134,7 +137,7 @@ func TestAddNode(t *testing.T) {
 			}
 
 			err = Configure(n, []Opts{
-				AddNode(tt.args.nodeID, tt.args.allocation, tt.args.key, tt.args.publicIP, tt.args.port),
+				AddNode(tt.args.nodeID, tt.args.farmID, tt.args.allocation, tt.args.key, tt.args.publicIP, tt.args.port),
 			})
 
 			require.NoError(t, err)

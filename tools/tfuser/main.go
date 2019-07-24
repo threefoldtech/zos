@@ -82,12 +82,8 @@ func main() {
 							Usage: "create a new user network",
 							Flags: []cli.Flag{
 								cli.StringFlag{
-									Name:  "farm",
-									Usage: "ID of the exit farm to use for this network",
-								},
-								cli.StringSliceFlag{
 									Name:  "node",
-									Usage: "node ID of the node where to install this network, you can specify multiple time this flag",
+									Usage: "node ID of the exit node to use for this network",
 								},
 							},
 							Action: cmdCreateNetwork,
@@ -96,13 +92,13 @@ func main() {
 							Name:  "add",
 							Usage: "add a node to a existing network",
 							Flags: []cli.Flag{
-								cli.StringFlag{
-									Name:  "network",
-									Usage: "ID of the network",
-								},
 								cli.StringSliceFlag{
 									Name:  "node",
 									Usage: "node ID of the node where to install this network, you can specify multiple time this flag",
+								},
+								cli.UintFlag{
+									Name:  "port",
+									Usage: "wireguard listenting point, only specify if the node is public",
 								},
 							},
 							Action: cmdsAddNode,
