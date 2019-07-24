@@ -1,7 +1,7 @@
 package schema
 
 import (
-	"fmt"
+	"os"
 	"strings"
 )
 
@@ -29,13 +29,10 @@ creation = (D)
 	if err != nil {
 		panic(err)
 	}
-	var buf strings.Builder
 
-	if err := GenerateGolang(&buf, "test", schema); err != nil {
+	if err := GenerateGolang(os.Stdout, "test", schema); err != nil {
 		panic(err)
 	}
-
-	fmt.Println(buf.String())
 
 	// Output:
 	// package test
