@@ -5,3 +5,6 @@ Go library to work with jxs schema from Go. The library basically does two thing
 
 # Reference
 Schema docs is defined [here](https://github.com/threefoldtech/jumpscaleX/blob/master/docs/schemas/schemas.md). 
+
+## How to use
+Please check example [here](generate_test.go)

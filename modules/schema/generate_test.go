@@ -3,12 +3,9 @@ package schema
 import (
 	"fmt"
 	"strings"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestGenerateGO(t *testing.T) {
+func ExampleGenerateGolang() {
 	const input = `
 @url =  jumpscale.digitalme.package
 name = "UNKNOWN" (S)    #official name of the package, there can be no overlap (can be dot notation)
@@ -29,17 +26,69 @@ creation = (D)
 	`
 
 	schema, err := New(strings.NewReader(input))
-
-	if ok := assert.NoError(t, err); !ok {
-		t.Fatal()
+	if err != nil {
+		panic(err)
 	}
 	var buf strings.Builder
 
 	if err := GenerateGolang(&buf, "test", schema); err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 
 	fmt.Println(buf.String())
 
-	//TODO: validate generated structures!
+	// Output:
+	// package test
+	//
+	// import (
+	// 	"encoding/json"
+	// 	schema "github.com/threefoldtech/zosv2/modules/schema"
+	// )
+	//
+	// type JumpscaleDigitalmePackage struct {
+	// 	Name     string                            `json:"name"`
+	// 	Enable   bool                              `json:"enable"`
+	// 	Numerics []schema.Numeric                  `json:"numerics"`
+	// 	Args     []JumpscaleDigitalmePackageArg    `json:"args"`
+	// 	Loaders  []JumpscaleDigitalmePackageLoader `json:"loaders"`
+	// }
+	//
+	// func NewJumpscaleDigitalmePackage() (JumpscaleDigitalmePackage, error) {
+	// 	const value = "{\"name\": \"UNKNOWN\", \"enable\": true}"
+	// 	var object JumpscaleDigitalmePackage
+	// 	if err := json.Unmarshal([]byte(value), &object); err != nil {
+	// 		return object, err
+	// 	}
+	// 	return object, nil
+	// }
+	//
+	// type JumpscaleDigitalmePackageArg struct {
+	// 	Key string `json:"key"`
+	// 	Val string `json:"val"`
+	// }
+	//
+	// func NewJumpscaleDigitalmePackageArg() (JumpscaleDigitalmePackageArg, error) {
+	// 	const value = "{\"key\": \"\", \"val\": \"\"}"
+	// 	var object JumpscaleDigitalmePackageArg
+	// 	if err := json.Unmarshal([]byte(value), &object); err != nil {
+	// 		return object, err
+	// 	}
+	// 	return object, nil
+	// }
+	//
+	// type JumpscaleDigitalmePackageLoader struct {
+	// 	Giturl   string      `json:"giturl"`
+	// 	Dest     string      `json:"dest"`
+	// 	Enable   bool        `json:"enable"`
+	// 	Creation schema.Date `json:"creation"`
+	// }
+	//
+	// func NewJumpscaleDigitalmePackageLoader() (JumpscaleDigitalmePackageLoader, error) {
+	// 	const value = "{\"enable\": true}"
+	// 	var object JumpscaleDigitalmePackageLoader
+	// 	if err := json.Unmarshal([]byte(value), &object); err != nil {
+	// 		return object, err
+	// 	}
+	// 	return object, nil
+	// }
 }
