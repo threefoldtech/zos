@@ -31,9 +31,10 @@ func main() {
 		},
 
 		cli.StringFlag{
-			Name:  "tnodb, u",
-			Usage: "URL of the TNODB",
-			Value: "https://tnodb.dev.grid.tf",
+			Name:   "tnodb, u",
+			Usage:  "URL of the TNODB",
+			Value:  "https://tnodb.dev.grid.tf",
+			EnvVar: "TNODB_URL",
 		},
 
 		cli.StringFlag{
