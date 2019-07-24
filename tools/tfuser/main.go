@@ -108,10 +108,6 @@ func main() {
 							Usage: "add a user to a private network. Use this command if you want to be able to connect to a network from your own computer",
 							Flags: []cli.Flag{
 								cli.StringFlag{
-									Name:  "network",
-									Usage: "ID of the network",
-								},
-								cli.StringFlag{
 									Name:  "user",
 									Usage: "user ID, if not specified, a user ID will be generated automatically",
 								},
@@ -184,7 +180,7 @@ func main() {
 					Usage: "path to the provisioning schema, use - to read from stdin",
 					Value: "provision.json",
 				},
-				cli.StringFlag{
+				cli.StringSliceFlag{
 					Name:  "node",
 					Usage: "Node ID where to deploy the workload",
 				},
