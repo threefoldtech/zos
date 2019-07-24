@@ -30,6 +30,56 @@ type Object struct {
 	Properties []Property
 }
 
+func (o *Object) listDefault(buf *strings.Builder, typ *Type) {
+	// list can be in format [o1, o2], or "o1, o2"
+	// we need to figure out the type, and try to generate
+	// a valid json representation of the list
+
+	def := typ.Default
+	if def[0] == '[' {
+		// we assume it's a valid list
+		buf.WriteString(def)
+		return
+	}
+	// cut the " or the ' at the ends of the array
+	cuttest := "\""
+	if def[0] == '\'' {
+		cuttest = "'"
+	}
+	def = strings.Trim(def, cuttest)
+	buf.WriteRune('[')
+	buf.WriteString(def)
+	buf.WriteByte(']')
+}
+
+//Default generates a json string that holds the default value
+//for the object
+func (o *Object) Default() string {
+	var buf strings.Builder
+	buf.WriteRune('{')
+
+	for _, prop := range o.Properties {
+		if len(prop.Type.Default) == 0 {
+			continue
+		}
+
+		if buf.Len() > 1 { // the 1 is the {
+			buf.WriteString(", ")
+		}
+
+		buf.WriteString(fmt.Sprintf(`"%s": `, prop.Name))
+		if prop.Type.Kind == ListKind {
+			o.listDefault(&buf, &prop.Type)
+		} else {
+			buf.WriteString(prop.Type.Default)
+		}
+	}
+
+	buf.WriteRune('}')
+
+	return buf.String()
+}
+
 // New reads the schema and return schema description objects
 func New(r io.Reader) (schema Schema, err error) {
 	scanner := bufio.NewScanner(r)

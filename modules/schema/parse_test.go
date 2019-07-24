@@ -2,6 +2,7 @@ package schema
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -154,7 +155,7 @@ func TestTokenScan(t *testing.T) {
 }
 
 func TestSimpleNew(t *testing.T) {
-	input := `
+	const input = `
 # this is a comment
 
 @url =  jumpscale.digitalme.package
@@ -294,6 +295,53 @@ func TestNew(t *testing.T) {
 			}},
 		},
 	}, schema[2]); !ok {
+		t.Error()
+	}
+}
+
+func TestObjectDefault(t *testing.T) {
+	const input = `
+@url =  jumpscale.digitalme.package
+name = "UNKNOWN" (S)    #official name of the package, there can be no overlap (can be dot notation)
+enable = true (B)
+unset = (S)
+args = "1,2,3" (LI) 
+int = 1 (I)
+strings = ["hello", "world"] (LS)
+`
+
+	schema, err := New(strings.NewReader(input))
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Len(t, schema, 1); !ok {
+		t.Fatal()
+	}
+
+	obj := schema[0]
+
+	type T struct {
+		Name    string   `json:"name"`
+		Enable  bool     `json:"enable"`
+		Args    []int64  `json:"args"`
+		Int     int64    `json:"int"`
+		Strings []string `json:"strings"`
+	}
+
+	var data T
+	if err := json.Unmarshal([]byte(obj.Default()), &data); err != nil {
+		t.Fatal(err)
+	}
+
+	if ok := assert.Equal(t, T{
+		Name:    "UNKNOWN",
+		Enable:  true,
+		Args:    []int64{1, 2, 3},
+		Int:     1,
+		Strings: []string{"hello", "world"},
+	}, data); !ok {
 		t.Error()
 	}
 }
