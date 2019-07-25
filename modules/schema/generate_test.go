@@ -144,3 +144,47 @@ gender = "male,female,others" (E)
 	// 	}
 	// }
 }
+
+func ExampleGenerateGolang_ip() {
+	const input = `
+@url =  network
+name = "UNKNOWN" (S)    #official name of the package, there can be no overlap (can be dot notation)
+ip = "172.0.0.1" (ipaddr)
+net = "2001:db8::/32" (iprange)
+addresses = (Lipaddr)
+	`
+
+	schema, err := New(strings.NewReader(input))
+	if err != nil {
+		panic(err)
+	}
+
+	if err := GenerateGolang(os.Stdout, "test", schema); err != nil {
+		panic(err)
+	}
+
+	// Output:
+	// package test
+	//
+	// import (
+	// 	"encoding/json"
+	// 	schema "github.com/threefoldtech/zosv2/modules/schema"
+	// 	"net"
+	// )
+	//
+	// type Network struct {
+	// 	Name      string         `json:"name"`
+	// 	Ip        net.IP         `json:"ip"`
+	// 	Net       schema.IPRange `json:"net"`
+	// 	Addresses []net.IP       `json:"addresses"`
+	// }
+	//
+	// func NewNetwork() (Network, error) {
+	// 	const value = "{\"name\": \"UNKNOWN\", \"ip\": \"172.0.0.1\", \"net\": \"2001:db8::/32\"}"
+	// 	var object Network
+	// 	if err := json.Unmarshal([]byte(value), &object); err != nil {
+	// 		return object, err
+	// 	}
+	// 	return object, nil
+	// }
+}
