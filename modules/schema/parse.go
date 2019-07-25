@@ -59,7 +59,10 @@ func (o *Object) Default() string {
 	buf.WriteRune('{')
 
 	for _, prop := range o.Properties {
-		if len(prop.Type.Default) == 0 {
+		if len(prop.Type.Default) == 0 || prop.Type.Kind == EnumKind {
+			// if default is not set OR if enum type, we don't set a default
+			// Note: we ignore enum type because enums always have defaults
+			// set to 0 (first item in the enum type)
 			continue
 		}
 
@@ -209,6 +212,7 @@ const (
 	BytesKind
 	PercentKind
 	URLKind
+	EnumKind
 )
 
 var (
@@ -226,6 +230,7 @@ var (
 		"P": PercentKind,
 		"U": URLKind,
 		"H": HashKind,
+		"E": EnumKind,
 
 		// long symbols, they must be lower case
 		"str":       StringKind,
@@ -251,6 +256,7 @@ var (
 		"percent":   PercentKind,
 		"url":       URLKind,
 		"object":    ObjectKind,
+		"enum":      EnumKind,
 	}
 )
 
