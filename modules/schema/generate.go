@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -27,12 +28,18 @@ var (
 
 // GenerateGolang generate type stubs for Go from schema
 func GenerateGolang(w io.Writer, pkg string, schema Schema) error {
-	g := goGenerator{}
+	g := goGenerator{enums: make(map[string]*Type)}
 	return g.Generate(w, pkg, schema)
 }
 
 // just a namespace for generation methods
-type goGenerator struct{}
+type goGenerator struct {
+	//enums: because enums types are defined on the property itself
+	//and not elsewere (unlike object types for example) they need
+	//to added dynamically to this map while generating code, then
+	//processed later, to generate the corresponding type
+	enums map[string]*Type
+}
 
 func (g *goGenerator) nameFromURL(u string) (string, error) {
 	p, err := url.Parse(u)
@@ -57,7 +64,48 @@ func (g *goGenerator) Generate(w io.Writer, pkg string, schema Schema) error {
 
 	}
 
+	for name, typ := range g.enums {
+		if err := g.enum(j, name, typ); err != nil {
+			return err
+		}
+
+		j.Line()
+	}
+
 	return j.Render(w)
+}
+
+func (g *goGenerator) enumValues(typ *Type) []string {
+	var values string
+	json.Unmarshal([]byte(typ.Default), &values)
+	return strings.Split(values, ",")
+}
+
+func (g *goGenerator) enum(j *jen.File, name string, typ *Type) error {
+	typName := fmt.Sprintf("%sEnum", name)
+	j.Type().Id(typName).Id("uint8").Line()
+	j.Const().DefsFunc(func(group *jen.Group) {
+		for i, value := range g.enumValues(typ) {
+			n := fmt.Sprintf("%s%s", name, strcase.ToCamel(strings.TrimSpace(value)))
+			if i == 0 {
+				group.Id(n).Id(typName).Op("=").Iota()
+			} else {
+				group.Id(n)
+			}
+		}
+	}).Line()
+
+	j.Func().Params(jen.Id("e").Id(typName)).Id("String").Params().Id("string").BlockFunc(func(group *jen.Group) {
+		group.Switch(jen.Id("e")).BlockFunc(func(group *jen.Group) {
+			for _, value := range g.enumValues(typ) {
+				value = strings.TrimSpace(value)
+				n := fmt.Sprintf("%s%s", name, strcase.ToCamel(value))
+				group.Case(jen.Id(n)).Block(jen.Return(jen.Lit(value)))
+			}
+		})
+	}).Line()
+
+	return nil
 }
 
 func (g *goGenerator) renderType(typ *Type) (jen.Code, error) {
@@ -66,7 +114,6 @@ func (g *goGenerator) renderType(typ *Type) (jen.Code, error) {
 	}
 
 	switch typ.Kind {
-
 	case ListKind:
 		elem, err := g.renderType(typ.Element)
 		if err != nil {
@@ -88,22 +135,35 @@ func (g *goGenerator) renderType(typ *Type) (jen.Code, error) {
 
 		return jen.Qual(m[0], m[1]), nil
 	}
-
 }
 
 func (g *goGenerator) object(j *jen.File, obj *Object) error {
-	name, err := g.nameFromURL(obj.URL)
+	structName, err := g.nameFromURL(obj.URL)
 	if err != nil {
 		return err
 	}
 	var structErr error
-	j.Type().Id(name).StructFunc(func(group *jen.Group) {
+	j.Type().Id(structName).StructFunc(func(group *jen.Group) {
 		for _, prop := range obj.Properties {
 			name := strcase.ToCamel(prop.Name)
-			typ, err := g.renderType(&prop.Type)
-			if err != nil {
-				structErr = err
-				return
+
+			var typ jen.Code
+			if prop.Type.Kind == EnumKind {
+				// enums are handled differently than any other
+				// type because they are not defined elsewere.
+				// except on the property itself. so we need
+				// to generate a totally new type for it.
+				// TODO: do we need to have a fqn for the enum ObjectPropertyEnum instead?
+				enumName := structName + name
+				enumTypName := fmt.Sprintf("%sEnum", enumName)
+				g.enums[enumName] = &prop.Type
+				typ = jen.Id(enumTypName)
+			} else {
+				typ, err = g.renderType(&prop.Type)
+				if err != nil {
+					structErr = err
+					return
+				}
 			}
 
 			group.Id(name).Add(typ).Tag(map[string]string{"json": prop.Name})
@@ -111,9 +171,9 @@ func (g *goGenerator) object(j *jen.File, obj *Object) error {
 	})
 
 	// add the new Method!
-	j.Func().Id(fmt.Sprintf("New%s", name)).Params().Params(jen.Id(name), jen.Id("error")).BlockFunc(func(group *jen.Group) {
+	j.Func().Id(fmt.Sprintf("New%s", structName)).Params().Params(jen.Id(structName), jen.Id("error")).BlockFunc(func(group *jen.Group) {
 		group.Const().Id("value").Op("=").Lit(obj.Default())
-		group.Var().Id("object").Id(name)
+		group.Var().Id("object").Id(structName)
 
 		group.If(jen.Id("err").Op(":=").Qual("encoding/json", "Unmarshal").Call(
 			jen.Op("[]").Id("byte").Parens(jen.Id("value")),

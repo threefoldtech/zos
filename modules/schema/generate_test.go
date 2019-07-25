@@ -89,3 +89,58 @@ creation = (D)
 	// 	return object, nil
 	// }
 }
+
+func ExampleGenerateGolang_enums() {
+	const input = `
+@url =  person
+name = "UNKNOWN" (S)    #official name of the package, there can be no overlap (can be dot notation)
+gender = "male,female,others" (E)
+	`
+
+	schema, err := New(strings.NewReader(input))
+	if err != nil {
+		panic(err)
+	}
+
+	if err := GenerateGolang(os.Stdout, "test", schema); err != nil {
+		panic(err)
+	}
+
+	// Output:
+	// package test
+	//
+	// import "encoding/json"
+	//
+	// type Person struct {
+	// 	Name   string           `json:"name"`
+	// 	Gender PersonGenderEnum `json:"gender"`
+	// }
+	//
+	// func NewPerson() (Person, error) {
+	// 	const value = "{\"name\": \"UNKNOWN\"}"
+	// 	var object Person
+	// 	if err := json.Unmarshal([]byte(value), &object); err != nil {
+	// 		return object, err
+	// 	}
+	// 	return object, nil
+	// }
+	//
+	// type PersonGenderEnum uint8
+	//
+	// const (
+	// 	PersonGenderMale PersonGenderEnum = iota
+	// 	PersonGenderFemale
+	// 	PersonGenderOthers
+	// )
+	//
+	// func (e PersonGenderEnum) String() string {
+	// 	switch e {
+	// 	case PersonGenderMale:
+	// 		return "male"
+	// 	case PersonGenderFemale:
+	// 		return "female"
+	// 	case PersonGenderOthers:
+	// 		return "others"
+	// 	}
+	// }
+}
