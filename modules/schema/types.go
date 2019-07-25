@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -118,16 +117,4 @@ func (d *Date) UnmarshalJSON(bytes []byte) error {
 // MarshalJSON formats a text
 func (d Date) MarshalJSON() ([]byte, error) {
 	return []byte(d.Format("02/01/2006 15:04")), nil
-}
-
-//Enum type
-type Enum uint8
-
-func (e Enum) String(v string) string {
-	values := strings.Split(v, ",")
-	if int(e) >= len(values) {
-		panic("invalid enum value")
-	}
-
-	return values[uint8(e)]
 }
