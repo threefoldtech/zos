@@ -29,12 +29,15 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 
 		fn, ok := types[reservation.Type]
 		if !ok {
-			e.reply(reservation.ReplyTo, reservation.ID, nil, fmt.Errorf("unknown reservation type '%s'", reservation.Type))
+			log.Error().Str("type", string(reservation.Type)).Msgf("type of reservation not supported")
 			continue
 		}
 
-		result, err := fn(ctx, reservation)
-		e.reply(reservation.ReplyTo, reservation.ID, result, err)
+		_, err := fn(ctx, reservation)
+		if err != nil {
+			log.Error().Err(err).Msgf("provisioning of reservation %s failed", reservation.ID)
+		}
+		// e.reply(reservation.ReplyTo, reservation.ID, result, err)
 	}
 
 	return nil

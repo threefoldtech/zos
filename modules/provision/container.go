@@ -93,8 +93,13 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 		)
 	}
 
+	containerNS, err := HexHash(reservation)
+	if err != nil {
+		return nil, err
+	}
+
 	id, err := containerClient.Run(
-		reservation.Tenant.String(),
+		containerNS,
 		modules.Container{
 			Name:   uuid.New().String(),
 			RootFS: mnt,
