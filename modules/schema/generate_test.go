@@ -193,7 +193,7 @@ func ExampleGenerateGolang_dict() {
 	const input = `
 @url =  parent
 name = (S)    #official name of the package, there can be no overlap (can be dot notation)
-data = (dictO) ! child # dict of integers
+data = (dictO) ! child # dict of children
 tags = (M) # dict with no defined object type
 
 @url = child
