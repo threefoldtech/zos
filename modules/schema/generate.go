@@ -16,13 +16,15 @@ var (
 	// in go, more types can be later added to schema modules
 	// and then mapped here to support it.
 	goKindMap = map[Kind][2]string{
-		StringKind:  {"", "string"},
-		IntegerKind: {"", "int64"},
-		FloatKind:   {"", "float64"},
-		BoolKind:    {"", "bool"},
-		DateKind:    {"github.com/threefoldtech/zosv2/modules/schema", "Date"},
-		NumericKind: {"github.com/threefoldtech/zosv2/modules/schema", "Numeric"},
-		//TODO add other types here (for example, Email, Phone, IP, etc..)
+		StringKind:    {"", "string"},
+		IntegerKind:   {"", "int64"},
+		FloatKind:     {"", "float64"},
+		BoolKind:      {"", "bool"},
+		DateKind:      {"github.com/threefoldtech/zosv2/modules/schema", "Date"},
+		NumericKind:   {"github.com/threefoldtech/zosv2/modules/schema", "Numeric"},
+		IpAddressKind: {"net", "IP"},
+		IpRangeKind:   {"github.com/threefoldtech/zosv2/modules/schema", "IPRange"},
+		//TODO add other types here (for example, Email, Phone, etc..)
 	}
 )
 
