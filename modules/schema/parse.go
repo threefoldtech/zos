@@ -231,6 +231,7 @@ var (
 		"U": URLKind,
 		"H": HashKind,
 		"E": EnumKind,
+		"M": DictKind, // Map
 
 		// long symbols, they must be lower case
 		"str":       StringKind,
@@ -249,6 +250,7 @@ var (
 		"numeric":   NumericKind,
 		"guid":      GuidKind,
 		"dict":      DictKind,
+		"map":       DictKind,
 		"yaml":      YamlKind,
 		"multiline": MultilineKind,
 		"hash":      HashKind,

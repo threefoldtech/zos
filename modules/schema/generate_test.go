@@ -188,3 +188,58 @@ addresses = (Lipaddr)
 	// 	return object, nil
 	// }
 }
+
+func ExampleGenerateGolang_dict() {
+	const input = `
+@url =  parent
+name = (S)    #official name of the package, there can be no overlap (can be dot notation)
+data = (dictO) ! child # dict of integers
+tags = (M) # dict with no defined object type
+
+@url = child
+name = (S)
+	`
+
+	schema, err := New(strings.NewReader(input))
+	if err != nil {
+		panic(err)
+	}
+
+	if err := GenerateGolang(os.Stdout, "test", schema); err != nil {
+		panic(err)
+	}
+
+	// Output:
+	// package test
+	//
+	// import "encoding/json"
+	//
+	// type Parent struct {
+	// 	Name string                 `json:"name"`
+	// 	Data map[string]Child       `json:"data"`
+	// 	Tags map[string]interface{} `json:"tags"`
+	// }
+	//
+	// func NewParent() (Parent, error) {
+	// 	const value = "{}"
+	// 	var object Parent
+	// 	if err := json.Unmarshal([]byte(value), &object); err != nil {
+	// 		return object, err
+	// 	}
+	// 	return object, nil
+	// }
+	//
+	// type Child struct {
+	// 	Name string `json:"name"`
+	// }
+	//
+	// func NewChild() (Child, error) {
+	// 	const value = "{}"
+	// 	var object Child
+	// 	if err := json.Unmarshal([]byte(value), &object); err != nil {
+	// 		return object, err
+	// 	}
+	// 	return object, nil
+	// }
+
+}

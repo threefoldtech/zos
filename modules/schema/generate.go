@@ -112,10 +112,19 @@ func (g *goGenerator) enum(j *jen.File, name string, typ *Type) error {
 
 func (g *goGenerator) renderType(typ *Type) (jen.Code, error) {
 	if typ == nil {
-		return nil, fmt.Errorf("type is nil")
+		return jen.Interface(), nil
 	}
 
 	switch typ.Kind {
+	case DictKind:
+		// Dicts in jumpscale do not provide an "element" type
+		// In that case (if element is not provided) a map of interface{} is
+		// used. If an element is provided, this element will be used instead
+		elem, err := g.renderType(typ.Element)
+		if err != nil {
+			return nil, err
+		}
+		return jen.Map(jen.Id("string")).Add(elem), nil
 	case ListKind:
 		elem, err := g.renderType(typ.Element)
 		if err != nil {
