@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zosv2/modules"
@@ -93,15 +92,15 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 		)
 	}
 
-	containerNS, err := HexHash(reservation)
+	containerID, err := HexHash(reservation)
 	if err != nil {
 		return nil, err
 	}
 
 	id, err := containerClient.Run(
-		containerNS,
+		containerID,
 		modules.Container{
-			Name:   uuid.New().String(),
+			Name:   reservation.User.Identity(),
 			RootFS: mnt,
 			Env:    env,
 			Network: modules.NetworkInfo{
