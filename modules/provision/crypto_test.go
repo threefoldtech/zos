@@ -21,33 +21,33 @@ func TestVerifySignature(t *testing.T) {
 	require.NoError(t, err)
 
 	r := Reservation{
-		ID:     "reservationID",
-		Tenant: keyPair,
-		Type:   ContainerReservation,
-		Data:   data,
+		ID:   "reservationID",
+		User: keyPair.Identity(),
+		Type: ContainerReservation,
+		Data: data,
 	}
 
 	err = r.Sign(keyPair.PrivateKey)
 	require.NoError(t, err)
 
-	err = Verify(&r)
+	err = Verify(r)
 	assert.NoError(t, err)
 
 	// corrupt the signature
 	validByte := r.Signature[0]
 	r.Signature[0] = 'a'
-	err = Verify(&r)
+	err = Verify(r)
 	assert.Error(t, err)
 
 	// restore signature
 	r.Signature[0] = validByte
 	// sanity test
-	err = Verify(&r)
+	err = Verify(r)
 	require.NoError(t, err)
 
 	// change the reservation
-	r.Tenant = identity.StrIdentifier("attackerID")
-	err = Verify(&r)
+	r.User = "attackerID"
+	err = Verify(r)
 	assert.Error(t, err)
 }
 
@@ -59,10 +59,10 @@ func TestHash(t *testing.T) {
 	require.NoError(t, err)
 
 	r := Reservation{
-		ID:     "reservationID",
-		Tenant: identity.StrIdentifier("userID"),
-		Type:   ContainerReservation,
-		Data:   data,
+		ID:   "reservationID",
+		User: "userID",
+		Type: ContainerReservation,
+		Data: data,
 	}
 
 	hash, err := Hash(r)

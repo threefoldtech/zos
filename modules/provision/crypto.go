@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zosv2/modules/identity"
+
 	"github.com/threefoldtech/zosv2/modules/crypto"
 	"golang.org/x/crypto/ed25519"
 )
@@ -18,7 +21,7 @@ func (r *Reservation) Sign(privateKey ed25519.PrivateKey) error {
 	if err != nil {
 		return err
 	}
-	_, err = buf.WriteString(r.User.Identity())
+	_, err = buf.WriteString(r.User)
 	if err != nil {
 		return err
 	}
@@ -40,13 +43,13 @@ func (r *Reservation) Sign(privateKey ed25519.PrivateKey) error {
 }
 
 // Verify verifies the signature of the reservation
-func Verify(r *Reservation) error {
+func Verify(r Reservation) error {
 	buf := &bytes.Buffer{}
 	_, err := buf.WriteString(r.ID)
 	if err != nil {
 		return err
 	}
-	_, err = buf.WriteString(r.User.Identity())
+	_, err = buf.WriteString(r.User)
 	if err != nil {
 		return err
 	}
@@ -59,9 +62,9 @@ func Verify(r *Reservation) error {
 		return err
 	}
 
-	publicKey, err := crypto.KeyFromID(r.User)
+	publicKey, err := crypto.KeyFromID(identity.StrIdentifier(r.User))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to extract public key from user ID")
 	}
 
 	return crypto.Verify(publicKey, buf.Bytes(), r.Signature)
@@ -73,7 +76,7 @@ func Hash(r Reservation) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = io.WriteString(h, r.User.Identity())
+	_, err = io.WriteString(h, r.User)
 	if err != nil {
 		return nil, err
 	}

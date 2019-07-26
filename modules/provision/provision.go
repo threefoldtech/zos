@@ -10,8 +10,6 @@ package provision
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/threefoldtech/zosv2/modules/identity"
 )
 
 // ReservationType type
@@ -34,7 +32,7 @@ type Reservation struct {
 	// ID of the reservation
 	ID string `json:"id"`
 	// Identification of the user requesting the reservation
-	User identity.Identifier `json:"user_id"`
+	User string `json:"user_id"`
 	// Type of the reservation (container, zdb, vm, etc...)
 	Type ReservationType `json:"type"`
 	// Data is the reservation type arguments.
