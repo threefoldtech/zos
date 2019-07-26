@@ -18,7 +18,7 @@ func (r *Reservation) Sign(privateKey ed25519.PrivateKey) error {
 	if err != nil {
 		return err
 	}
-	_, err = buf.WriteString(r.Tenant.Identity())
+	_, err = buf.WriteString(r.User.Identity())
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func Verify(r *Reservation) error {
 	if err != nil {
 		return err
 	}
-	_, err = buf.WriteString(r.Tenant.Identity())
+	_, err = buf.WriteString(r.User.Identity())
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func Verify(r *Reservation) error {
 		return err
 	}
 
-	publicKey, err := crypto.KeyFromID(r.Tenant)
+	publicKey, err := crypto.KeyFromID(r.User)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func Hash(r Reservation) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = io.WriteString(h, r.Tenant.Identity())
+	_, err = io.WriteString(h, r.User.Identity())
 	if err != nil {
 		return nil, err
 	}

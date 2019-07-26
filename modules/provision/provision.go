@@ -33,8 +33,8 @@ type ReplyTo string
 type Reservation struct {
 	// ID of the reservation
 	ID string `json:"id"`
-	// Tenant ID
-	Tenant identity.Identifier `json:"tenant"`
+	// Identification of the user requesting the reservation
+	User identity.Identifier `json:"user_id"`
 	// Type of the reservation (container, zdb, vm, etc...)
 	Type ReservationType `json:"type"`
 	// Data is the reservation type arguments.
