@@ -100,7 +100,7 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 	id, err := containerClient.Run(
 		containerID,
 		modules.Container{
-			Name:   reservation.User.Identity(),
+			Name:   reservation.User,
 			RootFS: mnt,
 			Env:    env,
 			Network: modules.NetworkInfo{
