@@ -58,6 +58,18 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		{
+			Name:  "id",
+			Usage: "generate a user identity",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "output,o",
+					Usage: "output path of the identity seed",
+					Value: "user.seed",
+				},
+			},
+			Action: cmdsGenerateID,
+		},
+		{
 			Name:    "generate",
 			Aliases: []string{"gen"},
 			Usage:   "Group of command to generate provisioning schemas",
