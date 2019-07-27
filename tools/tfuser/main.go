@@ -38,9 +38,10 @@ func main() {
 		},
 
 		cli.StringFlag{
-			Name:  "provision, p",
-			Usage: "URL of the provision store",
-			Value: "https://tnodb.dev.grid.tf",
+			Name:   "provision, p",
+			Usage:  "URL of the provision store",
+			Value:  "https://tnodb.dev.grid.tf",
+			EnvVar: "PROVISION_URL",
 		},
 	}
 	app.Before = func(c *cli.Context) error {
