@@ -13,7 +13,7 @@ type Identity interface {
 	Decrypt(data []byte) ([]byte, error)
 
 	// Sign
-	Sign(data []byte) ([]byte, error)
+	Sign(data, sig []byte) ([]byte, error)
 
 	// Verify
 	Verify(data []byte) error
