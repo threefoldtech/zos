@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/threefoldtech/zosv2/modules"
-	"github.com/threefoldtech/zosv2/modules/identity"
 	"github.com/threefoldtech/zosv2/modules/network"
 	"github.com/threefoldtech/zosv2/modules/provision"
 	"github.com/threefoldtech/zosv2/modules/tno"
@@ -23,12 +22,12 @@ func createNetwork(nodeID string) (*modules.Network, error) {
 		return nil, fmt.Errorf("exit node ID must be specified")
 	}
 
-	node, err := db.GetNode(identity.StrIdentifier(nodeID))
+	node, err := db.GetNode(modules.StrIdentifier(nodeID))
 	if err != nil {
 		return nil, err
 	}
 
-	farm, err := db.GetFarm(identity.StrIdentifier(node.FarmID))
+	farm, err := db.GetFarm(modules.StrIdentifier(node.FarmID))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get farm %s detail", node.FarmID)
 	}
@@ -38,12 +37,12 @@ func createNetwork(nodeID string) (*modules.Network, error) {
 	}
 	exitNodeID := farm.ExitNodes[0]
 
-	allocation, farmAlloc, err := db.RequestAllocation(identity.StrIdentifier(node.FarmID))
+	allocation, farmAlloc, err := db.RequestAllocation(modules.StrIdentifier(node.FarmID))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to request a new allocation")
 	}
 
-	pubIface, err := db.ReadPubIface(identity.StrIdentifier(exitNodeID))
+	pubIface, err := db.ReadPubIface(modules.StrIdentifier(exitNodeID))
 	if err != nil {
 		return nil, errors.Wrap(err, "fail to read public interface config")
 	}
@@ -76,7 +75,7 @@ func addNode(nw *modules.Network, nodeID string, port uint16) (*modules.Network,
 
 	farmID := nw.Resources[0].NodeID.FarmerID
 
-	allocation, _, err := db.RequestAllocation(identity.StrIdentifier(farmID))
+	allocation, _, err := db.RequestAllocation(modules.StrIdentifier(farmID))
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +84,7 @@ func addNode(nw *modules.Network, nodeID string, port uint16) (*modules.Network,
 		pubIface *network.PubIface
 		ip       net.IP
 	)
-	pubIface, err = db.ReadPubIface(identity.StrIdentifier(nodeID))
+	pubIface, err = db.ReadPubIface(modules.StrIdentifier(nodeID))
 	if err != nil {
 		ip = nil
 	} else {
@@ -115,7 +114,7 @@ func addUser(network *modules.Network, userID string) (*modules.Network, string,
 	}
 
 	farmID := network.Resources[0].NodeID.FarmerID
-	allocation, _, err := db.RequestAllocation(identity.StrIdentifier(farmID))
+	allocation, _, err := db.RequestAllocation(modules.StrIdentifier(farmID))
 	if err != nil {
 		return nil, "", err
 	}
@@ -161,7 +160,7 @@ func reserveNetwork(network *modules.Network) error {
 
 	for nodeID := range nodes.Iter() {
 		nodeID := nodeID.(string)
-		if err := store.Reserve(r, identity.StrIdentifier(nodeID)); err != nil {
+		if err := store.Reserve(r, modules.StrIdentifier(nodeID)); err != nil {
 			return err
 		}
 		fmt.Printf("network reservation sent for node ID %s\n", nodeID)
