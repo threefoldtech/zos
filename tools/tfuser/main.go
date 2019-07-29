@@ -118,7 +118,7 @@ func main() {
 						},
 						{
 							Name:  "user",
-							Usage: "add a user to a private network. Use this command if you want to be able to connect to a network from your own computer",
+							Usage: "prints the wg-quick configuration file for a certain user in the network",
 							Flags: []cli.Flag{
 								cli.StringFlag{
 									Name:  "user",
@@ -126,6 +126,21 @@ func main() {
 								},
 							},
 							Action: cmdsAddUser,
+						},
+						{
+							Name:  "wg",
+							Usage: "add a user to a private network. Use this command if you want to be able to connect to a network from your own computer",
+							Flags: []cli.Flag{
+								cli.StringFlag{
+									Name:  "user",
+									Usage: "user ID, if not specified, a user ID will be generated automatically",
+								},
+								cli.StringFlag{
+									Name:  "key",
+									Usage: "private key. this is usually given by the 'user' command",
+								},
+							},
+							Action: cmdsWGQuick,
 						},
 					},
 				},
@@ -196,6 +211,11 @@ func main() {
 				cli.StringSliceFlag{
 					Name:  "node",
 					Usage: "Node ID where to deploy the workload",
+				},
+				cli.StringFlag{
+					Name:   "seed",
+					Usage:  "path to the file container the seed of the user private key",
+					EnvVar: "SEED_PATH",
 				},
 			},
 			Action: cmdsProvision,
