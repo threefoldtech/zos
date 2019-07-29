@@ -8,9 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/threefoldtech/zosv2/modules/identity"
-
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zosv2/modules"
 )
 
 type pipeSource struct {
@@ -84,7 +83,7 @@ type httpSource struct {
 // reservations. the server should only return unique reservations
 // stall the connection as long as possible if no new reservations
 // are available.
-func HTTPSource(store ReservationStore, nodeID identity.Identifier) ReservationSource {
+func HTTPSource(store ReservationStore, nodeID modules.Identifier) ReservationSource {
 	return &httpSource{
 		store:  store,
 		nodeID: nodeID.Identity(),
@@ -98,7 +97,7 @@ func (s *httpSource) Reservations(ctx context.Context) <-chan Reservation {
 		for {
 			// backing off of 1 second
 			<-time.After(time.Second)
-			res, err := s.store.Poll(identity.StrIdentifier(s.nodeID), false)
+			res, err := s.store.Poll(modules.StrIdentifier(s.nodeID), false)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get reservation")
 				continue

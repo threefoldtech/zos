@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/threefoldtech/zosv2/modules/identity"
+	"github.com/threefoldtech/zosv2/modules"
 )
 
 // ReservationStore represent the interface to implement
@@ -15,11 +15,11 @@ import (
 type ReservationStore interface {
 	// Reserve adds a reservation to the store, the reservation will be eventually
 	// picked up by a node to provision workloads
-	Reserve(r Reservation, nodeID identity.Identifier) error
+	Reserve(r Reservation, nodeID modules.Identifier) error
 	// Poll ask the store to send us reservation for a specific node ID
 	// if all is true, the store sends all the reservation every registered for the node ID
 	// otherwise it just sends reservation not pulled yet.
-	Poll(nodeID identity.Identifier, all bool) ([]*Reservation, error)
+	Poll(nodeID modules.Identifier, all bool) ([]*Reservation, error)
 	// Get retrieve a specific reservation from the store
 	Get(id string) (Reservation, error)
 }
@@ -33,7 +33,7 @@ func NewhHTTPStore(url string) ReservationStore {
 	return &httpStore{baseURL: url}
 }
 
-func (s *httpStore) Reserve(r Reservation, nodeID identity.Identifier) error {
+func (s *httpStore) Reserve(r Reservation, nodeID modules.Identifier) error {
 	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, nodeID.Identity())
 
 	buf := &bytes.Buffer{}
@@ -55,7 +55,7 @@ func (s *httpStore) Reserve(r Reservation, nodeID identity.Identifier) error {
 	return nil
 }
 
-func (s *httpStore) Poll(nodeID identity.Identifier, all bool) ([]*Reservation, error) {
+func (s *httpStore) Poll(nodeID modules.Identifier, all bool) ([]*Reservation, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/reservations/%s/poll", s.baseURL, nodeID.Identity()))
 	if err != nil {
 		return nil, err

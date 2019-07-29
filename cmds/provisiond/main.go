@@ -5,11 +5,12 @@ import (
 	"flag"
 	"os"
 
+	"github.com/threefoldtech/zosv2/modules/stubs"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosv2/modules/identity"
 	"github.com/threefoldtech/zosv2/modules/provision"
 	"github.com/threefoldtech/zosv2/modules/version"
 )
@@ -42,20 +43,26 @@ func main() {
 		log.Logger.Level(zerolog.DebugLevel)
 	}
 
-	nodeID, err := identity.LocalNodeID()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to load node identity")
-	}
+	flag.Parse()
 
-	// create context and add middlewares
-	ctx := context.Background()
 	client, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
 	}
 
+	// create context and add middlewares
+	client, err := zbus.NewRedisClient(msgBrokerCon)
+	if err != nil {
+		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
+	}
+
+	identity := stubs.NewIdentityManagerStub(client)
+
+	nodeID := identity.NodeID()
+
 	cache := provision.NewCache(lruMaxSize, tnodbURL)
 
+	ctx := context.Background()
 	ctx = provision.WithZBus(ctx, client)
 	ctx = provision.WithTnoDB(ctx, tnodbURL)
 	ctx = provision.WithCache(ctx, cache)
