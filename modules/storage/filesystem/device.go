@@ -114,12 +114,13 @@ func (l *lsblkDeviceManager) scan(ctx context.Context) error {
 		return err
 	}
 
-	devs := DeviceCache{}
+	var devs DeviceCache
+
 	for idx := range typedDevs {
 		devs = append(devs, &typedDevs[idx])
 	}
 
-	l.devices = devs
+	l.devices = flattenDevices(devs)
 
 	return nil
 }
