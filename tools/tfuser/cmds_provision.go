@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/identity"
 	"github.com/threefoldtech/zosv2/modules/provision"
 
@@ -53,7 +54,7 @@ func cmdsProvision(c *cli.Context) error {
 	}
 
 	for _, nodeID := range nodeIDs {
-		if err := store.Reserve(r, identity.StrIdentifier(nodeID)); err != nil {
+		if err := store.Reserve(r, modules.StrIdentifier(nodeID)); err != nil {
 			return err
 		}
 		fmt.Printf("reservation send for node %s\n", nodeID)
