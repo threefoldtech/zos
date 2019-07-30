@@ -46,7 +46,7 @@ func NewManager(path string) (modules.IdentityManager, error) {
 	return &identityManager{pair}, nil
 }
 
-// LocalNodeID loads the seed use to identify the node itself
+// NodeID returns the node identity
 func (d *identityManager) NodeID() modules.StrIdentifier {
 	return modules.StrIdentifier(d.key.Identity())
 }
