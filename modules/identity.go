@@ -31,7 +31,7 @@ type IdentityManager interface {
 	Sign(data []byte) ([]byte, error)
 
 	// Verify
-	Verify(data, sig []byte) error
+	Verify(message, sig []byte) error
 
 	// Encrypt, Decrypt ?
 }
