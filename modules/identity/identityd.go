@@ -50,7 +50,7 @@ func NewManager(path string) (modules.IdentityManager, error) {
 func (d *identityManager) NodeID() modules.StrIdentifier {
 	return modules.StrIdentifier(d.key.Identity())
 }
-
+// FarmID returns the farm ID of the node or an error if no farm ID is configured
 func (d *identityManager) FarmID() (modules.StrIdentifier, error) {
 	params := kernel.GetParams()
 
