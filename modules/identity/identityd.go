@@ -65,11 +65,11 @@ func (d *identityManager) FarmID() (modules.StrIdentifier, error) {
 }
 
 // Sign signs the message with privateKey and returns a signature.
-func (d *identityManager) Sign(data []byte) ([]byte, error) {
-	return crypto.Sign(d.key.PrivateKey, data)
+func (d *identityManager) Sign(message []byte) ([]byte, error) {
+	return crypto.Sign(d.key.PrivateKey, message)
 }
 
 // Verify reports whether sig is a valid signature of message by publicKey.
-func (d *identityManager) Verify(data, sig []byte) error {
-	return crypto.Verify(d.key.PublicKey, data, sig)
+func (d *identityManager) Verify(message, sig []byte) error {
+	return crypto.Verify(d.key.PublicKey, message, sig)
 }
