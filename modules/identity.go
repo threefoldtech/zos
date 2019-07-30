@@ -4,7 +4,7 @@ package modules
 //go:generate zbusc -module identity -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zosv2/modules+IdentityManager stubs/identity_stub.go
 
 // Identifier is the interface that defines
-// how an object can be used an identity
+// how an object can be used as an identity
 type Identifier interface {
 	Identity() string
 }
