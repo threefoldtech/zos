@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules/identity"
 	"github.com/threefoldtech/zosv2/modules/provision"
@@ -44,12 +43,6 @@ func cmdsProvision(c *cli.Context) error {
 
 	// set the user ID into the reservation schema
 	r.User = keypair.Identity()
-
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return err
-	}
-	r.ID = id.String()
 
 	if err := r.Sign(keypair.PrivateKey); err != nil {
 		return errors.Wrap(err, "failed to sign the reservation")
