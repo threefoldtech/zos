@@ -5,10 +5,11 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/threefoldtech/zosv2/modules/crypto"
+
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/kernel"
-	"golang.org/x/crypto/ed25519"
 )
 
 const (
@@ -50,6 +51,7 @@ func NewManager(path string) (modules.IdentityManager, error) {
 func (d *identityManager) NodeID() modules.StrIdentifier {
 	return modules.StrIdentifier(d.key.Identity())
 }
+
 // FarmID returns the farm ID of the node or an error if no farm ID is configured
 func (d *identityManager) FarmID() (modules.StrIdentifier, error) {
 	params := kernel.GetParams()
@@ -64,21 +66,10 @@ func (d *identityManager) FarmID() (modules.StrIdentifier, error) {
 
 // Sign signs the message with privateKey and returns a signature.
 func (d *identityManager) Sign(data []byte) ([]byte, error) {
-	if len(d.key.PrivateKey) != ed25519.PrivateKeySize {
-		return nil, fmt.Errorf("private key has the wrong size")
-	}
-	return ed25519.Sign(d.key.PrivateKey, data), nil
+	return crypto.Sign(d.key.PrivateKey, data)
 }
 
 // Verify reports whether sig is a valid signature of message by publicKey.
 func (d *identityManager) Verify(data, sig []byte) error {
-	if len(d.key.PublicKey) != ed25519.PublicKeySize {
-		return fmt.Errorf("public key has the wrong size")
-	}
-
-	if !ed25519.Verify(d.key.PublicKey, data, sig) {
-		return fmt.Errorf("signature verification failed")
-	}
-
-	return nil
+	return crypto.Verify(d.key.PublicKey, data, sig)
 }
