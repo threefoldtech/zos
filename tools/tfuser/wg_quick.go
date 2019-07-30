@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"net"
 	"strings"
+	"text/template"
 
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/network/ip"
