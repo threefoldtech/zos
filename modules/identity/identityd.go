@@ -12,11 +12,6 @@ import (
 	"github.com/threefoldtech/zosv2/modules/kernel"
 )
 
-const (
-	// SeedPath default seed path
-	SeedPath = "/var/cache/seed.txt"
-)
-
 type identityManager struct {
 	key KeyPair
 }
