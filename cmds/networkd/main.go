@@ -68,10 +68,13 @@ func main() {
 
 	log.Info().Msg("network bootstraped successfully")
 
-	identity := stubs.NewIdentityManagerStub(client)
-	nodeID := identity.NodeID()
+	if err := ready(); err != nil {
+		log.Fatal().Err(err).Msg("failed to mark networkd as ready")
+	}
 
-	networker := network.NewNetworker(nodeID, db, root)
+	identity := stubs.NewIdentityManagerStub(client)
+	networker := network.NewNetworker(identity, db, root)
+	nodeID := identity.NodeID()
 
 	if err := publishIfaces(nodeID, db); err != nil {
 		log.Error().Err(err).Msg("failed to publish network interfaces to tnodb")
@@ -102,10 +105,6 @@ func main() {
 			}
 		}
 	}(ctx, chIface)
-
-	if err := ready(); err != nil {
-		log.Fatal().Err(err).Msg("failed to mark networkd as ready")
-	}
 
 	if err := startServer(ctx, broker, networker); err != nil {
 		log.Error().Err(err).Msg("fail to start networkd")

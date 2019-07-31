@@ -22,16 +22,15 @@ import (
 )
 
 type networker struct {
-	nodeID     modules.Identifier
+	identity   modules.IdentityManager
 	storageDir string
 	tnodb      TNoDB
-	identity   modules.IdentityManager
 }
 
 // NewNetworker create a new modules.Networker that can be used over zbus
-func NewNetworker(nodeID modules.Identifier, tnodb TNoDB, storageDir string) modules.Networker {
+func NewNetworker(identity modules.IdentityManager, tnodb TNoDB, storageDir string) modules.Networker {
 	nw := &networker{
-		nodeID:     nodeID,
+		identity:   identity,
 		storageDir: storageDir,
 		tnodb:      tnodb,
 	}
@@ -85,7 +84,7 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 
 	localResource := n.localResource(network.Resources)
 	if localResource == nil {
-		return "", fmt.Errorf("not network resource for this node: %s", n.nodeID.Identity())
+		return "", fmt.Errorf("not network resource for this node: %s", n.identity.NodeID())
 	}
 	exitNetRes, err := exitResource(network.Resources)
 	if err != nil {
