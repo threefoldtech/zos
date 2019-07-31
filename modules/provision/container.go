@@ -50,6 +50,16 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 	flistClient := stubs.NewFlisterStub(client)
 	storageClient := stubs.NewStorageModuleStub(client)
 
+	tenantNS := fmt.Sprintf("ns%s", reservation.User)
+	containerID := reservation.ID
+
+	// check if workload is already deployed
+	_, err := containerClient.Inspect(tenantNS, modules.ContainerID(containerID))
+	if err == nil {
+		log.Info().Str("id", containerID).Msg("container already deployed")
+		return containerID, nil
+	}
+
 	var config Container
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return nil, err
@@ -112,7 +122,7 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 		)
 	}
 	id, err := containerClient.Run(
-		fmt.Sprintf("ns%s", reservation.User),
+		tenantNS,
 		modules.Container{
 			Name:   reservation.ID,
 			RootFS: mnt,
