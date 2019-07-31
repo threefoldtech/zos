@@ -214,7 +214,7 @@ func AddUser(userID string, allocation *net.IPNet, key wgtypes.Key) Opts {
 			peers = n.Resources[0].Peers
 		}
 
-		pk, err := crypto.KeyFromID(identity.StrIdentifier(userID))
+		pk, err := crypto.KeyFromID(modules.StrIdentifier(userID))
 		if err != nil {
 			return errors.Wrapf(err, "failed to extract public key from user ID %s", userID)
 		}

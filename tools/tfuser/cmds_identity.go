@@ -16,7 +16,7 @@ func cmdsGenerateID(c *cli.Context) error {
 
 	output := c.String("output")
 
-	if err := identity.SerializeSeed(k, c.String("output")); err != nil {
+	if err := k.Save(c.String("output")); err != nil {
 		return errors.Wrap(err, "failed to save seed")
 	}
 	fmt.Printf("new identity generated: %s\n", k.Identity())

@@ -33,5 +33,9 @@ type IdentityManager interface {
 	// Verify reports whether sig is a valid signature of message by publicKey.
 	Verify(message, sig []byte) error
 
-	// Encrypt, Decrypt ?
+	// Encrypt encrypts message with the public key of the node
+	Encrypt(message []byte) ([]byte, error)
+
+	// Decrypt decrypts message with the private of the node
+	Decrypt(message []byte) ([]byte, error)
 }

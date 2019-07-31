@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/stubs"
 
 	"github.com/rs/zerolog"
@@ -50,18 +51,12 @@ func main() {
 		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
 	}
 
-	// create context and add middlewares
-	client, err := zbus.NewRedisClient(msgBrokerCon)
-	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
-	}
-
 	identity := stubs.NewIdentityManagerStub(client)
-
 	nodeID := identity.NodeID()
 
 	cache := provision.NewCache(lruMaxSize, tnodbURL)
 
+	// create context and add middlewares
 	ctx := context.Background()
 	ctx = provision.WithZBus(ctx, client)
 	ctx = provision.WithTnoDB(ctx, tnodbURL)
@@ -107,7 +102,7 @@ func main() {
 // that sends all the reservation for this node once
 // this is used to boostrap all the workload after a boot
 type bootstrapSource struct {
-	nodeID identity.Identifier
+	nodeID modules.Identifier
 	store  provision.ReservationStore
 }
 
