@@ -73,3 +73,13 @@ func (d *identityManager) Sign(message []byte) ([]byte, error) {
 func (d *identityManager) Verify(message, sig []byte) error {
 	return crypto.Verify(d.key.PublicKey, message, sig)
 }
+
+// Encrypt encrypts message with the public key of the node
+func (d *identityManager) Encrypt(message []byte) ([]byte, error) {
+	return crypto.Encrypt(message, d.key.PublicKey)
+}
+
+// Decrypt decrypts message with the private of the node
+func (d *identityManager) Decrypt(message []byte) ([]byte, error) {
+	return crypto.Decrypt(message, d.key.PrivateKey)
+}

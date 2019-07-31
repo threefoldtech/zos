@@ -9,8 +9,6 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/modules/crypto"
-	"github.com/threefoldtech/zosv2/modules/identity"
 
 	"github.com/threefoldtech/zosv2/modules/network/ip"
 
@@ -27,6 +25,7 @@ type networker struct {
 	nodeID     modules.Identifier
 	storageDir string
 	tnodb      TNoDB
+	identity   modules.IdentityManager
 }
 
 // NewNetworker create a new modules.Networker that can be used over zbus
@@ -94,12 +93,12 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 	}
 	nibble := ip.NewNibble(localResource.Prefix, network.AllocationNR)
 
-	wgKey, err := extractPrivateKey(localResource)
+	wgKey, err := n.extractPrivateKey(localResource)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to extract private key from network object")
 	}
 
-	// the flow is a bit different is the network namespace already exist or not
+	// the flow is a bit different if the network namespace already exist or not
 	// if it already exists, we skip the all network resource creation
 	// and only do the wireguard configuration
 	// so any new updated wireguard peer will be updated
@@ -213,7 +212,7 @@ func (n *networker) DeleteNetResource(network modules.Network) error {
 	return nil
 }
 
-func extractPrivateKey(r *modules.NetResource) (wgtypes.Key, error) {
+func (n *networker) extractPrivateKey(r *modules.NetResource) (wgtypes.Key, error) {
 	key := wgtypes.Key{}
 
 	peer, err := getPeer(r.Prefix.String(), r.Peers)
@@ -231,12 +230,7 @@ func extractPrivateKey(r *modules.NetResource) (wgtypes.Key, error) {
 		return key, err
 	}
 
-	// TODO: change me once identity is available over zbus
-	keyPair, err := identity.LoadSeed("/var/cache/seed.txt")
-	if err != nil {
-		return key, err
-	}
-	decoded, err := crypto.Decrypt([]byte(sk), keyPair.PrivateKey)
+	decoded, err := n.identity.Decrypt([]byte(sk))
 	if err != nil {
 		return key, err
 	}

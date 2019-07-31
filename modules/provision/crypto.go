@@ -4,8 +4,8 @@ import (
 	"bytes"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/modules/identity"
 
+	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/crypto"
 	"golang.org/x/crypto/ed25519"
 )
@@ -61,7 +61,7 @@ func Verify(r Reservation) error {
 		return err
 	}
 
-	publicKey, err := crypto.KeyFromID(identity.StrIdentifier(r.User))
+	publicKey, err := crypto.KeyFromID(modules.StrIdentifier(r.User))
 	if err != nil {
 		return errors.Wrap(err, "failed to extract public key from user ID")
 	}

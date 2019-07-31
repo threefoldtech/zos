@@ -51,8 +51,6 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to zbus broker")
 	}
 
-	identity := stubs.NewIdentityManagerStub(client)
-
 	if err := os.MkdirAll(root, 0750); err != nil {
 		log.Error().Err(err).Msgf("fail to create module root")
 	}
@@ -70,6 +68,7 @@ func main() {
 
 	log.Info().Msg("network bootstraped successfully")
 
+	identity := stubs.NewIdentityManagerStub(client)
 	nodeID := identity.NodeID()
 
 	networker := network.NewNetworker(nodeID, db, root)
