@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules"
 
 	"github.com/threefoldtech/zosv2/modules/stubs"
@@ -41,6 +42,12 @@ func VolumeProvision(ctx context.Context, reservation Reservation) (interface{},
 	}
 
 	storageClient := stubs.NewStorageModuleStub(client)
+
+	path, err := storageClient.Path(reservation.ID)
+	if err == nil {
+		log.Info().Str("id", reservation.ID).Msg("volume already deployed")
+		return path, nil
+	}
 
 	return storageClient.CreateFilesystem(reservation.ID, config.Size*Gigabyte, modules.DeviceType(config.Type))
 }
