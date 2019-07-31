@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"path"
 
 	"github.com/threefoldtech/zbus"
 
@@ -15,18 +16,20 @@ import (
 )
 
 const (
-	seedPath = "/var/cache/seed.txt"
+	seedName = "seed.txt"
 	module   = "identityd"
 	workers  = 10
 )
 
 func main() {
 	var (
+		root         string
 		msgBrokerCon string
 		tnodbURL     string
-		ver      bool
+		ver          bool
 	)
 
+	flag.StringVar(&root, "root", "/var/cache/modules/identity", "root working directory of the module")
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
 	flag.StringVar(&tnodbURL, "tnodb", "https://tnodb.dev.grid.tf", "address of tenant network object database")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
@@ -38,12 +41,16 @@ func main() {
 
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	if err := os.MkdirAll(root, 0755); err != nil {
+		log.Fatal().Err(err).Msg("failed to create module root")
+	}
+
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workers)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create zbus server")
 	}
 
-	manager, err := identity.NewManager(seedPath)
+	manager, err := identity.NewManager(path.Join(root, seedName))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create identity manager")
 	}
