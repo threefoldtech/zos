@@ -82,10 +82,16 @@ func main() {
 		}
 	}()
 
-	if err := server.Register(zbus.ObjectID{"manager", "0.0.1"}, manager); err != nil {
+	if err := server.Register(zbus.ObjectID{
+		Name:    "manager",
+		Version: "0.0.1",
+	}, manager); err != nil {
 		log.Fatal().Err(err).Msg("failed to register identity manager")
 	}
 
+	log.Info().
+		Str("broker", msgBrokerCon).
+		Msg("starting identity module")
 	if err := server.Run(context.Background()); err != nil {
 		log.Fatal().Err(err).Msg("server exit")
 	}

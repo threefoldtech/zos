@@ -14,12 +14,44 @@ type IdentityManagerStub struct {
 func NewIdentityManagerStub(client zbus.Client) *IdentityManagerStub {
 	return &IdentityManagerStub{
 		client: client,
-		module: "identity",
+		module: "identityd",
 		object: zbus.ObjectID{
 			Name:    "manager",
 			Version: "0.0.1",
 		},
 	}
+}
+
+func (s *IdentityManagerStub) Decrypt(arg0 []uint8) (ret0 []uint8, ret1 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "Decrypt", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *IdentityManagerStub) Encrypt(arg0 []uint8) (ret0 []uint8, ret1 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "Encrypt", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
 }
 
 func (s *IdentityManagerStub) FarmID() (ret0 modules.StrIdentifier, ret1 error) {
