@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 
+	"github.com/threefoldtech/zosv2/modules/stubs"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
@@ -31,12 +33,18 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
+	redis, err := zbus.NewRedisClient(msgBrokerCon)
+	if err != nil {
+		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
+	}
+	storage := stubs.NewStorageModuleStub(redis)
+
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
 	if err != nil {
 		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
 	}
 
-	flist := flist.New(moduleRoot)
+	flist := flist.New(moduleRoot, storage)
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, flist)
 
 	log.Info().

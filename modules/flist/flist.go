@@ -16,14 +16,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules"
 )
 
 const (
 	defaultStorage = "zdb://hub.grid.tf:9900"
-	defaultRoot    = "/var/modules/flist"
+	defaultRoot    = "/var/cache/modules/flist"
 )
+
+const MiB = 1024 * 1024
 
 type flistModule struct {
 	// root directory where all
@@ -37,10 +40,12 @@ type flistModule struct {
 	mountpoint string
 	pid        string
 	log        string
+
+	storage modules.StorageModule
 }
 
 // New creates a new flistModule
-func New(root string) modules.Flister {
+func New(root string, storage modules.StorageModule) modules.Flister {
 	if root == "" {
 		root = defaultRoot
 	}
@@ -63,6 +68,8 @@ func New(root string) modules.Flister {
 		mountpoint: filepath.Join(root, "mountpoint"),
 		pid:        filepath.Join(root, "pid"),
 		log:        filepath.Join(root, "log"),
+
+		storage: storage,
 	}
 }
 
@@ -86,6 +93,12 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 		sublog.Error().Err(err).Msg("fail to generate random id for the mount")
 		return "", err
 	}
+
+	path, err := f.storage.CreateFilesystem(rnd, 256*MiB, modules.SSDDevice)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
+	}
+
 	mountpoint := filepath.Join(f.mountpoint, rnd)
 	if err := os.MkdirAll(mountpoint, 0770); err != nil {
 		return "", err
@@ -94,7 +107,7 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 	logPath := filepath.Join(f.log, rnd) + ".log"
 
 	args := []string{
-		"-backend", filepath.Join(f.root, "backend", rnd),
+		"-backend", filepath.Join(path, "backend"),
 		"-cache", f.cache,
 		"-meta", flistPath,
 		"-storage-url", storage,
@@ -154,12 +167,15 @@ func (f *flistModule) Umount(path string) error {
 
 	// clean up working dirs
 	logPath := filepath.Join(f.log, name) + ".log"
-	backend := filepath.Join(f.root, "backend", name)
-	for _, path := range []string{logPath, backend, path} {
+	for _, path := range []string{logPath, path} {
 		if err := os.RemoveAll(path); err != nil {
 			log.Error().Err(err).Msg("fail to remove %s")
 			return err
 		}
+	}
+	// clean up subvolume
+	if err := f.storage.ReleaseFilesystem(name); err != nil {
+		return errors.Wrap(err, "fail to clean up subvolume")
 	}
 
 	return nil
