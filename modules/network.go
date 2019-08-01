@@ -13,6 +13,11 @@ type Networker interface {
 	ApplyNetResource(Network) (string, error)
 	DeleteNetResource(Network) error
 	Namespace(NetID) (string, error)
+	// Join a network (with network id) will create a new isolated namespace
+	// that is hooked to the network bridge with a veth pair, and assign it a
+	// new IP from the network resource range. The method return the new namespace
+	// name.
+	Join(NetID) (string, error)
 }
 
 // NetID is a type defining the ID of a network

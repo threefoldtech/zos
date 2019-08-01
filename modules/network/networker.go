@@ -6,11 +6,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/vishvananda/netlink"
+
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/pkg/errors"
 
-	"github.com/threefoldtech/zosv2/modules/network/ip"
+	"github.com/containernetworking/plugins/pkg/ip"
+	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
+	nib "github.com/threefoldtech/zosv2/modules/network/ip"
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules/network/bridge"
@@ -73,6 +78,90 @@ func (n networker) Namespace(id modules.NetID) (string, error) {
 	return string(b), err
 }
 
+func (n *networker) Join(id modules.NetID) (name string, err error) {
+	// TODO:
+	// 1- Make sure this network id is actually deployed
+	// 2- Create a new namespace, then create a veth pair inside this namespace
+	// 3- Hook one end to the NR bridge
+	// 4- Assign IP to the veth endpoint inside the namespace.
+	// 5- return the namespace name
+
+	// 1- Make sure this network is is deployed
+	if _, err := n.Namespace(id); err != nil {
+		return name, err
+	}
+
+	network, err := n.tnodb.GetNetwork(id)
+	if err != nil {
+		return name, err
+	}
+
+	local := n.localResource(network.Resources)
+	if local == nil {
+		return name, fmt.Errorf("not network resource for this node: %s", n.identity.NodeID())
+	}
+
+	nibble := nib.NewNibble(local.Prefix, network.AllocationNR)
+
+	br, err := bridge.Get(nibble.BridgeName())
+	if err != nil {
+		return name, err
+	}
+
+	// TODO: the number in the name below must be changed to a deterministic
+	// value, may be driven from the IP assigned to this namespace
+	name = fmt.Sprintf("%s-%d", nibble.NetworkName(), 1) // CHANGE ME
+	netspace, err := namespace.Create(name)
+	if err != nil {
+		return name, err
+	}
+
+	defer func() {
+		if err != nil {
+			namespace.Delete(netspace)
+		}
+	}()
+
+	vethName := fmt.Sprintf("veth-%s", name)
+	var hostVethName string
+	err = netspace.Do(func(host ns.NetNS) error {
+		if err := ifaceutil.SetLoUp(); err != nil {
+			return err
+		}
+
+		log.Info().
+			Str("namespace", name).
+			Str("veth", vethName).
+			Msg("Create veth pair in net namespace")
+		hostVeth, containerVeth, err := ip.SetupVeth(vethName, 1500, host)
+		if err != nil {
+			return err
+		}
+
+		hostVethName = hostVeth.Name
+
+		_, err = netlink.LinkByName(containerVeth.Name)
+		if err != nil {
+			return err
+		}
+
+		//TODO: set the link IP
+		return nil
+	})
+
+	if err != nil {
+		return name, err
+	}
+
+	hostVeth, err := netlink.LinkByName(vethName)
+	if err != nil {
+		return name, err
+	}
+
+	//TODO: attach the hostVeth to the network
+	return name, bridge.AttachNic(hostVeth, br)
+}
+
 // ApplyNetResource implements modules.Networker interface
 func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 	var err error
@@ -90,7 +179,7 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	nibble := ip.NewNibble(localResource.Prefix, network.AllocationNR)
+	nibble := nib.NewNibble(localResource.Prefix, network.AllocationNR)
 
 	wgKey, err := n.extractPrivateKey(localResource)
 	if err != nil {
