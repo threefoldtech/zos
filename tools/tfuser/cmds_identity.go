@@ -16,6 +16,13 @@ func cmdsGenerateID(c *cli.Context) error {
 
 	output := c.String("output")
 
+	_, err = identity.LoadSeed(output)
+	if err == nil {
+		fmt.Printf("a seed already exists at %s\n", output)
+		fmt.Printf("identity: %s\n", k.Identity())
+		return nil
+	}
+
 	if err := k.Save(c.String("output")); err != nil {
 		return errors.Wrap(err, "failed to save seed")
 	}
