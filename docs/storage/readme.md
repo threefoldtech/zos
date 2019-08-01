@@ -29,7 +29,7 @@ When the module boots:
 - Make sure to mount all available pools
 - Scan available disks that are not used by any pool and create new pools on those disks. (all pools now are created with `RaidSingle` policy)
 - Try to find and mount a cache sub-volume under /var/cache.
-- If no cache sub-volume is available a new one is created and the mounted.
+- If no cache sub-volume is available a new one is created and then mounted.
 
 ### zinit unit
 The zinit unit file of the module specify the command line,  test command, and the order where the services need to be booted.
