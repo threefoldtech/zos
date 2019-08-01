@@ -23,7 +23,7 @@ func main() {
 	app := cli.NewApp()
 	app.Version = "0.0.1"
 	app.Usage = "Let you provision capacity on the ThreefoldGrid 2.0"
-
+	app.EnableBashCompletion = true
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "debug, d",
