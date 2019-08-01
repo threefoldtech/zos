@@ -28,6 +28,8 @@ const (
 	VolumeReservation ReservationType = "volume"
 	// NetworkReservation type
 	NetworkReservation ReservationType = "network"
+	// ZDBReservation type
+	ZDBReservation ReservationType = "zdb"
 )
 
 // ReplyTo defines how report the result of the provisioning operation
