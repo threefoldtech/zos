@@ -165,7 +165,7 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 	// map the network ID to the network namespace
 	path := filepath.Join(n.storageDir, string(network.NetID))
 	if err := ioutil.WriteFile(path, []byte(nibble.NetworkName()), 0660); err != nil {
-		return "", err
+		return "", errors.Wrap(err, "fail to write file that maps network ID to network namespace")
 	}
 
 	return nibble.NetworkName(), nil
