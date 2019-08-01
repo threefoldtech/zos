@@ -100,7 +100,7 @@ func (s *httpSource) Reservations(ctx context.Context) <-chan Reservation {
 			res, err := s.store.Poll(modules.StrIdentifier(s.nodeID), false)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get reservation")
-				continue
+				time.Sleep(time.Second * 10)
 			}
 
 			select {
