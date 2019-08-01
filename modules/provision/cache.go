@@ -13,7 +13,7 @@ type Cache struct {
 	store ReservationStore
 }
 
-// NewCache returns a new initalized reservation cache
+// NewCache returns a new initialized reservation cache
 func NewCache(cacheSize int, provisionURL string) *Cache {
 	cache := lru.New(cacheSize)
 	cache.OnEvicted = func(key lru.Key, _ interface{}) {
