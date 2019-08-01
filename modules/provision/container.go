@@ -71,7 +71,7 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 		Msg("deploying network")
 
 	networkMgr := stubs.NewNetworkerStub(GetZBus(ctx))
-	ns, err := networkMgr.Namespace(modules.NetID(config.Network.NetwokID))
+	ns, err := networkMgr.Join(modules.NetID(config.Network.NetwokID))
 	if err != nil {
 		return nil, err
 	}
