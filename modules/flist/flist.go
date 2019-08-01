@@ -107,7 +107,7 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 	logPath := filepath.Join(f.log, rnd) + ".log"
 
 	args := []string{
-		"-backend", filepath.Join(path, "backend"),
+		"-backend", path,
 		"-cache", f.cache,
 		"-meta", flistPath,
 		"-storage-url", storage,
