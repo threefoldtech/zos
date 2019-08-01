@@ -5,7 +5,7 @@ Storage module is available on zbus over the following channel
 
 | module | object | version | 
 |--------|--------|---------|
-| storage|storage| 0.0.01|
+| storage|storage| 0.0.1|
 
 # Introduction
 This module responsible to manage everything related with storage. In 0-OS we have 2 different storage primitives, storage pool and [0-db](https://github.com/threefoldtech/0-db).
