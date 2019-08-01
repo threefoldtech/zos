@@ -5,7 +5,7 @@ Storage module is available on zbus over the following channel
 
 | module | object | version | 
 |--------|--------|---------|
-| storage|storage| 0.0.1|
+| storage|[storage](#disk-object)| 0.0.1|
 
 # Introduction
 This module responsible to manage everything related with storage. In 0-OS we have 2 different storage primitives, storage pool and [0-db](https://github.com/threefoldtech/0-db).
@@ -43,7 +43,7 @@ exec: storaged
 test: mountpoint /var/cache
 ```
 
-## Disk sub-module
+## Disk object
 
 Responsible to discover and prepare all the disk available on a node to be ready to use for the other sub-modules
 
@@ -115,8 +115,8 @@ type StorageModule interface {
 
 ```
 
-## 0-db sub-module
-> This sub-module is `NOT IMPLEMENTED YET`
+## 0-db object
+> This object is `NOT IMPLEMENTED YET`
 
 Responsible to do the capacity planning of the 0-db on top of the disk prepare by the disk sub-module
 
