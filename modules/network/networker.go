@@ -1,8 +1,8 @@
 package network
 
 import (
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -70,12 +70,20 @@ func validateNetwork(n *modules.Network) error {
 	return nil
 }
 
-func (n networker) Namespace(id modules.NetID) (string, error) {
-	b, err := ioutil.ReadFile(filepath.Join(n.storageDir, string(id)))
+func (n networker) namespaceOf(net *modules.Network) (string, error) {
+	nibble, err := n.nibble(net)
 	if err != nil {
 		return "", err
 	}
-	return string(b), err
+	return nibble.NetworkName(), nil
+}
+
+func (n networker) bridgeOf(net *modules.Network) (string, error) {
+	nibble, err := n.nibble(net)
+	if err != nil {
+		return "", err
+	}
+	return nibble.BridgeName(), nil
 }
 
 func (n *networker) Join(id modules.NetID) (name string, err error) {
@@ -86,31 +94,26 @@ func (n *networker) Join(id modules.NetID) (name string, err error) {
 	// 4- Assign IP to the veth endpoint inside the namespace.
 	// 5- return the namespace name
 
-	// 1- Make sure this network is is deployed
-	if _, err := n.Namespace(id); err != nil {
-		return name, err
-	}
+	log.Info().Str("network-id", string(id)).Msg("joining network")
 
-	network, err := n.tnodb.GetNetwork(id)
+	net, err := n.networkOf(id)
 	if err != nil {
-		return name, err
+		return "", errors.Wrapf(err, "couldn't load network with id (%s)", id)
+	}
+	// 1- Make sure this network is is deployed
+	brName, err := n.bridgeOf(net)
+	if err != nil {
+		return name, errors.Wrapf(err, "failed to get bridge for network: %v", id)
 	}
 
-	local := n.localResource(network.Resources)
-	if local == nil {
-		return name, fmt.Errorf("not network resource for this node: %s", n.identity.NodeID())
-	}
-
-	nibble := nib.NewNibble(local.Prefix, network.AllocationNR)
-
-	br, err := bridge.Get(nibble.BridgeName())
+	br, err := bridge.Get(brName)
 	if err != nil {
 		return name, err
 	}
 
 	// TODO: the number in the name below must be changed to a deterministic
 	// value, may be driven from the IP assigned to this namespace
-	name = fmt.Sprintf("%s-%d", nibble.NetworkName(), 1) // CHANGE ME
+	name = fmt.Sprintf("%s-%d", "container", 1) //TODO: CHANGE ME
 	netspace, err := namespace.Create(name)
 	if err != nil {
 		return name, err
@@ -135,7 +138,7 @@ func (n *networker) Join(id modules.NetID) (name string, err error) {
 			Msg("Create veth pair in net namespace")
 		hostVeth, containerVeth, err := ip.SetupVeth(vethName, 1500, host)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to create veth pair in namespace (%s)", name)
 		}
 
 		hostVethName = hostVeth.Name
@@ -158,7 +161,6 @@ func (n *networker) Join(id modules.NetID) (name string, err error) {
 		return name, err
 	}
 
-	//TODO: attach the hostVeth to the network
 	return name, bridge.AttachNic(hostVeth, br)
 }
 
@@ -253,11 +255,41 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 
 	// map the network ID to the network namespace
 	path := filepath.Join(n.storageDir, string(network.NetID))
-	if err := ioutil.WriteFile(path, []byte(nibble.NetworkName()), 0660); err != nil {
-		return "", errors.Wrap(err, "fail to write file that maps network ID to network namespace")
+	file, err := os.Create(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	enc := json.NewEncoder(file)
+	if err := enc.Encode(network); err != nil {
+		return "", errors.Wrap(err, "failed to store network object")
 	}
 
 	return nibble.NetworkName(), nil
+}
+
+func (n *networker) nibble(network *modules.Network) (*nib.Nibble, error) {
+	localResource := n.localResource(network.Resources)
+	if localResource == nil {
+		return nil, fmt.Errorf("not network resource for this node: %s", n.identity.NodeID())
+	}
+
+	return nib.NewNibble(localResource.Prefix, network.AllocationNR), nil
+}
+
+func (n *networker) networkOf(id modules.NetID) (*modules.Network, error) {
+	path := filepath.Join(n.storageDir, string(id))
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	dec := json.NewDecoder(file)
+
+	var net modules.Network
+	return &net, dec.Decode(&net)
 }
 
 // ApplyNetResource implements modules.Networker interface
