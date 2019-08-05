@@ -22,7 +22,8 @@ func (n *networker) allocateIP(id string, network *modules.Network) (*current.IP
 	local := n.localResource(network.Resources)
 
 	r := allocator.Range{
-		Subnet: types.IPNet(*local.Prefix),
+		Subnet:  types.IPNet(*local.Prefix),
+		Gateway: local.Prefix.IP,
 	}
 
 	if err := r.Canonicalize(); err != nil {
@@ -48,6 +49,7 @@ func (n *networker) allocateIP(id string, network *modules.Network) (*current.IP
 
 		return &current.IPConfig{
 			Address: net.IPNet{IP: ip, Mask: rng.Subnet.Mask},
+			Gateway: rng.Gateway,
 		}, nil
 	}
 
