@@ -16,7 +16,9 @@ type Networker interface {
 	// that is hooked to the network bridge with a veth pair, and assign it a
 	// new IP from the network resource range. The method return the new namespace
 	// name.
-	Join(NetID) (string, error)
+	// The member name specifies the name of the member, and must be unique
+	// The NetID is the network id to join
+	Join(member string, id NetID) (string, error)
 }
 
 // NetID is a type defining the ID of a network

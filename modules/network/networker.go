@@ -86,7 +86,7 @@ func (n networker) bridgeOf(net *modules.Network) (string, error) {
 	return nibble.BridgeName(), nil
 }
 
-func (n *networker) Join(id modules.NetID) (name string, err error) {
+func (n *networker) Join(member string, id modules.NetID) (name string, err error) {
 	// TODO:
 	// 1- Make sure this network id is actually deployed
 	// 2- Create a new namespace, then create a veth pair inside this namespace
@@ -111,10 +111,7 @@ func (n *networker) Join(id modules.NetID) (name string, err error) {
 		return name, err
 	}
 
-	// TODO: the number in the name below must be changed to a deterministic
-	// value, may be driven from the IP assigned to this namespace
-	name = fmt.Sprintf("%s-%d", "container", 1) //TODO: CHANGE ME
-	netspace, err := namespace.Create(name)
+	netspace, err := namespace.Create(member)
 	if err != nil {
 		return name, err
 	}
@@ -125,7 +122,6 @@ func (n *networker) Join(id modules.NetID) (name string, err error) {
 		}
 	}()
 
-	vethName := fmt.Sprintf("veth-%s", name)
 	var hostVethName string
 	err = netspace.Do(func(host ns.NetNS) error {
 		if err := ifaceutil.SetLoUp(); err != nil {
@@ -134,9 +130,9 @@ func (n *networker) Join(id modules.NetID) (name string, err error) {
 
 		log.Info().
 			Str("namespace", name).
-			Str("veth", vethName).
+			Str("veth", "eth0").
 			Msg("Create veth pair in net namespace")
-		hostVeth, containerVeth, err := ip.SetupVeth(vethName, 1500, host)
+		hostVeth, containerVeth, err := ip.SetupVeth("eth0", 1500, host)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create veth pair in namespace (%s)", name)
 		}
@@ -156,7 +152,7 @@ func (n *networker) Join(id modules.NetID) (name string, err error) {
 		return name, err
 	}
 
-	hostVeth, err := netlink.LinkByName(vethName)
+	hostVeth, err := netlink.LinkByName(hostVethName)
 	if err != nil {
 		return name, err
 	}
