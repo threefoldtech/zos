@@ -100,6 +100,8 @@ func (n *networker) Join(member string, id modules.NetID) (name string, err erro
 	if err != nil {
 		return "", errors.Wrapf(err, "couldn't load network with id (%s)", id)
 	}
+
+	local := n.localResource(net.Resources)
 	// 1- Make sure this network is is deployed
 	brName, err := n.bridgeOf(net)
 	if err != nil {
@@ -139,13 +141,17 @@ func (n *networker) Join(member string, id modules.NetID) (name string, err erro
 
 		hostVethName = hostVeth.Name
 
-		_, err = netlink.LinkByName(containerVeth.Name)
+		eth0, err := netlink.LinkByName(containerVeth.Name)
 		if err != nil {
 			return err
 		}
 
-		//TODO: set the link IP
-		return nil
+		config, err := allocateIP(member, net.NetID, local, n.storageDir)
+		if err != nil {
+			return err
+		}
+
+		return netlink.AddrAdd(eth0, &netlink.Addr{IPNet: &config.Address})
 	})
 
 	if err != nil {
