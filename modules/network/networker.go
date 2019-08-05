@@ -101,7 +101,6 @@ func (n *networker) Join(member string, id modules.NetID) (name string, err erro
 		return "", errors.Wrapf(err, "couldn't load network with id (%s)", id)
 	}
 
-	local := n.localResource(net.Resources)
 	// 1- Make sure this network is is deployed
 	brName, err := n.bridgeOf(net)
 	if err != nil {
@@ -146,7 +145,7 @@ func (n *networker) Join(member string, id modules.NetID) (name string, err erro
 			return err
 		}
 
-		config, err := allocateIP(member, net.NetID, local, n.storageDir)
+		config, err := n.allocateIP(member, net)
 		if err != nil {
 			return err
 		}
