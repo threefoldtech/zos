@@ -150,7 +150,11 @@ func (n *networker) Join(member string, id modules.NetID) (name string, err erro
 			return err
 		}
 
-		return netlink.AddrAdd(eth0, &netlink.Addr{IPNet: &config.Address})
+		if err := netlink.AddrAdd(eth0, &netlink.Addr{IPNet: &config.Address}); err != nil {
+			return err
+		}
+
+		return netlink.RouteAdd(&netlink.Route{Gw: config.Gateway})
 	})
 
 	if err != nil {
