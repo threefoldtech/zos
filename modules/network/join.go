@@ -11,15 +11,18 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 )
 
-func allocateIP(id string, netID modules.NetID, nr *modules.NetResource, storageRoot string) (*current.IPConfig, error) {
-	storePath := path.Join(storageRoot, "lease")
-	store, err := disk.New(string(netID), storePath)
+// allocateIP allocaes a unique IP for the entity defines by the given id (for example container id, or a vm).
+// in the network with netID, and NetResource.
+func (n *networker) allocateIP(id string, network *modules.Network) (*current.IPConfig, error) {
+	store, err := disk.New(string(network.NetID), path.Join(n.storageDir, "lease"))
 	if err != nil {
 		return nil, err
 	}
 
+	local := n.localResource(network.Resources)
+
 	r := allocator.Range{
-		Subnet: types.IPNet(*nr.Prefix),
+		Subnet: types.IPNet(*local.Prefix),
 	}
 
 	if err := r.Canonicalize(); err != nil {
