@@ -2,3 +2,5 @@
 - Modules
   - [Storage](storage/readme.md)
   - [Flist](flist/readme.md)
+  - [Containerd](container/readme.md)
+  - [Identityd](identity/readme.md)
