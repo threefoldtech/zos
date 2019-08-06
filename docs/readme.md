@@ -2,4 +2,4 @@
 - Modules
   - [Storage](storage/readme.md)
   - [Flist](flist/readme.md)
-  - [Networking](network/README.md)
+  - [Networking](network/readme.md)
