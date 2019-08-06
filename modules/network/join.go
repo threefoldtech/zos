@@ -11,7 +11,7 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 )
 
-// allocateIP allocaes a unique IP for the entity defines by the given id (for example container id, or a vm).
+// allocateIP allocates a unique IP for the entity defines by the given id (for example container id, or a vm).
 // in the network with netID, and NetResource.
 func (n *networker) allocateIP(id string, network *modules.Network) (*current.IPConfig, error) {
 	store, err := disk.New(string(network.NetID), path.Join(n.storageDir, "lease"))
