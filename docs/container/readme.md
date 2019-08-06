@@ -1,4 +1,4 @@
-# Storage Module
+# Container Module
 
 ## ZBus
 Storage module is available on zbus over the following channel
@@ -15,12 +15,19 @@ setting up proper capabilities, and finally creating the container instance on `
 
 The module is fully stateless, all container information is queried during runtime from `containerd`.
 
+### zinit unit
+`contd` must run after containerd is running, and the node boot process is complete. Since it doesn't keep state, no dependency on `stroaged` is needed
+
+```yaml
+exec: contd -broker unix:///var/run/redis.sock -root /var/cache/modules/containerd
+after:
+  - containerd
+  - boot
+```
+
 ## Interface
 ```go
 package modules
-
-//go:generate mkdir -p stubs
-//go:generate zbusc -module container -version 0.0.1 -name container -package stubs github.com/threefoldtech/zosv2/modules+ContainerModule stubs/container_stub.go
 
 // ContainerID type
 type ContainerID string
