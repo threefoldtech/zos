@@ -4,3 +4,4 @@
   - [Flist](flist/readme.md)
   - [Containerd](container/readme.md)
   - [Identityd](identity/readme.md)
+  - [Networking](network/readme.md)
