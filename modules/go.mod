@@ -52,9 +52,9 @@ require (
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/whs/nacl-sealed-box v0.0.0-20180930164530-92b9ba845d8d
-	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
-	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980 // indirect
-	golang.org/x/sys v0.0.0-20190614084037-d442b75600c5
+	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
+	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80 // indirect
+	golang.org/x/sys v0.0.0-20190804053845-51ab0e2deafa
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20190607034155-226bf4e412cd
 	google.golang.org/appengine v1.6.1 // indirect
 	google.golang.org/genproto v0.0.0-20190611190212-a7e196e89fd3 // indirect
