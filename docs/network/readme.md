@@ -49,9 +49,13 @@ So. Let's have some abbreviations settled first:
   TL;DR Give IP Adresses to containers attached to the NR's bridge.
   When the provisioner wants to start a container that doesn't attach itself to the NR's network namespace (cool that you can do that), but instead needs to create a veth pair and attach it to the NR's preconfigured bridge, the veth end in the container needs to get an IP address in the NR's Prefix (IPv6) and subnet (IPv4).  
   The NR has a deterministic IPv4 subnet definition that is coupled to the 7-8th byte of the IPv6 Prefix, where it then can use an IPv4 in the /24 CIDR that is assigned to the NR.
-  As for the IPv6 address, you can choose to have a mac address derived IPv6 address, or/and a fixed address based on the same IPv4 address you gave to the container's interface.
+  As for the IPv6 address, you can choose to have a mac address derived IPv6 address, or/and a fixed address based on the same IPv4 address you gave to the container's interface.  
+  Note: 
+    - a veth pair is a concept in linux that creates 2 virtual network interfaces that are interconnected with a virtual cable. what goes in on one end of the pair, gets out on the other end, and vice-versa.
+    - a bridge in linux is a concept of a virtual switch that can contain virtual interfaces. When you attach an interface to a bridge, it is a virtual switch with one port. You can add as many interfaces to that virtual switch as you like.
 
-  ## Nodes, ExitNodes, ExitPoints, Network Resources and how they are related.
-  
+## Nodes, ExitNodes, ExitPoints, Network Resources and how they are related.
+
+
 
 
