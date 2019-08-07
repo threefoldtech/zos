@@ -1,3 +1,24 @@
+# Network module
+
+## ZBus
+
+Network module is available on zbus over the following channel
+
+| module | object | version |
+|--------|--------|---------|
+| network|[network](#interface)| 0.0.1|
+
+## Interface
+
+```go
+//Networker is the interface for the network module
+type Networker interface {
+	ApplyNetResource(Network) (string, error)
+	DeleteNetResource(Network) error
+	Namespace(NetID) (string, error)
+}
+```
+
 ## Zero-OS networking
 
 ### Some First Explanations
