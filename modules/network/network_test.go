@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/threefoldtech/zosv2/modules/identity"
-
 	"golang.org/x/crypto/ed25519"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
