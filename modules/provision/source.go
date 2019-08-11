@@ -50,9 +50,7 @@ func (s *pipeSource) readToEnd(ctx context.Context, dec *json.Decoder, ch chan<-
 func (s *pipeSource) Reservations(ctx context.Context) <-chan Reservation {
 	ch := make(chan Reservation)
 	go func() {
-		defer func() {
-			close(ch)
-		}()
+		defer close(ch)
 
 		for {
 			file, err := os.Open(s.p)
@@ -92,28 +90,37 @@ func HTTPSource(store ReservationStore, nodeID modules.Identifier) ReservationSo
 
 func (s *httpSource) Reservations(ctx context.Context) <-chan Reservation {
 	ch := make(chan Reservation)
+
+	// on the first run we will get all the reservation
+	// ever made to this know, to make sure we provision
+	// everything at boot
+	// after that, we only ask for the new reservations
+	firstRun := true
 	go func() {
 		defer close(ch)
 		for {
 			// backing off of 1 second
 			<-time.After(time.Second)
-			res, err := s.store.Poll(modules.StrIdentifier(s.nodeID), false)
+			log.Info().Msg("check for new reservations")
+
+			res, err := s.store.Poll(modules.StrIdentifier(s.nodeID), firstRun)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get reservation")
 				time.Sleep(time.Second * 10)
 			}
+			firstRun = false
 
 			select {
 			case <-ctx.Done():
-				break
+				return
 			default:
 				for _, r := range res {
 					ch <- *r
 				}
 			}
 		}
-
 	}()
+
 	return ch
 }
 

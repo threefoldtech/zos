@@ -42,7 +42,7 @@ type Container struct {
 }
 
 // ContainerProvision is entry point to container reservation
-func ContainerProvision(ctx context.Context, reservation Reservation) (interface{}, error) {
+func containerProvision(ctx context.Context, reservation Reservation) (interface{}, error) {
 	client := GetZBus(ctx)
 	cache := GetCache(ctx)
 
@@ -149,4 +149,11 @@ func ContainerProvision(ctx context.Context, reservation Reservation) (interface
 
 	log.Info().Msgf("container created with id: '%s'", id)
 	return id, nil
+}
+
+func containerDecomission(ctx context.Context, reservation Reservation) error {
+	client := GetZBus(ctx)
+
+	containerClient := stubs.NewContainerModuleStub(client)
+	return containerClient.Delete(reservation.User, modules.ContainerID(reservation.ID))
 }

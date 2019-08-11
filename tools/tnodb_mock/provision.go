@@ -108,6 +108,8 @@ func getReservation(w http.ResponseWriter, r *http.Request) {
 	provStore.Lock()
 	defer provStore.Unlock()
 
+	w.Header().Add("content-type", "application/json")
+
 	for _, r := range provStore.Reservations {
 		if r.Reservation.ID == id {
 			w.WriteHeader(http.StatusOK)

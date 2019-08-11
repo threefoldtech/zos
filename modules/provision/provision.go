@@ -10,12 +10,18 @@ package provision
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // ReservationType type
 type ReservationType string
 
 const (
+
 	// ContainerReservation type
 	ContainerReservation ReservationType = "container"
 	// VolumeReservation type
@@ -40,6 +46,34 @@ type Reservation struct {
 	// Signature is the signature to the reservation
 	// it contains all the field of this struct except the signature itself
 	Signature []byte `json:"signature"`
+	// Date of creation
+	Created time.Time `json:"created"`
+	// Duration of the reservation
+	Duration time.Duration `json:"duration"`
+}
+
+func (r Reservation) validate() error {
+	if err := Verify(r); err != nil {
+		log.Warn().
+			Err(err).
+			Str("id", string(r.ID)).
+			Msg("verification of reservation signature failed")
+		return errors.Wrapf(err, "verification of reservation %s signature failed", r.ID)
+	}
+
+	if r.Duration <= 0 {
+		return fmt.Errorf("reservation %s has not duration", r.ID)
+	}
+
+	if r.Created.IsZero() {
+		return fmt.Errorf("wrong creation date in reservation %s", r.ID)
+	}
+
+	if isExpired(&r) {
+		return fmt.Errorf("reservation %s has expired", r.ID)
+	}
+
+	return nil
 }
 
 // ReservationSource interface. The source
@@ -56,14 +90,21 @@ type Engine interface {
 }
 
 type provisioner func(ctx context.Context, reservation Reservation) (interface{}, error)
+type decomissioner func(ctx context.Context, reservation Reservation) error
 
 var (
-	// types defines the entry point for the different
-	// reservation types. Currently only containers are
+	// provisioners defines the entry point for the different
+	// reservation provisioners. Currently only containers are
 	// supported.
-	types = map[ReservationType]provisioner{
-		ContainerReservation: ContainerProvision,
-		VolumeReservation:    VolumeProvision,
-		NetworkReservation:   NetworkProvision,
+	provisioners = map[ReservationType]provisioner{
+		ContainerReservation: containerProvision,
+		VolumeReservation:    volumeProvision,
+		NetworkReservation:   networkProvision,
+	}
+
+	decomissioners = map[ReservationType]decomissioner{
+		ContainerReservation: containerDecomission,
+		VolumeReservation:    volumeDecomission,
+		NetworkReservation:   networkDecomission,
 	}
 )

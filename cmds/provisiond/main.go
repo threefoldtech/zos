@@ -5,7 +5,6 @@ import (
 	"flag"
 	"os"
 
-	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/stubs"
 
 	"github.com/rs/zerolog"
@@ -62,16 +61,6 @@ func main() {
 	ctx = provision.WithTnoDB(ctx, tnodbURL)
 	ctx = provision.WithCache(ctx, cache)
 
-	// bootstrap:
-	// we get all the reservations for this node once
-	// and try to deploy what is still valid
-	log.Info().Msg("start bootstrap provisioning engine")
-	store := provision.NewhHTTPStore(resURL)
-	provision.New(&bootstrapSource{
-		nodeID: nodeID,
-		store:  store,
-	}).Run(ctx)
-
 	// From here we start the real provision engine that will live
 	// for the rest of the life of the node
 	pipe, err := provision.FifoSource("/var/run/reservation.pipe")
@@ -79,11 +68,12 @@ func main() {
 		log.Fatal().Err(err).Msgf("failed to allocation reservation pipe")
 	}
 
+	httpStore := provision.NewhHTTPStore(resURL)
 	source := pipe
 	if len(resURL) != 0 {
 		source = provision.CompinedSource(
 			pipe,
-			provision.HTTPSource(store, nodeID),
+			provision.HTTPSource(httpStore, nodeID),
 		)
 	}
 
@@ -96,30 +86,4 @@ func main() {
 	if err := engine.Run(ctx); err != nil {
 		log.Error().Err(err).Msg("unexpected error")
 	}
-}
-
-// bootstrapSource implements a provision.ReservationSource
-// that sends all the reservation for this node once
-// this is used to boostrap all the workload after a boot
-type bootstrapSource struct {
-	nodeID modules.Identifier
-	store  provision.ReservationStore
-}
-
-func (s *bootstrapSource) Reservations(ctx context.Context) <-chan provision.Reservation {
-	ch := make(chan provision.Reservation)
-	go func() {
-		defer close(ch)
-
-		res, err := s.store.Poll(s.nodeID, true)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to get reservations")
-			return
-		}
-		log.Debug().Msgf("reservations already existing %v", res)
-		for _, r := range res {
-			ch <- *r
-		}
-	}()
-	return ch
 }

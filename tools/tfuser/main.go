@@ -223,6 +223,11 @@ func main() {
 					Name:  "node",
 					Usage: "Node ID where to deploy the workload",
 				},
+				cli.Int64Flag{
+					Name:  "duration",
+					Usage: "duration of the reservation in days",
+					Value: 1,
+				},
 				cli.StringFlag{
 					Name:   "seed",
 					Usage:  "path to the file container the seed of the user private key",
