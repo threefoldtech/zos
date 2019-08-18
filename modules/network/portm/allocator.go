@@ -6,28 +6,37 @@ import (
 	"github.com/threefoldtech/zosv2/modules/network/portm/backend"
 )
 
+// ErrNoFreePort is returned when trying to reserve a port but all the
+// the port of the range have been already reserved
 var ErrNoFreePort = errors.New("no free port find")
 
+// PortRange hold the beginging and end of a range of port
+// a PortAllocator can reserve
 type PortRange struct {
 	Start int
 	End   int
 }
 
-type allocator struct {
+// Allocator implements the PortAllocator interface
+type Allocator struct {
 	pRange PortRange
 	store  backend.Store
 }
 
-var _ PortAllocator = (*allocator)(nil)
+var _ PortAllocator = (*Allocator)(nil)
 
-func NewAllocator(pRange PortRange, store backend.Store) PortAllocator {
-	return &allocator{
+// NewAllocator return a PortAllocator
+func NewAllocator(pRange PortRange, store backend.Store) *Allocator {
+	return &Allocator{
 		pRange: pRange,
 		store:  store,
 	}
 }
 
-func (a *allocator) Reserve(ns string) (int, error) {
+// Reserve implements PortAllocator interface
+func (a *Allocator) Reserve(ns string) (int, error) {
+	a.store.Lock()
+	defer a.store.Unlock()
 
 	allocatedPorts, err := a.store.GetByNS(ns)
 	if err != nil {
@@ -63,7 +72,11 @@ func (a *allocator) Reserve(ns string) (int, error) {
 	return 0, ErrNoFreePort
 }
 
-func (a *allocator) Release(ns string, port int) error {
+// Release implements PortAllocator interface
+func (a *Allocator) Release(ns string, port int) error {
+	a.store.Lock()
+	defer a.store.Unlock()
+
 	return a.store.Release(ns, port)
 }
 
