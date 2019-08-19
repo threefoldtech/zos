@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -58,52 +59,58 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 				Logger()
 
 			if !reservation.expired() {
-
-				if err := reservation.validate(); err != nil {
-					log.Error().Err(err).Msgf("failed validation of reservation")
-					continue
-				}
-
-				// provisioning of a reservation
 				slog.Info().Msg("start provisioning reservation")
-
-				fn, ok := provisioners[reservation.Type]
-				if !ok {
-					slog.Error().Msg("reservation: type of reservation not supported")
-					continue
+				if err := e.provision(ctx, reservation); err != nil {
+					log.Error().Err(err).Msgf("failed to provision reservation %s", reservation.ID)
 				}
-
-				result, err := fn(ctx, reservation)
-				if err != nil {
-					slog.Error().Err(err).Msg("provisioning of reservation failed")
-				}
-
-				if err := e.store.Add(reservation); err != nil {
-					log.Error().Err(err).Msgf("failed to cache reservation %s locally", reservation.ID)
-				}
-
-				e.reply(reservation.ID, result, err)
 			} else {
-				// here we handle the case when the reservation is expired
 				slog.Info().Msg("start decommissioning reservation")
-
-				fn, ok := decommissioners[reservation.Type]
-				if !ok {
-					slog.Error().Msg("decommission: type of reservation not supported")
-					continue
-				}
-
-				err := fn(ctx, reservation)
-				if err != nil {
-					slog.Error().Err(err).Msg("decommissioning of reservation failed")
-				}
-
-				if err := e.store.Remove(reservation.ID); err != nil {
-					log.Error().Err(err).Msgf("failed to remove reservation %s from cache", reservation.ID)
+				if err := e.decommission(ctx, reservation); err != nil {
+					log.Error().Err(err).Msgf("failed to decommission reservation %s", reservation.ID)
 				}
 			}
 		}
 	}
+}
+
+func (e *defaultEngine) provision(ctx context.Context, r *Reservation) error {
+	if err := r.validate(); err != nil {
+		return errors.Wrapf(err, "failed validation of reservation")
+	}
+
+	fn, ok := provisioners[r.Type]
+	if !ok {
+		return fmt.Errorf("type of reservation not supported: %s", r.Type)
+	}
+
+	result, err := fn(ctx, r)
+	if err != nil {
+		return errors.Wrap(err, "provisioning of reservation failed")
+	}
+
+	if err := e.store.Add(r); err != nil {
+		return errors.Wrapf(err, "failed to cache reservation %s locally", r.ID)
+	}
+
+	e.reply(r.ID, result, err)
+	return nil
+}
+
+func (e *defaultEngine) decommission(ctx context.Context, r *Reservation) error {
+	fn, ok := decommissioners[r.Type]
+	if !ok {
+		return fmt.Errorf("type of reservation not supported: %s", r.Type)
+	}
+
+	err := fn(ctx, r)
+	if err != nil {
+		errors.Wrap(err, "decommissioning of reservation failed")
+	}
+
+	if err := e.store.Remove(r.ID); err != nil {
+		errors.Wrapf(err, "failed to remove reservation %s from cache", r.ID)
+	}
+	return nil
 }
 
 func (e *defaultEngine) reply(id string, result interface{}, err error) {
