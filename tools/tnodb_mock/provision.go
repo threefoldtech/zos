@@ -114,7 +114,7 @@ func getReservation(w http.ResponseWriter, r *http.Request) {
 		if r.Reservation.ID == id {
 			w.WriteHeader(http.StatusOK)
 			if err := json.NewEncoder(w).Encode(r.Reservation); err != nil {
-				log.Println("error during json encoding of reservation: %v", err)
+				log.Printf("error during json encoding of reservation: %v", err)
 			}
 			return
 		}

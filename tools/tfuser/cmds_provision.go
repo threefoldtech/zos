@@ -50,8 +50,8 @@ func cmdsProvision(c *cli.Context) error {
 		return err
 	}
 
-	r := provision.Reservation{}
-	if err := json.Unmarshal(schema, &r); err != nil {
+	r := &provision.Reservation{}
+	if err := json.Unmarshal(schema, r); err != nil {
 		return err
 	}
 

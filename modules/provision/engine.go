@@ -8,6 +8,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ReservationReadWriter define the interface to store
+// some reservations
 type ReservationReadWriter interface {
 	Add(r *Reservation) error
 	Remove(id string) error

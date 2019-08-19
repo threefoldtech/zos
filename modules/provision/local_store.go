@@ -5,19 +5,21 @@ import (
 	"sync"
 )
 
-type memStore struct {
+// MemStore is a in memory reservation store
+type MemStore struct {
 	sync.RWMutex
 	m map[string]*Reservation
 }
 
-func NewMemStore() *memStore {
-	return &memStore{
+// NewMemStore creates a in memory reservation store
+func NewMemStore() *MemStore {
+	return &MemStore{
 		m: make(map[string]*Reservation),
 	}
 }
 
 // Add a reservation ID to the store
-func (s *memStore) Add(r *Reservation) error {
+func (s *MemStore) Add(r *Reservation) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -30,7 +32,7 @@ func (s *memStore) Add(r *Reservation) error {
 }
 
 // Remove a reservation ID from the store
-func (s *memStore) Remove(id string) error {
+func (s *MemStore) Remove(id string) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -43,7 +45,7 @@ func (s *memStore) Remove(id string) error {
 
 // GetExpired returns all id the the reservations that are expired
 // at the time of the function call
-func (s *memStore) GetExpired() ([]*Reservation, error) {
+func (s *MemStore) GetExpired() ([]*Reservation, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -57,8 +59,9 @@ func (s *memStore) GetExpired() ([]*Reservation, error) {
 	return output, nil
 }
 
-// Exits checks if a reservation id is already present in the store
-func (s *memStore) Get(id string) (*Reservation, error) {
+// Get retrieves a specific reservation using its ID
+// if returns a non nil error if the reservation is not present in the store
+func (s *MemStore) Get(id string) (*Reservation, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -70,6 +73,6 @@ func (s *memStore) Get(id string) (*Reservation, error) {
 }
 
 // Close makes sure the backend of the store is closed properly
-func (s *memStore) Close() error {
+func (s *MemStore) Close() error {
 	return nil
 }

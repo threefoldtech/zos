@@ -10,15 +10,18 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 )
 
+// HTTPStore is a reservation store
+// over HTTP
 type HTTPStore struct {
 	baseURL string
 }
 
-// NewhHTTPStore create an a client to a TNoDB reachable over HTTP
+// NewHTTPStore creates an a client to a TNoDB reachable over HTTP
 func NewHTTPStore(url string) *HTTPStore {
 	return &HTTPStore{baseURL: url}
 }
 
+// Reserve adds a reservation to the BCDB
 func (s *HTTPStore) Reserve(r *Reservation, nodeID modules.Identifier) error {
 	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, nodeID.Identity())
 
@@ -41,6 +44,8 @@ func (s *HTTPStore) Reserve(r *Reservation, nodeID modules.Identifier) error {
 	return nil
 }
 
+// Poll retrieves reservations from BCDB. If all is true, it returns all the reservations
+// for this node, otherwise is return only the reservation never sent yet and do long polling
 func (s *HTTPStore) Poll(nodeID modules.Identifier, all bool) ([]*Reservation, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/reservations/%s/poll", s.baseURL, nodeID.Identity()))
 	if err != nil {
@@ -74,6 +79,7 @@ func (s *HTTPStore) Poll(nodeID modules.Identifier, all bool) ([]*Reservation, e
 	return reservations, nil
 }
 
+// Get retrieves a single reservation using its ID
 func (s *HTTPStore) Get(id string) (*Reservation, error) {
 	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, id)
 
