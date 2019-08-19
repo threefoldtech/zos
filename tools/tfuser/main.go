@@ -109,10 +109,6 @@ func main() {
 									Name:  "node",
 									Usage: "node ID of the node where to install this network, you can specify multiple time this flag",
 								},
-								cli.UintFlag{
-									Name:  "port",
-									Usage: "wireguard listenting point, only specify if the node is public",
-								},
 							},
 							Action: cmdsAddNode,
 						},
