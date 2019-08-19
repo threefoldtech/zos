@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func Test_isExpired(t *testing.T) {
+func TestIsExpired(t *testing.T) {
 	type args struct {
 		r *Reservation
 	}

@@ -90,7 +90,7 @@ type Engine interface {
 }
 
 type provisioner func(ctx context.Context, reservation Reservation) (interface{}, error)
-type decomissioner func(ctx context.Context, reservation Reservation) error
+type decommissioner func(ctx context.Context, reservation Reservation) error
 
 var (
 	// provisioners defines the entry point for the different
@@ -102,9 +102,9 @@ var (
 		NetworkReservation:   networkProvision,
 	}
 
-	decomissioners = map[ReservationType]decomissioner{
-		ContainerReservation: containerDecomission,
-		VolumeReservation:    volumeDecomission,
-		NetworkReservation:   networkDecomission,
+	decommissioners = map[ReservationType]decommissioner{
+		ContainerReservation: containerDecommission,
+		VolumeReservation:    volumeDecommission,
+		NetworkReservation:   networkDecommission,
 	}
 )

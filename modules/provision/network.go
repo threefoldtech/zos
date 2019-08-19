@@ -29,7 +29,7 @@ func networkProvision(ctx context.Context, reservation Reservation) (interface{}
 	return namespace, nil
 }
 
-func networkDecomission(ctx context.Context, reservation Reservation) error {
+func networkDecommission(ctx context.Context, reservation Reservation) error {
 	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
 
 	network := &modules.Network{}

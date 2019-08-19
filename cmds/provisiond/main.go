@@ -24,13 +24,11 @@ func main() {
 		tnodbURL     string
 		debug        bool
 		ver          bool
-		lruMaxSize   int
 	)
 
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
 	flag.StringVar(&tnodbURL, "tnodb", "https://tnodb.dev.grid.tf", "address of tenant network object database")
 	flag.StringVar(&resURL, "url", "https://tnodb.dev.grid.tf", "URL of the reservation server to poll from")
-	flag.IntVar(&lruMaxSize, "cache", 10, "Number of reservation ID to keep in cache for owenership verification")
 	flag.BoolVar(&debug, "debug", false, "enable debug logging")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
@@ -45,6 +43,10 @@ func main() {
 
 	flag.Parse()
 
+	if resURL == "" {
+		log.Fatal().Msg("reservation URL cannot be empty")
+	}
+
 	client, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
@@ -53,31 +55,27 @@ func main() {
 	identity := stubs.NewIdentityManagerStub(client)
 	nodeID := identity.NodeID()
 
-	cache := provision.NewCache(lruMaxSize, tnodbURL)
+	// to get reservation from tnodb
+	httpStore := provision.NewHTTPStore(resURL)
+	// to store reservation locally on the node
+	memStore := provision.NewMemStore()
+	// to get the user ID of a reservation
+	ownerCache := provision.NewCache(memStore, httpStore)
 
 	// create context and add middlewares
 	ctx := context.Background()
 	ctx = provision.WithZBus(ctx, client)
 	ctx = provision.WithTnoDB(ctx, tnodbURL)
-	ctx = provision.WithCache(ctx, cache)
+	ctx = provision.WithOwnerCache(ctx, ownerCache)
 
 	// From here we start the real provision engine that will live
 	// for the rest of the life of the node
-	pipe, err := provision.FifoSource("/var/run/reservation.pipe")
-	if err != nil {
-		log.Fatal().Err(err).Msgf("failed to allocation reservation pipe")
-	}
+	source := provision.CombinedSource(
+		provision.HTTPSource(httpStore, nodeID),
+		provision.NewDecommissionSource(memStore),
+	)
 
-	httpStore := provision.NewhHTTPStore(resURL)
-	source := pipe
-	if len(resURL) != 0 {
-		source = provision.CompinedSource(
-			pipe,
-			provision.HTTPSource(httpStore, nodeID),
-		)
-	}
-
-	engine := provision.New(source)
+	engine := provision.New(source, memStore)
 
 	log.Info().
 		Str("broker", msgBrokerCon).

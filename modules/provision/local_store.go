@@ -4,33 +4,14 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/rs/zerolog/log"
 )
-
-// LocalStore is the interface use to
-// keep a list of reservation and their expiration time
-// so provision module can know when to decomission workloads
-type LocalStore interface {
-	// Add a reservation ID to the store
-	Add(r *Reservation) error
-	// Remove a reservation ID from to the store
-	Remove(id string) error
-	// GetExpired returns all id the the reservations that are expired
-	// at the time of the function call
-	GetExpired() ([]*Reservation, error)
-	// Exits checks if a reservation id is already present in the store
-	Exists(id string) (bool, error)
-	// Close makes sure the backend of the store is closed properly
-	Close() error
-}
 
 type memStore struct {
 	sync.RWMutex
 	m map[string]*Reservation
 }
 
-func NewMemStore() LocalStore {
+func NewMemStore() *memStore {
 	return &memStore{
 		m: make(map[string]*Reservation),
 	}
@@ -69,7 +50,6 @@ func (s *memStore) GetExpired() ([]*Reservation, error) {
 
 	output := make([]*Reservation, 0, len(s.m)/2)
 	for _, r := range s.m {
-		log.Debug().Msgf("check reservation %s for expiration", r.ID)
 		if !isExpired(r) {
 			continue
 		}
@@ -84,12 +64,15 @@ func isExpired(r *Reservation) bool {
 }
 
 // Exits checks if a reservation id is already present in the store
-func (s *memStore) Exists(id string) (bool, error) {
+func (s *memStore) Get(id string) (*Reservation, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	_, ok := s.m[id]
-	return ok == true, nil
+	r, ok := s.m[id]
+	if !ok {
+		return nil, fmt.Errorf("reservation not found")
+	}
+	return r, nil
 }
 
 // Close makes sure the backend of the store is closed properly

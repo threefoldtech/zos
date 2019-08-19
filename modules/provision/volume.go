@@ -21,8 +21,8 @@ const (
 )
 
 const (
-	// Gigabyte to byte conversion
-	Gigabyte = 1024 * 1024 * 1024
+	// gigabyte to byte conversion
+	gigabyte = 1024 * 1024 * 1024
 )
 
 // Volume defines a mount point
@@ -49,10 +49,10 @@ func volumeProvision(ctx context.Context, reservation Reservation) (interface{},
 		return path, nil
 	}
 
-	return storageClient.CreateFilesystem(reservation.ID, config.Size*Gigabyte, modules.DeviceType(config.Type))
+	return storageClient.CreateFilesystem(reservation.ID, config.Size*gigabyte, modules.DeviceType(config.Type))
 }
 
-func volumeDecomission(ctx context.Context, reservation Reservation) error {
+func volumeDecommission(ctx context.Context, reservation Reservation) error {
 	client := GetZBus(ctx)
 	storageClient := stubs.NewStorageModuleStub(client)
 

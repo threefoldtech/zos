@@ -10,30 +10,16 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 )
 
-// ReservationStore represent the interface to implement
-// to talk to a reservation store
-type ReservationStore interface {
-	// Reserve adds a reservation to the store, the reservation will be eventually
-	// picked up by a node to provision workloads
-	Reserve(r Reservation, nodeID modules.Identifier) error
-	// Poll ask the store to send us reservation for a specific node ID
-	// if all is true, the store sends all the reservation every registered for the node ID
-	// otherwise it just sends reservation not pulled yet.
-	Poll(nodeID modules.Identifier, all bool) ([]*Reservation, error)
-	// Get retrieve a specific reservation from the store
-	Get(id string) (Reservation, error)
-}
-
-type httpStore struct {
+type HTTPStore struct {
 	baseURL string
 }
 
 // NewhHTTPStore create an a client to a TNoDB reachable over HTTP
-func NewhHTTPStore(url string) ReservationStore {
-	return &httpStore{baseURL: url}
+func NewHTTPStore(url string) *HTTPStore {
+	return &HTTPStore{baseURL: url}
 }
 
-func (s *httpStore) Reserve(r Reservation, nodeID modules.Identifier) error {
+func (s *HTTPStore) Reserve(r Reservation, nodeID modules.Identifier) error {
 	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, nodeID.Identity())
 
 	buf := &bytes.Buffer{}
@@ -55,7 +41,7 @@ func (s *httpStore) Reserve(r Reservation, nodeID modules.Identifier) error {
 	return nil
 }
 
-func (s *httpStore) Poll(nodeID modules.Identifier, all bool) ([]*Reservation, error) {
+func (s *HTTPStore) Poll(nodeID modules.Identifier, all bool) ([]*Reservation, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/reservations/%s/poll", s.baseURL, nodeID.Identity()))
 	if err != nil {
 		return nil, err
@@ -88,10 +74,10 @@ func (s *httpStore) Poll(nodeID modules.Identifier, all bool) ([]*Reservation, e
 	return reservations, nil
 }
 
-func (s *httpStore) Get(id string) (Reservation, error) {
+func (s *HTTPStore) Get(id string) (*Reservation, error) {
 	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, id)
 
-	r := Reservation{}
+	r := &Reservation{}
 	resp, err := http.Get(url)
 	if err != nil {
 		return r, err
@@ -103,7 +89,7 @@ func (s *httpStore) Get(id string) (Reservation, error) {
 		return r, fmt.Errorf("wrong response status code %s", resp.Status)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
 		return r, err
 	}
 
