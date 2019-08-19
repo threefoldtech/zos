@@ -159,7 +159,7 @@ func reserveNetwork(network *modules.Network) error {
 	if err != nil {
 		return err
 	}
-	r := provision.Reservation{
+	r := &provision.Reservation{
 		ID:   id.String(),
 		Type: provision.NetworkReservation,
 		Data: raw,
