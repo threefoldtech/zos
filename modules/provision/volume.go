@@ -34,7 +34,7 @@ type Volume struct {
 }
 
 // VolumeProvision is entry point to provision a volume
-func volumeProvision(ctx context.Context, reservation Reservation) (interface{}, error) {
+func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
 	client := GetZBus(ctx)
 	var config Volume
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
@@ -52,7 +52,7 @@ func volumeProvision(ctx context.Context, reservation Reservation) (interface{},
 	return storageClient.CreateFilesystem(reservation.ID, config.Size*gigabyte, modules.DeviceType(config.Type))
 }
 
-func volumeDecommission(ctx context.Context, reservation Reservation) error {
+func volumeDecommission(ctx context.Context, reservation *Reservation) error {
 	client := GetZBus(ctx)
 	storageClient := stubs.NewStorageModuleStub(client)
 

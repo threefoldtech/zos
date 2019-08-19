@@ -3,7 +3,6 @@ package provision
 import (
 	"fmt"
 	"sync"
-	"time"
 )
 
 type memStore struct {
@@ -50,17 +49,12 @@ func (s *memStore) GetExpired() ([]*Reservation, error) {
 
 	output := make([]*Reservation, 0, len(s.m)/2)
 	for _, r := range s.m {
-		if !isExpired(r) {
+		if !r.expired() {
 			continue
 		}
 		output = append(output, r)
 	}
 	return output, nil
-}
-
-func isExpired(r *Reservation) bool {
-	expire := r.Created.Add(r.Duration)
-	return time.Now().After(expire)
 }
 
 // Exits checks if a reservation id is already present in the store

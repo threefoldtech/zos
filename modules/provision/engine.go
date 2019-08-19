@@ -57,7 +57,7 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 				Str("duration", fmt.Sprintf("%v", reservation.Duration)).
 				Logger()
 
-			if !isExpired(&reservation) {
+			if !reservation.expired() {
 
 				if err := reservation.validate(); err != nil {
 					log.Error().Err(err).Msgf("failed validation of reservation")
@@ -78,7 +78,7 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 					slog.Error().Err(err).Msg("provisioning of reservation failed")
 				}
 
-				if err := e.store.Add(&reservation); err != nil {
+				if err := e.store.Add(reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to cache reservation %s locally", reservation.ID)
 				}
 

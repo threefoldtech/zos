@@ -48,7 +48,7 @@ func (c *OwnerCache) OwnerOf(reservationID string) (string, error) {
 		return "", fmt.Errorf("failed to get owner of reservation %s", reservationID)
 	}
 
-	if err := Verify(*r); err != nil {
+	if err := Verify(r); err != nil {
 		return "", errors.Wrapf(err, "failed to get owner of reservation %s", reservationID)
 	}
 

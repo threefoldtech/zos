@@ -52,7 +52,14 @@ type Reservation struct {
 	Duration time.Duration `json:"duration"`
 }
 
-func (r Reservation) validate() error {
+// Expired returns a boolean depending if the reservation
+// has expire or not at the time of the function call
+func (r *Reservation) expired() bool {
+	expire := r.Created.Add(r.Duration)
+	return time.Now().After(expire)
+}
+
+func (r *Reservation) validate() error {
 	if err := Verify(r); err != nil {
 		log.Warn().
 			Err(err).
@@ -69,7 +76,7 @@ func (r Reservation) validate() error {
 		return fmt.Errorf("wrong creation date in reservation %s", r.ID)
 	}
 
-	if isExpired(&r) {
+	if r.expired() {
 		return fmt.Errorf("reservation %s has expired", r.ID)
 	}
 
@@ -81,7 +88,7 @@ func (r Reservation) validate() error {
 // then reservations are applied to the node to deploy
 // a resource of the given Reservation.Type
 type ReservationSource interface {
-	Reservations(ctx context.Context) <-chan Reservation
+	Reservations(ctx context.Context) <-chan *Reservation
 }
 
 // Engine interface
@@ -89,8 +96,8 @@ type Engine interface {
 	Run(ctx context.Context) error
 }
 
-type provisioner func(ctx context.Context, reservation Reservation) (interface{}, error)
-type decommissioner func(ctx context.Context, reservation Reservation) error
+type provisioner func(ctx context.Context, reservation *Reservation) (interface{}, error)
+type decommissioner func(ctx context.Context, reservation *Reservation) error
 
 var (
 	// provisioners defines the entry point for the different

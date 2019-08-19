@@ -42,7 +42,7 @@ type Container struct {
 }
 
 // ContainerProvision is entry point to container reservation
-func containerProvision(ctx context.Context, reservation Reservation) (interface{}, error) {
+func containerProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
 	client := GetZBus(ctx)
 	cache := GetOwnerCache(ctx)
 
@@ -151,7 +151,7 @@ func containerProvision(ctx context.Context, reservation Reservation) (interface
 	return id, nil
 }
 
-func containerDecommission(ctx context.Context, reservation Reservation) error {
+func containerDecommission(ctx context.Context, reservation *Reservation) error {
 	client := GetZBus(ctx)
 
 	container := stubs.NewContainerModuleStub(client)

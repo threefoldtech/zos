@@ -19,7 +19,7 @@ func NewHTTPStore(url string) *HTTPStore {
 	return &HTTPStore{baseURL: url}
 }
 
-func (s *HTTPStore) Reserve(r Reservation, nodeID modules.Identifier) error {
+func (s *HTTPStore) Reserve(r *Reservation, nodeID modules.Identifier) error {
 	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, nodeID.Identity())
 
 	buf := &bytes.Buffer{}

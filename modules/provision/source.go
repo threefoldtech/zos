@@ -35,8 +35,8 @@ func HTTPSource(store ReservationPoller, nodeID modules.Identifier) ReservationS
 	}
 }
 
-func (s *httpSource) Reservations(ctx context.Context) <-chan Reservation {
-	ch := make(chan Reservation)
+func (s *httpSource) Reservations(ctx context.Context) <-chan *Reservation {
+	ch := make(chan *Reservation)
 
 	// on the first run we will get all the reservation
 	// ever made to this know, to make sure we provision
@@ -62,7 +62,7 @@ func (s *httpSource) Reservations(ctx context.Context) <-chan Reservation {
 				return
 			default:
 				for _, r := range res {
-					ch <- *r
+					ch <- r
 				}
 			}
 		}
@@ -91,8 +91,8 @@ func NewDecommissionSource(store ReservationExpirer) ReservationSource {
 	}
 }
 
-func (s *decommissionSource) Reservations(ctx context.Context) <-chan Reservation {
-	c := make(chan Reservation)
+func (s *decommissionSource) Reservations(ctx context.Context) <-chan *Reservation {
+	c := make(chan *Reservation)
 
 	go func() {
 		defer close(c)
@@ -118,7 +118,7 @@ func (s *decommissionSource) Reservations(ctx context.Context) <-chan Reservatio
 						Time("created", r.Created).
 						Str("duration", fmt.Sprintf("%v", r.Duration)).
 						Msg("reservation expired")
-					c <- *r
+					c <- r
 				}
 			}
 		}
@@ -138,14 +138,14 @@ func CombinedSource(sources ...ReservationSource) ReservationSource {
 	}
 }
 
-func (s *combinedSource) Reservations(ctx context.Context) <-chan Reservation {
+func (s *combinedSource) Reservations(ctx context.Context) <-chan *Reservation {
 	var wg sync.WaitGroup
 
-	out := make(chan Reservation)
+	out := make(chan *Reservation)
 
 	// Start an send goroutine for each input channel in cs. send
 	// copies values from c to out until c is closed, then calls wg.Done.
-	send := func(c <-chan Reservation) {
+	send := func(c <-chan *Reservation) {
 		for n := range c {
 			out <- n
 		}

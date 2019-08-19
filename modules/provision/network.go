@@ -13,7 +13,7 @@ import (
 )
 
 // networkProvision is entry point to provision a network
-func networkProvision(ctx context.Context, reservation Reservation) (interface{}, error) {
+func networkProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
 	network := &modules.Network{}
 	if err := json.Unmarshal(reservation.Data, network); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal network from reservation")
@@ -29,7 +29,7 @@ func networkProvision(ctx context.Context, reservation Reservation) (interface{}
 	return namespace, nil
 }
 
-func networkDecommission(ctx context.Context, reservation Reservation) error {
+func networkDecommission(ctx context.Context, reservation *Reservation) error {
 	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
 
 	network := &modules.Network{}

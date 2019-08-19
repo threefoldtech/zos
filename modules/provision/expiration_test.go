@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestIsExpired(t *testing.T) {
+func TestExpired(t *testing.T) {
 	type args struct {
 		r *Reservation
 	}
@@ -33,8 +33,8 @@ func TestIsExpired(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isExpired(tt.args.r); got != tt.want {
-				t.Errorf("isExpired() = %v, want %v", got, tt.want)
+			if got := tt.args.r.expired(); got != tt.want {
+				t.Errorf("expired() = %v, want %v", got, tt.want)
 			}
 		})
 	}
