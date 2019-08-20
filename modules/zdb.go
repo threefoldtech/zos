@@ -1,7 +1,7 @@
 package modules
 
 //go:generate mkdir -p stubs
-//go:generate zbusc -module zdb -version 0.0.1 -name zdb -package stubs github.com/threefoldtech/zosv2/modules+ZDBModule stubs/zdb_stub.go
+//go:generate zbusc -module zdb -version 0.0.1 -name zdb -package stubs github.com/threefoldtech/zosv2/modules+ZDBAllocater stubs/zdb_stub.go
 
 // ZDBMode is the enumeration of the modes 0-db can operate in
 type ZDBMode string
@@ -21,12 +21,12 @@ type ZDBNamespace struct {
 	Port     int // Listen port of the 0-db owning the namespace
 }
 
-type ZDBModule interface {
+type ZDBAllocater interface {
 	// Allocate is responsible to make sure the subvolume used by a 0-db as enough storage capacity
 	// of specified size, type and mode
 	// it returns the volume ID and its path or an error if it couldn't allocate enough storage
 	Allocate(diskType DeviceType, size uint64, mode ZDBMode) (string, string, error)
 
 	// Claim let the system claim the allocated storage used by a 0-db namespace
-	Claim(ID string) error
+	Claim(ID string, size uint64) error
 }

@@ -5,14 +5,14 @@ import (
 	modules "github.com/threefoldtech/zosv2/modules"
 )
 
-type ZDBModuleStub struct {
+type ZDBAllocaterStub struct {
 	client zbus.Client
 	module string
 	object zbus.ObjectID
 }
 
-func NewZDBModuleStub(client zbus.Client) *ZDBModuleStub {
-	return &ZDBModuleStub{
+func NewZDBAllocaterStub(client zbus.Client) *ZDBAllocaterStub {
+	return &ZDBAllocaterStub{
 		client: client,
 		module: "zdb",
 		object: zbus.ObjectID{
@@ -22,7 +22,7 @@ func NewZDBModuleStub(client zbus.Client) *ZDBModuleStub {
 	}
 }
 
-func (s *ZDBModuleStub) Allocate(arg0 modules.DeviceType, arg1 uint64, arg2 modules.ZDBMode) (ret0 string, ret1 string, ret2 error) {
+func (s *ZDBAllocaterStub) Allocate(arg0 modules.DeviceType, arg1 uint64, arg2 modules.ZDBMode) (ret0 string, ret1 string, ret2 error) {
 	args := []interface{}{arg0, arg1, arg2}
 	result, err := s.client.Request(s.module, s.object, "Allocate", args...)
 	if err != nil {
@@ -41,8 +41,8 @@ func (s *ZDBModuleStub) Allocate(arg0 modules.DeviceType, arg1 uint64, arg2 modu
 	return
 }
 
-func (s *ZDBModuleStub) Claim(arg0 string) (ret0 error) {
-	args := []interface{}{arg0}
+func (s *ZDBAllocaterStub) Claim(arg0 string, arg1 uint64) (ret0 error) {
+	args := []interface{}{arg0, arg1}
 	result, err := s.client.Request(s.module, s.object, "Claim", args...)
 	if err != nil {
 		panic(err)
