@@ -30,9 +30,16 @@ jobs:
       env:
         GO111MODULE: on
         
-    - name: Build
+    - name: Build modules
       run: |
         cd modules
         make build
+      env:
+        GO111MODULE: on
+   
+    - name: Build binaries
+      run: |
+        cd cmds
+        make
       env:
         GO111MODULE: on
