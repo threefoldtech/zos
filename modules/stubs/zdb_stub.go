@@ -14,9 +14,9 @@ type ZDBAllocaterStub struct {
 func NewZDBAllocaterStub(client zbus.Client) *ZDBAllocaterStub {
 	return &ZDBAllocaterStub{
 		client: client,
-		module: "zdb",
+		module: "storage",
 		object: zbus.ObjectID{
-			Name:    "zdb",
+			Name:    "storage",
 			Version: "0.0.1",
 		},
 	}
