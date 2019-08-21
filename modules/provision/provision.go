@@ -109,11 +109,13 @@ var (
 		ContainerReservation: containerProvision,
 		VolumeReservation:    volumeProvision,
 		NetworkReservation:   networkProvision,
+		ZDBReservation:       zdbProvision,
 	}
 
 	decommissioners = map[ReservationType]decommissioner{
 		ContainerReservation: containerDecommission,
 		VolumeReservation:    volumeDecommission,
 		NetworkReservation:   networkDecommission,
+		ZDBReservation:       zdbDecommission,
 	}
 )

@@ -12,6 +12,7 @@ const (
 	ZDBModeSeq  = "seq"
 )
 
+// ZDBNamespace is a 0-db namespace
 type ZDBNamespace struct {
 	ID       string
 	DiskType DeviceType
@@ -21,6 +22,8 @@ type ZDBNamespace struct {
 	Port     int // Listen port of the 0-db owning the namespace
 }
 
+// ZDBAllocater is the zbus interface of the storage module responsible
+// for 0-db allocation
 type ZDBAllocater interface {
 	// Allocate is responsible to make sure the subvolume used by a 0-db as enough storage capacity
 	// of specified size, type and mode

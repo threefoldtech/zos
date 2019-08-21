@@ -78,6 +78,8 @@ type StoragePolicy struct {
 	MaxPools uint8
 }
 
+// VolumeAllocater is the zbus interface of the storage module responsible
+// for volume allocation
 type VolumeAllocater interface {
 	// CreateFilesystem creates a filesystem with a given size. The filesystem
 	// is mounted, and the path to the mountpoint is returned. The filesystem
