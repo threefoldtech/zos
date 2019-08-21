@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v3"
 	"github.com/threefoldtech/zosv2/modules/zdb"
 
 	"github.com/pkg/errors"
