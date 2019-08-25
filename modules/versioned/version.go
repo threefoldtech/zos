@@ -19,7 +19,7 @@ type Version struct {
 }
 
 // String formats version as 'v<Major>.<Minor>.<Build><Tag>'
-func (v *Version) String() string {
+func (v Version) String() string {
 	return fmt.Sprintf("v%d.%d.%d%s", v.major, v.minor, v.build, v.tag)
 }
 

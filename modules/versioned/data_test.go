@@ -3,6 +3,7 @@ package versioned
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -90,4 +91,33 @@ func TestWriterReader(t *testing.T) {
 	if ok := assert.Equal(t, data, loaded); !ok {
 		t.Fatal()
 	}
+}
+
+func ExampleNewReader() {
+	latest := New(1, 2, 0, "")
+	// 1- Open file contains data
+	buf := bytes.NewBufferString(`"v1.0.1beta" "my data goes here"`)
+
+	// 2- create versioned reader
+	reader, err := NewReader(buf)
+	if err != nil {
+		// no version in data, take another action!
+		panic(err)
+	}
+
+	fmt.Println("data version is:", reader.Version())
+	dec := json.NewDecoder(reader)
+
+	if reader.Version().Compare(latest) <= 0 {
+		//data version is older than or equal latest
+		var data string
+		if err := dec.Decode(&data); err != nil {
+			panic(err)
+		}
+		fmt.Println("data is:", "my data goes here")
+	}
+
+	// Output:
+	// data version is: v1.0.1beta
+	// data is: my data goes here
 }
