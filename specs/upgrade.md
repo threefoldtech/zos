@@ -53,3 +53,15 @@ The following procedure is what is needed to boot a new machine to `zos:v2`
 > Since the bootstrap will require extra storage we have 2 suggestion:
 > - Either the storage modules is built-in the image, and make sure cache and other disks are mounted. (i don not like this option)
 > - Create another mem disk of proper size, use it as a temporary cache for the downloads, then cleared up after the files are copied to the tmpfs of the rootfs
+
+## Data Migration
+Since some daemons need to keep some sort of state on disk. Daemons **MUST** make sure they are always compatible with the older version of their data. It's totally up to the daemon to decide how it's gonna track the version number of the data schema, but we provided a small util library to work with [versioned](../modules/versioned) data.
+
+> We are concerned with the version of the data `schema` not the version of the data object.
+
+## Live Migration
+The proposal does not change much of what the live migration does at the moment, except it must be aware that the manifest now includes *ALL* the files, not only updated one. So we need to take care not to restart services that does not need to.
+
+The live migration, can mount the flist with new files, copy everything in place and apply config (if needed). Daemons that requires restart can be restarted.
+
+No data migration scripts are needed, since it's up to the daemon to take care of its own data as explained above.
