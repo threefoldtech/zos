@@ -12,9 +12,9 @@ var (
 
 // Version struct
 type Version struct {
-	major int64
-	minor int64
-	build int64
+	major uint16
+	minor uint16
+	build uint16
 	tag   string
 }
 
@@ -28,6 +28,23 @@ func (v Version) MarshalText() ([]byte, error) {
 	return []byte(v.String()), nil
 }
 
+func (v *Version) value() uint64 {
+	return uint64(v.major)<<32 | uint64(v.minor)<<16 | uint64(v.build)
+}
+
+// Compare version
+func (v Version) Compare(o Version) int {
+	self := v.value()
+	other := o.value()
+	if self == other {
+		return 0
+	} else if self > other {
+		return 1
+	} else {
+		return -1
+	}
+}
+
 // UnmarshalText parses string data into a version object
 func (v *Version) UnmarshalText(data []byte) (err error) {
 	m := pattern.FindStringSubmatch(string(data))
@@ -35,16 +52,22 @@ func (v *Version) UnmarshalText(data []byte) (err error) {
 		return fmt.Errorf("invalid version format")
 	}
 
-	if v.major, err = strconv.ParseInt(m[1], 10, 64); err != nil {
-		return
+	if major, err := strconv.ParseUint(m[1], 10, 16); err != nil {
+		return err
+	} else {
+		v.major = uint16(major)
 	}
 
-	if v.minor, err = strconv.ParseInt(m[2], 10, 64); err != nil {
-		return
+	if minor, err := strconv.ParseUint(m[2], 10, 16); err != nil {
+		return err
+	} else {
+		v.minor = uint16(minor)
 	}
 
-	if v.build, err = strconv.ParseInt(m[3], 10, 64); err != nil {
-		return
+	if build, err := strconv.ParseUint(m[3], 10, 16); err != nil {
+		return err
+	} else {
+		v.build = uint16(build)
 	}
 
 	v.tag = m[4]
@@ -53,7 +76,7 @@ func (v *Version) UnmarshalText(data []byte) (err error) {
 }
 
 // New creates a new version
-func New(major, minor, build int64, tag string) Version {
+func New(major, minor, build uint16, tag string) Version {
 	return Version{major, minor, build, tag}
 }
 
@@ -61,4 +84,18 @@ func New(major, minor, build int64, tag string) Version {
 func Parse(v string) (version Version, err error) {
 	err = version.UnmarshalText([]byte(v))
 	return
+}
+
+// Range defines a version range. Usually used for
+// version checks
+type Range [2]Version
+
+// NewRange creates a new range
+func NewRange(from, to Version) Range {
+	return [2]Version{from, to}
+}
+
+// Has checks if version range has this version
+func (r Range) Has(version Version) bool {
+	return r[0].Compare(version) <= 0 && r[1].Compare(version) >= 0
 }

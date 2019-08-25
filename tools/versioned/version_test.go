@@ -2,6 +2,7 @@ package versioned
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,4 +70,42 @@ func TestJsonUnmarshal(t *testing.T) {
 	if ok := assert.Equal(t, New(2, 2, 3, "beta"), *object.V2); !ok {
 		t.Fatal()
 	}
+}
+
+func TestVersionCompare(t *testing.T) {
+	cases := []struct {
+		V1  string
+		V2  string
+		Out int
+	}{
+		{"v1.0.0", "v1.0.0", 0},
+		{"v1.2.1", "v1.2.1", 0},
+		{"v1.0.1", "v1.0.0", 1},
+		{"v1.1.0", "v1.0.0", 1},
+		{"v1.1.1", "v1.1.2", -1},
+		{"v1.2.0", "v2.2.0", -1},
+	}
+
+	for _, testCase := range cases {
+		t.Run(fmt.Sprintf("%s-%s", testCase.V1, testCase.V2), func(t *testing.T) {
+			v1, err := Parse(testCase.V1)
+			require.NoError(t, err)
+			v2, err := Parse(testCase.V2)
+			require.NoError(t, err)
+
+			require.Equal(t, v1.Compare(v2), testCase.Out)
+		})
+
+	}
+}
+
+func TestVersionRange(t *testing.T) {
+	r := NewRange(New(1, 0, 0, ""), New(1, 4, 0, ""))
+
+	require.True(t, r.Has(New(1, 0, 0, "")))
+	require.True(t, r.Has(New(1, 4, 0, "")))
+	require.True(t, r.Has(New(1, 2, 0, "")))
+
+	require.False(t, r.Has(New(1, 5, 0, "")))
+	require.False(t, r.Has(New(0, 9, 0, "")))
 }
