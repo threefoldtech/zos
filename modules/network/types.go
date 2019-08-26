@@ -216,5 +216,5 @@ type Node struct {
 	Ifaces []*IfaceInfo `json:"ifaces"`
 
 	PublicConfig *PubIface `json:"public_config"`
-	ExitNode     bool      `json:"exit_node"`
+	ExitNode     int       `json:"exit_node"`
 }

@@ -84,7 +84,7 @@ func main() {
 	ifaceVersion := -1
 	exitIface, err := db.ReadPubIface(nodeID)
 	if err == nil {
-		if err := configuePubIface(exitIface); err != nil {
+		if err := configurePubIface(exitIface); err != nil {
 			log.Error().Err(err).Msg("failed to configure public interface")
 			os.Exit(1)
 		}
@@ -99,7 +99,7 @@ func main() {
 		for {
 			select {
 			case iface := <-ch:
-				_ = configuePubIface(iface)
+				_ = configurePubIface(iface)
 			case <-ctx.Done():
 				return
 			}

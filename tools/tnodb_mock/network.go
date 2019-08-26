@@ -52,7 +52,7 @@ func chooseExit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// mark the node as possible exit node
-	node.ExitNode = true
+	node.ExitNode = len(farm.ExitNodes) + 1
 
 	// add the node id to the list of possible exit node of the farm
 	var found = false
