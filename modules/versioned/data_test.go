@@ -12,12 +12,12 @@ import (
 
 func TestReader(t *testing.T) {
 	// versioned object
-	buf := bytes.NewBufferString(`"v1.2.0" {"name": "Test", "value": "success"}`)
+	buf := bytes.NewBufferString(`"1.2.0" {"name": "Test", "value": "success"}`)
 
 	reader, err := NewReader(buf)
 	require.NoError(t, err)
 
-	if ok := assert.Equal(t, New(1, 2, 0, ""), reader.Version()); !ok {
+	if ok := assert.Equal(t, MustParse("1.2.0"), reader.Version()); !ok {
 		t.Fatal()
 	}
 
@@ -68,7 +68,7 @@ func TestWriterReader(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	writer, err := NewWriter(&buf, New(1, 0, 0, ""))
+	writer, err := NewWriter(&buf, MustParse("1.0.0"))
 	require.NoError(t, err)
 
 	// Note you can replace json here with any encoder u like
@@ -80,7 +80,7 @@ func TestWriterReader(t *testing.T) {
 	reader, err := NewReader(&buf)
 	require.NoError(t, err)
 
-	if ok := assert.Equal(t, New(1, 0, 0, ""), reader.Version()); !ok {
+	if ok := assert.Equal(t, MustParse("1.0.0"), reader.Version()); !ok {
 		t.Fatal()
 	}
 
@@ -94,9 +94,9 @@ func TestWriterReader(t *testing.T) {
 }
 
 func ExampleNewReader() {
-	latest := New(1, 2, 0, "")
+	latest := MustParse("1.2.0")
 	// 1- Open file contains data
-	buf := bytes.NewBufferString(`"v1.0.1beta" "my data goes here"`)
+	buf := bytes.NewBufferString(`"1.0.1" "my data goes here"`)
 
 	// 2- create versioned reader
 	reader, err := NewReader(buf)
@@ -118,6 +118,6 @@ func ExampleNewReader() {
 	}
 
 	// Output:
-	// data version is: v1.0.1beta
+	// data version is: 1.0.1
 	// data is: my data goes here
 }

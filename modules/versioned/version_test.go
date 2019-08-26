@@ -10,33 +10,34 @@ import (
 )
 
 func TestMarshal(t *testing.T) {
-	version := New(1, 2, 3, "")
+	version := MustParse("1.2.3")
 
-	if ok := assert.Equal(t, "v1.2.3", version.String()); !ok {
+	if ok := assert.Equal(t, "1.2.3", version.String()); !ok {
 		t.Error()
 	}
 
-	data, err := version.MarshalText()
+	data, err := json.Marshal(version)
+	//data, err := version.MarshalText()
 	require.NoError(t, err)
 
-	if ok := assert.Equal(t, "v1.2.3", string(data)); !ok {
+	if ok := assert.Equal(t, `"1.2.3"`, string(data)); !ok {
 		t.Error()
 	}
 }
 
 func TestParse(t *testing.T) {
-	version, err := Parse("v2.3.4beta")
+	version, err := Parse("2.3.4-beta")
 
 	require.NoError(t, err)
 
-	if ok := assert.Equal(t, New(2, 3, 4, "beta"), version); !ok {
+	if ok := assert.Equal(t, MustParse("2.3.4-beta"), version); !ok {
 		t.Fatal()
 	}
 }
 
 func TestJsonMarshal(t *testing.T) {
-	v1 := New(1, 2, 3, "")
-	v2 := New(2, 2, 3, "beta")
+	v1 := MustParse("1.2.3")
+	v2 := MustParse("2.2.3-beta")
 
 	object := struct {
 		V1 Version  `json:"version"`
@@ -49,7 +50,7 @@ func TestJsonMarshal(t *testing.T) {
 	data, err := json.Marshal(object)
 	require.NoError(t, err)
 
-	if ok := assert.Equal(t, `{"version":"v1.2.3","another":"v2.2.3beta"}`, string(data)); !ok {
+	if ok := assert.Equal(t, `{"version":"1.2.3","another":"2.2.3-beta"}`, string(data)); !ok {
 		t.Fatal()
 	}
 }
@@ -60,14 +61,14 @@ func TestJsonUnmarshal(t *testing.T) {
 		V2 *Version `json:"another"`
 	}
 
-	err := json.Unmarshal([]byte(`{"version":"v1.2.3","another":"v2.2.3beta"}`), &object)
+	err := json.Unmarshal([]byte(`{"version":"1.2.3","another":"2.2.3-beta"}`), &object)
 	require.NoError(t, err)
 
-	if ok := assert.Equal(t, New(1, 2, 3, ""), object.V1); !ok {
+	if ok := assert.Equal(t, MustParse("1.2.3"), object.V1); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, New(2, 2, 3, "beta"), *object.V2); !ok {
+	if ok := assert.Equal(t, MustParse("2.2.3-beta"), *object.V2); !ok {
 		t.Fatal()
 	}
 }
@@ -78,12 +79,12 @@ func TestVersionCompare(t *testing.T) {
 		V2  string
 		Out int
 	}{
-		{"v1.0.0", "v1.0.0", 0},
-		{"v1.2.1", "v1.2.1", 0},
-		{"v1.0.1", "v1.0.0", 1},
-		{"v1.1.0", "v1.0.0", 1},
-		{"v1.1.1", "v1.1.2", -1},
-		{"v1.2.0", "v2.2.0", -1},
+		{"1.0.0", "1.0.0", 0},
+		{"1.2.1", "1.2.1", 0},
+		{"1.0.1", "1.0.0", 1},
+		{"1.1.0", "1.0.0", 1},
+		{"1.1.1", "1.1.2", -1},
+		{"1.2.0", "2.2.0", -1},
 	}
 
 	for _, testCase := range cases {
@@ -100,12 +101,12 @@ func TestVersionCompare(t *testing.T) {
 }
 
 func TestVersionRange(t *testing.T) {
-	r := NewRange(New(1, 0, 0, ""), New(1, 4, 0, ""))
+	r := MustParseRange(">=1.0.0 , <=1.4.5")
 
-	require.True(t, r.Has(New(1, 0, 0, "")))
-	require.True(t, r.Has(New(1, 4, 0, "")))
-	require.True(t, r.Has(New(1, 2, 0, "")))
+	require.True(t, r(MustParse("1.0.0")))
+	require.True(t, r(MustParse("1.4.0")))
+	require.True(t, r(MustParse("1.2.0")))
 
-	require.False(t, r.Has(New(1, 5, 0, "")))
-	require.False(t, r.Has(New(0, 9, 0, "")))
+	require.False(t, r(MustParse("1.5.0")))
+	require.False(t, r(MustParse("0.9.0")))
 }
