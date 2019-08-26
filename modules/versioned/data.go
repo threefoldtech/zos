@@ -1,8 +1,16 @@
 package versioned
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
+)
+
+var (
+	NotVersioned = fmt.Errorf("no version information")
 )
 
 // Reader is a versioned reader
@@ -27,6 +35,8 @@ func NewReader(r io.Reader) (*Reader, error) {
 
 	var version Version
 	if err := dec.Decode(&version); err != nil {
+		// TODO: make a differentiation between IO error
+		// and invalid version error.
 		return nil, err
 	}
 
@@ -39,6 +49,43 @@ func NewReader(r io.Reader) (*Reader, error) {
 // NewWriter creates a versioned writer that marks data with the
 // Provided version.
 func NewWriter(w io.Writer, version Version) (io.Writer, error) {
-	enc := json.NewEncoder(w)
-	return w, enc.Encode(version)
+	data, err := json.Marshal(version)
+	if err != nil {
+		return nil, err
+	}
+	_, err = w.Write(data)
+	return w, err
+}
+
+// ReadFile content
+func ReadFile(path string) (Version, []byte, error) {
+	all, err := ioutil.ReadFile(path)
+	if err != nil {
+		return MustParse("0.0.0"), nil, err
+	}
+
+	buf := bytes.NewBuffer(all)
+	reader, err := NewReader(buf)
+	if err != nil {
+		return MustParse("0.0.0"), all, NotVersioned
+	}
+	data, err := ioutil.ReadAll(reader)
+	return reader.Version(), data, err
+}
+
+// WriteFile versioned data to file
+func WriteFile(filename string, version Version, data []byte, perm os.FileMode) error {
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+	writer, err := NewWriter(file, version)
+	if err != nil {
+		return err
+	}
+	_, err = writer.Write(data)
+
+	return err
 }

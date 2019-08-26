@@ -2,8 +2,11 @@ package versioned
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -91,6 +94,29 @@ func TestWriterReader(t *testing.T) {
 	if ok := assert.Equal(t, data, loaded); !ok {
 		t.Fatal()
 	}
+}
+
+func TestLoadSaveFile(t *testing.T) {
+	data := make([]byte, 500)
+	_, err := rand.Read(data)
+	require.NoError(t, err)
+
+	file, err := ioutil.TempFile("", "test-")
+	require.NoError(t, err)
+	// lazy way to get a temp file path
+	path := file.Name()
+
+	file.Close()
+	version := MustParse("1.2.0-beta")
+	err = WriteFile(path, version, data, 0400)
+	require.NoError(t, err)
+	defer os.Remove(path)
+
+	loadedVersion, loadedData, err := ReadFile(path)
+	require.NoError(t, err)
+
+	require.Equal(t, version, loadedVersion)
+	require.Equal(t, data, loadedData)
 }
 
 func ExampleNewReader() {
