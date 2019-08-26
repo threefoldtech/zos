@@ -104,7 +104,16 @@ func CreatePublicNS(iface *PubIface) error {
 	return nil
 }
 
-func configNetResAsExitPoint(nr *modules.NetResource, ep *modules.ExitPoint, prefixZero *net.IPNet) error {
+func configNetResAsExitPoint(nr *modules.NetResource, network *modules.Network) error {
+
+	var (
+		ep         = network.Exit
+		prefixZero = network.PrefixZero
+	)
+	nibble, err := ip.NewNibble(nr.Prefix, network.AllocationNR)
+	if err != nil {
+		return err
+	}
 
 	if nr.NodeID.ReachabilityV6 == modules.ReachabilityV6ULA {
 		return fmt.Errorf("cannot configure an exit point in a hidden node")

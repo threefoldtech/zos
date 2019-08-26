@@ -42,7 +42,11 @@ func genWGQuick(network *modules.Network, userID string, wgPrivateKey string) (s
 		PrivateKey: wgPrivateKey,
 	}
 
-	localNibble := ip.NewNibble(localNr.Prefix, 0)
+	localNibble, err := ip.NewNibble(localNr.Prefix, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	a, b, err := localNibble.ToV4()
 	if err != nil {
 		return "", err

@@ -139,14 +139,14 @@ var networks = []*modules.Network{
 }
 
 func TestCreateNetwork(t *testing.T) {
-	var (
-		network    = networks[0]
-		resource   = network.Resources[0]
-		nibble     = zosip.NewNibble(resource.Prefix, network.AllocationNR)
-		netName    = nibble.NetworkName()
-		bridgeName = nibble.BridgeName()
-		vethName   = nibble.VethName()
-	)
+
+	network := networks[0]
+	resource := network.Resources[0]
+	nibble, err := zosip.NewNibble(resource.Prefix, network.AllocationNR)
+	netName := nibble.NetworkName()
+	bridgeName := nibble.BridgeName()
+	vethName := nibble.VethName()
+	require.NoError(t, err)
 
 	dir, err := ioutil.TempDir("", netName)
 	require.NoError(t, err)

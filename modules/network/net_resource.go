@@ -29,8 +29,12 @@ import (
 // and a wireguard interface and then move it interface inside
 // the net namespace
 func createNetworkResource(localResource *modules.NetResource, network *modules.Network) error {
+	nibble, err := zosip.NewNibble(localResource.Prefix, network.AllocationNR)
+	if err != nil {
+		return err
+	}
+
 	var (
-		nibble     = zosip.NewNibble(localResource.Prefix, network.AllocationNR)
 		netnsName  = nibble.NetworkName()
 		bridgeName = nibble.BridgeName()
 		wgName     = nibble.WiregardName()
@@ -83,17 +87,7 @@ func createNetworkResource(localResource *modules.NetResource, network *modules.
 			return err
 		}
 
-		ipnetv6 := localResource.Prefix
-		a, b, err := nibble.ToV4()
-		if err != nil {
-			return err
-		}
-		ipnetv4 := &net.IPNet{
-			IP:   net.IPv4(10, a, b, 1),
-			Mask: net.CIDRMask(24, 32),
-		}
-
-		for _, ipnet := range []*net.IPNet{ipnetv6, ipnetv4} {
+		for _, ipnet := range []*net.IPNet{localResource.Prefix, nibble.NRIPv4()} {
 			log.Info().Str("addr", ipnet.String()).Msg("set address on veth interface")
 			addr := &netlink.Addr{IPNet: ipnet, Label: ""}
 			if err = netlink.AddrAdd(link, addr); err != nil {
@@ -204,8 +198,7 @@ func genWireguardPeers(localResource *modules.NetResource, network *modules.Netw
 			continue
 		}
 
-		nibble := zosip.NewNibble(peer.Prefix, network.AllocationNR)
-		a, b, err := nibble.ToV4()
+		nibble, err := zosip.NewNibble(peer.Prefix, network.AllocationNR)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -213,8 +206,8 @@ func genWireguardPeers(localResource *modules.NetResource, network *modules.Netw
 		wgPeer := wireguard.Peer{
 			PublicKey: peer.Connection.Key,
 			AllowedIPs: []string{
-				fmt.Sprintf("fe80::%s/128", nibble.Hex()),
-				fmt.Sprintf("10.255.%d.%d/32", a, b),
+				nibble.WGAllowedFE80().String(),
+				nibble.WGAllowedIP().String(),
 				peer.Prefix.String(),
 			},
 		}
@@ -234,7 +227,7 @@ func genWireguardPeers(localResource *modules.NetResource, network *modules.Netw
 
 		routes = append(routes, &netlink.Route{
 			Dst: peer.Prefix,
-			Gw:  net.ParseIP(fmt.Sprintf("fe80::%s", nibble.Hex())),
+			Gw:  nibble.WGRouteGateway(),
 		})
 	}
 
@@ -242,6 +235,7 @@ func genWireguardPeers(localResource *modules.NetResource, network *modules.Netw
 }
 
 func genWireguardExitPeers(localResource *modules.NetResource, network *modules.Network) ([]wireguard.Peer, []*netlink.Route, error) {
+
 	var (
 		peers      = make([]wireguard.Peer, 0)
 		routes     = make([]*netlink.Route, 0)
@@ -251,6 +245,11 @@ func genWireguardExitPeers(localResource *modules.NetResource, network *modules.
 	)
 
 	exitNetRes, err = exitResource(network.Resources)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	nibble, err := zosip.NewNibble(exitPeer.Prefix, network.AllocationNR)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -272,43 +271,20 @@ func genWireguardExitPeers(localResource *modules.NetResource, network *modules.
 	})
 
 	// add default ipv6 route to the exit node
-	nibble := zosip.NewNibble(exitPeer.Prefix, network.AllocationNR)
-	routes = append(routes, &netlink.Route{
-		Dst: &net.IPNet{
-			IP:   net.ParseIP("::"),
-			Mask: net.CIDRMask(0, 128),
-		},
-		Gw: net.ParseIP(fmt.Sprintf("fe80::%s", nibble.Hex())),
-	})
-
-	a, b, err := nibble.ToV4()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// add ipv4 route to the exit network resource
-	routes = append(routes, &netlink.Route{
-		Dst: &net.IPNet{
-			IP:   net.ParseIP(fmt.Sprintf("10.%d.%d.0", a, b)),
-			Mask: net.CIDRMask(24, 32),
-		},
-		Gw: net.ParseIP(fmt.Sprintf("10.255.%d.%d", a, b)),
-	})
-
+	routes = append(routes, nibble.RouteIPv6Exit())
+	// add ipv4 route to the exit node
+	routes = append(routes, nibble.RouteIPv4Exit())
 	// add default ipv4 route to the exit node
-	routes = append(routes, &netlink.Route{
-		Dst: &net.IPNet{
-			IP:   net.ParseIP("0.0.0.0"),
-			Mask: net.CIDRMask(0, 32),
-		},
-		Gw: net.ParseIP(fmt.Sprintf("10.255.%d.%d", a, b)),
-	})
+	routes = append(routes, nibble.RouteIPv4DefaultExit())
 
 	return peers, routes, nil
 }
 
 func configWG(localResource *modules.NetResource, network *modules.Network, wgPeers []wireguard.Peer, routes []*netlink.Route, wgKey wgtypes.Key) error {
-	localNibble := zosip.NewNibble(localResource.Prefix, network.AllocationNR)
+	localNibble, err := zosip.NewNibble(localResource.Prefix, network.AllocationNR)
+	if err != nil {
+		return err
+	}
 	netns, err := namespace.GetByName(localNibble.NetworkName())
 	if err != nil {
 		return err
@@ -316,11 +292,6 @@ func configWG(localResource *modules.NetResource, network *modules.Network, wgPe
 	defer netns.Close()
 
 	var handler = func(_ ns.NetNS) error {
-
-		a, b, err := localNibble.ToV4()
-		if err != nil {
-			return err
-		}
 
 		wg, err := wireguard.GetByName(localNibble.WiregardName())
 		if err != nil {
@@ -347,7 +318,7 @@ func configWG(localResource *modules.NetResource, network *modules.Network, wgPe
 
 		newAddrs := mapset.NewSet()
 		newAddrs.Add(localResource.LinkLocal.String())
-		newAddrs.Add(fmt.Sprintf("10.255.%d.%d/16", a, b))
+		newAddrs.Add(localNibble.WGIP().String())
 
 		toRemove := curAddrs.Difference(newAddrs)
 		toAdd := newAddrs.Difference(curAddrs)

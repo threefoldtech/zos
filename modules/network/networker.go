@@ -67,7 +67,10 @@ func validateNetwork(n *modules.Network) error {
 	}
 
 	for i, r := range n.Resources {
-		nibble := nib.NewNibble(r.Prefix, n.AllocationNR)
+		nibble, err := nib.NewNibble(r.Prefix, n.AllocationNR)
+		if err != nil {
+			return errors.Wrap(err, "allocation prefix is not valid")
+		}
 		if r.Prefix == nil {
 			return fmt.Errorf("Prefix for network resource %s is empty", r.NodeID.Identity())
 		}
@@ -289,7 +292,10 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	nibble := nib.NewNibble(localResource.Prefix, network.AllocationNR)
+	nibble, err := nib.NewNibble(localResource.Prefix, network.AllocationNR)
+	if err != nil {
+		return "", err
+	}
 
 	wgKey, err := n.extractPrivateKey(localResource)
 	if err != nil {
@@ -346,7 +352,7 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 		routes = append(routes, exitRoutes...)
 	} else if creation { // we are the exit node and this network resource is being creating
 		log.Info().Msg("Configure network resource as exit point")
-		err := configNetResAsExitPoint(exitNetRes, network.Exit, network.PrefixZero)
+		err := configNetResAsExitPoint(exitNetRes, &network)
 		if err != nil {
 			return "", err
 		}
@@ -383,7 +389,11 @@ func (n *networker) nibble(network *modules.Network) (*nib.Nibble, error) {
 		return nil, fmt.Errorf("not network resource for this node: %s", n.identity.NodeID())
 	}
 
-	return nib.NewNibble(localResource.Prefix, network.AllocationNR), nil
+	nibble, err := nib.NewNibble(localResource.Prefix, network.AllocationNR)
+	if err != nil {
+		return nil, err
+	}
+	return nibble, nil
 }
 
 func (n *networker) networkOf(id modules.NetID) (*modules.Network, error) {
@@ -406,11 +416,14 @@ func (n *networker) DeleteNetResource(network modules.Network) error {
 	if localResource == nil {
 		return fmt.Errorf("not network resource for this node")
 	}
-	var (
-		nibble     = zosip.NewNibble(localResource.Prefix, network.AllocationNR)
-		netnsName  = nibble.NetworkName()
-		bridgeName = nibble.BridgeName()
-	)
+	nibble, err := zosip.NewNibble(localResource.Prefix, network.AllocationNR)
+	if err != nil {
+		return err
+	}
+
+	netnsName := nibble.NetworkName()
+	bridgeName := nibble.BridgeName()
+
 	if err := bridge.Delete(bridgeName); err != nil {
 		log.Error().
 			Err(err).
