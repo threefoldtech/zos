@@ -7,11 +7,19 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 var (
-	NotVersioned = fmt.Errorf("no version information")
+	// ErrNotVersioned error is raised if the underlying reader has no version
+	ErrNotVersioned = fmt.Errorf("no version information")
 )
+
+// IsNotVersioned checks if error is caused by a 'not versioned' stream
+func IsNotVersioned(err error) bool {
+	return errors.Cause(err) == ErrNotVersioned
+}
 
 // Reader is a versioned reader
 // The Versioned Reader is a reader that can load the version of the data from a stream
@@ -33,11 +41,30 @@ func (r *Reader) Version() Version {
 func NewReader(r io.Reader) (*Reader, error) {
 	dec := json.NewDecoder(r)
 
-	var version Version
-	if err := dec.Decode(&version); err != nil {
-		// TODO: make a differentiation between IO error
-		// and invalid version error.
+	// to differentiate between IO errors
+	// and version parsing errors. we going to
+	// json load string first. then we can
+	// parse the string as a version
+
+	var ver string
+	if err := dec.Decode(&ver); err != nil {
+		switch err.(type) {
+		case *json.SyntaxError:
+			err = ErrNotVersioned
+		case *json.UnmarshalTypeError:
+			err = ErrNotVersioned
+		}
+
+		if err == io.ErrUnexpectedEOF || err == io.EOF {
+			err = ErrNotVersioned
+		}
+
 		return nil, err
+	}
+
+	version, err := Parse(ver)
+	if err != nil {
+		return nil, errors.Wrap(ErrNotVersioned, err.Error())
 	}
 
 	return &Reader{
@@ -67,7 +94,7 @@ func ReadFile(path string) (Version, []byte, error) {
 	buf := bytes.NewBuffer(all)
 	reader, err := NewReader(buf)
 	if err != nil {
-		return MustParse("0.0.0"), all, NotVersioned
+		return MustParse("0.0.0"), all, ErrNotVersioned
 	}
 	data, err := ioutil.ReadAll(reader)
 	return reader.Version(), data, err

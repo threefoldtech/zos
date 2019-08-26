@@ -43,23 +43,35 @@ func TestReader(t *testing.T) {
 	}
 }
 
+type BadReader struct{}
+
+func (b BadReader) Read(d []byte) (int, error) {
+	return 0, fmt.Errorf("caused by io error")
+}
+
 func TestReaderInvalid(t *testing.T) {
 	// case 1, no version information in stream
 	buf := bytes.NewBufferString(`{"name": "Test", "value": "success"}`)
 
 	_, err := NewReader(buf)
-	require.Error(t, err)
+	require.True(t, IsNotVersioned(err))
 
 	// case 2, invalid version string
 	buf = bytes.NewBufferString(`"abc" {"name": "Test", "value": "success"}`)
 
 	_, err = NewReader(buf)
-	require.Error(t, err)
+	require.True(t, IsNotVersioned(err))
 
 	// case 3, empty input
 	buf = bytes.NewBufferString("")
 	_, err = NewReader(buf)
+	require.True(t, IsNotVersioned(err))
+
+	// case 4, underlying io error
+	var bad BadReader
+	_, err = NewReader(bad)
 	require.Error(t, err)
+	require.False(t, IsNotVersioned(err))
 }
 
 func TestWriterReader(t *testing.T) {
