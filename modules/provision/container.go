@@ -29,6 +29,8 @@ type Mount struct {
 type Container struct {
 	// URL of the flist
 	FList string `json:"flist"`
+	// URL of the storage backend for the flist
+	FlistStorage string `json:"flist"`
 	// Env env variables to container in format
 	Env map[string]string `json:"env"`
 	// Entrypoint the process to start inside the container
@@ -84,7 +86,7 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 	log.Info().Str("ip", join.IP.String()).Str("container", reservation.ID).Msg("assigned an IP")
 
 	log.Debug().Str("flist", config.FList).Msg("mounting flist")
-	mnt, err := flistClient.Mount(config.FList, "")
+	mnt, err := flistClient.Mount(config.FList, config.FlistStorage)
 	if err != nil {
 		return nil, err
 	}
