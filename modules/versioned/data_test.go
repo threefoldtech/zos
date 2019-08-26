@@ -117,17 +117,38 @@ func TestLoadSaveFile(t *testing.T) {
 	require.NoError(t, err)
 	// lazy way to get a temp file path
 	path := file.Name()
-
+	defer os.Remove(path)
 	file.Close()
+
 	version := MustParse("1.2.0-beta")
 	err = WriteFile(path, version, data, 0400)
 	require.NoError(t, err)
-	defer os.Remove(path)
 
 	loadedVersion, loadedData, err := ReadFile(path)
 	require.NoError(t, err)
 
 	require.Equal(t, version, loadedVersion)
+	require.Equal(t, data, loadedData)
+}
+
+func TestLoadNotVersioned(t *testing.T) {
+	data := make([]byte, 500)
+	_, err := rand.Read(data)
+	require.NoError(t, err)
+
+	file, err := ioutil.TempFile("", "test-")
+	require.NoError(t, err)
+	// lazy way to get a temp file path
+	path := file.Name()
+	defer os.Remove(path)
+	_, err = file.Write(data)
+	require.NoError(t, err)
+	file.Close()
+
+	_, loadedData, err := ReadFile(path)
+	require.Error(t, err)
+	require.True(t, IsNotVersioned(err))
+
 	require.Equal(t, data, loadedData)
 }
 
