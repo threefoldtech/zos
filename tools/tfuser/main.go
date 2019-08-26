@@ -156,6 +156,10 @@ func main() {
 							Usage: "URL to the flist",
 						},
 						cli.StringFlag{
+							Name:  "storage",
+							Usage: "URL to the flist storage backend",
+						},
+						cli.StringFlag{
 							Name:  "entrypoint",
 							Usage: "optional entrypoint. If specified it overwrites the entrypoint from the flist",
 						},
