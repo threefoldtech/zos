@@ -30,6 +30,8 @@ const (
 	NetworkReservation ReservationType = "network"
 	// ZDBReservation type
 	ZDBReservation ReservationType = "zdb"
+	// DebugReservation type
+	DebugReservation ReservationType = "debug"
 )
 
 // ReplyTo defines how report the result of the provisioning operation
@@ -110,6 +112,7 @@ var (
 		VolumeReservation:    volumeProvision,
 		NetworkReservation:   networkProvision,
 		ZDBReservation:       zdbProvision,
+		DebugReservation:     debugProvision,
 	}
 
 	decommissioners = map[ReservationType]decommissioner{
@@ -117,5 +120,6 @@ var (
 		VolumeReservation:    volumeDecommission,
 		NetworkReservation:   networkDecommission,
 		ZDBReservation:       zdbDecommission,
+		DebugReservation:     debugDecommission,
 	}
 )

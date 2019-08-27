@@ -56,7 +56,7 @@ testrace: verifiers build
 	# we already ran vet separately, so safe to turn it off here
 	@CGO_ENABLED=1 go test -v -vet=off -race ./...
 
-coverage: build
+coverage: verifiers build
 	@(env bash $(PWD)/buildscripts/go-coverage.sh)
 
 generate:
