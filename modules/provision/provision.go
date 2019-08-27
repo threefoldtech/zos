@@ -15,6 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zosv2/modules/versioned"
 )
 
 // ReservationType type
@@ -30,6 +31,13 @@ const (
 	NetworkReservation ReservationType = "network"
 	// ZDBReservation type
 	ZDBReservation ReservationType = "zdb"
+)
+
+var (
+	// reservationSchemaV1 reservation schema version 1
+	reservationSchemaV1 = versioned.MustParse("1.0.0")
+	// reservationSchemaLastVersion link to latest version
+	reservationSchemaLastVersion = reservationSchemaV1
 )
 
 // ReplyTo defines how report the result of the provisioning operation

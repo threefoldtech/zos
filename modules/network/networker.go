@@ -400,9 +400,8 @@ func (n *networker) networkOf(id modules.NetID) (*modules.Network, error) {
 	defer file.Close()
 	reader, err := versioned.NewReader(file)
 	if versioned.IsNotVersioned(err) {
-		// old data that didn't have any version information
-		_, err := file.Seek(0, 0)
-		if err != nil {
+		// old data that doesn't have any version information
+		if _, err := file.Seek(0, 0); err != nil {
 			return nil, err
 		}
 
@@ -414,12 +413,14 @@ func (n *networker) networkOf(id modules.NetID) (*modules.Network, error) {
 	var net modules.Network
 	dec := json.NewDecoder(reader)
 
-	validRange := versioned.MustParseRange(fmt.Sprintf("<=%s", modules.NetworkSchemaV1))
+	validV1 := versioned.MustParseRange(fmt.Sprintf("<=%s", modules.NetworkSchemaV1))
 
-	if validRange(reader.Version()) {
+	if validV1(reader.Version()) {
 		if err := dec.Decode(&net); err != nil {
 			return nil, err
 		}
+	} else {
+		return nil, fmt.Errorf("unknown network object version (%s)", reader.Version())
 	}
 
 	return &net, nil
