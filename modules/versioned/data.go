@@ -34,6 +34,21 @@ func (r *Reader) Version() Version {
 	return r.version
 }
 
+// NewVersionedReader creates a versioned reader from an un-versioned
+// reader. It's usually used to unify the data migration work flow
+// in case the older data file didn't have a version stamp
+// example:
+//  reader, err := NewReader(file)
+//  if IsNotVersioned(err) {
+//      file.Seek(0, 0) // this is important to make u reading from start
+//      reader = NewVersionedReader(MustParse("0.0.0"), file)
+//  } else err != nil {
+//    // probably io error
+// }
+func NewVersionedReader(version Version, r io.Reader) *Reader {
+	return &Reader{Reader: r, version: version}
+}
+
 // NewReader creates a new versioned reader from a stream. It fails
 // if the reader can not read the version from the stream.
 // On success, the reader will have a version, and then can be used
