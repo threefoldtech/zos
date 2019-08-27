@@ -143,7 +143,7 @@ func TestCreateNetwork(t *testing.T) {
 	network := networks[0]
 	resource := network.Resources[0]
 	nibble, err := zosip.NewNibble(resource.Prefix, network.AllocationNR)
-	netName := nibble.NetworkName()
+	netName := nibble.NamespaceName()
 	bridgeName := nibble.BridgeName()
 	vethName := nibble.VethName()
 	require.NoError(t, err)

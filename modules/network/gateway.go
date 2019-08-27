@@ -19,9 +19,11 @@ import (
 )
 
 const (
+	// GWNamespace is the default GW name (BAR ;-) )
 	GWNamespace = "gw"
 )
 
+// CreateGateway is the main router for the ExitPoints in an Exitnode
 func CreateGateway(prefixZero *net.IPNet, n int, allocNr int) error {
 	var (
 		netNS ns.NetNS
@@ -42,8 +44,9 @@ func CreateGateway(prefixZero *net.IPNet, n int, allocNr int) error {
 		return errors.Wrap(err, "failed to find a public interface for the gateway")
 	}
 
+	//fmt.Sprintf("pub-%d-%d", n, allocNr),
 	m, err := macvlan.Create(
-		fmt.Sprintf("pub-%d-%d", n, allocNr),
+		zosip.GWPubName(allocNr, n),
 		pubIface,
 		netNS)
 	if err != nil {
@@ -51,7 +54,7 @@ func CreateGateway(prefixZero *net.IPNet, n int, allocNr int) error {
 	}
 
 	// see https://github.com/threefoldtech/zosv2/blob/master/specs/network/Gateway_Container.md#implementation-details
-	// n is the exit node number, we it to configure the gateway ips and routes deterministically
+	// n is the exit node number, we use it to configure the gateway ips and routes deterministically
 	ips := []*net.IPNet{
 		{
 			IP:   net.ParseIP(fmt.Sprintf("fe80::%x", n<<12)),
@@ -81,7 +84,7 @@ func CreateGateway(prefixZero *net.IPNet, n int, allocNr int) error {
 }
 
 func addNR2GW(prefixZero, nrPrefix *net.IPNet, exitNodeNr int, allocNr int8) error {
-	n := zosip.NewNibble(nrPrefix, allocNr)
+	n, err := zosip.NewNibble(nrPrefix, allocNr)
 
 	gwNS, err := namespace.GetByName(GWNamespace)
 	if err != nil {
@@ -89,10 +92,10 @@ func addNR2GW(prefixZero, nrPrefix *net.IPNet, exitNodeNr int, allocNr int8) err
 	}
 	defer gwNS.Close()
 
-	nrNamespace := n.NetworkName()
+	nrNamespace := n.NamespaceName()
 	nrNS, err := namespace.GetByName(nrNamespace)
 	if err != nil {
-		return errors.Wrap(err, "gateway namespace doesn't not exist yet")
+		return errors.Wrap(err, "gateway namespace doesn't exist yet")
 	}
 	defer nrNS.Close()
 
@@ -108,7 +111,7 @@ func addNR2GW(prefixZero, nrPrefix *net.IPNet, exitNodeNr int, allocNr int8) err
 			Msg("Create veth pair in net namespace")
 
 		// create the veth pair inside the NR namespace and move one side into the gateway namespace
-		_, _, err := ip.SetupVeth(n.ToGWName(), 1500, gwNS)
+		_, _, err := ip.SetupVeth(n.GWtoEPName(), 1500, gwNS)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create gateway veth pair in namespace (%s)", nrNamespace)
 		}

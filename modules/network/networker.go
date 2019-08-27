@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	// ZDBIface is the name of the intefface used in the 0-db network namespace
+	// ZDBIface is the name of the interface used in the 0-db network namespace
 	ZDBIface = "zdb0"
 )
 
@@ -63,7 +63,7 @@ func validateNetwork(n *modules.Network) error {
 	}
 
 	if len(n.Resources) < 1 {
-		return fmt.Errorf("Network needs at least one network ressource")
+		return fmt.Errorf("Network needs at least one network resource")
 	}
 
 	for i, r := range n.Resources {
@@ -98,7 +98,7 @@ func (n networker) namespaceOf(net *modules.Network) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return nibble.NetworkName(), nil
+	return nibble.NamespaceName(), nil
 }
 
 func (n networker) bridgeOf(net *modules.Network) (string, error) {
@@ -306,7 +306,7 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 	// if it already exists, we skip the all network resource creation
 	// and only do the wireguard configuration
 	// so any new updated wireguard peer will be updated
-	creation := !namespace.Exists(nibble.NetworkName())
+	creation := !namespace.Exists(nibble.NamespaceName())
 
 	if creation {
 		log.Info().Msg("create new network resource")
@@ -380,7 +380,7 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 		return "", errors.Wrap(err, "failed to store network object")
 	}
 
-	return nibble.NetworkName(), nil
+	return nibble.NamespaceName(), nil
 }
 
 func (n *networker) nibble(network *modules.Network) (*nib.Nibble, error) {
@@ -421,7 +421,7 @@ func (n *networker) DeleteNetResource(network modules.Network) error {
 		return err
 	}
 
-	netnsName := nibble.NetworkName()
+	netnsName := nibble.NamespaceName()
 	bridgeName := nibble.BridgeName()
 
 	if err := bridge.Delete(bridgeName); err != nil {

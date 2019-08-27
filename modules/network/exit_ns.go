@@ -25,7 +25,7 @@ const (
 
 const (
 	// PublicNamespace is the name of the public namespace of a node
-	// the public namespace is currently uniq for a node so we hardcode its name
+	// the public namespace is currently unique for a node so we hardcode its name
 	PublicNamespace = "public"
 	// PublicIface is the name of the interface we create in the public namespace
 	PublicIface = "public"
@@ -131,12 +131,17 @@ func configNetResAsExitPoint(nr *modules.NetResource, network *modules.Network) 
 		return errors.Wrap(err, "failed to find public interface")
 	}
 
-	nrNS, err := namespace.GetByName(nibble.NetworkName())
+	nrNS, err := namespace.GetByName(nibble.NamespaceName())
 	if err != nil {
-		return errors.Wrapf(err, "failed to get network namespace for network %s", nibble.NetworkName())
+		return errors.Wrapf(err, "failed to get network namespace for network %s", nibble.NamespaceName())
 	}
 	defer nrNS.Close()
 
+	// TODO JAN no macvlan , but veth pair
+	// where
+	//   - gateway namespace needs to exist
+	//   - one end (GWtoEPName) in GW
+	//   - other end (EPPubName) in NR
 	pubMacVlan, err := macvlan.Create(PublicIface, pubIface, nrNS)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create public mac vlan interface")
@@ -154,6 +159,7 @@ func configNetResAsExitPoint(nr *modules.NetResource, network *modules.Network) 
 				IP:   net.ParseIP("::"),
 				Mask: net.CIDRMask(0, 128),
 			},
+			// TODO JAN Gw = GWtoEPLL
 			Gw:        net.ParseIP("fe80::1"),
 			LinkIndex: pubMacVlan.Attrs().Index,
 		},
@@ -162,11 +168,13 @@ func configNetResAsExitPoint(nr *modules.NetResource, network *modules.Network) 
 	if ep.Ipv6Conf != nil && ep.Ipv6Conf.Addr != nil {
 		ips = append(ips, ep.Ipv6Conf.Addr)
 	} else {
-		ips = append(ips, nibble.ExitFe80())
+		// TODO JAN EPPubLL
+		ips = append(ips, nibble.EPPubLL())
 	}
 
 	ips = append(ips, nibble.ExitPrefixZero(prefixZero))
 
+	// TODO JAN make macvlan.Install more generic (just send Virtual nic (macvlan, ipvlan, veth) to NS)
 	if err := macvlan.Install(pubMacVlan, ips, routes, nrNS); err != nil {
 		return errors.Wrap(err, "fail to install mac vlan")
 	}

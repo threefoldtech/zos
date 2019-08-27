@@ -81,10 +81,10 @@ func TestHex(t *testing.T) {
 	actual := nibble.Hex()
 	assert.Equal(t, "ff02", actual)
 }
-func TestWiregardName(t *testing.T) {
+func TestWGName(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.WiregardName()
+	actual := nibble.WGName()
 	assert.Equal(t, "wg-ff02-0", actual)
 }
 func TestWireguardPort(t *testing.T) {
@@ -99,10 +99,10 @@ func TestBridgeName(t *testing.T) {
 	actual := nibble.BridgeName()
 	assert.Equal(t, "br-ff02-0", actual)
 }
-func TestNetworkName(t *testing.T) {
+func TestNamespaceName(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.NetworkName()
+	actual := nibble.NamespaceName()
 	assert.Equal(t, "net-ff02-0", actual)
 }
 func TestVethName(t *testing.T) {

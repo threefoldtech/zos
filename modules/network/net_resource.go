@@ -35,9 +35,9 @@ func createNetworkResource(localResource *modules.NetResource, network *modules.
 	}
 
 	var (
-		netnsName  = nibble.NetworkName()
+		netnsName  = nibble.NamespaceName()
 		bridgeName = nibble.BridgeName()
-		wgName     = nibble.WiregardName()
+		wgName     = nibble.WGName()
 		vethName   = nibble.VethName()
 	)
 
@@ -193,7 +193,7 @@ func genWireguardPeers(localResource *modules.NetResource, network *modules.Netw
 	// we are a public node
 	for _, peer := range localResource.Peers {
 		if peer.Type != modules.ConnTypeWireguard || // wireguard is the only supported connection type at the moment
-			peer.Prefix.String() == localResource.Prefix.String() || // skip ourself
+			peer.Prefix.String() == localResource.Prefix.String() || // skip myself
 			peer.Prefix.String() == exitNetRes.Prefix.String() { // skip exit peer cause we add it in genWireguardExitPeers
 			continue
 		}
@@ -227,7 +227,8 @@ func genWireguardPeers(localResource *modules.NetResource, network *modules.Netw
 
 		routes = append(routes, &netlink.Route{
 			Dst: peer.Prefix,
-			Gw:  nibble.WGRouteGateway(),
+			// Gw:  nibble.WGRouteGateway(),
+			Gw: net.ParseIP(fmt.Sprintf("fe80::%s", nibble.Hex())),
 		})
 	}
 
@@ -285,7 +286,7 @@ func configWG(localResource *modules.NetResource, network *modules.Network, wgPe
 	if err != nil {
 		return err
 	}
-	netns, err := namespace.GetByName(localNibble.NetworkName())
+	netns, err := namespace.GetByName(localNibble.NamespaceName())
 	if err != nil {
 		return err
 	}
@@ -293,9 +294,9 @@ func configWG(localResource *modules.NetResource, network *modules.Network, wgPe
 
 	var handler = func(_ ns.NetNS) error {
 
-		wg, err := wireguard.GetByName(localNibble.WiregardName())
+		wg, err := wireguard.GetByName(localNibble.WGName())
 		if err != nil {
-			return errors.Wrapf(err, "failed to get wireguard interface %s", localNibble.WiregardName())
+			return errors.Wrapf(err, "failed to get wireguard interface %s", localNibble.WGName())
 		}
 
 		localPeer, err := getPeer(localResource.Prefix.String(), localResource.Peers)
