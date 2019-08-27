@@ -73,7 +73,7 @@ func LoadKeyPair(path string) (k KeyPair, err error) {
 	if err != nil {
 		return k, err
 	}
-	// version update can go here.
+
 	return FromSeed(seed)
 }
 
