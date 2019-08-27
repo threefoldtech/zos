@@ -57,8 +57,5 @@ func main() {
 
 	fmt.Printf("[+] forwarding logs to channel: %s\n", *rChan)
 
-	pubsub := client.Subscribe(*rChan)
-	defer pubsub.Close()
-
 	reader(c, client, *rChan)
 }
