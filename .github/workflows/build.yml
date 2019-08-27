@@ -23,20 +23,19 @@ jobs:
       env:
         GO111MODULE: on
         
-    - name: Run verifiers
+    - name: Run tests
       run: |
         cd modules
-        make verifiers
+        make coverage
       env:
         GO111MODULE: on
+    
+    - name: Send coverage
+      if: success()
+      run: |
+        cd modules
+        bash <(curl -s https://codecov.io/bash)
         
-    - name: Build modules
-      run: |
-        cd modules
-        make build
-      env:
-        GO111MODULE: on
-   
     - name: Build binaries
       run: |
         cd cmds
