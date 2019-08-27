@@ -202,7 +202,7 @@ func getAlloc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	alloc, farmAlloc, err := requestAllocation(node, allocStore)
+	alloc, farmAlloc, err := requestAllocation(node.Node, allocStore)
 	if err != nil {
 		log.Printf("error during allocation request: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
