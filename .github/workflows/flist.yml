@@ -52,5 +52,5 @@ jobs:
         mkdir -p /tmp/archive/{bin,etc/zinit}
         cp bin/* /tmp/archive/bin/
         cp -r zinit/* /tmp/archive/etc/
-        tar -czf "/tmp/archives/zos.tar.gz" -C /tmp/root .
+        tar -czf "/tmp/zos.tar.gz" -C /tmp/archive/ .
         curl -b "caddyoauth=${HUB_JWT}" -F file=@${FNAME} https://hub.gig.tech/api/flist/me/upload
