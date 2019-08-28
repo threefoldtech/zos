@@ -65,6 +65,12 @@ func (n *Nibble) VethName() string {
 	return fmt.Sprintf("veth-%s-%d", n.Hex(), n.allocNr)
 }
 
+// NRLocalName return the deterministic veth interface name
+// added here for compliance to docs
+func (n *Nibble) NRLocalName() string {
+	return fmt.Sprintf("veth-%s-%d", n.Hex(), n.allocNr)
+}
+
 // EPPubName return the deterministic public interface name
 func (n *Nibble) EPPubName() string {
 	return fmt.Sprintf("pub-%s-%d", n.Hex(), n.allocNr)
@@ -118,17 +124,17 @@ func (n *Nibble) WGLL() net.IP {
 	return net.ParseIP(fmt.Sprintf("fe80::%s", n.Hex()))
 }
 
-// RouteIPv6Exit (to be renamed) is the gateway in an NR for ::
-// that is: the route to the ExitPoint
-// func (n *Nibble) RouteIPv6Exit() *netlink.Route {
-// 	return &netlink.Route{
-// 		Dst: &net.IPNet{
-// 			IP:   net.ParseIP("::"),
-// 			Mask: net.CIDRMask(0, 128),
-// 		},
-// 		Gw: net.ParseIP(fmt.Sprintf("fe80::%s", n.Hex())),
-// 	}
-// }
+//RouteIPv6Exit (to be renamed) is the gateway in an NR for ::
+//that is: the route to the ExitPoint
+func (n *Nibble) RouteIPv6Exit() *netlink.Route {
+	return &netlink.Route{
+		Dst: &net.IPNet{
+			IP:   net.ParseIP("::"),
+			Mask: net.CIDRMask(0, 128),
+		},
+		Gw: net.ParseIP(fmt.Sprintf("fe80::%s", n.Hex())),
+	}
+}
 
 // RouteIPv4Exit (to be renamed) adds the route for another NR
 func (n *Nibble) RouteIPv4Exit() *netlink.Route {
@@ -195,14 +201,14 @@ func GWPubIP6(prefix net.IP, exitnodenr int) *net.IPNet {
 	return net.IP(b)
 } */
 
-func (n *Nibble) GWNRIP(prefixZero net.IP, nr int) net.IP {
+/* func (n *Nibble) GWNRIP(prefixZero net.IP, nr int) net.IP {
 	b := make([]byte, net.IPv6len)
 	copy(b, prefixZero[:6])
 	binary.BigEndian.PutUint16(b[12:14], uint16(nr<<12))
 	copy(b[14:], n.nibble)
 
 	return net.IP(b)
-}
+} */
 
 // GWPubName is the name of the iface facing the penultimate router
 // format pub-X-Y

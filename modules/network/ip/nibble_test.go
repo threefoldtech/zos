@@ -113,6 +113,12 @@ func TestVethName(t *testing.T) {
 	actual := nibble.VethName()
 	assert.Equal(t, "veth-ff02-0", actual)
 }
+func TestNRLocalName(t *testing.T) {
+	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
+	nibble, _ := NewNibble(prefix, 0)
+	actual := nibble.VethName()
+	assert.Equal(t, "veth-ff02-0", actual)
+}
 func TestEPPubName(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
@@ -247,7 +253,7 @@ func TestGWPubIP6(t *testing.T) {
 	assert.Equal(t, mustParseCIDR("2a02:1802:5e:1::1/64"), actual)
 }
 
-func TestGWNRIP(t *testing.T) {
+/* func TestGWNRIP(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	prefixZero := &net.IPNet{
 		IP:   net.ParseIP("2a02:1802:5e::"),
@@ -256,7 +262,7 @@ func TestGWNRIP(t *testing.T) {
 	nibble, _ := NewNibble(prefix, 0)
 	actual := nibble.GWNRIP(prefixZero.IP, 1)
 	assert.Equal(t, "", actual)
-}
+} */
 
 func mustParseCIDR(cidr string) *net.IPNet {
 	ip, ipnet, err := net.ParseCIDR(cidr)

@@ -44,7 +44,6 @@ func CreateGateway(prefixZero *net.IPNet, n int, allocNr int) error {
 		return errors.Wrap(err, "failed to find a public interface for the gateway")
 	}
 
-	//fmt.Sprintf("pub-%d-%d", n, allocNr),
 	m, err := macvlan.Create(
 		zosip.GWPubName(allocNr, n),
 		pubIface,
@@ -88,7 +87,7 @@ func addNR2GW(prefixZero, nrPrefix *net.IPNet, exitNodeNr int, allocNr int8) err
 
 	gwNS, err := namespace.GetByName(GWNamespace)
 	if err != nil {
-		return errors.Wrap(err, "gateway namespace doesn't not exist yet")
+		return errors.Wrap(err, "gateway namespace doesn't exist yet")
 	}
 	defer gwNS.Close()
 

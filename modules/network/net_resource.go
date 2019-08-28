@@ -87,7 +87,7 @@ func createNetworkResource(localResource *modules.NetResource, network *modules.
 			return err
 		}
 
-		for _, ipnet := range []*net.IPNet{localResource.Prefix, nibble.NRIPv4()} {
+		for _, ipnet := range []*net.IPNet{localResource.Prefix, nibble.NRLocalIP4()} {
 			log.Info().Str("addr", ipnet.String()).Msg("set address on veth interface")
 			addr := &netlink.Addr{IPNet: ipnet, Label: ""}
 			if err = netlink.AddrAdd(link, addr); err != nil {
@@ -319,7 +319,7 @@ func configWG(localResource *modules.NetResource, network *modules.Network, wgPe
 
 		newAddrs := mapset.NewSet()
 		newAddrs.Add(localResource.LinkLocal.String())
-		newAddrs.Add(localNibble.WGIP().String())
+		newAddrs.Add(localNibble.WGAllowedIP().String())
 
 		toRemove := curAddrs.Difference(newAddrs)
 		toAdd := newAddrs.Difference(curAddrs)

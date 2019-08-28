@@ -80,28 +80,29 @@ PrefixZero is the 0th network of an allocation but for us it's als extended to 1
 |          |         GatewayContainer                        |
 | +--------------------------------------------------------+ |
 | |        +                                               | |
-| |   iface pub-1-1                                        | | GWPubName (Gateway Routing iface)
-| |      fe80::1:0:0:0:1/64                                | | GWPubLL
-| |    $prefix:1:0:0:0:1/64                                | | GWPubIP6 , GWPubIP4
+| |   iface pub-1-1                                        | | GWPubName   (Gateway Routing iface)
+| |      fe80::1:0:0:0:1/64                                | | GWPubLL     (Gateway Route LL )
+| |    $prefix:1:0:0:0:1/64                                | | GWPubIP6    (Gateway Route IPv6)
+| |    185.69.166.123/24                                   | | GWPubIP4    (Gateway IPv4 for -> SNAT only)
 | |                                                        | |
-| |                                                        | |
-| | iface to-1abc-1               iface to-1123-1          | | GWtoEPName (ExitPoint's veth peer name)
-| |    fe80::1:1abc/64               fe80::1:1123/64       | | GWtoEPLL (Gateway to ExitPoint Link-Local)
+| | iface to-1abc-1               iface to-1123-1          | | GWtoEPName  (ExitPoint's veth peer name)
+| |    fe80::1:1abc/64               fe80::1:1123/64       | | GWtoEPLL    (Gateway to ExitPoint Link-Local)
+| |    10.1.0.1/32                   10.1.0.1/32           | |
 | |         +                            +                 | |
 | +--------------------------------------------------------+ |
 |           |                            |                   |
 | +-----------------------+    +-----------------------+     |
 | |         +             |    |         +             |     |
-| |  iface  pub-1abc-1    |    |  iface  pub-1123-1    |     | EPPubName (ExitPoint Pub iface name)
-| |   fe80::1abc:1/64     |    |   fe80::1123:1/64     |     | EPPubLL (ExitPoint Pub Link-Local)
-| |                       |    |                       |     |
+| |  iface  pub-1abc-1    |    |  iface  pub-1123-1    |     | EPPubName   (ExitPoint Pub iface name)
+| |   fe80::1abc:1/64     |    |   fe80::1123:1/64     |     | EPPubLL     (ExitPoint Pub Link-Local)
+| |  10.255.26.188/32     |    |  10.255.17.35/32      |     | EPPubIP4R   (ExitPoint Pub routing IPv4 on lo)
 | | Network Resource      |    | Network Resource      |     |
-| | - iface wg-1abc-1     |    | - iface wg-1123-1     |     | WGName (Wireguard iface name)
-| |   fe80::1abc/64       |    |   fe80::1123/64       |     | WGLL (Wireguard Link-Local addr)
-| |   10.255.26.188/24    |    |   10.255.17.35/24     |     | WGIP4RT (Wireguard IPv4 routing address)
+| | - iface wg-1abc-1     |    | - iface wg-1123-1     |     | WGName      (Wireguard iface name)
+| |   fe80::1abc/64       |    |   fe80::1123/64       |     | WGLL        (Wireguard Link-Local addr)
+| |   10.255.26.188/24    |    |   10.255.17.35/24     |     | WGIP4RT     (Wireguard IPv4 routing address)
 | | - iface veth-1abc-1   |    | - iface veth-1123-1   |     | NRLocalName (NR Local interface name )
-| |   pref:1abc::1/64     |    |   pref:1123::1/64     |     | NRLocalIP6 (NR local IPv6 addr)
-| |   10.26.188.1/24      |    |   10.17.35.1/24       |     | NRLocalIP4 (NR local IPv4 addr)
+| |   pref:1abc::1/64     |    |   pref:1123::1/64     |     | NRLocalIP6  (NR local IPv6 addr)
+| |   10.26.188.1/24      |    |   10.17.35.1/24       |     | NRLocalIP4  (NR local IPv4 addr)
 | |                       |    |                       |     |
 | +-----------------------+    +-----------------------+     |
 |   ExitPoint                     ExitPoint                  |
