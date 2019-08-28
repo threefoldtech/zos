@@ -72,6 +72,7 @@ func (n *Nibble) NRLocalName() string {
 }
 
 // EPPubName return the deterministic public interface name
+// this Interface points to the veth peer GWtoEPName
 func (n *Nibble) EPPubName() string {
 	return fmt.Sprintf("pub-%s-%d", n.Hex(), n.allocNr)
 }
@@ -86,7 +87,7 @@ func (n *Nibble) EPPubLL() *net.IPNet {
 	}
 }
 
-// ExitPrefixZero (not needed any more )
+/* // ExitPrefixZero (not needed any more )
 func (n *Nibble) ExitPrefixZero(prefix *net.IPNet) *net.IPNet {
 	ip := prefix.IP
 	ip[14] = n.nibble[0]
@@ -95,7 +96,7 @@ func (n *Nibble) ExitPrefixZero(prefix *net.IPNet) *net.IPNet {
 		IP:   ip,
 		Mask: net.CIDRMask(64, 128),
 	}
-}
+} */
 
 // NRLocalIP4 returns the IPv4 address of a network resource
 func (n *Nibble) NRLocalIP4() *net.IPNet {
@@ -175,7 +176,7 @@ func (n *Nibble) EPToGWName() string {
 } */
 
 // GWPubName return the deterministic public iface name for the GW
-func GWPubName(allocnr, exitnodenr int) string {
+func GWPubName(exitnodenr, allocnr int) string {
 	return fmt.Sprintf("pub-%d-%d", exitnodenr, allocnr)
 }
 
