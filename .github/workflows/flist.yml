@@ -49,12 +49,8 @@ jobs:
         HUB_JWT: ${{ secrets.HUB_JWT }}
         FNAME: "zos.tar.gz"
       run: |
-        echo "[+] collecting binaries"
         mkdir -p /tmp/archive/{bin,etc/zinit}
         cp bin/* /tmp/archive/bin/
         cp -r zinit/* /tmp/archive/etc/zinit
-        echo "[+] creating the tar"
         tar -czf "/tmp/${FNAME}" -C /tmp/archive/ .
-        tar -tf /tmp/${FNAME}
-        echo "[+] uploading the archive"
-        curl -b "caddyoauth=${HUB_JWT}" -F 'file=@"/tmp/${FNAME}";filename="${FNAME}"' https://hub.grid.tf/api/flist/me/upload
+        curl -b "caddyoauth=${HUB_JWT}" -F "file=@\"/tmp/${FNAME}\";filename=\"${FNAME}\"" https://hub.grid.tf/api/flist/me/upload
