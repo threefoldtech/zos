@@ -120,15 +120,15 @@ func (n *Nibble) WGLL() net.IP {
 
 // RouteIPv6Exit (to be renamed) is the gateway in an NR for ::
 // that is: the route to the ExitPoint
-func (n *Nibble) RouteIPv6Exit() *netlink.Route {
-	return &netlink.Route{
-		Dst: &net.IPNet{
-			IP:   net.ParseIP("::"),
-			Mask: net.CIDRMask(0, 128),
-		},
-		Gw: net.ParseIP(fmt.Sprintf("fe80::%s", n.Hex())),
-	}
-}
+// func (n *Nibble) RouteIPv6Exit() *netlink.Route {
+// 	return &netlink.Route{
+// 		Dst: &net.IPNet{
+// 			IP:   net.ParseIP("::"),
+// 			Mask: net.CIDRMask(0, 128),
+// 		},
+// 		Gw: net.ParseIP(fmt.Sprintf("fe80::%s", n.Hex())),
+// 	}
+// }
 
 // RouteIPv4Exit (to be renamed) adds the route for another NR
 func (n *Nibble) RouteIPv4Exit() *netlink.Route {
@@ -177,7 +177,7 @@ func GWPubName(allocnr, exitnodenr int) string {
 // it returns the list of IP that need to be installed on
 // GWPubName() interface.
 // that is :
-//  - prefix::ExitNodeNr()000::1
+//  - prefix:ExitNodeNr()::1
 func GWPubIP6(prefix net.IP, exitnodenr int) *net.IPNet {
 	b := make([]byte, net.IPv6len)
 	copy(b, prefix[:6])

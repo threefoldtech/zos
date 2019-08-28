@@ -1,10 +1,12 @@
 package ip
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vishvananda/netlink"
 )
 
 func TestNewNibble(t *testing.T) {
@@ -111,17 +113,17 @@ func TestVethName(t *testing.T) {
 	actual := nibble.VethName()
 	assert.Equal(t, "veth-ff02-0", actual)
 }
-func TestPubName(t *testing.T) {
+func TestEPPubName(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.PubName()
+	actual := nibble.EPPubName()
 	assert.Equal(t, "pub-ff02-0", actual)
 }
-func TestExitFe80(t *testing.T) {
+func TestEPPubLL(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.ExitFe80()
-	assert.Equal(t, "fe80::ff02/64", actual.String())
+	actual := nibble.EPPubLL()
+	assert.Equal(t, "fe80::ff02:1/64", actual.String())
 }
 func TestExitPrefixZero(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
@@ -133,88 +135,118 @@ func TestExitPrefixZero(t *testing.T) {
 	actual := nibble.ExitPrefixZero(prefixZero)
 	assert.Equal(t, "2a02:1802:5e::ff02/64", actual.String())
 }
-func TestNRIPv4(t *testing.T) {
+func TestNRLocalIP4(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.NRIPv4()
+	actual := nibble.NRLocalIP4()
 	assert.Equal(t, "10.255.2.1/24", actual.String())
-}
-func TestWGIP(t *testing.T) {
-	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
-	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.WGIP()
-	assert.Equal(t, "10.255.255.2/16", actual.String())
 }
 func TestWGAllowedIP(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
 	actual := nibble.WGAllowedIP()
-	assert.Equal(t, "10.255.255.2/24", actual.String())
+	assert.Equal(t, "10.255.255.2/16", actual.String())
 }
+
 func TestWGAllowedFE80(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
 	actual := nibble.WGAllowedFE80()
 	assert.Equal(t, "fe80::ff02/128", actual.String())
 }
-func TestWGRouteGateway(t *testing.T) {
+
+func TestWGLL(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.WGRouteGateway()
+	actual := nibble.WGLL()
 	assert.Equal(t, "fe80::ff02", actual.String())
 }
-func TestRouteIPv6Exit(t *testing.T) {
-	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
-	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.RouteIPv6Exit()
-	assert.Equal(t, "::/0", actual.Dst.String())
-	assert.Equal(t, "fe80::ff02", actual.Gw.String())
+
+func TestWGRouteGateway(t *testing.T) {
+	t.Fail()
+	// prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
+	// nibble, _ := NewNibble(prefix, 0)
+	// actual := nibble.RouteIPv6Exit()
+	// assert.Equal(t, &netlink.Route{
+	// 	Dst: &net.IPNet{
+	// 		IP:   net.ParseIP("::"),
+	// 		Mask: net.CIDRMask(0, 128),
+	// 	},
+	// 	Gw: net.ParseIP("fe80::ff02"),
+	// }, actual.String())
 }
+
+// func TestRouteIPv6Exit(t *testing.T) {
+// 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
+// 	nibble, _ := NewNibble(prefix, 0)
+// 	actual := nibble.RouteIPv6Exit()
+// 	assert.Equal(t, &netlink.Route{
+// 		Dst: mustParseCIDR("::/128"),
+// 		Gw:  net.ParseIP(fmt.Sprintf("fe80::ff02")),
+// 	}, actual.Gw.String())
+// }
 func TestRouteIPv4Exit(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
 	actual := nibble.RouteIPv4Exit()
-	assert.Equal(t, "10.255.2.0/24", actual.Dst.String())
-	assert.Equal(t, "10.255.255.2", actual.Gw.String())
+	assert.Equal(t, &netlink.Route{
+		Dst: mustParseCIDR("10.255.2.0/0"),
+		Gw:  net.ParseIP(fmt.Sprintf("10.255.255.02")),
+	}, actual)
 }
 func TestRouteIPv4DefaultExit(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
 	actual := nibble.RouteIPv4DefaultExit()
-	assert.Equal(t, "0.0.0.0/0", actual.Dst.String())
-	assert.Equal(t, "10.255.255.2", actual.Gw.String())
+	assert.Equal(t, &netlink.Route{
+		Dst: mustParseCIDR("0.0.0.0/32"),
+		Gw:  net.ParseIP(fmt.Sprintf("10.255.255.02")),
+	}, actual)
 }
-func TestToGWName(t *testing.T) {
+func TestEPToGWName(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.ToGWName()
+	actual := nibble.EPToGWName()
 	assert.Equal(t, "to-ff02-0", actual)
 }
-func TestGWtoNRName(t *testing.T) {
-	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
-	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.GWtoNRName()
-	assert.Equal(t, "nr-ff02-0", actual)
-}
-func TestGWLinkLocal(t *testing.T) {
-	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
-	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.GWLinkLocal(1)
-	assert.Equal(t, "fe80::", actual.String())
+
+func TestGWPubName(t *testing.T) {
+	actual := GWPubName(1, 1)
+	assert.Equal(t, "pub-1,1", actual)
 }
 
-func TestGWIP(t *testing.T) {
+func TestNibbleGWPubName(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.GWIP(prefix.IP, 1)
-	assert.Equal(t, "", actual)
+	actual := nibble.GWPubName(1)
+	assert.Equal(t, "pub-1-0", actual)
 }
-func TestGWNRLinkLocal(t *testing.T) {
+
+func TestGWtoEPName(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
-	actual := nibble.GWNRLinkLocal()
-	assert.Equal(t, "", actual)
+	actual := nibble.GWtoEPName()
+	assert.Equal(t, "to-ff02-0", actual)
 }
+
+func TestGWtoEPLL(t *testing.T) {
+	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
+	nibble, _ := NewNibble(prefix, 0)
+	actual := nibble.GWtoEPLL()
+	assert.Equal(t, mustParseCIDR("fe80::1:ff02/64"), actual)
+}
+
+func TestGWPubLL(t *testing.T) {
+	actual := GWPubLL(1)
+	assert.Equal(t, mustParseCIDR("fe80::ff02:0:0:0:1/64"), actual.String())
+}
+
+func TestGWPubIP6(t *testing.T) {
+	prefixZero := net.ParseIP("2a02:1802:5e::")
+	actual := GWPubIP6(prefixZero, 1)
+	assert.Equal(t, mustParseCIDR("2a02:1802:5e:1::1/64"), actual)
+}
+
 func TestGWNRIP(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	prefixZero := &net.IPNet{
