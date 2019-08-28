@@ -169,7 +169,7 @@ func (n *Nibble) GWtoEPName() string {
 
 // ToGWLinkLocal is the LL ip of the veth pair in the ExitPoint that points
 // to the GW
-func (n *Nibble) ToGWLinkLocal(nr int8) net.IP {
+func (n *Nibble) GWLinkLocal(exitnodenr int8) net.IP {
 	b := make([]byte, net.IPv6len)
 	b[0] = 0xfe
 	b[1] = 0x80
@@ -211,4 +211,28 @@ func (n *Nibble) GWNRIP(prefixZero net.IP, nr int) net.IP {
 	copy(b[14:], n.nibble)
 
 	return net.IP(b)
+}
+
+// GWPubName is the name of the iface facing the penultimate router
+// format pub-X-Y
+// where X =  exitnode nr, Y = allocationnr
+func (n *Nibble) GWPubName(exitnodenr int) string {
+	return fmt.Sprintf("pub-%x-%d", exitnodenr, n.allocNr)
+}
+
+// GWPubLL is an added link-local address of the iface facint the router
+// Format fe80::X:0:0:0:1/64 and
+//     $prefix:X:0:0:0:1/64
+// where X = exitnodenr
+func GWPubLL(exitnodenr int) *net.IPNet {
+	return &net.IPNet{
+		IP:   net.ParseIP(fmt.Sprintf("fe80::%x:0:0:0:1", exitnodenr)),
+		Mask: net.CIDRMask(64, 128),
+	}
+
+}
+
+// GWtoEPName is the gw Container interface facing the Exitpoint veth peer
+func (n *Nibble) GWtoEPName() string {
+	return fmt.Sprintf("to-%s-%d", n.Hex(), n.allocNr)
 }
