@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -179,4 +180,65 @@ func ExampleNewReader() {
 	// Output:
 	// data version is: 1.0.1
 	// data is: my data goes here
+}
+
+func Example() {
+	type DataV1 struct {
+		FullName string `json:"name"`
+	}
+
+	type DataV2 struct {
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+	}
+
+	//latest := MustParse("1.2.0")
+	// 1- Open file contains data
+	bits := `{"name": "John Smith"}`
+
+	buf := bytes.NewBufferString(bits)
+	// 2- create versioned reader
+	reader, err := NewReader(buf)
+	if IsNotVersioned(err) {
+		reader = NewVersionedReader(MustParse("1.0.0"), bytes.NewBufferString(bits))
+	} else if err != nil {
+		panic(err)
+	}
+
+	dec := json.NewDecoder(reader)
+	var data DataV2 // final object
+	var resave bool
+	if reader.Version().EQ(MustParse("1.0.0")) { //V1 object
+		// data migration from v1 to v2
+		var d1 DataV1
+		if err := dec.Decode(&d1); err != nil {
+			panic(err)
+		}
+		parts := strings.SplitN(d1.FullName, " ", 2)
+		data = DataV2{
+			FirstName: parts[0],
+			LastName:  parts[1],
+		}
+		resave = true
+	} else if reader.Version().EQ(MustParse("2.0.0")) { //V2 (current) version
+		if err := dec.Decode(&data); err != nil {
+			panic(err)
+		}
+	} else {
+		panic("unknown version")
+	}
+
+	if resave {
+		var buf bytes.Buffer
+		writer, _ := NewWriter(&buf, MustParse("2.0.0"))
+		enc := json.NewEncoder(writer)
+		if err := enc.Encode(data); err != nil {
+			panic(err)
+		}
+
+		fmt.Println(buf.String())
+	}
+
+	// Output:
+	// "2.0.0"{"first_name":"John","last_name":"Smith"}
 }
