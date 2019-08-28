@@ -101,3 +101,32 @@ func (s *HTTPStore) Get(id string) (*Reservation, error) {
 
 	return r, nil
 }
+
+// Result send the result of a provisioning
+// id is the reservation ID
+func (s *HTTPStore) Result(id string, r *Result) error {
+	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, id)
+
+	buf := &bytes.Buffer{}
+
+	if err := json.NewEncoder(buf).Encode(r); err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", url, buf)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("wrong response status code %s", resp.Status)
+	}
+	return nil
+}

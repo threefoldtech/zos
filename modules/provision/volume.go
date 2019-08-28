@@ -49,7 +49,9 @@ func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}
 		return path, nil
 	}
 
-	return storageClient.CreateFilesystem(reservation.ID, config.Size*gigabyte, modules.DeviceType(config.Type))
+	_, err = storageClient.CreateFilesystem(reservation.ID, config.Size*gigabyte, modules.DeviceType(config.Type))
+	// nothing to return to BCDB
+	return nil, err
 }
 
 func volumeDecommission(ctx context.Context, reservation *Reservation) error {

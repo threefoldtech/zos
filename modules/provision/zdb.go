@@ -36,6 +36,12 @@ type ZDB struct {
 	Public   bool               `json:"public"`
 }
 
+type ZDBResult struct {
+	Namespace string
+	IP        string
+	Port      uint
+}
+
 // ZDBMapping is a helper struct that allow to keep
 // a mapping between a 0-db namespace and the container ID
 // in which it lives
@@ -68,11 +74,6 @@ func (z *ZDBMapping) Set(namespace, container string) {
 	}
 
 	z.m[namespace] = container
-}
-
-type zdbResult struct {
-	Addr      string
-	Namespace string
 }
 
 func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
@@ -115,8 +116,12 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 		if containerIP == nil {
 			return nil, errors.Wrap(err, "failed to get 0-db container IP")
 		}
-		addr := zdbConnectionURL(containerIP.String(), zdbPort)
-		return zdbResult{Addr: addr, Namespace: nsID}, nil
+
+		return ZDBResult{
+			Namespace: nsID,
+			IP:        containerIP.String(),
+			Port:      zdbPort,
+		}, nil
 	}
 
 	// if we reached here, we need to create the 0-db namespace
@@ -204,9 +209,10 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 		return nil, errors.Wrapf(err, "failed to set size on namespace %s in 0-db at %s", nsID, addr)
 	}
 
-	return zdbResult{
-		Addr:      addr,
+	return ZDBResult{
 		Namespace: nsID,
+		IP:        containerIP.String(),
+		Port:      zdbPort,
 	}, nil
 }
 

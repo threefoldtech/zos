@@ -43,6 +43,11 @@ type Container struct {
 	Network Network `json:"network"`
 }
 
+type ContainerResult struct {
+	ID string
+	IP string
+}
+
 // ContainerProvision is entry point to container reservation
 func containerProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
 	client := GetZBus(ctx)
@@ -154,7 +159,10 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 	}
 
 	log.Info().Msgf("container created with id: '%s'", id)
-	return id, nil
+	return ContainerResult{
+		ID: string(id),
+		IP: join.IP.String(),
+	}, nil
 }
 
 func containerDecommission(ctx context.Context, reservation *Reservation) error {
