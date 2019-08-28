@@ -1,0 +1,56 @@
+name: build
+on: [push]
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Set up Go 1.12
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.12
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+
+    - name: Get dependencies
+      run: |
+        cd modules
+        make getdeps
+      env:
+        GO111MODULE: on
+        
+    - name: Run tests
+      run: |
+        cd modules
+        make coverage
+      env:
+        GO111MODULE: on
+    
+    - name: Send coverage
+      if: success()
+      run: |
+        cd modules
+        bash <(curl -s https://codecov.io/bash)
+      env:
+        CODECOV_TOKEN: 83d31816-f8ad-4d22-9bf5-21f42e3c58f7
+        
+    - name: Build binaries
+      run: |
+        cd cmds
+        make
+      env:
+        GO111MODULE: on
+    - name: Build FList
+      env:
+        hub_jwt: ${{ secrets.HUB_JWT }}
+        fname: "zos.tar.gz"
+      run: |
+        mkdir -p /tmp/archive/{bin,etc/zinit}
+        cp bin/* /tmp/archive/bin/
+        cp -r zinit/* /tmp/archive/etc/
+        tar -czf "/tmp/archives/zos.tar.gz" -C /tmp/root .
+        curl -b "caddyoauth=${HUB_JWT}" -F file=@${FNAME} https://hub.gig.tech/api/flist/me/upload
