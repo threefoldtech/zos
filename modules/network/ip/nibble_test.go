@@ -182,15 +182,15 @@ func TestWGLL(t *testing.T) {
 	}, actual.String())
 } */
 
-// func TestRouteIPv6Exit(t *testing.T) {
-// 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
-// 	nibble, _ := NewNibble(prefix, 0)
-// 	actual := nibble.RouteIPv6Exit()
-// 	assert.Equal(t, &netlink.Route{
-// 		Dst: mustParseCIDR("::/128"),
-// 		Gw:  net.ParseIP(fmt.Sprintf("fe80::ff02")),
-// 	}, actual.Gw.String())
-// }
+func TestRouteIPv6Exit(t *testing.T) {
+	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
+	nibble, _ := NewNibble(prefix, 0)
+	actual := nibble.RouteIPv6Exit()
+	assert.Equal(t, &netlink.Route{
+		Dst: mustParseCIDR("::/0"),
+		Gw:  net.ParseIP(fmt.Sprintf("fe80::ff02")),
+	}, actual)
+}
 func TestRouteIPv4Exit(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/48")
 	nibble, _ := NewNibble(prefix, 0)
