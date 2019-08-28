@@ -65,8 +65,8 @@ func (n *Nibble) VethName() string {
 	return fmt.Sprintf("veth-%s-%d", n.Hex(), n.allocNr)
 }
 
-// PubName return the deterministic public interface name
-func (n *Nibble) PubName() string {
+// EPPubName return the deterministic public interface name
+func (n *Nibble) EPPubName() string {
 	return fmt.Sprintf("pub-%s-%d", n.Hex(), n.allocNr)
 }
 
@@ -80,7 +80,7 @@ func (n *Nibble) EPPubLL() *net.IPNet {
 	}
 }
 
-//
+// ExitPrefixZero (not needed any more )
 func (n *Nibble) ExitPrefixZero(prefix *net.IPNet) *net.IPNet {
 	ip := prefix.IP
 	ip[14] = n.nibble[0]
@@ -91,8 +91,8 @@ func (n *Nibble) ExitPrefixZero(prefix *net.IPNet) *net.IPNet {
 	}
 }
 
-// NRIPv4 returns the IPv4 address of a network resource
-func (n *Nibble) NRIPv4() *net.IPNet {
+// NRLocalIP4 returns the IPv4 address of a network resource
+func (n *Nibble) NRLocalIP4() *net.IPNet {
 	return &net.IPNet{
 		IP:   net.IPv4(10, n.nibble[0], n.nibble[1], 1),
 		Mask: net.CIDRMask(24, 32),
@@ -100,18 +100,10 @@ func (n *Nibble) NRIPv4() *net.IPNet {
 }
 
 // WGAllowedIP returns the IPv4 address to be used in wireguard allowed ip configuration
-func (n *Nibble) WGIP() *net.IPNet {
-	return &net.IPNet{
-		IP:   net.IPv4(10, 255, n.nibble[0], n.nibble[1]),
-		Mask: net.CIDRMask(16, 32),
-	}
-}
-
-// WGAllowedIP returns the IPv4 address to be used in wireguard allowed ip configuration
 func (n *Nibble) WGAllowedIP() *net.IPNet {
 	return &net.IPNet{
 		IP:   net.IPv4(10, 255, n.nibble[0], n.nibble[1]),
-		Mask: net.CIDRMask(24, 32),
+		Mask: net.CIDRMask(16, 32),
 	}
 }
 
@@ -121,11 +113,13 @@ func (n *Nibble) WGAllowedFE80() *net.IPNet {
 	return ipnet
 }
 
-// WGRouteGateway returns the fe80 address to be used in wireguard allowed ip configuration
+// WGLL returns the fe80 address to be used in wireguard allowed ip configuration
 func (n *Nibble) WGLL() net.IP {
 	return net.ParseIP(fmt.Sprintf("fe80::%s", n.Hex()))
 }
 
+// RouteIPv6Exit (to be renamed) is the gateway in an NR for ::
+// that is: the route to the ExitPoint
 func (n *Nibble) RouteIPv6Exit() *netlink.Route {
 	return &netlink.Route{
 		Dst: &net.IPNet{
@@ -136,6 +130,7 @@ func (n *Nibble) RouteIPv6Exit() *netlink.Route {
 	}
 }
 
+// RouteIPv4Exit (to be renamed) adds the route for another NR
 func (n *Nibble) RouteIPv4Exit() *netlink.Route {
 	return &netlink.Route{
 		Dst: &net.IPNet{
@@ -146,6 +141,8 @@ func (n *Nibble) RouteIPv4Exit() *netlink.Route {
 	}
 }
 
+// RouteIPv4DefaultExit (to be renamed) is the gateway in an NR for ::
+// that is: the route to the ExitPoint
 func (n *Nibble) RouteIPv4DefaultExit() *netlink.Route {
 	return &netlink.Route{
 		Dst: &net.IPNet{
@@ -161,21 +158,15 @@ func (n *Nibble) EPToGWName() string {
 	return fmt.Sprintf("to-%s-%d", n.Hex(), n.allocNr)
 }
 
-// GWtoNRName returns the deterministic name for a nic in the GW to the ExitPoint NR
-// it is one end of the veth pair of ToGWName()
-func (n *Nibble) GWtoEPName() string {
-	return fmt.Sprintf("nr-%s-%d", n.Hex(), n.allocNr)
-}
-
 // ToGWLinkLocal is the LL ip of the veth pair in the ExitPoint that points
 // to the GW
-func (n *Nibble) GWLinkLocal(exitnodenr int8) net.IP {
+/* func (n *Nibble) GWLinkLocal(exitnodenr int8) net.IP {
 	b := make([]byte, net.IPv6len)
 	b[0] = 0xfe
 	b[1] = 0x80
 	binary.BigEndian.PutUint16(b[6:8], uint16(uint16(nr)<<12))
 	return net.IP(b)
-}
+} */
 
 // GWPubName return the deterministic public iface name for the GW
 func GWPubName(allocnr, exitnodenr int) string {
@@ -187,22 +178,22 @@ func GWPubName(allocnr, exitnodenr int) string {
 // GWPubName() interface.
 // that is :
 //  - prefix::ExitNodeNr()000::1
-func GWPubIP6(prefix net.IP, exitnodenr int8) net.IP {
+func GWPubIP6(prefix net.IP, exitnodenr int) *net.IPNet {
 	b := make([]byte, net.IPv6len)
 	copy(b, prefix[:6])
-	binary.BigEndian.PutUint16(b[6:], uint16(uint16(exitnodenr)<<12))
+	binary.BigEndian.PutUint16(b[6:], uint16(exitnodenr))
 	b[net.IPv6len-1] = 0x001
-	return net.IP(b)
+	return &net.IPNet{IP: net.IP(b), Mask: net.CIDRMask(64, 128)}
 }
 
-func (n *Nibble) NRToGWLinkLocal() net.IP {
+/* func (n *Nibble) NRToGWLinkLocal() net.IP {
 	b := make([]byte, net.IPv6len)
 	b[0] = 0xfe
 	b[1] = 0x80
 	b[4] = n.nibble[0]
 	b[5] = n.nibble[1]
 	return net.IP(b)
-}
+} */
 
 func (n *Nibble) GWNRIP(prefixZero net.IP, nr int) net.IP {
 	b := make([]byte, net.IPv6len)
@@ -235,4 +226,13 @@ func GWPubLL(exitnodenr int) *net.IPNet {
 // GWtoEPName is the gw Container interface facing the Exitpoint veth peer
 func (n *Nibble) GWtoEPName() string {
 	return fmt.Sprintf("to-%s-%d", n.Hex(), n.allocNr)
+}
+
+// GWtoEPLL is the link-local address on the iface in the wg facing the
+// Exitpoint's pub iface (veth pair)
+func (n *Nibble) GWtoEPLL() *net.IPNet {
+	return &net.IPNet{
+		IP:   net.ParseIP(fmt.Sprintf("fe80::1:%s", n.Hex())),
+		Mask: net.CIDRMask(64, 128),
+	}
 }

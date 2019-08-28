@@ -55,7 +55,7 @@ func watchPubIface(ctx context.Context, nodeID modules.Identifier, db network.TN
 	return ch
 }
 
-func configuePubIface(iface *network.PubIface) error {
+func configurePubIface(iface *network.PubIface) error {
 	cleanup := func() error {
 		pubNs, err := namespace.GetByName(network.PublicNamespace)
 		if err != nil {
