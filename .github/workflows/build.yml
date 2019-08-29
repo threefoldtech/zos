@@ -59,7 +59,7 @@ jobs:
         cp bin/* /tmp/archive/bin/
         cp -r zinit/* /tmp/archive/etc/zinit
 
-    - uses: threefoldtech/action-publish@master
+    - uses: threefoldtech/action-publish@v1-release
       name: Build FList
       if: success()
       with:
