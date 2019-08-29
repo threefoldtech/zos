@@ -51,3 +51,17 @@ jobs:
         make
       env:
         GO111MODULE: on
+
+    - name: Build FList
+      if: success()
+      env:
+        HUB_JWT: ${{ secrets.HUB_JWT }}
+        FNAME: "zos.tar.gz"
+      run: |
+        mkdir -p /tmp/archive/{bin,etc/zinit}
+        cp bin/* /tmp/archive/bin/
+        cp -r zinit/* /tmp/archive/etc/zinit
+        tar -czf "/tmp/${FNAME}" -C /tmp/archive/ .
+        curl -b "caddyoauth=${HUB_JWT}" -F "file=@\"/tmp/${FNAME}\";filename=\"${FNAME}\"" https://hub.grid.tf/api/flist/me/upload
+
+    
