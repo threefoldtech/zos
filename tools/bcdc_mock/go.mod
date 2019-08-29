@@ -1,4 +1,4 @@
-module github.com/threefoldtech/zosv2/cmds/tnodb_mock
+module github.com/threefoldtech/zosv2/cmds/bcdb_mock
 
 go 1.12
 
