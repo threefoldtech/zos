@@ -66,4 +66,3 @@ jobs:
         root: /tmp/archive
         token: ${{ secrets.HUB_JWT }}
         name: zos.tar.gz
-
