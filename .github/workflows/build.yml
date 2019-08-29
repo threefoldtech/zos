@@ -62,9 +62,7 @@ jobs:
     - uses: threefoldtech/action-publish@master
       name: Build FList
       if: success()
-      env:
-        HUB_JWT: ${{ secrets.HUB_JWT }}
       with:
         root: /tmp/archive
-        token: ${HUB_JWT}
+        token: ${{ secrets.HUB_JWT }}
         name: zos.tar.gz
