@@ -87,17 +87,6 @@ func (n *Nibble) EPPubLL() *net.IPNet {
 	}
 }
 
-/* // ExitPrefixZero (not needed any more )
-func (n *Nibble) ExitPrefixZero(prefix *net.IPNet) *net.IPNet {
-	ip := prefix.IP
-	ip[14] = n.nibble[0]
-	ip[15] = n.nibble[1]
-	return &net.IPNet{
-		IP:   ip,
-		Mask: net.CIDRMask(64, 128),
-	}
-} */
-
 // NRLocalIP4 returns the IPv4 address of a network resource
 func (n *Nibble) NRLocalIP4() *net.IPNet {
 	return &net.IPNet{
@@ -165,19 +154,9 @@ func (n *Nibble) EPToGWName() string {
 	return fmt.Sprintf("to-%s-%d", n.Hex(), n.allocNr)
 }
 
-// ToGWLinkLocal is the LL ip of the veth pair in the ExitPoint that points
-// to the GW
-/* func (n *Nibble) GWLinkLocal(exitnodenr int8) net.IP {
-	b := make([]byte, net.IPv6len)
-	b[0] = 0xfe
-	b[1] = 0x80
-	binary.BigEndian.PutUint16(b[6:8], uint16(uint16(nr)<<12))
-	return net.IP(b)
-} */
-
 // GWPubName return the deterministic public iface name for the GW
-func GWPubName(exitnodenr, allocnr int) string {
-	return fmt.Sprintf("pub-%d-%d", exitnodenr, allocnr)
+func GWPubName(allocnr, exitnodenr int) string {
+	return fmt.Sprintf("pub-%d-%d", allocnr, exitnodenr)
 }
 
 // GWPubIP6 is the IP on the prefixzero segment of the GW container (BAR)
@@ -193,24 +172,6 @@ func GWPubIP6(prefix net.IP, exitnodenr int) *net.IPNet {
 	return &net.IPNet{IP: net.IP(b), Mask: net.CIDRMask(64, 128)}
 }
 
-/* func (n *Nibble) NRToGWLinkLocal() net.IP {
-	b := make([]byte, net.IPv6len)
-	b[0] = 0xfe
-	b[1] = 0x80
-	b[4] = n.nibble[0]
-	b[5] = n.nibble[1]
-	return net.IP(b)
-} */
-
-/* func (n *Nibble) GWNRIP(prefixZero net.IP, nr int) net.IP {
-	b := make([]byte, net.IPv6len)
-	copy(b, prefixZero[:6])
-	binary.BigEndian.PutUint16(b[12:14], uint16(nr<<12))
-	copy(b[14:], n.nibble)
-
-	return net.IP(b)
-} */
-
 // GWPubName is the name of the iface facing the penultimate router
 // format pub-X-Y
 // where X =  exitnode nr, Y = allocationnr
@@ -218,16 +179,15 @@ func (n *Nibble) GWPubName(exitnodenr int) string {
 	return fmt.Sprintf("pub-%x-%d", exitnodenr, n.allocNr)
 }
 
-// GWPubLL is an added link-local address of the iface facint the router
+// GWPubLL is an added link-local address of the iface facing the router
 // Format fe80::X:0:0:0:1/64 and
 //     $prefix:X:0:0:0:1/64
 // where X = exitnodenr
 func GWPubLL(exitnodenr int) *net.IPNet {
 	return &net.IPNet{
-		IP:   net.ParseIP(fmt.Sprintf("fe80::%x:0:0:0:1", exitnodenr)),
+		IP:   net.ParseIP("fe80:0:0:1::1"),
 		Mask: net.CIDRMask(64, 128),
 	}
-
 }
 
 // GWtoEPName is the gw Container interface facing the Exitpoint veth peer
