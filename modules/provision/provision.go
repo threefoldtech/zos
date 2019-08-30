@@ -15,6 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zosv2/modules/versioned"
 )
 
 // ReservationType type
@@ -30,6 +31,15 @@ const (
 	NetworkReservation ReservationType = "network"
 	// ZDBReservation type
 	ZDBReservation ReservationType = "zdb"
+	// DebugReservation type
+	DebugReservation ReservationType = "debug"
+)
+
+var (
+	// reservationSchemaV1 reservation schema version 1
+	reservationSchemaV1 = versioned.MustParse("1.0.0")
+	// reservationSchemaLastVersion link to latest version
+	reservationSchemaLastVersion = reservationSchemaV1
 )
 
 // ReplyTo defines how report the result of the provisioning operation
@@ -110,6 +120,7 @@ var (
 		VolumeReservation:    volumeProvision,
 		NetworkReservation:   networkProvision,
 		ZDBReservation:       zdbProvision,
+		DebugReservation:     debugProvision,
 	}
 
 	decommissioners = map[ReservationType]decommissioner{
@@ -117,5 +128,6 @@ var (
 		VolumeReservation:    volumeDecommission,
 		NetworkReservation:   networkDecommission,
 		ZDBReservation:       zdbDecommission,
+		DebugReservation:     debugDecommission,
 	}
 )
