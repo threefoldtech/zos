@@ -10,6 +10,7 @@ Storage module is available on zbus over the following channel
 
 ## Home Directory
 identity keeps some data in the following locations
+
 | directory | path|
 |----|---|
 | root| `/var/cache/modules/identity`|
