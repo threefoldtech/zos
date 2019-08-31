@@ -15,7 +15,7 @@ jobs:
           repo-token: ${{ secrets.GH_PAT }}
 
       - name: Move assinged pull requests into To do
-        if: github.event_name == 'pull_request' && (github.event.action == 'opened' || && github.event.action == 'edited')
+        if: github.event_name == 'pull_request' && github.event.action == 'opened' || github.event.action == 'edited'
         uses: alex-page/github-project-automation-plus@v0.0.1
         with:
           project: zero-os_2.0.0 (active)
