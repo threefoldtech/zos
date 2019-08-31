@@ -12,7 +12,7 @@ jobs:
         with:
           project: zero-os_2.0.0 (active)
           column: To do
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.GH_PAT }}
 
       - name: Move assinged pull requests into To do
         if: github.event_name == 'pull_request' && github.event.action == 'opened'
@@ -20,7 +20,7 @@ jobs:
         with:
           project: zero-os_2.0.0 (active)
           column: In Progress
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.GH_PAT }}
 
       - name: Move ready to review PR into Review in progress
         if: github.event_name == 'pull_request' && github.event.action == 'ready_for_review'
@@ -28,4 +28,4 @@ jobs:
         with:
           project: zero-os_2.0.0 (active)
           column: Review in progress
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.GH_PAT }}
