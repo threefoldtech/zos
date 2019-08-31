@@ -8,7 +8,7 @@ jobs:
     steps:
       - name: Move new issues into Triage
         if: github.event_name == 'issues' && github.event.action == 'opened'
-        uses: alex-page/automate-project-columns@master
+          uses: alex-page/github-project-automation-plus@v0.0.1
         with:
           project: zero-os_2.0.0 (active)
           column: To do
@@ -16,7 +16,7 @@ jobs:
 
       - name: Move assinged pull requests into To do
         if: github.event_name == 'pull_request' && github.event.action == 'opened'
-        uses: alex-page/automate-project-columns@master
+          uses: alex-page/github-project-automation-plus@v0.0.1
         with:
           project: zero-os_2.0.0 (active)
           column: In Progress
@@ -24,7 +24,7 @@ jobs:
 
       - name: Move ready to review PR into Review in progress
         if: github.event_name == 'pull_request' && github.event.action == 'ready_for_review'
-        uses: alex-page/automate-project-columns@master
+          uses: alex-page/github-project-automation-plus@v0.0.1
         with:
           project: zero-os_2.0.0 (active)
           column: Review in progress
