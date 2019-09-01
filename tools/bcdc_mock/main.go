@@ -14,7 +14,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/threefoldtech/zosv2/modules/network"
+	"github.com/threefoldtech/zosv2/modules/network/types"
 	"github.com/threefoldtech/zosv2/modules/provision"
 )
 
@@ -46,7 +46,7 @@ type allocation struct {
 }
 
 var (
-	nodeStore  map[string]*network.Node
+	nodeStore  map[string]*types.Node
 	farmStore  map[string]*farmInfo
 	allocStore *allocationStore
 	provStore  *provisionStore
@@ -59,7 +59,7 @@ func main() {
 
 	flag.Parse()
 
-	nodeStore = make(map[string]*network.Node)
+	nodeStore = make(map[string]*types.Node)
 	farmStore = make(map[string]*farmInfo)
 	allocStore = &allocationStore{Allocations: make(map[string]*allocation)}
 	provStore = &provisionStore{Reservations: make([]*reservation, 0, 20)}

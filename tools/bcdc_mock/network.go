@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/threefoldtech/zosv2/modules/network"
+	"github.com/threefoldtech/zosv2/modules/network/types"
 )
 
 func registerIfaces(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +24,7 @@ func registerIfaces(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	ifaces := []*network.IfaceInfo{}
+	ifaces := []*types.IfaceInfo{}
 	if err := json.NewDecoder(r.Body).Decode(&ifaces); err != nil {
 		log.Printf(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -41,7 +41,9 @@ func chooseExit(w http.ResponseWriter, r *http.Request) {
 	nodeID := mux.Vars(r)["node_id"]
 	node, ok := nodeStore[nodeID]
 	if !ok {
-		http.Error(w, fmt.Sprintf("node id %s not found", nodeID), http.StatusNotFound)
+		err := fmt.Sprintf("node id %s not found", nodeID)
+		log.Println(err)
+		http.Error(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -52,7 +54,7 @@ func chooseExit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// mark the node as possible exit node
-	node.ExitNode = true
+	node.ExitNode = len(farm.ExitNodes) + 1
 
 	// add the node id to the list of possible exit node of the farm
 	var found = false
@@ -96,10 +98,10 @@ func configurePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if node.PublicConfig == nil {
-		node.PublicConfig = &network.PubIface{}
+		node.PublicConfig = &types.PubIface{}
 	}
 
-	node.PublicConfig.Type = network.MacVlanIface //TODO: change me once we support other types
+	node.PublicConfig.Type = types.MacVlanIface //TODO: change me once we support other types
 	node.PublicConfig.Master = input.Iface
 	for i := range input.IPs {
 		ip, ipnet, err := net.ParseCIDR(input.IPs[i])
@@ -191,6 +193,7 @@ func getAlloc(w http.ResponseWriter, r *http.Request) {
 
 	alloc, farmAlloc, err := requestAllocation(farmID, allocStore)
 	if err != nil {
+		log.Printf("error during allocation request: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
