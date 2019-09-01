@@ -21,12 +21,14 @@ import (
 	"github.com/threefoldtech/zosv2/modules/network/types"
 )
 
+//Gateway represent the gateway namespace of an exit node
 type Gateway struct {
 	prefixZero *net.IPNet
 	allocnr    int
 	exitnodenr int
 }
 
+// New creates a new Gateway object
 func New(prefixZero *net.IPNet, allocNr, exitnodenr int) *Gateway {
 	return &Gateway{
 		prefixZero: prefixZero,
@@ -35,6 +37,7 @@ func New(prefixZero *net.IPNet, allocNr, exitnodenr int) *Gateway {
 	}
 }
 
+//Create create the gateway network namespace and configure its default routes and addresses
 func (gw *Gateway) Create() error {
 	// TODO:
 	// if nr.NodeID.ReachabilityV6 == modules.ReachabilityV6ULA {
@@ -111,7 +114,8 @@ func ensureGatewayNS(name string) (ns.NetNS, error) {
 	return netNS, nil
 }
 
-func (nr *Gateway) AddNetResource(netRes *nr.NetResource) error {
+// AddNetResource adds the routes of a network resource to the gateway network namespace
+func (gw *Gateway) AddNetResource(netRes *nr.NetResource) error {
 	epName := netRes.Nibble().EPPubName()
 	gwName := netRes.Nibble().GWtoEPName()
 

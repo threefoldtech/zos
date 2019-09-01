@@ -128,6 +128,7 @@ func (n *Nibble) WGLL() *net.IPNet {
 	}
 }
 
+// RouteIPv6Exit returns the route to the exit point
 func (n *Nibble) RouteIPv6Exit() *netlink.Route {
 	return &netlink.Route{
 		Dst: &net.IPNet{
@@ -138,6 +139,7 @@ func (n *Nibble) RouteIPv6Exit() *netlink.Route {
 	}
 }
 
+// WGExitPeerAllowIPs returns the list of allowed IPs of a wireguard interface
 func WGExitPeerAllowIPs() []*net.IPNet {
 	output := make([]*net.IPNet, 2)
 	output[0] = &net.IPNet{
@@ -151,6 +153,7 @@ func WGExitPeerAllowIPs() []*net.IPNet {
 	return output
 }
 
+// WGEndpoint returns the value for the endpoint configuration of a wireguard interface
 func WGEndpoint(peer *modules.Peer) string {
 	var endpoint string
 	if peer.Connection.IP.To16() != nil {
@@ -256,6 +259,7 @@ func (n *Nibble) GWtoEPLL() *net.IPNet {
 	}
 }
 
+// NRDefaultRoute returns the default route of a exit point
 func (n *Nibble) NRDefaultRoute() *netlink.Route {
 	return &netlink.Route{
 		Dst: &net.IPNet{
@@ -266,6 +270,7 @@ func (n *Nibble) NRDefaultRoute() *netlink.Route {
 	}
 }
 
+// ExitNodeRange TODO
 func (n *Nibble) ExitNodeRange(prefix *net.IPNet, exitnodenr int) *net.IPNet {
 	rnd := uint8(rand.Int63n(4096))
 

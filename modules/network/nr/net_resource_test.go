@@ -311,56 +311,6 @@ func TestRoutes(t *testing.T) {
 	})
 }
 
-func TestSetupExitPoint(t *testing.T) {
-	require := require.New(t)
-	// assert := assert.New(t)
-
-	network := networks[0]
-	resource := network.Resources[0]
-	netRes, err := New(resource.NodeID.ID, network, wgtypes.Key{})
-	require.NoError(err)
-
-	err = netRes.Create(nil)
-	require.NoError(err)
-
-	defer func() {
-		for _, name := range []string{netRes.NamespaceName(), types.GatewayNamespace} {
-			netNS, err := namespace.GetByName(name)
-			if err == nil {
-				namespace.Delete(netNS)
-			}
-		}
-	}()
-
-	err = netRes.SetupExitPoint()
-	require.NoError(err)
-
-	// TODO verify routes and IP address on interface in gateway and EP network namespace
-}
-
-func TestGatewayPeerRoutes(t *testing.T) {
-	require := require.New(t)
-	// assert := assert.New(t)
-
-	network := networks[0]
-	resource := network.Resources[0]
-	netRes, err := New(resource.NodeID.ID, network, wgtypes.Key{})
-	require.NoError(err)
-
-	defer func() {
-		for _, name := range []string{netRes.NamespaceName(), types.GatewayNamespace} {
-			netNS, err := namespace.GetByName(name)
-			if err == nil {
-				namespace.Delete(netNS)
-			}
-		}
-	}()
-
-	_, err = netRes.gatewayPeerRoutes()
-	require.NoError(err)
-	// TODO validatd routes
-}
-
 func mustParseCIDR(cidr string) *net.IPNet {
 	ip, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+// Join make a network namespace of a container join a network resource network
 func (nr *NetResource) Join(containerID string, addr *net.IPNet, gw net.IP) (join modules.Member, err error) {
 	br, err := bridge.Get(nr.nibble.BridgeName())
 	if err != nil {

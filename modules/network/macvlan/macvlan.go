@@ -135,6 +135,7 @@ func GetByName(name string) (*netlink.Macvlan, error) {
 	return macvlan, nil
 }
 
+// Exists check if a macvlan interface exists
 func Exists(name string, netNS ns.NetNS) bool {
 	exist := false
 	netNS.Do(func(_ ns.NetNS) error {

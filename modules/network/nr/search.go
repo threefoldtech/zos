@@ -16,6 +16,7 @@ func ResourceByNodeID(nodeID string, resources []*modules.NetResource) (*modules
 	return nil, fmt.Errorf("not network resource for this node: %s", nodeID)
 }
 
+// PeerByPrefix return a wireguard peer from a list of peers by its prefix
 func PeerByPrefix(prefix string, peers []*modules.Peer) (*modules.Peer, error) {
 	for _, peer := range peers {
 		if peer.Prefix.String() == prefix {

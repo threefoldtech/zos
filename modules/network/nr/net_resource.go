@@ -24,6 +24,7 @@ import (
 	zosip "github.com/threefoldtech/zosv2/modules/network/ip"
 )
 
+// NetResource gold the logic to confiure an network resource
 type NetResource struct {
 	resource       *modules.NetResource
 	exit           *modules.NetResource
@@ -34,6 +35,7 @@ type NetResource struct {
 	privateKey wgtypes.Key
 }
 
+// New creates a new NetResource object
 func New(nodeID string, network *modules.Network, privateKey wgtypes.Key) (*NetResource, error) {
 	var err error
 	nr := &NetResource{
@@ -305,6 +307,8 @@ func (nr *NetResource) wgPeers() ([]*wireguard.Peer, error) {
 	return wgPeers, nil
 }
 
+// GWTNRoutes returns the routes to set in the gateway network namespace
+// to be abe to reach a network resource
 func (nr *NetResource) GWTNRoutes() ([]*netlink.Route, error) {
 	routes := make([]*netlink.Route, 0)
 
@@ -317,25 +321,6 @@ func (nr *NetResource) GWTNRoutes() ([]*netlink.Route, error) {
 
 	return routes, nil
 }
-
-// // gatewayPeerRoutes create the list of routes to the gateway
-// func (nr *NetResource) gatewayPeerRoutes() ([]*netlink.Route, error) {
-// 	routes := make([]*netlink.Route, 0)
-
-// 	for _, peer := range nr.resource.Peers {
-// 		nibble, err := zosip.NewNibble(peer.Prefix, nr.allocNr)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		routes = append(routes, &netlink.Route{
-// 			Dst: peer.Prefix,
-// 			Gw:  nibble.EPPubLL().IP,
-// 		})
-// 	}
-
-// 	return routes, nil
-// }
 
 func (nr *NetResource) createNetNS() error {
 	netnsName := nr.nibble.NamespaceName()

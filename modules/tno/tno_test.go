@@ -136,7 +136,7 @@ func TestConfigureExitResource(t *testing.T) {
 	require.NoError(t, err)
 
 	err = Configure(n, []Opts{
-		ConfigureExitResource("DLFF6CAshvyhCrpyTHq1dMd6QP6kFyhrVGegTgudk6xk", allocation, key, 48),
+		ConfigureExitResource("DLFF6CAshvyhCrpyTHq1dMd6QP6kFyhrVGegTgudk6xk", allocation, net.ParseIP("2a02:1802:5e:0:1000:0:ff:1"), key, 48),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(n.Resources))
