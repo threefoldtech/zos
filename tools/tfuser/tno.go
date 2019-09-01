@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/threefoldtech/zosv2/modules"
-	"github.com/threefoldtech/zosv2/modules/network"
+	"github.com/threefoldtech/zosv2/modules/network/types"
 	"github.com/threefoldtech/zosv2/modules/provision"
 	"github.com/threefoldtech/zosv2/modules/tno"
 )
@@ -24,16 +24,16 @@ func createNetwork(nodeID string) (*modules.Network, error) {
 
 	node, err := db.GetNode(modules.StrIdentifier(nodeID))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get node detail from BCDB")
 	}
 
-	if !node.ExitNode {
+	if node.ExitNode <= 0 {
 		return nil, fmt.Errorf("node %s cannot be used as exit node", nodeID)
 	}
 
-	pubIface, err := db.ReadPubIface(modules.StrIdentifier(node.NodeID))
+	publicIP, err := selectPublicIP(node)
 	if err != nil {
-		return nil, errors.Wrap(err, "fail to read public interface config")
+		return nil, err
 	}
 
 	allocation, farmAlloc, err := db.RequestAllocation(modules.StrIdentifier(node.FarmID))
@@ -52,7 +52,7 @@ func createNetwork(nodeID string) (*modules.Network, error) {
 	err = tno.Configure(network, []tno.Opts{
 		tno.GenerateID(),
 		tno.ConfigurePrefixZero(farmAlloc),
-		tno.ConfigureExitResource(node.NodeID, allocation, pubIface.IPv6.IP, key, farmAllocSize),
+		tno.ConfigureExitResource(node.NodeID, allocation, publicIP, key, farmAllocSize),
 	})
 	if err != nil {
 		return nil, err
@@ -60,6 +60,22 @@ func createNetwork(nodeID string) (*modules.Network, error) {
 	network.Resources[0].NodeID.FarmerID = node.FarmID
 
 	return network, nil
+}
+
+func selectPublicIP(node *types.Node) (net.IP, error) {
+	if node.PublicConfig != nil && node.PublicConfig.IPv6 != nil {
+		return node.PublicConfig.IPv6.IP, nil
+	}
+
+	for _, iface := range node.Ifaces {
+		for _, addr := range iface.Addrs {
+			if addr.IP.IsGlobalUnicast() {
+				return addr.IP, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no public address found")
 }
 
 func addNode(nw *modules.Network, nodeID string) (*modules.Network, error) {
@@ -75,7 +91,7 @@ func addNode(nw *modules.Network, nodeID string) (*modules.Network, error) {
 	}
 
 	var (
-		pubIface *network.PubIface
+		pubIface *types.PubIface
 		ip       net.IP
 	)
 	pubIface, err = db.ReadPubIface(modules.StrIdentifier(nodeID))
