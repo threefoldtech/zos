@@ -19,8 +19,24 @@ Secondly, for now routing protocols __internally__ in the grid will generate mor
 
 The requirements for a 'Farm' that provides for Tenant Network Exitpoints is that the 'Farmer' has an IPv6 allocation from their ISP and/or RIR for a `/48` network.
 That gives us `65536` subnets to hand out to Network Resources. But that is a BIG number for static routes, so we need to split that in more manageable chuncks, luckily CIDR is made for that.
+
+__(read this, it's important)__
 A 'decent' linux system can handle a few 1000 routes, but we haven't seen what the upper limit would be. So let's split that `/48` in 16 equal parts, where the scaling can then be handeled by adding ExitNodes to handle routes.
 So these 16 `/52` networks allow for 15 ExitNodes, the first part of the 16 being reserved for internal purposes.
+
+Prefixes per ExitNode
+
+```text
+ExitNode1 -> 1000
+ExitNode2 -> 2000
+ExitNode3 -> 3000
+ExitNode4 -> 4000
+...
+ExitNode10 -> a000
+...
+ExitNode14 -> e000
+ExitNode15 -> f000
+```
 
 Every ExitNode's Gateway Container handles the routing for the ExitPoints in the ExitNode.
 The gateway container is the routing endpoint (from the Upstream's point) for that 8th part. That way, in the Upstream router, there are only max 16 static routes.
@@ -53,11 +69,12 @@ In a later phase it would be even (easily) possible to have the Gateway Containe
 
 #### PrefixZero
 
-PrefixZero is the 0th network of an allocation but for us it's als extended to 1/16th of that allocation, so for the Prefixes of the NRs, we start at `$prefix:1000::/52` to `$prefix:f000::/52`, where every Exitnode handles the Exitpoints in that 'subnet'.
+PrefixZero is the 0th network of an allocation but for us it's also extended to 1/16th of that allocation, so for the Prefixes of the NRs, we start at `$prefix:1000::/52` to `$prefix:f000::/52`, where every Exitnode handles the Exitpoints in that 'subnet'.
 
-#### Opinionated, simplistic, deterministic, your pick
 
 #### Implementation details
+
+NOTE: on the right, you'll find the function names for handling the proper naming conventions
 
 ```ascii
          +-+ to [::]/0
@@ -66,9 +83,9 @@ PrefixZero is the 0th network of an allocation but for us it's als extended to 1
 +--------+---------------------------------------------------------------+
 |                                                                        |
 |                      UPSTREAM ROUTER                                   |
-|    has                  routes                                         |
-|    $prefixzero::1/64    $prefix:1::/52 via fe80::1:0:0:0:1 dev swp1    |
-|           fe80::1/64              or via $prefix:1:0:0:0:1             |
+|    has                 routes                                          |
+|    $prefixzero::1/64   $prefix:1::/52 via fe80::1000:0:0:1 dev swp1    |
+|           fe80::1/64     or       via $prefix:0:1000:0:0:1             |
 +------+-----------------------------------------------------------------+
        |
        |                                           PrefixZero
@@ -81,8 +98,8 @@ PrefixZero is the 0th network of an allocation but for us it's als extended to 1
 | +--------------------------------------------------------+ |
 | |        +                                               | |
 | |   iface pub-1-1                                        | | GWPubName   (Gateway Routing iface)
-| |      fe80::1:0:0:0:1/64                                | | GWPubLL     (Gateway Route LL )
-| |    $prefix:1:0:0:0:1/64                                | | GWPubIP6    (Gateway Route IPv6)
+| |        fe80::1000:0:0:1/64                             | | GWPubLL     (Gateway Route LL )
+| |    $prefix:0:1000:0:0:1/64    (in prefixzero)          | | GWPubIP6    (Gateway Route IPv6)
 | |    185.69.166.123/24                                   | | GWPubIP4    (Gateway IPv4 for -> SNAT only)
 | |                                                        | |
 | | iface to-1abc-1               iface to-1123-1          | | GWtoEPName  (ExitPoint's veth peer name)
@@ -114,22 +131,9 @@ PrefixZero is the 0th network of an allocation but for us it's als extended to 1
  $prefix:1123::/64 via fe80::1123:1 dev to-1123-1
 
  routes in Exitpoint (only penultimate, the rest is handeled by the NR code)
- default via fe80::1000:1abc dev pub-1abc-1
+ default via fe80::1:1abc dev pub-1abc-1
 ```
 
-Prefixes per ExitNode
-
-```text
-ExitNode1 -> 1000
-ExitNode2 -> 2000
-ExitNode3 -> 3000
-ExitNode4 -> 4000
-...
-ExitNode10 -> a000
-...
-ExitNode14 -> e000
-ExitNode15 -> f000
-```
 
 I hope the drawing speaks for itself, but in layman's terms, each ExitNode needs to become a BAR (big ass router). As BAR, it will be responsible for a 16th part of the Allocation a farmer has received.
 
@@ -138,9 +142,9 @@ We're speaking __always__ about a `/48`... Period. For other Allocations we'll e
 That basically means :
 
 An Allocation prefix has 6 bytes:
-`2a02:1802:005e:xxxx:yyyy:yyyy:yyyy:yyyy` where the numbers are fixed and routable to our router, and the `x & y` is what we get to play with.
+`2a02:1802:005e:Exxx:yyyy:yyyy:yyyy:yyyy` where the numbers are fixed and routable to our router, and the `x & y` is what we get to play with.
 
-Thus the 1st 4 `x` is the number of subnets in `/64` we can route. A `/64` 'subnet' is a big (eufemism) address space, we admit, but it is the smallest unity in terms of physical segments in the IPv6 world.
+Thus the 1st 4 `Exxx` is the number of subnets in `/64` we can route. A `/64` 'subnet' is a big (eufemism) address space, we admit, but it is the smallest unity in terms of physical segments in the IPv6 world.
 So we get 2 bytes to address `/64` networks... That means 65536 Network Resources that we can route with that Allocation.
 In router terms, that are **a lot** of routes, so we need to split that up. Even as BAR, 4K routes are many, but in the realms of feasible, so let's go for that.
 One caveat, though, is that every time you get +2K routes, it is advisable to add an ExitNode in that Allocation. That is not 'bad' per se, but you will have to make sure that Node is properly set-up physically that it can act as one. In a standard Farm setup, we would even advise that every node in that farm is setup alike, so that any node can partake in these routing schemes, and thus that every node can act as backup for eventual failure of nodes that act as ExitNode.
@@ -154,8 +158,8 @@ That means :
   - A Public namespace is created for instantiating the Wireguard interfaces that get sent into the ExitPoint
   - A Gateway Namespace (GW) is created (if it doesn't already exist) and the first route to that TN is added (the prefix of the Network Resource of that ExitPoint)
 - The ExitPoint has a veth pair with one end into the Exitpoint and the other in the GW.
-- Every time a TN is updated having a new NR, the GW updates it's routing table so that the new prefixpoints to the ExitPoint (which handles the routing for the TNs)
-- In a later stage we'll define the GW as an NS with route-leaking VRFs per TN, so that we can forego having to maintain a routing/forwarding filter for the TNs.
+- Every time a TN is updated having a new NR, the GW updates it's routing table so that the new prefix points to the ExitPoint (which handles the routing for the TNs)
+- In a later stage we'll define the GW as an NS with route-leaking VRFs per TN, so that we can forego having to maintain a routing/forwarding filter/firewall for the TNs.
 
 TODO: figure out how we can update routing tables when NRs get removed from a TN as easily as possible (provisioning is easy, things get a lot more hairy when removing items)
 
@@ -172,3 +176,5 @@ TODO:
 - in terms of scalability for an ExitPoint, 3 byte addressing (4096) still seems a lot, but I don't think it would be a big issue, as arriving there would mean that a farm has 65536 possible network resources running, each with the possibility of 256 (IPv4) services in every Node where that TNo lives. That would be Amazon-big. But nibbling at bits on the TNoDB side would be sufficient to still adhere to our deterministic naming/allocations, so we can easily fix that.
 - Wireguard being our first overlay, there are other overlays that can be more efficient, like vxlan.
 - Sometimes overlay networks can be overkill and costly when we need to optimize for bandwidth, where dedicated NICs and vlans can make things static and still performant.
+
+#### Opinionated, simplistic, deterministic, your pick
