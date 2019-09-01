@@ -58,7 +58,7 @@ var node1 = &modules.NetResource{
 	Prefix:    mustParseCIDR("2a02:1802:5e:ff02::/64"),
 	LinkLocal: mustParseCIDR("fe80::ff02/64"),
 	Peers:     peers,
-	ExitPoint: true,
+	ExitPoint: 1,
 }
 var node2 = &modules.NetResource{
 	NodeID: &modules.NodeID{
@@ -135,10 +135,8 @@ func TestConfigureExitResource(t *testing.T) {
 	key, err := wgtypes.GeneratePrivateKey()
 	require.NoError(t, err)
 
-	publicIP := net.ParseIP("2a02:1802:5e::223")
-
 	err = Configure(n, []Opts{
-		ConfigureExitResource("DLFF6CAshvyhCrpyTHq1dMd6QP6kFyhrVGegTgudk6xk", allocation, publicIP, key, 48),
+		ConfigureExitResource("DLFF6CAshvyhCrpyTHq1dMd6QP6kFyhrVGegTgudk6xk", allocation, key, 48),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(n.Resources))
@@ -146,7 +144,7 @@ func TestConfigureExitResource(t *testing.T) {
 	// assert.Equal(t, "", n.Resources[0].NodeID.FarmerID)
 	assert.Equal(t, "2a02:1802:5e:afba::/64", n.Resources[0].Prefix.String())
 	assert.Equal(t, "fe80::afba/64", n.Resources[0].LinkLocal.String())
-	assert.True(t, n.Resources[0].ExitPoint)
+	assert.Equal(t, 1, n.Resources[0].ExitPoint)
 	assert.Equal(t, 1, len(n.Resources[0].Peers))
 	assert.Equal(t, "2a02:1802:5e:afba::/64", n.Resources[0].Peers[0].Prefix.String())
 	assert.Equal(t, modules.ConnTypeWireguard, n.Resources[0].Peers[0].Type)
@@ -231,7 +229,7 @@ func TestAddNode(t *testing.T) {
 			// assert.Equal(t, "", n.Resources[0].NodeID.FarmerID)
 			assert.Equal(t, "2a02:1802:5e:afba::/64", n.Resources[0].Prefix.String())
 			assert.Equal(t, "fe80::afba/64", n.Resources[0].LinkLocal.String())
-			assert.False(t, n.Resources[0].ExitPoint)
+			assert.Equal(t, 0, n.Resources[0].ExitPoint)
 			assert.Equal(t, modules.ReachabilityV4Hidden, n.Resources[0].NodeID.ReachabilityV4)
 			if tt.args.publicIP != nil && tt.args.port != 0 {
 				assert.Equal(t, modules.ReachabilityV6Public, n.Resources[0].NodeID.ReachabilityV6)
@@ -280,7 +278,7 @@ func TestAddUser(t *testing.T) {
 	// assert.Equal(t, "", n.Resources[0].NodeID.FarmerID)
 	assert.Equal(t, "2a02:1802:5e:afba::/64", n.Resources[0].Prefix.String())
 	assert.Equal(t, "fe80::afba/64", n.Resources[0].LinkLocal.String())
-	assert.False(t, n.Resources[0].ExitPoint)
+	assert.Equal(t, 0, n.Resources[0].ExitPoint)
 	require.Equal(t, 1, len(n.Resources[0].Peers))
 	assert.Equal(t, "2a02:1802:5e:afba::/64", n.Resources[0].Peers[0].Prefix.String())
 	assert.Equal(t, modules.ConnTypeWireguard, n.Resources[0].Peers[0].Type)

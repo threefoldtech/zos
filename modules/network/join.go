@@ -9,6 +9,7 @@ import (
 	"github.com/containernetworking/plugins/plugins/ipam/host-local/backend/allocator"
 	"github.com/containernetworking/plugins/plugins/ipam/host-local/backend/disk"
 	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/network/nr"
 )
 
 // allocateIP allocates a unique IP for the entity defines by the given id (for example container id, or a vm).
@@ -19,7 +20,10 @@ func (n *networker) allocateIP(id string, network *modules.Network) (*current.IP
 		return nil, err
 	}
 
-	local := n.localResource(network.Resources)
+	local, err := nr.ResourceByNodeID(n.identity.NodeID().Identity(), network.Resources)
+	if err != nil {
+		return nil, err
+	}
 
 	r := allocator.Range{
 		Subnet:  types.IPNet(*local.Prefix),

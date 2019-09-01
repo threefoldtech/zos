@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/network/types"
 )
 
 // TNoDB define the interface to implement
@@ -15,10 +16,10 @@ type TNoDB interface {
 	GetFarm(farm modules.Identifier) (Farm, error)
 
 	PublishInterfaces(node modules.Identifier) error
-	GetNode(modules.Identifier) (*Node, error)
+	GetNode(modules.Identifier) (*types.Node, error)
 
 	ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error
-	ReadPubIface(node modules.Identifier) (*PubIface, error)
+	ReadPubIface(node modules.Identifier) (*types.PubIface, error)
 
 	SelectExitNode(node modules.Identifier) error
 
