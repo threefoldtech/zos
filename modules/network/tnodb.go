@@ -12,7 +12,7 @@ import (
 // to talk to a Tenant Network object database
 type TNoDB interface {
 	RegisterAllocation(farm modules.Identifier, allocation *net.IPNet) error
-	RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, error)
+	RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, uint8, error)
 	GetFarm(farm modules.Identifier) (Farm, error)
 
 	PublishInterfaces(node modules.Identifier) error

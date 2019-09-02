@@ -3,7 +3,6 @@ package ip
 import (
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 
 	"github.com/threefoldtech/zosv2/modules"
@@ -271,12 +270,10 @@ func (n *Nibble) NRDefaultRoute() *netlink.Route {
 }
 
 // ExitNodeRange TODO
-func (n *Nibble) ExitNodeRange(prefix *net.IPNet, exitnodenr int) *net.IPNet {
-	rnd := uint8(rand.Int63n(4096))
-
+func ExitNodeRange(prefix *net.IPNet, exitnodenr uint8, rnd uint16) *net.IPNet {
 	b := make([]byte, net.IPv6len)
 	copy(b, prefix.IP)
-	b[6] = (uint8(exitnodenr) << 4) | ((uint8(rnd) >> 8) & 0x0f)
+	b[6] = ((exitnodenr) << 4) | uint8(((rnd >> 8) & 0x0f))
 	b[7] = byte(rnd & 0x00ff)
 
 	return &net.IPNet{

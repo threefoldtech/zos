@@ -61,11 +61,11 @@ func (s *httpTNoDB) RegisterAllocation(farm modules.Identifier, allocation *net.
 	return nil
 }
 
-func (s *httpTNoDB) RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, error) {
+func (s *httpTNoDB) RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, uint8, error) {
 	url := fmt.Sprintf("%s/%s/%s", s.baseURL, "allocations", farm.Identity())
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 	defer resp.Body.Close()
 
@@ -75,27 +75,28 @@ func (s *httpTNoDB) RequestAllocation(farm modules.Identifier) (*net.IPNet, *net
 			panic(err)
 		}
 		fmt.Printf("%+v", string(b))
-		return nil, nil, fmt.Errorf("wrong response status code received: %v", resp.Status)
+		return nil, nil, 0, fmt.Errorf("wrong response status code received: %v", resp.Status)
 	}
 
 	data := struct {
-		Alloc     string `json:"allocation"`
-		FarmAlloc string `json:"farm_allocation"`
+		Alloc      string `json:"allocation"`
+		FarmAlloc  string `json:"farm_alloc"`
+		ExitNodeNr uint8  `json:"exit_node_nr"`
 	}{}
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 
 	_, alloc, err := net.ParseCIDR(data.Alloc)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to parse network allocation")
+		return nil, nil, 0, errors.Wrap(err, "failed to parse network allocation")
 	}
 	_, farmAlloc, err := net.ParseCIDR(data.FarmAlloc)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to parse farm allocation")
+		return nil, nil, 0, errors.Wrap(err, "failed to parse farm allocation")
 	}
 
-	return alloc, farmAlloc, nil
+	return alloc, farmAlloc, data.ExitNodeNr, nil
 }
 
 func (s *httpTNoDB) GetFarm(farm modules.Identifier) (network.Farm, error) {

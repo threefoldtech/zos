@@ -223,15 +223,14 @@ func TestGWPubIP6(t *testing.T) {
 
 func TestExitNodeRange(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/64")
-	nibble, _ := NewNibble(prefix, 0)
 
 	rand.Seed(1)
+	actual := ExitNodeRange(prefix, 1)
+	assert.Equal(t, mustParseCIDR("2a02:1802:5e:1d52::/64"), actual)
 
-	actual := nibble.ExitNodeRange(prefix, 1)
-	assert.Equal(t, mustParseCIDR("2a02:1802:5e:1221::/64"), actual)
-
-	actual = nibble.ExitNodeRange(prefix, 15)
-	assert.Equal(t, mustParseCIDR("2a02:1802:5e:f221::/64"), actual)
+	rand.Seed(1)
+	actual = ExitNodeRange(prefix, 15)
+	assert.Equal(t, mustParseCIDR("2a02:1802:5e:fd52::/64"), actual)
 }
 
 func mustParseCIDR(cidr string) *net.IPNet {

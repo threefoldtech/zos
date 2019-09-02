@@ -180,18 +180,29 @@ func listAlloc(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAlloc(w http.ResponseWriter, r *http.Request) {
-	farmID, ok := mux.Vars(r)["farm_id"]
+	nodeID, ok := mux.Vars(r)["node_id"]
 	if !ok {
-		http.Error(w, "missing farm_id", http.StatusBadRequest)
+		http.Error(w, "missing node_id", http.StatusBadRequest)
 		return
 	}
 
-	if _, ok := farmStore[farmID]; !ok {
+	node, ok := nodeStore[nodeID]
+	if !ok {
+		http.Error(w, fmt.Sprintf("node id %s not found", nodeID), http.StatusNotFound)
+		return
+	}
+
+	if node.ExitNode <= 0 {
+		http.Error(w, fmt.Sprintf("node %s can't be used as exit node", node.NodeID), http.StatusBadRequest)
+		return
+	}
+
+	if _, ok := farmStore[node.FarmID]; !ok {
 		http.Error(w, "farm not found", http.StatusNotFound)
 		return
 	}
 
-	alloc, farmAlloc, err := requestAllocation(farmID, allocStore)
+	alloc, farmAlloc, err := requestAllocation(node, allocStore)
 	if err != nil {
 		log.Printf("error during allocation request: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -199,11 +210,13 @@ func getAlloc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Alloc     string `json:"allocation"`
-		FarmAlloc string `json:"farm_allocation"`
+		Alloc      string `json:"allocation"`
+		FarmAlloc  string `json:"farm_alloc"`
+		ExitNodeNr uint8  `json:"exit_node_nr"`
 	}{
-		Alloc:     alloc.String(),
-		FarmAlloc: farmAlloc.String(),
+		Alloc:      alloc.String(),
+		FarmAlloc:  farmAlloc.String(),
+		ExitNodeNr: uint8(node.ExitNode),
 	}
 
 	w.Header().Set("Content-type", "application/json")

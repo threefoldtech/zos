@@ -36,12 +36,10 @@ func createNetwork(nodeID string) (*modules.Network, error) {
 		return nil, err
 	}
 
-	allocation, farmAlloc, err := db.RequestAllocation(modules.StrIdentifier(node.FarmID))
+	allocation, farmAlloc, exitNodeNr, err := db.RequestAllocation(modules.StrIdentifier(node.NodeID))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to request a new allocation")
 	}
-
-	_, farmAllocSize := farmAlloc.Mask.Size()
 
 	key, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
@@ -52,7 +50,7 @@ func createNetwork(nodeID string) (*modules.Network, error) {
 	err = tno.Configure(network, []tno.Opts{
 		tno.GenerateID(),
 		tno.ConfigurePrefixZero(farmAlloc),
-		tno.ConfigureExitResource(node.NodeID, allocation, publicIP, key, farmAllocSize),
+		tno.ConfigureExitResource(node.NodeID, allocation, publicIP, key, exitNodeNr),
 	})
 	if err != nil {
 		return nil, err
@@ -85,7 +83,7 @@ func addNode(nw *modules.Network, nodeID string) (*modules.Network, error) {
 
 	farmID := nw.Resources[0].NodeID.FarmerID
 
-	allocation, _, err := db.RequestAllocation(modules.StrIdentifier(farmID))
+	allocation, _, _, err := db.RequestAllocation(modules.StrIdentifier(farmID))
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +122,7 @@ func addUser(network *modules.Network, userID string) (*modules.Network, string,
 	}
 
 	farmID := network.Resources[0].NodeID.FarmerID
-	allocation, _, err := db.RequestAllocation(modules.StrIdentifier(farmID))
+	allocation, _, _, err := db.RequestAllocation(modules.StrIdentifier(farmID))
 	if err != nil {
 		return nil, "", err
 	}
@@ -133,7 +131,6 @@ func addUser(network *modules.Network, userID string) (*modules.Network, string,
 	if err != nil {
 		return nil, "", err
 	}
-	// todo serialize the key somewhere
 
 	err = tno.Configure(network, []tno.Opts{
 		tno.AddUser(userID, allocation, key),

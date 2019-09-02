@@ -88,7 +88,7 @@ func main() {
 
 	router.HandleFunc("/allocations", registerAlloc).Methods("POST")
 	router.HandleFunc("/allocations", listAlloc).Methods("GET")
-	router.HandleFunc("/allocations/{farm_id}", getAlloc).Methods("GET")
+	router.HandleFunc("/allocations/{node_id}", getAlloc).Methods("GET")
 
 	router.HandleFunc("/reservations/{node_id}", reserve).Methods("POST")
 	router.HandleFunc("/reservations/{node_id}/poll", pollReservations).Methods("GET")

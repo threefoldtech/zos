@@ -71,7 +71,7 @@ func ConfigurePrefixZero(farmAllocation *net.IPNet) Opts {
 // nodeID is the ID of the node used as exit point
 // allocation if the /64 allocation for the exit resource
 // key is the wireguard key pair for the wiregard exit peer
-func ConfigureExitResource(nodeID string, allocation *net.IPNet, publicIP net.IP, key wgtypes.Key, farmAllocSize int) Opts {
+func ConfigureExitResource(nodeID string, allocation *net.IPNet, publicIP net.IP, key wgtypes.Key, exitNodeNr uint8) Opts {
 	return func(n *modules.Network) error {
 		if n.PrefixZero == nil {
 			return fmt.Errorf("cannot add a node when the network object does not have a PrefixZero set")
@@ -112,7 +112,7 @@ func ConfigureExitResource(nodeID string, allocation *net.IPNet, publicIP net.IP
 			Prefix:    allocation,
 			LinkLocal: exitNibble.WGLL(),
 			Peers:     []*modules.Peer{exitPeer},
-			ExitPoint: 1,
+			ExitPoint: int(exitNodeNr),
 		})
 
 		n.Exit = &modules.ExitPoint{
