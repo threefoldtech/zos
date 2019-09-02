@@ -44,8 +44,8 @@ type Container struct {
 }
 
 type ContainerResult struct {
-	ID string
-	IP string
+	ID string `json:"id"`
+	IP string `json:"ip"`
 }
 
 // ContainerProvision is entry point to container reservation
