@@ -178,3 +178,47 @@ TODO:
 - Sometimes overlay networks can be overkill and costly when we need to optimize for bandwidth, where dedicated NICs and vlans can make things static and still performant.
 
 #### Opinionated, simplistic, deterministic, your pick
+
+While we were reflecting on how we would have to generate IP addresses and destination ports of Wireguard interfaces, it seemed very complicated to have to maintain a relational database where living things needed to be registered and most of all, maintained. 
+
+The network setup we envisioned needed to be 
+
+- User driven
+- Always adaptable as Network Resources (the IPv6 `/64` or IPv4 `/24` of a User (TNo) in a Node)  come and go.
+- Easy to reason about
+- Most of all, easy to debug in case something goes wrong
+
+There so many combinations and incantations possible (this is the the case now, but will be even more so in the future) that having to maintain a living object with many relationships in terms of adding and/or deleting is not really mpossible, but very (extremely?) difficult and prone to errors. 
+These errors can be User Errors, which can be fixable, but the most important problem is the possibility of discrepance between what is effectively live in a system and what is modeled in the database.
+A part from that problem, to add insult to injury, upgrading a network with new features or different approaches, would add an increased complexity in migration of networks from one version(or form) to another. That as well in the model, as trying to reimplement the model to reality.
+The more, a DataBase as single source of thruth adds the necessity to secure that database (with replacations, High Availability and all problems that are associated with maintianing databases). Needless to say, that is a problem that needs to be avoided like it were the plague. 
+
+So:
+We opted for trying to have a network as strict as possible. 
+
+That is: a User has a Network with **only** a list of Node <-> Network Resource relationships. We need to be able to derive the **whole** network from solely these lists. No more, no less.
+
+**`Uint16`**
+The Magical Word in our network thingie. I assure you, we have come to **love** that word. It fits to a T for everything we envisioned, and never has let us down. (and we hope it never will)
+
+Another word :
+
+**Deterministic**
+We live by it. We enforce it. And if we can't enforce, we find a way to (`sudo enforce`).
+
+That means: from given data, make sure you can always (mostly unidirectionally) make sure that the **same** output can be used to apply a model. At he same time we tried to make sure it's still readable, or the we can apply the same programming rules in our mind and generate the outcomes ourselves, without the need of tools to do so.
+
+The main advantage, though, having things set-up deterministically, is that we don't have to query a database to be able to apply a model. We only need a list. 
+For our network, that list is of the form :
+
+- a network has one ExitPoint AND that ExitPoint lives in a Node that is an ExitNode.
+- an ExitPoint is the router for all Network Resources in that network (it is itself, by definition, also a Network Resource).
+- the list of the Network Resources in that network is kept in BCDB.
+
+That's it. The rest is derived. Interface names are derived. IP (as well IPv4 as IPv6) addresses are derived, Wireguard interfaces are derived. Routes are derived. Listening Ports are derived. Firewall rules are derived... you get the picture.
+While that doesn't give a user a lot of leeway to shape things to his own ideas, it has the major benefit that the network can get out of a User's way. He doesn't have to think about it, and the network 'just' exists, just like the Internet does.  
+Services started will be reachable for IPv6, and when a user owns IPv4 addresses, he can just PortForward into his network, as that network supports IPv4 too.
+
+So: deterministic is our word for deriving parameters from just the Allocation that is assiggned to the Network Resource. The main advantage is that given the allocation received, everything falls automatically in place, and no queries to some database or shared state need to be done. 
+
+It can be that purists don't like it, and there surely will be some even better ideas to get determinism going, but right now, it really works, and also gives us real ease to reason about how that thing is working. Implementing a complex structure that is a mesh of connections with their associated routes, keys, addresses, peers, ports gets a lot more easy to reason about. That will be the same for tools to list and show the network structures in the (nearby) future.
