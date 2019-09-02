@@ -225,11 +225,12 @@ func TestExitNodeRange(t *testing.T) {
 	prefix := mustParseCIDR("2a02:1802:5e:ff02::/64")
 
 	rand.Seed(1)
-	actual := ExitNodeRange(prefix, 1)
+	rnd := uint16(rand.Int63n(4096))
+
+	actual := ExitNodeRange(prefix, 1, rnd)
 	assert.Equal(t, mustParseCIDR("2a02:1802:5e:1d52::/64"), actual)
 
-	rand.Seed(1)
-	actual = ExitNodeRange(prefix, 15)
+	actual = ExitNodeRange(prefix, 15, rnd)
 	assert.Equal(t, mustParseCIDR("2a02:1802:5e:fd52::/64"), actual)
 }
 
