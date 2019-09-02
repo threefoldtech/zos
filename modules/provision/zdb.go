@@ -36,6 +36,8 @@ type ZDB struct {
 	Public   bool               `json:"public"`
 }
 
+// ZDBResult is the information return to the BCDB
+// after deploying a 0-db namespace
 type ZDBResult struct {
 	Namespace string
 	IP        string

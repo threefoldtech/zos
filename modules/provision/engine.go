@@ -18,14 +18,16 @@ type ReservationReadWriter interface {
 	Remove(id string) error
 }
 
-type Resulter interface {
-	Result(id string, r *Result) error
+// Feedbacker defines the method that needs to be implemented
+// to send the provision result to BCDB
+type Feedbacker interface {
+	Feedback(id string, r *Result) error
 }
 
 type defaultEngine struct {
 	source ReservationSource
 	store  ReservationReadWriter
-	result Resulter
+	fb     Feedbacker
 }
 
 // New creates a new engine. Once started, the engine
@@ -34,11 +36,11 @@ type defaultEngine struct {
 // the default implementation is a single threaded worker. so it process
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
-func New(source ReservationSource, rw ReservationReadWriter, result Resulter) Engine {
+func New(source ReservationSource, rw ReservationReadWriter, fb Feedbacker) Engine {
 	return &defaultEngine{
 		source: source,
 		store:  rw,
-		result: result,
+		fb:     fb,
 	}
 }
 
@@ -163,5 +165,5 @@ func (e *defaultEngine) reply(ctx context.Context, r *Reservation, rErr error, i
 	}
 	result.Signature = sig
 
-	return e.result.Result(r.ID, result)
+	return e.fb.Feedback(r.ID, result)
 }

@@ -33,6 +33,8 @@ type Volume struct {
 	Type DiskType `json:"type"`
 }
 
+// VolumeResult is the information return to the BCDB
+// after deploying a volume
 type VolumeResult struct {
 	ID string `json:"volume_id"`
 }

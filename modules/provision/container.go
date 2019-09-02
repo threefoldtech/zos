@@ -43,6 +43,8 @@ type Container struct {
 	Network Network `json:"network"`
 }
 
+// ContainerResult is the information return to the BCDB
+// after deploying a container
 type ContainerResult struct {
 	ID string `json:"id"`
 	IP string `json:"ip"`
