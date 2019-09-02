@@ -97,7 +97,7 @@ func validateNetwork(n *modules.Network) error {
 	return nil
 }
 
-func (n *networker) Join(member string, id modules.NetID) (join modules.Member, err error) {
+func (n *networker) Join(containerID string, id modules.NetID) (join modules.Member, err error) {
 	// TODO:
 	// 1- Make sure this network id is actually deployed
 	// 2- Create a new namespace, then create a veth pair inside this namespace
@@ -118,12 +118,7 @@ func (n *networker) Join(member string, id modules.NetID) (join modules.Member, 
 		return join, errors.Wrap(err, "failed to load network resource")
 	}
 
-	config, err := n.allocateIP(member, network)
-	if err != nil {
-		return join, err
-	}
-
-	return netRes.Join(member, &config.Address, config.Gateway)
+	return netRes.Join(containerID)
 }
 
 // ZDBPrepare sends a macvlan interface into the

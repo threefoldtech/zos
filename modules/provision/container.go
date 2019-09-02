@@ -30,7 +30,7 @@ type Container struct {
 	// URL of the flist
 	FList string `json:"flist"`
 	// URL of the storage backend for the flist
-	FlistStorage string `json:"flist"`
+	FlistStorage string `json:"flist_storage"`
 	// Env env variables to container in format
 	Env map[string]string `json:"env"`
 	// Entrypoint the process to start inside the container

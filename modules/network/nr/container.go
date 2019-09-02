@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 
+	"golang.org/x/crypto/blake2b"
+
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
@@ -17,7 +19,7 @@ import (
 )
 
 // Join make a network namespace of a container join a network resource network
-func (nr *NetResource) Join(containerID string, addr *net.IPNet, gw net.IP) (join modules.Member, err error) {
+func (nr *NetResource) Join(containerID string) (join modules.Member, err error) {
 	br, err := bridge.Get(nr.nibble.BridgeName())
 	if err != nil {
 		return join, err
@@ -57,12 +59,13 @@ func (nr *NetResource) Join(containerID string, addr *net.IPNet, gw net.IP) (joi
 			return err
 		}
 
+		addr := containerIP(nr.resource.Prefix, containerID)
 		if err := netlink.AddrAdd(eth0, &netlink.Addr{IPNet: addr}); err != nil {
 			return err
 		}
 
 		join.IP = addr.IP
-		return netlink.RouteAdd(&netlink.Route{Gw: gw})
+		return netlink.RouteAdd(&netlink.Route{Gw: nr.resource.Prefix.IP})
 	})
 
 	if err != nil {
@@ -79,4 +82,17 @@ func (nr *NetResource) Join(containerID string, addr *net.IPNet, gw net.IP) (joi
 	}
 
 	return join, bridge.AttachNic(hostVeth, br)
+}
+
+func containerIP(prefix *net.IPNet, containerID string) *net.IPNet {
+	h := blake2b.Sum512([]byte(containerID))
+
+	b := make([]byte, net.IPv6len)
+	copy(b, prefix.IP)
+	copy(b[9:], h[:])
+
+	return &net.IPNet{
+		IP:   net.IP(b),
+		Mask: net.CIDRMask(64, 128),
+	}
 }
