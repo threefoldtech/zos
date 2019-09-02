@@ -22,11 +22,12 @@ func networkProvision(ctx context.Context, reservation *Reservation) (interface{
 	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
 	log.Debug().Str("network", fmt.Sprintf("%+v", network)).Msg("provision network")
 
-	namespace, err := mgr.ApplyNetResource(*network)
+	_, err := mgr.ApplyNetResource(*network)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create network resource for network %s", network.NetID)
 	}
-	return namespace, nil
+	// nothing to return to BCDB
+	return nil, nil
 }
 
 func networkDecommission(ctx context.Context, reservation *Reservation) error {

@@ -27,7 +27,6 @@ type farmInfo struct {
 type reservation struct {
 	Reservation *provision.Reservation `json:"reservation"`
 	NodeID      string                 `json:"node_id"`
-	Sent        bool                   `json:"sent"`
 }
 
 type provisionStore struct {
@@ -93,6 +92,7 @@ func main() {
 	router.HandleFunc("/reservations/{node_id}", reserve).Methods("POST")
 	router.HandleFunc("/reservations/{node_id}/poll", pollReservations).Methods("GET")
 	router.HandleFunc("/reservations/{id}", getReservation).Methods("GET")
+	router.HandleFunc("/reservations/{id}", reservationResult).Methods("PUT")
 
 	log.Printf("start on %s\n", listen)
 	loggedRouter := handlers.LoggingHandler(os.Stderr, router)

@@ -81,11 +81,14 @@ func addNode(nw *modules.Network, nodeID string) (*modules.Network, error) {
 		return nil, fmt.Errorf("cannot add a node to network without exit node")
 	}
 
-	farmID := nw.Resources[0].NodeID.FarmerID
-
-	allocation, _, _, err := db.RequestAllocation(modules.StrIdentifier(farmID))
+	farm, err := db.GetNode(modules.StrIdentifier(nodeID))
 	if err != nil {
 		return nil, err
+	}
+
+	allocation, _, _, err := db.RequestAllocation(nw.Resources[0].NodeID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to request a new allocation")
 	}
 
 	var (
@@ -105,7 +108,7 @@ func addNode(nw *modules.Network, nodeID string) (*modules.Network, error) {
 	}
 
 	err = tno.Configure(nw, []tno.Opts{
-		tno.AddNode(nodeID, farmID, allocation, key, ip),
+		tno.AddNode(nodeID, farm.FarmID, allocation, key, ip),
 	})
 	if err != nil {
 		return nil, err

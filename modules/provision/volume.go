@@ -33,6 +33,12 @@ type Volume struct {
 	Type DiskType `json:"type"`
 }
 
+// VolumeResult is the information return to the BCDB
+// after deploying a volume
+type VolumeResult struct {
+	ID string `json:"volume_id"`
+}
+
 // VolumeProvision is entry point to provision a volume
 func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
 	client := GetZBus(ctx)
@@ -49,7 +55,11 @@ func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}
 		return path, nil
 	}
 
-	return storageClient.CreateFilesystem(reservation.ID, config.Size*gigabyte, modules.DeviceType(config.Type))
+	_, err = storageClient.CreateFilesystem(reservation.ID, config.Size*gigabyte, modules.DeviceType(config.Type))
+
+	return VolumeResult{
+		ID: reservation.ID,
+	}, err
 }
 
 func volumeDecommission(ctx context.Context, reservation *Reservation) error {

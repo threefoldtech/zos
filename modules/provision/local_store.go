@@ -99,7 +99,7 @@ func (s *FSStore) GetExpired() ([]*Reservation, error) {
 		if err != nil {
 			return nil, err
 		}
-		if r.expired() {
+		if r.Expired() {
 			rs = append(rs, r)
 		}
 
