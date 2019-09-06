@@ -11,6 +11,7 @@ import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zosv2/modules/gedis"
 	"github.com/threefoldtech/zosv2/modules/identity"
 	"github.com/threefoldtech/zosv2/modules/version"
 )
@@ -25,13 +26,17 @@ func main() {
 	var (
 		root         string
 		msgBrokerCon string
-		tnodbURL     string
+		bcdbAddr     string
+		bcdbNs       string
+		bcdbPass     string
 		ver          bool
 	)
 
 	flag.StringVar(&root, "root", "/var/cache/modules/identityd", "root working directory of the module")
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.StringVar(&tnodbURL, "tnodb", "https://tnodb.dev.grid.tf", "address of tenant network object database")
+	flag.StringVar(&bcdbAddr, "bcdbaddr", "", "address of the blockchain database")
+	flag.StringVar(&bcdbNs, "bcdbns", "default", "namespace inside the blockchain database")
+	flag.StringVar(&bcdbPass, "bcdbpass", "", "password of the namespace blockchain database")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
 	flag.Parse()
@@ -67,10 +72,17 @@ func main() {
 
 	// Node registration can happen in the background.
 	go func() {
-		store := identity.NewHTTPIDStore(tnodbURL)
+		// store := identity.NewHTTPIDStore(tnodbURL)
+		store, err := gedis.New(bcdbAddr, bcdbNs, bcdbPass)
+		if err != nil {
+			log.Error().Err(err).Msg("fail to connect to blockchain")
+			return
+		}
+
 		f := func() error {
 			log.Info().Msg("start registration of the node")
-			if _, err := store.RegisterNode(nodeID, farmID); err != nil {
+			_, err := store.RegisterNode(nodeID, farmID)
+			if err != nil {
 				log.Error().Err(err).Msg("fail to register node identity")
 				return err
 			}
