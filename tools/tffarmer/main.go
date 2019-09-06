@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/gedis"
 	"github.com/threefoldtech/zosv2/modules/identity"
 	"github.com/threefoldtech/zosv2/modules/network"
 	"github.com/threefoldtech/zosv2/modules/network/tnodb"
@@ -47,7 +48,20 @@ func main() {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 		url := c.String("tnodb")
-		idStore = identity.NewHTTPIDStore(url)
+		bcdbAddr := c.String("bcdbaddr")
+		bcdbNs := c.String("bcdbns")
+		bcdbPass := c.String("bcdbpass")
+
+		// otherwise idStore is not used in this scope
+		// if using idStore, err := ...
+		var err error
+
+		// idStore = identity.NewHTTPIDStore(url)
+		idStore, err = gedis.New(bcdbAddr, bcdbNs, bcdbPass)
+		if err != nil {
+			return err
+		}
+
 		db = tnodb.NewHTTPHTTPTNoDB(url)
 
 		return nil
