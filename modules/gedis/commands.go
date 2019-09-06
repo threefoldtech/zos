@@ -9,12 +9,34 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 )
 
-func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier) (string, error) {
-	type body struct {
-		NodeID string `json:"node_id,omitempty"`
-		FarmID string `json:"farm_id,omitempty"`
+//
+// IDStore Interface
+//
+
+type registerNodeBody struct {
+	NodeID string `json:"node_id,omitempty"`
+	FarmID string `json:"farm_id,omitempty"`
+}
+
+type registerFarmBody struct {
+	Farm string `json:"farm_id,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+func (g *Gedis) sendCommand(actor string, method string, b []byte) ([]byte, error) {
+	con := g.pool.Get()
+	defer con.Close()
+
+	resp, err := redis.Bytes(con.Do(g.cmd("nodes", "add"), b, g.headers))
+	if err != nil {
+		return []byte{}, err
 	}
-	req := body{
+
+	return resp, nil
+}
+
+func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier) (string, error) {
+	req := registerNodeBody{
 		NodeID: nodeID.Identity(),
 		FarmID: farmID.Identity(),
 	}
@@ -24,13 +46,12 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier) (string, error) 
 		return "", err
 	}
 
-	con := g.pool.Get()
-	defer con.Close()
-	resp, err := redis.Bytes(con.Do(g.cmd("nodes", "add"), b, g.headers))
+	resp, err := g.sendCommand("nodes", "add", b)
 	if err != nil {
 		return "", err
 	}
-	r := body{}
+
+	r := registerNodeBody{}
 	if err := json.Unmarshal(resp, &r); err != nil {
 		return "", err
 	}
@@ -38,11 +59,7 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier) (string, error) 
 }
 
 func (g *Gedis) RegisterFarm(farm modules.Identifier, name string) error {
-	type body struct {
-		Farm string `json:"farm_id,omitempty"`
-		Name string `json:"name,omitempty"`
-	}
-	req := body{
+	req := registerFarmBody{
 		Farm: farm.Identity(),
 		Name: name,
 	}
@@ -52,17 +69,12 @@ func (g *Gedis) RegisterFarm(farm modules.Identifier, name string) error {
 		return err
 	}
 
-	con := g.pool.Get()
-	defer con.Close()
-	_, err = redis.Bytes(con.Do(g.cmd("farms", "add"), b, g.headers))
+	_, err = g.sendCommand("farms", "add", b)
 	return err
 }
 
 func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
-	con := g.pool.Get()
-	defer con.Close()
-
-	resp, err := redis.Bytes(con.Do(g.cmd("nodes", "get"), "", g.headers))
+	resp, err := g.sendCommand("nodes", "get", nil)
 	if err != nil {
 		return nil, err
 	}
