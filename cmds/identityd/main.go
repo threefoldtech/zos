@@ -70,7 +70,7 @@ func main() {
 		store := identity.NewHTTPIDStore(tnodbURL)
 		f := func() error {
 			log.Info().Msg("start registration of the node")
-			if err := store.RegisterNode(nodeID, farmID); err != nil {
+			if _, err := store.RegisterNode(nodeID, farmID); err != nil {
 				log.Error().Err(err).Msg("fail to register node identity")
 				return err
 			}
