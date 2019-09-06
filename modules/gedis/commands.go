@@ -54,7 +54,7 @@ func (g *Gedis) RegisterFarm(farm modules.Identifier, name string) error {
 
 	con := g.pool.Get()
 	defer con.Close()
-	_, err = redis.Bytes(con.Do(g.cmd("nodes", "add"), b, g.headers))
+	_, err = redis.Bytes(con.Do(g.cmd("farms", "add"), b, g.headers))
 	return err
 }
 
