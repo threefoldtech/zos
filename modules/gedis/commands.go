@@ -85,3 +85,70 @@ func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
 	}
 	return &n, nil
 }
+
+//
+// TNoDB Interface
+//
+
+type registerAllocationBody struct {
+	FarmerID string `json:"farmer_id"`
+	Alloc    string `json:"allocation"`
+}
+
+type requestAllocationBody struct {
+	Alloc     string `json:"allocation"`
+	FarmAlloc string `json:"farm_allocation"`
+}
+
+type configurePublicIfaceBody struct {
+	Iface string            `json:"iface"`
+	IPs   []string          `json:"ips"`
+	GWs   []string          `json:"gateways"`
+	Type  network.IfaceType `json:"iface_type"`
+}
+
+type readPubIfaceBody struct {
+	PublicConfig *network.PubIface `json:"public_config"`
+}
+
+/*
+func (g *Gedis) RegisterAllocation(farm modules.Identifier, allocation *net.IPNet) error {
+
+}
+
+func (s *Gedis) RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, uint8, error) {
+
+}
+
+func (s *Gedis) GetFarm(farm modules.Identifier) (network.Farm, error) {
+
+}
+
+func (s *Gedis) GetNode(nodeID modules.Identifier) (*types.Node, error) {
+
+}
+
+func (s *Gedis) PublishInterfaces(local modules.Identifier) error {
+
+}
+
+func (s *Gedis) ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error {
+
+}
+
+func (s *Gedis) SelectExitNode(node modules.Identifier) error {
+
+}
+
+func (s *Gedis) ReadPubIface(node modules.Identifier) (*types.PubIface, error) {
+
+}
+
+func (s *Gedis) GetNetwork(netid modules.NetID) (*modules.Network, error) {
+
+}
+
+func (s *Gedis) GetNetworksVersion(nodeID modules.Identifier) (map[modules.NetID]uint32, error) {
+
+}
+*/
