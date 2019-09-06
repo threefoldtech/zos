@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
-	"github.com/pkg/errors"
-
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules/network/bridge"
 	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
@@ -31,9 +28,9 @@ func Bootstrap() error {
 		return err
 	}
 
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", DefaultBridge), "1"); err != nil {
-		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", DefaultBridge)
-	}
+	// if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", DefaultBridge), "1"); err != nil {
+	// 	return errors.Wrapf(err, "failed to disable ip6 on bridge %s", DefaultBridge)
+	// }
 
 	links, err := netlink.LinkList()
 	if err != nil {
