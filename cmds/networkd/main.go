@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
@@ -18,10 +17,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules/network"
-	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
 	"github.com/threefoldtech/zosv2/modules/network/tnodb"
 	"github.com/threefoldtech/zosv2/modules/network/types"
-	"github.com/threefoldtech/zosv2/modules/zinit"
 )
 
 const redisSocket = "unix:///var/run/redis.sock"
@@ -56,22 +53,7 @@ func main() {
 		log.Error().Err(err).Msgf("fail to create module root")
 	}
 
-	db := tnodb.NewHTTPHTTPTNoDB(tnodbURL)
-
-	if err := ifaceutil.SetLoUp(); err != nil {
-		return
-	}
-
-	if err := bootstrap(); err != nil {
-		log.Error().Err(err).Msg("failed to bootstrap network")
-		os.Exit(1)
-	}
-
-	log.Info().Msg("network bootstraped successfully")
-
-	if err := ready(); err != nil {
-		log.Fatal().Err(err).Msg("failed to mark networkd as ready")
-	}
+	db := tnodb.NewHTTPTNoDB(tnodbURL)
 
 	identity := stubs.NewIdentityManagerStub(client)
 	networker := network.NewNetworker(identity, db, root)
@@ -112,54 +94,6 @@ func main() {
 	}
 }
 
-func bootstrap() error {
-	f := func() error {
-
-		z := zinit.New("")
-		if err := z.Connect(); err != nil {
-			log.Error().Err(err).Msg("fail to connect to zinit")
-			return err
-		}
-
-		// stop the default internet service provided by the base image
-		if err := z.Stop("internet"); err != nil {
-			log.Error().Err(err).Msg("failed to stop 'internet' service")
-		}
-
-		log.Info().Msg("Start network bootstrap")
-		if err := network.Bootstrap(); err != nil {
-			log.Error().Err(err).Msg("fail to boostrap network")
-			return err
-		}
-
-		log.Info().Msg("writing udhcp init service")
-
-		err := zinit.AddService("dhcp_zos", zinit.InitService{
-			Exec:    fmt.Sprintf("/sbin/udhcpc -v -f -i %s -s /usr/share/udhcp/simple.script", network.DefaultBridge),
-			Oneshot: false,
-			After:   []string{},
-		})
-		if err != nil {
-			log.Error().Err(err).Msg("fail to create dhcp_zos zinit service")
-			return err
-		}
-
-		if err := z.Monitor("dhcp_zos"); err != nil {
-			log.Error().Err(err).Msg("fail to start monitoring dhcp_zos zinit service")
-			return err
-		}
-		return nil
-	}
-
-	errHandler := func(err error, t time.Duration) {
-		if err != nil {
-			log.Error().Err(err).Msg("error while trying to bootstrap network")
-		}
-	}
-
-	return backoff.RetryNotify(f, backoff.NewExponentialBackOff(), errHandler)
-}
-
 func publishIfaces(id modules.Identifier, db network.TNoDB) error {
 	f := func() error {
 		log.Info().Msg("try to publish interfaces to TNoDB")
@@ -189,10 +123,4 @@ func startServer(ctx context.Context, broker string, networker modules.Networker
 		Msg("starting networkd module")
 
 	return server.Run(context.Background())
-}
-
-func ready() error {
-	f, err := os.Create("/var/run/networkd.ready")
-	defer f.Close()
-	return err
 }

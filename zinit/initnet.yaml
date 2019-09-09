@@ -1,0 +1,5 @@
+exec: initnet -broker unix:///var/run/redis.sock -root /var/cache/modules/initnet
+test: test -e /var/run/initnet.ready
+after:
+  - udev-trigger
+  - storaged

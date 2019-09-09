@@ -11,6 +11,7 @@ package "node-ready"{
 
 package "boot" {
     [storaged]
+    [initnet]
     [networkd]
     [identityd]
 }
@@ -23,12 +24,15 @@ package "internal modules"{
     [provisiond]
 }
 
-
+[local-modprobe]<-- [udev-trigger]
 [udev-trigger] <-- [storaged]
-[storaged] <- [identityd]
+[udev-trigger] <-- [initnet]
+[storaged] <-- [initnet]
+[storaged] <-- [identityd]
 
 [identityd] <- [networkd]
 
+[initnet] <-- [networkd]
 [networkd] <-- [containerd]
 [storaged] <-- [containerd]
 
