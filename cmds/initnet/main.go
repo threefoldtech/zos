@@ -49,16 +49,6 @@ func main() {
 	}
 
 	log.Info().Msg("network bootstrapped successfully")
-
-	if err := ready(); err != nil {
-		log.Fatal().Err(err).Msg("failed to mark networkd as ready")
-	}
-}
-
-func ready() error {
-	f, err := os.Create("/var/run/initnet.ready")
-	defer f.Close()
-	return err
 }
 
 func bootstrap() error {
@@ -79,7 +69,7 @@ func bootstrap() error {
 		log.Info().Msg("writing udhcp init service")
 
 		err := zinit.AddService("dhcp_zos", zinit.InitService{
-			Exec:    fmt.Sprintf("dhcpcd %s", network.DefaultBridge),
+			Exec:    fmt.Sprintf("/sbin/udhcpc -v -f -i %s -s /usr/share/udhcp/simple.script", network.DefaultBridge),
 			Oneshot: false,
 			After:   []string{},
 		})
