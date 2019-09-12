@@ -1,5 +1,0 @@
-exec: initnet -broker unix:///var/run/redis.sock -root /var/cache/modules/initnet
-oneshot: true
-after:
-  - udev-trigger
-  - storaged

@@ -42,7 +42,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// wait for internet connection
+	if err := check(); err != nil {
+		log.Error().Err(err).Msg("failed to check internet connection")
+		os.Exit(1)
+	}
+
 	log.Info().Msg("network bootstrapped successfully")
+}
+
+func check() error {
+
+	return nil
 }
 
 func bootstrap() error {
