@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -52,8 +53,22 @@ func main() {
 }
 
 func check() error {
+	f := func() error {
 
-	return nil
+		cmd := exec.Command("ping", "-c", "1", "google.com")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		return cmd.Run()
+	}
+
+	errHandler := func(err error, t time.Duration) {
+		if err != nil {
+			log.Error().Err(err).Msg("error while trying to test internet connectivity")
+		}
+	}
+
+	return backoff.RetryNotify(f, backoff.NewExponentialBackOff(), errHandler)
 }
 
 func bootstrap() error {
