@@ -42,6 +42,10 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
+	if err := network.DefaultBridgeValid(); err != nil {
+		log.Fatal().Err(err).Msg("invalid setup")
+	}
+
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	client, err := zbus.NewRedisClient(broker)

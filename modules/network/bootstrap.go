@@ -112,3 +112,17 @@ func Bootstrap() error {
 	log.Info().Str("device", defaultGW.Name).Msg("default gateway found")
 	return nil
 }
+
+// DefaultBridgeValid validates default bridge exists and of correct type
+func DefaultBridgeValid() error {
+	link, err := netlink.LinkByName(DefaultBridge)
+	if err != nil {
+		return err
+	}
+
+	if link.Type() != "bridge" {
+		return fmt.Errorf("invalid default bridge type (%s) expecting (bridge)", link.Type())
+	}
+
+	return nil
+}
