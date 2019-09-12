@@ -54,7 +54,18 @@ func Bootstrap() error {
 			continue
 		}
 
-		// TODO: see if we need to set the if down
+		if addresses, err := netlink.AddrList(device, netlink.FAMILY_ALL); err == nil {
+			for _, address := range addresses {
+				if err := netlink.AddrDel(device, &address); err != nil {
+					log.Error().
+						Err(err).
+						Str("address", address.String()).
+						Str("interface", device.Name).
+						Msg("failed to remove assigned address")
+				}
+			}
+		}
+
 		if err := netlink.LinkSetUp(device); err != nil {
 			log.Info().Str("interface", device.Name).Msg("failed to bring interface up")
 			continue

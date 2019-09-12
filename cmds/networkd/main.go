@@ -121,6 +121,11 @@ func bootstrap() error {
 			return err
 		}
 
+		// stop the default internet service provided by the base image
+		if err := z.Stop("internet"); err != nil {
+			log.Error().Err(err).Msg("failed to stop 'internet' service")
+		}
+
 		log.Info().Msg("Start network bootstrap")
 		if err := network.Bootstrap(); err != nil {
 			log.Error().Err(err).Msg("fail to boostrap network")

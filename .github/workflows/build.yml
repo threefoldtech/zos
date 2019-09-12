@@ -51,3 +51,18 @@ jobs:
         make
       env:
         GO111MODULE: on
+
+    - name: Collecting files
+      if: success()
+      run: |
+        mkdir -p /tmp/archive/{bin,etc/zinit}
+        cp bin/* /tmp/archive/bin/
+        cp -r zinit/* /tmp/archive/etc/zinit
+
+    - uses: threefoldtech/action-publish@v1-release
+      name: Build FList
+      if: success()
+      with:
+        root: /tmp/archive
+        token: ${{ secrets.HUB_JWT }}
+        name: zos.tar.gz
