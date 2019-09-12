@@ -18,9 +18,6 @@ import (
 	"github.com/threefoldtech/zosv2/modules/zinit"
 )
 
-const redisSocket = "unix:///var/run/redis.sock"
-const module = "initnet"
-
 func main() {
 	var (
 		ver bool
