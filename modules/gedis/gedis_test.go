@@ -10,7 +10,7 @@ import (
 )
 
 func testClient(t *testing.T) *Gedis {
-	gedis, err := New("tcp://172.17.0.2:9900", "default", "")
+	gedis, err := New("tcp://172.17.0.2:8901", "default", "")
 	require.NoError(t, err)
 
 	err = gedis.Connect()
@@ -29,7 +29,7 @@ func TestPing(t *testing.T) {
 func TestNodesCRUD(t *testing.T) {
 	gedis := testClient(t)
 
-	id, err := gedis.RegisterNode(modules.StrIdentifier("node1"), modules.StrIdentifier("farm1"))
+	id, err := gedis.RegisterNode(modules.StrIdentifier("node1"), modules.StrIdentifier("farm1"), "2.0.0")
 	require.NoError(t, err)
 
 	node, err := gedis.GetNode(modules.StrIdentifier(id))
