@@ -22,13 +22,9 @@ const module = "initnet"
 
 func main() {
 	var (
-		root   string
-		broker string
-		ver    bool
+		ver bool
 	)
 
-	flag.StringVar(&root, "root", "/var/cache/modules/initnet", "root path of the module")
-	flag.StringVar(&broker, "broker", redisSocket, "connection string to broker")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 	flag.Parse()
 	if ver {
@@ -37,12 +33,10 @@ func main() {
 
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	if err := os.MkdirAll(root, 0750); err != nil {
-		log.Error().Err(err).Msgf("fail to create module root")
-	}
 	if err := ifaceutil.SetLoUp(); err != nil {
 		return
 	}
+
 	if err := bootstrap(); err != nil {
 		log.Error().Err(err).Msg("failed to bootstrap network")
 		os.Exit(1)
@@ -68,18 +62,19 @@ func bootstrap() error {
 
 		log.Info().Msg("writing udhcp init service")
 
-		err := zinit.AddService("dhcp_zos", zinit.InitService{
+		err := zinit.AddService("dhcp-zos", zinit.InitService{
 			Exec:    fmt.Sprintf("/sbin/udhcpc -v -f -i %s -s /usr/share/udhcp/simple.script", network.DefaultBridge),
 			Oneshot: false,
 			After:   []string{},
 		})
+
 		if err != nil {
-			log.Error().Err(err).Msg("fail to create dhcp_zos zinit service")
+			log.Error().Err(err).Msg("fail to create dhcp-zos zinit service")
 			return err
 		}
 
-		if err := z.Monitor("dhcp_zos"); err != nil {
-			log.Error().Err(err).Msg("fail to start monitoring dhcp_zos zinit service")
+		if err := z.Monitor("dhcp-zos"); err != nil {
+			log.Error().Err(err).Msg("fail to start monitoring dhcp-zos zinit service")
 			return err
 		}
 		return nil
