@@ -17,8 +17,9 @@ import (
 //
 
 type registerNodeBody struct {
-	NodeID string `json:"node_id,omitempty"`
-	FarmID string `json:"farm_id,omitempty"`
+	NodeID  string `json:"node_id,omitempty"`
+	FarmID  string `json:"farm_id,omitempty"`
+	Version string `json:"os_version"`
 }
 
 type registerFarmBody struct {
@@ -38,7 +39,7 @@ func (g *Gedis) sendCommand(actor string, method string, b []byte) ([]byte, erro
 	con := g.pool.Get()
 	defer con.Close()
 
-	resp, err := redis.Bytes(con.Do(g.cmd("nodes", "add"), b, g.headers))
+	resp, err := redis.Bytes(con.Do(g.cmd(actor, method), b, g.headers))
 	if err != nil {
 		return []byte{}, err
 	}
@@ -46,10 +47,15 @@ func (g *Gedis) sendCommand(actor string, method string, b []byte) ([]byte, erro
 	return resp, nil
 }
 
-func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier) (string, error) {
-	req := registerNodeBody{
-		NodeID: nodeID.Identity(),
-		FarmID: farmID.Identity(),
+func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) (string, error) {
+	req := struct {
+		Node registerNodeBody `json:"node"`
+	}{
+		Node: registerNodeBody{
+			NodeID:  nodeID.Identity(),
+			FarmID:  farmID.Identity(),
+			Version: version,
+		},
 	}
 
 	b, err := json.Marshal(req)
@@ -59,7 +65,7 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier) (string, error) 
 
 	resp, err := g.sendCommand("nodes", "add", b)
 	if err != nil {
-		return "", err
+		return "", parseError(err)
 	}
 
 	r := registerNodeBody{}
@@ -81,7 +87,7 @@ func (g *Gedis) RegisterFarm(farm modules.Identifier, name string) error {
 	}
 
 	_, err = g.sendCommand("farms", "add", b)
-	return err
+	return parseError(err)
 }
 
 func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
@@ -96,14 +102,17 @@ func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
 
 	resp, err := g.sendCommand("nodes", "get", b)
 	if err != nil {
-		return nil, err
+		return nil, parseError(err)
 	}
 
-	n := network.Node{}
+	n := registerNodeBody{}
 	if err := json.Unmarshal(resp, &n); err != nil {
 		return nil, err
 	}
-	return &n, nil
+	return &network.Node{
+		NodeID: n.NodeID,
+		FarmID: n.FarmID,
+	}, nil
 }
 
 //
@@ -176,7 +185,7 @@ func (g *Gedis) RegisterAllocation(farm modules.Identifier, allocation *net.IPNe
 
 	resp, err := g.sendCommand("allocations", "register", b)
 	if err != nil {
-		return err
+		return parseError(err)
 	}
 
 	r := &registerAllocationResponse{}
@@ -204,7 +213,7 @@ func (g *Gedis) RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPN
 
 	resp, err := g.sendCommand("allocations", "get", b)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, parseError(err)
 	}
 
 	data := &requestAllocationResponse{}
@@ -238,7 +247,7 @@ func (g *Gedis) GetFarm(farm modules.Identifier) (*network.Farm, error) {
 
 	resp, err := g.sendCommand("farms", "get", b)
 	if err != nil {
-		return nil, err
+		return nil, parseError(err)
 	}
 
 	f := &network.Farm{}
@@ -276,7 +285,7 @@ func (g *Gedis) ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, 
 
 	resp, err := g.sendCommand("nodes", "configure_public", b)
 	if err != nil {
-		return err
+		return parseError(err)
 	}
 
 	r := configurePublicIfaceResponse{}
@@ -303,7 +312,7 @@ func (g *Gedis) SelectExitNode(node modules.Identifier) error {
 
 	resp, err := g.sendCommand("nodes", "select_exit", b)
 	if err != nil {
-		return err
+		return parseError(err)
 	}
 
 	r := &selectExitNodeResponse{}
@@ -330,7 +339,7 @@ func (g *Gedis) ReadPubIface(node modules.Identifier) (*network.PubIface, error)
 
 	resp, err := g.sendCommand("nodes", "get", b)
 	if err != nil {
-		return nil, err
+		return nil, parseError(err)
 	}
 
 	iface := readPubIfaceBody{}
@@ -353,7 +362,7 @@ func (g *Gedis) GetNetwork(netid modules.NetID) (*modules.Network, error) {
 
 	resp, err := g.sendCommand("network", "get", b)
 	if err != nil {
-		return nil, err
+		return nil, parseError(err)
 	}
 
 	network := &modules.Network{}
@@ -377,7 +386,7 @@ func (g *Gedis) GetNetworksVersion(nodeID modules.Identifier) (map[modules.NetID
 
 	resp, err := g.sendCommand("networkVersion", "get", b)
 	if err != nil {
-		return nil, err
+		return nil, parseError(err)
 	}
 
 	versions := make(map[modules.NetID]uint32)
