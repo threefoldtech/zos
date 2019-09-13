@@ -104,15 +104,15 @@ NOTE: on the right, you'll find the function names for handling the proper namin
 | |                                                        | |
 | | iface to-1abc-1               iface to-1123-1          | | GWtoEPName  (ExitPoint's veth peer name)
 | |    fe80::1:1abc/64               fe80::1:1123/64       | | GWtoEPLL    (Gateway to ExitPoint Link-Local)
-| |    10.1.0.1/32                   10.1.0.1/32           | |
-| |         +                            +                 | |
+| |                 10.1.0.1/16                            | |
+| |         +----------------------------+                 | | GW4Bridge   (bridge to interconnect EPs)
 | +--------------------------------------------------------+ |
 |           |                            |                   |
 | +-----------------------+    +-----------------------+     |
 | |         +             |    |         +             |     |
 | |  iface  pub-1abc-1    |    |  iface  pub-1123-1    |     | EPPubName   (ExitPoint Pub iface name)
 | |   fe80::1abc:1/64     |    |   fe80::1123:1/64     |     | EPPubLL     (ExitPoint Pub Link-Local)
-| |  10.255.26.188/32     |    |  10.255.17.35/32      |     | EPPubIP4R   (ExitPoint Pub routing IPv4 on lo)
+| |    10.1.26.188/16     |    |    10.1.17.35/16      |     | EPPubIP4R   (ExitPoint Pub routing IPv4 on lo)
 | | Network Resource      |    | Network Resource      |     |
 | | - iface wg-1abc-1     |    | - iface wg-1123-1     |     | WGName      (Wireguard iface name)
 | |   fe80::1abc/64       |    |   fe80::1123/64       |     | WGLL        (Wireguard Link-Local addr)
