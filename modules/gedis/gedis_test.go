@@ -39,9 +39,14 @@ func TestNodesCRUD(t *testing.T) {
 	assert.Equal(t, "node1", node.NodeID)
 	assert.Equal(t, "farm1", node.FarmID)
 
-	err = gedis.UpdateTotalNodeCapacity(modules.StrIdentifier("node1"), 13, 37, 42, 420)
+	err = gedis.UpdateTotalNodeCapacity(modules.StrIdentifier("node1"), 14, 37, 42, 420)
+	require.NoError(t, err)
+
 	err = gedis.UpdateReservedNodeCapacity(modules.StrIdentifier("node1"), 88, 44, 22, 11)
+	require.NoError(t, err)
+
 	err = gedis.UpdateUsedNodeCapacity(modules.StrIdentifier("node1"), 1, 2, 3, 4)
+	require.NoError(t, err)
 
 	err = gedis.ListFarm("", "")
 	err = gedis.ListNode(modules.StrIdentifier("farm1"), "", "")
