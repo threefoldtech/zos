@@ -28,6 +28,7 @@ import (
 type NetResource struct {
 	resource       *modules.NetResource
 	exit           *modules.NetResource
+	networkID      modules.NetID
 	publicPrefixes []string
 	allocNr        int8
 	nibble         *zosip.Nibble
@@ -39,6 +40,7 @@ type NetResource struct {
 func New(nodeID string, network *modules.Network, privateKey wgtypes.Key) (*NetResource, error) {
 	var err error
 	nr := &NetResource{
+		networkID:      network.NetID,
 		allocNr:        network.AllocationNR,
 		privateKey:     privateKey,
 		publicPrefixes: publicPrefixes(network.Resources),

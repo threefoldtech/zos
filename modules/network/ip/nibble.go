@@ -203,6 +203,18 @@ func (n *Nibble) RouteIPv4DefaultExit() *netlink.Route {
 	}
 }
 
+// RouteIPv4DefaultContainer is the gateway in an NR for ::
+// that is: the route to the Network rearouse IP
+func (n *Nibble) RouteIPv4DefaultContainer() *netlink.Route {
+	return &netlink.Route{
+		Dst: &net.IPNet{
+			IP:   net.ParseIP("0.0.0.0"),
+			Mask: net.CIDRMask(0, 32),
+		},
+		Gw: net.ParseIP(fmt.Sprintf("10.%d.%d.1", n.nibble[0], n.nibble[1])),
+	}
+}
+
 // EPToGWName return the deterministic nic name of the EXitPoint NR to the gateway
 func (n *Nibble) EPToGWName() string {
 	return fmt.Sprintf("to-%s-%d", n.Hex(), n.allocNr)
