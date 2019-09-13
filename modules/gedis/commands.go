@@ -129,6 +129,15 @@ type gedisUpdateFarmBody struct {
 	Farm   TfgridFarm1 `json:"farm"`
 }
 
+type gedisListFarmBody struct {
+	Country string `json:"country"`
+	City    string `json:"city"`
+}
+
+type gedisListFarmResponseBody struct {
+	Farms []TfgridFarm1 `json:"farms"`
+}
+
 func (g *Gedis) sendCommand(actor string, method string, b []byte) ([]byte, error) {
 	con := g.pool.Get()
 	defer con.Close()
@@ -276,6 +285,33 @@ func (g *Gedis) UpdateFarm(farm modules.Identifier) error {
 	if err != nil {
 		return parseError(err)
 	}
+
+	return nil
+}
+
+func (g *Gedis) ListFarm(country string, city string) error {
+	req := gedisListFarmBody{
+		Country: country,
+		City:    city,
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	resp, err := g.sendCommand("farms", "list", b)
+	if err != nil {
+		return parseError(err)
+	}
+
+	fl := &gedisListFarmResponseBody{}
+	if err := json.Unmarshal(resp, &fl); err != nil {
+		return err
+	}
+
+	// FIXME: gateway to list of network.Farm
+	fmt.Println(fl)
 
 	return nil
 }
