@@ -16,14 +16,36 @@ import (
 // IDStore Interface
 //
 
+// 'structNameWithoutPrefix' are internal struct used
+// 'gedisStructNameBlabla' are gedis datatype wrappers
+
 type registerNodeBody struct {
 	NodeID  string `json:"node_id,omitempty"`
 	FarmID  string `json:"farm_id,omitempty"`
 	Version string `json:"os_version"`
 }
 
+type gedisRegisterNodeBody struct {
+	Node gedisRegisterNodeBodyPayload `json:"node"`
+}
+
+type gedisRegisterNodeBodyPayload struct {
+	NodeID  string `json:"node_id,omitempty"`
+	FarmID  string `json:"farmer_id,omitempty"`
+	Version string `json:"os_version"`
+}
+
 type registerFarmBody struct {
 	Farm string `json:"farm_id,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+type gedisRegisterFarmBody struct {
+	Farm gedisRegisterFarmBodyPayload `json:"farm"`
+}
+
+type gedisRegisterFarmBodyPayload struct {
+	// Farm string `json:"threebot_id,omitempty"`
 	Name string `json:"name,omitempty"`
 }
 
@@ -48,10 +70,8 @@ func (g *Gedis) sendCommand(actor string, method string, b []byte) ([]byte, erro
 }
 
 func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) (string, error) {
-	req := struct {
-		Node registerNodeBody `json:"node"`
-	}{
-		Node: registerNodeBody{
+	req := gedisRegisterNodeBody{
+		Node: gedisRegisterNodeBodyPayload{
 			NodeID:  nodeID.Identity(),
 			FarmID:  farmID.Identity(),
 			Version: version,
@@ -68,17 +88,22 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 		return "", parseError(err)
 	}
 
-	r := registerNodeBody{}
+	r := gedisRegisterNodeBodyPayload{}
 	if err := json.Unmarshal(resp, &r); err != nil {
 		return "", err
 	}
+
+	// no need to do data conversion here, returns the id
+
 	return r.NodeID, nil
 }
 
 func (g *Gedis) RegisterFarm(farm modules.Identifier, name string) error {
-	req := registerFarmBody{
-		Farm: farm.Identity(),
-		Name: name,
+	req := gedisRegisterFarmBody{
+		Farm: gedisRegisterFarmBodyPayload{
+			// Farm: farm.Identity(),
+			Name: name,
+		},
 	}
 
 	b, err := json.Marshal(req)
@@ -105,7 +130,7 @@ func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
 		return nil, parseError(err)
 	}
 
-	n := registerNodeBody{}
+	n := gedisRegisterNodeBodyPayload{}
 	if err := json.Unmarshal(resp, &n); err != nil {
 		return nil, err
 	}
