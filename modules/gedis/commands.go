@@ -27,7 +27,7 @@ type registerNodeBody struct {
 }
 
 type gedisRegisterNodeBody struct {
-	Node gedisRegisterNodeBodyPayload `json:"node"`
+	Node TfgridNode2 `json:"node"`
 }
 
 //
@@ -80,7 +80,7 @@ type TfgridFarm1 struct {
 	ResourcePrice   TfgridNodeResource1 `json:"resource_price"`
 }
 
-type gedisRegisterNodeBodyPayload struct {
+type TfgridNode2 struct {
 	NodeID           string                 `json:"node_id,omitempty"`
 	FarmID           string                 `json:"farmer_id,omitempty"`
 	Version          string                 `json:"os_version"`
@@ -166,7 +166,7 @@ func (g *Gedis) sendCommand(actor string, method string, b []byte) ([]byte, erro
 
 func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) (string, error) {
 	req := gedisRegisterNodeBody{
-		Node: gedisRegisterNodeBodyPayload{
+		Node: TfgridNode2{
 			NodeID:  nodeID.Identity(),
 			FarmID:  farmID.Identity(),
 			Version: version,
@@ -183,7 +183,7 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 		return "", parseError(err)
 	}
 
-	r := gedisRegisterNodeBodyPayload{}
+	r := TfgridNode2{}
 	if err := json.Unmarshal(resp, &r); err != nil {
 		return "", err
 	}
@@ -267,7 +267,7 @@ func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
 		return nil, parseError(err)
 	}
 
-	n := gedisRegisterNodeBodyPayload{}
+	n := TfgridNode2{}
 	if err := json.Unmarshal(resp, &n); err != nil {
 		return nil, err
 	}
