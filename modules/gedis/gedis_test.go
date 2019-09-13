@@ -40,6 +40,7 @@ func TestNodesCRUD(t *testing.T) {
 	assert.Equal(t, "farm1", node.FarmID)
 
 	err = gedis.ListFarm("", "")
+	err = gedis.ListNode(modules.StrIdentifier("farm1"), "", "")
 
 	addrs := []string{"w411et_1"}
 	// FIXME: overwrite fails

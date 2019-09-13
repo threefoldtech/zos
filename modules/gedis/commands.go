@@ -116,6 +116,20 @@ type getNodeBody struct {
 	NodeID string `json:"node_id,omitempty"`
 }
 
+type gedisListNodeBodyPayload struct {
+	FarmID  string `json:"farmer_id"`
+	Country string `json:"country"`
+	City    string `json:"city"`
+	Cru     int    `json:",omitempty"`
+	Mru     int    `json:",omitempty"`
+	Sru     int    `json:",omitempty"`
+	Hru     int    `json:",omitempty"`
+}
+
+type gedisListNodeResponseBody struct {
+	Nodes []gedisRegisterNodeBodyPayload `json:"nodes"`
+}
+
 type getFarmBody struct {
 	FarmID string `json:"farm_id,omitempty"`
 }
@@ -177,6 +191,34 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 	// no need to do data conversion here, returns the id
 
 	return r.NodeID, nil
+}
+
+func (g *Gedis) ListNode(farmID modules.Identifier, country string, city string) error {
+	req := gedisListNodeBodyPayload{
+		FarmID:  farmID.Identity(),
+		Country: country,
+		City:    city,
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	resp, err := g.sendCommand("nodes", "list", b)
+	if err != nil {
+		return parseError(err)
+	}
+
+	nl := &gedisListNodeResponseBody{}
+	if err := json.Unmarshal(resp, &nl); err != nil {
+		return err
+	}
+
+	// FIXME: gateway to list of network.Node
+	fmt.Println(nl)
+
+	return nil
 }
 
 func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string, wallet []string) (string, error) {
