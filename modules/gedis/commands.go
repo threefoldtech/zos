@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules/network"
+	schema "github.com/threefoldtech/zosv2/modules/schema"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/threefoldtech/zosv2/modules"
@@ -29,10 +30,70 @@ type gedisRegisterNodeBody struct {
 	Node gedisRegisterNodeBodyPayload `json:"node"`
 }
 
+//
+// generated with schemac from model
+//
+type TfgridLocation1 struct {
+	City      string  `json:"city"`
+	Country   string  `json:"country"`
+	Continent string  `json:"continent"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
+
+type TfgridNodeResource1 struct {
+	Cru int64 `json:"cru"`
+	Mru int64 `json:"mru"`
+	Hru int64 `json:"hru"`
+	Sru int64 `json:"sru"`
+}
+
+type TfgridNodePublicIface1TypeEnum uint8
+
+const (
+	TfgridNodePublicIface1Type TfgridNodePublicIface1TypeEnum = iota
+)
+
+type TfgridNodeIface1 struct {
+	Name    string           `json:"name"`
+	Addrs   []schema.IPRange `json:"addrs"`
+	Gateway []net.IP         `json:"gateway"`
+}
+
+type TfgridNodePublicIface1 struct {
+	Master  string                         `json:"master"`
+	Type    TfgridNodePublicIface1TypeEnum `json:"type"`
+	Ipv4    net.IP                         `json:"ipv4"`
+	Ipv6    net.IP                         `json:"ipv6"`
+	Gw4     net.IP                         `json:"gw4"`
+	Gw6     net.IP                         `json:"gw6"`
+	Version int64                          `json:"version"`
+}
+
+type TfgridFarm1 struct {
+	ThreebotId      string              `json:"threebot_id"`
+	IyoOrganization string              `json:"iyo_organization"`
+	Name            string              `json:"name"`
+	WalletAddresses []string            `json:"wallet_addresses"`
+	Location        TfgridLocation1     `json:"location"`
+	Vta             string              `json:"vta"`
+	ResourcePrice   TfgridNodeResource1 `json:"resource_price"`
+}
+
 type gedisRegisterNodeBodyPayload struct {
-	NodeID  string `json:"node_id,omitempty"`
-	FarmID  string `json:"farmer_id,omitempty"`
-	Version string `json:"os_version"`
+	NodeID           string                 `json:"node_id,omitempty"`
+	FarmID           string                 `json:"farmer_id,omitempty"`
+	Version          string                 `json:"os_version"`
+	Uptime           int64                  `json:"uptime"`
+	Address          string                 `json:"address"`
+	Location         TfgridLocation1        `json:"location"`
+	TotalResource    TfgridNodeResource1    `json:"total_resource"`
+	UsedResource     TfgridNodeResource1    `json:"used_resource"`
+	ReservedResource TfgridNodeResource1    `json:"reserved_resource"`
+	Ifaces           []TfgridNodeIface1     `json:"ifaces"`
+	PublicConfig     TfgridNodePublicIface1 `json:"public_config"`
+	ExitNode         bool                   `json:"exit_node"`
+	Approved         bool                   `json:"approved"`
 }
 
 type registerFarmBody struct {
@@ -45,8 +106,10 @@ type gedisRegisterFarmBody struct {
 }
 
 type gedisRegisterFarmBodyPayload struct {
-	// Farm string `json:"threebot_id,omitempty"`
-	Name string `json:"name,omitempty"`
+	ThreebotID string   `json:"threebot_id,omitempty"`
+	Name       string   `json:"name,omitempty"`
+	Email      string   `json:"email,omitempty"`
+	Wallet     []string `json:"wallet_addresses"`
 }
 
 type getNodeBody struct {
@@ -55,6 +118,15 @@ type getNodeBody struct {
 
 type getFarmBody struct {
 	FarmID string `json:"farm_id,omitempty"`
+}
+
+type gedisGetFarmBody struct {
+	Farm TfgridFarm1 `json:"farm"`
+}
+
+type gedisUpdateFarmBody struct {
+	FarmID string      `json:"farm_id"`
+	Farm   TfgridFarm1 `json:"farm"`
 }
 
 func (g *Gedis) sendCommand(actor string, method string, b []byte) ([]byte, error) {
@@ -98,21 +170,35 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 	return r.NodeID, nil
 }
 
-func (g *Gedis) RegisterFarm(farm modules.Identifier, name string) error {
+func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string, wallet []string) (string, error) {
 	req := gedisRegisterFarmBody{
 		Farm: gedisRegisterFarmBodyPayload{
-			// Farm: farm.Identity(),
-			Name: name,
+			ThreebotID: farm.Identity(),
+			Name:       name,
+			Email:      email,
+			Wallet:     wallet,
 		},
 	}
 
 	b, err := json.Marshal(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	_, err = g.sendCommand("farms", "add", b)
-	return parseError(err)
+	resp, err := g.sendCommand("farms", "register", b)
+	if err != nil {
+		fmt.Println("nope")
+		return "", parseError(err)
+	}
+
+	fmt.Println(resp)
+
+	r := TfgridFarm1{}
+	if err := json.Unmarshal(resp, &r); err != nil {
+		return "", err
+	}
+
+	return r.Name, parseError(err)
 }
 
 func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
@@ -138,6 +224,60 @@ func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
 		NodeID: n.NodeID,
 		FarmID: n.FarmID,
 	}, nil
+}
+
+func (g *Gedis) GetFarm(farm modules.Identifier) (*network.Farm, error) {
+	req := gedisGetFarmBody{
+		Farm: TfgridFarm1{
+			Name: farm.Identity(),
+		},
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(string(b))
+
+	resp, err := g.sendCommand("farms", "get", b)
+	if err != nil {
+		return nil, parseError(err)
+	}
+
+	f := &network.Farm{}
+	if err := json.Unmarshal(resp, &farm); err != nil {
+		return nil, err
+	}
+
+	return f, nil
+}
+
+func (g *Gedis) UpdateFarm(farm modules.Identifier) error {
+	req := gedisUpdateFarmBody{
+		FarmID: farm.Identity(),
+		Farm: TfgridFarm1{
+			ThreebotId:      "",
+			IyoOrganization: "",
+			Name:            "",
+			WalletAddresses: []string{},
+			// Location: {},
+			Vta: "",
+			// ResourcePrice: {},
+		},
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = g.sendCommand("farms", "update", b)
+	if err != nil {
+		return parseError(err)
+	}
+
+	return nil
 }
 
 //
@@ -258,29 +398,6 @@ func (g *Gedis) RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPN
 
 	return alloc, farmAlloc, nil
 
-}
-
-func (g *Gedis) GetFarm(farm modules.Identifier) (*network.Farm, error) {
-	req := getFarmBody{
-		FarmID: farm.Identity(),
-	}
-
-	b, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := g.sendCommand("farms", "get", b)
-	if err != nil {
-		return nil, parseError(err)
-	}
-
-	f := &network.Farm{}
-	if err := json.Unmarshal(resp, &farm); err != nil {
-		return nil, err
-	}
-
-	return f, nil
 }
 
 /*

@@ -1,6 +1,7 @@
 package gedis
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/threefoldtech/zosv2/modules"
@@ -37,6 +38,19 @@ func TestNodesCRUD(t *testing.T) {
 
 	assert.Equal(t, "node1", node.NodeID)
 	assert.Equal(t, "farm1", node.FarmID)
+
+	addrs := []string{"w411et_1"}
+	// FIXME: overwrite fails
+	fid, _ := gedis.RegisterFarm(modules.StrIdentifier("farm1"), "My Debug Farm 4", "bot@farmer.tld", addrs)
+	require.NoError(t, err)
+	fmt.Println(fid)
+
+	/*
+		f, err := gedis.GetFarm(modules.StrIdentifier("My Debug Farm 4"))
+		require.NoError(t, err)
+
+		assert.Equal(t, "farm1", f.Name)
+	*/
 }
 
 // func TestListNode(t *testing.T) {
