@@ -48,6 +48,24 @@ type TfgridNodeResource1 struct {
 	Sru int64 `json:"sru"`
 }
 
+type getNodeBody struct {
+	NodeID string `json:"node_id,omitempty"`
+}
+
+type gedisListNodeBodyPayload struct {
+	FarmID  string `json:"farmer_id"`
+	Country string `json:"country"`
+	City    string `json:"city"`
+	Cru     int    `json:",omitempty"`
+	Mru     int    `json:",omitempty"`
+	Sru     int    `json:",omitempty"`
+	Hru     int    `json:",omitempty"`
+}
+
+type gedisListNodeResponseBody struct {
+	Nodes []TfgridNode2 `json:"nodes"`
+}
+
 type TfgridNodePublicIface1TypeEnum uint8
 
 const (
@@ -96,6 +114,15 @@ type TfgridNode2 struct {
 	Approved         bool                   `json:"approved"`
 }
 
+type gedisNodeUpdateCapacity struct {
+	NodeID   string              `json:"node_id"`
+	Resource TfgridNodeResource1 `json:"resource"`
+}
+
+//
+// Farms
+//
+
 type registerFarmBody struct {
 	Farm string `json:"farm_id,omitempty"`
 	Name string `json:"name,omitempty"`
@@ -110,24 +137,6 @@ type gedisRegisterFarmBodyPayload struct {
 	Name       string   `json:"name,omitempty"`
 	Email      string   `json:"email,omitempty"`
 	Wallet     []string `json:"wallet_addresses"`
-}
-
-type getNodeBody struct {
-	NodeID string `json:"node_id,omitempty"`
-}
-
-type gedisListNodeBodyPayload struct {
-	FarmID  string `json:"farmer_id"`
-	Country string `json:"country"`
-	City    string `json:"city"`
-	Cru     int    `json:",omitempty"`
-	Mru     int    `json:",omitempty"`
-	Sru     int    `json:",omitempty"`
-	Hru     int    `json:",omitempty"`
-}
-
-type gedisListNodeResponseBody struct {
-	Nodes []gedisRegisterNodeBodyPayload `json:"nodes"`
 }
 
 type getFarmBody struct {
@@ -275,6 +284,42 @@ func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
 		NodeID: n.NodeID,
 		FarmID: n.FarmID,
 	}, nil
+}
+
+func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+	req := gedisNodeUpdateCapacity{
+		NodeID: node.Identity(),
+		Resource: TfgridNodeResource1{
+			Mru: mru,
+			Cru: cru,
+			Hru: hru,
+			Sru: sru,
+		},
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = g.sendCommand("nodes", "update_"+captype+"_capacity", b)
+	if err != nil {
+		return parseError(err)
+	}
+
+	return nil
+}
+
+func (g *Gedis) UpdateTotalNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+	return g.updateGenericNodeCapacity("total", node, mru, cru, hru, sru)
+}
+
+func (g *Gedis) UpdateReservedNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+	return g.updateGenericNodeCapacity("reserved", node, mru, cru, hru, sru)
+}
+
+func (g *Gedis) UpdateUsedNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+	return g.updateGenericNodeCapacity("used", node, mru, cru, hru, sru)
 }
 
 func (g *Gedis) GetFarm(farm modules.Identifier) (*network.Farm, error) {
