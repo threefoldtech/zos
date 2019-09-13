@@ -30,8 +30,6 @@ Some definitions first : (nomenclature)
     - contains routes to other NRs throug which wg/bridge/vxlan/IPSec GRE
     - contains the watcher for new versions of the TN
 
-![an idea of how](TN_Obj_creation_update.png)
-
 
 ## Implementation
 
@@ -40,8 +38,8 @@ Some definitions first : (nomenclature)
 ## Research
 So far the choice of technologies to research on:
 
-- For network isolation: [FRR](https://frrouting.org), VFR
 - For inter node communication: [wireguard](https://www.wireguard.com/)
-- For security and flow control: [Open vSwitch - Open flow](http://docs.openvswitch.org/en/latest/)
+
+
 
 
