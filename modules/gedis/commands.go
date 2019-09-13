@@ -304,6 +304,7 @@ func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifie
 
 	_, err = g.sendCommand("nodes", "update_"+captype+"_capacity", b)
 	if err != nil {
+		fmt.Println(err)
 		return parseError(err)
 	}
 
