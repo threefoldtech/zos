@@ -173,6 +173,18 @@ func (g *Gedis) sendCommand(actor string, method string, b []byte) ([]byte, erro
 	return resp, nil
 }
 
+func (g *Gedis) sendCommandBool(actor string, method string, b []byte) (bool, error) {
+	con := g.pool.Get()
+	defer con.Close()
+
+	resp, err := redis.Bool(con.Do(g.cmd(actor, method), b, g.headers))
+	if err != nil {
+		return false, err
+	}
+
+	return resp, nil
+}
+
 func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) (string, error) {
 	req := gedisRegisterNodeBody{
 		Node: TfgridNode2{
@@ -302,7 +314,7 @@ func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifie
 		return err
 	}
 
-	_, err = g.sendCommand("nodes", "update_"+captype+"_capacity", b)
+	_, err = g.sendCommandBool("nodes", "update_"+captype+"_capacity", b)
 	if err != nil {
 		fmt.Println(err)
 		return parseError(err)
