@@ -73,6 +73,18 @@ func (n *Nibble) EPPubName() string {
 	return fmt.Sprintf("pub-%s-%d", n.Hex(), n.allocNr)
 }
 
+// EP4PubName return the deterministic public interface name
+// this Interface points to the ipv4 bridge
+func (n *Nibble) EP4PubName() string {
+	return fmt.Sprintf("ip4-%s-%d", n.Hex(), n.allocNr)
+}
+
+// Br4PubName return the deterministic interface name
+// of the veth pair attahed to the gateway ipv4 bridge
+func (n *Nibble) Br4PubName() string {
+	return fmt.Sprintf("br4-%s-%d", n.Hex(), n.allocNr)
+}
+
 // EPPubLL ExitPoint Public Link-Local
 // the interface that faces the other side of the veth into the GW
 // we differentiate it by shifting 2 bytes, having 0001 in the last 2
@@ -80,6 +92,14 @@ func (n *Nibble) EPPubLL() *net.IPNet {
 	return &net.IPNet{
 		IP:   net.ParseIP(fmt.Sprintf("fe80::%s:1", n.Hex())),
 		Mask: net.CIDRMask(64, 128),
+	}
+}
+
+// EPPubIP4R ExitPoint Pub routing IPv4 on lo
+func (n *Nibble) EPPubIP4R() *net.IPNet {
+	return &net.IPNet{
+		IP:   net.IPv4(10, 1, n.nibble[0], n.nibble[1]),
+		Mask: net.CIDRMask(16, 32),
 	}
 }
 
@@ -95,7 +115,15 @@ func (n *Nibble) NRLocalIP4() *net.IPNet {
 func (n *Nibble) WGAllowedIP4() *net.IPNet {
 	return &net.IPNet{
 		IP:   net.IPv4(10, 255, n.nibble[0], n.nibble[1]),
-		Mask: net.CIDRMask(16, 32),
+		Mask: net.CIDRMask(32, 32),
+	}
+}
+
+// WGAllowedIP4Net returns the IPv4 network resource subnet address to be used in wireguard allowed ip configuration
+func (n *Nibble) WGAllowedIP4Net() *net.IPNet {
+	return &net.IPNet{
+		IP:   net.IPv4(10, n.nibble[0], n.nibble[1], 0),
+		Mask: net.CIDRMask(24, 32),
 	}
 }
 
@@ -124,6 +152,22 @@ func (n *Nibble) WGLL() *net.IPNet {
 	return &net.IPNet{
 		IP:   net.IP(b),
 		Mask: net.CIDRMask(64, 128),
+	}
+}
+
+// WGIP4
+func (n *Nibble) WGIP4() *net.IPNet {
+	return &net.IPNet{
+		IP:   net.IPv4(10, 1, n.nibble[0], n.nibble[1]),
+		Mask: net.CIDRMask(16, 32),
+	}
+}
+
+// WGIP4RT
+func (n *Nibble) WGIP4RT() *net.IPNet {
+	return &net.IPNet{
+		IP:   net.IPv4(10, 255, n.nibble[0], n.nibble[1]),
+		Mask: net.CIDRMask(16, 32),
 	}
 }
 

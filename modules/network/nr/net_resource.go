@@ -145,13 +145,16 @@ func (nr *NetResource) Configure() error {
 
 		newAddrs := mapset.NewSet()
 		newAddrs.Add(nr.resource.LinkLocal.String())
-		newAddrs.Add(nr.nibble.WGAllowedIP4().String())
+		//TODO: move this hack into nibble method
+		ipnet := nr.nibble.WGAllowedIP4()
+		ipnet.Mask = net.CIDRMask(16, 32)
+		newAddrs.Add(ipnet.String())
 		toRemove := curAddrs.Difference(newAddrs)
 		toAdd := newAddrs.Difference(curAddrs)
 
-		log.Info().Msgf("current %s/n", curAddrs.String())
-		log.Info().Msgf("to add %s/n", toAdd.String())
-		log.Info().Msgf("to remove %s/n", toRemove.String())
+		log.Info().Msgf("current %s", curAddrs.String())
+		log.Info().Msgf("to add %s", toAdd.String())
+		log.Info().Msgf("to remove %s", toRemove.String())
 
 		for addr := range toAdd.Iter() {
 			addr, _ := addr.(string)
@@ -234,15 +237,20 @@ func (nr *NetResource) routes() ([]*netlink.Route, error) {
 			return nil, err
 		}
 
-		if prefixStr != nr.exit.Prefix.String() {
+		routes = append(routes, &netlink.Route{
+			Dst: peer.Prefix,
+			Gw:  net.ParseIP(fmt.Sprintf("fe80::%s", nibble.Hex())),
+		})
 
-			routes = append(routes, &netlink.Route{
-				Dst: peer.Prefix,
-				Gw:  net.ParseIP(fmt.Sprintf("fe80::%s", nibble.Hex())),
-			})
+		//TODO: move this hack into nibble method
+		ipnet := nibble.NRLocalIP4()
+		ipnet.IP[15] = 0x00
+		routes = append(routes, &netlink.Route{
+			Dst: ipnet,
+			Gw:  nibble.WGIP4RT().IP,
+		})
 
-		} else { //special configuration for exit peer
-
+		if prefixStr == nr.exit.Prefix.String() { //special configuration for exit point
 			// add default ipv6 route to the exit node
 			routes = append(routes, nibble.RouteIPv6Exit())
 			// add ipv4 route to the exit node
@@ -281,6 +289,7 @@ func (nr *NetResource) wgPeers() ([]*wireguard.Peer, error) {
 				AllowedIPs: []string{
 					nibble.WGAllowedIP6().String(),
 					nibble.WGAllowedIP4().String(),
+					nibble.WGAllowedIP4Net().String(),
 					peer.Prefix.String(),
 				},
 			}
@@ -309,15 +318,46 @@ func (nr *NetResource) wgPeers() ([]*wireguard.Peer, error) {
 	return wgPeers, nil
 }
 
-// GWTNRoutes returns the routes to set in the gateway network namespace
+// GWTNRoutesIPv6 returns the routes to set in the gateway network namespace
 // to be abe to reach a network resource
-func (nr *NetResource) GWTNRoutes() ([]*netlink.Route, error) {
+func (nr *NetResource) GWTNRoutesIPv6() ([]*netlink.Route, error) {
 	routes := make([]*netlink.Route, 0)
 
 	for _, peer := range nr.resource.Peers {
 		routes = append(routes, &netlink.Route{
 			Dst: peer.Prefix,
 			Gw:  nr.nibble.EPPubLL().IP,
+		})
+	}
+
+	return routes, nil
+}
+
+// GWTNRoutesIPv4 returns the routes to set in the gateway network namespace
+// to be abe to reach a network resource
+func (nr *NetResource) GWTNRoutesIPv4() ([]*netlink.Route, error) {
+	routes := make([]*netlink.Route, 0)
+
+	for _, peer := range nr.resource.Peers {
+		peerNibble, err := zosip.NewNibble(peer.Prefix, nr.allocNr)
+		if err != nil {
+			return nil, err
+		}
+
+		//IPv4 routing
+		ipnet := peerNibble.WGIP4RT()
+		ipnet.Mask = net.CIDRMask(32, 32)
+		routes = append(routes, &netlink.Route{
+			Dst: ipnet,
+			Gw:  nr.nibble.EPPubIP4R().IP,
+		})
+		// IPv4 wiregard host routing
+		ipnet = peerNibble.NRLocalIP4()
+		ipnet.IP[15] = 0x00
+
+		routes = append(routes, &netlink.Route{
+			Dst: ipnet,
+			Gw:  nr.nibble.EPPubIP4R().IP,
 		})
 	}
 
