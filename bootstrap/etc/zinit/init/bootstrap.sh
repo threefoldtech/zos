@@ -1,15 +1,28 @@
 set -x
 
-# TODO: change BOOTFLIST to release flist.
-# In development, may be we also can specify the build branch from kernel params
-# and use it to construct the full flist name.
-BOOTFLIST=https://hub.grid.tf/azmy/zos.flist
+DEFAULT_FLIST=azmy/zos_ref_heads_master.flist
 
-echo "bootstraping"
+# bootflist reads the boot flist name from kernel cmd
+# TODO: this should probably be not allowed at somepoint to
+function bootflist() {
+    for param in $(strings /proc/cmdline); do
+        if [[ "${param:0:6}" == "flist=" ]]
+        then
+            echo ${param#flist=}
+            return 0
+        fi
+    done
+
+    echo ${DEFAULT_FLIST}
+}
+
+BOOTFLIST=https://hub.grid.tf/$(bootflist)
+
+echo "Bootstraping: ${BOOTFLIST}"
 
 # helper retry function
-# the retry function never give up because the 
-# bootstrap must succeed. otherwise the node 
+# the retry function never give up because the
+# bootstrap must succeed. otherwise the node
 # will not be functional. So no reason to give
 # up
 function retry() {
@@ -38,7 +51,7 @@ cd root
 cp -a * /
 ### filesystem is ready
 
-for file in $(ls etc/zinit/*.yaml); do 
+for file in $(ls etc/zinit/*.yaml); do
     file=$(basename ${file})
     name="${file%.*}"
     zinit monitor ${name}
