@@ -1,12 +1,10 @@
 package environment
 
 import (
-	"fmt"
-
-	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/kernel"
 )
 
-type environmentManager struct {
+type EnvironmentManager struct {
 	runningMode string
 
 	bcdbUrl       string
@@ -25,36 +23,47 @@ const (
 	runningMain = "production"
 )
 
-func NewManager() (modules.EnvironmentManager, error) {
-	fmt.Println("New Environment Manager")
-
-	// TODO: detect running environment
-
-	env := &environmentManager{
-		runningMode: runningDev,
-	}
-
-	if env.runningMode == runningDev {
-		env.tnodbUrl = "https://tnodb.dev.grid.tf"
-		env.provisionTimeout = 60
-		env.provisionInterval = 60
-	}
-
-	if env.runningMode == runningTest {
-		env.bcdbUrl = "10.10.10.0:8901"
-		env.provisionTimeout = 120
-		env.provisionInterval = 120
-	}
-
-	if env.runningMode == runningMain {
-		env.bcdbUrl = "1.2.3.4:8901"
-		env.provisionTimeout = 240
-		env.provisionInterval = 240
-	}
-
-	return env, nil
+func GetEnvironment() EnvironmentManager {
+	params := kernel.GetParams()
+	return getEnvironmentFromParams(params)
 }
 
-func (e *environmentManager) Something() error {
-	return nil
+func getEnvironmentFromParams(params kernel.Params) EnvironmentManager {
+	var runmode []string
+
+	runmode, found := params.Get("runmode")
+	if !found {
+		// fallback to default development
+		runmode = make([]string, 1)
+		runmode[0] = runningDev
+	}
+
+	switch runmode[0] {
+	case runningTest:
+		return EnvironmentManager{
+			runningMode:       runningTest,
+			bcdbUrl:           "10.10.10.0:8901",
+			provisionTimeout:  120,
+			provisionInterval: 120,
+		}
+
+	case runningMain:
+		return EnvironmentManager{
+			runningMode:       runningMain,
+			bcdbUrl:           "1.2.3.4:8901",
+			provisionTimeout:  240,
+			provisionInterval: 240,
+		}
+
+	case runningDev:
+		fallthrough
+
+	default:
+		return EnvironmentManager{
+			runningMode:       runningDev,
+			tnodbUrl:          "https://tnodb.dev.grid.tf",
+			provisionTimeout:  60,
+			provisionInterval: 60,
+		}
+	}
 }
