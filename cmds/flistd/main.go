@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/threefoldtech/zosv2/modules/stubs"
+	"github.com/threefoldtech/zosv2/modules/utils"
 
 	"github.com/rs/zerolog/log"
 
@@ -52,7 +53,12 @@ func main() {
 		Uint("worker nr", workerNr).
 		Msg("starting flist module")
 
-	if err := server.Run(context.Background()); err != nil {
-		log.Error().Err(err).Msg("unexpected error")
+	ctx, _ := utils.WithSignal(context.Background())
+	utils.OnDone(ctx, func(_ error) {
+		log.Info().Msg("shutting down")
+	})
+
+	if err := server.Run(ctx); err != nil && err != context.Canceled {
+		log.Fatal().Err(err).Msg("unexpected error")
 	}
 }

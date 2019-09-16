@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"os"
 	"time"
 
+	"github.com/threefoldtech/zosv2/modules/utils"
 	"github.com/threefoldtech/zosv2/modules/zinit"
 
 	"flag"
@@ -67,9 +69,19 @@ func main() {
 
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 
-	for range ticker.C {
-		if err := u.Upgrade(publisher); err != nil {
-			log.Error().Err(err).Msg("fail to apply upgrade")
+	ctx, _ := utils.WithSignal(context.Background())
+	utils.OnDone(ctx, func(_ error) {
+		log.Info().Msg("shutting down")
+	})
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := u.Upgrade(publisher); err != nil {
+				log.Error().Err(err).Msg("fail to apply upgrade")
+			}
+		case <-ctx.Done():
+			break
 		}
 	}
 

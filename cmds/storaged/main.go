@@ -11,6 +11,7 @@ import (
 
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zosv2/modules/storage"
+	"github.com/threefoldtech/zosv2/modules/utils"
 	"github.com/threefoldtech/zosv2/modules/version"
 )
 
@@ -54,9 +55,12 @@ func main() {
 		Uint("worker nr", workerNr).
 		Msg("starting storaged module")
 
-	if err := server.Run(context.Background()); err != nil {
-		log.Error().Err(err).Msg("unexpected error")
-	}
+	ctx, _ := utils.WithSignal(context.Background())
+	utils.OnDone(ctx, func(_ error) {
+		log.Info().Msg("shutting down")
+	})
 
-	log.Warn().Msgf("Exiting storaged")
+	if err := server.Run(ctx); err != nil && err != context.Canceled {
+		log.Fatal().Err(err).Msg("unexpected error")
+	}
 }
