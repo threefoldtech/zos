@@ -34,4 +34,11 @@ func TestManager(t *testing.T) {
 	value = getEnvironmentFromParams(params)
 
 	assert.Equal(t, value.runningMode, "development")
+
+	// fallback on undefined
+	params = kernel.Params{"runmode": {"dunno"}}
+	value = getEnvironmentFromParams(params)
+
+	assert.Equal(t, value.runningMode, "development")
+
 }
