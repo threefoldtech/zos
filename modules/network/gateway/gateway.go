@@ -26,9 +26,11 @@ import (
 )
 
 const (
+	//BridgeGateway is the name of the ipv4 routing bridge in the gateway namespace
 	BridgeGateway = "br-gw-4"
-	vethGWSide    = "ipv4-rt"
-	vethBrSide    = "to-gw"
+
+	vethGWSide = "ipv4-rt"
+	vethBrSide = "to-gw"
 )
 
 //Gateway represent the gateway namespace of an exit node

@@ -155,7 +155,7 @@ func (n *Nibble) WGLL() *net.IPNet {
 	}
 }
 
-// WGIP4
+// WGIP4 returns the IPv4 of the wireguard interface
 func (n *Nibble) WGIP4() *net.IPNet {
 	return &net.IPNet{
 		IP:   net.IPv4(10, 1, n.nibble[0], n.nibble[1]),
@@ -163,7 +163,7 @@ func (n *Nibble) WGIP4() *net.IPNet {
 	}
 }
 
-// WGIP4RT
+// WGIP4RT returns the routing IPv4 of the wireguard interface
 func (n *Nibble) WGIP4RT() *net.IPNet {
 	return &net.IPNet{
 		IP:   net.IPv4(10, 255, n.nibble[0], n.nibble[1]),
