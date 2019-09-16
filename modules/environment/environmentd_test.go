@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,34 +12,42 @@ import (
 // result cannot be deterministic if you have kernel
 // argument set or not
 func TestManager(t *testing.T) {
-	// development mode
+	// Development mode
 	params := kernel.Params{"runmode": {"development"}}
 	value := getEnvironmentFromParams(params)
 
 	assert.Equal(t, value.runningMode, "development")
 
-	// testing mode
+	// Testing mode
 	params = kernel.Params{"runmode": {"testing"}}
 	value = getEnvironmentFromParams(params)
 
 	assert.Equal(t, value.runningMode, "testing")
 
-	// main mode
+	// Main mode
 	params = kernel.Params{"runmode": {"production"}}
 	value = getEnvironmentFromParams(params)
 
 	assert.Equal(t, value.runningMode, "production")
 
-	// fallback
+	// Fallback
 	params = kernel.Params{"nope": {"lulz"}}
 	value = getEnvironmentFromParams(params)
 
 	assert.Equal(t, value.runningMode, "development")
 
-	// fallback on undefined
+	// Fallback on undefined
 	params = kernel.Params{"runmode": {"dunno"}}
 	value = getEnvironmentFromParams(params)
 
 	assert.Equal(t, value.runningMode, "development")
+}
 
+func TestEnvironmentOverride(t *testing.T) {
+	os.Setenv("ZOS_BCDB_URL", "localhost:1234")
+
+	params := kernel.Params{"runmode": {"development"}}
+	value := getEnvironmentFromParams(params)
+
+	assert.Equal(t, value.bcdbUrl, "localhost:1234")
 }
