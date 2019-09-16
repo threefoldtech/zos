@@ -7,22 +7,22 @@ import (
 )
 
 type EnvironmentManager struct {
-	runningMode string
+	RunningMode string
 
-	bcdbUrl       string
-	bcdbNamespace string
-	bcdbPassword  string
+	BcdbUrl       string
+	BcdbNamespace string
+	BcdbPassword  string
 
-	tnodbUrl string
+	TnodbUrl string
 
-	provisionTimeout  int64
-	provisionInterval int64
+	ProvisionTimeout  int64
+	ProvisionInterval int64
 }
 
 const (
-	runningDev  = "development"
-	runningTest = "testing"
-	runningMain = "production"
+	RunningDev  = "development"
+	RunningTest = "testing"
+	RunningMain = "production"
 )
 
 func GetEnvironment() EnvironmentManager {
@@ -38,35 +38,35 @@ func getEnvironmentFromParams(params kernel.Params) EnvironmentManager {
 	if !found {
 		// Fallback to default development mode
 		runmode = make([]string, 1)
-		runmode[0] = runningDev
+		runmode[0] = RunningDev
 	}
 
 	switch runmode[0] {
-	case runningTest:
+	case RunningTest:
 		env = EnvironmentManager{
-			runningMode:       runningTest,
-			bcdbUrl:           "10.10.10.0:8901",
-			provisionTimeout:  120,
-			provisionInterval: 120,
+			RunningMode:       RunningTest,
+			BcdbUrl:           "10.10.10.0:8901",
+			ProvisionTimeout:  120,
+			ProvisionInterval: 120,
 		}
 
-	case runningMain:
+	case RunningMain:
 		env = EnvironmentManager{
-			runningMode:       runningMain,
-			bcdbUrl:           "1.2.3.4:8901",
-			provisionTimeout:  240,
-			provisionInterval: 240,
+			RunningMode:       RunningMain,
+			BcdbUrl:           "1.2.3.4:8901",
+			ProvisionTimeout:  240,
+			ProvisionInterval: 240,
 		}
 
-	case runningDev:
+	case RunningDev:
 		fallthrough
 
 	default:
 		env = EnvironmentManager{
-			runningMode:       runningDev,
-			tnodbUrl:          "https://tnodb.dev.grid.tf",
-			provisionTimeout:  60,
-			provisionInterval: 60,
+			RunningMode:       RunningDev,
+			TnodbUrl:          "https://tnodb.dev.grid.tf",
+			ProvisionTimeout:  60,
+			ProvisionInterval: 60,
 		}
 	}
 
@@ -74,30 +74,30 @@ func getEnvironmentFromParams(params kernel.Params) EnvironmentManager {
 	// override default settings
 
 	if e := os.Getenv("ZOS_BCDB_URL"); e != "" {
-		env.bcdbUrl = e
+		env.BcdbUrl = e
 	}
 
 	if e := os.Getenv("ZOS_BCDB_NAMESPACE"); e != "" {
-		env.bcdbNamespace = e
+		env.BcdbNamespace = e
 	}
 
 	if e := os.Getenv("ZOS_BCDB_PASSWORD"); e != "" {
-		env.bcdbPassword = e
+		env.BcdbPassword = e
 	}
 
 	if e := os.Getenv("ZOS_TNODB_URL"); e != "" {
-		env.tnodbUrl = e
+		env.TnodbUrl = e
 	}
 
 	if e := os.Getenv("ZOS_PROVISION_INTERVAL"); e != "" {
 		if i, err := strconv.ParseInt(e, 10, 64); err == nil {
-			env.provisionInterval = i
+			env.ProvisionInterval = i
 		}
 	}
 
 	if e := os.Getenv("ZOS_PROVISION_TIMEOUT"); e != "" {
 		if i, err := strconv.ParseInt(e, 10, 64); err == nil {
-			env.provisionTimeout = i
+			env.ProvisionTimeout = i
 		}
 	}
 
