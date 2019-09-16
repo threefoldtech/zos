@@ -1,6 +1,7 @@
 package nr
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/threefoldtech/zosv2/modules/network/bridge"
 	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
 	"github.com/threefoldtech/zosv2/modules/network/namespace"
+	"github.com/threefoldtech/zosv2/modules/network/nft"
 	"github.com/threefoldtech/zosv2/modules/network/wireguard"
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -93,6 +95,10 @@ func (nr *NetResource) Create(pubNS ns.NetNS) error {
 		return err
 	}
 	if err := nr.createWireguard(pubNS); err != nil {
+		return err
+	}
+
+	if err := nr.applyFirewall(); err != nil {
 		return err
 	}
 
@@ -556,6 +562,27 @@ func (nr *NetResource) createWireguard(pubNetNS ns.NetNS) error {
 	}
 
 	return netlink.LinkSetNsFd(wg, int(nrNetNS.Fd()))
+}
+
+func (nr *NetResource) applyFirewall() error {
+	netnsName := nr.nibble.NamespaceName()
+
+	data := struct {
+		Iifname string
+	}{
+		nr.nibble.EP4PubName(),
+	}
+	buf := bytes.Buffer{}
+
+	if err := fwTmpl.Execute(&buf, data); err != nil {
+		return errors.Wrap(err, "failed to build nft rule set")
+	}
+
+	if err := nft.Apply(&buf, netnsName); err != nil {
+		return errors.Wrap(err, "failed to apply nft rule set")
+	}
+
+	return nil
 }
 
 func isIn(target string, l []string) bool {

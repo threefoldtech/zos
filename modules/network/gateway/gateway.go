@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
@@ -19,6 +20,7 @@ import (
 	zosip "github.com/threefoldtech/zosv2/modules/network/ip"
 	"github.com/threefoldtech/zosv2/modules/network/macvlan"
 	"github.com/threefoldtech/zosv2/modules/network/namespace"
+	"github.com/threefoldtech/zosv2/modules/network/nft"
 	"github.com/threefoldtech/zosv2/modules/network/nr"
 	"github.com/threefoldtech/zosv2/modules/network/types"
 )
@@ -62,7 +64,11 @@ func (gw *Gateway) Create() error {
 		return err
 	}
 
-	return gw.createRoutingBridge(gwNW)
+	if err := gw.createRoutingBridge(gwNW); err != nil {
+		return err
+	}
+
+	return applyFirewall()
 }
 
 func (gw *Gateway) createMacVlan(gwNetNS ns.NetNS) error {
@@ -155,6 +161,20 @@ func (gw *Gateway) createRoutingBridge(gwNetNS ns.NetNS) error {
 			IPNet: ipnet,
 		})
 	})
+}
+
+func applyFirewall() error {
+	buf := bytes.Buffer{}
+
+	if err := fwTmpl.Execute(&buf, nil); err != nil {
+		return errors.Wrap(err, "failed to build nft rule set")
+	}
+
+	if err := nft.Apply(&buf, types.GatewayNamespace); err != nil {
+		return errors.Wrap(err, "failed to apply nft rule set")
+	}
+
+	return nil
 }
 
 // ensureGatewayNS check if the gateway namespace exists and if not creates it
@@ -353,9 +373,13 @@ func (gw *Gateway) configNRIPv4(netRes *nr.NetResource, gwNS, netResNS ns.NetNS)
 			return err
 		}
 
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", ep4pubName), "1"); err != nil {
+			return err
+		}
+
 		addr := &netlink.Addr{IPNet: netRes.Nibble().WGIP4()}
 		log.Debug().Msgf("set addr %s on %s", addr.IPNet.String(), ep4pubName)
-		if err := netlink.AddrAdd(lep4pub, addr); err != nil {
+		if err := netlink.AddrAdd(lep4pub, addr); err != nil && !os.IsExist(err) {
 			return err
 		}
 
@@ -371,8 +395,12 @@ func (gw *Gateway) configNRIPv4(netRes *nr.NetResource, gwNS, netResNS ns.NetNS)
 			Gw:        net.ParseIP("10.1.0.1"),
 			LinkIndex: lep4pub.Attrs().Index,
 		}
+
 		log.Debug().Msgf("set route %s on %s %d", route.String(), ep4pubName, lep4pub.Attrs().Index)
-		return netlink.RouteAdd(route)
+		if err := netlink.RouteAdd(route); err != nil && !os.IsExist(err) {
+			return err
+		}
+		return nil
 	}); err != nil {
 		return err
 	}

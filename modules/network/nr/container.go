@@ -145,10 +145,20 @@ func (nr *NetResource) allocateIPv4(id string) (*net.IPNet, error) {
 	nrIP4 := nr.nibble.NRLocalIP4()
 	nrIP4.IP[15] = 0x00
 
+	firstIP := make([]byte, net.IPv6len)
+	copy(firstIP, nrIP4.IP)
+	firstIP[15] = 0x02
+
+	lastIP := make([]byte, net.IPv6len)
+	copy(lastIP, nrIP4.IP)
+	lastIP[15] = 0xfe
+
 	log.Debug().Str("ip4 range", nrIP4.String()).Msg("configure ipam range")
 	r := allocator.Range{
-		Subnet:  types.IPNet(*nrIP4),
-		Gateway: nrIP4.IP,
+		RangeStart: net.IP(firstIP),
+		RangeEnd:   net.IP(lastIP),
+		Subnet:     types.IPNet(*nrIP4),
+		Gateway:    nrIP4.IP,
 	}
 
 	if err := r.Canonicalize(); err != nil {
