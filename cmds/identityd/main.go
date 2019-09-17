@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
 
 	"github.com/cenkalti/backoff/v3"
@@ -41,6 +42,11 @@ func main() {
 
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	store, err := bcdbClient()
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+
 	if err := os.MkdirAll(root, 0755); err != nil {
 		log.Fatal().Err(err).Msg("failed to create module root")
 	}
@@ -67,19 +73,6 @@ func main() {
 
 	// Node registration can happen in the background.
 	go func() {
-		var store identity.IDStore
-
-		env := environment.GetEnvironment()
-		if env.TnodbUrl != "" {
-			store = identity.NewHTTPIDStore(env.TnodbUrl)
-
-		} else {
-			store, err = gedis.New(env.BcdbUrl, env.BcdbNamespace, env.BcdbPassword)
-			if err != nil {
-				log.Error().Err(err).Msg("fail to connect to blockchain")
-				return
-			}
-		}
 
 		f := func() error {
 			log.Info().Msg("start registration of the node")
@@ -109,4 +102,21 @@ func main() {
 	if err := server.Run(context.Background()); err != nil {
 		log.Fatal().Err(err).Msg("server exit")
 	}
+}
+
+// instantiate the proper client based on the running mode
+func bcdbClient() (identity.IDStore, error) {
+	env := environment.Get()
+
+	// use the bcdb mock for dev and test
+	if env.RunningMode != environment.RunningMain {
+		return identity.NewHTTPIDStore(env.BcdbURL), nil
+	}
+
+	// use gedis for production bcdb
+	store, err := gedis.New(env.BcdbURL, env.BcdbNamespace, env.BcdbPassword)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to connect to BCDB")
+	}
+	return store, nil
 }

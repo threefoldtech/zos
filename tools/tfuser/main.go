@@ -29,6 +29,14 @@ func main() {
 			Name:  "debug, d",
 			Usage: "enable debug logging",
 		},
+
+		cli.StringFlag{
+			Name:   "tnodb, u",
+			Usage:  "URL of the TNODB",
+			Value:  "https://tnodb.dev.grid.tf",
+			EnvVar: "TNODB_URL",
+		},
+
 		cli.StringFlag{
 			Name:   "provision, p",
 			Usage:  "URL of the provision store",

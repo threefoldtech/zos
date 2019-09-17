@@ -16,31 +16,31 @@ func TestManager(t *testing.T) {
 	params := kernel.Params{"runmode": {"development"}}
 	value := getEnvironmentFromParams(params)
 
-	assert.Equal(t, value.RunningMode, "development")
+	assert.Equal(t, RunningDev, value.RunningMode)
 
 	// Testing mode
 	params = kernel.Params{"runmode": {"testing"}}
 	value = getEnvironmentFromParams(params)
 
-	assert.Equal(t, value.RunningMode, "testing")
+	assert.Equal(t, RunningTest, value.RunningMode)
 
 	// Main mode
 	params = kernel.Params{"runmode": {"production"}}
 	value = getEnvironmentFromParams(params)
 
-	assert.Equal(t, value.RunningMode, "production")
+	assert.Equal(t, RunningMain, value.RunningMode)
 
 	// Fallback
 	params = kernel.Params{"nope": {"lulz"}}
 	value = getEnvironmentFromParams(params)
 
-	assert.Equal(t, value.RunningMode, "development")
+	assert.Equal(t, RunningMain, value.RunningMode)
 
 	// Fallback on undefined
 	params = kernel.Params{"runmode": {"dunno"}}
 	value = getEnvironmentFromParams(params)
 
-	assert.Equal(t, value.RunningMode, "development")
+	assert.Equal(t, value.RunningMode, RunningMain)
 }
 
 func TestEnvironmentOverride(t *testing.T) {
@@ -49,5 +49,5 @@ func TestEnvironmentOverride(t *testing.T) {
 	params := kernel.Params{"runmode": {"development"}}
 	value := getEnvironmentFromParams(params)
 
-	assert.Equal(t, value.BcdbUrl, "localhost:1234")
+	assert.Equal(t, value.BcdbURL, "localhost:1234")
 }

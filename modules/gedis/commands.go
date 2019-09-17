@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules/network"
+	"github.com/threefoldtech/zosv2/modules/network/types"
 	schema "github.com/threefoldtech/zosv2/modules/schema"
 
 	"github.com/garyburd/redigo/redis"
@@ -236,7 +237,7 @@ func (g *Gedis) ListNode(farmID modules.Identifier, country string, city string)
 		return err
 	}
 
-	// FIXME: gateway to list of network.Node
+	// FIXME: gateway to list of types.Node
 	fmt.Println(nl)
 
 	return nil
@@ -273,7 +274,7 @@ func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string,
 	return r.Name, parseError(err)
 }
 
-func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
+func (g *Gedis) GetNode(nodeID modules.Identifier) (*types.Node, error) {
 	req := getNodeBody{
 		NodeID: nodeID.Identity(),
 	}
@@ -292,7 +293,7 @@ func (g *Gedis) GetNode(nodeID modules.Identifier) (*network.Node, error) {
 	if err := json.Unmarshal(resp, &n); err != nil {
 		return nil, err
 	}
-	return &network.Node{
+	return &types.Node{
 		NodeID: n.NodeID,
 		FarmID: n.FarmID,
 	}, nil
@@ -440,11 +441,11 @@ type requestAllocationResponse struct {
 }
 
 type configurePublicIfaceBody struct {
-	NodeID string            `json:"node_id,omitempty"`
-	Iface  string            `json:"iface"`
-	IPs    []string          `json:"ips"`
-	GWs    []string          `json:"gateways"`
-	Type   network.IfaceType `json:"iface_type"`
+	NodeID string          `json:"node_id,omitempty"`
+	Iface  string          `json:"iface"`
+	IPs    []string        `json:"ips"`
+	GWs    []string        `json:"gateways"`
+	Type   types.IfaceType `json:"iface_type"`
 }
 
 type configurePublicIfaceResponse struct {
@@ -453,7 +454,7 @@ type configurePublicIfaceResponse struct {
 }
 
 type readPubIfaceBody struct {
-	PublicConfig *network.PubIface `json:"public_config"`
+	PublicConfig *types.PubIface `json:"public_config"`
 }
 
 type selectExitNodeBody struct {
@@ -548,7 +549,7 @@ func (g *Gedis) ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, 
 		Iface:  iface,
 		IPs:    make([]string, len(ips)),
 		GWs:    make([]string, len(gws)),
-		Type:   network.MacVlanIface, //TODO: allow to chose type of connection
+		Type:   types.MacVlanIface, //TODO: allow to chose type of connection
 	}
 
 	for i := range ips {
@@ -605,7 +606,7 @@ func (g *Gedis) SelectExitNode(node modules.Identifier) error {
 	return nil
 }
 
-func (g *Gedis) ReadPubIface(node modules.Identifier) (*network.PubIface, error) {
+func (g *Gedis) ReadPubIface(node modules.Identifier) (*types.PubIface, error) {
 	req := getNodeBody{
 		NodeID: node.Identity(),
 	}
