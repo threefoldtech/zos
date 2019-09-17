@@ -54,6 +54,7 @@ require (
 	golang.org/x/crypto v0.0.0-20190829043050-9756ffdc2472
 	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80 // indirect
 	golang.org/x/sys v0.0.0-20190804053845-51ab0e2deafa
+	golang.org/x/tools v0.0.0-20190917032747-2dc213d980bc // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20190607034155-226bf4e412cd
 	google.golang.org/appengine v1.6.1 // indirect
 	google.golang.org/grpc v1.23.0 // indirect
