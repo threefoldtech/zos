@@ -10,6 +10,7 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+// Gedis struct represent a client to a gedis server
 type Gedis struct {
 	pool      *redis.Pool
 	namespace string
@@ -20,6 +21,7 @@ type Gedis struct {
 	conn redis.Conn
 }
 
+// New creates a new Gedis client
 func New(address, namespace, password string) (*Gedis, error) {
 	pool, err := newRedisPool(address)
 	if err != nil {
@@ -39,18 +41,8 @@ func New(address, namespace, password string) (*Gedis, error) {
 	}, nil
 }
 
-func (g *Gedis) Connect() error {
-	if g.conn != nil {
-		if err := g.conn.Close(); err != nil {
-			return err
-		}
-	}
-
-	g.conn = g.pool.Get()
-	// TODO: authentication
-	return nil
-}
-
+// Close closes all connection to the gedis server and stops
+// the close the connection pool
 func (g *Gedis) Close() error {
 	if g.conn != nil {
 		if err := g.conn.Close(); err != nil {
@@ -61,6 +53,7 @@ func (g *Gedis) Close() error {
 	return g.pool.Close()
 }
 
+// Ping sends a ping to the server. it should return pong
 func (g *Gedis) Ping() (string, error) {
 	con := g.pool.Get()
 	defer con.Close()

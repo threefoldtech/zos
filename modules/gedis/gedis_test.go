@@ -14,8 +14,6 @@ func testClient(t *testing.T) *Gedis {
 	gedis, err := New("tcp://172.17.0.2:8901", "default", "")
 	require.NoError(t, err)
 
-	err = gedis.Connect()
-	require.NoError(t, err)
 	return gedis
 }
 
