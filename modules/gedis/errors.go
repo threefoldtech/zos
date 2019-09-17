@@ -27,7 +27,7 @@ func parseError(err error) error {
 	r := strings.NewReader(value)
 	var gErr Error
 	if jErr := json.NewDecoder(r).Decode(&gErr); jErr != nil {
-		return jErr
+		return err
 	}
 
 	return gErr
