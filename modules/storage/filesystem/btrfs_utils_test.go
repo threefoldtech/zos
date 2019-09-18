@@ -6,6 +6,7 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -152,11 +153,9 @@ GlobalReserve, single: total=16777216, used=0
 	`
 
 	df, err := parseFilesystemDF(dfString)
-	if ok := assert.NoError(t, err); !ok {
-		t.Fatal()
-	}
+	require.NoError(t, err)
 
-	if ok := assert.Equal(t, BtrfsDiskUsage{
+	assert.Equal(t, BtrfsDiskUsage{
 		Data: DiskUsage{
 			Profile: modules.Single, Total: 8388608, Used: 65536,
 		},
@@ -169,9 +168,7 @@ GlobalReserve, single: total=16777216, used=0
 		GlobalReserve: DiskUsage{
 			Profile: modules.Single, Total: 16777216, Used: 0,
 		},
-	}, df); !ok {
-		t.Fail()
-	}
+	}, df)
 
 }
 
@@ -211,14 +208,9 @@ a/b
 `
 
 	volume, err := parseSubvolInfo(input)
+	require.NoError(t, err)
 
-	if ok := assert.NoError(t, err); !ok {
-		t.Fatal()
-	}
-
-	if ok := assert.Equal(t, BtrfsVolume{ID: 263, ParentID: 261, Generation: 24}, volume); !ok {
-		t.Error()
-	}
+	assert.Equal(t, BtrfsVolume{ID: 263, ParentID: 261, Generation: 24}, volume)
 }
 
 func TestQGroupParse(t *testing.T) {
@@ -232,23 +224,16 @@ qgroupid         rfer         excl     max_rfer     max_excl
 	`
 
 	groups := parseQGroups(s)
-	if ok := assert.Len(t, groups, 4); !ok {
-		t.Fail()
-	}
+	assert.Len(t, groups, 4)
 
 	g, ok := groups["0/258"]
+	assert.True(t, ok)
 
-	if ok := assert.True(t, ok); !ok {
-		t.Fail()
-	}
-
-	if ok := assert.Equal(t, BtrfsQGroup{
+	assert.Equal(t, BtrfsQGroup{
 		ID:      "0/258",
 		Rfer:    5804032,
 		Excl:    5804032,
 		MaxRfer: 1073741824,
 		MaxExcl: 0,
-	}, g); !ok {
-		t.Fail()
-	}
+	}, g)
 }

@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/threefoldtech/zosv2/modules/capacity"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zosv2/modules/network/types"
@@ -45,8 +47,13 @@ type allocation struct {
 	SubNetUsed []uint64
 }
 
+type node struct {
+	*types.Node
+	*capacity.Capacity
+}
+
 var (
-	nodeStore  map[string]*types.Node
+	nodeStore  map[string]*node
 	farmStore  map[string]*farmInfo
 	allocStore *allocationStore
 	provStore  *provisionStore
@@ -59,7 +66,7 @@ func main() {
 
 	flag.Parse()
 
-	nodeStore = make(map[string]*types.Node)
+	nodeStore = make(map[string]*node)
 	farmStore = make(map[string]*farmInfo)
 	allocStore = &allocationStore{Allocations: make(map[string]*allocation)}
 	provStore = &provisionStore{Reservations: make([]*reservation, 0, 20)}
@@ -80,6 +87,7 @@ func main() {
 	router.HandleFunc("/nodes/{node_id}/interfaces", registerIfaces).Methods("POST")
 	router.HandleFunc("/nodes/{node_id}/configure_public", configurePublic).Methods("POST")
 	router.HandleFunc("/nodes/{node_id}/select_exit", chooseExit).Methods("POST")
+	router.HandleFunc("/nodes/{node_id}/capacity", registerCapacity).Methods("POST")
 	router.HandleFunc("/nodes", listNodes).Methods("GET")
 
 	router.HandleFunc("/farms", registerFarm).Methods("POST")

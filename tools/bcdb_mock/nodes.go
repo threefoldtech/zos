@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/threefoldtech/zosv2/modules/capacity"
+	"github.com/threefoldtech/zosv2/modules/capacity/dmi"
 	"github.com/threefoldtech/zosv2/modules/network/types"
 )
 
@@ -23,7 +25,7 @@ func registerNode(w http.ResponseWriter, r *http.Request) {
 
 	i, ok := nodeStore[node.NodeID]
 	if !ok {
-		nodeStore[node.NodeID] = node
+		nodeStore[node.NodeID].Node = node
 	} else {
 		i.NodeID = node.NodeID
 		i.FarmID = node.FarmID
@@ -55,7 +57,7 @@ func listNodes(w http.ResponseWriter, r *http.Request) {
 		if farm != "" && node.FarmID != farm {
 			continue
 		}
-		nodes = append(nodes, node)
+		nodes = append(nodes, node.Node)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -100,4 +102,28 @@ func getFarm(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(farm)
+}
+
+func registerCapacity(w http.ResponseWriter, r *http.Request) {
+	x := struct {
+		Capacity *capacity.Capacity `json:"capacity,omitempty"`
+		DMI      *dmi.DMI           `json:"dmi,omitempty"`
+	}{}
+
+	nodeID := mux.Vars(r)["node_id"]
+	fmt.Println("search node", nodeID)
+	node, ok := nodeStore[nodeID]
+	if !ok {
+		http.Error(w, fmt.Sprintf("node id %s not found", nodeID), http.StatusNotFound)
+		return
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&x); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	node.Capacity = x.Capacity
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
