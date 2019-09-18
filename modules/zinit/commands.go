@@ -174,10 +174,52 @@ func (c *Client) Stop(service string) error {
 	return err
 }
 
+// StartWait stops a service and wait until it exits, or until the timeout
+// (seconds) pass. If timedout, the service is killed with -9.
+// timout of 0 means no wait. (similar to Stop)
+// timout is a min of 1 second
+func (c *Client) StartWait(service string, timeout time.Duration) error {
+	if err := c.Start(service); err != nil {
+		return err
+	}
+
+	if timeout == 0 {
+		return nil
+	}
+
+	deadline := time.After(timeout)
+
+	for {
+		select {
+		case <-deadline:
+			return fmt.Errorf("service '%s' did not start in time", service)
+		default:
+			status, err := c.Status(service)
+			if err != nil {
+				return err
+			}
+
+			if status.Target != ServiceTargetUp {
+				// it means some other entity (another client or command line)
+				// has set the service back to up. I think we should immediately return
+				// with an error instead.
+				return fmt.Errorf("expected service target should be UP. found DOWN")
+			}
+
+			if status.State.Is(ServiceStateRunning) || status.State.Is(ServiceStateSuccess) {
+				return nil
+			}
+
+			<-time.After(1 * time.Second)
+		}
+	}
+}
+
 // StopWait stops a service and wait until it exits, or until the timeout
 // (seconds) pass. If timedout, the service is killed with -9.
 // timout of 0 means no wait. (similar to Stop)
-func (c *Client) StopWait(service string, timeout uint) error {
+// timout is a min of 1 second
+func (c *Client) StopWait(service string, timeout time.Duration) error {
 	if err := c.Stop(service); err != nil {
 		return err
 	}
@@ -186,29 +228,30 @@ func (c *Client) StopWait(service string, timeout uint) error {
 		return nil
 	}
 
+	deadline := time.After(timeout)
+
 	for {
-		status, err := c.Status(service)
-		if err != nil {
-			return err
-		}
-
-		if status.Target != ServiceTargetDown {
-			// it means some other entity (another client or command line)
-			// has set the service back to up. I think we should immediately return
-			// with an error instead.
-			return fmt.Errorf("expected service target should be DOWN. found UP")
-		}
-
-		if status.State.Exited() {
-			return nil
-		}
-
-		if timeout == 0 {
+		select {
+		case <-deadline:
 			return c.Kill(service, syscall.SIGKILL)
-		}
+		default:
+			status, err := c.Status(service)
+			if err != nil {
+				return err
+			}
 
-		<-time.After(1 * time.Second)
-		timeout--
+			if status.Target != ServiceTargetDown {
+				// it means some other entity (another client or command line)
+				// has set the service back to up. I think we should immediately return
+				// with an error instead.
+				return fmt.Errorf("expected service target should be DOWN. found UP")
+			}
+
+			if status.State.Exited() {
+				return nil
+			}
+			<-time.After(1 * time.Second)
+		}
 	}
 }
 

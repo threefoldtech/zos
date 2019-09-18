@@ -1,6 +1,8 @@
 set -x
 
 DEFAULT_FLIST=azmy/zos-refs_heads_master.flist
+VERFILE=/tmp/version
+BOOTFILE=/tmp/boot
 
 # bootflist reads the boot flist name from kernel cmd
 # TODO: this should probably be not allowed at somepoint to
@@ -16,9 +18,13 @@ function bootflist() {
     echo ${DEFAULT_FLIST}
 }
 
-BOOTFLIST=https://hub.grid.tf/$(bootflist)
+FLIST=$(bootflist)
+# record the value of the boot flist we used
+echo ${BOOTFLIST} > ${BOOTFILE}
+chmod 0400 ${BOOTFILE}
 
-echo "Bootstraping: ${BOOTFLIST}"
+BOOTFLIST=https://hub.grid.tf/${FLIST}
+echo "Bootstraping with: ${BOOTFLIST}"
 
 # helper retry function
 # the retry function never give up because the
@@ -40,6 +46,8 @@ mount -t tmpfs -o size=512M tmpfs ${BS}
 
 cd ${BS}
 mkdir -p root
+retry wget -O ${VERFILE} ${BOOTFLIST}.md5
+chmod 0400 ${VERFILE}
 retry wget -O machine.flist ${BOOTFLIST}
 
 g8ufs --backend ${BS}/backend --meta machine.flist root &
