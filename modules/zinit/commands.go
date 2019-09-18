@@ -178,7 +178,7 @@ func (c *Client) Stop(service string) error {
 // (seconds) pass. If timedout, the service is killed with -9.
 // timout of 0 means no wait. (similar to Stop)
 // timout is a min of 1 second
-func (c *Client) StartWait(service string, timeout time.Duration) error {
+func (c *Client) StartWait(timeout time.Duration, service string) error {
 	if err := c.Start(service); err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (c *Client) StartWait(service string, timeout time.Duration) error {
 // (seconds) pass. If timedout, the service is killed with -9.
 // timout of 0 means no wait. (similar to Stop)
 // timout is a min of 1 second
-func (c *Client) StopWait(service string, timeout time.Duration) error {
+func (c *Client) StopWait(timeout time.Duration, service string) error {
 	if err := c.Stop(service); err != nil {
 		return err
 	}
