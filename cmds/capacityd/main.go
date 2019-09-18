@@ -68,7 +68,7 @@ func main() {
 	for {
 		<-time.After(time.Minute * 10)
 
-		log.Info().Msg("send heat-beat to BCDB")
+		log.Info().Msg("send heart-beat to BCDB")
 		if err := store.Ping(identity.NodeID()); err != nil {
 			log.Error().Err(err).Msgf("failed to send heart-beat to BCDB")
 		}
