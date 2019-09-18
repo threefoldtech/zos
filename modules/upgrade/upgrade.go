@@ -23,13 +23,6 @@ import (
 type hookType string
 
 const (
-	hookPreCopy   hookType = "pre-copy"
-	hookPostCopy  hookType = "post-copy"
-	hookMigrate   hookType = "migrate"
-	hookPostStart hookType = "post-start"
-)
-
-const (
 	provisionModuleName = "provisiond"
 
 	// those values must match the values
@@ -39,6 +32,11 @@ const (
 	verFile = "/tmp/version"
 	// bootFile the boot flist name
 	bootFile = "/tmp/boot"
+)
+
+var (
+	// services that can't be updated with normal procedure
+	protected = []string{"upgraded", "redis"}
 )
 
 //BootInfo reflects node boot information (flist + version)
@@ -177,7 +175,7 @@ func (u *Upgrader) applyUpgrade(version string) error {
 
 		name = strings.TrimSuffix(name, ".yaml")
 		// skip self
-		if name == "upgraded" {
+		if isIn(name, protected) {
 			continue
 		}
 
@@ -197,7 +195,7 @@ func (u *Upgrader) applyUpgrade(version string) error {
 		}
 	}
 
-	if err := copyRecursive(flistRoot, "/"); err != nil {
+	if err := copyRecursive(flistRoot, "/", "/bin/upgraded"); err != nil {
 		return err
 	}
 
@@ -227,7 +225,7 @@ func (u *Upgrader) applyUpgrade(version string) error {
 	}
 
 	// 2- Find the new binary on the flist. we assume it's at the same location
-	if _, err := os.Stat(filepath.Join(flistRoot, active)); err != nil {
+	if !exists(filepath.Join(flistRoot, active)) {
 		// no upgraded in the flist we can skip this step now
 		return nil
 	}
@@ -239,7 +237,14 @@ func (u *Upgrader) applyUpgrade(version string) error {
 		return errors.Wrap(err, "failed to copy new upgraded binary")
 	}
 
-	// 4- execve a `mv new active` to replace the current process in memory
+	// 4- we do not need the flist anymore
+	// NOTE: I know its done in the defer, but there is a chance that
+	// this method *never* return
+	if err := u.FLister.Umount(flistRoot); err != nil {
+		log.Error().Err(err).Msgf("fail to umount flist at %s: %v", flistRoot, err)
+	}
+
+	// 5- execve a `mv new active` to replace the current process in memory
 	// so the move is possible. then it will exit immediately after the move
 	// is done. restarting upgraded
 	mv, err := exec.LookPath("mv")
@@ -247,12 +252,12 @@ func (u *Upgrader) applyUpgrade(version string) error {
 		return errors.Wrap(err, "we can not find `mv`. What image is this?")
 	}
 
-	// KAMIKAZEEEE !!
+	// 6- KAMIKAZEEEE !!
 	if err := syscall.Exec(mv, []string{binNew, active}, os.Environ()); err != nil {
 		return errors.Wrap(err, "failed to exec move")
 	}
 
-	// we shouldn't reach here.
+	// Abyss: we shouldn't reach here.
 	return nil
 }
 
