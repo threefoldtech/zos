@@ -62,6 +62,29 @@ after:
 		State:  ServiceState{state: ServiceStateRunning},
 		Target: ServiceTargetUp,
 	}, status)
+
+	assert.False(t, status.State.Exited())
+
+	s = `
+name: ntp
+pid: 223
+state: Error(exit reason)
+target: Up
+log: Ring
+after:
+  - network-dhcp: Success`
+	status, err = parseStatus(s)
+	require.NoError(t, err)
+
+	assert.Equal(t, ServiceStatus{
+		Name:   "ntp",
+		Pid:    223,
+		State:  ServiceState{state: ServiceStateError, reason: "exit reason"},
+		Target: ServiceTargetUp,
+	}, status)
+
+	assert.True(t, status.State.Exited())
+	assert.True(t, status.State.Is(ServiceStateError))
 }
 
 func TestParseService(t *testing.T) {

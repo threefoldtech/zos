@@ -5,6 +5,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"syscall"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -170,6 +172,44 @@ func (c *Client) Start(service string) error {
 func (c *Client) Stop(service string) error {
 	_, err := c.cmd(fmt.Sprintf("stop %s", service))
 	return err
+}
+
+// StopWait stops a service and wait until it exits, or until the timeout
+// (seconds) pass. If timedout, the service is killed with -9.
+// timout of 0 means no wait. (similar to Stop)
+func (c *Client) StopWait(service string, timeout uint) error {
+	if err := c.Stop(service); err != nil {
+		return err
+	}
+
+	if timeout == 0 {
+		return nil
+	}
+
+	for {
+		status, err := c.Status(service)
+		if err != nil {
+			return err
+		}
+
+		if status.Target != ServiceTargetDown {
+			// it means some other entity (another client or command line)
+			// has set the service back to up. I think we should immediately return
+			// with an error instead.
+			return fmt.Errorf("expected service target should be DOWN. found UP")
+		}
+
+		if status.State.Exited() {
+			return nil
+		}
+
+		if timeout == 0 {
+			return c.Kill(service, syscall.SIGKILL)
+		}
+
+		<-time.After(1 * time.Second)
+		timeout--
+	}
 }
 
 // Monitor starts monitoring a service
