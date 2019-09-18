@@ -59,8 +59,8 @@ func DefaultBootInfo() BootInfo {
 	version, _ := ioutil.ReadFile(verFile)
 
 	return BootInfo{
-		FList:   string(flist),
-		Version: string(version),
+		FList:   strings.TrimSpace(string(flist)),
+		Version: strings.TrimSpace(string(version)),
 	}
 }
 
@@ -95,8 +95,10 @@ func (u *Upgrader) Upgrade() error {
 func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]string, error) {
 	services := make(map[string]struct{})
 	for _, name := range service {
+		log.Info().Str("service", name).Msg("stopping service")
 		if err := u.Zinit.Stop(name); err != nil {
 			log.Debug().Str("service", name).Msg("service undefined")
+			continue
 		}
 
 		services[name] = struct{}{}
@@ -125,6 +127,7 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]stri
 		}
 
 		for _, stop := range stopped {
+			log.Debug().Str("service", stop).Msg("service stopped")
 			delete(services, stop)
 		}
 
@@ -145,7 +148,7 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]stri
 }
 
 func (u *Upgrader) applyUpgrade(version string) error {
-	log.Info().Str("flist", u.FList).Str("version", version).Msg(("start applying upgrade"))
+	log.Info().Str("flist", u.FList).Str("version", version).Msg("start applying upgrade")
 
 	flistRoot, err := u.FLister.Mount(u.hub.URL(u.FList), u.hub.Storage())
 	if err != nil {
@@ -169,7 +172,7 @@ func (u *Upgrader) applyUpgrade(version string) error {
 	for _, service := range files {
 		name := service.Name()
 		if service.IsDir() || !strings.HasSuffix(name, ".yaml") {
-			log.Warn().Str("file", name).Msg("invalid zinit config file name")
+			continue
 		}
 
 		name = strings.TrimSuffix(name, ".yaml")
