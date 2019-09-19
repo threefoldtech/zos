@@ -117,7 +117,11 @@ func main() {
 	})
 
 	for {
-		if err := SafeUpgrade(&upgrader); err != nil {
+		err := SafeUpgrade(&upgrader)
+		if err == upgrade.ErrRestartNeeded {
+			log.Info().Msg("restarting upgraded")
+			return
+		} else if err != nil {
 			//TODO: crash or continue!
 			log.Error().Err(err).Msg("upgrade failed")
 		}
@@ -128,5 +132,4 @@ func main() {
 			break
 		}
 	}
-
 }

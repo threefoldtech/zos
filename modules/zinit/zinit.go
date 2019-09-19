@@ -7,6 +7,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 const defaultSocketPath = "/var/run/zinit.sock"
@@ -86,30 +88,36 @@ func (c *Client) readResponse() (string, error) {
 
 	}
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("error while reading socket: %v", err)
+		return "", errors.Wrap(err, "error while reading socket")
 	}
 
 	count, err = strconv.ParseUint(headers["lines"], 10, 32)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "failed to parse response length: %+v", headers)
 	}
+
 	status = headers["status"]
 
-	content := ""
+	var content strings.Builder
 	for i := uint64(0); i < count; i++ {
 		if !scanner.Scan() {
 			break
 		}
-		content += scanner.Text() + "\n"
+
+		if content.Len() > 0 {
+			content.WriteByte('\n')
+		}
+
+		content.WriteString(scanner.Text())
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("error while reading socket: %v", err)
+		return "", errors.Wrap(err, "error while reading socket")
 	}
 
 	if status == "error" {
-		return "", fmt.Errorf(string(content))
+		return "", fmt.Errorf(content.String())
 	}
 
-	return strings.TrimSpace(content), nil
+	return content.String(), nil
 }

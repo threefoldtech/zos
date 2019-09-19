@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -35,6 +34,9 @@ const (
 )
 
 var (
+	// ErrRestartNeeded is returned if upgraded requires a restart
+	ErrRestartNeeded = fmt.Errorf("restart needed")
+
 	// services that can't be updated with normal procedure
 	protected = []string{"upgraded", "redis"}
 )
@@ -125,8 +127,10 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]stri
 		}
 
 		for _, stop := range stopped {
-			log.Debug().Str("service", stop).Msg("service stopped")
-			delete(services, stop)
+			if _, ok := services[stop]; ok {
+				log.Debug().Str("service", stop).Msg("service stopped")
+				delete(services, stop)
+			}
 		}
 
 		if len(services) == 0 {
@@ -174,7 +178,7 @@ func (u *Upgrader) applyUpgrade(version string) error {
 		}
 
 		name = strings.TrimSuffix(name, ".yaml")
-		// skip self
+		// skip self and redis
 		if isIn(name, protected) {
 			continue
 		}
@@ -195,7 +199,7 @@ func (u *Upgrader) applyUpgrade(version string) error {
 		}
 	}
 
-	if err := copyRecursive(flistRoot, "/", "/bin/upgraded"); err != nil {
+	if err := copyRecursive(flistRoot, "/"); err != nil {
 		return err
 	}
 
@@ -217,48 +221,7 @@ func (u *Upgrader) applyUpgrade(version string) error {
 		return err
 	}
 
-	// one last thing. the self upgrade.
-	// 1- Find where upgraded is running from
-	active, err := exec.LookPath(os.Args[0])
-	if err != nil {
-		return err
-	}
-
-	// 2- Find the new binary on the flist. we assume it's at the same location
-	if !exists(filepath.Join(flistRoot, active)) {
-		// no upgraded in the flist we can skip this step now
-		return nil
-	}
-	binNew := fmt.Sprintf("%s.new", active)
-	binFList := filepath.Join(flistRoot, active)
-
-	// 3- copy the new binary next to the old one. but with `.new` extention
-	if err := copyFile(binNew, binFList); err != nil {
-		return errors.Wrap(err, "failed to copy new upgraded binary")
-	}
-
-	// 4- we do not need the flist anymore
-	// NOTE: I know its done in the defer, but there is a chance that
-	// this method *never* return
-	if err := u.FLister.Umount(flistRoot); err != nil {
-		log.Error().Err(err).Msgf("fail to umount flist at %s: %v", flistRoot, err)
-	}
-
-	// 5- execve a `mv new active` to replace the current process in memory
-	// so the move is possible. then it will exit immediately after the move
-	// is done. restarting upgraded
-	mv, err := exec.LookPath("mv")
-	if err != nil {
-		return errors.Wrap(err, "we can not find `mv`. What image is this?")
-	}
-
-	// 6- KAMIKAZEEEE !!
-	if err := syscall.Exec(mv, []string{binNew, active}, os.Environ()); err != nil {
-		return errors.Wrap(err, "failed to exec move")
-	}
-
-	// Abyss: we shouldn't reach here.
-	return nil
+	return ErrRestartNeeded
 }
 
 func copyRecursive(source string, destination string, skip ...string) error {
