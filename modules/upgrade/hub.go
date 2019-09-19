@@ -3,6 +3,7 @@ package upgrade
 import (
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/pkg/errors"
 )
@@ -19,7 +20,12 @@ type Hub struct{}
 
 // URL returns the full url of given flist.
 func (h *Hub) URL(flist string) string {
-	return HubBaseURL + flist
+	url, err := url.Parse(HubBaseURL)
+	if err != nil {
+		panic("invalid base url")
+	}
+	url.Path = flist
+	return url.String()
 }
 
 // Storage return hub storage url

@@ -86,7 +86,7 @@ func (s *ServiceState) Is(state PossibleState) bool {
 
 // Exited is true if the service state in a (stopped) state
 func (s *ServiceState) Exited() bool {
-	return s.Is(ServiceStateSuccess) || s.Is(ServiceStateError)
+	return s.Is(ServiceStateSuccess) || s.Is(ServiceStateError) || s.Is(ServiceStateFailure)
 }
 
 // MarshalYAML implements the  yaml.Unmarshaler interface
@@ -174,8 +174,8 @@ func (c *Client) Stop(service string) error {
 	return err
 }
 
-// StartWait stops a service and wait until it exits, or until the timeout
-// (seconds) pass. If timedout, the service is killed with -9.
+// StartWait starts a service and wait until its running, or until the timeout
+// (seconds) pass. If timedout, the method returns an error if the service is not running
 // timout of 0 means no wait. (similar to Stop)
 // timout is a min of 1 second
 func (c *Client) StartWait(timeout time.Duration, service string) error {
@@ -192,7 +192,16 @@ func (c *Client) StartWait(timeout time.Duration, service string) error {
 	for {
 		select {
 		case <-deadline:
-			return fmt.Errorf("service '%s' did not start in time", service)
+			status, err := c.Status(service)
+			if err != nil {
+				return err
+			}
+
+			if status.State.Exited() {
+				return fmt.Errorf("service '%s' did not start in time", service)
+			}
+
+			return nil
 		default:
 			status, err := c.Status(service)
 			if err != nil {
@@ -201,7 +210,7 @@ func (c *Client) StartWait(timeout time.Duration, service string) error {
 
 			if status.Target != ServiceTargetUp {
 				// it means some other entity (another client or command line)
-				// has set the service back to up. I think we should immediately return
+				// has set the service back to down. I think we should immediately return
 				// with an error instead.
 				return fmt.Errorf("expected service target should be UP. found DOWN")
 			}
