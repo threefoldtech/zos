@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/threefoldtech/zosv2/modules/network/namespace"
 	"github.com/threefoldtech/zosv2/modules/zdb"
 
 	"github.com/pkg/errors"
@@ -91,6 +93,7 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 		nsID        = reservation.ID
 		config      ZDB
 		containerIP net.IP
+		netNSName   string
 	)
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return nil, errors.Wrap(err, "failed to decode reservation schema")
@@ -139,19 +142,20 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 
 	// check if there is already a 0-DB running container on this volume
 	slog.Debug().Msg("check if container already exist on this volume")
-	_, err = container.Inspect(zdbContainerNS, modules.ContainerID(containerID))
+	c, err := container.Inspect(zdbContainerNS, modules.ContainerID(containerID))
 
 	//FIXME: find a better way then parsing error content
 	// Here we loose the error value cause the error comes from zbus
 	if err != nil && !strings.Contains(err.Error(), "not found") {
 		return nil, errors.Wrapf(err, "failed to check if 0-db container already exists")
 	}
+	netNSName = c.Network.Namespace
 
 	//FIXME: find a better way then parsing error content
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		slog.Info().Msgf("0-db container not found, start creation")
 
-		containerIP, err = createZdbContainer(ctx, containerID, config.Mode, vPath)
+		containerIP, netNSName, err = createZdbContainer(ctx, containerID, config.Mode, vPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create 0-db container")
 		}
@@ -168,6 +172,7 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to have a 0-db container running")
 		}
+		netNSName = c.Network.Namespace
 
 		ips, err := network.Addrs(nwmod.ZDBIface, c.Network.Namespace)
 		if err != nil {
@@ -186,29 +191,21 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 	slog.Info().IPAddr("ip", containerIP).Msg("container IP found")
 	addr := zdbConnectionURL(containerIP.String(), zdbPort)
 
-	slog.Debug().Str("addr", addr).Msg("connect to 0-db and create namespace")
-	zdbCl := zdb.New()
-	if err := zdbCl.Connect(addr); err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to 0-db at %s", addr)
+	netNS, err := namespace.GetByName(netNSName)
+	if err != nil {
+		return nil, err
 	}
-	defer zdbCl.Close()
+	defer netNS.Close()
 
-	if err := zdbCl.CreateNamespace(nsID); err != nil {
-		return nil, errors.Wrapf(err, "failed to create namespace in 0-db at %s", addr)
-	}
-
-	if config.Password != "" {
-		if err := zdbCl.NamespaceSetPassword(nsID, config.Password); err != nil {
-			return nil, errors.Wrapf(err, "failed to set password namespace %s in 0-db at %s", nsID, addr)
-		}
-	}
-
-	if err := zdbCl.NamespaceSetPublic(nsID, config.Public); err != nil {
-		return nil, errors.Wrapf(err, "failed to make namespace %s public in 0-db at %s", nsID, addr)
-	}
-
-	if err := zdbCl.NamespaceSetSize(nsID, config.Size*gigabyte); err != nil {
-		return nil, errors.Wrapf(err, "failed to set size on namespace %s in 0-db at %s", nsID, addr)
+	if err := netNS.Do(func(_ ns.NetNS) error {
+		slog.Info().
+			Str("name", nsID).
+			Str("netns", netNSName).
+			Str("addr", addr).
+			Msg("create 0-db namespace")
+		return createZDBNamespace(addr, nsID, config)
+	}); err != nil {
+		return nil, err
 	}
 
 	return ZDBResult{
@@ -218,7 +215,7 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 	}, nil
 }
 
-func createZdbContainer(ctx context.Context, name string, mode modules.ZDBMode, volumePath string) (net.IP, error) {
+func createZdbContainer(ctx context.Context, name string, mode modules.ZDBMode, volumePath string) (net.IP, string, error) {
 	var (
 		client = GetZBus(ctx)
 
@@ -234,7 +231,7 @@ func createZdbContainer(ctx context.Context, name string, mode modules.ZDBMode, 
 	slog.Debug().Str("flist", zdbFlistURL).Msg("mounting flist")
 	rootFS, err := flist.Mount(zdbFlistURL, "")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	cleanup := func() {
@@ -254,7 +251,7 @@ func createZdbContainer(ctx context.Context, name string, mode modules.ZDBMode, 
 			slog.Error().Err(err).Str("path", rootFS).Msgf("failed to unmount")
 		}
 
-		return nil, err
+		return nil, "", err
 	}
 
 	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data --mode %s  --listen :: --port %d", string(mode), zdbPort)
@@ -279,7 +276,7 @@ func createZdbContainer(ctx context.Context, name string, mode modules.ZDBMode, 
 		if err := flist.Umount(rootFS); err != nil {
 			slog.Error().Err(err).Str("path", rootFS).Msgf("failed to unmount")
 		}
-		return nil, errors.Wrap(err, "failed to create container")
+		return nil, "", errors.Wrap(err, "failed to create container")
 	}
 
 	getIP := func() error {
@@ -302,14 +299,43 @@ func createZdbContainer(ctx context.Context, name string, mode modules.ZDBMode, 
 	bo.MaxInterval = time.Minute * 2
 	if err := backoff.RetryNotify(getIP, bo, nil); err != nil {
 		cleanup()
-		return nil, errors.Wrapf(err, "failed to get an IP for 0-db container %s", name)
+		return nil, "", errors.Wrapf(err, "failed to get an IP for 0-db container %s", name)
 	}
 
 	slog.Info().
 		IPAddr("container IP", containerIP).
 		Str("name", name).
 		Msgf("0-db container created")
-	return containerIP, nil
+	return containerIP, netNsName, nil
+}
+
+func createZDBNamespace(addr, nsID string, config ZDB) error {
+	zdbCl := zdb.New()
+
+	if err := zdbCl.Connect(addr); err != nil {
+		return errors.Wrapf(err, "failed to connect to 0-db at %s", addr)
+	}
+	defer zdbCl.Close()
+
+	if err := zdbCl.CreateNamespace(nsID); err != nil {
+		return errors.Wrapf(err, "failed to create namespace in 0-db at %s", addr)
+	}
+
+	if config.Password != "" {
+		if err := zdbCl.NamespaceSetPassword(nsID, config.Password); err != nil {
+			return errors.Wrapf(err, "failed to set password namespace %s in 0-db at %s", nsID, addr)
+		}
+	}
+
+	if err := zdbCl.NamespaceSetPublic(nsID, config.Public); err != nil {
+		return errors.Wrapf(err, "failed to make namespace %s public in 0-db at %s", nsID, addr)
+	}
+
+	if err := zdbCl.NamespaceSetSize(nsID, config.Size*gigabyte); err != nil {
+		return errors.Wrapf(err, "failed to set size on namespace %s in 0-db at %s", nsID, addr)
+	}
+
+	return nil
 }
 
 func zdbDecommission(ctx context.Context, reservation *Reservation) error {
@@ -381,6 +407,7 @@ func zdbDecommission(ctx context.Context, reservation *Reservation) error {
 	slog.Info().Msgf("0-db namespace %s deleted", nsID)
 	return nil
 }
+
 func zdbConnectionURL(ip string, port uint16) string {
 	return fmt.Sprintf("tcp://[%s]:%d", ip, port)
 }
