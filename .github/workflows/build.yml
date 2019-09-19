@@ -22,6 +22,10 @@ jobs:
         make getdeps
       env:
         GO111MODULE: on
+  
+    - name: Install 0-fs
+      run: |
+        bash test_scripts/install_0-fs.sh
 
     - name: Run tests
       run: |
