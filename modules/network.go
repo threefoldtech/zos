@@ -12,10 +12,9 @@ import (
 
 // Member holds information about a join operation
 type Member struct {
-	// Namespace is the namespace of the member
 	Namespace string
-	// IP is the IP assigned to this member
-	IP net.IP
+	IPv6      net.IP
+	IPv4      net.IP
 }
 
 //Networker is the interface for the network module
@@ -141,7 +140,7 @@ type NetResource struct {
 	// IPv6Allow []net.IPNet
 
 	// Mark this NetResource as the exit point of the network
-	ExitPoint bool `json:"exit_point"`
+	ExitPoint int `json:"exit_point"`
 }
 
 // Peer is a peer for which we have a tunnel established and the
@@ -192,8 +191,8 @@ type ExitPoint struct {
 	Ipv4Conf *Ipv4Conf `json:"ipv4_conf"`
 	Ipv4DNAT []*DNAT   `json:"ipv4_dnat"`
 
-	Ipv6Conf  *Ipv6Conf `json:"ipv6_conf"`
-	Ipv6Allow []net.IP  `json:"ipv6_allow"`
+	Ipv6Conf  *Ipv6Conf    `json:"ipv6_conf"`
+	Ipv6Allow []*Ipv6Allow `json:"ipv6_allow"`
 }
 
 // DNAT represents an ipv4/6 portforwarding/firewalling
@@ -207,10 +206,17 @@ type DNAT struct {
 	Protocol string `json:"protocol"`
 }
 
+// Ipv6Allow represents a filter rule for an IPv6 addr/port
+type Ipv6Allow struct {
+	Ipv6Dest net.IP `json:"ipv6_dest"`
+	Port     uint16 `json:"port"`
+	Protocol string `json:"protocol"`
+}
+
 //Ipv4Conf represents the the IPv4 configuration of an exit container
 type Ipv4Conf struct {
 	// cidr
-	CIDR    *net.IPNet `json:"cird"`
+	CIDR    *net.IPNet `json:"cidr"`
 	Gateway net.IP     `json:"gateway"`
 	Metric  uint32     `json:"metric"`
 	// deterministic name in function of the prefix and it's allocation

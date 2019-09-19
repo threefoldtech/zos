@@ -48,7 +48,7 @@ func main() {
 
 		url := c.String("tnodb")
 		idStore = identity.NewHTTPIDStore(url)
-		db = tnodb.NewHTTPHTTPTNoDB(url)
+		db = tnodb.NewHTTPTNoDB(url)
 
 		return nil
 	}
@@ -88,13 +88,6 @@ func main() {
 						},
 					},
 					Action: giveAlloc,
-				},
-				{
-					Name:      "get-alloc",
-					Category:  "network",
-					Usage:     "get an allocation for a tenant network",
-					ArgsUsage: "farm_id",
-					Action:    getAlloc,
 				},
 				{
 					Name:     "configure-public",

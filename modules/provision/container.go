@@ -30,7 +30,7 @@ type Container struct {
 	// URL of the flist
 	FList string `json:"flist"`
 	// URL of the storage backend for the flist
-	FlistStorage string `json:"flist"`
+	FlistStorage string `json:"flist_storage"`
 	// Env env variables to container in format
 	Env map[string]string `json:"env"`
 	// Entrypoint the process to start inside the container
@@ -41,6 +41,14 @@ type Container struct {
 	Mounts []Mount `json:"mounts"`
 	// Network network info for container
 	Network Network `json:"network"`
+}
+
+// ContainerResult is the information return to the BCDB
+// after deploying a container
+type ContainerResult struct {
+	ID   string `json:"id"`
+	IPv6 string `json:"ipv6"`
+	IPv4 string `json:"ipv4"`
 }
 
 // ContainerProvision is entry point to container reservation
@@ -83,7 +91,11 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 	}
 
 	// TODO: Push IP back to bcdb
-	log.Info().Str("ip", join.IP.String()).Str("container", reservation.ID).Msg("assigned an IP")
+	log.Info().
+		Str("ipv6", join.IPv6.String()).
+		Str("ipv4", join.IPv4.String()).
+		Str("container", reservation.ID).
+		Msg("assigned an IP")
 
 	log.Debug().Str("flist", config.FList).Msg("mounting flist")
 	mnt, err := flistClient.Mount(config.FList, config.FlistStorage)
@@ -154,7 +166,11 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 	}
 
 	log.Info().Msgf("container created with id: '%s'", id)
-	return id, nil
+	return ContainerResult{
+		ID:   string(id),
+		IPv6: join.IPv6.String(),
+		IPv4: join.IPv4.String(),
+	}, nil
 }
 
 func containerDecommission(ctx context.Context, reservation *Reservation) error {

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
@@ -18,9 +17,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules/network"
-	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
 	"github.com/threefoldtech/zosv2/modules/network/tnodb"
-	"github.com/threefoldtech/zosv2/modules/zinit"
+	"github.com/threefoldtech/zosv2/modules/network/types"
 )
 
 const redisSocket = "unix:///var/run/redis.sock"
@@ -44,6 +42,10 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
+	if err := network.DefaultBridgeValid(); err != nil {
+		log.Fatal().Err(err).Msg("invalid setup")
+	}
+
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	client, err := zbus.NewRedisClient(broker)
@@ -55,22 +57,7 @@ func main() {
 		log.Error().Err(err).Msgf("fail to create module root")
 	}
 
-	db := tnodb.NewHTTPHTTPTNoDB(tnodbURL)
-
-	if err := ifaceutil.SetLoUp(); err != nil {
-		return
-	}
-
-	if err := bootstrap(); err != nil {
-		log.Error().Err(err).Msg("failed to bootstrap network")
-		os.Exit(1)
-	}
-
-	log.Info().Msg("network bootstraped successfully")
-
-	if err := ready(); err != nil {
-		log.Fatal().Err(err).Msg("failed to mark networkd as ready")
-	}
+	db := tnodb.NewHTTPTNoDB(tnodbURL)
 
 	identity := stubs.NewIdentityManagerStub(client)
 	networker := network.NewNetworker(identity, db, root)
@@ -84,7 +71,7 @@ func main() {
 	ifaceVersion := -1
 	exitIface, err := db.ReadPubIface(nodeID)
 	if err == nil {
-		if err := configuePubIface(exitIface); err != nil {
+		if err := configurePubIface(exitIface); err != nil {
 			log.Error().Err(err).Msg("failed to configure public interface")
 			os.Exit(1)
 		}
@@ -95,11 +82,11 @@ func main() {
 	defer cancel()
 
 	chIface := watchPubIface(ctx, nodeID, db, ifaceVersion)
-	go func(ctx context.Context, ch <-chan *network.PubIface) {
+	go func(ctx context.Context, ch <-chan *types.PubIface) {
 		for {
 			select {
 			case iface := <-ch:
-				_ = configuePubIface(iface)
+				_ = configurePubIface(iface)
 			case <-ctx.Done():
 				return
 			}
@@ -109,49 +96,6 @@ func main() {
 	if err := startServer(ctx, broker, networker); err != nil {
 		log.Error().Err(err).Msg("fail to start networkd")
 	}
-}
-
-func bootstrap() error {
-	f := func() error {
-
-		z := zinit.New("")
-		if err := z.Connect(); err != nil {
-			log.Error().Err(err).Msg("fail to connect to zinit")
-			return err
-		}
-
-		log.Info().Msg("Start network bootstrap")
-		if err := network.Bootstrap(); err != nil {
-			log.Error().Err(err).Msg("fail to boostrap network")
-			return err
-		}
-
-		log.Info().Msg("writing udhcp init service")
-
-		err := zinit.AddService("dhcp_zos", zinit.InitService{
-			Exec:    fmt.Sprintf("/sbin/udhcpc -v -f -i %s -s /usr/share/udhcp/simple.script", network.DefaultBridge),
-			Oneshot: false,
-			After:   []string{},
-		})
-		if err != nil {
-			log.Error().Err(err).Msg("fail to create dhcp_zos zinit service")
-			return err
-		}
-
-		if err := z.Monitor("dhcp_zos"); err != nil {
-			log.Error().Err(err).Msg("fail to start monitoring dhcp_zos zinit service")
-			return err
-		}
-		return nil
-	}
-
-	errHandler := func(err error, t time.Duration) {
-		if err != nil {
-			log.Error().Err(err).Msg("error while trying to bootstrap network")
-		}
-	}
-
-	return backoff.RetryNotify(f, backoff.NewExponentialBackOff(), errHandler)
 }
 
 func publishIfaces(id modules.Identifier, db network.TNoDB) error {
@@ -183,10 +127,4 @@ func startServer(ctx context.Context, broker string, networker modules.Networker
 		Msg("starting networkd module")
 
 	return server.Run(context.Background())
-}
-
-func ready() error {
-	f, err := os.Create("/var/run/networkd.ready")
-	defer f.Close()
-	return err
 }
