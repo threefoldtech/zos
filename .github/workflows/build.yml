@@ -6,6 +6,10 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+    
+    - name: Install 0-fs
+      run: |  
+        bash test_scripts/install_0-fs.sh
 
     - name: Set up go 1.13
       uses: actions/setup-go@v1
@@ -23,9 +27,9 @@ jobs:
       env:
         GO111MODULE: on
   
-    - name: Install 0-fs
-      run: |
-        bash test_scripts/install_0-fs.sh
+    # - name: Install 0-fs
+    #   run: |
+    #     bash test_scripts/install_0-fs.sh
 
     - name: Run tests
       run: |
