@@ -5,6 +5,7 @@ tfubin="${PWD}/../tfuser/tfuser"
 schemas="${PWD}/schemas"
 
 farmid="A3y5F8CoHVZiq3SvtY9pcJXC67aotSPk8AKMZYzkxyb6"
+nodeid="ECSKVY8bmmwbv8aqVMrrXQiwwRUhLZ9ghSvqEQcXB2gD"
 tnodb="https://tnodb.dev.grid.tf"
 
 redislog="10.4.0.250"
@@ -29,8 +30,14 @@ exitnode=$(echo "$nodesjson" | egrep 'exit_node|node_id' | grep -E -B1 ': [1-9]'
 
 echo "[+] exit node selected: $exitnode"
 
-echo "[+] selecting one node in the farm"
-node=$(echo "$fnodesjson" | egrep 'node_id' | awk -F'"' '{ print $4 }')
+if [ "$nodeid" == "" ]; then
+    echo "[+] selecting one node in the farm"
+    node=$(echo "$fnodesjson" | egrep 'node_id' | awk -F'"' '{ print $4 }')
+
+else
+    echo "[+] using preselected node: $nodeid"
+    node=$nodeid
+fi
 
 echo "[+] creating a new network"
 $tfubin generate network create --node $exitnode > ${schemas}/net-init.json
@@ -73,7 +80,7 @@ echo "[+] provisioning network"
 $tfubin provision --node ${node} --duration ${duration} --seed ${seed} --schema ${schemas}/net-init.json
 
 echo "[+] provisioning container"
-$tfubin provision --node ${node} --duration ${duration} --seed ${seed} --schema ${schemas}/busybox-corex.json
+# $tfubin provision --node ${node} --duration ${duration} --seed ${seed} --schema ${schemas}/busybox-corex.json
 
 echo "[+] provisioning zdb"
 $tfubin provision --node ${node} --duration ${duration} --seed ${seed} --schema ${schemas}/zdb-ssd-10.json
