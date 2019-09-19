@@ -2,13 +2,7 @@
 
 set -ex
 
-export GO11MODULE=off
-
-go get -v github.com/tools/godep
-
-mkdir -p /home/runner/work/zosv2/0-fs/
-cd  /home/runner/work/zosv2/0-fs/
-git clone --depth 1 https://github.com/threefoldtech/0-fs.git
-cd 0-fs
-godep restore
-make install
+wget https://github.com/threefoldtech/0-fs/releases/download/v2.0.1/g8ufs-v2.0.1-linux-amd64.tar.gz -O /tmp/g8ufs-v2.0.1-linux-amd64.tar.gz
+cd /tmp
+tar xvf g8ufs-v2.0.1-linux-amd64.tar.gz
+sudo cp g8ufs /bin/g8ufs

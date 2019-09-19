@@ -8,6 +8,7 @@ env:
 
 
 install:
+- bash test_scripts/install_0-fs.sh
 - pushd modules && make getdeps && popd
 
 script:

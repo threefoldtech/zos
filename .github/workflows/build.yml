@@ -13,12 +13,12 @@ jobs:
         go-version: 1.13
       id: go
 
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+    
     - name: Install 0-fs
       run: |  
         bash test_scripts/install_0-fs.sh
-
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
 
     - name: Get dependencies
       run: |
@@ -27,10 +27,6 @@ jobs:
       env:
         GO111MODULE: on
   
-    # - name: Install 0-fs
-    #   run: |
-    #     bash test_scripts/install_0-fs.sh
-
     - name: Run tests
       run: |
         cd modules

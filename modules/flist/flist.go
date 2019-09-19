@@ -132,7 +132,14 @@ func (f *flistModule) Mount(url, storage string) (string, error) {
 	}
 	// and scan the logs after "mount ready"
 	if err := waitMountedLog(time.Second*5, logPath); err != nil {
-		sublog.Error().Err(err).Msg("0-fs daemon did not start properly")
+		logs, err := ioutil.ReadFile(logPath)
+		if err == nil {
+			sublog.Error().
+				Str("logs", string(logs)).
+				Err(err).Msg("0-fs daemon did not start properly")
+		} else {
+			sublog.Error().Err(err).Msg("0-fs daemon did not start properly")
+		}
 		return "", err
 	}
 
