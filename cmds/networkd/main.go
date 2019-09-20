@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/threefoldtech/zosv2/modules/network/ndmz"
+
 	"github.com/threefoldtech/zosv2/modules/stubs"
 	"github.com/threefoldtech/zosv2/modules/utils"
 	"github.com/threefoldtech/zosv2/modules/version"
@@ -93,6 +95,10 @@ func main() {
 			}
 		}
 	}(ctx, chIface)
+
+	if err := ndmz.Create(); err != nil {
+		log.Fatal().Err(err).Msgf("failed to create DMZ")
+	}
 
 	if err := startServer(ctx, broker, networker); err != nil {
 		log.Fatal().Err(err).Msg("unexpected error")
