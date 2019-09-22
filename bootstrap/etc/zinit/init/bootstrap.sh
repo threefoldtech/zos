@@ -4,6 +4,18 @@ DEFAULT_FLIST=azmy/zos-refs_heads_master.flist
 VERFILE=/tmp/version
 BOOTFILE=/tmp/boot
 
+# helper retry function
+# the retry function never give up because the
+# bootstrap must succeed. otherwise the node
+# will not be functional. So no reason to give
+# up
+function retry() {
+    until $@; do
+        sleep 1s
+        echo "retrying: $@"
+    done
+}
+
 # bootflist reads the boot flist name from kernel cmd
 # TODO: this should probably be not allowed at somepoint to
 function bootflist() {
@@ -19,24 +31,13 @@ function bootflist() {
 }
 
 FLIST=$(bootflist)
-# record the value of the boot flist we used
-echo ${BOOTFLIST} > ${BOOTFILE}
-chmod 0400 ${BOOTFILE}
 
 BOOTFLIST=https://hub.grid.tf/${FLIST}
-echo "Bootstraping with: ${BOOTFLIST}"
+BOOTFLISTINFO=https://hub.grid.tf/api/flist/${FLIST}/light
 
-# helper retry function
-# the retry function never give up because the
-# bootstrap must succeed. otherwise the node
-# will not be functional. So no reason to give
-# up
-function retry() {
-    until $@; do
-        sleep 1s
-        echo "retrying: $@"
-    done
-}
+echo "Bootstraping with: ${BOOTFLIST}"
+retry wget -O ${BOOTFILE} ${BOOTFLISTINFO}
+chmod 0400 ${BOOTFILE}
 
 BS=/tmp/bootstrap
 mkdir -p ${BS}
@@ -46,8 +47,6 @@ mount -t tmpfs -o size=512M tmpfs ${BS}
 
 cd ${BS}
 mkdir -p root
-retry wget -O ${VERFILE} ${BOOTFLIST}.md5
-chmod 0400 ${VERFILE}
 retry wget -O machine.flist ${BOOTFLIST}
 
 g8ufs --backend ${BS}/backend --meta machine.flist root &
@@ -57,7 +56,7 @@ retry mountpoint root
 ## move to root
 cd root
 cp -a * /
-### filesystem is ready
+### filesystem now has all the binaries
 
 for file in $(ls etc/zinit/*.yaml); do
     file=$(basename ${file})
