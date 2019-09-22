@@ -95,7 +95,7 @@ oneshot: false
 log: ring
 after:
  - one
- - two	
+ - two
 `)
 	var s InitService
 	err := yaml.Unmarshal(b, &s)

@@ -1,8 +1,9 @@
 set -x
 
 DEFAULT_FLIST=azmy/zos-refs_heads_master.flist
-VERFILE=/tmp/version
-BOOTFILE=/tmp/boot
+
+FLISTFILE=/tmp/flist.name
+INFOFILE=/tmp/flist.info
 
 # helper retry function
 # the retry function never give up because the
@@ -31,13 +32,16 @@ function bootflist() {
 }
 
 FLIST=$(bootflist)
+# track which flist used for booting
+echo ${FLIST} > ${FLISTFILE}
+chmod 0400 ${FLISTFILE}
 
 BOOTFLIST=https://hub.grid.tf/${FLIST}
 BOOTFLISTINFO=https://hub.grid.tf/api/flist/${FLIST}/light
 
 echo "Bootstraping with: ${BOOTFLIST}"
-retry wget -O ${BOOTFILE} ${BOOTFLISTINFO}
-chmod 0400 ${BOOTFILE}
+retry wget -O ${INFOFILE} ${BOOTFLISTINFO}
+chmod 0400 ${INFOFILE}
 
 BS=/tmp/bootstrap
 mkdir -p ${BS}

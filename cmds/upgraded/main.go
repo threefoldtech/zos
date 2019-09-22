@@ -74,16 +74,14 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
-	boot := upgrade.DefaultBootInfo()
-	if len(boot.FList) == 0 {
+	if upgrade.DetectBootMethod() != upgrade.BootMethodFList {
 		log.Info().Msg("not booted with an flist. life upgrade is not supported")
 		// wait forever
 		select {}
 	}
 
-	zinit := zinit.New(zinitSocket)
-
-	if err := zinit.Connect(); err != nil {
+	zinit, err := zinit.New(zinitSocket)
+	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to zinit")
 	}
 
@@ -102,9 +100,8 @@ func main() {
 	flister := stubs.NewFlisterStub(zbusClient)
 
 	upgrader := upgrade.Upgrader{
-		BootInfo: boot,
-		FLister:  flister,
-		Zinit:    zinit,
+		FLister: flister,
+		Zinit:   zinit,
 	}
 
 	log.Info().Msg("start upgrade daemon")

@@ -71,8 +71,8 @@ func check() error {
 func bootstrap() error {
 	f := func() error {
 
-		z := zinit.New("")
-		if err := z.Connect(); err != nil {
+		z, err := zinit.New("")
+		if err != nil {
 			log.Error().Err(err).Msg("failed to connect to zinit")
 			return err
 		}
@@ -85,7 +85,7 @@ func bootstrap() error {
 
 		log.Info().Msg("writing udhcp init service")
 
-		err := zinit.AddService("dhcp-zos", zinit.InitService{
+		err = zinit.AddService("dhcp-zos", zinit.InitService{
 			Exec:    fmt.Sprintf("/sbin/udhcpc -v -f -i %s -s /usr/share/udhcp/simple.script", network.DefaultBridge),
 			Oneshot: false,
 			After:   []string{},
