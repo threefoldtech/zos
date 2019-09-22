@@ -33,7 +33,7 @@ func (h *Hub) MountURL(flist string) string {
 	return url.String()
 }
 
-// Storage return hub storage url
+// StorageURL return hub storage url
 func (h *Hub) StorageURL() string {
 	return HubStorage
 }

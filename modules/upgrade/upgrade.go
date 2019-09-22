@@ -40,6 +40,7 @@ var (
 	protected = []string{"upgraded", "redis"}
 )
 
+// BootMethod defines the node boot method
 type BootMethod string
 
 const (
