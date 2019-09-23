@@ -2,6 +2,8 @@ package upgrade
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -51,6 +53,12 @@ func (h *Hub) Info(flist string) (info FListInfo, err error) {
 	}
 
 	defer response.Body.Close()
+	defer ioutil.ReadAll(response.Body)
+
+	if response.StatusCode != http.StatusOK {
+		return info, fmt.Errorf("failed to get flist info: %s", response.Status)
+	}
+
 	dec := json.NewDecoder(response.Body)
 
 	err = dec.Decode(&info)
@@ -98,7 +106,6 @@ func (b *FListInfo) extractVersion(name string) (ver semver.Version, err error) 
 	// <name>:<version>.flist
 	parts := strings.Split(name, ":")
 	last := parts[len(parts)-1]
-
 	return semver.Parse(strings.TrimSuffix(last, ".flist"))
 }
 
