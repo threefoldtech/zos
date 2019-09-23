@@ -24,6 +24,7 @@ table inet filter {
     }
   chain input {
     type filter hook input priority 0; policy accept;
+    iifname "public" counter drop
   }
 
   chain forward {
@@ -32,7 +33,7 @@ table inet filter {
         jump base_checks
         # if not, verify if it's new and coming in from the br4-gw network
         # if it is, drop it
-        iifname "{{.Iifname}}" counter drop
+        iifname "public" counter drop
   }
 
   chain output {

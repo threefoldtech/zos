@@ -1,11 +1,14 @@
 package network
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+
+	"github.com/threefoldtech/zosv2/modules/network/ndmz"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
@@ -14,9 +17,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/threefoldtech/zosv2/modules/network/gateway"
 	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
-	nib "github.com/threefoldtech/zosv2/modules/network/ip"
+
 	"github.com/threefoldtech/zosv2/modules/network/macvlan"
 	"github.com/threefoldtech/zosv2/modules/network/nr"
 	"github.com/threefoldtech/zosv2/modules/network/types"
@@ -54,50 +56,51 @@ func NewNetworker(identity modules.IdentityManager, tnodb TNoDB, storageDir stri
 var _ modules.Networker = (*networker)(nil)
 
 func validateNetwork(n *modules.Network) error {
-	if n.NetID == "" {
-		return fmt.Errorf("network ID cannot be empty")
-	}
+	// TODO
+	// if n.NetID == "" {
+	// 	return fmt.Errorf("network ID cannot be empty")
+	// }
 
-	if n.PrefixZero == nil {
-		return fmt.Errorf("PrefixZero cannot be empty")
-	}
+	// if n.PrefixZero == nil {
+	// 	return fmt.Errorf("PrefixZero cannot be empty")
+	// }
 
-	if len(n.Resources) < 1 {
-		return fmt.Errorf("Network needs at least one network resource")
-	}
+	// if len(n.Resources) < 1 {
+	// 	return fmt.Errorf("Network needs at least one network resource")
+	// }
 
-	for i, r := range n.Resources {
-		nibble, err := nib.NewNibble(r.Prefix, n.AllocationNR)
-		if err != nil {
-			return errors.Wrap(err, "allocation prefix is not valid")
-		}
-		if r.Prefix == nil {
-			return fmt.Errorf("Prefix for network resource %s is empty", r.NodeID.Identity())
-		}
+	// for i, r := range n.Resources {
+	// 	nibble, err := nib.NewNibble(r.Prefix, n.AllocationNR)
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "allocation prefix is not valid")
+	// 	}
+	// 	if r.Prefix == nil {
+	// 		return fmt.Errorf("Prefix for network resource %s is empty", r.NodeID.Identity())
+	// 	}
 
-		peer := r.Peers[i]
-		expectedPort := nibble.WireguardPort()
-		if peer.Connection.Port != 0 && peer.Connection.Port != expectedPort {
-			return fmt.Errorf("Wireguard port for peer %s should be %d", r.NodeID.Identity(), expectedPort)
-		}
+	// 	peer := r.Peers[i]
+	// 	expectedPort := nibble.WireguardPort()
+	// 	if peer.Connection.Port != 0 && peer.Connection.Port != expectedPort {
+	// 		return fmt.Errorf("Wireguard port for peer %s should be %d", r.NodeID.Identity(), expectedPort)
+	// 	}
 
-		if peer.Connection.IP != nil && !peer.Connection.IP.IsGlobalUnicast() {
-			return fmt.Errorf("Wireguard endpoint for peer %s should be a public IP, not %s", r.NodeID.Identity(), peer.Connection.IP.String())
-		}
-	}
+	// 	if peer.Connection.IP != nil && !peer.Connection.IP.IsGlobalUnicast() {
+	// 		return fmt.Errorf("Wireguard endpoint for peer %s should be a public IP, not %s", r.NodeID.Identity(), peer.Connection.IP.String())
+	// 	}
+	// }
 
-	if n.Exit == nil {
-		return fmt.Errorf("Exit point cannot be empty")
-	}
+	// if n.Exit == nil {
+	// 	return fmt.Errorf("Exit point cannot be empty")
+	// }
 
-	if n.AllocationNR < 0 {
-		return fmt.Errorf("AllocationNR cannot be negative")
-	}
+	// if n.AllocationNR < 0 {
+	// 	return fmt.Errorf("AllocationNR cannot be negative")
+	// }
 
 	return nil
 }
 
-func (n *networker) Join(containerID string, id modules.NetID) (join modules.Member, err error) {
+func (n *networker) Join(networkdID modules.NetID, containerID string, id uint64, addrs []*net.IPNet) (join modules.Member, err error) {
 	// TODO:
 	// 1- Make sure this network id is actually deployed
 	// 2- Create a new namespace, then create a veth pair inside this namespace
@@ -113,12 +116,17 @@ func (n *networker) Join(containerID string, id modules.NetID) (join modules.Mem
 	}
 
 	nodeID := n.identity.NodeID().Identity()
-	netRes, err := nr.New(nodeID, network, wgtypes.Key{})
+	localNR, err := ResourceByNodeID(nodeID, network.NetResources)
+	if err != nil {
+		return join, err
+	}
+
+	netRes, err := nr.New(networkdID, localNR)
 	if err != nil {
 		return join, errors.Wrap(err, "failed to load network resource")
 	}
 
-	return netRes.Join(containerID)
+	return netRes.Join(containerID, addrs)
 }
 
 // ZDBPrepare sends a macvlan interface into the
@@ -199,35 +207,30 @@ func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 	return ips, nil
 }
 
-// ApplyNetResource implements modules.Networker interface
-func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
+// CreateNR implements modules.Networker interface
+func (n *networker) CreateNR(network modules.Network) (string, error) {
 	var err error
 
-	if err := validateNetwork(&network); err != nil {
-		log.Error().Err(err).Msg("network object format invalid")
-		return "", err
-	}
+	// TODO: fix me
+	// if err := validateNetwork(&network); err != nil {
+	// 	log.Error().Err(err).Msg("network object format invalid")
+	// 	return "", err
+	// }
+	netNR, err := ResourceByNodeID(n.identity.NodeID().Identity(), network.NetResources)
 
-	nodeID := n.identity.NodeID().Identity()
-
-	localResource, err := nr.ResourceByNodeID(nodeID, network.Resources)
-	if err != nil {
-		return "", err
-	}
-
-	privateKey, err := n.extractPrivateKey(localResource)
+	privateKey, err := n.extractPrivateKey(netNR.WGPrivateKey)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to extract private key from network object")
 	}
 
-	nr, err := nr.New(nodeID, &network, privateKey)
+	netr, err := nr.New(network.NetID, netNR)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to load network resource")
+		return "", err
 	}
 
 	cleanup := func() {
 		log.Error().Msg("clean up network resource")
-		if err := nr.Delete(); err != nil {
+		if err := netr.Delete(); err != nil {
 			log.Error().Err(err).Msg("error during deletion of network resource after failed deployment")
 		}
 	}
@@ -236,25 +239,16 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 	pubNS, _ := namespace.GetByName(types.PublicNamespace)
 
 	log.Info().Msg("create network resource namespace")
-	if err := nr.Create(pubNS); err != nil {
+	if err := netr.Create(pubNS); err != nil {
 		cleanup()
 		return "", errors.Wrap(err, "failed to create network resource")
 	}
 
-	if exitNodeNr, isExist := nr.IsExit(); isExist {
-		gw := gateway.New(network.PrefixZero, int(network.AllocationNR), exitNodeNr)
-		if err := gw.Create(); err != nil {
-			cleanup()
-			return "", errors.Wrap(err, "failed to create gateway")
-		}
-
-		if err := gw.AddNetResource(nr); err != nil {
-			cleanup()
-			return "", errors.Wrap(err, "failed to add network resource to gateway")
-		}
+	if err := ndmz.AttachNR(string(network.NetID), netr); err != nil {
+		return "", errors.Wrapf(err, "failed to attach network resource to DMZ bridge")
 	}
 
-	if err := nr.Configure(); err != nil {
+	if err := netr.ConfigureWG(privateKey); err != nil {
 		cleanup()
 		return "", errors.Wrap(err, "failed to configure network resource")
 	}
@@ -279,23 +273,10 @@ func (n *networker) ApplyNetResource(network modules.Network) (string, error) {
 		return "", errors.Wrap(err, "failed to store network object")
 	}
 
-	return nr.NamespaceName(), nil
+	return netr.Namespace()
 }
 
-func (n *networker) nibble(network *modules.Network) (*nib.Nibble, error) {
-	localResource, err := nr.ResourceByNodeID(n.identity.NodeID().Identity(), network.Resources)
-	if err != nil {
-		return nil, err
-	}
-
-	nibble, err := nib.NewNibble(localResource.Prefix, network.AllocationNR)
-	if err != nil {
-		return nil, err
-	}
-	return nibble, nil
-}
-
-func (n *networker) networkOf(id modules.NetID) (*modules.Network, error) {
+func (n *networker) networkOf(id uint64) (*modules.Network, error) {
 	path := filepath.Join(n.storageDir, string(id))
 	file, err := os.Open(path)
 	if err != nil {
@@ -330,10 +311,11 @@ func (n *networker) networkOf(id modules.NetID) (*modules.Network, error) {
 	return &net, nil
 }
 
-// ApplyNetResource implements modules.Networker interface
-func (n *networker) DeleteNetResource(network modules.Network) error {
-	nodeID := n.identity.NodeID().Identity()
-	nr, err := nr.New(nodeID, &network, wgtypes.Key{})
+// DeleteNR implements modules.Networker interface
+func (n *networker) DeleteNR(network modules.Network) error {
+	netNR, err := ResourceByNodeID(n.identity.NodeID().Identity(), network.NetResources)
+
+	nr, err := nr.New(network.NetID, netNR)
 	if err != nil {
 		return errors.Wrap(err, "failed to load network resource")
 	}
@@ -351,28 +333,17 @@ func (n *networker) DeleteNetResource(network modules.Network) error {
 	return nil
 }
 
-func (n *networker) extractPrivateKey(r *modules.NetResource) (wgtypes.Key, error) {
+func (n *networker) extractPrivateKey(hexKey string) (wgtypes.Key, error) {
 	//FIXME zaibon: I would like to move this into the nr package,
 	// but this method requires the identity module which is only available
 	// on the networker object
 
 	key := wgtypes.Key{}
 
-	peer, err := nr.PeerByPrefix(r.Prefix.String(), r.Peers)
+	sk, err := hex.DecodeString(hexKey)
 	if err != nil {
 		return key, err
 	}
-	if peer.Connection.PrivateKey == "" {
-		return key, fmt.Errorf("wireguard private key is empty")
-	}
-
-	// private key is hex encoded in the network object
-	sk := ""
-	_, err = fmt.Sscanf(peer.Connection.PrivateKey, "%x", &sk)
-	if err != nil {
-		return key, err
-	}
-
 	decoded, err := n.identity.Decrypt([]byte(sk))
 	if err != nil {
 		return key, err
@@ -430,4 +401,14 @@ func createNetNS(name string) (ns.NetNS, error) {
 	}
 
 	return netNs, nil
+}
+
+// ResourceByNodeID return the net resource associated with a nodeID
+func ResourceByNodeID(nodeID string, resources []*modules.NetResource) (*modules.NetResource, error) {
+	for _, resource := range resources {
+		if resource.NodeID == nodeID {
+			return resource, nil
+		}
+	}
+	return nil, fmt.Errorf("not network resource for this node: %s", nodeID)
 }

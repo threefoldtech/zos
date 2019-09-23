@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"os"
+
+	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
+
+	"github.com/threefoldtech/zosv2/modules/network/nr"
 
 	"github.com/threefoldtech/zosv2/modules/network/dhcp"
 
@@ -20,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules/network/namespace"
 	"github.com/threefoldtech/zosv2/modules/network/nft"
-	"github.com/threefoldtech/zosv2/modules/network/types"
 )
 
 const (
@@ -34,10 +38,14 @@ const (
 
 //Create create the gateway network namespace and configure its default routes and addresses
 func Create() error {
-	netNS, err := namespace.Create(NetNSNDMZ)
+	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
-		return err
+		netNS, err = namespace.Create(NetNSNDMZ)
+		if err != nil {
+			return err
+		}
 	}
+
 	defer netNS.Close()
 
 	if err := netNS.Do(func(_ ns.NetNS) error {
@@ -100,8 +108,10 @@ func attachVeth(netNS ns.NetNS) error {
 	vethHost := "to-dmz"
 	vethNDMZ := "public"
 
-	if _, _, err := ip.SetupVethWithName(vethHost, vethNDMZ, 1500, netNS); err != nil {
-		return errors.Wrap(err, "failed to create veth pair to connect zos bridge and ndmz bridge")
+	if !ifaceutil.Exists(vethHost, nil) || !ifaceutil.Exists(vethNDMZ, netNS) {
+		if _, _, err := ip.SetupVethWithName(vethHost, vethNDMZ, 1500, netNS); err != nil {
+			return errors.Wrap(err, "failed to create veth pair to connect zos bridge and ndmz bridge")
+		}
 	}
 	log.Info().
 		Str("ndmz side", vethNDMZ).
@@ -172,7 +182,7 @@ func createRoutingBridge(netNS ns.NetNS) error {
 			return err
 		}
 
-		_, ipnet, err := net.ParseCIDR("172.16.0.1/16")
+		_, ipnet, err := net.ParseCIDR("100.64.0.1/16")
 		if err != nil {
 			return err
 		}
@@ -189,11 +199,73 @@ func applyFirewall() error {
 		return errors.Wrap(err, "failed to build nft rule set")
 	}
 
-	if err := nft.Apply(&buf, types.GatewayNamespace); err != nil {
+	if err := nft.Apply(&buf, NetNSNDMZ); err != nil {
 		return errors.Wrap(err, "failed to apply nft rule set")
 	}
 
 	return nil
+}
+
+func AttachNR(networkID string, nr *nr.NetResource) error {
+	nrNSName, err := nr.Namespace()
+	if err != nil {
+		return err
+	}
+
+	nrNS, err := namespace.GetByName(nrNSName)
+	if err != nil {
+		return err
+	}
+
+	// dmzNS, err := namespace.GetByName("ndmz")
+	// if err != nil {
+	// 	return err
+	// }
+
+	vethNR := "public"
+	vethDMZ := fmt.Sprintf("nr-%d", nr.ID())
+
+	if _, _, err = ip.SetupVethWithName(vethDMZ, vethNR, 1500, nrNS); err != nil {
+		return errors.Wrap(err, "failed to create veth pair for ndmz")
+	}
+
+	err = nrNS.Do(func(_ ns.NetNS) error {
+		addr, err := allocateIPv4(networkID)
+		if err != nil {
+			return err
+		}
+
+		lvethNR, err := netlink.LinkByName((vethNR))
+		if err != nil {
+			return err
+		}
+
+		if err := netlink.AddrAdd(lvethNR, &netlink.Addr{IPNet: addr}); err != nil && !os.IsExist(err) {
+			return err
+		}
+
+		return netlink.RouteAdd(&netlink.Route{
+			Dst: &net.IPNet{
+				IP:   net.ParseIP("0.0.0.0"),
+				Mask: net.CIDRMask(0, 32),
+			},
+			Gw: net.ParseIP("100.64.0.1"),
+		})
+	})
+	if err != nil {
+		return err
+	}
+
+	lVethDMZ, err := netlink.LinkByName(vethDMZ)
+	if err != nil {
+		return err
+	}
+
+	br, err := bridge.Get(BridgeNDMZ)
+	if err != nil {
+		return err
+	}
+	return bridge.AttachNic(lVethDMZ, br)
 }
 
 // AddNetResource adds the routes of a network resource to the gateway network namespace

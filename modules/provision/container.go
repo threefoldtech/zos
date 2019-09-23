@@ -16,7 +16,7 @@ import (
 
 // Network struct
 type Network struct {
-	NetwokID string `json:"network_id"`
+	NetwokID modules.NetID `json:"network_id"`
 }
 
 // Mount defines a container volume mounted inside the container
@@ -80,7 +80,7 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 	}
 
 	log.Debug().
-		Str("network-id", config.Network.NetwokID).
+		Str("network-id", string(config.Network.NetwokID)).
 		Str("config", fmt.Sprintf("%+v", config)).
 		Msg("deploying network")
 
