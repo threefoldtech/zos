@@ -12,8 +12,8 @@ import (
 	"github.com/threefoldtech/zosv2/modules/version"
 )
 
-func revisionOf(bin string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func revisionOf(bin string, timeout time.Duration) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, bin, "-v")
@@ -35,7 +35,7 @@ func revisionOf(bin string) (string, error) {
 // to respond to ./<binary> -v and respond in a
 // valid version string as defined by `modules/version`
 func currentRevision() string {
-	revision, err := revisionOf(os.Args[0])
+	revision, err := revisionOf(os.Args[0], 1*time.Second)
 	if err != nil {
 		panic(err)
 	}

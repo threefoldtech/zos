@@ -197,7 +197,12 @@ func (u *Upgrader) upgradeSelf(root string) error {
 		return nil
 	}
 
-	new, err := revisionOf(bin)
+	// the timeout here is set to 1 min because
+	// this most probably will trigger a download
+	// of the binary over 0-fs, hence we need to
+	// give it enough time to download the file
+	// on slow network (i am looking at u Egypt)
+	new, err := revisionOf(bin, 2*time.Minute)
 	if err != nil {
 		return errors.Wrap(err, "failed to check new update daemon revision number")
 	}
