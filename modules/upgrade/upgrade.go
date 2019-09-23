@@ -180,6 +180,43 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]stri
 	return stopped, nil
 }
 
+// upgradeSelf will try to check if the flist has
+// an upgraded binary with different revision. If yes
+// it will copy the new binary and ask for a restart.
+// next time this method is called, it will match the flist
+// revision, and hence will continue updating all the other daemons
+func (u *Upgrader) upgradeSelf(root string) error {
+	current := currentRevision()
+	log.Debug().Str("revision", current).Msg("current revision")
+
+	bin := filepath.Join(root, currentBinPath())
+
+	if !exists(bin) {
+		// no bin for update daemon in the flist.
+		log.Debug().Str("bin", bin).Msg("binary file does not exist")
+		return nil
+	}
+
+	new, err := revisionOf(bin)
+	if err != nil {
+		return errors.Wrap(err, "failed to check new update daemon revision number")
+	}
+
+	log.Debug().Str("revision", new).Msg("new revision")
+
+	// nothing to be done here.
+	if current == new {
+		return nil
+	}
+
+	if err := copyFile(currentBinPath(), bin); err != nil {
+		return err
+	}
+
+	log.Debug().Msg("revisions are differnet, self upgrade is needed")
+	return ErrRestartNeeded
+}
+
 func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 	log.Info().Str("flist", u.Name()).Str("version", version.String()).Msg("start applying upgrade")
 
@@ -193,6 +230,10 @@ func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 			log.Error().Err(err).Msgf("fail to umount flist at %s: %v", flistRoot, err)
 		}
 	}()
+
+	if err := u.upgradeSelf(flistRoot); err != nil {
+		return err
+	}
 
 	// once the flist is mounted we can inspect
 	// it for all zinit config files.
@@ -230,7 +271,7 @@ func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 		}
 	}
 
-	if err := copyRecursive(flistRoot, "/"); err != nil {
+	if err := copyRecursive(flistRoot, "/", currentBinPath()); err != nil {
 		return err
 	}
 
@@ -252,7 +293,7 @@ func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 		return err
 	}
 
-	return ErrRestartNeeded
+	return nil
 }
 
 func copyRecursive(source string, destination string, skip ...string) error {
