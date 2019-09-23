@@ -2,7 +2,6 @@ package upgrade
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -97,14 +96,10 @@ func (b *FListInfo) Commit(path string) error {
 func (b *FListInfo) extractVersion(name string) (ver semver.Version, err error) {
 	// name is suppose to be as follows
 	// <name>:<version>.flist
-	parts := strings.SplitN(name, ":", 2)
-	if len(parts) != 2 {
-		return ver, fmt.Errorf("could not extract version from '%s'. invlaid syntax", name)
-	}
+	parts := strings.Split(name, ":")
+	last := parts[len(parts)-1]
 
-	v := strings.TrimSuffix(parts[1], ".flist")
-
-	return semver.Parse(v)
+	return semver.Parse(strings.TrimSuffix(last, ".flist"))
 }
 
 // Version returns the version of the flist
