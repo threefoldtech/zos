@@ -29,7 +29,7 @@ type Networker interface {
 	// name.
 	// The member name specifies the name of the member, and must be unique
 	// The NetID is the network id to join
-	// Join(member string, id NetID) (Member, error)
+	Join(networkdID NetID, containerID string, addrs []string) (join Member, err error)
 
 	// ZDBPrepare creates a network namespace with a macvlan interface into it
 	// to allow the 0-db container to be publicly accessible
@@ -42,34 +42,34 @@ type Networker interface {
 }
 
 type Network struct {
-	Name string
+	Name string `json:"name"`
 	//unique id inside the reservation is an autoincrement (USE AS NET_ID)
-	NetID NetID
+	NetID NetID `json:"net_id"`
 	// IP range of the network, must be an IPv4 /16
-	IPRange *net.IPNet
+	IPRange *net.IPNet `json:"ip_range"`
 
-	NetResources []*NetResource
+	NetResources []*NetResource `json:"net_resources"`
 }
 
 type NetResource struct {
-	NodeID string
+	NodeID string `json:"node_id"`
 	// IPV4 subnet from network IPRange
-	Subnet *net.IPNet
+	Subnet *net.IPNet `json:"subnet"`
 
-	WGPrivateKey string
-	WGPublicKey  string
-	WGListenPort uint16
+	WGPrivateKey string `json:"wg_private_key"`
+	WGPublicKey  string `json:"wg_public_key"`
+	WGListenPort uint16 `json:"wg_listen_port"`
 
-	Peers []*Peer
+	Peers []*Peer `json:"peers"`
 }
 
 type Peer struct {
 	// IPV4 subnet of the network resource of the peer
-	Subnet *net.IPNet
+	Subnet *net.IPNet `json:"subnet"`
 
-	WGPublicKey string
-	AllowedIPs  []*net.IPNet
-	Endpoint    net.IP
+	WGPublicKey string       `json:"wg_public_key"`
+	AllowedIPs  []*net.IPNet `json:"allowed_i_ps"`
+	Endpoint    net.IP       `json:"endpoint"`
 }
 
 // NetID is a type defining the ID of a network

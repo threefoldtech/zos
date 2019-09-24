@@ -38,6 +38,9 @@ const (
 
 //Create create the gateway network namespace and configure its default routes and addresses
 func Create() error {
+
+	os.RemoveAll("/var/cache/modules/networkd/lease/dmz/")
+
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
 		netNS, err = namespace.Create(NetNSNDMZ)
@@ -159,10 +162,6 @@ func createRoutingBridge(netNS ns.NetNS) error {
 		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", BridgeNDMZ)
 	}
 
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", vethNDMZ), "1"); err != nil {
-		return errors.Wrapf(err, "failed to disable ip6 on veth pair %s", vethNDMZ)
-	}
-
 	lVethBr, err := netlink.LinkByName(vethHost)
 	if err != nil {
 		return err
@@ -182,12 +181,11 @@ func createRoutingBridge(netNS ns.NetNS) error {
 			return err
 		}
 
-		_, ipnet, err := net.ParseCIDR("100.64.0.1/16")
-		if err != nil {
-			return err
-		}
 		return netlink.AddrAdd(lVethGW, &netlink.Addr{
-			IPNet: ipnet,
+			IPNet: &net.IPNet{
+				IP:   net.ParseIP("100.64.0.1"),
+				Mask: net.CIDRMask(16, 32),
+			},
 		})
 	})
 }
@@ -217,22 +215,24 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 		return err
 	}
 
-	// dmzNS, err := namespace.GetByName("ndmz")
-	// if err != nil {
-	// 	return err
-	// }
-
 	vethNR := "public"
-	vethDMZ := fmt.Sprintf("nr-%d", nr.ID())
+	vethDMZ := fmt.Sprintf("nr-%s", nr.ID())
 
-	if _, _, err = ip.SetupVethWithName(vethDMZ, vethNR, 1500, nrNS); err != nil {
-		return errors.Wrap(err, "failed to create veth pair for ndmz")
+	if !ifaceutil.Exists(vethDMZ, nil) || !ifaceutil.Exists(vethNR, nrNS) {
+		log.Debug().
+			Str("nr side", vethNR).
+			Str("dmz side", vethDMZ).
+			Msg("create veth pair to connect network resource and ndmz")
+
+		if _, _, err = ip.SetupVethWithName(vethDMZ, vethNR, 1500, nrNS); err != nil {
+			return errors.Wrap(err, "failed to create veth pair for to connect network resource and ndmz")
+		}
 	}
 
 	err = nrNS.Do(func(_ ns.NetNS) error {
 		addr, err := allocateIPv4(networkID)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "ip allocation for network resource veth error")
 		}
 
 		lvethNR, err := netlink.LinkByName((vethNR))
@@ -244,13 +244,18 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 			return err
 		}
 
-		return netlink.RouteAdd(&netlink.Route{
+		err = netlink.RouteAdd(&netlink.Route{
 			Dst: &net.IPNet{
 				IP:   net.ParseIP("0.0.0.0"),
 				Mask: net.CIDRMask(0, 32),
 			},
-			Gw: net.ParseIP("100.64.0.1"),
+			Gw:        net.ParseIP("100.64.0.1"),
+			LinkIndex: lvethNR.Attrs().Index,
 		})
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		return err
@@ -265,7 +270,10 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 	if err != nil {
 		return err
 	}
-	return bridge.AttachNic(lVethDMZ, br)
+	if err := bridge.AttachNic(lVethDMZ, br); err != nil && !os.IsExist(err) {
+		return errors.Wrapf(err, "failed to attach veth %s to bridge %s", vethDMZ, BridgeNDMZ)
+	}
+	return nil
 }
 
 // AddNetResource adds the routes of a network resource to the gateway network namespace

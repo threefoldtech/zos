@@ -2,6 +2,7 @@ package nr
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -35,12 +36,28 @@ type NetResource struct {
 // New creates a new NetResource object
 func New(networkID modules.NetID, netResource *modules.NetResource) (*NetResource, error) {
 
+	// one, bits := netResource.Subnet.Mask.Size()
+	// if one != 16 {
+	// 	return nil, fmt.Errorf("subnet of network resource must be a /16")
+	// }
+	// if bits != 32 {
+	// 	return nil, fmt.Errorf("subnet of network resource must be an ipv4 subnet")
+	// }
+
 	nr := &NetResource{
 		id:       networkID,
 		resource: netResource,
 	}
 
 	return nr, nil
+}
+
+func (nr *NetResource) String() string {
+	b, err := json.Marshal(nr.resource)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
 
 func (nr *NetResource) ID() string {
@@ -74,6 +91,8 @@ func (nr *NetResource) WGName() (string, error) {
 // Create setup the basic components of the network resource
 // network namespace, bridge, wireguard interface and veth pair
 func (nr *NetResource) Create(pubNS ns.NetNS) error {
+	log.Debug().Str("nr", nr.String()).Msg("create network resource")
+
 	if err := nr.createBridge(); err != nil {
 		return err
 	}
@@ -95,8 +114,8 @@ func (nr *NetResource) Create(pubNS ns.NetNS) error {
 
 func wgIP(subnet *net.IPNet) *net.IPNet {
 	// example: 10.3.1.0 -> 10.255.3.1
-	a := subnet.IP[11]
-	b := subnet.IP[12]
+	a := subnet.IP[len(subnet.IP)-2]
+	b := subnet.IP[len(subnet.IP)-1]
 
 	return &net.IPNet{
 		IP:   net.IPv4(0x10, 0xff, a, b),
@@ -405,7 +424,7 @@ func (nr *NetResource) createVethPair() error {
 		}
 
 		ipnet := nr.resource.Subnet
-		ipnet.IP[15] = 0x00
+		ipnet.IP[len(ipnet.IP)-1] = 0x01
 		log.Info().Str("addr", ipnet.String()).Msg("set address on veth interface")
 
 		addr := &netlink.Addr{IPNet: ipnet, Label: ""}
@@ -437,7 +456,10 @@ func (nr *NetResource) createVethPair() error {
 		Str("bridge", bridgeName).
 		Msg("attach veth to bridge")
 
-	return bridge.AttachNic(hostVeth, brLink)
+	if err := bridge.AttachNic(hostVeth, brLink); err != nil {
+		return errors.Wrapf(err, "failed to attach veth %s to bridge %s", vethName, bridgeName)
+	}
+	return nil
 }
 
 // createBridge creates a bridge in the host namespace

@@ -24,6 +24,7 @@ table inet filter {
     }
   chain input {
     type filter hook input priority 0; policy accept;
+    jump base_checks
     iifname "public" counter drop
   }
 

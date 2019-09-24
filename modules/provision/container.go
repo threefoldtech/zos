@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path"
 
@@ -17,6 +18,8 @@ import (
 // Network struct
 type Network struct {
 	NetwokID modules.NetID `json:"network_id"`
+	// IP to give to the container
+	IPs []net.IP `json:"ips"`
 }
 
 // Mount defines a container volume mounted inside the container
@@ -85,7 +88,13 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 		Msg("deploying network")
 
 	networkMgr := stubs.NewNetworkerStub(GetZBus(ctx))
-	join, err := networkMgr.Join(reservation.ID, modules.NetID(config.Network.NetwokID))
+
+	ips := make([]string, len(config.Network.IPs))
+	for i, ip := range config.Network.IPs {
+		ips[i] = ip.String()
+	}
+
+	join, err := networkMgr.Join(modules.NetID(config.Network.NetwokID), containerID, ips)
 	if err != nil {
 		return nil, err
 	}

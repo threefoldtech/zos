@@ -22,7 +22,6 @@ func main() {
 
 	var (
 		msgBrokerCon string
-		resURL       string
 		tnodbURL     string
 		storageDir   string
 		debug        bool
@@ -32,7 +31,6 @@ func main() {
 	flag.StringVar(&storageDir, "root", "/var/cache/modules/provisiond", "root path of the module")
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
 	flag.StringVar(&tnodbURL, "tnodb", "https://tnodb.dev.grid.tf", "address of tenant network object database")
-	flag.StringVar(&resURL, "url", "https://tnodb.dev.grid.tf", "URL of the reservation server to poll from")
 	flag.BoolVar(&debug, "debug", false, "enable debug logging")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
@@ -47,8 +45,8 @@ func main() {
 
 	flag.Parse()
 
-	if resURL == "" {
-		log.Fatal().Msg("reservation URL cannot be empty")
+	if tnodbURL == "" {
+		log.Fatal().Msg("bcdb URL cannot be empty")
 	}
 
 	if err := os.MkdirAll(storageDir, 0770); err != nil {
@@ -64,7 +62,7 @@ func main() {
 	nodeID := identity.NodeID()
 
 	// to get reservation from tnodb
-	remoteStore := provision.NewHTTPStore(resURL)
+	remoteStore := provision.NewHTTPStore(tnodbURL)
 	// to store reservation locally on the node
 	localStore, err := provision.NewFSStore(filepath.Join(storageDir, "reservations"))
 	if err != nil {

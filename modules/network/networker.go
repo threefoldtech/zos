@@ -100,7 +100,7 @@ func validateNetwork(n *modules.Network) error {
 	return nil
 }
 
-func (n *networker) Join(networkdID modules.NetID, containerID string, id uint64, addrs []*net.IPNet) (join modules.Member, err error) {
+func (n *networker) Join(networkdID modules.NetID, containerID string, addrs []string) (join modules.Member, err error) {
 	// TODO:
 	// 1- Make sure this network id is actually deployed
 	// 2- Create a new namespace, then create a veth pair inside this namespace
@@ -108,11 +108,11 @@ func (n *networker) Join(networkdID modules.NetID, containerID string, id uint64
 	// 4- Assign IP to the veth endpoint inside the namespace.
 	// 5- return the namespace name
 
-	log.Info().Str("network-id", string(id)).Msg("joining network")
+	log.Info().Str("network-id", string(networkdID)).Msg("joining network")
 
-	network, err := n.networkOf(id)
+	network, err := n.networkOf(string(networkdID))
 	if err != nil {
-		return join, errors.Wrapf(err, "couldn't load network with id (%s)", id)
+		return join, errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
 	}
 
 	nodeID := n.identity.NodeID().Identity()
@@ -126,7 +126,12 @@ func (n *networker) Join(networkdID modules.NetID, containerID string, id uint64
 		return join, errors.Wrap(err, "failed to load network resource")
 	}
 
-	return netRes.Join(containerID, addrs)
+	ips := make([]net.IP, len(addrs))
+	for i, addr := range addrs {
+		ips[i] = net.ParseIP(addr)
+	}
+
+	return netRes.Join(containerID, ips)
 }
 
 // ZDBPrepare sends a macvlan interface into the
@@ -216,7 +221,19 @@ func (n *networker) CreateNR(network modules.Network) (string, error) {
 	// 	log.Error().Err(err).Msg("network object format invalid")
 	// 	return "", err
 	// }
+
+	b, err := json.Marshal(network)
+	if err != nil {
+		panic(err)
+	}
+	log.Debug().
+		Str("network", string(b)).
+		Msg("create NR")
+
 	netNR, err := ResourceByNodeID(n.identity.NodeID().Identity(), network.NetResources)
+	if err != nil {
+		return "", err
+	}
 
 	privateKey, err := n.extractPrivateKey(netNR.WGPrivateKey)
 	if err != nil {
@@ -268,7 +285,7 @@ func (n *networker) CreateNR(network modules.Network) (string, error) {
 	}
 
 	enc := json.NewEncoder(writer)
-	if err := enc.Encode(network); err != nil {
+	if err := enc.Encode(&network); err != nil {
 		cleanup()
 		return "", errors.Wrap(err, "failed to store network object")
 	}
@@ -276,7 +293,7 @@ func (n *networker) CreateNR(network modules.Network) (string, error) {
 	return netr.Namespace()
 }
 
-func (n *networker) networkOf(id uint64) (*modules.Network, error) {
+func (n *networker) networkOf(id string) (*modules.Network, error) {
 	path := filepath.Join(n.storageDir, string(id))
 	file, err := os.Open(path)
 	if err != nil {
@@ -314,6 +331,9 @@ func (n *networker) networkOf(id uint64) (*modules.Network, error) {
 // DeleteNR implements modules.Networker interface
 func (n *networker) DeleteNR(network modules.Network) error {
 	netNR, err := ResourceByNodeID(n.identity.NodeID().Identity(), network.NetResources)
+	if err != nil {
+		return err
+	}
 
 	nr, err := nr.New(network.NetID, netNR)
 	if err != nil {

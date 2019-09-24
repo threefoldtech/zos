@@ -18,13 +18,13 @@ func allocateIPv4(networkID string) (*net.IPNet, error) {
 	}
 
 	r := allocator.Range{
-		RangeStart: net.ParseIP("172.16.0.2"),
-		RangeEnd:   net.ParseIP("172.16.0.255"),
+		RangeStart: net.ParseIP("100.64.0.2"),
+		RangeEnd:   net.ParseIP("100.64.0.255"),
 		Subnet: types.IPNet(net.IPNet{
-			IP:   net.ParseIP("172.17.0.0"),
-			Mask: net.CIDRMask(24, 32),
+			IP:   net.ParseIP("100.64.0.0"),
+			Mask: net.CIDRMask(16, 32),
 		}),
-		Gateway: net.ParseIP("172.16.0.1"),
+		Gateway: net.ParseIP("100.64.0.1"),
 	}
 
 	if err := r.Canonicalize(); err != nil {
@@ -33,23 +33,23 @@ func allocateIPv4(networkID string) (*net.IPNet, error) {
 
 	set := allocator.RangeSet{r}
 
-	// // unfortunately, calling the allocator Get() directly will try to allocate
-	// // a new IP. if the ID/nic already has an ip allocated it will just fail instead of returning
-	// // the same IP.
-	// // So we have to check the store ourselves to see if there is already an IP allocated
-	// // to this container, and if one found, we return it.
-	// store.Lock()
-	// ips := store.GetByID(containerID, "eth0")
-	// store.Unlock()
-	// if len(ips) > 0 {
-	// 	ip := ips[0]
-	// 	rng, err := set.RangeFor(ip)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	// unfortunately, calling the allocator Get() directly will try to allocate
+	// a new IP. if the ID/nic already has an ip allocated it will just fail instead of returning
+	// the same IP.
+	// So we have to check the store ourselves to see if there is already an IP allocated
+	// to this container, and if one found, we return it.
+	store.Lock()
+	ips := store.GetByID(networkID, "eth0")
+	store.Unlock()
+	if len(ips) > 0 {
+		ip := ips[0]
+		rng, err := set.RangeFor(ip)
+		if err != nil {
+			return nil, err
+		}
 
-	// 	return &net.IPNet{IP: ip, Mask: rng.Subnet.Mask}, nil
-	// }
+		return &net.IPNet{IP: ip, Mask: rng.Subnet.Mask}, nil
+	}
 
 	aloc := allocator.NewIPAllocator(&set, store, 0)
 
