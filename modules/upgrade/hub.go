@@ -91,7 +91,7 @@ type FListInfo struct {
 
 // Commit write version to version file
 func (b *FListInfo) Commit(path string) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0400)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0400)
 	if err != nil {
 		return err
 	}
