@@ -19,25 +19,6 @@ type Hub struct {
 	client http.Client
 }
 
-func newTestHub(baseURL, user, token string) (*Hub, error) {
-	base, err := url.Parse(baseURL)
-	if err != nil {
-		return nil, err
-	}
-
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	jar.SetCookies(base, []*http.Cookie{
-		&http.Cookie{Name: "caddyoauth", Value: token},
-		&http.Cookie{Name: "active-user", Value: user},
-	})
-
-	return &Hub{client: http.Client{Jar: jar}, base: base}, nil
-}
-
 // NewHub creates a new hub client
 func NewHub(token string) (*Hub, error) {
 	base, err := url.Parse(baseHubURL)

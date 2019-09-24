@@ -2,11 +2,32 @@ package main
 
 import (
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func newTestHub(baseURL, user, token string) (*Hub, error) {
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	jar.SetCookies(base, []*http.Cookie{
+		&http.Cookie{Name: "caddyoauth", Value: token},
+		&http.Cookie{Name: "active-user", Value: user},
+	})
+
+	return &Hub{client: http.Client{Jar: jar}, base: base}, nil
+}
 
 func TestHubRename(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
