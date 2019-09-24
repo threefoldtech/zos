@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
 	"time"
 
+	"github.com/threefoldtech/zosv2/modules/utils"
 	"github.com/threefoldtech/zosv2/modules/zinit"
 
 	"flag"
@@ -20,6 +23,34 @@ const (
 	redisSocket = "unix:///var/run/redis.sock"
 	zinitSocket = "/var/run/zinit.sock"
 )
+
+// setup is a sanity check function, the whole purpose of this
+// is to make sure at least required services are running in case
+// of upgrade failure
+// for example, in case of upgraded crash after it already stopped all
+// the services for upgrade.
+func setup(zinit *zinit.Client) error {
+	for _, required := range []string{"redis", "flistd"} {
+		if err := zinit.StartWait(5*time.Second, required); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SafeUpgrade makes sure upgrade daemon is not interrupted
+// While
+func SafeUpgrade(upgrader *upgrade.Upgrader) error {
+	ch := make(chan os.Signal)
+	defer close(ch)
+	defer signal.Stop(ch)
+
+	// try to upgraded to latest
+	// but mean while also make sure the daemon can not be killed by a signal
+	signal.Notify(ch)
+	return upgrader.Upgrade()
+}
 
 func main() {
 	var (
@@ -43,6 +74,23 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
+	if upgrade.DetectBootMethod() != upgrade.BootMethodFList {
+		log.Info().Msg("not booted with an flist. life upgrade is not supported")
+		// wait forever
+		select {}
+	}
+
+	zinit, err := zinit.New(zinitSocket)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to zinit")
+	}
+
+	// recover procedure to make sure upgrade always has what it needs
+	// to work
+	if err := setup(zinit); err != nil {
+		log.Fatal().Err(err).Msg("upgraded setup failed")
+	}
+
 	zbusClient, err := zbus.NewRedisClient(broker)
 	if err != nil {
 		log.Error().Err(err).Msg("fail to connect to broker")
@@ -50,27 +98,35 @@ func main() {
 	}
 
 	flister := stubs.NewFlisterStub(zbusClient)
-	zinit := zinit.New(zinitSocket)
-	if err := zinit.Connect(); err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to zinit")
+
+	upgrader := upgrade.Upgrader{
+		FLister: flister,
+		Zinit:   zinit,
 	}
-
-	u := upgrade.New(root, flister, zinit)
-
-	// watcher := upgrade.NewPeriodicWatcher(10 * time.Second)
-	publisher := upgrade.NewHTTPPublisher(url)
 
 	log.Info().Msg("start upgrade daemon")
 
-	// try to upgrade as soon as we boot, then check periodically
-	_ = u.Upgrade(publisher)
-
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 
-	for range ticker.C {
-		if err := u.Upgrade(publisher); err != nil {
-			log.Error().Err(err).Msg("fail to apply upgrade")
+	ctx, _ := utils.WithSignal(context.Background())
+	utils.OnDone(ctx, func(_ error) {
+		log.Info().Msg("shutting down")
+	})
+
+	for {
+		err := SafeUpgrade(&upgrader)
+		if err == upgrade.ErrRestartNeeded {
+			log.Info().Msg("restarting upgraded")
+			return
+		} else if err != nil {
+			//TODO: crash or continue!
+			log.Error().Err(err).Msg("upgrade failed")
+		}
+
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			break
 		}
 	}
-
 }
