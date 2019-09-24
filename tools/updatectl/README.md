@@ -4,15 +4,27 @@ A simple tool to release flist to the hub. The tool simplifies the renaming and 
 
 To make a release you need the following:
 - Know version you want to release
-- The flist name to release 
+- The flist name to release
 - A release name (this can be anything)
 - IYO jwt token for hub access
 
 A release will do the following:
-- Rename the `flist` to the proper versioned flist name -> `<release>:<version>.flist` 
+- Rename the `flist` to the proper versioned flist name -> `<release>:<version>.flist`
 - Create a link from the `<release>.flist -> <release>:<version>.flist`
 
 ## Usage
+### Getting a JWT token
+Getting a valid `itsyou.online` token is explained here in details, but in short you can do the following
+
+```bash
+curl -XPOST https://itsyou.online/v1/oauth/access_token?grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}&response_type=id_token > token.jwt
+```
+
+You can get a valid `CLIENT_ID` and `CLIENT_SECRET` from your [itsyou.online](https://itsyou.online/) account
+
+### Releasing
+After you have the token ready in fine `token.jwt`
+
 ```bash
 # FLIST is the flist to release
 export FLIST=flist-to-release.flist
