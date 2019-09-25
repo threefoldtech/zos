@@ -1,20 +1,29 @@
 #!/bin/bash
 set -e
 
-debug="false"
-
-tfubin="${PWD}/../tfuser/tfuser"
-schemas="${PWD}/schemas"
-
-farmid="A3y5F8CoHVZiq3SvtY9pcJXC67aotSPk8AKMZYzkxyb6"
+# if the nodeid is empty
+# a random node will be picked up on
+# the provided farm
 nodeid="31DUUkrpokZBygezsHpLiRBmRPRnrxkPGFtvbxVsm5ix"
+
+# the farmer id will be used to pickup a node
+# inside this farm if no node are specified
+farmid="A3y5F8CoHVZiq3SvtY9pcJXC67aotSPk8AKMZYzkxyb6"
+
 # tnodb="https://tnodb.dev.grid.tf"
 tnodb="http://10.241.0.189:8080"
-duration="20m"
-seed="${schemas}/user.seed"
 
+# default duration of provisioning
+duration="20m"
+
+# forward logs to this redis server
 redislog="10.4.0.250"
 redischan="debug-$(date +%s)"
+
+# debug will enable lot of verbosity
+# values are 'true' or 'false'
+debug="false"
+
 
 dependencies() {
     if ! which curl > /dev/null 2>&1; then
@@ -38,8 +47,11 @@ setup() {
     rm -rf ${schemas}
     mkdir -p ${schemas}
 
-    # updating binary path with arguments
+    # updating internal arguments
+    tfubin="${PWD}/../tfuser/tfuser"
+    schemas="${PWD}/schemas"
     tfubin="${tfubin} --tnodb ${tnodb} --provision ${tnodb}"
+    seed="${schemas}/user.seed"
 
     # initialize tests array
     tests=()
@@ -191,16 +203,16 @@ main() {
 
     generate_debug
     # generate_network
-    generate_containers
+    # generate_containers
     generate_zdb
 
     echo "[+]"
     echo "[+] sending provisioning"
     echo "[+]"
 
-    # provision_network
     provision_debug
-    provision_containers
+    # provision_network
+    # provision_containers
     provision_zdb
 
     teststatus
