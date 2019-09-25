@@ -1,29 +1,31 @@
 #!/bin/bash
 set -e
 
-# if the nodeid is empty
-# a random node will be picked up on
-# the provided farm
-nodeid="31DUUkrpokZBygezsHpLiRBmRPRnrxkPGFtvbxVsm5ix"
+# default fallback values
+dfarmid="CemYjciEmuvYVKDFXYaZLdGsCdLDRp4U1Xu1LPPrQNkK"
+dtnodb="https://tnodb.dev.grid.tf"
+dredis="10.4.0.250"
 
-# the farmer id will be used to pickup a node
-# inside this farm if no node are specified
-farmid="A3y5F8CoHVZiq3SvtY9pcJXC67aotSPk8AKMZYzkxyb6"
-
-# tnodb="https://tnodb.dev.grid.tf"
-tnodb="http://10.241.0.189:8080"
+# initializing variables
+nodeid=""
+farmid=""
+tnodb=""
 
 # default duration of provisioning
 duration="20m"
 
 # forward logs to this redis server
-redislog="10.4.0.250"
+redislog=""
 redischan="debug-$(date +%s)"
 
 # debug will enable lot of verbosity
 # values are 'true' or 'false'
 debug="false"
 
+blue="\033[1;34m"
+green="\033[1;32m"
+red="\033[1;31m"
+nc="\033[0m"
 
 dependencies() {
     if ! which curl > /dev/null 2>&1; then
@@ -160,7 +162,7 @@ teststatus() {
     echo "[+]"
 
     for index in "${!tests[@]}"; do
-        echo -en "[+] \033[1;34m"
+        echo -en "[+] ${blue}"
         printf "%-14s: " "${testsname[$index]}"
 
         while : ; do
@@ -172,13 +174,13 @@ teststatus() {
             fi
 
             if echo "$status" | jq -e '.Result.error == ""' > /dev/null; then
-                echo -en "\033[1;32m"
-                echo -en "success\033[0m, data: "
+                echo -en "${green}"
+                echo -en "success${nc}, data: "
                 echo "$status" | jq '.Result.data'
 
             else
-                echo -en "\033[1;31m"
-                echo -en "failed\033[0m, error: "
+                echo -en "${red}"
+                echo -en "failed${nc}, error: "
                 echo "$status" | jq -r '.Result.error'
             fi
 
@@ -189,10 +191,52 @@ teststatus() {
     done
 }
 
+usage() {
+    echo "Usage: $0 [-n nodeid] [-f farmid] [-t tnourl] [-r redis-endpoint]"
+    echo ""
+    echo "Default values:"
+    echo "  farmid: $dfarmid"
+    echo "  nodeid: (random within the farm)"
+    echo "   tnodb: $dtnodb"
+    echo "   redis: $dredis"
+}
+
+options() {
+    while getopts "n:f:t:r:" arg; do
+        case "${arg}" in
+            n)
+                nodeid=${OPTARG} ;;
+            f)
+                farmid=${OPTARG} ;;
+            t)
+                tnodb=${OPTARG} ;;
+            r)
+                redislog=${OPTARG} ;;
+            *)
+                usage
+                exit 1
+                ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    farmid=${farmid:-$dfarmid}
+    tnodb=${tnodb:-$dtnodb}
+    redislog=${redislog:-$dredis}
+
+    echo -e "[+] farm id: ${blue}${farmid}${nc}"
+    echo -e "[+] tnodb url: ${blue}${tnodb}${nc}"
+    echo -e "[+] redis link: ${blue}${redislog}${nc} / ${blue}${redischan}${nc}"
+}
+
 main() {
     echo "[+] initializing stress test"
 
     dependencies
+    options $@
+
+    exit 1
+
     setup
     identity
     select_node
