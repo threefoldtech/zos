@@ -9,6 +9,7 @@ import (
 
 	"github.com/dave/jennifer/jen"
 	"github.com/iancoleman/strcase"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -21,6 +22,7 @@ var (
 		IntegerKind:   {"", "int64"},
 		FloatKind:     {"", "float64"},
 		BoolKind:      {"", "bool"},
+		BytesKind:     {"", "[]byte"},
 		DateKind:      {"github.com/threefoldtech/zosv2/modules/schema", "Date"},
 		DateTimeKind:  {"github.com/threefoldtech/zosv2/modules/schema", "Date"},
 		NumericKind:   {"github.com/threefoldtech/zosv2/modules/schema", "Numeric"},
@@ -147,7 +149,7 @@ func (g *goGenerator) renderType(typ *Type) (jen.Code, error) {
 	default:
 		m, ok := goKindMap[typ.Kind]
 		if !ok {
-			return nil, fmt.Errorf("unsupported type in the go generator: %s", typ.Kind)
+			return nil, errors.Errorf("unsupported type in the go generator: %s", typ.Kind)
 		}
 
 		return jen.Qual(m[0], m[1]), nil
@@ -178,7 +180,7 @@ func (g *goGenerator) object(j *jen.File, obj *Object) error {
 			} else {
 				typ, err = g.renderType(&prop.Type)
 				if err != nil {
-					structErr = err
+					structErr = errors.Wrapf(err, "object(%s).property(%s)", obj.URL, name)
 					return
 				}
 			}
