@@ -16,7 +16,7 @@ const (
 
 var (
 	directiveRe = regexp.MustCompile(`@(\w+)\s*=\s*([^\#]+)`)
-	propertyRe  = regexp.MustCompile(`(\w+)(\*)?\s*=\s*([^\#]+)`)
+	propertyRe  = regexp.MustCompile(`(\w+)(\*){0,2}\s*=\s*([^\#]+)`)
 	typeRe      = regexp.MustCompile(`^([^\(]*)\(([^\)]+)\)\s*(?:!(.+))?$`)
 )
 
@@ -125,7 +125,6 @@ func New(r io.Reader) (schema Schema, err error) {
 			if current == nil {
 				return schema, fmt.Errorf("unexpected token [line %d]: %s", nr, line)
 			}
-
 			prop, err := property(line)
 			if err != nil {
 				return schema, fmt.Errorf("failed to parse property [line %d]: %s", nr, err)
@@ -215,6 +214,16 @@ const (
 	URLKind
 	EnumKind
 )
+
+func (k Kind) String() string {
+	for s, i := range symbols {
+		if i == k {
+			return s
+		}
+	}
+
+	return "unknown"
+}
 
 var (
 	symbols = map[string]Kind{
