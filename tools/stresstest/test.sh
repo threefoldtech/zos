@@ -45,13 +45,14 @@ setup() {
         set -x
     fi
 
+    schemas="${PWD}/schemas"
+
     echo "[+] setting up environment"
     rm -rf ${schemas}
     mkdir -p ${schemas}
 
     # updating internal arguments
     tfubin="${PWD}/../tfuser/tfuser"
-    schemas="${PWD}/schemas"
     tfubin="${tfubin} --tnodb ${tnodb} --provision ${tnodb}"
     seed="${schemas}/user.seed"
 
@@ -234,8 +235,6 @@ main() {
 
     dependencies
     options $@
-
-    exit 1
 
     setup
     identity
