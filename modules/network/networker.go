@@ -20,6 +20,7 @@ import (
 	"github.com/threefoldtech/zosv2/modules/network/macvlan"
 	"github.com/threefoldtech/zosv2/modules/network/nr"
 	"github.com/threefoldtech/zosv2/modules/network/types"
+	"github.com/threefoldtech/zosv2/modules/set"
 	"github.com/threefoldtech/zosv2/modules/versioned"
 
 	"github.com/rs/zerolog/log"
@@ -38,6 +39,7 @@ type networker struct {
 	identity   modules.IdentityManager
 	storageDir string
 	tnodb      TNoDB
+	portSet    *set.UintSet
 }
 
 // NewNetworker create a new modules.Networker that can be used over zbus
@@ -46,6 +48,7 @@ func NewNetworker(identity modules.IdentityManager, tnodb TNoDB, storageDir stri
 		identity:   identity,
 		storageDir: storageDir,
 		tnodb:      tnodb,
+		portSet:    set.NewUint(),
 	}
 
 	return nw
@@ -233,11 +236,14 @@ func (n *networker) CreateNR(network modules.Network) (string, error) {
 		return "", err
 	}
 
+	if err := n.reservePort(netNR.WGListenPort); err != nil {
+		return "", err
+	}
+
 	privateKey, err := n.extractPrivateKey(netNR.WGPrivateKey)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to extract private key from network object")
 	}
-	log.Debug().Str("private key", privateKey).Msg("private ket extracted")
 
 	netr, err := nr.New(network.NetID, netNR)
 	if err != nil {
@@ -246,6 +252,9 @@ func (n *networker) CreateNR(network modules.Network) (string, error) {
 
 	cleanup := func() {
 		log.Error().Msg("clean up network resource")
+		if err := n.releasePort(netNR.WGListenPort); err != nil {
+			log.Error().Err(err).Msg("release wireguard port failed")
+		}
 		if err := netr.Delete(); err != nil {
 			log.Error().Err(err).Msg("error during deletion of network resource after failed deployment")
 		}
@@ -343,6 +352,11 @@ func (n *networker) DeleteNR(network modules.Network) error {
 		return errors.Wrap(err, "failed to delete network resource")
 	}
 
+	if err := n.releasePort(netNR.WGListenPort); err != nil {
+		log.Error().Err(err).Msg("release wireguard port failed")
+		// TODO: should we return the error ?
+	}
+
 	// map the network ID to the network namespace
 	path := filepath.Join(n.storageDir, string(network.NetID))
 	if err := os.Remove(path); err != nil {
@@ -366,6 +380,32 @@ func (n *networker) extractPrivateKey(hexKey string) (string, error) {
 	}
 
 	return string(decoded), nil
+}
+
+func (n *networker) reservePort(port uint16) error {
+	err := n.portSet.Add(uint(port))
+	if err != nil {
+		return errors.Wrap(err, "wireguard listen port already in use, pick another one")
+	}
+
+	if err := n.tnodb.PublishWGPort(n.identity.NodeID(), n.portSet.List()); err != nil {
+		n.portSet.Remove(uint(port))
+		return errors.Wrap(err, "fail to publish wireguard port to bcdb")
+	}
+
+	return nil
+}
+
+func (n *networker) releasePort(port uint16) error {
+	n.portSet.Remove(uint(port))
+
+	if err := n.tnodb.PublishWGPort(n.identity.NodeID(), n.portSet.List()); err != nil {
+		// maybe retry a couple of times ?
+		// having bdb and the node out of sync is pretty bad
+		return errors.Wrap(err, "fail to publish wireguard port to bcdb")
+	}
+
+	return nil
 }
 
 // publicMasterIface return the name of the master interface

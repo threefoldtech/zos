@@ -15,9 +15,18 @@ type TNoDB interface {
 	RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, uint8, error)
 	GetFarm(farm modules.Identifier) (Farm, error)
 
+	// Publish the detail of the network interface that are up and have a cable plugged-in
 	PublishInterfaces(node modules.Identifier) error
+	// send a list of used port to BCDB
+	// This is then used by users to pick a free port to
+	// use for their wireguard network configuration
+	PublishWGPort(nodeID modules.Identifier, ports []uint) error
+
+	// Retrieve detail about a node
 	GetNode(modules.Identifier) (*types.Node, error)
 
+	// Configure network configuration that a node must apply
+	// this is used by the farmer
 	ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error
 	ReadPubIface(node modules.Identifier) (*types.PubIface, error)
 

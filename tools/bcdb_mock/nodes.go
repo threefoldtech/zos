@@ -24,15 +24,11 @@ func registerNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	i, ok := nodeStore[n.NodeID]
-	if !ok || i.Node == nil {
-		nodeStore[n.NodeID] = node{
-			Node:     n,
-			Capacity: &capacity.Capacity{},
-		}
-
+	if !ok || i == nil {
+		nodeStore[n.NodeID] = n
 	} else {
-		i.Node.NodeID = n.NodeID
-		i.Node.FarmID = n.FarmID
+		i.NodeID = n.NodeID
+		i.FarmID = n.FarmID
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -48,7 +44,7 @@ func nodeDetail(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(&node.Node); err != nil {
+	if err := json.NewEncoder(w).Encode(&node); err != nil {
 		log.Printf("error writing node: %v", err)
 	}
 }
@@ -58,14 +54,14 @@ func listNodes(w http.ResponseWriter, r *http.Request) {
 	farm := r.URL.Query().Get("farm")
 
 	for _, node := range nodeStore {
-		if node.Node == nil {
+		if node == nil {
 			continue
 		}
 
-		if farm != "" && node.Node.FarmID != farm {
+		if farm != "" && node.FarmID != farm {
 			continue
 		}
-		nodes = append(nodes, node.Node)
+		nodes = append(nodes, node)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
