@@ -9,7 +9,6 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	mapset "github.com/deckarep/golang-set"
 
@@ -35,14 +34,6 @@ type NetResource struct {
 
 // New creates a new NetResource object
 func New(networkID modules.NetID, netResource *modules.NetResource) (*NetResource, error) {
-
-	// one, bits := netResource.Subnet.Mask.Size()
-	// if one != 16 {
-	// 	return nil, fmt.Errorf("subnet of network resource must be a /16")
-	// }
-	// if bits != 32 {
-	// 	return nil, fmt.Errorf("subnet of network resource must be an ipv4 subnet")
-	// }
 
 	nr := &NetResource{
 		id:       networkID,
@@ -125,7 +116,7 @@ func wgIP(subnet *net.IPNet) *net.IPNet {
 
 // ConfigureWG sets the routes and IP addresses on the
 // wireguard interface of the network resources
-func (nr *NetResource) ConfigureWG(privateKey wgtypes.Key) error {
+func (nr *NetResource) ConfigureWG(privateKey string) error {
 	routes, err := nr.routes()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate routes for wireguard")
@@ -157,7 +148,7 @@ func (nr *NetResource) ConfigureWG(privateKey wgtypes.Key) error {
 			return errors.Wrapf(err, "failed to get wireguard interface %s", wgName)
 		}
 
-		if err = wg.Configure(privateKey.String(), int(nr.resource.WGListenPort), wgPeers); err != nil {
+		if err = wg.Configure(privateKey, int(nr.resource.WGListenPort), wgPeers); err != nil {
 			return errors.Wrap(err, "failed to configure wireguard interface")
 		}
 
@@ -281,10 +272,7 @@ func (nr *NetResource) wgPeers() ([]*wireguard.Peer, error) {
 		wgPeer := &wireguard.Peer{
 			PublicKey:  string(peer.WGPublicKey),
 			AllowedIPs: allowedIPs,
-		}
-
-		if peer.Endpoint != nil {
-			wgPeer.Endpoint = peer.Endpoint.String()
+			Endpoint:   peer.Endpoint,
 		}
 
 		log.Info().Str("peer prefix", peer.Subnet.String()).Msg("generate wireguard configuration for peer")
@@ -293,52 +281,6 @@ func (nr *NetResource) wgPeers() ([]*wireguard.Peer, error) {
 
 	return wgPeers, nil
 }
-
-// GWTNRoutesIPv6 returns the routes to set in the gateway network namespace
-// to be abe to reach a network resource
-// func (nr *NetResource) GWTNRoutesIPv6() ([]*netlink.Route, error) {
-// 	routes := make([]*netlink.Route, 0)
-
-// 	for _, peer := range nr.resource.Peers {
-// 		routes = append(routes, &netlink.Route{
-// 			Dst: peer.Prefix,
-// 			Gw:  nr.nibble.EPPubLL().IP,
-// 		})
-// 	}
-
-// 	return routes, nil
-// }
-
-// // GWTNRoutesIPv4 returns the routes to set in the gateway network namespace
-// // to be abe to reach a network resource
-// func (nr *NetResource) GWTNRoutesIPv4() ([]*netlink.Route, error) {
-// 	routes := make([]*netlink.Route, 0)
-
-// 	for _, peer := range nr.resource.Peers {
-// 		peerNibble, err := zosip.NewNibble(peer.Prefix, nr.allocNr)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		//IPv4 routing
-// 		ipnet := peerNibble.WGIP4RT()
-// 		ipnet.Mask = net.CIDRMask(32, 32)
-// 		routes = append(routes, &netlink.Route{
-// 			Dst: ipnet,
-// 			Gw:  nr.nibble.EPPubIP4R().IP,
-// 		})
-// 		// IPv4 wiregard host routing
-// 		ipnet = peerNibble.NRLocalIP4()
-// 		ipnet.IP[15] = 0x00
-
-// 		routes = append(routes, &netlink.Route{
-// 			Dst: ipnet,
-// 			Gw:  nr.nibble.EPPubIP4R().IP,
-// 		})
-// 	}
-
-// 	return routes, nil
-// }
 
 func (nr *NetResource) createNetNS() error {
 	name, err := nr.Namespace()
@@ -575,41 +517,3 @@ func (nr *NetResource) applyFirewall() error {
 
 	return nil
 }
-
-// func isIn(target string, l []string) bool {
-// 	for _, x := range l {
-// 		if target == x {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
-// func exitResource(r []*modules.NetResource) (*modules.NetResource, error) {
-// 	for _, res := range r {
-// 		if res.ExitPoint > 0 {
-// 			return res, nil
-// 		}
-// 	}
-// 	return nil, fmt.Errorf("not net resource with exit flag enabled found")
-// }
-
-// func publicPrefixes(resources []*modules.NetResource) []string {
-// 	output := []string{}
-// 	for _, res := range resources {
-// 		if isPublic(res.NodeID) {
-// 			output = append(output, res.Prefix.String())
-// 		}
-// 	}
-// 	return output
-// }
-
-// func isPublic(nodeID *modules.NodeID) bool {
-// 	return nodeID.ReachabilityV6 == modules.ReachabilityV6Public ||
-// 		nodeID.ReachabilityV4 == modules.ReachabilityV4Public
-// }
-
-// func isHidden(nodeID *modules.NodeID) bool {
-// 	return nodeID.ReachabilityV6 == modules.ReachabilityV6ULA ||
-// 		nodeID.ReachabilityV4 == modules.ReachabilityV4Hidden
-// }

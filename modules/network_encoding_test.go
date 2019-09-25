@@ -55,6 +55,22 @@ func TestEncodeDecode(t *testing.T) {
 					IP:   net.ParseIP("10.0.1.0"),
 					Mask: net.CIDRMask(24, 32),
 				},
+				Peers: []*Peer{
+					{
+						Subnet: &net.IPNet{
+							IP:   net.ParseIP("10.0.2.0"),
+							Mask: net.CIDRMask(24, 32),
+						},
+						Endpoint:    "172.20.0.90:6380",
+						WGPublicKey: "pubkey",
+						AllowedIPs: []*net.IPNet{
+							{
+								IP:   net.ParseIP("10.0.1.0"),
+								Mask: net.CIDRMask(24, 32),
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -70,9 +86,20 @@ func TestEncodeDecode(t *testing.T) {
 	assert.Equal(t, network.NetID, decoded.NetID)
 	require.Equal(t, len(network.NetResources), len(decoded.NetResources))
 
-	assert.Equal(t, network.NetResources[0].NodeID, decoded.NetResources[0].NodeID)
-	assert.Equal(t, network.NetResources[0].Subnet.String(), decoded.NetResources[0].Subnet.String())
-	assert.Equal(t, network.NetResources[0].WGPrivateKey, decoded.NetResources[0].WGPrivateKey)
-	assert.Equal(t, network.NetResources[0].WGPublicKey, decoded.NetResources[0].WGPublicKey)
-	assert.Equal(t, network.NetResources[0].WGListenPort, decoded.NetResources[0].WGListenPort)
+	eNR := network.NetResources[0]
+	aNR := decoded.NetResources[0]
+	assert.Equal(t, eNR.NodeID, aNR.NodeID)
+	assert.Equal(t, eNR.Subnet.String(), aNR.Subnet.String())
+	assert.Equal(t, eNR.WGPrivateKey, aNR.WGPrivateKey)
+	assert.Equal(t, eNR.WGPublicKey, aNR.WGPublicKey)
+	assert.Equal(t, eNR.WGListenPort, aNR.WGListenPort)
+	require.Equal(t, len(eNR.Peers), len(aNR.Peers))
+
+	ePeer := eNR.Peers[0]
+	aPeer := aNR.Peers[0]
+
+	assert.Equal(t, ePeer.Subnet.String(), aPeer.Subnet.String())
+	assert.Equal(t, ePeer.Endpoint, aPeer.Endpoint)
+	assert.Equal(t, ePeer.AllowedIPs, aPeer.AllowedIPs)
+	assert.Equal(t, ePeer.WGPublicKey, aPeer.WGPublicKey)
 }

@@ -13,8 +13,6 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
 
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-
 	"github.com/pkg/errors"
 
 	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
@@ -239,6 +237,7 @@ func (n *networker) CreateNR(network modules.Network) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to extract private key from network object")
 	}
+	log.Debug().Str("private key", privateKey).Msg("private ket extracted")
 
 	netr, err := nr.New(network.NetID, netNR)
 	if err != nil {
@@ -353,23 +352,20 @@ func (n *networker) DeleteNR(network modules.Network) error {
 	return nil
 }
 
-func (n *networker) extractPrivateKey(hexKey string) (wgtypes.Key, error) {
+func (n *networker) extractPrivateKey(hexKey string) (string, error) {
 	//FIXME zaibon: I would like to move this into the nr package,
 	// but this method requires the identity module which is only available
 	// on the networker object
-
-	key := wgtypes.Key{}
-
 	sk, err := hex.DecodeString(hexKey)
 	if err != nil {
-		return key, err
+		return "", err
 	}
-	decoded, err := n.identity.Decrypt([]byte(sk))
+	decoded, err := n.identity.Decrypt(sk)
 	if err != nil {
-		return key, err
+		return "", err
 	}
 
-	return wgtypes.ParseKey(string(decoded))
+	return string(decoded), nil
 }
 
 // publicMasterIface return the name of the master interface

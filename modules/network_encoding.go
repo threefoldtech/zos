@@ -104,7 +104,16 @@ func (p *Peer) UnmarshalJSON(b []byte) error {
 	}
 	p.WGPublicKey = tmp.WGPublicKey
 	p.WGPublicKey = tmp.WGPublicKey
-	p.Endpoint = net.ParseIP(tmp.Endpoint)
+	p.Endpoint = tmp.Endpoint
+	p.AllowedIPs = make([]*net.IPNet, len(tmp.AllowedIPs))
+	for i, ip := range tmp.AllowedIPs {
+		ip, ipnet, err := net.ParseCIDR(ip)
+		if err != nil {
+			return err
+		}
+		ipnet.IP = ip
+		p.AllowedIPs[i] = ipnet
+	}
 
 	return nil
 }
@@ -125,7 +134,7 @@ func (p *Peer) MarshalJSON() ([]byte, error) {
 		Subnet:      p.Subnet.String(),
 		WGPublicKey: p.WGPublicKey,
 		AllowedIPs:  allowedIPs,
-		Endpoint:    p.Endpoint.String(),
+		Endpoint:    p.Endpoint,
 	}
 
 	return json.Marshal(tmp)
@@ -181,6 +190,7 @@ func (r *NetResource) MarshalJSON() ([]byte, error) {
 		WGPublicKey:  r.WGPublicKey,
 		WGListenPort: r.WGListenPort,
 	}
+
 	return json.Marshal(tmp)
 }
 
