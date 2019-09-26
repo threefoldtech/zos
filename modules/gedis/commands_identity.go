@@ -2,8 +2,11 @@ package gedis
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
+	"strconv"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules/gedis/types/directory"
 	"github.com/threefoldtech/zosv2/modules/network"
 	"github.com/threefoldtech/zosv2/modules/network/types"
@@ -70,7 +73,7 @@ func (g *Gedis) ListNode(farmID modules.Identifier, country string, city string)
 }
 
 //RegisterFarm implements modules.IdentityManager interface
-func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string, wallet []string) (int64, error) {
+func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string, wallet []string) (string, error) {
 	resp, err := Bytes(g.Send("farms", "register", Args{
 		"farm": directory.TfgridFarm1{
 			ThreebotId:      farm.Identity(),
@@ -81,7 +84,7 @@ func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string,
 	}))
 
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	var out struct {
@@ -89,10 +92,10 @@ func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string,
 	}
 
 	if err := json.Unmarshal(resp, &out); err != nil {
-		return 0, err
+		return "", err
 	}
 
-	return out.FarmID.Int64()
+	return out.FarmID.String(), nil
 }
 
 //GetNode implements modules.IdentityManager interface
@@ -151,7 +154,10 @@ func nodeFromSchema(node directory.TfgridNode2) types.Node {
 }
 
 func farmFromSchema(farm directory.TfgridFarm1) network.Farm {
-	return network.Farm{}
+	return network.Farm{
+		ID:   fmt.Sprint(farm.ID),
+		Name: farm.Name,
+	}
 }
 
 func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
@@ -184,25 +190,28 @@ func (g *Gedis) UpdateUsedNodeCapacity(node modules.Identifier, mru int64, cru i
 }
 
 //GetFarm implements modules.IdentityManager interface
-// func (g *Gedis) GetFarm(farm int64) (*network.Farm, error) {
-// 	resp, err := Bytes(g.Send("farms", "get", Args{
-// 		"farm_id": farm,
-// 	}))
+func (g *Gedis) GetFarm(farm string) (*network.Farm, error) {
+	id, err := strconv.ParseInt(farm, 10, 64)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid farm id")
+	}
 
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	resp, err := Bytes(g.Send("farms", "get", Args{
+		"farm_id": id,
+	}))
 
-// 	var out struct {
-// 		Farm directory.TfgridFarm1 `json:"farm"`
-// 	}
+	if err != nil {
+		return nil, err
+	}
 
-// 	if err := json.Unmarshal(resp, &out); err != nil {
-// 		return nil, err
-// 	}
+	var out directory.TfgridFarm1
 
-// 	return nil, nil
-// }
+	if err := json.Unmarshal(resp, &out); err != nil {
+		return nil, err
+	}
+	f := farmFromSchema(out)
+	return &f, nil
+}
 
 // //UpdateFarm implements modules.IdentityManager interface
 // func (g *Gedis) UpdateFarm(farm modules.Identifier) error {
@@ -233,8 +242,8 @@ func (g *Gedis) UpdateUsedNodeCapacity(node modules.Identifier, mru int64, cru i
 // }
 
 //ListFarm implements modules.IdentityManager interface
-func (g *Gedis) ListFarm(country string, city string) ([]directory.TfgridFarm1, error) {
-	result, err := Bytes(g.Send("farms", "list", Args{
+func (g *Gedis) ListFarm(country string, city string) ([]network.Farm, error) {
+	resp, err := Bytes(g.Send("farms", "list", Args{
 		"country": country,
 		"city":    city,
 	}))
@@ -247,6 +256,14 @@ func (g *Gedis) ListFarm(country string, city string) ([]directory.TfgridFarm1, 
 		Farms []directory.TfgridFarm1 `json:"farms"`
 	}
 
-	err = json.Unmarshal(result, &out)
-	return out.Farms, nil
+	if err := json.Unmarshal(resp, &out); err != nil {
+		return nil, err
+	}
+
+	var result []network.Farm
+	for _, farm := range out.Farms {
+		result = append(result, farmFromSchema(farm))
+	}
+
+	return result, nil
 }
