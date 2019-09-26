@@ -124,5 +124,10 @@ func (g *Gedis) Send(actor, method string, args Args) (interface{}, error) {
 		return nil, errors.Wrap(err, "failed to serialize arguments")
 	}
 
-	return con.Do(g.cmd(actor, method), bytes)
+	result, err := con.Do(g.cmd(actor, method), bytes)
+	if err != nil {
+		return result, parseError(err)
+	}
+
+	return result, nil
 }

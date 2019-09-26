@@ -2,6 +2,7 @@ package gedis
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/threefoldtech/zosv2/modules/gedis/types/directory"
 
@@ -38,34 +39,29 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 	return out.Node.NodeId, nil
 }
 
-// //ListNode implements modules.IdentityManager interface
-// func (g *Gedis) ListNode(farmID modules.Identifier, country string, city string) error {
-// 	req := gedisListNodeBodyPayload{
-// 		FarmID:  farmID.Identity(),
-// 		Country: country,
-// 		City:    city,
-// 	}
+// ListNode implements modules.IdentityManager interface
+func (g *Gedis) ListNode(farmID modules.Identifier, country string, city string) ([]directory.TfgridNode2, error) {
+	resp, err := Bytes(g.Send("nodes", "list", Args{
+		"farm_id": farmID.Identity(),
+		"country": country,
+		"city":    city,
+	}))
 
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return err
-// 	}
+	if err != nil {
+		return nil, err
+	}
 
-// 	resp, err := g.sendCommand("nodes", "list", b)
-// 	if err != nil {
-// 		return parseError(err)
-// 	}
+	fmt.Println(string(resp))
+	var out struct {
+		Nodes []directory.TfgridNode2 `json:"nodes"`
+	}
 
-// 	nl := &gedisListNodeResponseBody{}
-// 	if err := json.Unmarshal(resp, &nl); err != nil {
-// 		return err
-// 	}
+	if err := json.Unmarshal(resp, &out); err != nil {
+		return nil, err
+	}
 
-// 	// FIXME: gateway to list of types.Node
-// 	fmt.Println(nl)
-
-// 	return nil
-// }
+	return out.Nodes, nil
+}
 
 // //RegisterFarm implements modules.IdentityManager interface
 // func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string, wallet []string) (string, error) {
