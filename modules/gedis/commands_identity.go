@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/threefoldtech/zosv2/modules/gedis/types/directory"
+	"github.com/threefoldtech/zosv2/modules/network"
 	"github.com/threefoldtech/zosv2/modules/network/types"
 
 	"github.com/threefoldtech/zosv2/modules"
@@ -149,72 +150,58 @@ func nodeFromSchema(node directory.TfgridNode2) types.Node {
 	}
 }
 
-// func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
-// 	req := gedisNodeUpdateCapacity{
-// 		NodeID: node.Identity(),
-// 		Resource: tfgridNodeResource1{
-// 			Mru: mru,
-// 			Cru: cru,
-// 			Hru: hru,
-// 			Sru: sru,
-// 		},
-// 	}
+func farmFromSchema(farm directory.TfgridFarm1) network.Farm {
+	return network.Farm{}
+}
 
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return err
-// 	}
+func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+	_, err := g.Send("nodes", "update_"+captype+"_capacity", Args{
+		"node_id": node.Identity(),
+		"resource": directory.TfgridNodeResourceAmount1{
+			Cru: cru,
+			Mru: mru,
+			Hru: hru,
+			Sru: sru,
+		},
+	})
 
-// 	_, err = g.sendCommandBool("nodes", "update_"+captype+"_capacity", b)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 		return parseError(err)
-// 	}
+	return err
+}
 
-// 	return nil
-// }
+//UpdateTotalNodeCapacity implements modules.IdentityManager interface
+func (g *Gedis) UpdateTotalNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+	return g.updateGenericNodeCapacity("total", node, mru, cru, hru, sru)
+}
 
-// //UpdateTotalNodeCapacity implements modules.IdentityManager interface
-// func (g *Gedis) UpdateTotalNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
-// 	return g.updateGenericNodeCapacity("total", node, mru, cru, hru, sru)
-// }
+//UpdateReservedNodeCapacity implements modules.IdentityManager interface
+func (g *Gedis) UpdateReservedNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+	return g.updateGenericNodeCapacity("reserved", node, mru, cru, hru, sru)
+}
 
-// //UpdateReservedNodeCapacity implements modules.IdentityManager interface
-// func (g *Gedis) UpdateReservedNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
-// 	return g.updateGenericNodeCapacity("reserved", node, mru, cru, hru, sru)
-// }
+//UpdateUsedNodeCapacity implements modules.IdentityManager interface
+func (g *Gedis) UpdateUsedNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+	return g.updateGenericNodeCapacity("used", node, mru, cru, hru, sru)
+}
 
-// //UpdateUsedNodeCapacity implements modules.IdentityManager interface
-// func (g *Gedis) UpdateUsedNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
-// 	return g.updateGenericNodeCapacity("used", node, mru, cru, hru, sru)
-// }
+//GetFarm implements modules.IdentityManager interface
+// func (g *Gedis) GetFarm(farm int64) (*network.Farm, error) {
+// 	resp, err := Bytes(g.Send("farms", "get", Args{
+// 		"farm_id": farm,
+// 	}))
 
-// //GetFarm implements modules.IdentityManager interface
-// func (g *Gedis) GetFarm(farm modules.Identifier) (*network.Farm, error) {
-// 	req := gedisGetFarmBody{
-// 		Farm: tfgridFarm1{
-// 			Name: farm.Identity(),
-// 		},
-// 	}
-
-// 	b, err := json.Marshal(req)
 // 	if err != nil {
 // 		return nil, err
 // 	}
 
-// 	fmt.Println(string(b))
-
-// 	resp, err := g.sendCommand("farms", "get", b)
-// 	if err != nil {
-// 		return nil, parseError(err)
+// 	var out struct {
+// 		Farm directory.TfgridFarm1 `json:"farm"`
 // 	}
 
-// 	f := &network.Farm{}
-// 	if err := json.Unmarshal(resp, &farm); err != nil {
+// 	if err := json.Unmarshal(resp, &out); err != nil {
 // 		return nil, err
 // 	}
 
-// 	return f, nil
+// 	return nil, nil
 // }
 
 // //UpdateFarm implements modules.IdentityManager interface

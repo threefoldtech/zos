@@ -2,10 +2,12 @@ package directory
 
 import (
 	"encoding/json"
+
 	schema "github.com/threefoldtech/zosv2/modules/schema"
 )
 
 type TfgridFarm1 struct {
+	ID              int64                      `json:"id"`
 	ThreebotId      string                     `json:"threebot_id"`
 	IyoOrganization string                     `json:"iyo_organization"`
 	Name            string                     `json:"name"`
