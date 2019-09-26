@@ -150,8 +150,12 @@ func (i *IPRange) UnmarshalText(text []byte) error {
 }
 
 // MarshalText dumps iprange as a string
-func (i *IPRange) MarshalText() ([]byte, error) {
-	return []byte(i.String()), nil
+func (i IPRange) MarshalJSON() ([]byte, error) {
+	if len(i.IPNet.IP) == 0 {
+		return []byte(`""`), nil
+	}
+	v := fmt.Sprint("\"", i.String(), "\"")
+	return []byte(v), nil
 }
 
 func (i IPRange) String() string {

@@ -63,37 +63,31 @@ func (g *Gedis) ListNode(farmID modules.Identifier, country string, city string)
 	return out.Nodes, nil
 }
 
-// //RegisterFarm implements modules.IdentityManager interface
-// func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string, wallet []string) (string, error) {
-// 	req := gedisRegisterFarmBody{
-// 		Farm: gedisRegisterFarmBodyPayload{
-// 			ThreebotID: farm.Identity(),
-// 			Name:       name,
-// 			Email:      email,
-// 			Wallet:     wallet,
-// 		},
-// 	}
+//RegisterFarm implements modules.IdentityManager interface
+func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string, wallet []string) (int64, error) {
+	resp, err := Bytes(g.Send("farms", "register", Args{
+		"farm": directory.TfgridFarm1{
+			ThreebotId:      farm.Identity(),
+			Name:            name,
+			Email:           email,
+			WalletAddresses: wallet,
+		},
+	}))
 
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return "", err
-// 	}
+	if err != nil {
+		return 0, err
+	}
 
-// 	resp, err := g.sendCommand("farms", "register", b)
-// 	if err != nil {
-// 		fmt.Println("nope")
-// 		return "", parseError(err)
-// 	}
+	var out struct {
+		FarmID json.Number `json:"farm_id"`
+	}
 
-// 	fmt.Println(resp)
+	if err := json.Unmarshal(resp, &out); err != nil {
+		return 0, err
+	}
 
-// 	r := tfgridFarm1{}
-// 	if err := json.Unmarshal(resp, &r); err != nil {
-// 		return "", err
-// 	}
-
-// 	return r.Name, parseError(err)
-// }
+	return out.FarmID.Int64()
+}
 
 // //GetNode implements modules.IdentityManager interface
 // func (g *Gedis) GetNode(nodeID modules.Identifier) (*types.Node, error) {
