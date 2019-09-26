@@ -8,17 +8,22 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/pkg/errors"
 )
+
+var (
+	Bytes = redis.Bytes
+	Bool  = redis.Bool
+)
+
+type Args map[string]interface{}
 
 // Gedis struct represent a client to a gedis server
 type Gedis struct {
 	pool      *redis.Pool
 	namespace string
 	password  string
-	// this never change  we cache it to avoid json serialization all the time
-	headers []byte
-
-	conn redis.Conn
+	conn      redis.Conn
 }
 
 // New creates a new Gedis client
@@ -28,16 +33,10 @@ func New(address, namespace, password string) (*Gedis, error) {
 		return nil, err
 	}
 
-	headers, err := generateHeaders()
-	if err != nil {
-		return nil, err
-	}
-
 	return &Gedis{
 		pool:      pool,
 		namespace: namespace,
 		password:  password,
-		headers:   headers,
 	}, nil
 }
 
@@ -90,7 +89,12 @@ func newRedisPool(address string) (*redis.Pool, error) {
 
 	return &redis.Pool{
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial(u.Scheme, host, opts...)
+			con, err := redis.Dial(u.Scheme, host, opts...)
+			if err != nil {
+				return nil, err
+			}
+			_, err = con.Do("config_format", "json")
+			return con, err
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			if time.Since(t) > 10*time.Second {
@@ -107,14 +111,18 @@ func newRedisPool(address string) (*redis.Pool, error) {
 	}, nil
 }
 
-func generateHeaders() ([]byte, error) {
-	h := map[string]string{
-		"content_type":  "json",
-		"response_type": "json",
-	}
-	bh, err := json.Marshal(h)
+// Send send a command and read response.
+// args, is a map with argument name, and value as defined by the actor schema.
+// Usually you need to process the returned value through `Bytes`, `Bool` or other wrappers based
+// on the expected return value
+func (g *Gedis) Send(actor, method string, args Args) (interface{}, error) {
+	con := g.pool.Get()
+	defer con.Close()
+
+	bytes, err := json.Marshal(args)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to serialize arguments")
 	}
-	return bh, nil
+
+	return con.Do(g.cmd(actor, method), bytes)
 }
