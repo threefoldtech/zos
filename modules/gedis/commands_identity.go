@@ -160,14 +160,14 @@ func farmFromSchema(farm directory.TfgridFarm1) network.Farm {
 	}
 }
 
-func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifier, mru, cru, hru, sru uint64) error {
 	_, err := g.Send("nodes", "update_"+captype+"_capacity", Args{
 		"node_id": node.Identity(),
 		"resource": directory.TfgridNodeResourceAmount1{
-			Cru: cru,
-			Mru: mru,
-			Hru: hru,
-			Sru: sru,
+			Cru: int64(cru),
+			Mru: int64(mru),
+			Hru: int64(hru),
+			Sru: int64(sru),
 		},
 	})
 
@@ -175,17 +175,17 @@ func (g *Gedis) updateGenericNodeCapacity(captype string, node modules.Identifie
 }
 
 //UpdateTotalNodeCapacity implements modules.IdentityManager interface
-func (g *Gedis) UpdateTotalNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+func (g *Gedis) UpdateTotalNodeCapacity(node modules.Identifier, mru, cru, hru, sru uint64) error {
 	return g.updateGenericNodeCapacity("total", node, mru, cru, hru, sru)
 }
 
 //UpdateReservedNodeCapacity implements modules.IdentityManager interface
-func (g *Gedis) UpdateReservedNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+func (g *Gedis) UpdateReservedNodeCapacity(node modules.Identifier, mru, cru, hru, sru uint64) error {
 	return g.updateGenericNodeCapacity("reserved", node, mru, cru, hru, sru)
 }
 
 //UpdateUsedNodeCapacity implements modules.IdentityManager interface
-func (g *Gedis) UpdateUsedNodeCapacity(node modules.Identifier, mru int64, cru int64, hru int64, sru int64) error {
+func (g *Gedis) UpdateUsedNodeCapacity(node modules.Identifier, mru, cru, hru, sru uint64) error {
 	return g.updateGenericNodeCapacity("used", node, mru, cru, hru, sru)
 }
 
