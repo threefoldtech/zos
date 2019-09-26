@@ -2,7 +2,6 @@ package directory
 
 import (
 	"encoding/json"
-
 	schema "github.com/threefoldtech/zosv2/modules/schema"
 )
 
