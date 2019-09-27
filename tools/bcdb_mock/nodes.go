@@ -25,10 +25,7 @@ func registerNode(w http.ResponseWriter, r *http.Request) {
 
 	i, ok := nodeStore[n.NodeID]
 	if !ok || i.Node == nil {
-		nodeStore[n.NodeID] = node{
-			Node:     n,
-			Capacity: &capacity.Capacity{},
-		}
+		nodeStore[n.NodeID] = &node{Node: n}
 
 	} else {
 		i.Node.NodeID = n.NodeID
@@ -58,6 +55,10 @@ func listNodes(w http.ResponseWriter, r *http.Request) {
 	farm := r.URL.Query().Get("farm")
 
 	for _, node := range nodeStore {
+		if node.Node == nil {
+			continue
+		}
+
 		if farm != "" && node.Node.FarmID != farm {
 			continue
 		}
@@ -80,12 +81,12 @@ func registerFarm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	farmStore[info.ID] = info
+	farmStore[info.ID] = &info
 	w.WriteHeader(http.StatusCreated)
 }
 
 func listFarm(w http.ResponseWriter, r *http.Request) {
-	var farms = make([]farmInfo, 0, len(farmStore))
+	var farms = make([]*farmInfo, 0, len(farmStore))
 	for _, info := range farmStore {
 		farms = append(farms, info)
 	}
@@ -110,8 +111,8 @@ func getFarm(w http.ResponseWriter, r *http.Request) {
 
 func registerCapacity(w http.ResponseWriter, r *http.Request) {
 	x := struct {
-		Capacity *capacity.Capacity `json:"capacity,omitempty"`
-		DMI      *dmi.DMI           `json:"dmi,omitempty"`
+		Capacity capacity.Capacity `json:"capacity,omitempty"`
+		DMI      *dmi.DMI          `json:"dmi,omitempty"`
 	}{}
 
 	nodeID := mux.Vars(r)["node_id"]
