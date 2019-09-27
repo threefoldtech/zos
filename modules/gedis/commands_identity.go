@@ -6,6 +6,9 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zosv2/modules/geoip"
+
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules/gedis/types/directory"
 	"github.com/threefoldtech/zosv2/modules/network"
@@ -20,11 +23,25 @@ import (
 
 //RegisterNode implements modules.IdentityManager interface
 func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) (string, error) {
+
+	l, err := geoip.Fetch()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get location of the node")
+	}
+
 	resp, err := Bytes(g.Send("nodes", "add", Args{
 		"node": directory.TfgridNode2{
-			NodeId:    nodeID.Identity(),
-			FarmId:    farmID.Identity(),
-			OsVersion: version,
+			NodeId:       nodeID.Identity(),
+			FarmId:       farmID.Identity(),
+			OsVersion:    version,
+			PublicKeyHex: nodeID.Hex(),
+			Location: directory.TfgridLocation1{
+				Longitude: l.Longitute,
+				Latitude:  l.Latitude,
+				Continent: l.Continent,
+				Country:   l.Country,
+				City:      l.City,
+			},
 		},
 	}))
 

@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/jbenet/go-base58"
@@ -25,6 +26,11 @@ type KeyPair struct {
 // Identity implements the Identifier interface
 func (k KeyPair) Identity() string {
 	return base58.Encode(k.PublicKey)
+}
+
+// Hex implements the Identifier interface
+func (k KeyPair) Hex() string {
+	return hex.EncodeToString(k.PublicKey)
 }
 
 // GenerateKeyPair creates a new KeyPair from a random seed

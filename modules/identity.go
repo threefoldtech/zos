@@ -1,5 +1,9 @@
 package modules
 
+import (
+	"encoding/hex"
+)
+
 //go:generate mkdir -p stubs
 //go:generate zbusc -module identityd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zosv2/modules+IdentityManager stubs/identity_stub.go
 
@@ -7,6 +11,8 @@ package modules
 // how an object can be used as an identity
 type Identifier interface {
 	Identity() string
+	// Hex return the hex encoded public key
+	Hex() string
 }
 
 // StrIdentifier is a helper type that implement the Identifier interface
@@ -16,6 +22,11 @@ type StrIdentifier string
 // Identity implements the Identifier interface
 func (s StrIdentifier) Identity() string {
 	return string(s)
+}
+
+// Hex implements the Identifier interface
+func (s StrIdentifier) Hex() string {
+	return hex.EncodeToString([]byte(s))
 }
 
 // IdentityManager interface.
