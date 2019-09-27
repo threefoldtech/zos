@@ -65,7 +65,7 @@ const (
 // NodeID is a type defining a node ID
 type NodeID struct {
 	ID string `json:"id"`
-	// FarmeerID is needed for when a Node is HIDDEN, but lives in the same farm.
+	// FarmerID is needed for when a Node is HIDDEN, but lives in the same farm.
 	// that way if a network resource is started on a HIDDEN Node, and the peer
 	// is also HIDDEN, but part of the same farm, we can surmise that that peer
 	// can be included for that network resource

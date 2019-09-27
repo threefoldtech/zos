@@ -11,8 +11,6 @@ import (
 // how an object can be used as an identity
 type Identifier interface {
 	Identity() string
-	// Hex return the hex encoded public key
-	Hex() string
 }
 
 // StrIdentifier is a helper type that implement the Identifier interface

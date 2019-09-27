@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/threefoldtech/zosv2/modules"
+
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli"
 )
@@ -54,7 +56,7 @@ func configPublic(c *cli.Context) error {
 
 	node := c.Args().First()
 
-	if err := db.ConfigurePublicIface(strID(node), ips, gws, iface); err != nil {
+	if err := db.ConfigurePublicIface(modules.StrIdentifier(node), ips, gws, iface); err != nil {
 		return err
 	}
 	fmt.Printf("public interface configured on node %s\n", node)
@@ -64,7 +66,7 @@ func configPublic(c *cli.Context) error {
 func selectExit(c *cli.Context) error {
 	node := c.Args().First()
 
-	if err := db.SelectExitNode(strID(node)); err != nil {
+	if err := db.SelectExitNode(modules.StrIdentifier(node)); err != nil {
 		return err
 	}
 	fmt.Printf("Node %s marked as exit node\n", node)

@@ -1,10 +1,13 @@
 package gedis
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
+
+	"github.com/jbenet/go-base58"
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zosv2/modules/geoip"
@@ -29,12 +32,14 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 		log.Error().Err(err).Msg("failed to get location of the node")
 	}
 
+	pk := base58.Decode(nodeID.Identity())
+
 	resp, err := Bytes(g.Send("nodes", "add", Args{
 		"node": directory.TfgridNode2{
 			NodeID:       nodeID.Identity(),
 			FarmID:       farmID.Identity(),
 			OsVersion:    version,
-			PublicKeyHex: nodeID.Hex(),
+			PublicKeyHex: hex.EncodeToString(pk),
 			Location: directory.TfgridLocation1{
 				Longitude: l.Longitute,
 				Latitude:  l.Latitude,

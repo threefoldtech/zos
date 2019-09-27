@@ -128,12 +128,6 @@ You can specify multime time the ip and gw flag to configure multiple IP on the 
 	}
 }
 
-type strID string
-
-func (f strID) Identity() string {
-	return string(f)
-}
-
 func loadFarmID(seedPath string) (modules.Identifier, error) {
 	if seedPath == "" {
 		cwd, err := os.Getwd()
