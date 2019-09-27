@@ -13,22 +13,23 @@ type TfgridReservationWorkload1 struct {
 	ToDelete   bool                               `json:"to_delete,omitempty"`
 }
 
-func NewTfgridReservationWorkload1() (TfgridReservationWorkload1, error) {
-	const value = "{}"
-	var object TfgridReservationWorkload1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
 type TfgridReservationWorkload1TypeEnum uint8
 
+func (e *TfgridReservationWorkload1TypeEnum) UnmarshalJSON(b []byte) error {
+	var i uint8
+	if err := json.Unmarshal(b, &i); err != nil {
+		return err
+	}
+
+	*e = TfgridReservationWorkload1TypeEnum(i)
+	return nil
+}
+
 const (
-	TfgridReservationWorkload1TypeNetwork TfgridReservationWorkload1TypeEnum = iota
-	TfgridReservationWorkload1TypeVolume
-	TfgridReservationWorkload1TypeZdb
+	TfgridReservationWorkload1TypeZdb TfgridReservationWorkload1TypeEnum = iota
 	TfgridReservationWorkload1TypeContainer
+	TfgridReservationWorkload1TypeVolume
+	TfgridReservationWorkload1TypeNetwork
 )
 
 func (e TfgridReservationWorkload1TypeEnum) String() string {

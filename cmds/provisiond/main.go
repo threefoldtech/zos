@@ -6,6 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zosv2/modules/environment"
+	"github.com/threefoldtech/zosv2/modules/gedis"
+
 	"github.com/threefoldtech/zosv2/modules/stubs"
 	"github.com/threefoldtech/zosv2/modules/utils"
 
@@ -64,7 +68,10 @@ func main() {
 	nodeID := identity.NodeID()
 
 	// to get reservation from tnodb
-	remoteStore := provision.NewHTTPStore(resURL)
+	remoteStore, err := bcdbClient()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to instantiate BCDB client")
+	}
 	// to store reservation locally on the node
 	localStore, err := provision.NewFSStore(filepath.Join(storageDir, "reservations"))
 	if err != nil {
@@ -101,4 +108,27 @@ func main() {
 	if err := engine.Run(ctx); err != nil {
 		log.Error().Err(err).Msg("unexpected error")
 	}
+}
+
+type store interface {
+	provision.ReservationGetter
+	provision.ReservationPoller
+	provision.Feedbacker
+}
+
+// instantiate the proper client based on the running mode
+func bcdbClient() (store, error) {
+	env := environment.Get()
+
+	// use the bcdb mock for dev and test
+	if env.RunningMode != environment.RunningMain {
+		return provision.NewHTTPStore(env.BcdbURL), nil
+	}
+
+	// use gedis for production bcdb
+	store, err := gedis.New(env.BcdbURL, env.BcdbNamespace, env.BcdbPassword)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to connect to BCDB")
+	}
+	return store, nil
 }

@@ -2,6 +2,7 @@ package gedis
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -12,6 +13,26 @@ import (
 
 	"github.com/threefoldtech/zosv2/modules"
 )
+
+// Get implements provision.ReservationGetter
+func (g *Gedis) Get(id string) (*provision.Reservation, error) {
+	result, err := Bytes(g.Send("workload_manager", "workload_get", Args{
+		"gwid": id,
+	}))
+
+	if err != nil {
+		return nil, parseError(err)
+	}
+	fmt.Println(string(result))
+
+	var workload types.TfgridReservationWorkload1
+
+	if err = json.Unmarshal(result, &workload); err != nil {
+		return nil, err
+	}
+
+	return reservationFromSchema(workload), nil
+}
 
 // Poll implements provision.ReservationPoller
 func (g *Gedis) Poll(nodeID modules.Identifier, all bool, since time.Time) ([]*provision.Reservation, error) {
@@ -40,15 +61,7 @@ func (g *Gedis) Poll(nodeID modules.Identifier, all bool, since time.Time) ([]*p
 
 	reservations := make([]*provision.Reservation, len(out.Workloads))
 	for i, w := range out.Workloads {
-		reservations[i] = &provision.Reservation{
-			ID:        w.WorkloadID,
-			User:      w.User,
-			Type:      provision.ReservationType(w.Type.String()),
-			Created:   time.Unix(w.Created, 0),
-			Duration:  time.Duration(w.Duration) * time.Second,
-			Signature: []byte(w.Signature),
-			Data:      w.Workload,
-		}
+		reservations[i] = reservationFromSchema(w)
 	}
 
 	return reservations, nil
@@ -104,3 +117,15 @@ func (g *Gedis) Feedback(id string, r *provision.Result) error {
 
 // Deleted implements provision.Feedbacker
 func (g *Gedis) Deleted(id string) error { return nil }
+
+func reservationFromSchema(w types.TfgridReservationWorkload1) *provision.Reservation {
+	return &provision.Reservation{
+		ID:        w.WorkloadID,
+		User:      w.User,
+		Type:      provision.ReservationType(w.Type.String()),
+		Created:   time.Unix(w.Created, 0),
+		Duration:  time.Duration(w.Duration) * time.Second,
+		Signature: []byte(w.Signature),
+		Data:      w.Workload,
+	}
+}
