@@ -1,14 +1,15 @@
 package directory
 
 import (
-	"encoding/json"
-	schema "github.com/threefoldtech/zosv2/modules/schema"
 	"net"
+
+	schema "github.com/threefoldtech/zosv2/modules/schema"
 )
 
+//TfgridNode2 jsx schema
 type TfgridNode2 struct {
-	NodeId            string                    `json:"node_id"`
-	FarmId            string                    `json:"farm_id"`
+	NodeID            string                    `json:"node_id"`
+	FarmID            string                    `json:"farm_id"`
 	OsVersion         string                    `json:"os_version"`
 	Created           schema.Date               `json:"created"`
 	Updated           schema.Date               `json:"updated"`
@@ -26,30 +27,14 @@ type TfgridNode2 struct {
 	PublicKeyHex      string                    `json:"public_key_hex"`
 }
 
-func NewTfgridNode2() (TfgridNode2, error) {
-	const value = "{\"approved\": false, \"public_key_hex\": \"\"}"
-	var object TfgridNode2
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+// TfgridNodeIface1 jsx schema
 type TfgridNodeIface1 struct {
 	Name    string           `json:"name"`
 	Addrs   []schema.IPRange `json:"addrs"`
 	Gateway []net.IP         `json:"gateway"`
 }
 
-func NewTfgridNodeIface1() (TfgridNodeIface1, error) {
-	const value = "{}"
-	var object TfgridNodeIface1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+// TfgridNodePublicIface1 jsx schema
 type TfgridNodePublicIface1 struct {
 	Master  string                         `json:"master"`
 	Type    TfgridNodePublicIface1TypeEnum `json:"type"`
@@ -60,15 +45,7 @@ type TfgridNodePublicIface1 struct {
 	Version int64                          `json:"version"`
 }
 
-func NewTfgridNodePublicIface1() (TfgridNodePublicIface1, error) {
-	const value = "{}"
-	var object TfgridNodePublicIface1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+// TfgridNodeResourceAmount1 jsx schema
 type TfgridNodeResourceAmount1 struct {
 	Cru int64 `json:"cru"`
 	Mru int64 `json:"mru"`
@@ -76,15 +53,7 @@ type TfgridNodeResourceAmount1 struct {
 	Sru int64 `json:"sru"`
 }
 
-func NewTfgridNodeResourceAmount1() (TfgridNodeResourceAmount1, error) {
-	const value = "{}"
-	var object TfgridNodeResourceAmount1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+// TfgridNodeProof1 jsx schema
 type TfgridNodeProof1 struct {
 	Created      schema.Date            `json:"created"`
 	HardwareHash string                 `json:"hardware_hash"`
@@ -93,21 +62,15 @@ type TfgridNodeProof1 struct {
 	Disks        map[string]interface{} `json:"disks"`
 }
 
-func NewTfgridNodeProof1() (TfgridNodeProof1, error) {
-	const value = "{}"
-	var object TfgridNodeProof1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+// TfgridNodePublicIface1TypeEnum jsx schema
 type TfgridNodePublicIface1TypeEnum uint8
 
+// TfgridNodePublicIface1TypeEnum
 const (
 	TfgridNodePublicIface1TypeMacvlan TfgridNodePublicIface1TypeEnum = iota
 )
 
+// String implements stringer interface
 func (e TfgridNodePublicIface1TypeEnum) String() string {
 	switch e {
 	case TfgridNodePublicIface1TypeMacvlan:

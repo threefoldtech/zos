@@ -31,8 +31,8 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 
 	resp, err := Bytes(g.Send("nodes", "add", Args{
 		"node": directory.TfgridNode2{
-			NodeId:       nodeID.Identity(),
-			FarmId:       farmID.Identity(),
+			NodeID:       nodeID.Identity(),
+			FarmID:       farmID.Identity(),
 			OsVersion:    version,
 			PublicKeyHex: nodeID.Hex(),
 			Location: directory.TfgridLocation1{
@@ -58,7 +58,7 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 	}
 
 	// no need to do data conversion here, returns the id
-	return out.Node.NodeId, nil
+	return out.Node.NodeID, nil
 }
 
 // ListNode implements modules.IdentityManager interface
@@ -93,7 +93,7 @@ func (g *Gedis) ListNode(farmID modules.Identifier, country string, city string)
 func (g *Gedis) RegisterFarm(farm modules.Identifier, name string, email string, wallet []string) (string, error) {
 	resp, err := Bytes(g.Send("farms", "register", Args{
 		"farm": directory.TfgridFarm1{
-			ThreebotId:      farm.Identity(),
+			ThreebotID:      farm.Identity(),
 			Name:            name,
 			Email:           email,
 			WalletAddresses: wallet,
@@ -151,8 +151,8 @@ func infFromSchema(inf directory.TfgridNodeIface1) types.IfaceInfo {
 
 func nodeFromSchema(node directory.TfgridNode2) types.Node {
 	return types.Node{
-		NodeID: node.NodeId,
-		FarmID: node.FarmId,
+		NodeID: node.NodeID,
+		FarmID: node.FarmID,
 		Ifaces: func() []*types.IfaceInfo {
 			var r []*types.IfaceInfo
 			for _, iface := range node.Ifaces {

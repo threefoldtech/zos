@@ -46,7 +46,7 @@ var (
 
 	envProd = Environment{
 		RunningMode:   RunningMain,
-		BcdbURL:       "tcp://172.20.0.1:8010", //TODO: change once BCDB is online
+		BcdbURL:       "tcp://172.17.0.2:8901", //TODO: change once BCDB is online
 		BcdbNamespace: "default",
 		// ProvisionTimeout:  240,
 		// ProvisionInterval: 20,

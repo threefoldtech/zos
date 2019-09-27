@@ -149,7 +149,7 @@ func (i *IPRange) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// MarshalText dumps iprange as a string
+// MarshalJSON dumps iprange as a string
 func (i IPRange) MarshalJSON() ([]byte, error) {
 	if len(i.IPNet.IP) == 0 {
 		return []byte(`""`), nil

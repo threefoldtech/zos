@@ -1,33 +1,26 @@
 package provision
 
-import "encoding/json"
-
+//TfgridReservationVolume1 jsx schema
 type TfgridReservationVolume1 struct {
-	WorkloadId      int64                               `json:"workload_id"`
-	NodeId          int64                               `json:"node_id"`
-	ReservationId   int64                               `json:"reservation_id"`
+	WorkloadID      int64                               `json:"workload_id"`
+	NodeID          int64                               `json:"node_id"`
+	ReservationID   int64                               `json:"reservation_id"`
 	Size            int64                               `json:"size"`
 	Type            TfgridReservationVolume1TypeEnum    `json:"type"`
 	StatsAggregator []TfgridReservationStatsaggregator1 `json:"stats_aggregator"`
 	FarmerTid       int64                               `json:"farmer_tid"`
 }
 
-func NewTfgridReservationVolume1() (TfgridReservationVolume1, error) {
-	const value = "{}"
-	var object TfgridReservationVolume1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+//TfgridReservationVolume1TypeEnum jsx schema
 type TfgridReservationVolume1TypeEnum uint8
 
+//TfgridReservationVolume1TypeEnum
 const (
 	TfgridReservationVolume1TypeHDD TfgridReservationVolume1TypeEnum = iota
 	TfgridReservationVolume1TypeSSD
 )
 
+// String implements Stringer interface
 func (e TfgridReservationVolume1TypeEnum) String() string {
 	switch e {
 	case TfgridReservationVolume1TypeHDD:

@@ -1,15 +1,15 @@
 package provision
 
 import (
-	"encoding/json"
 	"net"
 )
 
+//TfgridReservationContainer1 jsx schema
 type TfgridReservationContainer1 struct {
-	WorkloadId        int64                                 `json:"workload_id"`
-	NodeId            int64                                 `json:"node_id"`
+	WorkloadID        int64                                 `json:"workload_id"`
+	NodeID            int64                                 `json:"node_id"`
 	Flist             string                                `json:"flist"`
-	HubUrl            string                                `json:"hub_url"`
+	HubURL            string                                `json:"hub_url"`
 	Environment       map[string]interface{}                `json:"environment"`
 	Entrypoint        string                                `json:"entrypoint"`
 	Interactive       bool                                  `json:"interactive"`
@@ -19,39 +19,14 @@ type TfgridReservationContainer1 struct {
 	FarmerTid         int64                                 `json:"farmer_tid"`
 }
 
-func NewTfgridReservationContainer1() (TfgridReservationContainer1, error) {
-	const value = "{\"interactive\": true}"
-	var object TfgridReservationContainer1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+//TfgridReservationContainerMount1 jsx schema
 type TfgridReservationContainerMount1 struct {
-	VolumeId   string `json:"volume_id"`
+	VolumeID   string `json:"volume_id"`
 	Mountpoint string `json:"mountpoint"`
 }
 
-func NewTfgridReservationContainerMount1() (TfgridReservationContainerMount1, error) {
-	const value = "{}"
-	var object TfgridReservationContainerMount1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+//TfgridReservationNetworkConnection1 jsx schema
 type TfgridReservationNetworkConnection1 struct {
-	NetworkId string `json:"network_id"`
+	NetworkID string `json:"network_id"`
 	Ipaddress net.IP `json:"ipaddress"`
-}
-
-func NewTfgridReservationNetworkConnection1() (TfgridReservationNetworkConnection1, error) {
-	const value = "{}"
-	var object TfgridReservationNetworkConnection1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
 }

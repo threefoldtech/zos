@@ -1,46 +1,31 @@
 package provision
 
 import (
-	"encoding/json"
 	schema "github.com/threefoldtech/zosv2/modules/schema"
 )
 
+//TfgridReservationStatsaggregator1 jsx schema
 type TfgridReservationStatsaggregator1 struct {
 	Addr   string `json:"addr"`
 	Port   int64  `json:"port"`
 	Secret string `json:"secret"`
 }
 
-func NewTfgridReservationStatsaggregator1() (TfgridReservationStatsaggregator1, error) {
-	const value = "{}"
-	var object TfgridReservationStatsaggregator1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+//TfgridReservationResult1 jsx schema
 type TfgridReservationResult1 struct {
 	Category   TfgridReservationResult1CategoryEnum `json:"category"`
-	WorkloadId int64                                `json:"workload_id"`
-	DataJson   string                               `json:"data_json"`
+	WorkloadID int64                                `json:"workload_id"`
+	DataJSON   string                               `json:"data_json"`
 	Signature  []byte                               `json:"signature"`
 	State      TfgridReservationResult1StateEnum    `json:"state"`
 	Message    string                               `json:"message"`
 	Epoch      schema.Date                          `json:"epoch"`
 }
 
-func NewTfgridReservationResult1() (TfgridReservationResult1, error) {
-	const value = "{\"message\": \"\"}"
-	var object TfgridReservationResult1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+//TfgridReservationResult1CategoryEnum jsx schema
 type TfgridReservationResult1CategoryEnum uint8
 
+//TfgridReservationResult1CategoryEnum
 const (
 	TfgridReservationResult1CategoryZdb TfgridReservationResult1CategoryEnum = iota
 	TfgridReservationResult1CategoryContainer
@@ -48,6 +33,7 @@ const (
 	TfgridReservationResult1CategoryVolume
 )
 
+//String implements Stringer interface
 func (e TfgridReservationResult1CategoryEnum) String() string {
 	switch e {
 	case TfgridReservationResult1CategoryZdb:
@@ -62,8 +48,10 @@ func (e TfgridReservationResult1CategoryEnum) String() string {
 	return "UNKNOWN"
 }
 
+//TfgridReservationResult1StateEnum jsx schema
 type TfgridReservationResult1StateEnum uint8
 
+//TfgridReservationResult1StateEnum
 const (
 	TfgridReservationResult1StateError TfgridReservationResult1StateEnum = iota
 	TfgridReservationResult1StateOk

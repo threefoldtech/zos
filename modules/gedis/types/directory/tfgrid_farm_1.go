@@ -1,14 +1,13 @@
 package directory
 
 import (
-	"encoding/json"
-
 	schema "github.com/threefoldtech/zosv2/modules/schema"
 )
 
+//TfgridFarm1 jsx schema
 type TfgridFarm1 struct {
 	ID              int64                      `json:"id"`
-	ThreebotId      string                     `json:"threebot_id"`
+	ThreebotID      string                     `json:"threebot_id"`
 	IyoOrganization string                     `json:"iyo_organization"`
 	Name            string                     `json:"name"`
 	WalletAddresses []string                   `json:"wallet_addresses"`
@@ -18,15 +17,7 @@ type TfgridFarm1 struct {
 	PrefixZero      schema.IPRange             `json:"prefix_zero"`
 }
 
-func NewTfgridFarm1() (TfgridFarm1, error) {
-	const value = "{}"
-	var object TfgridFarm1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+//TfgridNodeResourcePrice1 jsx schema
 type TfgridNodeResourcePrice1 struct {
 	Currency TfgridNodeResourcePrice1CurrencyEnum `json:"currency"`
 	Cru      float64                              `json:"cru"`
@@ -36,17 +27,10 @@ type TfgridNodeResourcePrice1 struct {
 	Nru      float64                              `json:"nru"`
 }
 
-func NewTfgridNodeResourcePrice1() (TfgridNodeResourcePrice1, error) {
-	const value = "{}"
-	var object TfgridNodeResourcePrice1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+//TfgridNodeResourcePrice1CurrencyEnum jsx schema
 type TfgridNodeResourcePrice1CurrencyEnum uint8
 
+// TfgridNodeResourcePrice1CurrencyEnum jsx schema
 const (
 	TfgridNodeResourcePrice1CurrencyEUR TfgridNodeResourcePrice1CurrencyEnum = iota
 	TfgridNodeResourcePrice1CurrencyUSD
@@ -55,6 +39,7 @@ const (
 	TfgridNodeResourcePrice1CurrencyGBP
 )
 
+// String implement stringer interface
 func (e TfgridNodeResourcePrice1CurrencyEnum) String() string {
 	switch e {
 	case TfgridNodeResourcePrice1CurrencyEUR:

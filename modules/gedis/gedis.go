@@ -12,10 +12,30 @@ import (
 )
 
 var (
+	// Bytes is a helper that converts a command reply to a slice of bytes. If err
+	// is not equal to nil, then Bytes returns nil, err. Otherwise Bytes converts
+	// the reply to a slice of bytes as follows:
+	//
+	//  Reply type      Result
+	//  bulk string     reply, nil
+	//  simple string   []byte(reply), nil
+	//  nil             nil, ErrNil
+	//  other           nil, error
 	Bytes = redis.Bytes
-	Bool  = redis.Bool
+
+	// Bool is a helper that converts a command reply to a boolean. If err is not
+	// equal to nil, then Bool returns false, err. Otherwise Bool converts the
+	// reply to boolean as follows:
+	//
+	//  Reply type      Result
+	//  integer         value != 0, nil
+	//  bulk string     strconv.ParseBool(reply)
+	//  nil             false, ErrNil
+	//  other           false, error
+	Bool = redis.Bool
 )
 
+// Args is a helper to create map easily
 type Args map[string]interface{}
 
 // Gedis struct represent a client to a gedis server

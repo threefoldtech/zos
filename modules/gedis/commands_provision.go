@@ -38,7 +38,7 @@ func (g *Gedis) Get(id string) (*provision.Reservation, error) {
 func (g *Gedis) Poll(nodeID modules.Identifier, all bool, since time.Time) ([]*provision.Reservation, error) {
 
 	epoch := since.Unix()
-	// all means sends all reservation so we ask since the begining of (unix) time
+	// all means sends all reservation so we ask since the beginning of (unix) time
 	if all {
 		epoch = 0
 	}
@@ -95,8 +95,8 @@ func (g *Gedis) Feedback(id string, r *provision.Result) error {
 
 	result := types.TfgridReservationResult1{
 		Category:   rType,
-		WorkloadId: rID,
-		DataJson:   string(r.Data),
+		WorkloadID: rID,
+		DataJSON:   string(r.Data),
 		Signature:  r.Signature,
 		State:      rState,
 		Message:    r.Error,

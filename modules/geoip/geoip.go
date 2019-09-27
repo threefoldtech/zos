@@ -6,6 +6,7 @@ import (
 	"net/http"
 )
 
+// Location holds the result of a geoip request
 type Location struct {
 	Longitute float64 `json:"longitude,omitempty"`
 	Latitude  float64 `json:"latitude,omitempty"`
@@ -14,6 +15,7 @@ type Location struct {
 	City      string  `json:"city,omitempty"`
 }
 
+// Fetch retrieves the location of the system calling this function
 func Fetch() (Location, error) {
 	l := Location{
 		Longitute: 0.0,

@@ -1,11 +1,10 @@
 package provision
 
-import "encoding/json"
-
+//TfgridReservationZdb1 jsx schema
 type TfgridReservationZdb1 struct {
-	WorkloadId      int64                               `json:"workload_id"`
-	NodeId          int64                               `json:"node_id"`
-	ReservationId   int64                               `json:"reservation_id"`
+	WorkloadID      int64                               `json:"workload_id"`
+	NodeID          int64                               `json:"node_id"`
+	ReservationID   int64                               `json:"reservation_id"`
 	Size            int64                               `json:"size"`
 	Mode            TfgridReservationZdb1ModeEnum       `json:"mode"`
 	Password        string                              `json:"password"`
@@ -15,17 +14,10 @@ type TfgridReservationZdb1 struct {
 	FarmerTid       int64                               `json:"farmer_tid"`
 }
 
-func NewTfgridReservationZdb1() (TfgridReservationZdb1, error) {
-	const value = "{\"public\": false}"
-	var object TfgridReservationZdb1
-	if err := json.Unmarshal([]byte(value), &object); err != nil {
-		return object, err
-	}
-	return object, nil
-}
-
+//TfgridReservationZdb1ModeEnum jsx schema
 type TfgridReservationZdb1ModeEnum uint8
 
+// TfgridReservationZdb1ModeEnum
 const (
 	TfgridReservationZdb1ModeSeq TfgridReservationZdb1ModeEnum = iota
 	TfgridReservationZdb1ModeUser
@@ -41,13 +33,16 @@ func (e TfgridReservationZdb1ModeEnum) String() string {
 	return "UNKNOWN"
 }
 
+//TfgridReservationZdb1DiskTypeEnum jsx schema
 type TfgridReservationZdb1DiskTypeEnum uint8
 
+//TfgridReservationZdb1DiskTypeEnum
 const (
 	TfgridReservationZdb1DiskTypeHdd TfgridReservationZdb1DiskTypeEnum = iota
 	TfgridReservationZdb1DiskTypeSsd
 )
 
+//String implement Stringer interface
 func (e TfgridReservationZdb1DiskTypeEnum) String() string {
 	switch e {
 	case TfgridReservationZdb1DiskTypeHdd:

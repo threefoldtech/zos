@@ -18,11 +18,12 @@ type Store interface {
 	Ping(nodeID modules.Identifier) error
 }
 
+// BCDBStore implements the store interface using a gedis client to BCDB
 type BCDBStore struct {
 	g *gedis.Gedis
 }
 
-// Register sends the capacity information to BCDB
+// NewBCDBStore creates a BCDBStore
 func NewBCDBStore(gedis *gedis.Gedis) *BCDBStore {
 	return &BCDBStore{g: gedis}
 }
