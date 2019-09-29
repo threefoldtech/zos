@@ -6,7 +6,7 @@ import (
 
 //TfgridFarm1 jsx schema
 type TfgridFarm1 struct {
-	ID              int64                      `json:"id"`
+	ID              int64                      `json:"id,omitempty"`
 	ThreebotID      string                     `json:"threebot_id"`
 	IyoOrganization string                     `json:"iyo_organization"`
 	Name            string                     `json:"name"`

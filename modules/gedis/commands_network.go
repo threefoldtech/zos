@@ -1,5 +1,17 @@
 package gedis
 
+import (
+	"net"
+	"time"
+
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/gedis/types/directory"
+	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
+	"github.com/threefoldtech/zosv2/modules/schema"
+	"github.com/vishvananda/netlink"
+)
+
 // import (
 // 	"encoding/json"
 // 	"fmt"
@@ -132,12 +144,71 @@ package gedis
 
 // }
 
-// //PublishInterfaces implements network.TNoDB interface
-// /*
-// func (g *Gedis) PublishInterfaces(local modules.Identifier) error {
+func (g *Gedis) getLocalInterfaces() ([]directory.TfgridNodeIface1, error) {
+	output := []directory.TfgridNodeIface1{}
 
-// }
-// */
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list interfaces")
+	}
+
+	for _, link := range ifaceutil.LinkFilter(links, []string{"device", "bridge"}) {
+
+		if link.Attrs().Flags&net.FlagUp == 0 || link.Attrs().Name == "lo" {
+			//interface is not up
+			continue
+		}
+
+		if !ifaceutil.IsVirtEth(link.Attrs().Name) && !ifaceutil.IsPluggedTimeout(link.Attrs().Name, time.Second*5) {
+			continue
+		}
+
+		_, gw, err := ifaceutil.HasDefaultGW(link)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: i am only registering IPv4 addresses because jumpscale schema iprange
+		// does not support IPv6 yet.
+		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+		if err != nil {
+			return nil, err
+		}
+
+		info := directory.TfgridNodeIface1{
+			Name:    link.Attrs().Name,
+			Addrs:   make([]schema.IPRange, len(addrs)),
+			Gateway: make([]net.IP, 0),
+		}
+
+		for i, addr := range addrs {
+			info.Addrs[i] = schema.IPRange{*addr.IPNet}
+		}
+
+		if gw != nil {
+			info.Gateway = append(info.Gateway, gw)
+		}
+
+		output = append(output, info)
+	}
+
+	return output, err
+}
+
+//PublishInterfaces implements network.TNoDB interface
+func (g *Gedis) PublishInterfaces(local modules.Identifier) error {
+	ifaces, err := g.getLocalInterfaces()
+	if err != nil {
+		return err
+	}
+
+	_, err = g.Send("nodes", "publish_interfaces", Args{
+		"node_id": local.Identity(),
+		"ifaces":  ifaces,
+	})
+
+	return err
+}
 
 // //ConfigurePublicIface implements network.TNoDB interface
 // func (g *Gedis) ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error {

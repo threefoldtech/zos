@@ -54,16 +54,14 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 		return "", parseError(err)
 	}
 
-	var out struct {
-		Node directory.TfgridNode2 `json:"node"`
-	}
+	var out directory.TfgridNode2
 
 	if err := json.Unmarshal(resp, &out); err != nil {
 		return "", err
 	}
 
 	// no need to do data conversion here, returns the id
-	return out.Node.NodeID, nil
+	return out.NodeID, nil
 }
 
 // ListNode implements modules.IdentityManager interface

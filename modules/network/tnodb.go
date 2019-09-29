@@ -15,16 +15,16 @@ type TNoDB interface {
 	RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, uint8, error)
 	GetFarm(farm modules.Identifier) (Farm, error)
 
-	PublishInterfaces(node modules.Identifier) error
+	PublishInterfaces(node modules.Identifier) error // -> zos
 	GetNode(modules.Identifier) (*types.Node, error)
 
 	ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error
-	ReadPubIface(node modules.Identifier) (*types.PubIface, error)
+	ReadPubIface(node modules.Identifier) (*types.PubIface, error) // -> zos
 
 	SelectExitNode(node modules.Identifier) error
 
-	GetNetwork(netID modules.NetID) (*modules.Network, error)
-	GetNetworksVersion(nodeID modules.Identifier) (versions map[modules.NetID]uint32, err error)
+	GetNetwork(netID modules.NetID) (*modules.Network, error)                                    // -> ?
+	GetNetworksVersion(nodeID modules.Identifier) (versions map[modules.NetID]uint32, err error) // -> zos
 }
 
 // Farm hold the ID, name and list of possible exit node of a farm
