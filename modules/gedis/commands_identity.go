@@ -164,6 +164,20 @@ func nodeFromSchema(node directory.TfgridNode2) types.Node {
 			}
 			return r
 		}(),
+		PublicConfig: func() *types.PubIface {
+			cfg := node.PublicConfig
+			pub := types.PubIface{
+				Master:  cfg.Master,
+				Type:    types.IfaceType(cfg.Type.String()),
+				IPv4:    &cfg.Ipv4.IPNet,
+				IPv6:    &cfg.Ipv6.IPNet,
+				GW4:     cfg.Gw4,
+				GW6:     cfg.Gw6,
+				Version: int(cfg.Version),
+			}
+
+			return &pub
+		}(),
 		ExitNode: func() int {
 			if node.ExitNode {
 				return 1

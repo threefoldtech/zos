@@ -1,6 +1,7 @@
 package gedis
 
 import (
+	"fmt"
 	"net"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/gedis/types/directory"
 	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
+	"github.com/threefoldtech/zosv2/modules/network/types"
 	"github.com/threefoldtech/zosv2/modules/schema"
 	"github.com/vishvananda/netlink"
 )
@@ -208,6 +210,20 @@ func (g *Gedis) PublishInterfaces(local modules.Identifier) error {
 	})
 
 	return err
+}
+
+//ReadPubIface gets public config of a node
+func (g *Gedis) ReadPubIface(node modules.Identifier) (*types.PubIface, error) {
+	object, err := g.GetNode(node)
+	if err != nil {
+		return nil, err
+	}
+
+	if object.PublicConfig == nil {
+		return nil, fmt.Errorf("public config not set")
+	}
+
+	return object.PublicConfig, nil
 }
 
 // //ConfigurePublicIface implements network.TNoDB interface

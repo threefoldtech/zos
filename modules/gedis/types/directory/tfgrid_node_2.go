@@ -1,9 +1,8 @@
 package directory
 
 import (
-	"net"
-
 	schema "github.com/threefoldtech/zosv2/modules/schema"
+	"net"
 )
 
 //TfgridNode2 jsx schema
@@ -38,8 +37,8 @@ type TfgridNodeIface1 struct {
 type TfgridNodePublicIface1 struct {
 	Master  string                         `json:"master"`
 	Type    TfgridNodePublicIface1TypeEnum `json:"type"`
-	Ipv4    net.IP                         `json:"ipv4"`
-	Ipv6    net.IP                         `json:"ipv6"`
+	Ipv4    schema.IPRange                 `json:"ipv4"`
+	Ipv6    schema.IPRange                 `json:"ipv6"`
 	Gw4     net.IP                         `json:"gw4"`
 	Gw6     net.IP                         `json:"gw6"`
 	Version int64                          `json:"version"`
@@ -67,12 +66,15 @@ type TfgridNodePublicIface1TypeEnum uint8
 
 // TfgridNodePublicIface1TypeEnum
 const (
-	TfgridNodePublicIface1TypeMacvlan TfgridNodePublicIface1TypeEnum = iota
+	TfgridNodePublicIface1TypeVlan TfgridNodePublicIface1TypeEnum = iota
+	TfgridNodePublicIface1TypeMacvlan
 )
 
 // String implements stringer interface
 func (e TfgridNodePublicIface1TypeEnum) String() string {
 	switch e {
+	case TfgridNodePublicIface1TypeVlan:
+		return "vlan"
 	case TfgridNodePublicIface1TypeMacvlan:
 		return "macvlan"
 	}
