@@ -82,103 +82,12 @@ func (g *Gedis) SetPublicIface(node modules.Identifier, pub *types.PubIface) err
 	return err
 }
 
-// //SelectExitNode implements network.TNoDB interface
-// func (g *Gedis) SelectExitNode(node modules.Identifier) error {
-// 	req := selectExitNodeBody{
-// 		NodeID: node.Identity(),
-// 	}
+//PublishWGPort implements network.TNoDB interface
+func (g *Gedis) PublishWGPort(node modules.Identifier, ports []uint) error {
+	_, err := g.Send("nodes", "publish_wg_ports", Args{
+		"node_id": node.Identity(),
+		"ports":   ports,
+	})
 
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	resp, err := g.sendCommand("nodes", "select_exit", b)
-// 	if err != nil {
-// 		return parseError(err)
-// 	}
-
-// 	r := &selectExitNodeResponse{}
-// 	if err := json.Unmarshal(resp, &r); err != nil {
-// 		return err
-// 	}
-
-// 	if r.Status != 0 { // FIXME: set code
-// 		return fmt.Errorf("wrong response status received: %s", r.Message)
-// 	}
-
-// 	return nil
-// }
-
-// //ReadPubIface implements network.TNoDB interface
-// func (g *Gedis) ReadPubIface(node modules.Identifier) (*types.PubIface, error) {
-// 	req := getNodeBody{
-// 		NodeID: node.Identity(),
-// 	}
-
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	resp, err := g.sendCommand("nodes", "get", b)
-// 	if err != nil {
-// 		return nil, parseError(err)
-// 	}
-
-// 	iface := readPubIfaceBody{}
-// 	if err := json.Unmarshal(resp, &iface); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return iface.PublicConfig, nil
-// }
-
-// //GetNetwork implements network.TNoDB interface
-// func (g *Gedis) GetNetwork(netid modules.NetID) (*modules.Network, error) {
-// 	req := getNetworksBody{
-// 		NetID: string(netid),
-// 	}
-
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	resp, err := g.sendCommand("network", "get", b)
-// 	if err != nil {
-// 		return nil, parseError(err)
-// 	}
-
-// 	network := &modules.Network{}
-// 	if err := json.Unmarshal(resp, &network); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return network, nil
-
-// }
-
-// //GetNetworksVersion implements network.TNoDB interface
-// func (g *Gedis) GetNetworksVersion(nodeID modules.Identifier) (map[modules.NetID]uint32, error) {
-// 	req := getNetworksVersionBody{
-// 		NodeID: nodeID.Identity(),
-// 	}
-
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	resp, err := g.sendCommand("networkVersion", "get", b)
-// 	if err != nil {
-// 		return nil, parseError(err)
-// 	}
-
-// 	versions := make(map[modules.NetID]uint32)
-// 	if err := json.Unmarshal(resp, &versions); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return versions, nil
-// }
+	return err
+}
