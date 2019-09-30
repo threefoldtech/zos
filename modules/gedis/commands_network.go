@@ -212,7 +212,7 @@ func (g *Gedis) PublishInterfaces(local modules.Identifier) error {
 	return err
 }
 
-//ReadPubIface gets public config of a node
+//GetPubIface gets public config of a node
 func (g *Gedis) GetPubIface(node modules.Identifier) (*types.PubIface, error) {
 	object, err := g.GetNode(node)
 	if err != nil {
@@ -226,7 +226,7 @@ func (g *Gedis) GetPubIface(node modules.Identifier) (*types.PubIface, error) {
 	return object.PublicConfig, nil
 }
 
-//ConfigurePublicIface implements network.TNoDB interface
+//SetPublicIface implements network.TNoDB interface
 func (g *Gedis) SetPublicIface(node modules.Identifier, pub *types.PubIface) error {
 	public := directory.TfgridNodePublicIface1{
 		Master:  pub.Master,
