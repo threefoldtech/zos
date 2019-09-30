@@ -51,7 +51,7 @@ func (g *Gedis) RegisterNode(nodeID, farmID modules.Identifier, version string) 
 	}))
 
 	if err != nil {
-		return "", parseError(err)
+		return "", err
 	}
 
 	var out directory.TfgridNode2

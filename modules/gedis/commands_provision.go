@@ -48,7 +48,7 @@ func (g *Gedis) Poll(nodeID modules.Identifier, all bool, since time.Time) ([]*p
 	}))
 
 	if err != nil {
-		return nil, parseError(err)
+		return nil, err
 	}
 
 	var out struct {
@@ -112,7 +112,7 @@ func (g *Gedis) Feedback(id string, r *provision.Result) error {
 		"reservation_id": rID,
 		"result":         b,
 	})
-	return parseError(err)
+	return err
 }
 
 // Deleted implements provision.Feedbacker
