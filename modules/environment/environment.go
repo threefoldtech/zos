@@ -32,14 +32,14 @@ const (
 var (
 	envDev = Environment{
 		RunningMode: RunningDev,
-		BcdbURL:     "https://tnodb.dev.grid.tf",
+		BcdbURL:     "https://bcdb.dev.grid.tf",
 		// ProvisionTimeout:  60,
 		// ProvisionInterval: 10,
 	}
 
 	envTest = Environment{
 		RunningMode:   RunningTest,
-		BcdbURL:       "tcp://10.4.0.250:8901",
+		BcdbURL:       "tcp://bcdb.test.grid:8901",
 		BcdbNamespace: "default",
 		// ProvisionTimeout:  120,
 		// ProvisionInterval: 10,
