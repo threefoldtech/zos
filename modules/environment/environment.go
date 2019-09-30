@@ -39,7 +39,7 @@ var (
 
 	envTest = Environment{
 		RunningMode:   RunningTest,
-		BcdbURL:       "tcp://bcdb.test.grid:8901",
+		BcdbURL:       "tcp://bcdb.test.grid.tf:8901",
 		BcdbNamespace: "default",
 		// ProvisionTimeout:  120,
 		// ProvisionInterval: 10,
