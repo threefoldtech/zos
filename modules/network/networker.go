@@ -460,10 +460,10 @@ func createNetNS(name string) (ns.NetNS, error) {
 }
 
 // ResourceByNodeID return the net resource associated with a nodeID
-func ResourceByNodeID(nodeID string, resources []*modules.NetResource) (*modules.NetResource, error) {
+func ResourceByNodeID(nodeID string, resources []modules.NetResource) (*modules.NetResource, error) {
 	for _, resource := range resources {
 		if resource.NodeID == nodeID {
-			return resource, nil
+			return &resource, nil
 		}
 	}
 	return nil, fmt.Errorf("not network resource for this node: %s", nodeID)

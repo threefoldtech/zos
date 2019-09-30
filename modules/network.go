@@ -49,7 +49,7 @@ type Network struct {
 	// IP range of the network, must be an IPv4 /16
 	IPRange *net.IPNet `json:"ip_range"`
 
-	NetResources []*NetResource `json:"net_resources"`
+	NetResources []NetResource `json:"net_resources"`
 }
 
 // NetResource is the description of a part of a network local to a specific node
@@ -62,7 +62,7 @@ type NetResource struct {
 	WGPublicKey  string `json:"wg_public_key"`
 	WGListenPort uint16 `json:"wg_listen_port"`
 
-	Peers []*Peer `json:"peers"`
+	Peers []Peer `json:"peers"`
 }
 
 // Peer is the description of a peer of a NetResource
@@ -70,9 +70,9 @@ type Peer struct {
 	// IPV4 subnet of the network resource of the peer
 	Subnet *net.IPNet `json:"subnet"`
 
-	WGPublicKey string       `json:"wg_public_key"`
-	AllowedIPs  []*net.IPNet `json:"allowed_ips"`
-	Endpoint    string       `json:"endpoint"`
+	WGPublicKey string      `json:"wg_public_key"`
+	AllowedIPs  []net.IPNet `json:"allowed_ips"`
+	Endpoint    string      `json:"endpoint"`
 }
 
 // NetID is a type defining the ID of a network
