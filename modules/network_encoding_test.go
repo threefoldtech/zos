@@ -48,14 +48,14 @@ func TestEncodeDecode(t *testing.T) {
 			IP:   net.ParseIP("10.0.0.0"),
 			Mask: net.CIDRMask(16, 32),
 		},
-		NetResources: []*NetResource{
+		NetResources: []NetResource{
 			{
 				NodeID: "node1",
 				Subnet: &net.IPNet{
 					IP:   net.ParseIP("10.0.1.0"),
 					Mask: net.CIDRMask(24, 32),
 				},
-				Peers: []*Peer{
+				Peers: []Peer{
 					{
 						Subnet: &net.IPNet{
 							IP:   net.ParseIP("10.0.2.0"),
@@ -63,7 +63,7 @@ func TestEncodeDecode(t *testing.T) {
 						},
 						Endpoint:    "172.20.0.90:6380",
 						WGPublicKey: "pubkey",
-						AllowedIPs: []*net.IPNet{
+						AllowedIPs: []net.IPNet{
 							{
 								IP:   net.ParseIP("10.0.1.0"),
 								Mask: net.CIDRMask(24, 32),
