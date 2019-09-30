@@ -13,11 +13,11 @@ import (
 type TNoDB interface {
 	GetFarm(farm modules.Identifier) (*Farm, error)
 
-	PublishInterfaces(node modules.Identifier) error // -> zos
+	PublishInterfaces(node modules.Identifier, ifaces []types.IfaceInfo) error
 	GetNode(modules.Identifier) (*types.Node, error)
 
 	SetPublicIface(node modules.Identifier, pub *types.PubIface) error
-	GetPubIface(node modules.Identifier) (*types.PubIface, error) // -> zos
+	GetPubIface(node modules.Identifier) (*types.PubIface, error)
 }
 
 // TNoDBUtils define the interface to implement
@@ -29,8 +29,8 @@ type TNoDBUtils interface {
 
 	SelectExitNode(node modules.Identifier) error
 
-	GetNetwork(netID modules.NetID) (*modules.Network, error)                                    // -> ?
-	GetNetworksVersion(nodeID modules.Identifier) (versions map[modules.NetID]uint32, err error) // -> zos
+	GetNetwork(netID modules.NetID) (*modules.Network, error)
+	GetNetworksVersion(nodeID modules.Identifier) (versions map[modules.NetID]uint32, err error)
 }
 
 // Farm hold the ID, name and list of possible exit node of a farm

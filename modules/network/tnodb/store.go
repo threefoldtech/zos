@@ -7,17 +7,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/network"
 
-	"github.com/rs/zerolog/log"
-
-	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
 	"github.com/threefoldtech/zosv2/modules/network/types"
-	"github.com/vishvananda/netlink"
 )
 
 type httpTNoDB struct {
@@ -140,55 +135,10 @@ func (s *httpTNoDB) GetNode(nodeID modules.Identifier) (*types.Node, error) {
 	return node, nil
 }
 
-func (s *httpTNoDB) PublishInterfaces(local modules.Identifier) error {
-	output := []*types.IfaceInfo{}
-
-	links, err := netlink.LinkList()
-	if err != nil {
-		log.Error().Err(err).Msgf("failed to list interfaces")
-		return err
-	}
-
-	for _, link := range ifaceutil.LinkFilter(links, []string{"device", "bridge"}) {
-
-		if err := netlink.LinkSetUp(link); err != nil {
-			log.Info().Str("interface", link.Attrs().Name).Msg("failed to bring interface up")
-			continue
-		}
-
-		if !ifaceutil.IsVirtEth(link.Attrs().Name) && !ifaceutil.IsPluggedTimeout(link.Attrs().Name, time.Second*5) {
-			log.Info().Str("interface", link.Attrs().Name).Msg("interface is not plugged in, skipping")
-			continue
-		}
-
-		_, gw, err := ifaceutil.HasDefaultGW(link)
-		if err != nil {
-			return err
-		}
-
-		addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
-		if err != nil {
-			return err
-		}
-
-		info := &types.IfaceInfo{
-			Name:  link.Attrs().Name,
-			Addrs: make([]*net.IPNet, len(addrs)),
-		}
-		for i, addr := range addrs {
-			info.Addrs[i] = addr.IPNet
-		}
-
-		if gw != nil {
-			info.Gateway = append(info.Gateway, gw)
-		}
-
-		output = append(output, info)
-	}
-
+func (s *httpTNoDB) PublishInterfaces(local modules.Identifier, ifaces []types.IfaceInfo) error {
 	url := fmt.Sprintf("%s/nodes/%s/interfaces", s.baseURL, local.Identity())
 	buf := &bytes.Buffer{}
-	if err := json.NewEncoder(buf).Encode(output); err != nil {
+	if err := json.NewEncoder(buf).Encode(ifaces); err != nil {
 		return err
 	}
 
