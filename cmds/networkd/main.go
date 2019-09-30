@@ -30,15 +30,13 @@ const module = "network"
 
 func main() {
 	var (
-		tnodbURL string
-		root     string
-		broker   string
-		ver      bool
+		root   string
+		broker string
+		ver    bool
 	)
 
 	flag.StringVar(&root, "root", "/var/cache/modules/networkd", "root path of the module")
 	flag.StringVar(&broker, "broker", redisSocket, "connection string to broker")
-	flag.StringVar(&tnodbURL, "tnodb", "https://tnodb.dev.grid.tf", "address of tenant network object database")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
 	flag.Parse()
@@ -58,10 +56,13 @@ func main() {
 	}
 
 	if err := os.MkdirAll(root, 0750); err != nil {
-		log.Error().Err(err).Msgf("fail to create module root")
+		log.Fatal().Err(err).Msgf("fail to create module root")
 	}
 
-	db := tnodb.NewHTTPTNoDB(tnodbURL)
+	db, err := bcdbClient()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to BCDB")
+	}
 
 	identity := stubs.NewIdentityManagerStub(client)
 	networker := network.NewNetworker(identity, db, root)
