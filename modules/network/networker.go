@@ -57,47 +57,72 @@ func NewNetworker(identity modules.IdentityManager, tnodb TNoDB, storageDir stri
 var _ modules.Networker = (*networker)(nil)
 
 func validateNetwork(n *modules.Network) error {
-	// TODO
-	// if n.NetID == "" {
-	// 	return fmt.Errorf("network ID cannot be empty")
-	// }
+	if n.NetID == "" {
+		return fmt.Errorf("network ID cannot be empty")
+	}
 
-	// if n.PrefixZero == nil {
-	// 	return fmt.Errorf("PrefixZero cannot be empty")
-	// }
+	if n.Name == "" {
+		return fmt.Errorf("network name cannot be empty")
+	}
 
-	// if len(n.Resources) < 1 {
-	// 	return fmt.Errorf("Network needs at least one network resource")
-	// }
+	if n.IPRange == nil {
+		return fmt.Errorf("network IP range cannot be empty")
+	}
 
-	// for i, r := range n.Resources {
-	// 	nibble, err := nib.NewNibble(r.Prefix, n.AllocationNR)
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "allocation prefix is not valid")
-	// 	}
-	// 	if r.Prefix == nil {
-	// 		return fmt.Errorf("Prefix for network resource %s is empty", r.NodeID.Identity())
-	// 	}
+	if len(n.NetResources) < 1 {
+		return fmt.Errorf("Network needs at least one network resource")
+	}
 
-	// 	peer := r.Peers[i]
-	// 	expectedPort := nibble.WireguardPort()
-	// 	if peer.Connection.Port != 0 && peer.Connection.Port != expectedPort {
-	// 		return fmt.Errorf("Wireguard port for peer %s should be %d", r.NodeID.Identity(), expectedPort)
-	// 	}
+	for _, nr := range n.NetResources {
+		if err := validateNR(nr); err != nil {
+			return err
+		}
+	}
 
-	// 	if peer.Connection.IP != nil && !peer.Connection.IP.IsGlobalUnicast() {
-	// 		return fmt.Errorf("Wireguard endpoint for peer %s should be a public IP, not %s", r.NodeID.Identity(), peer.Connection.IP.String())
-	// 	}
-	// }
+	return nil
+}
+func validateNR(nr modules.NetResource) error {
 
-	// if n.Exit == nil {
-	// 	return fmt.Errorf("Exit point cannot be empty")
-	// }
+	if nr.NodeID == "" {
+		return fmt.Errorf("network resource node ID cannot empty")
+	}
+	if nr.Subnet == nil {
+		return fmt.Errorf("network resource subnet cannot empty")
+	}
 
-	// if n.AllocationNR < 0 {
-	// 	return fmt.Errorf("AllocationNR cannot be negative")
-	// }
+	if nr.WGPrivateKey == "" {
+		return fmt.Errorf("network resource wireguard private key cannot empty")
+	}
 
+	if nr.WGPublicKey == "" {
+		return fmt.Errorf("network resource wireguard public key cannot empty")
+	}
+
+	if nr.WGListenPort <= 0 {
+		return fmt.Errorf("network resource wireguard listen port cannot empty")
+	}
+
+	for _, peer := range nr.Peers {
+		if err := validatePeer(peer); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validatePeer(p modules.Peer) error {
+	if p.WGPublicKey == "" {
+		return fmt.Errorf("peer wireguard public key cannot empty")
+	}
+
+	if p.Subnet == nil {
+		return fmt.Errorf("peer wireguard subnet cannot empty")
+	}
+
+	if len(p.AllowedIPs) <= 0 {
+		return fmt.Errorf("peer wireguard allowedIPs cannot empty")
+	}
 	return nil
 }
 
