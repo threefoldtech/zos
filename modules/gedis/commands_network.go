@@ -213,7 +213,7 @@ func (g *Gedis) PublishInterfaces(local modules.Identifier) error {
 }
 
 //ReadPubIface gets public config of a node
-func (g *Gedis) ReadPubIface(node modules.Identifier) (*types.PubIface, error) {
+func (g *Gedis) GetPubIface(node modules.Identifier) (*types.PubIface, error) {
 	object, err := g.GetNode(node)
 	if err != nil {
 		return nil, err
@@ -226,42 +226,31 @@ func (g *Gedis) ReadPubIface(node modules.Identifier) (*types.PubIface, error) {
 	return object.PublicConfig, nil
 }
 
-// //ConfigurePublicIface implements network.TNoDB interface
-// func (g *Gedis) ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error {
-// 	req := configurePublicIfaceBody{
-// 		NodeID: node.Identity(),
-// 		Iface:  iface,
-// 		IPs:    make([]string, len(ips)),
-// 		GWs:    make([]string, len(gws)),
-// 		Type:   types.MacVlanIface, //TODO: allow to chose type of connection
-// 	}
+//ConfigurePublicIface implements network.TNoDB interface
+func (g *Gedis) SetPublicIface(node modules.Identifier, pub *types.PubIface) error {
+	public := directory.TfgridNodePublicIface1{
+		Master:  pub.Master,
+		Type:    directory.TfgridNodePublicIface1TypeMacvlan,
+		Version: int64(pub.Version),
+	}
 
-// 	for i := range ips {
-// 		req.IPs[i] = ips[i].String()
-// 		req.GWs[i] = gws[i].String()
-// 	}
+	if pub.IPv4 != nil {
+		public.Ipv4 = schema.IPRange{*pub.IPv4}
+		public.Gw4 = pub.GW4
+	}
 
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return err
-// 	}
+	if pub.IPv6 != nil {
+		public.Ipv6 = schema.IPRange{*pub.IPv6}
+		public.Gw6 = pub.GW6
+	}
 
-// 	resp, err := g.sendCommand("nodes", "configure_public", b)
-// 	if err != nil {
-// 		return parseError(err)
-// 	}
+	_, err := g.Send("nodes", "configure_public_iface", Args{
+		"node_id": node.Identity(),
+		"public":  public,
+	})
 
-// 	r := configurePublicIfaceResponse{}
-// 	if err := json.Unmarshal(resp, &r); err != nil {
-// 		return err
-// 	}
-
-// 	if r.Status != 0 { // FIXME: set code
-// 		return fmt.Errorf("wrong response status received: %s", r.Message)
-// 	}
-
-// 	return nil
-// }
+	return err
+}
 
 // //SelectExitNode implements network.TNoDB interface
 // func (g *Gedis) SelectExitNode(node modules.Identifier) error {

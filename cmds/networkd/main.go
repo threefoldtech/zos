@@ -6,6 +6,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zosv2/modules/environment"
+	"github.com/threefoldtech/zosv2/modules/gedis"
 	"github.com/threefoldtech/zosv2/modules/stubs"
 	"github.com/threefoldtech/zosv2/modules/utils"
 	"github.com/threefoldtech/zosv2/modules/version"
@@ -70,7 +73,7 @@ func main() {
 	}
 
 	ifaceVersion := -1
-	exitIface, err := db.ReadPubIface(nodeID)
+	exitIface, err := db.GetPubIface(nodeID)
 	if err == nil {
 		if err := configurePubIface(exitIface); err != nil {
 			log.Error().Err(err).Msg("failed to configure public interface")
@@ -137,4 +140,21 @@ func startServer(ctx context.Context, broker string, networker modules.Networker
 	}
 
 	return nil
+}
+
+// instantiate the proper client based on the running mode
+func bcdbClient() (network.TNoDB, error) {
+	env := environment.Get()
+
+	// use the bcdb mock for dev and test
+	if env.RunningMode != environment.RunningMain {
+		return tnodb.NewHTTPTNoDB(env.BcdbURL), nil
+	}
+
+	// use gedis for production bcdb
+	store, err := gedis.New(env.BcdbURL, env.BcdbNamespace, env.BcdbPassword)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to connect to BCDB")
+	}
+	return store, nil
 }

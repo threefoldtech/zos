@@ -99,19 +99,19 @@ func (s *httpTNoDB) RequestAllocation(farm modules.Identifier) (*net.IPNet, *net
 	return alloc, farmAlloc, data.ExitNodeNr, nil
 }
 
-func (s *httpTNoDB) GetFarm(farm modules.Identifier) (network.Farm, error) {
-	f := network.Farm{}
+func (s *httpTNoDB) GetFarm(farm modules.Identifier) (*network.Farm, error) {
+	var f network.Farm
 
 	url := fmt.Sprintf("%s/farms/%s", s.baseURL, farm.Identity())
 	resp, err := http.Get(url)
 	if err != nil {
-		return f, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	err = json.NewDecoder(resp.Body).Decode(&f)
 
-	return f, err
+	return &f, err
 }
 
 func (s *httpTNoDB) GetNode(nodeID modules.Identifier) (*types.Node, error) {
@@ -205,28 +205,11 @@ func (s *httpTNoDB) PublishInterfaces(local modules.Identifier) error {
 	return nil
 }
 
-func (s *httpTNoDB) ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error {
-	output := struct {
-		Iface string          `json:"iface"`
-		IPs   []string        `json:"ips"`
-		GWs   []string        `json:"gateways"`
-		Type  types.IfaceType `json:"iface_type"`
-	}{
-		Iface: iface,
-		IPs:   make([]string, len(ips)),
-		GWs:   make([]string, len(gws)),
-		Type:  types.MacVlanIface, //TODO: allow to chose type of connection
-	}
-
-	for i := range ips {
-		output.IPs[i] = ips[i].String()
-		output.GWs[i] = gws[i].String()
-	}
-
+func (s *httpTNoDB) SetPublicIface(node modules.Identifier, pub *types.PubIface) error {
 	url := fmt.Sprintf("%s/nodes/%s/configure_public", s.baseURL, node.Identity())
 
 	buf := &bytes.Buffer{}
-	if err := json.NewEncoder(buf).Encode(output); err != nil {
+	if err := json.NewEncoder(buf).Encode(pub); err != nil {
 		return err
 	}
 
@@ -256,7 +239,7 @@ func (s *httpTNoDB) SelectExitNode(node modules.Identifier) error {
 	return nil
 }
 
-func (s *httpTNoDB) ReadPubIface(node modules.Identifier) (*types.PubIface, error) {
+func (s *httpTNoDB) GetPubIface(node modules.Identifier) (*types.PubIface, error) {
 
 	iface := &struct {
 		PublicConfig *types.PubIface `json:"public_config"`

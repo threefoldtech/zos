@@ -66,17 +66,17 @@ type TfgridNodePublicIface1TypeEnum uint8
 
 // TfgridNodePublicIface1TypeEnum
 const (
-	TfgridNodePublicIface1TypeVlan TfgridNodePublicIface1TypeEnum = iota
-	TfgridNodePublicIface1TypeMacvlan
+	TfgridNodePublicIface1TypeMacvlan TfgridNodePublicIface1TypeEnum = iota
+	TfgridNodePublicIface1TypeVlan
 )
 
 // String implements stringer interface
 func (e TfgridNodePublicIface1TypeEnum) String() string {
 	switch e {
-	case TfgridNodePublicIface1TypeVlan:
-		return "vlan"
 	case TfgridNodePublicIface1TypeMacvlan:
 		return "macvlan"
+	case TfgridNodePublicIface1TypeVlan:
+		return "vlan"
 	}
 	return "UNKNOWN"
 }

@@ -224,8 +224,8 @@ func (g *Gedis) UpdateUsedNodeCapacity(node modules.Identifier, mru, cru, hru, s
 }
 
 //GetFarm implements modules.IdentityManager interface
-func (g *Gedis) GetFarm(farm string) (*network.Farm, error) {
-	id, err := strconv.ParseInt(farm, 10, 64)
+func (g *Gedis) GetFarm(farm modules.Identifier) (*network.Farm, error) {
+	id, err := strconv.ParseInt(farm.Identity(), 10, 64)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid farm id")
 	}

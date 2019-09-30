@@ -21,7 +21,7 @@ func (g *Gedis) Get(id string) (*provision.Reservation, error) {
 	}))
 
 	if err != nil {
-		return nil, parseError(err)
+		return nil, err
 	}
 	fmt.Println(string(result))
 
