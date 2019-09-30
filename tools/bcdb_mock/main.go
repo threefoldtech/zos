@@ -45,9 +45,14 @@ type allocation struct {
 	SubNetUsed []uint64
 }
 
+type node struct {
+	*types.Node
+	capacity.Capacity
+}
+
 var (
-	nodeStore  map[string]*types.Node
-	farmStore  map[string]farmInfo
+	nodeStore  map[string]*node
+	farmStore  map[string]*farmInfo
 	allocStore *allocationStore
 	provStore  *provisionStore
 )
@@ -59,8 +64,8 @@ func main() {
 
 	flag.Parse()
 
-	nodeStore = make(map[string]*types.Node)
-	farmStore = make(map[string]farmInfo)
+	nodeStore = make(map[string]*node)
+	farmStore = make(map[string]*farmInfo)
 	allocStore = &allocationStore{Allocations: make(map[string]*allocation)}
 	provStore = &provisionStore{Reservations: make([]*reservation, 0, 20)}
 
