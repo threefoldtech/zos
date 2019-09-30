@@ -95,7 +95,7 @@ func addNode(nw *modules.Network, nodeID string) (*modules.Network, error) {
 		pubIface *types.PubIface
 		ip       net.IP
 	)
-	pubIface, err = db.ReadPubIface(modules.StrIdentifier(nodeID))
+	pubIface, err = db.GetPubIface(modules.StrIdentifier(nodeID))
 	if err != nil {
 		ip = nil
 	} else {

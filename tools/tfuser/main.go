@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	db    network.TNoDB
+	db    network.TNoDBUtils
 	store *provision.HTTPStore
 )
 

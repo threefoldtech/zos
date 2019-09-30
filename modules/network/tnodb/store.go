@@ -25,7 +25,7 @@ type httpTNoDB struct {
 }
 
 // NewHTTPTNoDB create an a client to a TNoDB reachable over HTTP
-func NewHTTPTNoDB(url string) network.TNoDB {
+func NewHTTPTNoDB(url string) network.TNoDBUtils {
 	return &httpTNoDB{baseURL: url}
 }
 

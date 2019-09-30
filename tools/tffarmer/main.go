@@ -17,7 +17,7 @@ import (
 
 var (
 	idStore identity.IDStore
-	db      network.TNoDB
+	db      network.TNoDBUtils
 )
 
 func main() {
