@@ -51,10 +51,13 @@ func (nr *NetResource) String() string {
 	return string(b)
 }
 
+// ID returns the network ID in which the NetResource is defined
 func (nr *NetResource) ID() string {
 	return string(nr.id)
 }
 
+// BridgeName returns the name of the bridge to create for the network
+// resource in the host network namespace
 func (nr *NetResource) BridgeName() (string, error) {
 	name := fmt.Sprintf("br-%s", nr.id)
 	if len(name) > 15 {
@@ -63,6 +66,7 @@ func (nr *NetResource) BridgeName() (string, error) {
 	return name, nil
 }
 
+// Namespace returns the name of the network namespace to create for the network resource
 func (nr *NetResource) Namespace() (string, error) {
 	name := fmt.Sprintf("net-%s", nr.id)
 	if len(name) > 15 {
@@ -71,6 +75,7 @@ func (nr *NetResource) Namespace() (string, error) {
 	return name, nil
 }
 
+// WGName returns the name of the wireguard interface to create for the network resource
 func (nr *NetResource) WGName() (string, error) {
 	wgName := fmt.Sprintf("wg-%s", nr.id)
 	if len(wgName) > 15 {

@@ -30,7 +30,7 @@ import (
 const (
 	//BridgeNDMZ is the name of the ipv4 routing bridge in the ndmz namespace
 	BridgeNDMZ = "br-ndmz"
-	NetNSNDMZ  = "ndmz"
+	netNSNDMZ  = "ndmz"
 
 	vethGWSide = "ipv4-rt"
 	vethBrSide = "to-gw"
@@ -41,9 +41,9 @@ func Create() error {
 
 	os.RemoveAll("/var/cache/modules/networkd/lease/dmz/")
 
-	netNS, err := namespace.GetByName(NetNSNDMZ)
+	netNS, err := namespace.GetByName(netNSNDMZ)
 	if err != nil {
-		netNS, err = namespace.Create(NetNSNDMZ)
+		netNS, err = namespace.Create(netNSNDMZ)
 		if err != nil {
 			return err
 		}
@@ -197,13 +197,14 @@ func applyFirewall() error {
 		return errors.Wrap(err, "failed to build nft rule set")
 	}
 
-	if err := nft.Apply(&buf, NetNSNDMZ); err != nil {
+	if err := nft.Apply(&buf, netNSNDMZ); err != nil {
 		return errors.Wrap(err, "failed to apply nft rule set")
 	}
 
 	return nil
 }
 
+// AttachNR links a network resource to the DMZ
 func AttachNR(networkID string, nr *nr.NetResource) error {
 	nrNSName, err := nr.Namespace()
 	if err != nil {

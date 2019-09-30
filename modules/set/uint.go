@@ -21,7 +21,7 @@ type UintSet struct {
 	m map[uint]struct{}
 }
 
-// New creates a new set for uint
+// NewUint creates a new set for uint
 func NewUint() *UintSet {
 	return &UintSet{
 		m: make(map[uint]struct{}),

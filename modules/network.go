@@ -41,6 +41,7 @@ type Networker interface {
 	Addrs(iface string, netns string) ([]net.IP, error)
 }
 
+// Network represent the description if a user private network
 type Network struct {
 	Name string `json:"name"`
 	//unique id inside the reservation is an autoincrement (USE AS NET_ID)
@@ -51,6 +52,7 @@ type Network struct {
 	NetResources []*NetResource `json:"net_resources"`
 }
 
+// NetResource is the description of a part of a network local to a specific node
 type NetResource struct {
 	NodeID string `json:"node_id"`
 	// IPV4 subnet from network IPRange
@@ -63,6 +65,7 @@ type NetResource struct {
 	Peers []*Peer `json:"peers"`
 }
 
+// Peer is the description of a peer of a NetResource
 type Peer struct {
 	// IPV4 subnet of the network resource of the peer
 	Subnet *net.IPNet `json:"subnet"`
