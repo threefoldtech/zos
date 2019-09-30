@@ -155,6 +155,32 @@ func (s *httpTNoDB) PublishInterfaces(local modules.Identifier, ifaces []types.I
 	return nil
 }
 
+func (s *httpTNoDB) PublishWGPort(nodeID modules.Identifier, ports []uint) error {
+	url := fmt.Sprintf("%s/nodes/%s/ports", s.baseURL, nodeID.Identity())
+
+	output := struct {
+		Ports []uint `json:"ports"`
+	}{
+		Ports: ports,
+	}
+	buf := &bytes.Buffer{}
+	if err := json.NewEncoder(buf).Encode(output); err != nil {
+		return err
+	}
+
+	resp, err := http.Post(url, "application/json", buf)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("wrong response status received: %s", resp.Status)
+	}
+
+	return nil
+}
+
 func (s *httpTNoDB) SetPublicIface(node modules.Identifier, pub *types.PubIface) error {
 	url := fmt.Sprintf("%s/nodes/%s/configure_public", s.baseURL, node.Identity())
 

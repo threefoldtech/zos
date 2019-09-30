@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+
+	"github.com/threefoldtech/zosv2/modules/capacity"
 )
 
 // IfaceType define the different public interface supported
@@ -215,6 +217,8 @@ type Node struct {
 
 	Ifaces []*IfaceInfo `json:"ifaces"`
 
-	PublicConfig *PubIface `json:"public_config"`
-	ExitNode     int       `json:"exit_node"`
+	PublicConfig *PubIface          `json:"public_config"`
+	ExitNode     int                `json:"exit_node"`
+	Capacity     *capacity.Capacity `json:"capacity"`
+	WGPorts      []uint             `json:"wg_ports"`
 }

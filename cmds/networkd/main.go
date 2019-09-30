@@ -17,6 +17,7 @@ import (
 	"github.com/threefoldtech/zosv2/modules/gedis"
 	"github.com/threefoldtech/zosv2/modules/network"
 	"github.com/threefoldtech/zosv2/modules/network/ifaceutil"
+	"github.com/threefoldtech/zosv2/modules/network/ndmz"
 	"github.com/threefoldtech/zosv2/modules/network/tnodb"
 	"github.com/threefoldtech/zosv2/modules/network/types"
 	"github.com/threefoldtech/zosv2/modules/stubs"
@@ -97,6 +98,10 @@ func main() {
 			}
 		}
 	}(ctx, chIface)
+
+	if err := ndmz.Create(); err != nil {
+		log.Fatal().Err(err).Msgf("failed to create DMZ")
+	}
 
 	if err := startServer(ctx, broker, networker); err != nil {
 		log.Fatal().Err(err).Msg("unexpected error")

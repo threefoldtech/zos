@@ -15,6 +15,7 @@ type TNoDB interface {
 
 	PublishInterfaces(node modules.Identifier, ifaces []types.IfaceInfo) error
 	GetNode(modules.Identifier) (*types.Node, error)
+	PublishWGPort(node modules.Identifier, ports []uint) error
 
 	SetPublicIface(node modules.Identifier, pub *types.PubIface) error
 	GetPubIface(node modules.Identifier) (*types.PubIface, error)
