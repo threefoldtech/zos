@@ -17,17 +17,6 @@ type TfgridReservationWorkload1 struct {
 //TfgridReservationWorkload1TypeEnum jsx schema
 type TfgridReservationWorkload1TypeEnum uint8
 
-// UnmarshalJSON implements the encoding.json.Umarshaler interface
-func (e *TfgridReservationWorkload1TypeEnum) UnmarshalJSON(b []byte) error {
-	var i uint8
-	if err := json.Unmarshal(b, &i); err != nil {
-		return err
-	}
-
-	*e = TfgridReservationWorkload1TypeEnum(i)
-	return nil
-}
-
 // TfgridReservationWorkload1TypeEnum
 const (
 	TfgridReservationWorkload1TypeZdb TfgridReservationWorkload1TypeEnum = iota
