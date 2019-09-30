@@ -24,9 +24,9 @@ type RunningMode string
 
 // Possible running mode of a node
 const (
-	RunningDev  RunningMode = "development"
-	RunningTest RunningMode = "testing"
-	RunningMain RunningMode = "production"
+	RunningDev  RunningMode = "dev"
+	RunningTest RunningMode = "test"
+	RunningMain RunningMode = "prod"
 )
 
 var (
@@ -39,7 +39,7 @@ var (
 
 	envTest = Environment{
 		RunningMode: RunningTest,
-		BcdbURL:     "https://tnodb.test.grid.tf",
+		BcdbURL:     "tcp://10.4.0.250:8901",
 		// ProvisionTimeout:  120,
 		// ProvisionInterval: 10,
 	}
