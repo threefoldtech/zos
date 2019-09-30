@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/threefoldtech/zosv2/modules/capacity"
 	"github.com/threefoldtech/zosv2/modules/network/types"
 	"github.com/threefoldtech/zosv2/modules/provision"
 )

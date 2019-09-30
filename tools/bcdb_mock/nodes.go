@@ -62,7 +62,7 @@ func listNodes(w http.ResponseWriter, r *http.Request) {
 		if farm != "" && node.FarmID != farm {
 			continue
 		}
-		nodes = append(nodes, node)
+		nodes = append(nodes, node.Node)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
