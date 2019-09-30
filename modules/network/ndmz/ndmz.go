@@ -183,7 +183,7 @@ func createRoutingBridge(netNS ns.NetNS) error {
 
 		return netlink.AddrAdd(lVethGW, &netlink.Addr{
 			IPNet: &net.IPNet{
-				IP:   net.ParseIP("100.64.0.1"),
+				IP:   net.ParseIP("100.127.0.1"),
 				Mask: net.CIDRMask(16, 32),
 			},
 		})
@@ -249,7 +249,7 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 				IP:   net.ParseIP("0.0.0.0"),
 				Mask: net.CIDRMask(0, 32),
 			},
-			Gw:        net.ParseIP("100.64.0.1"),
+			Gw:        net.ParseIP("100.127.0.1"),
 			LinkIndex: lvethNR.Attrs().Index,
 		})
 		if err != nil && !os.IsExist(err) {

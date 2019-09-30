@@ -18,13 +18,13 @@ func allocateIPv4(networkID string) (*net.IPNet, error) {
 	}
 
 	r := allocator.Range{
-		RangeStart: net.ParseIP("100.64.0.2"),
-		RangeEnd:   net.ParseIP("100.64.0.255"),
+		RangeStart: net.ParseIP("100.127.0.2"),
+		RangeEnd:   net.ParseIP("100.127.255.254"),
 		Subnet: types.IPNet(net.IPNet{
-			IP:   net.ParseIP("100.64.0.0"),
+			IP:   net.ParseIP("100.127.0.0"),
 			Mask: net.CIDRMask(16, 32),
 		}),
-		Gateway: net.ParseIP("100.64.0.1"),
+		Gateway: net.ParseIP("100.127.0.1"),
 	}
 
 	if err := r.Canonicalize(); err != nil {

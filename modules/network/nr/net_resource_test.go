@@ -3,14 +3,13 @@ package nr
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vishvananda/netlink"
-
 	"github.com/stretchr/testify/require"
-
 	"github.com/threefoldtech/zosv2/modules"
+	"github.com/vishvananda/netlink"
 )
 
 type testIdentityManager struct {
@@ -119,4 +118,36 @@ func mustParseCIDR(cidr string) *net.IPNet {
 	}
 	ipnet.IP = ip
 	return ipnet
+}
+
+func Test_wgIP(t *testing.T) {
+	type args struct {
+		subnet *net.IPNet
+	}
+	tests := []struct {
+		name string
+		args args
+		want *net.IPNet
+	}{
+		{
+			name: "default",
+			args: args{
+				subnet: &net.IPNet{
+					IP:   net.ParseIP("10.3.1.0"),
+					Mask: net.CIDRMask(16, 32),
+				},
+			},
+			want: &net.IPNet{
+				IP:   net.ParseIP("100.64.3.1"),
+				Mask: net.CIDRMask(16, 32),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := wgIP(tt.args.subnet); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("wgIP() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

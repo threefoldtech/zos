@@ -105,11 +105,11 @@ func (nr *NetResource) Create(pubNS ns.NetNS) error {
 
 func wgIP(subnet *net.IPNet) *net.IPNet {
 	// example: 10.3.1.0 -> 10.255.3.1
-	a := subnet.IP[len(subnet.IP)-2]
-	b := subnet.IP[len(subnet.IP)-1]
+	a := subnet.IP[len(subnet.IP)-3]
+	b := subnet.IP[len(subnet.IP)-2]
 
 	return &net.IPNet{
-		IP:   net.IPv4(0x10, 0xff, a, b),
+		IP:   net.IPv4(0x64, 0x40, a, b),
 		Mask: net.CIDRMask(16, 32),
 	}
 }
@@ -245,9 +245,9 @@ func (nr *NetResource) Delete() error {
 func (nr *NetResource) routes() ([]*netlink.Route, error) {
 	routes := make([]*netlink.Route, 0, len(nr.resource.Peers))
 
-	for _, peer := range nr.resource.Peers {
+	wgIP := wgIP(nr.resource.Subnet)
 
-		wgIP := wgIP(peer.Subnet)
+	for _, peer := range nr.resource.Peers {
 
 		routes = append(routes, &netlink.Route{
 			Dst: peer.Subnet,
