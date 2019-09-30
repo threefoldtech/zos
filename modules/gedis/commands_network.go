@@ -244,7 +244,7 @@ func (g *Gedis) SetPublicIface(node modules.Identifier, pub *types.PubIface) err
 		public.Gw6 = pub.GW6
 	}
 
-	_, err := g.Send("nodes", "configure_public_iface", Args{
+	_, err := g.Send("nodes", "set_public_iface", Args{
 		"node_id": node.Identity(),
 		"public":  public,
 	})
