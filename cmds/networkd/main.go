@@ -201,7 +201,7 @@ func bcdbClient() (network.TNoDB, error) {
 	env := environment.Get()
 
 	// use the bcdb mock for dev and test
-	if env.RunningMode != environment.RunningMain {
+	if env.RunningMode == environment.RunningDev {
 		return tnodb.NewHTTPTNoDB(env.BcdbURL), nil
 	}
 

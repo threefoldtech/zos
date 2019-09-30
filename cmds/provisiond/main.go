@@ -121,7 +121,7 @@ func bcdbClient() (store, error) {
 	env := environment.Get()
 
 	// use the bcdb mock for dev and test
-	if env.RunningMode != environment.RunningMain {
+	if env.RunningMode == environment.RunningDev {
 		return provision.NewHTTPStore(env.BcdbURL), nil
 	}
 
