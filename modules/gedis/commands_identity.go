@@ -247,34 +247,6 @@ func (g *Gedis) GetFarm(farm modules.Identifier) (*network.Farm, error) {
 	return &f, nil
 }
 
-// //UpdateFarm implements modules.IdentityManager interface
-// func (g *Gedis) UpdateFarm(farm modules.Identifier) error {
-// 	req := gedisUpdateFarmBody{
-// 		FarmID: farm.Identity(),
-// 		Farm: tfgridFarm1{
-// 			ThreebotID:      "",
-// 			IyoOrganization: "",
-// 			Name:            "",
-// 			WalletAddresses: []string{},
-// 			// Location: {},
-// 			Vta: "",
-// 			// ResourcePrice: {},
-// 		},
-// 	}
-
-// 	b, err := json.Marshal(req)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	_, err = g.sendCommand("farms", "update", b)
-// 	if err != nil {
-// 		return parseError(err)
-// 	}
-
-// 	return nil
-// }
-
 //ListFarm implements modules.IdentityManager interface
 func (g *Gedis) ListFarm(country string, city string) ([]network.Farm, error) {
 	resp, err := Bytes(g.Send("farms", "list", Args{

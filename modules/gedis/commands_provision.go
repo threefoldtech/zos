@@ -2,7 +2,6 @@ package gedis
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -23,7 +22,6 @@ func (g *Gedis) Get(id string) (*provision.Reservation, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(string(result))
 
 	var workload types.TfgridReservationWorkload1
 
