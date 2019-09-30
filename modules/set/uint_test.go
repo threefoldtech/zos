@@ -58,7 +58,9 @@ func TestList(t *testing.T) {
 	assert.NoError(t, err)
 
 	l := s.List()
-	assert.Equal(t, []uint{1, 2, 3}, l)
+	expected := []uint{1, 2, 3}
+	assert.Equal(t, len(expected), len(l))
+	assert.Subset(t, expected, l)
 }
 
 func TestConcurent(t *testing.T) {
