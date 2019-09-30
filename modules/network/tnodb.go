@@ -11,24 +11,22 @@ import (
 // TNoDB define the interface to implement
 // to talk to a Tenant Network object database
 type TNoDB interface {
+	GetFarm(farm modules.Identifier) (*Farm, error)
+
+	PublishInterfaces(node modules.Identifier, ifaces []types.IfaceInfo) error
+	GetNode(modules.Identifier) (*types.Node, error)
+	PublishWGPort(node modules.Identifier, ports []uint) error
+
+	SetPublicIface(node modules.Identifier, pub *types.PubIface) error
+	GetPubIface(node modules.Identifier) (*types.PubIface, error)
+}
+
+// TNoDBUtils define the interface to implement
+// to talk to a Tenant Network object database including utils methods
+type TNoDBUtils interface {
+	TNoDB
 	RegisterAllocation(farm modules.Identifier, allocation *net.IPNet) error
 	RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, uint8, error)
-	GetFarm(farm modules.Identifier) (Farm, error)
-
-	// Publish the detail of the network interface that are up and have a cable plugged-in
-	PublishInterfaces(node modules.Identifier) error
-	// send a list of used port to BCDB
-	// This is then used by users to pick a free port to
-	// use for their wireguard network configuration
-	PublishWGPort(nodeID modules.Identifier, ports []uint) error
-
-	// Retrieve detail about a node
-	GetNode(modules.Identifier) (*types.Node, error)
-
-	// Configure network configuration that a node must apply
-	// this is used by the farmer
-	ConfigurePublicIface(node modules.Identifier, ips []*net.IPNet, gws []net.IP, iface string) error
-	ReadPubIface(node modules.Identifier) (*types.PubIface, error)
 
 	SelectExitNode(node modules.Identifier) error
 

@@ -27,6 +27,7 @@ type farmInfo struct {
 
 type reservation struct {
 	Reservation *provision.Reservation `json:"reservation"`
+	Result      *provision.Result      `json:"result"`
 	Deleted     bool                   `json:"deleted"`
 	NodeID      string                 `json:"node_id"`
 }
