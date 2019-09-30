@@ -40,6 +40,9 @@ You can specify your farm id (if you have one) in the command line with:
 make FARMERID=A3y5F8CoHVZiq3Sxxxx start
 ```
 
+By default, by running `make start` you will start the VM and joining the development network
+(uing the mock, not the bcdb network). To use the testing network and bcdb, you can use `make test`
+
 ### Reach internet inside the VM
 
 You need to be able to reach internet inside the VM, 0-OS needs internet. The system will starts
