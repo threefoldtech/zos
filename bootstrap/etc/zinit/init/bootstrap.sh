@@ -1,6 +1,6 @@
 set -x
 
-DEFAULT_FLIST=azmy/zos-refs_heads_master.flist
+DEFAULT_FLIST=azmy/zos:production:latest.flist
 
 FLISTFILE=/tmp/flist.name
 INFOFILE=/tmp/flist.info
