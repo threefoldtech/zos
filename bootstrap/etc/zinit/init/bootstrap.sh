@@ -91,7 +91,7 @@ for file in $(ls etc/zinit/*.yaml); do
     file=$(basename ${file})
     name="${file%.*}"
     if ! zinit monitor ${name}; then
-        zinit kill ${name} & true
+        zinit kill ${name} || true
     fi
 done
 
