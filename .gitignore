@@ -12,6 +12,7 @@ tools/updatectl/updatectl
 tools/bcdb_mock/allocations.json
 tools/bcdb_mock/farms.json
 tools/bcdb_mock/nodes.json
+tools/bcdb_mock/reservations.json
 
 qemu/node*
 qemu/*.efi
