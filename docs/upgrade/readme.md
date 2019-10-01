@@ -23,7 +23,7 @@ Hence, zos only trust few sources for upgrade packages. When the node boots up i
 The run mode defines which flist the node is going to use to boot. Run mode can be specified by passing `runmode=<mode>` to the kernel boot params. Currently we have those different run modes.
 
 - dev: ephemeral network only setup to develop and test new features. Can be created and reset at anytime
-- test: Mostly stable feature that needs to be tested at scale, allow preview and test of new features. Always the latest greatest. This network can be reset sometimes, but should be relatively stable.
+- test: Mostly stable features that need to be tested at scale, allow preview and test of new features. Always the latest and greatest. This network can be reset sometimes, but should be relatively stable.
 - prod: Released of stable version. Used to run the real grid with real money. Cannot be reset ever. Only stable and battle tested feature reach this level.
 
 
