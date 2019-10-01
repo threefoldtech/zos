@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/modules/environment"
 	"github.com/threefoldtech/zosv2/modules/kernel"
 )
 
@@ -52,7 +53,10 @@ func (d *identityManager) FarmID() (modules.StrIdentifier, error) {
 
 	farmerID, found := params.Get("farmer_id")
 	if !found {
-		return "", fmt.Errorf("farmer id not found in kernel parameters")
+		env := environment.Get()
+		// return "", fmt.Errorf("farmer id not found in kernel parameters")
+		fmt.Println("Warning: no farmer_id found in kernel parameter, fallback to orphanage")
+		return modules.StrIdentifier(env.OrphanageFarm), nil
 	}
 
 	return modules.StrIdentifier(farmerID[0]), nil

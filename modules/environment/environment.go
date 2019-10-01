@@ -15,6 +15,8 @@ type Environment struct {
 	BcdbNamespace string
 	BcdbPassword  string
 
+	OrphanageFarm string
+
 	// ProvisionTimeout  int64
 	// ProvisionInterval int64
 }
@@ -27,12 +29,19 @@ const (
 	RunningDev  RunningMode = "dev"
 	RunningTest RunningMode = "test"
 	RunningMain RunningMode = "prod"
+
+	// Orphanage is the default farmid where nodes are registered
+	// if no farmid were specified on the kernel command line
+	OrphanageDev  string = "FBresPWUedSi5rBdfhVEr969dCinfq2GpBSdjiM6UrAb"
+	OrphanageTest string = "FBresPWUedSi5rBdfhVEr969dCinfq2GpBSdjiM6UrAb"
+	OrphanageMain string = "undefined-yet"
 )
 
 var (
 	envDev = Environment{
-		RunningMode: RunningDev,
-		BcdbURL:     "https://bcdb.dev.grid.tf",
+		RunningMode:   RunningDev,
+		BcdbURL:       "https://bcdb.dev.grid.tf",
+		OrphanageFarm: OrphanageDev,
 		// ProvisionTimeout:  60,
 		// ProvisionInterval: 10,
 	}
@@ -41,6 +50,7 @@ var (
 		RunningMode:   RunningTest,
 		BcdbURL:       "tcp://bcdb.test.grid.tf:8901",
 		BcdbNamespace: "default",
+		OrphanageFarm: OrphanageTest,
 		// ProvisionTimeout:  120,
 		// ProvisionInterval: 10,
 	}
@@ -49,6 +59,7 @@ var (
 		RunningMode:   RunningMain,
 		BcdbURL:       "tcp://172.17.0.2:8901", //TODO: change once BCDB is online
 		BcdbNamespace: "default",
+		OrphanageFarm: OrphanageMain,
 		// ProvisionTimeout:  240,
 		// ProvisionInterval: 20,
 	}
