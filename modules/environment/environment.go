@@ -15,7 +15,8 @@ type Environment struct {
 	BcdbNamespace string
 	BcdbPassword  string
 
-	OrphanageFarm string
+	FarmerID string
+	Orphan   bool
 
 	// ProvisionTimeout  int64
 	// ProvisionInterval int64
@@ -39,9 +40,8 @@ const (
 
 var (
 	envDev = Environment{
-		RunningMode:   RunningDev,
-		BcdbURL:       "https://bcdb.dev.grid.tf",
-		OrphanageFarm: OrphanageDev,
+		RunningMode: RunningDev,
+		BcdbURL:     "https://bcdb.dev.grid.tf",
 		// ProvisionTimeout:  60,
 		// ProvisionInterval: 10,
 	}
@@ -50,7 +50,6 @@ var (
 		RunningMode:   RunningTest,
 		BcdbURL:       "tcp://bcdb.test.grid.tf:8901",
 		BcdbNamespace: "default",
-		OrphanageFarm: OrphanageTest,
 		// ProvisionTimeout:  120,
 		// ProvisionInterval: 10,
 	}
@@ -59,7 +58,6 @@ var (
 		RunningMode:   RunningMain,
 		BcdbURL:       "tcp://172.17.0.2:8901", //TODO: change once BCDB is online
 		BcdbNamespace: "default",
-		OrphanageFarm: OrphanageMain,
 		// ProvisionTimeout:  240,
 		// ProvisionInterval: 20,
 	}
@@ -91,6 +89,25 @@ func getEnvironmentFromParams(params kernel.Params) Environment {
 		env = envProd
 	default:
 		env = envProd
+	}
+
+	farmerID, found := params.Get("farmer_id")
+	if !found || farmerID[0] == "" {
+		// fmt.Println("Warning: no valid farmer_id found in kernel parameter, fallback to orphanage")
+		env.Orphan = true
+
+		switch env.RunningMode {
+		case RunningDev:
+			env.FarmerID = OrphanageDev
+		case RunningTest:
+			env.FarmerID = OrphanageTest
+		case RunningMain:
+			env.FarmerID = OrphanageMain
+		}
+
+	} else {
+		env.Orphan = false
+		env.FarmerID = farmerID[0]
 	}
 
 	// Checking if there environment variable

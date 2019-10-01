@@ -33,10 +33,10 @@ func main() {
 			Usage: "enable debug logging",
 		},
 		cli.StringFlag{
-			Name:   "tnodb, u",
-			Usage:  "URL of the TNODB",
+			Name:   "bcdb, b",
+			Usage:  "URL of the BCDB",
 			Value:  "https://bcdb.dev.grid.tf",
-			EnvVar: "TNODB_URL",
+			EnvVar: "BCDB_URL",
 		},
 	}
 	app.Before = func(c *cli.Context) error {

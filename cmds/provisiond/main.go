@@ -56,6 +56,14 @@ func main() {
 		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
 	}
 
+	env := environment.Get()
+
+	if env.Orphan {
+		// disable providiond on this node
+		// we don't have a valid farmer id set
+		log.Fatal().Msg("orphan node, we won't provision anything at all")
+	}
+
 	identity := stubs.NewIdentityManagerStub(client)
 	nodeID := identity.NodeID()
 

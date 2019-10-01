@@ -1,7 +1,6 @@
 package identity
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/threefoldtech/zosv2/modules/crypto"
@@ -9,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/environment"
-	"github.com/threefoldtech/zosv2/modules/kernel"
 )
 
 type identityManager struct {
@@ -49,17 +47,8 @@ func (d *identityManager) NodeID() modules.StrIdentifier {
 
 // FarmID returns the farm ID of the node or an error if no farm ID is configured
 func (d *identityManager) FarmID() (modules.StrIdentifier, error) {
-	params := kernel.GetParams()
-
-	farmerID, found := params.Get("farmer_id")
-	if !found {
-		env := environment.Get()
-		// return "", fmt.Errorf("farmer id not found in kernel parameters")
-		fmt.Println("Warning: no farmer_id found in kernel parameter, fallback to orphanage")
-		return modules.StrIdentifier(env.OrphanageFarm), nil
-	}
-
-	return modules.StrIdentifier(farmerID[0]), nil
+	env := environment.Get()
+	return modules.StrIdentifier(env.FarmerID), nil
 }
 
 // Sign signs the message with privateKey and returns a signature.
