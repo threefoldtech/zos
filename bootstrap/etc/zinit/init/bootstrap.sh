@@ -17,10 +17,10 @@ retry() {
 
 param() {
     local key="$1="
-    for param in $(strings /proc/cmdline); do
-        if [[ "${param:0:${#key}}" == "${key}" ]]
+    for arg in $(strings /proc/cmdline); do
+        if [[ "${arg:0:${#key}}" == "${key}" ]]
         then
-            echo ${param#${key}}
+            echo ${arg#${key}}
             return 0
         fi
     done
