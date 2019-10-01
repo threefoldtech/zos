@@ -1,4 +1,4 @@
-# 0-OS research [![Actions Status](https://github.com/threefoldtech/zosv2/workflows/build/badge.svg)](https://github.com/threefoldtech/zosv2/actions) [![Build Status](https://travis-ci.com/threefoldtech/zosv2.svg?branch=master)](https://travis-ci.com/threefoldtech/zosv2) [![Go Report Card](https://goreportcard.com/badge/github.com/threefoldtech/zosv2)](https://goreportcard.com/report/github.com/threefoldtech/zosv2)
+# 0-OS [![Actions Status](https://github.com/threefoldtech/zosv2/workflows/build/badge.svg)](https://github.com/threefoldtech/zosv2/actions) [![Build Status](https://travis-ci.com/threefoldtech/zosv2.svg?branch=master)](https://travis-ci.com/threefoldtech/zosv2) [![Go Report Card](https://goreportcard.com/badge/github.com/threefoldtech/zosv2)](https://goreportcard.com/report/github.com/threefoldtech/zosv2)
 
 0-OS is an autonomous operating system design to expose raw compute, storage and network capacity.
 
