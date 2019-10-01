@@ -16,8 +16,5 @@ script:
 - pushd cmds && make && popd
 - pushd tools && make && popd
 
-after_success:
-- pushd pkg && bash <(curl -s https://codecov.io/bash)
-
 go:
 - '1.13'
