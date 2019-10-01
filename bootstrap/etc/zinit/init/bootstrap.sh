@@ -1,7 +1,5 @@
 set -x
 
-DEFAULT_FLIST=azmy/zos:production:latest.flist
-
 FLISTFILE=/tmp/flist.name
 INFOFILE=/tmp/flist.info
 
@@ -17,21 +15,48 @@ function retry() {
     done
 }
 
-# bootflist reads the boot flist name from kernel cmd
-# TODO: this should probably be not allowed at somepoint to
-function bootflist() {
+function param() {
+    local KEY=$1
+    local KEY=$(echo $KEY=)
     for param in $(strings /proc/cmdline); do
-        if [[ "${param:0:6}" == "flist=" ]]
+        if [[ "${param:0:${#KEY}}" == "${KEY}" ]]
         then
-            echo ${param#flist=}
+            echo ${param#${KEY}}
             return 0
         fi
     done
 
-    echo ${DEFAULT_FLIST}
+    return 1
 }
 
-FLIST=$(bootflist)
+function default_param() {
+    local KEY=$1
+    local DEFAULT=$2
+
+    if ! param "${KEY}"; then
+        echo ${DEFAULT}
+    fi
+}
+
+RUNMODE=$(default_param runmode prod)
+
+# set default production flist
+FLIST=azmy/zos:production:latest.flist
+
+case "${RUNMODE}" in
+    prod)
+    ;;
+    dev)
+        FLIST=azmy/zos:development:latest.flist
+    ;;
+    test)
+        FLIST=azmy/zos:testing:latest.flist
+    ;;
+    *)
+        echo "Invalid run mode '${RUNMODE}'. fall back to production"
+    ;;
+esac
+
 # track which flist used for booting
 echo ${FLIST} > ${FLISTFILE}
 chmod 0400 ${FLISTFILE}
