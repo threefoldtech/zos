@@ -1,7 +1,7 @@
 set -e
 
-FLISTFILE=/tmp/flist.name
-INFOFILE=/tmp/flist.info
+flistfile=/tmp/flist.name
+infofile=/tmp/flist.info
 
 # helper retry function
 # the retry function never give up because the
@@ -16,11 +16,11 @@ retry() {
 }
 
 param() {
-    local KEY="$1="
+    local key="$1="
     for param in $(strings /proc/cmdline); do
-        if [[ "${param:0:${#KEY}}" == "${KEY}" ]]
+        if [[ "${param:0:${#key}}" == "${key}" ]]
         then
-            echo ${param#${KEY}}
+            echo ${param#${key}}
             return 0
         fi
     done
@@ -29,55 +29,55 @@ param() {
 }
 
 default_param() {
-    local KEY=$1
-    local DEFAULT=$2
+    local key=$1
+    local default=$2
 
-    if ! param "${KEY}"; then
-        echo ${DEFAULT}
+    if ! param "${key}"; then
+        echo ${default}
     fi
 }
 
-RUNMODE=$(default_param runmode prod)
+runmode=$(default_param runmode prod)
 
 # set default production flist
-FLIST=azmy/zos:production:latest.flist
+flist=azmy/zos:production:latest.flist
 
-case "${RUNMODE}" in
+case "${runmode}" in
     prod)
     ;;
     dev)
-        FLIST=azmy/zos:development:latest.flist
+        flist=azmy/zos:development:latest.flist
     ;;
     test)
-        FLIST=azmy/zos:testing:latest.flist
+        flist=azmy/zos:testing:latest.flist
     ;;
     *)
-        echo "Invalid run mode '${RUNMODE}'. fall back to production"
+        echo "Invalid run mode '${runmode}'. fall back to production"
     ;;
 esac
 
 # track which flist used for booting
-echo ${FLIST} > ${FLISTFILE}
-chmod 0400 ${FLISTFILE}
+echo ${flist} > ${flistfile}
+chmod 0400 ${flistfile}
 
-BOOTFLIST=https://hub.grid.tf/${FLIST}
-BOOTFLISTINFO=https://hub.grid.tf/api/flist/${FLIST}/light
+bootflist=https://hub.grid.tf/${flist}
+bootflistinfo=https://hub.grid.tf/api/flist/${flist}/light
 
-echo "Bootstraping with: ${BOOTFLIST}"
-retry wget -O ${INFOFILE} ${BOOTFLISTINFO}
-chmod 0400 ${INFOFILE}
+echo "Bootstraping with: ${bootflist}"
+retry wget -O ${infofile} ${bootflistinfo}
+chmod 0400 ${infofile}
 
-BS=/tmp/bootstrap
-mkdir -p ${BS}
+bs=/tmp/bootstrap
+mkdir -p ${bs}
 
 ## Prepare a tmpfs for 0-fs cache
-mount -t tmpfs -o size=512M tmpfs ${BS}
+mount -t tmpfs -o size=512M tmpfs ${bs}
 
-cd ${BS}
+cd ${bs}
 mkdir -p root
-retry wget -O machine.flist ${BOOTFLIST}
+retry wget -O machine.flist ${bootflist}
 
-g8ufs --backend ${BS}/backend --meta machine.flist root &
+g8ufs --backend ${bs}/backend --meta machine.flist root &
 
 retry mountpoint root
 
@@ -98,5 +98,5 @@ done
 echo "Installation complete"
 
 cd /tmp
-umount -fl ${BS}/root
-umount -fl ${BS}
+umount -fl ${bs}/root
+umount -fl ${bs}
