@@ -18,7 +18,7 @@ Upgrade module depends on network and flist module. This is because is requires 
 
 0-OS is meant to be a black box no one can access. While this provide some nice security features it also makes it harder to manage. Specially when it comes to update/upgrade.
 
-Hence, zos only trust few sources for upgrade packages. When the node boots up it checks the sources for the latest release and make sure all the local binaries are uptodate before continuing the booting. The flist source must be rock-solid secured, that's another topic for different documentation.
+Hence, zos only trust few sources for upgrade packages. When the node boots up it checks the sources for the latest release and make sure all the local binaries are up-to-date before continuing the booting. The flist source must be rock-solid secured, that's another topic for different documentation.
 
 The run mode defines which flist the node is going to use to boot. Run mode can be specified by passing `runmode=<mode>` to the kernel boot params. Currently we have those different run modes.
 
