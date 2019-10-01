@@ -15,6 +15,9 @@ type Environment struct {
 	BcdbNamespace string
 	BcdbPassword  string
 
+	FarmerID string
+	Orphan   bool
+
 	// ProvisionTimeout  int64
 	// ProvisionInterval int64
 }
@@ -27,6 +30,12 @@ const (
 	RunningDev  RunningMode = "dev"
 	RunningTest RunningMode = "test"
 	RunningMain RunningMode = "prod"
+
+	// Orphanage is the default farmid where nodes are registered
+	// if no farmid were specified on the kernel command line
+	OrphanageDev  string = "FBresPWUedSi5rBdfhVEr969dCinfq2GpBSdjiM6UrAb"
+	OrphanageTest string = "FBresPWUedSi5rBdfhVEr969dCinfq2GpBSdjiM6UrAb"
+	OrphanageMain string = "undefined-yet"
 )
 
 var (
@@ -80,6 +89,25 @@ func getEnvironmentFromParams(params kernel.Params) Environment {
 		env = envProd
 	default:
 		env = envProd
+	}
+
+	farmerID, found := params.Get("farmer_id")
+	if !found || farmerID[0] == "" {
+		// fmt.Println("Warning: no valid farmer_id found in kernel parameter, fallback to orphanage")
+		env.Orphan = true
+
+		switch env.RunningMode {
+		case RunningDev:
+			env.FarmerID = OrphanageDev
+		case RunningTest:
+			env.FarmerID = OrphanageTest
+		case RunningMain:
+			env.FarmerID = OrphanageMain
+		}
+
+	} else {
+		env.Orphan = false
+		env.FarmerID = farmerID[0]
 	}
 
 	// Checking if there environment variable
