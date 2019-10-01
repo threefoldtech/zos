@@ -54,8 +54,8 @@ type BtrfsQGroup struct {
 // DiskUsage is parsed information from a btrfs fi df line
 type DiskUsage struct {
 	Profile pkg.RaidProfile `json:"profile"`
-	Total   uint64              `json:"total"`
-	Used    uint64              `json:"used"`
+	Total   uint64          `json:"total"`
+	Used    uint64          `json:"used"`
 }
 
 // BtrfsDiskUsage is parsed information form btrfs fi df

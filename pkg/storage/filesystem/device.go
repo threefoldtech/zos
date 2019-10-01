@@ -33,13 +33,13 @@ const (
 
 // Device represents a physical device
 type Device struct {
-	Type       string             `json:"type"`
-	Path       string             `json:"name"`
-	Label      string             `json:"label"`
-	Filesystem FSType             `json:"fstype"`
-	Children   []Device           `json:"children"`
+	Type       string         `json:"type"`
+	Path       string         `json:"name"`
+	Label      string         `json:"label"`
+	Filesystem FSType         `json:"fstype"`
+	Children   []Device       `json:"children"`
 	DiskType   pkg.DeviceType `json:"-"`
-	ReadTime   uint64             `json:"-"`
+	ReadTime   uint64         `json:"-"`
 }
 
 // Used assumes that the device is used if it has custom label or fstype or children

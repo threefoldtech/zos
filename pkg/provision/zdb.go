@@ -30,11 +30,11 @@ const (
 
 // ZDB namespace creation info
 type ZDB struct {
-	Size     uint64             `json:"size"`
+	Size     uint64         `json:"size"`
 	Mode     pkg.ZDBMode    `json:"mode"`
-	Password string             `json:"password"`
+	Password string         `json:"password"`
 	DiskType pkg.DeviceType `json:"disk_type"`
-	Public   bool               `json:"public"`
+	Public   bool           `json:"public"`
 }
 
 // ZDBResult is the information return to the BCDB
