@@ -3,6 +3,7 @@ module github.com/threefoldtech/zosv2
 go 1.13
 
 require (
+	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
 	github.com/alexflint/go-filemutex v0.0.0-20171028004239-d358565f3c3f
 	github.com/blang/semver v3.5.1+incompatible
@@ -22,8 +23,8 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
-	github.com/dspinhirne/netaddr-go v0.0.0-20180510133009-a6cfb692cb10
 	github.com/garyburd/redigo v1.6.0
+	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-redis/redis v6.15.5+incompatible
 	github.com/gogo/googleapis v1.3.0 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible
