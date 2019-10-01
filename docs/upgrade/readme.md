@@ -14,6 +14,19 @@ files will be written. More on that later
 Upgrade module depends on network and flist module. This is because is requires network connection to check for new update and the flist module to download the upgrade flist on the node.
 
 
+## Philosophy
+
+0-OS is meant to be a black box no one can access. While this provide some nice security features it also makes it harder to manage. Specially when it comes to update/upgrade.
+
+Hence, zos only trust few sources for upgrade packages. When the node boots up it checks the sources for the latest release and make sure all the local binaries are uptodate before continuing the booting. The flist source must be rock-solid secured, that's another topic for different documentation.
+
+The run mode defines which flist the node is going to use to boot. Run mode can be specified by passing `runmode=<mode>` to the kernel boot params. Currently we have those different run modes.
+
+- dev: ephemeral network only setup to develop and test new features. Can be created and reset at anytime
+- test: Mostly stable feature that needs to be tested at scale, allow preview and test of new features. Always the latest greatest. This network can be reset sometimes, but should be relatively stable.
+- prod: Released of stable version. Used to run the real grid with real money. Cannot be reset ever. Only stable and battle tested feature reach this level.
+
+
 ## Booting a new node
 The base image for zos contains a very small subset of tools, plus the boot program. Standing alone, the image is not really useful. On boot and
 after initial start of the system, the boot program kicks in and it does the following:
@@ -40,6 +53,7 @@ Once the node is up and running, upgraded takes over and it does the following:
 
 0-OS is designed to provide maximum uptime for its workload, rebooting a node should never be required to upgrade any of its component (except when we push a kernel upgrade).
 
+![flow](../../assets/0-OS-upgrade.png)
 
 ### Flist layout
 
