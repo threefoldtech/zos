@@ -7,7 +7,7 @@ values we hold as a team:
   - A shortcut for one individual can mean a lot of extra work or disruption for
     the rest of the team.
 
-- Our repos should always be in release shape: **Always Green**
+- Our repos (at least the master branch) should always be in release shape: **Always Green**
   - This lets us move faster in the mid and long term
   - This implies investments in build/test infrastructure to have fast, reliable
     tests to ensure that we can release at any time.
