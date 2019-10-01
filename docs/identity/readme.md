@@ -64,7 +64,7 @@ after:
 ## Interface
 
 ```go
-package modules
+package pkg
 
 // Identifier is the interface that defines
 // how an object can be used as an identity

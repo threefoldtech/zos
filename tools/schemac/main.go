@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/threefoldtech/zosv2/modules/schema"
+	"github.com/threefoldtech/zosv2/pkg/schema"
 )
 
 func handle(file, pkg, dir string) error {

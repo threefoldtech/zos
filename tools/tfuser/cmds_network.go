@@ -5,10 +5,10 @@ package main
 // 	"fmt"
 // 	"os"
 
-// 	"github.com/threefoldtech/zosv2/modules/provision"
+// 	"github.com/threefoldtech/zosv2/pkg/provision"
 
 // 	"github.com/pkg/errors"
-// 	"github.com/threefoldtech/zosv2/modules"
+// 	"github.com/threefoldtech/zosv2/pkg"
 // 	"github.com/urfave/cli"
 // )
 
@@ -28,7 +28,7 @@ package main
 
 // func cmdsAddNode(c *cli.Context) error {
 // 	var (
-// 		network = &modules.Network{}
+// 		network = &pkg.Network{}
 // 		schema  = c.GlobalString("schema")
 // 		err     error
 // 	)
@@ -54,7 +54,7 @@ package main
 // }
 // func cmdsAddUser(c *cli.Context) error {
 // 	var (
-// 		network    = &modules.Network{}
+// 		network    = &pkg.Network{}
 // 		schema     = c.GlobalString("schema")
 // 		userID     = c.String("user")
 // 		privateKey string
@@ -88,7 +88,7 @@ package main
 
 // func cmdsWGQuick(c *cli.Context) error {
 // 	var (
-// 		network    = &modules.Network{}
+// 		network    = &pkg.Network{}
 // 		schema     = c.GlobalString("schema")
 // 		userID     = c.String("user")
 // 		privateKey = c.String("key")
@@ -115,7 +115,7 @@ package main
 
 // func cmdsRemoveNode(c *cli.Context) error {
 // 	var (
-// 		network = &modules.Network{}
+// 		network = &pkg.Network{}
 // 		schema  = c.GlobalString("schema")
 // 		nodeID  = c.String("node")
 // 		err     error
@@ -143,8 +143,8 @@ package main
 // 	return output(schema, r)
 // }
 
-// func loadNetwork(name string) (network *modules.Network, err error) {
-// 	network = &modules.Network{}
+// func loadNetwork(name string) (network *pkg.Network, err error) {
+// 	network = &pkg.Network{}
 
 // 	if name == "" {
 // 		return nil, fmt.Errorf("schema name cannot be empty")

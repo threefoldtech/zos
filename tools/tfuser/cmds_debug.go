@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/modules/provision"
+	"github.com/threefoldtech/zosv2/pkg/provision"
 	"github.com/urfave/cli"
 )
 

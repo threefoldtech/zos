@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/threefoldtech/zosv2/modules"
+	"github.com/threefoldtech/zosv2/pkg"
 
-	"github.com/threefoldtech/zosv2/modules/provision"
+	"github.com/threefoldtech/zosv2/pkg/provision"
 	"github.com/urfave/cli"
 )
 
@@ -30,7 +30,7 @@ func generateContainer(c *cli.Context) error {
 		Interactive:  c.Bool("corex"),
 		Mounts:       mounts,
 		Network: provision.Network{
-			NetwokID: modules.NetID(c.String("network")),
+			NetwokID: pkg.NetID(c.String("network")),
 		},
 	}
 

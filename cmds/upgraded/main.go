@@ -6,17 +6,17 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/threefoldtech/zosv2/modules/utils"
-	"github.com/threefoldtech/zosv2/modules/zinit"
+	"github.com/threefoldtech/zosv2/pkg/utils"
+	"github.com/threefoldtech/zosv2/pkg/zinit"
 
 	"flag"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosv2/modules/stubs"
-	"github.com/threefoldtech/zosv2/modules/upgrade"
-	"github.com/threefoldtech/zosv2/modules/version"
+	"github.com/threefoldtech/zosv2/pkg/stubs"
+	"github.com/threefoldtech/zosv2/pkg/upgrade"
+	"github.com/threefoldtech/zosv2/pkg/version"
 )
 
 const (

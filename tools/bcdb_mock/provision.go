@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/threefoldtech/zosv2/modules/provision"
+	"github.com/threefoldtech/zosv2/pkg/provision"
 )
 
 func reserve(w http.ResponseWriter, r *http.Request) {

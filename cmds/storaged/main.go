@@ -10,9 +10,9 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosv2/modules/storage"
-	"github.com/threefoldtech/zosv2/modules/utils"
-	"github.com/threefoldtech/zosv2/modules/version"
+	"github.com/threefoldtech/zosv2/pkg/storage"
+	"github.com/threefoldtech/zosv2/pkg/utils"
+	"github.com/threefoldtech/zosv2/pkg/version"
 )
 
 const (

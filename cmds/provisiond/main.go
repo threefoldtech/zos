@@ -7,18 +7,18 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/modules/environment"
-	"github.com/threefoldtech/zosv2/modules/gedis"
+	"github.com/threefoldtech/zosv2/pkg/environment"
+	"github.com/threefoldtech/zosv2/pkg/gedis"
 
-	"github.com/threefoldtech/zosv2/modules/stubs"
-	"github.com/threefoldtech/zosv2/modules/utils"
+	"github.com/threefoldtech/zosv2/pkg/stubs"
+	"github.com/threefoldtech/zosv2/pkg/utils"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosv2/modules/provision"
-	"github.com/threefoldtech/zosv2/modules/version"
+	"github.com/threefoldtech/zosv2/pkg/provision"
+	"github.com/threefoldtech/zosv2/pkg/version"
 )
 
 func main() {

@@ -8,10 +8,10 @@ import (
 
 	"os"
 
-	"github.com/threefoldtech/zosv2/modules"
-	"github.com/threefoldtech/zosv2/modules/identity"
-	"github.com/threefoldtech/zosv2/modules/network"
-	"github.com/threefoldtech/zosv2/modules/network/tnodb"
+	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zosv2/pkg/identity"
+	"github.com/threefoldtech/zosv2/pkg/network"
+	"github.com/threefoldtech/zosv2/pkg/network/tnodb"
 	"github.com/urfave/cli"
 )
 
@@ -128,7 +128,7 @@ You can specify multime time the ip and gw flag to configure multiple IP on the 
 	}
 }
 
-func loadFarmID(seedPath string) (modules.Identifier, error) {
+func loadFarmID(seedPath string) (pkg.Identifier, error) {
 	if seedPath == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -146,7 +146,7 @@ func loadFarmID(seedPath string) (modules.Identifier, error) {
 	return farmID, nil
 }
 
-func generateKeyPair(seedPath string) (modules.Identifier, error) {
+func generateKeyPair(seedPath string) (pkg.Identifier, error) {
 	log.Debug().Msg("generating new key pair")
 	keypair, err := identity.GenerateKeyPair()
 	if err != nil {

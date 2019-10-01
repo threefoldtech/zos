@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/threefoldtech/zosv2/modules"
-	"github.com/threefoldtech/zosv2/modules/network/types"
+	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zosv2/pkg/network/types"
 
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli"
@@ -89,7 +89,7 @@ func configPublic(c *cli.Context) error {
 
 	node := c.Args().First()
 
-	if err := db.SetPublicIface(modules.StrIdentifier(node), &types.PubIface{
+	if err := db.SetPublicIface(pkg.StrIdentifier(node), &types.PubIface{
 		Master: iface,
 		IPv4:   nv4,
 		IPv6:   nv6,
@@ -105,7 +105,7 @@ func configPublic(c *cli.Context) error {
 func selectExit(c *cli.Context) error {
 	node := c.Args().First()
 
-	if err := db.SelectExitNode(modules.StrIdentifier(node)); err != nil {
+	if err := db.SelectExitNode(pkg.StrIdentifier(node)); err != nil {
 		return err
 	}
 	fmt.Printf("Node %s marked as exit node\n", node)
