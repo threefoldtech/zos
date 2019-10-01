@@ -1,4 +1,4 @@
-set -x
+set -e
 
 FLISTFILE=/tmp/flist.name
 INFOFILE=/tmp/flist.info
@@ -8,16 +8,15 @@ INFOFILE=/tmp/flist.info
 # bootstrap must succeed. otherwise the node
 # will not be functional. So no reason to give
 # up
-function retry() {
+retry() {
     until $@; do
         sleep 1s
         echo "retrying: $@"
     done
 }
 
-function param() {
-    local KEY=$1
-    local KEY=$(echo $KEY=)
+param() {
+    local KEY="$1="
     for param in $(strings /proc/cmdline); do
         if [[ "${param:0:${#KEY}}" == "${KEY}" ]]
         then
@@ -29,7 +28,7 @@ function param() {
     return 1
 }
 
-function default_param() {
+default_param() {
     local KEY=$1
     local DEFAULT=$2
 
@@ -82,6 +81,7 @@ g8ufs --backend ${BS}/backend --meta machine.flist root &
 
 retry mountpoint root
 
+echo "Installing core services"
 ## move to root
 cd root
 cp -a * /
@@ -90,8 +90,12 @@ cp -a * /
 for file in $(ls etc/zinit/*.yaml); do
     file=$(basename ${file})
     name="${file%.*}"
-    zinit monitor ${name}
+    if ! zinit monitor ${name}; then
+        zinit kill ${name} & true
+    fi
 done
+
+echo "Installation complete"
 
 cd /tmp
 umount -fl ${BS}/root
