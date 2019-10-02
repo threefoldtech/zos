@@ -11,7 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 var (

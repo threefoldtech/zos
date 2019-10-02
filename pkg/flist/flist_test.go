@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/flist/mock"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/flist/mock"
 )
 
 func testFlistModule(t *testing.T) (pkg.Flister, func()) {

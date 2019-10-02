@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/threefoldtech/zosv2/pkg/capacity/dmi"
-	"github.com/threefoldtech/zosv2/pkg/gedis"
+	"github.com/threefoldtech/zos/pkg/capacity/dmi"
+	"github.com/threefoldtech/zos/pkg/gedis"
 
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 // Store is an interface to the bcdb store to report capacity

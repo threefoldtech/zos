@@ -3,7 +3,7 @@ package filesystem
 import (
 	"context"
 
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 // Usage struct

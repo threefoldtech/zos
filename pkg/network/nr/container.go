@@ -10,10 +10,10 @@ import (
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/network/bridge"
-	"github.com/threefoldtech/zosv2/pkg/network/ifaceutil"
-	"github.com/threefoldtech/zosv2/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/network/bridge"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/vishvananda/netlink"
 )
 

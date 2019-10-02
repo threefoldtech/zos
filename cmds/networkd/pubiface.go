@@ -6,10 +6,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/network"
-	"github.com/threefoldtech/zosv2/pkg/network/namespace"
-	"github.com/threefoldtech/zosv2/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/network"
+	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/network/types"
 )
 
 func watchPubIface(ctx context.Context, nodeID pkg.Identifier, db network.TNoDB, ifaceVersion int) <-chan *types.PubIface {

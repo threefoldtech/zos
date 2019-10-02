@@ -5,8 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/crypto"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/crypto"
 	"golang.org/x/crypto/ed25519"
 )
 

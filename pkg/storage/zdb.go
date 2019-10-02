@@ -10,8 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/storage/filesystem"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/storage/filesystem"
 )
 
 // Allocate is responsible to make sure the subvolume used by a 0-db as enough storage capacity

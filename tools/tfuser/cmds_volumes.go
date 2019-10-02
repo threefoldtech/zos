@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 
-	"github.com/threefoldtech/zosv2/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/urfave/cli"
 )
 

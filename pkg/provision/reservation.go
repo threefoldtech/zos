@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg/versioned"
+	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
 // ReservationType type

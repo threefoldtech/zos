@@ -24,7 +24,7 @@ The flist module itself doesn't contain the logic to understand the flist format
 
 Its only job is to download the flist, prepare the isolation of all the data and then starts 0-fs with the proper arguments
 
-## Public interface [![GoDoc](https://godoc.org/github.com/threefoldtech/zosv2/pkg/flist?status.svg)](https://godoc.org/github.com/threefoldtech/zosv2/pkg/flist)
+## Public interface [![GoDoc](https://godoc.org/github.com/threefoldtech/zos/pkg/flist?status.svg)](https://godoc.org/github.com/threefoldtech/zos/pkg/flist)
 
 ```go
 type Flister interface {

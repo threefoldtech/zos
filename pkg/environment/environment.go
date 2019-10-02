@@ -3,7 +3,7 @@ package environment
 import (
 	"os"
 
-	"github.com/threefoldtech/zosv2/pkg/kernel"
+	"github.com/threefoldtech/zos/pkg/kernel"
 )
 
 // Environment holds information about running environment of a node

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/jbenet/go-base58"
-	"github.com/threefoldtech/zosv2/pkg/versioned"
+	"github.com/threefoldtech/zos/pkg/versioned"
 
 	"golang.org/x/crypto/ed25519"
 )

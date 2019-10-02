@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 
-	"github.com/threefoldtech/zosv2/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 // DiskType defines disk type

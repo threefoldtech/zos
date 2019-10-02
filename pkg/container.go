@@ -1,7 +1,7 @@
 package pkg
 
 //go:generate mkdir -p stubs
-//go:generate zbusc -module container -version 0.0.1 -name container -package stubs github.com/threefoldtech/zosv2/pkg+ContainerModule stubs/container_stub.go
+//go:generate zbusc -module container -version 0.0.1 -name container -package stubs github.com/threefoldtech/zos/pkg+ContainerModule stubs/container_stub.go
 
 // ContainerID type
 type ContainerID string

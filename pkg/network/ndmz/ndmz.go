@@ -6,15 +6,15 @@ import (
 	"net"
 	"os"
 
-	"github.com/threefoldtech/zosv2/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 
-	"github.com/threefoldtech/zosv2/pkg/network/nr"
+	"github.com/threefoldtech/zos/pkg/network/nr"
 
-	"github.com/threefoldtech/zosv2/pkg/network/dhcp"
+	"github.com/threefoldtech/zos/pkg/network/dhcp"
 
-	"github.com/threefoldtech/zosv2/pkg/network/macvlan"
+	"github.com/threefoldtech/zos/pkg/network/macvlan"
 
-	"github.com/threefoldtech/zosv2/pkg/network/bridge"
+	"github.com/threefoldtech/zos/pkg/network/bridge"
 
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
@@ -23,8 +23,8 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/pkg/network/namespace"
-	"github.com/threefoldtech/zosv2/pkg/network/nft"
+	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/network/nft"
 )
 
 const (

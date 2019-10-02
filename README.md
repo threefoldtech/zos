@@ -1,4 +1,4 @@
-# 0-OS [![Actions Status](https://github.com/threefoldtech/zosv2/workflows/build/badge.svg)](https://github.com/threefoldtech/zosv2/actions) [![Build Status](https://travis-ci.com/threefoldtech/zosv2.svg?branch=master)](https://travis-ci.com/threefoldtech/zosv2) [![Go Report Card](https://goreportcard.com/badge/github.com/threefoldtech/zosv2)](https://goreportcard.com/report/github.com/threefoldtech/zosv2)
+# 0-OS [![Actions Status](https://github.com/threefoldtech/zos/workflows/build/badge.svg)](https://github.com/threefoldtech/zos/actions) [![Build Status](https://travis-ci.com/threefoldtech/zos.svg?branch=master)](https://travis-ci.com/threefoldtech/zos) [![Go Report Card](https://goreportcard.com/badge/github.com/threefoldtech/zos)](https://goreportcard.com/report/github.com/threefoldtech/zos)
 
 0-OS is an autonomous operating system design to expose raw compute, storage and network capacity.
 
@@ -28,4 +28,4 @@ Learn more about the different network by reading the [upgrade documentation](do
 
 The team holds a update meeting twice a week, on monday and thursday at 10AM.
 
-Zoom URL: https://tinyurl.com/zosv2update
+Zoom URL: https://tinyurl.com/zosupdate

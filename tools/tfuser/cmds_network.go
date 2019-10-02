@@ -5,10 +5,10 @@ package main
 // 	"fmt"
 // 	"os"
 
-// 	"github.com/threefoldtech/zosv2/pkg/provision"
+// 	"github.com/threefoldtech/zos/pkg/provision"
 
 // 	"github.com/pkg/errors"
-// 	"github.com/threefoldtech/zosv2/pkg"
+// 	"github.com/threefoldtech/zos/pkg"
 // 	"github.com/urfave/cli"
 // )
 

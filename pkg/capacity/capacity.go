@@ -1,8 +1,8 @@
 package capacity
 
 import (
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/capacity/dmi"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 )
 
 // Capacity hold the amount of resource unit of a node

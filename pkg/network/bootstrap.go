@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/threefoldtech/zosv2/pkg/network/dhcp"
+	"github.com/threefoldtech/zos/pkg/network/dhcp"
 
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg/network/bridge"
-	"github.com/threefoldtech/zosv2/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/bridge"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/vishvananda/netlink"
 )
 

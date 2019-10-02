@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/flist"
-	"github.com/threefoldtech/zosv2/pkg/flist/mock"
-	"github.com/threefoldtech/zosv2/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/flist"
+	"github.com/threefoldtech/zos/pkg/flist/mock"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 var (

@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/containernetworking/plugins/pkg/ip"
-	"github.com/threefoldtech/zosv2/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 
 	mapset "github.com/deckarep/golang-set"
 
@@ -17,11 +17,11 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/network/bridge"
-	"github.com/threefoldtech/zosv2/pkg/network/namespace"
-	"github.com/threefoldtech/zosv2/pkg/network/nft"
-	"github.com/threefoldtech/zosv2/pkg/network/wireguard"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/network/bridge"
+	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/network/nft"
+	"github.com/threefoldtech/zos/pkg/network/wireguard"
 	"github.com/vishvananda/netlink"
 )
 

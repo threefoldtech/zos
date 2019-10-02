@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/threefoldtech/zosv2/pkg/zdb"
+	"github.com/threefoldtech/zos/pkg/zdb"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg"
-	nwmod "github.com/threefoldtech/zosv2/pkg/network"
-	"github.com/threefoldtech/zosv2/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg"
+	nwmod "github.com/threefoldtech/zos/pkg/network"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 const (

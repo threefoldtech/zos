@@ -1,7 +1,7 @@
 package pkg
 
 //go:generate mkdir -p stubs
-//go:generate zbusc -module storage -version 0.0.1 -name storage -package stubs github.com/threefoldtech/zosv2/pkg+ZDBAllocater stubs/zdb_stub.go
+//go:generate zbusc -module storage -version 0.0.1 -name storage -package stubs github.com/threefoldtech/zos/pkg+ZDBAllocater stubs/zdb_stub.go
 
 // ZDBMode is the enumeration of the modes 0-db can operate in
 type ZDBMode string

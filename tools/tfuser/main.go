@@ -1,15 +1,15 @@
 package main
 
 import (
-	"github.com/threefoldtech/zosv2/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/provision"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"os"
 
-	"github.com/threefoldtech/zosv2/pkg/network"
-	"github.com/threefoldtech/zosv2/pkg/network/tnodb"
+	"github.com/threefoldtech/zos/pkg/network"
+	"github.com/threefoldtech/zos/pkg/network/tnodb"
 	"github.com/urfave/cli"
 )
 

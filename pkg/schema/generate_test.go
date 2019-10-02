@@ -39,7 +39,7 @@ creation = (D)
 	//
 	// import (
 	// 	"encoding/json"
-	// 	schema "github.com/threefoldtech/zosv2/pkg/schema"
+	// 	schema "github.com/threefoldtech/zos/pkg/schema"
 	// )
 	//
 	// type JumpscaleDigitalmePackage struct {
@@ -241,7 +241,7 @@ addresses = (Lipaddr)
 	//
 	// import (
 	// 	"encoding/json"
-	// 	schema "github.com/threefoldtech/zosv2/pkg/schema"
+	// 	schema "github.com/threefoldtech/zos/pkg/schema"
 	// 	"net"
 	// )
 	//

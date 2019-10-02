@@ -1,7 +1,7 @@
 package provision
 
 import (
-	schema "github.com/threefoldtech/zosv2/pkg/schema"
+	schema "github.com/threefoldtech/zos/pkg/schema"
 )
 
 // TfgridReservationNetwork1 jsx Schema

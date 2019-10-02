@@ -10,14 +10,14 @@ import (
 	"github.com/jbenet/go-base58"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg/geoip"
+	"github.com/threefoldtech/zos/pkg/geoip"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/pkg/gedis/types/directory"
-	"github.com/threefoldtech/zosv2/pkg/network"
-	"github.com/threefoldtech/zosv2/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
+	"github.com/threefoldtech/zos/pkg/network"
+	"github.com/threefoldtech/zos/pkg/network/types"
 
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 //

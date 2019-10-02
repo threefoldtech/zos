@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/network/types"
 
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli"

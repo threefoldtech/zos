@@ -2,7 +2,7 @@ package stubs
 
 import (
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 type StorageModuleStub struct {

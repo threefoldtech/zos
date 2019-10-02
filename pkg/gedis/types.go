@@ -3,7 +3,7 @@ package gedis
 import (
 	"net"
 
-	schema "github.com/threefoldtech/zosv2/pkg/schema"
+	schema "github.com/threefoldtech/zos/pkg/schema"
 )
 
 // 'structNameWithoutPrefix' are internal struct used

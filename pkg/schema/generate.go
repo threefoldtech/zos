@@ -23,11 +23,11 @@ var (
 		FloatKind:     {"", "float64"},
 		BoolKind:      {"", "bool"},
 		BytesKind:     {"", "[]byte"},
-		DateKind:      {"github.com/threefoldtech/zosv2/pkg/schema", "Date"},
-		DateTimeKind:  {"github.com/threefoldtech/zosv2/pkg/schema", "Date"},
-		NumericKind:   {"github.com/threefoldtech/zosv2/pkg/schema", "Numeric"},
+		DateKind:      {"github.com/threefoldtech/zos/pkg/schema", "Date"},
+		DateTimeKind:  {"github.com/threefoldtech/zos/pkg/schema", "Date"},
+		NumericKind:   {"github.com/threefoldtech/zos/pkg/schema", "Numeric"},
 		IPAddressKind: {"net", "IP"},
-		IPRangeKind:   {"github.com/threefoldtech/zosv2/pkg/schema", "IPRange"},
+		IPRangeKind:   {"github.com/threefoldtech/zos/pkg/schema", "IPRange"},
 		//TODO add other types here (for example, Email, Phone, etc..)
 	}
 )

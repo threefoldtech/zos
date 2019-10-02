@@ -61,7 +61,7 @@ coverage: verifiers build
 
 generate:
 	@echo "Generating modules client stubs"
-	go generate github.com/threefoldtech/zosv2/pkg
+	go generate github.com/threefoldtech/zos/pkg
 
 build:
 	@CGO_ENABLED=0 go build -v ./...

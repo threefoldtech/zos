@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/threefoldtech/zosv2/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg/stubs"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"

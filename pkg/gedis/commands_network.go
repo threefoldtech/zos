@@ -1,11 +1,11 @@
 package gedis
 
 import (
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/gedis/types/directory"
-	"github.com/threefoldtech/zosv2/pkg/network"
-	"github.com/threefoldtech/zosv2/pkg/network/types"
-	"github.com/threefoldtech/zosv2/pkg/schema"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
+	"github.com/threefoldtech/zos/pkg/network"
+	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/schema"
 )
 
 func (g *Gedis) getLocalInterfaces(ifaces []types.IfaceInfo) []directory.TfgridNodeIface1 {

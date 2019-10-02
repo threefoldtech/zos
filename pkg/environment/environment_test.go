@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/threefoldtech/zosv2/pkg/kernel"
+	"github.com/threefoldtech/zos/pkg/kernel"
 )
 
 // There are no test against GetEnvironment since the

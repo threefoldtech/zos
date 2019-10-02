@@ -8,26 +8,26 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/threefoldtech/zosv2/pkg/network/ndmz"
+	"github.com/threefoldtech/zos/pkg/network/ndmz"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
 
 	"github.com/pkg/errors"
 
-	"github.com/threefoldtech/zosv2/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 
-	"github.com/threefoldtech/zosv2/pkg/network/macvlan"
-	"github.com/threefoldtech/zosv2/pkg/network/nr"
-	"github.com/threefoldtech/zosv2/pkg/network/types"
-	"github.com/threefoldtech/zosv2/pkg/set"
-	"github.com/threefoldtech/zosv2/pkg/versioned"
+	"github.com/threefoldtech/zos/pkg/network/macvlan"
+	"github.com/threefoldtech/zos/pkg/network/nr"
+	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/set"
+	"github.com/threefoldtech/zos/pkg/versioned"
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/threefoldtech/zosv2/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/network/namespace"
 
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 const (

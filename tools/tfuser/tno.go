@@ -11,10 +11,10 @@ package main
 // 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 // 	"github.com/google/uuid"
-// 	"github.com/threefoldtech/zosv2/pkg"
-// 	"github.com/threefoldtech/zosv2/pkg/network/types"
-// 	"github.com/threefoldtech/zosv2/pkg/provision"
-// 	"github.com/threefoldtech/zosv2/pkg/tno"
+// 	"github.com/threefoldtech/zos/pkg"
+// 	"github.com/threefoldtech/zos/pkg/network/types"
+// 	"github.com/threefoldtech/zos/pkg/provision"
+// 	"github.com/threefoldtech/zos/pkg/tno"
 // )
 
 // func createNetwork(nodeID string) (*pkg.Network, error) {

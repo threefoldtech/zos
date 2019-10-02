@@ -9,10 +9,10 @@ import (
 	"net/http/httputil"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/network"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/network"
 
-	"github.com/threefoldtech/zosv2/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/network/types"
 )
 
 type httpTNoDB struct {

@@ -5,12 +5,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/threefoldtech/zosv2/pkg/schema"
+	"github.com/threefoldtech/zos/pkg/schema"
 
-	types "github.com/threefoldtech/zosv2/pkg/gedis/types/provision"
-	"github.com/threefoldtech/zosv2/pkg/provision"
+	types "github.com/threefoldtech/zos/pkg/gedis/types/provision"
+	"github.com/threefoldtech/zos/pkg/provision"
 
-	"github.com/threefoldtech/zosv2/pkg"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 // Get implements provision.ReservationGetter

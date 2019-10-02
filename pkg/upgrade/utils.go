@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/pkg/version"
+	"github.com/threefoldtech/zos/pkg/version"
 )
 
 func revisionOf(bin string, timeout time.Duration) (string, error) {

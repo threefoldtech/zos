@@ -13,8 +13,8 @@ package main
 
 import (
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 func main() {

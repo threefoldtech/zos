@@ -7,7 +7,7 @@ package main
 // 	"strings"
 // 	"text/template"
 
-// 	"github.com/threefoldtech/zosv2/pkg"
+// 	"github.com/threefoldtech/zos/pkg"
 // )
 
 // func genWGQuick(network *pkg.Network, userID string, wgPrivateKey string) (string, error) {

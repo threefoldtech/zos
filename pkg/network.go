@@ -3,11 +3,11 @@ package pkg
 import (
 	"net"
 
-	"github.com/threefoldtech/zosv2/pkg/versioned"
+	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
 //go:generate mkdir -p stubs
-//go:generate zbusc -module network -version 0.0.1 -name network -package stubs github.com/threefoldtech/zosv2/pkg+Networker stubs/network_stub.go
+//go:generate zbusc -module network -version 0.0.1 -name network -package stubs github.com/threefoldtech/zos/pkg+Networker stubs/network_stub.go
 
 // Member holds information about a join operation
 type Member struct {

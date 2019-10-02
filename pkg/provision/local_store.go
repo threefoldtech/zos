@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/threefoldtech/zosv2/pkg/versioned"
+	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
 // FSStore is a in reservation store

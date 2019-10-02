@@ -14,9 +14,9 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/threefoldtech/zosv2/pkg/capacity"
-	"github.com/threefoldtech/zosv2/pkg/network/types"
-	"github.com/threefoldtech/zosv2/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/provision"
 )
 
 type farmInfo struct {

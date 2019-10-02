@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/vishvananda/netlink"
 )
 

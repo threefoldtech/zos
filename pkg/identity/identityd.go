@@ -3,11 +3,11 @@ package identity
 import (
 	"os"
 
-	"github.com/threefoldtech/zosv2/pkg/crypto"
+	"github.com/threefoldtech/zos/pkg/crypto"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/pkg"
-	"github.com/threefoldtech/zosv2/pkg/environment"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/environment"
 )
 
 type identityManager struct {

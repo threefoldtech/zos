@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/threefoldtech/zosv2/pkg/identity"
+	"github.com/threefoldtech/zos/pkg/identity"
 )
 
 func TestVerifySignature(t *testing.T) {

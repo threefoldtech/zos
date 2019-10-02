@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/pkg/stubs"
-	"github.com/threefoldtech/zosv2/pkg/zinit"
+	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/pkg/errors"
 )
