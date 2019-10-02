@@ -16,7 +16,7 @@ type TfgridReservationNetwork1 struct {
 // TfgridNetworkNetResource1 jsx Schema
 type TfgridNetworkNetResource1 struct {
 	NodeID                       string           `json:"node_id"`
-	Prefix                       schema.IPRange   `json:"prefix"`
+	IPRange                      schema.IPRange   `json:"iprange"`
 	WireguardPrivateKeyEncrypted string           `json:"wireguard_private_key_encrypted"`
 	WireguardPublicKey           string           `json:"wireguard_public_key"`
 	Peers                        []WireguardPeer1 `json:"peers"`
@@ -24,6 +24,7 @@ type TfgridNetworkNetResource1 struct {
 
 // WireguardPeer1 jsx Schema
 type WireguardPeer1 struct {
-	PublicKey string `json:"public_key"`
-	Endpoint  int64  `json:"endpoint"`
+	PublicKey  string   `json:"public_key"`
+	Endpoint   string   `json:"endpoint"`
+	AllowedIPs []string `json:"allowed_iprange"`
 }

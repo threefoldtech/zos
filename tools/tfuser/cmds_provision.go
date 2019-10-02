@@ -74,7 +74,7 @@ func cmdsProvision(c *cli.Context) error {
 	}
 
 	for _, nodeID := range nodeIDs {
-		id, err := store.Reserve(r, modules.StrIdentifier(nodeID))
+		id, err := client.Reserve(r, modules.StrIdentifier(nodeID))
 		if err != nil {
 			return errors.Wrap(err, "failed to send reservation")
 		}

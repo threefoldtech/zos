@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/threefoldtech/zosv2/modules"
@@ -31,6 +32,9 @@ func generateContainer(c *cli.Context) error {
 		Mounts:       mounts,
 		Network: provision.Network{
 			NetwokID: modules.NetID(c.String("network")),
+			IPs: []net.IP{
+				net.ParseIP(c.String("ip")),
+			},
 		},
 	}
 

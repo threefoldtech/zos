@@ -10,7 +10,7 @@ type TfgridReservationContainer1 struct {
 	NodeID            int64                                 `json:"node_id"`
 	Flist             string                                `json:"flist"`
 	HubURL            string                                `json:"hub_url"`
-	Environment       map[string]interface{}                `json:"environment"`
+	Environment       map[string]string                     `json:"environment"`
 	Entrypoint        string                                `json:"entrypoint"`
 	Interactive       bool                                  `json:"interactive"`
 	Volumes           []TfgridReservationContainerMount1    `json:"volumes"`
