@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/threefoldtech/zos/pkg"
@@ -31,6 +32,9 @@ func generateContainer(c *cli.Context) error {
 		Mounts:       mounts,
 		Network: provision.Network{
 			NetwokID: pkg.NetID(c.String("network")),
+			IPs: []net.IP{
+				net.ParseIP(c.String("ip")),
+			},
 		},
 	}
 
