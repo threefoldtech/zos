@@ -17,7 +17,7 @@ import (
 
 var (
 	idStore identity.IDStore
-	db      network.TNoDBUtils
+	db      network.TNoDB
 )
 
 func main() {
@@ -77,19 +77,6 @@ func main() {
 			Usage: "Manage network of a farm and hand out allocation to the grid",
 			Subcommands: []cli.Command{
 				{
-					Name:      "give-alloc",
-					Category:  "network",
-					Usage:     "register an allocation to the TNoDB",
-					ArgsUsage: "allocation prefix (ip/mask)",
-					Flags: []cli.Flag{
-						cli.StringFlag{
-							Name:  "seed",
-							Usage: "path to the farmer seed. Specify this if you already have a seed generated for your farm",
-						},
-					},
-					Action: giveAlloc,
-				},
-				{
 					Name:     "configure-public",
 					Category: "network",
 					Usage: `configure the public interface of a node.
@@ -110,13 +97,6 @@ You can specify multime time the ip and gw flag to configure multiple IP on the 
 						},
 					},
 					Action: configPublic,
-				},
-				{
-					Name:      "select-exit",
-					Category:  "network",
-					Usage:     "mark a node as being an exit",
-					ArgsUsage: "node ID",
-					Action:    selectExit,
 				},
 			},
 		},

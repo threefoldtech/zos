@@ -4,9 +4,10 @@ import (
 	schema "github.com/threefoldtech/zos/pkg/schema"
 )
 
+// TfgridReservation1 jsx schema
 type TfgridReservation1 struct {
 	ID                  uint                                 `json:"id"`
-	Json                string                               `json:"json"`
+	JSON                string                               `json:"json"`
 	DataReservation     TfgridReservationData1               `json:"data_reservation"`
 	CustomerTid         int64                                `json:"customer_tid"`
 	CustomerSignature   string                               `json:"customer_signature"`
@@ -18,6 +19,7 @@ type TfgridReservation1 struct {
 	Results             []TfgridReservationResult1           `json:"results"`
 }
 
+// TfgridReservationData1 jsx schema
 type TfgridReservationData1 struct {
 	Description             string                           `json:"description"`
 	SigningRequestProvision TfgridReservationSigningRequest1 `json:"signing_request_provision"`
@@ -30,19 +32,23 @@ type TfgridReservationData1 struct {
 	ExpirationReservation   schema.Date                      `json:"expiration_reservation"`
 }
 
+// TfgridReservationSigningRequest1 jsx schema
 type TfgridReservationSigningRequest1 struct {
 	Signers   []int64 `json:"signers"`
 	QuorumMin int64   `json:"quorum_min"`
 }
 
+//TfgridReservationSigningSignature1 jsx schema
 type TfgridReservationSigningSignature1 struct {
 	Tid       int64       `json:"tid"`
 	Signature string      `json:"signature"`
 	Epoch     schema.Date `json:"epoch"`
 }
 
+//TfgridReservation1NextActionEnum jsx schema
 type TfgridReservation1NextActionEnum uint8
 
+// TfgridReservation1NextActionEnum enum
 const (
 	TfgridReservation1NextActionCreate TfgridReservation1NextActionEnum = iota
 	TfgridReservation1NextActionSign
