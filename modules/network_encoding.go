@@ -56,10 +56,13 @@ func (p *Peer) MarshalJSON() ([]byte, error) {
 		AllowedIPs  []string `json:"allowed_ips"`
 		Endpoint    string   `json:"endpoint"`
 	}{
-		Subnet:      p.Subnet.String(),
 		WGPublicKey: p.WGPublicKey,
 		AllowedIPs:  allowedIPs,
 		Endpoint:    p.Endpoint,
+	}
+	if p.Subnet != nil {
+		tmp.Subnet = p.Subnet.String()
+
 	}
 
 	return json.Marshal(tmp)
@@ -109,11 +112,13 @@ func (r *NetResource) MarshalJSON() ([]byte, error) {
 		WGListenPort uint16 `json:"wg_listen_port"`
 	}{
 		NodeID:       r.NodeID,
-		Subnet:       r.Subnet.String(),
 		Peers:        r.Peers,
 		WGPrivateKey: r.WGPrivateKey,
 		WGPublicKey:  r.WGPublicKey,
 		WGListenPort: r.WGListenPort,
+	}
+	if r.Subnet != nil {
+		tmp.Subnet = r.Subnet.String()
 	}
 
 	return json.Marshal(tmp)
@@ -133,6 +138,7 @@ func (d *Network) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	*d = Network{}
+	d.Name = tmp.Name
 	d.NetID = NetID(tmp.NetID)
 	d.NetResources = tmp.NetResources
 	if tmp.IPRange != "" {
@@ -153,6 +159,7 @@ func (d *Network) MarshalJSON() ([]byte, error) {
 		NetResources []NetResource `json:"net_resources,omitempty"`
 		IPRange      string        `json:"ip_range,omitempty"`
 	}{
+		Name:         d.Name,
 		NetID:        string(d.NetID),
 		NetResources: d.NetResources,
 	}

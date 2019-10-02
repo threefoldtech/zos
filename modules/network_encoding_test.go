@@ -44,6 +44,7 @@ func TestNetworkUnmarshal(t *testing.T) {
 func TestEncodeDecode(t *testing.T) {
 	network := &Network{
 		NetID: NetID("test"),
+		Name:  "supernet",
 		IPRange: &net.IPNet{
 			IP:   net.ParseIP("10.0.0.0"),
 			Mask: net.CIDRMask(16, 32),
