@@ -24,7 +24,7 @@ func Apply(r io.Reader, ns string) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Error().Str("output", string(out)).Msg("error during nft")
+		log.Error().Err(err).Str("output", string(out)).Msg("error during nft")
 		if eerr, ok := err.(*exec.ExitError); ok {
 			return errors.Wrapf(err, "failed to execute nft: %v", string(eerr.Stderr))
 		}
