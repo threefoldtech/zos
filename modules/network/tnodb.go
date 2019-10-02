@@ -2,7 +2,6 @@ package network
 
 import (
 	"errors"
-	"net"
 
 	"github.com/threefoldtech/zosv2/modules"
 	"github.com/threefoldtech/zosv2/modules/network/types"
@@ -19,19 +18,6 @@ type TNoDB interface {
 
 	SetPublicIface(node modules.Identifier, pub *types.PubIface) error
 	GetPubIface(node modules.Identifier) (*types.PubIface, error)
-}
-
-// TNoDBUtils define the interface to implement
-// to talk to a Tenant Network object database including utils methods
-type TNoDBUtils interface {
-	TNoDB
-	RegisterAllocation(farm modules.Identifier, allocation *net.IPNet) error
-	RequestAllocation(farm modules.Identifier) (*net.IPNet, *net.IPNet, uint8, error)
-
-	SelectExitNode(node modules.Identifier) error
-
-	GetNetwork(netID modules.NetID) (*modules.Network, error)
-	GetNetworksVersion(nodeID modules.Identifier) (versions map[modules.NetID]uint32, err error)
 }
 
 // Farm hold the ID, name and list of possible exit node of a farm
