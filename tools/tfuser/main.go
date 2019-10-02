@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/threefoldtech/zosv2/modules/gedis"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/gedis"
 
-	"github.com/threefoldtech/zosv2/modules"
-	"github.com/threefoldtech/zosv2/modules/provision"
+	"github.com/threefoldtech/zos/pkg/provision"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"os"
 
-	"github.com/threefoldtech/zosv2/modules/network"
-	"github.com/threefoldtech/zosv2/modules/network/tnodb"
+	"github.com/threefoldtech/zos/pkg/network"
+	"github.com/threefoldtech/zos/pkg/network/tnodb"
 	"github.com/urfave/cli"
 )
 
@@ -273,7 +273,7 @@ func main() {
 }
 
 type reserver interface {
-	Reserve(r *provision.Reservation, nodeID modules.Identifier) (string, error)
+	Reserve(r *provision.Reservation, nodeID pkg.Identifier) (string, error)
 }
 type clientIface interface {
 	network.TNoDB

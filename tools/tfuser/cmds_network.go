@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/threefoldtech/zosv2/modules"
-	"github.com/threefoldtech/zosv2/modules/crypto"
-	"github.com/threefoldtech/zosv2/modules/provision"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/crypto"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/pkg/errors"
@@ -36,10 +36,10 @@ func cmdCreateNetwork(c *cli.Context) error {
 		errors.Wrap(err, "invalid ip range")
 	}
 
-	network := &modules.Network{
+	network := &pkg.Network{
 		Name:         name,
 		IPRange:      ipnet,
-		NetResources: []modules.NetResource{},
+		NetResources: []pkg.NetResource{},
 	}
 
 	r, err := embed(network, provision.NetworkReservation)
@@ -52,7 +52,7 @@ func cmdCreateNetwork(c *cli.Context) error {
 
 func cmdsAddNode(c *cli.Context) error {
 	var (
-		network = &modules.Network{}
+		network = &pkg.Network{}
 		schema  = c.GlobalString("schema")
 		err     error
 
@@ -92,7 +92,7 @@ func cmdsAddNode(c *cli.Context) error {
 	}
 	sk := privateKey.String()
 
-	pk, err := crypto.KeyFromID(modules.StrIdentifier(nodeID))
+	pk, err := crypto.KeyFromID(pkg.StrIdentifier(nodeID))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse nodeID")
 	}
@@ -102,7 +102,7 @@ func cmdsAddNode(c *cli.Context) error {
 		return errors.Wrap(err, "failed to encrypt private key")
 	}
 
-	nr := modules.NetResource{
+	nr := pkg.NetResource{
 		NodeID:       nodeID,
 		Subnet:       ipnet,
 		WGListenPort: uint16(port),
@@ -126,7 +126,7 @@ func cmdsAddNode(c *cli.Context) error {
 
 func cmdsRemoveNode(c *cli.Context) error {
 	var (
-		network = &modules.Network{}
+		network = &pkg.Network{}
 		schema  = c.GlobalString("schema")
 		nodeID  = c.String("node")
 		err     error
@@ -167,8 +167,8 @@ func cmdsRemoveNode(c *cli.Context) error {
 	return output(schema, r)
 }
 
-func loadNetwork(name string) (network *modules.Network, err error) {
-	network = &modules.Network{}
+func loadNetwork(name string) (network *pkg.Network, err error) {
+	network = &pkg.Network{}
 
 	if name == "" {
 		return nil, fmt.Errorf("schema name cannot be empty")
@@ -191,7 +191,7 @@ func loadNetwork(name string) (network *modules.Network, err error) {
 }
 
 func pickPort(nodeID string) (uint, error) {
-	node, err := client.GetNode(modules.StrIdentifier(nodeID))
+	node, err := client.GetNode(pkg.StrIdentifier(nodeID))
 	if err != nil {
 		return 0, err
 	}
@@ -213,8 +213,8 @@ func isIn(l []uint, i uint) bool {
 	return false
 }
 
-func generatePeers(nodeID string, n modules.Network) []modules.Peer {
-	peers := make([]modules.Peer, 0, len(n.NetResources))
+func generatePeers(nodeID string, n pkg.Network) []pkg.Peer {
+	peers := make([]pkg.Peer, 0, len(n.NetResources))
 	for _, nr := range n.NetResources {
 		if nr.NodeID == nodeID {
 			continue
@@ -224,7 +224,7 @@ func generatePeers(nodeID string, n modules.Network) []modules.Peer {
 		allowedIPs[0] = *nr.Subnet
 		allowedIPs[1] = *wgIP(nr.Subnet)
 
-		peers = append(peers, modules.Peer{
+		peers = append(peers, pkg.Peer{
 			WGPublicKey: nr.WGPublicKey,
 			AllowedIPs:  allowedIPs,
 		})

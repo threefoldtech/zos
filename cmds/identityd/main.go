@@ -12,11 +12,11 @@ import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zosv2/modules/environment"
-	"github.com/threefoldtech/zosv2/modules/gedis"
-	"github.com/threefoldtech/zosv2/modules/identity"
-	"github.com/threefoldtech/zosv2/modules/utils"
-	"github.com/threefoldtech/zosv2/modules/version"
+	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/gedis"
+	"github.com/threefoldtech/zos/pkg/identity"
+	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos/pkg/version"
 )
 
 const (
@@ -67,10 +67,17 @@ func main() {
 		log.Fatal().Err(err).Msg("fail to read farmer id from kernel parameters")
 	}
 
+	env := environment.Get()
+
 	nodeID := manager.NodeID()
 	log.Info().
 		Str("identity", nodeID.Identity()).
 		Msg("node identity loaded")
+
+	log.Info().
+		Bool("orphan", env.Orphan).
+		Str("farmer_id", env.FarmerID).
+		Msg("farmer identified")
 
 	// Node registration can happen in the background.
 	go func() {

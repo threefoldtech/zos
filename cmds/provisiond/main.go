@@ -7,18 +7,18 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zosv2/modules/environment"
-	"github.com/threefoldtech/zosv2/modules/gedis"
+	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/gedis"
 
-	"github.com/threefoldtech/zosv2/modules/stubs"
-	"github.com/threefoldtech/zosv2/modules/utils"
+	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg/utils"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosv2/modules/provision"
-	"github.com/threefoldtech/zosv2/modules/version"
+	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/version"
 )
 
 func main() {
@@ -49,6 +49,14 @@ func main() {
 
 	if err := os.MkdirAll(storageDir, 0770); err != nil {
 		log.Fatal().Err(err).Msg("failed to create cache directory")
+	}
+
+	env := environment.Get()
+
+	if env.Orphan {
+		// disable providiond on this node
+		// we don't have a valid farmer id set
+		log.Fatal().Msg("orphan node, we won't provision anything at all")
 	}
 
 	client, err := zbus.NewRedisClient(msgBrokerCon)

@@ -8,10 +8,10 @@ import (
 
 	"os"
 
-	"github.com/threefoldtech/zosv2/modules"
-	"github.com/threefoldtech/zosv2/modules/identity"
-	"github.com/threefoldtech/zosv2/modules/network"
-	"github.com/threefoldtech/zosv2/modules/network/tnodb"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/identity"
+	"github.com/threefoldtech/zos/pkg/network"
+	"github.com/threefoldtech/zos/pkg/network/tnodb"
 	"github.com/urfave/cli"
 )
 
@@ -33,10 +33,10 @@ func main() {
 			Usage: "enable debug logging",
 		},
 		cli.StringFlag{
-			Name:   "tnodb, u",
-			Usage:  "URL of the TNODB",
-			Value:  "https://tnodb.dev.grid.tf",
-			EnvVar: "TNODB_URL",
+			Name:   "bcdb, b",
+			Usage:  "URL of the BCDB",
+			Value:  "https://bcdb.dev.grid.tf",
+			EnvVar: "BCDB_URL",
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -128,7 +128,7 @@ You can specify multime time the ip and gw flag to configure multiple IP on the 
 	}
 }
 
-func loadFarmID(seedPath string) (modules.Identifier, error) {
+func loadFarmID(seedPath string) (pkg.Identifier, error) {
 	if seedPath == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -146,7 +146,7 @@ func loadFarmID(seedPath string) (modules.Identifier, error) {
 	return farmID, nil
 }
 
-func generateKeyPair(seedPath string) (modules.Identifier, error) {
+func generateKeyPair(seedPath string) (pkg.Identifier, error) {
 	log.Debug().Msg("generating new key pair")
 	keypair, err := identity.GenerateKeyPair()
 	if err != nil {
