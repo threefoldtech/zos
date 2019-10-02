@@ -2,6 +2,10 @@
 
 0-OS is an autonomous operating system design to expose raw compute, storage and network capacity.
 
+This repository host the V2 of 0-OS which is a complete rewrite from scratch. If you want to know about the history and decision that motivated the creation of the V2, you can read [this article](docs/history/readme.md)
+
+0-OS is mainly used to run node on the Threefold Grid. Head to <https://threefold.io> to learn more about Threefold and the grid.
+
 ## Documentation
 
 Start exploring the code base by first checking the [documentation](/docs) and [specification documents](/specs)
