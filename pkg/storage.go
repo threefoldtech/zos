@@ -37,8 +37,8 @@ type DeviceType string
 
 // Known device types
 const (
-	SSDDevice = "SSD"
-	HDDDevice = "HDD"
+	SSDDevice DeviceType = "SSD"
+	HDDDevice DeviceType = "HDD"
 )
 
 // Validate make sure profile is correct
