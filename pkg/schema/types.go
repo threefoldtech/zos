@@ -68,6 +68,12 @@ func (d *Date) UnmarshalJSON(bytes []byte) error {
 		return fmt.Errorf("unknown date format: %T(%s)", v, string(bytes))
 	}
 
+	if len(in) == 0 {
+		//null date
+		d.Time = time.Time{}
+		return nil
+	}
+
 	m := dateRe.FindStringSubmatch(in)
 	if m == nil {
 		return fmt.Errorf("invalid date string '%s'", in)
@@ -140,6 +146,11 @@ type IPRange struct{ net.IPNet }
 
 // UnmarshalText loads IPRange from string
 func (i *IPRange) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		//empty ip net value
+		return nil
+	}
+
 	_, net, err := net.ParseCIDR(string(text))
 	if err != nil {
 		return err

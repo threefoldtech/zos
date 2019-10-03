@@ -38,11 +38,17 @@ func TestParseDate(t *testing.T) {
 
 func TestParseIPRange(t *testing.T) {
 	parser := func(t *testing.T, in string) IPRange {
-		//not in is surrounded by "" because it's json
-		if err := json.Unmarshal([]byte(in), &in); err != nil {
+		//note in is surrounded by "" because it's json
+		var str string
+		if err := json.Unmarshal([]byte(in), &str); err != nil {
 			t.Fatal(err)
 		}
-		_, ipNet, err := net.ParseCIDR(in)
+
+		if len(str) == 0 {
+			return IPRange{}
+		}
+
+		_, ipNet, err := net.ParseCIDR(str)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -55,6 +61,7 @@ func TestParseIPRange(t *testing.T) {
 	}{
 		{`"192.168.1.0/24"`, parser},
 		{`"2001:db8::/32"`, parser},
+		{`""`, parser},
 	}
 
 	for _, c := range cases {
