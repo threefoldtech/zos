@@ -33,7 +33,7 @@ jobs:
       if: success()
       uses: threefoldtech/action-publish@v1-release
       with:
-        user: tf-zos
+        user: tf-autobuilder
         root: /tmp/archive
         token: ${{ secrets.HUB_JWT }}
         name: zos-${{ github.sha }}.tar.gz
