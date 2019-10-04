@@ -115,6 +115,9 @@ func attachVeth(netNS ns.NetNS) error {
 		if _, _, err := ip.SetupVethWithName(vethHost, vethNDMZ, 1500, netNS); err != nil {
 			return errors.Wrap(err, "failed to create veth pair to connect zos bridge and ndmz bridge")
 		}
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", vethHost), "1"); err != nil {
+			return errors.Wrapf(err, "failed to disable ip6 on interface %s", vethHost)
+		}
 	}
 	log.Info().
 		Str("ndmz side", vethNDMZ).
@@ -160,6 +163,10 @@ func createRoutingBridge(netNS ns.NetNS) error {
 
 	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", BridgeNDMZ), "1"); err != nil {
 		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", BridgeNDMZ)
+	}
+
+	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", vethHost), "1"); err != nil {
+		return errors.Wrapf(err, "failed to disable ip6 on interface %s", vethHost)
 	}
 
 	lVethBr, err := netlink.LinkByName(vethHost)
