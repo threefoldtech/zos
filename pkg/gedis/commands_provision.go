@@ -150,18 +150,9 @@ func (g *Gedis) Feedback(id string, r *provision.Result) error {
 		Epoch:      schema.Date{r.Created},
 	}
 
-	//TODO: i do not believe this is necessary at all
-	//the actor implementation itself does not expect
-	//a string, instead it expect an object. so
-	// result in the args should be passed directly
-	b, err := json.Marshal(result)
-	if err != nil {
-		return err
-	}
-
 	_, err = g.Send("workload_manager", "set_workload_result", Args{
 		"reservation_id": rID,
-		"result":         b,
+		"result":         result,
 	})
 	return err
 }
