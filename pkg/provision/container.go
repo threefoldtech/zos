@@ -155,7 +155,7 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 	id, err := containerClient.Run(
 		tenantNS,
 		pkg.Container{
-			Name:   reservation.ID,
+			Name:   containerID,
 			RootFS: mnt,
 			Env:    env,
 			Network: pkg.NetworkInfo{
@@ -189,20 +189,30 @@ func containerDecommission(ctx context.Context, reservation *Reservation) error 
 	container := stubs.NewContainerModuleStub(client)
 	flist := stubs.NewFlisterStub(client)
 
-	id := pkg.ContainerID(reservation.ID)
+	tenantNS := fmt.Sprintf("ns%s", reservation.User)
+	containerID := pkg.ContainerID(reservation.ID)
 
-	info, err := container.Inspect(reservation.User, id)
+	info, err := container.Inspect(tenantNS, containerID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to inspect container %s", id)
+		return errors.Wrapf(err, "failed to inspect container %s", containerID)
 	}
 
-	if err := container.Delete(reservation.User, pkg.ContainerID(id)); err != nil {
-		return errors.Wrapf(err, "failed to delete container %s", id)
+	if err := container.Delete(tenantNS, containerID); err != nil {
+		return errors.Wrapf(err, "failed to delete container %s", containerID)
 	}
 
-	if err := flist.Umount(info.RootFS); err != nil {
-		return errors.Wrapf(err, "failed to unmount flist at %s", info.RootFS)
+	rootFS := info.RootFS
+	if info.Interactive {
+		rootFS, err = findRootFS(info.Mounts)
+		if err != nil {
+			return err
+		}
 	}
+
+	if err := flist.Umount(rootFS); err != nil {
+		return errors.Wrapf(err, "failed to unmount flist at %s", rootFS)
+	}
+
 	return nil
 }
 
@@ -216,4 +226,14 @@ func validateContainerConfig(config Container) error {
 	}
 
 	return nil
+}
+
+func findRootFS(mounts []pkg.MountInfo) (string, error) {
+	for _, m := range mounts {
+		if m.Target == "/sandbox" {
+			return m.Source, nil
+		}
+	}
+
+	return "", fmt.Errorf("rootfs flist mountpoint not found")
 }
