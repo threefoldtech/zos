@@ -82,8 +82,9 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 		return nil, errors.Wrap(err, "container provision schema not valid")
 	}
 
+	netID := networkID(reservation.User, string(config.Network.NetwokID))
 	log.Debug().
-		Str("network-id", string(config.Network.NetwokID)).
+		Str("network-id", string(netID)).
 		Str("config", fmt.Sprintf("%+v", config)).
 		Msg("deploying network")
 
@@ -94,7 +95,7 @@ func containerProvision(ctx context.Context, reservation *Reservation) (interfac
 		ips[i] = ip.String()
 	}
 
-	join, err := networkMgr.Join(pkg.NetID(config.Network.NetwokID), containerID, ips)
+	join, err := networkMgr.Join(netID, containerID, ips)
 	if err != nil {
 		return nil, err
 	}
