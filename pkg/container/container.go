@@ -275,6 +275,11 @@ func (c *containerModule) Inspect(ns string, id pkg.ContainerID) (result pkg.Con
 
 	result.RootFS = spec.Root.Path
 	result.Name = container.ID()
+
+	if spec.Root.Path == "/usr/lib/corex" {
+		result.Interactive = true
+	}
+
 	if process := spec.Process; process != nil {
 		result.Entrypoint = strings.Join(process.Args, " ")
 		result.Env = process.Env
