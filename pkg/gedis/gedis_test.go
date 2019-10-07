@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/garyburd/redigo/redis"
@@ -75,6 +77,21 @@ func mustMarshal(t *testing.T, v interface{}) []byte {
 	r, err := json.Marshal(v)
 	require.NoError(t, err)
 	return r
+}
+
+func EqualJSON(t *testing.T, expected, actual []byte) {
+	var exp interface{}
+	var act interface{}
+
+	if err := json.Unmarshal(expected, &exp); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := json.Unmarshal(actual, &act); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, exp, act)
 }
 
 func TestGedisSend(t *testing.T) {
