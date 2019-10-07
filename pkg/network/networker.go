@@ -242,11 +242,10 @@ func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 func (n *networker) CreateNR(network pkg.Network) (string, error) {
 	var err error
 
-	// TODO: fix me
-	// if err := validateNetwork(&network); err != nil {
-	// 	log.Error().Err(err).Msg("network object format invalid")
-	// 	return "", err
-	// }
+	if err := validateNetwork(&network); err != nil {
+		log.Error().Err(err).Msg("network object format invalid")
+		return "", err
+	}
 
 	b, err := json.Marshal(network)
 	if err != nil {
@@ -261,13 +260,13 @@ func (n *networker) CreateNR(network pkg.Network) (string, error) {
 		return "", err
 	}
 
-	if err := n.reservePort(netNR.WGListenPort); err != nil {
-		return "", err
-	}
-
 	privateKey, err := n.extractPrivateKey(netNR.WGPrivateKey)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to extract private key from network object")
+	}
+
+	if err := n.reservePort(netNR.WGListenPort); err != nil {
+		return "", err
 	}
 
 	netr, err := nr.New(network.NetID, netNR)
