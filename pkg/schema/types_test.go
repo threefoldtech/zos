@@ -48,10 +48,11 @@ func TestParseIPRange(t *testing.T) {
 			return IPRange{}
 		}
 
-		_, ipNet, err := net.ParseCIDR(str)
+		ip, ipNet, err := net.ParseCIDR(str)
 		if err != nil {
 			t.Fatal(err)
 		}
+		ipNet.IP = ip
 		return IPRange{*ipNet}
 	}
 
