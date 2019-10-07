@@ -2,6 +2,7 @@ package gedis
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/jbenet/go-base58"
@@ -165,5 +166,67 @@ func TestGetFarm(t *testing.T) {
 	require.NoError(err)
 	require.Equal("100", farm.ID)
 	require.Equal("farm-1", farm.Name)
+	conn.AssertCalled(t, "Close")
+}
+
+func TestListFarm(t *testing.T) {
+	require := require.New(t)
+	pool, conn := getTestPool()
+	gedis := Gedis{
+		pool:      pool,
+		namespace: "default",
+	}
+
+	args := Args{
+		"country": "eg",
+		"city":    "cairo",
+	}
+
+	conn.On("Do", "default.farms.list", mustMarshal(t, args)).
+		Return(mustMarshal(t, Args{"farms": []directory.TfgridFarm1{
+			{ID: 1, Name: "farm-1"},
+			{ID: 2, Name: "farm-2"},
+		}}), nil)
+
+	nodes, err := gedis.ListFarm("eg", "cairo")
+
+	require.NoError(err)
+	require.Len(nodes, 2)
+	require.Equal(nodes[0].ID, "1")
+	require.Equal(nodes[0].Name, "farm-1")
+	conn.AssertCalled(t, "Close")
+}
+
+func TestUpdateGenericNodeCapacity(t *testing.T) {
+	require := require.New(t)
+	pool, conn := getTestPool()
+	gedis := Gedis{
+		pool:      pool,
+		namespace: "default",
+	}
+
+	node := pkg.StrIdentifier("node-1")
+
+	args := Args{
+		"node_id": node.Identity(),
+		"resource": directory.TfgridNodeResourceAmount1{
+			Mru: 1,
+			Cru: 2,
+			Hru: 3,
+			Sru: 4,
+		},
+	}
+
+	const captype = "total"
+	action := fmt.Sprintf("default.nodes.update_%s_capacity", captype)
+	conn.On("Do", action, mustMarshal(t, args)).
+		Return(nil, nil)
+
+	err := gedis.updateGenericNodeCapacity(
+		"total",
+		node,
+		1, 2, 3, 4)
+
+	require.NoError(err)
 	conn.AssertCalled(t, "Close")
 }
