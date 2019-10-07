@@ -52,7 +52,7 @@ func (p RaidProfile) Validate() error {
 
 var (
 	raidProfiles = map[RaidProfile]struct{}{
-		Single: struct{}{}, Raid1: struct{}{}, Raid10: struct{}{},
+		Single: {}, Raid1: {}, Raid10: {},
 	}
 	// DefaultPolicy value
 	DefaultPolicy = StoragePolicy{
