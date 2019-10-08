@@ -121,6 +121,18 @@ func (c *containerModule) ensureNamespace(ctx context.Context, client *container
 	return service.Create(ctx, namespace, nil)
 }
 
+func removeRunMount() oci.SpecOpts {
+	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+		for i, mount := range s.Mounts {
+			if mount.Destination == "/run" {
+				s.Mounts = append(s.Mounts[:i], s.Mounts[i+1:]...)
+				break
+			}
+		}
+		return nil
+	}
+}
+
 // Run creates and starts a container
 // THIS IS A WIP Create action and it's not fully implemented atm
 func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID, err error) {
@@ -169,6 +181,7 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		oci.WithRootFSPath(data.RootFS),
 		oci.WithProcessArgs(args...),
 		oci.WithEnv(data.Env),
+		removeRunMount(),
 	}
 	if data.Interactive {
 		opts = append(
