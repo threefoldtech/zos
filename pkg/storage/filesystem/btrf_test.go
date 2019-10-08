@@ -35,7 +35,7 @@ type TestDevices map[string]string
 func (d TestDevices) Loops() DeviceCache {
 	var loops DeviceCache
 	for _, loop := range d {
-		loops = append(loops, &Device{Path: loop})
+		loops = append(loops, Device{Path: loop})
 	}
 
 	return loops
@@ -95,7 +95,8 @@ type TestDeviceManager struct {
 }
 
 func (m TestDeviceManager) Device(ctx context.Context, path string) (*Device, error) {
-	for _, loop := range m.devices {
+	for idx := range m.devices {
+		loop := &m.devices[idx]
 		if loop.Path == path {
 			return loop, nil
 		}
@@ -255,20 +256,20 @@ func TestBtrfsRaid1(t *testing.T) {
 
 	t.Run("add device", func(t *testing.T) {
 		// add a device to array
-		err = pool.AddDevice(loops[2])
+		err = pool.AddDevice(&loops[2])
 		require.NoError(t, err)
 	})
 
 	t.Run("remove device", func(t *testing.T) {
 		// remove device from array
-		err = pool.RemoveDevice(loops[0])
+		err = pool.RemoveDevice(&loops[0])
 		require.NoError(t, err)
 	})
 
 	t.Run("remove second device", func(t *testing.T) {
 		// remove a 2nd device should fail because raid1 should
 		// have at least 2 devices
-		err = pool.RemoveDevice(loops[1])
+		err = pool.RemoveDevice(&loops[1])
 		require.Error(t, err)
 	})
 }

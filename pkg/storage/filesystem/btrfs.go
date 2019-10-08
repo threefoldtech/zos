@@ -227,7 +227,7 @@ func (p *btrfsPool) AddDevice(device *Device) error {
 		return err
 	}
 
-	p.devices = append(p.devices, device)
+	p.devices = append(p.devices, *device)
 
 	// update cached device
 	device.Label = p.name
