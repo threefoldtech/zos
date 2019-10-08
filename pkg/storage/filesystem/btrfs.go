@@ -183,11 +183,6 @@ func (p *btrfsPool) Path() string {
 	return filepath.Join("/mnt", p.name)
 }
 
-func (p *btrfsPool) enableQuota(mnt string) error {
-	_, err := p.utils.run(context.Background(), "btrfs", "quota", "enable", mnt)
-	return err
-}
-
 // Mount mounts the pool in it's default mount location under /mnt/name
 func (p *btrfsPool) Mount() (string, error) {
 	ctx := context.Background()
@@ -211,7 +206,7 @@ func (p *btrfsPool) Mount() (string, error) {
 		return "", err
 	}
 
-	return mnt, p.enableQuota(mnt)
+	return mnt, p.utils.QGroupEnable(ctx, mnt)
 }
 
 func (p *btrfsPool) UnMount() error {
@@ -432,7 +427,7 @@ func (v *btrfsVolume) Volumes() ([]Volume, error) {
 
 func (v *btrfsVolume) AddVolume(name string) (Volume, error) {
 	mnt := filepath.Join(v.Path(), name)
-	if _, err := v.utils.run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
+	if err := v.utils.SubvolumeAdd(context.Background(), mnt); err != nil {
 		return nil, err
 	}
 
@@ -441,9 +436,7 @@ func (v *btrfsVolume) AddVolume(name string) (Volume, error) {
 
 func (v *btrfsVolume) RemoveVolume(name string) error {
 	mnt := filepath.Join(v.Path(), name)
-	_, err := v.utils.run(context.Background(), "btrfs", "subvolume", "remove", mnt)
-
-	return err
+	return v.utils.SubvolumeRemove(context.Background(), mnt)
 }
 
 // Usage return the volume usage
@@ -476,14 +469,7 @@ func (v *btrfsVolume) Usage() (usage Usage, err error) {
 func (v *btrfsVolume) Limit(size uint64) error {
 	ctx := context.Background()
 
-	limit := "none"
-	if size > 0 {
-		limit = fmt.Sprint(size)
-	}
-	log.Debug().Str("limit", limit).Msgf("limit volume %s", v.Name())
-	_, err := v.utils.run(ctx, "btrfs", "qgroup", "limit", limit, v.Path())
-
-	return err
+	return v.utils.QGroupLimit(ctx, size, v.Path())
 }
 
 // Name of the filesystem

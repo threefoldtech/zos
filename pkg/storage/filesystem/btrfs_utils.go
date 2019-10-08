@@ -146,6 +146,44 @@ func (u *BtrfsUtil) DeviceRemove(ctx context.Context, dev string, root string) e
 	return err
 }
 
+// QGroupEnable enable quota
+func (u *BtrfsUtil) QGroupEnable(ctx context.Context, root string) error {
+	_, err := u.run(ctx, "btrfs", "quota", "enable", root)
+	return err
+}
+
+// QGroupList list available qgroups
+func (u *BtrfsUtil) QGroupList(ctx context.Context, path string) (map[string]BtrfsQGroup, error) {
+	output, err := u.run(ctx, "btrfs", "qgroup", "show", "-re", "--raw", path)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseQGroups(string(output)), nil
+}
+
+// QGroupLimit limit size on subvol
+func (u *BtrfsUtil) QGroupLimit(ctx context.Context, size uint64, path string) error {
+	limit := "none"
+	if size > 0 {
+		limit = fmt.Sprint(size)
+	}
+
+	_, err := u.run(ctx, "btrfs", "qgroup", "limit", limit, path)
+
+	return err
+}
+
+// GetDiskUsage get btrfs usage
+func (u *BtrfsUtil) GetDiskUsage(ctx context.Context, path string) (usage BtrfsDiskUsage, err error) {
+	output, err := u.run(ctx, "btrfs", "filesystem", "df", "--raw", path)
+	if err != nil {
+		return usage, err
+	}
+
+	return parseFilesystemDF(string(output))
+}
+
 func parseSubvolInfo(output string) (volume BtrfsVolume, err error) {
 	values := make(map[string]string)
 	for _, line := range strings.Split(output, "\n") {
@@ -279,16 +317,6 @@ func parseDevices(lines []string) ([]BtrfsDevice, error) {
 	return devs, nil
 }
 
-// QGroupList list available qgroups
-func (u *BtrfsUtil) QGroupList(ctx context.Context, path string) (map[string]BtrfsQGroup, error) {
-	output, err := u.run(ctx, "btrfs", "qgroup", "show", "-re", "--raw", path)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseQGroups(string(output)), nil
-}
-
 func parseQGroups(output string) map[string]BtrfsQGroup {
 	qgroups := make(map[string]BtrfsQGroup)
 	for _, line := range reBtrfsQgroup.FindAllStringSubmatch(output, -1) {
@@ -310,16 +338,6 @@ func parseQGroups(output string) map[string]BtrfsQGroup {
 	}
 
 	return qgroups
-}
-
-// GetDiskUsage get btrfs usage
-func (u *BtrfsUtil) GetDiskUsage(ctx context.Context, path string) (usage BtrfsDiskUsage, err error) {
-	output, err := u.run(ctx, "btrfs", "filesystem", "df", "--raw", path)
-	if err != nil {
-		return usage, err
-	}
-
-	return parseFilesystemDF(string(output))
 }
 
 func parseFilesystemDF(output string) (usage BtrfsDiskUsage, err error) {
