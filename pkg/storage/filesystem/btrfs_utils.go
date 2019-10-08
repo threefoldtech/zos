@@ -66,10 +66,19 @@ type BtrfsDiskUsage struct {
 	GlobalReserve DiskUsage `json:"globalreserve"`
 }
 
-// BtrfsList lists all availabel btrfs pools
+// BtrfsUtil utils for btrfs
+type BtrfsUtil struct {
+	executer
+}
+
+func newUtils(exec executer) BtrfsUtil {
+	return BtrfsUtil{exec}
+}
+
+// List lists all availabel btrfs pools
 // if label is provided, only get fs of that label, if mounted = True, only return
 // mounted filesystems, otherwise any.
-func BtrfsList(ctx context.Context, label string, mounted bool) ([]Btrfs, error) {
+func (u *BtrfsUtil) List(ctx context.Context, label string, mounted bool) ([]Btrfs, error) {
 	args := []string{
 		"filesystem", "show", "--raw",
 	}
@@ -82,7 +91,7 @@ func BtrfsList(ctx context.Context, label string, mounted bool) ([]Btrfs, error)
 		args = append(args, label)
 	}
 
-	output, err := run(ctx, "btrfs", args...)
+	output, err := u.run(ctx, "btrfs", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -90,9 +99,9 @@ func BtrfsList(ctx context.Context, label string, mounted bool) ([]Btrfs, error)
 	return parseList(string(output))
 }
 
-// BtrfsSubvolumeList list direct subvolumes of this location
-func BtrfsSubvolumeList(ctx context.Context, root string) ([]BtrfsVolume, error) {
-	output, err := run(ctx, "btrfs", "subvolume", "list", "-o", root)
+// SubvolumeList list direct subvolumes of this location
+func (u *BtrfsUtil) SubvolumeList(ctx context.Context, root string) ([]BtrfsVolume, error) {
+	output, err := u.run(ctx, "btrfs", "subvolume", "list", "-o", root)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +109,9 @@ func BtrfsSubvolumeList(ctx context.Context, root string) ([]BtrfsVolume, error)
 	return parseSubvolList(string(output))
 }
 
-// BtrfsSubvolumeInfo get info of a subvolume giving its path
-func BtrfsSubvolumeInfo(ctx context.Context, path string) (volume BtrfsVolume, err error) {
-	output, err := run(context.Background(), "btrfs", "subvolume", "show", path)
+// SubvolumeInfo get info of a subvolume giving its path
+func (u *BtrfsUtil) SubvolumeInfo(ctx context.Context, path string) (volume BtrfsVolume, err error) {
+	output, err := u.run(context.Background(), "btrfs", "subvolume", "show", path)
 	if err != nil {
 		return
 	}
@@ -246,9 +255,9 @@ func parseDevices(lines []string) ([]BtrfsDevice, error) {
 	return devs, nil
 }
 
-// BtrfsQGroupList list available qgroups
-func BtrfsQGroupList(ctx context.Context, path string) (map[string]BtrfsQGroup, error) {
-	output, err := run(ctx, "btrfs", "qgroup", "show", "-re", "--raw", path)
+// QGroupList list available qgroups
+func (u *BtrfsUtil) QGroupList(ctx context.Context, path string) (map[string]BtrfsQGroup, error) {
+	output, err := u.run(ctx, "btrfs", "qgroup", "show", "-re", "--raw", path)
 	if err != nil {
 		return nil, err
 	}
@@ -279,9 +288,9 @@ func parseQGroups(output string) map[string]BtrfsQGroup {
 	return qgroups
 }
 
-// BtrfsGetDiskUsage get btrfs usage
-func BtrfsGetDiskUsage(ctx context.Context, path string) (usage BtrfsDiskUsage, err error) {
-	output, err := run(ctx, "btrfs", "filesystem", "df", "--raw", path)
+// GetDiskUsage get btrfs usage
+func (u *BtrfsUtil) GetDiskUsage(ctx context.Context, path string) (usage BtrfsDiskUsage, err error) {
+	output, err := u.run(ctx, "btrfs", "filesystem", "df", "--raw", path)
 	if err != nil {
 		return usage, err
 	}

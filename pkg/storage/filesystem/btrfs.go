@@ -39,15 +39,20 @@ var (
 // btrfs is the filesystem implementation for btrfs
 type btrfs struct {
 	devices DeviceManager
+	utils   BtrfsUtil
+}
+
+func newBtrfs(manager DeviceManager, exec executer) *btrfs {
+	return &btrfs{devices: manager, utils: newUtils(exec)}
 }
 
 // NewBtrfs creates a new filesystem that implements btrfs
 func NewBtrfs(manager DeviceManager) Filesystem {
-	return &btrfs{manager}
+	return newBtrfs(manager, executerFunc(run))
 }
 
 func (b *btrfs) btrfs(ctx context.Context, args ...string) ([]byte, error) {
-	return run(ctx, "btrfs", args...)
+	return b.utils.run(ctx, "btrfs", args...)
 }
 
 func (b *btrfs) Create(ctx context.Context, name string, devices DeviceCache, policy pkg.RaidProfile) (Pool, error) {
@@ -81,7 +86,7 @@ func (b *btrfs) Create(ctx context.Context, name string, devices DeviceCache, po
 	}
 
 	args = append(args, paths...)
-	if _, err := run(ctx, "mkfs.btrfs", args...); err != nil {
+	if _, err := b.utils.run(ctx, "mkfs.btrfs", args...); err != nil {
 		return nil, err
 	}
 
@@ -91,7 +96,7 @@ func (b *btrfs) Create(ctx context.Context, name string, devices DeviceCache, po
 		dev.Filesystem = BtrfsFSType
 	}
 
-	return newBtrfsPool(name, devices), nil
+	return newBtrfsPool(name, devices, &b.utils), nil
 }
 
 func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
@@ -99,7 +104,7 @@ func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
 		filter = All
 	}
 	var pools []Pool
-	available, err := BtrfsList(ctx, "", false)
+	available, err := b.utils.List(ctx, "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +120,7 @@ func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
 			return nil, err
 		}
 
-		pool := newBtrfsPool(fs.Label, devices)
+		pool := newBtrfsPool(fs.Label, devices, &b.utils)
 
 		if !filter(pool) {
 			continue
@@ -135,12 +140,14 @@ func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
 type btrfsPool struct {
 	name    string
 	devices DeviceCache
+	utils   *BtrfsUtil
 }
 
-func newBtrfsPool(name string, devices DeviceCache) *btrfsPool {
+func newBtrfsPool(name string, devices DeviceCache, utils *BtrfsUtil) *btrfsPool {
 	return &btrfsPool{
 		name:    name,
 		devices: devices,
+		utils:   utils,
 	}
 }
 
@@ -150,7 +157,7 @@ func newBtrfsPool(name string, devices DeviceCache) *btrfsPool {
 // under any location
 func (p *btrfsPool) Mounted() (string, bool) {
 	ctx := context.Background()
-	list, _ := BtrfsList(ctx, p.Name(), true)
+	list, _ := p.utils.List(ctx, p.Name(), true)
 	if len(list) != 1 {
 		return "", false
 	}
@@ -177,14 +184,14 @@ func (p *btrfsPool) Path() string {
 }
 
 func (p *btrfsPool) enableQuota(mnt string) error {
-	_, err := run(context.Background(), "btrfs", "quota", "enable", mnt)
+	_, err := p.utils.run(context.Background(), "btrfs", "quota", "enable", mnt)
 	return err
 }
 
 // Mount mounts the pool in it's default mount location under /mnt/name
 func (p *btrfsPool) Mount() (string, error) {
 	ctx := context.Background()
-	list, _ := BtrfsList(ctx, p.name, false)
+	list, _ := p.utils.List(ctx, p.name, false)
 	if len(list) != 1 {
 		return "", fmt.Errorf("unknown pool '%s'", p.name)
 	}
@@ -223,7 +230,7 @@ func (p *btrfsPool) AddDevice(device *Device) error {
 	}
 	ctx := context.Background()
 
-	if _, err := run(ctx, "btrfs", "device", "add", device.Path, mnt); err != nil {
+	if _, err := p.utils.run(ctx, "btrfs", "device", "add", device.Path, mnt); err != nil {
 		return err
 	}
 
@@ -243,7 +250,7 @@ func (p *btrfsPool) RemoveDevice(device *Device) error {
 	}
 	ctx := context.Background()
 
-	if _, err := run(ctx, "btrfs", "device", "remove", device.Path, mnt); err != nil {
+	if _, err := p.utils.run(ctx, "btrfs", "device", "remove", device.Path, mnt); err != nil {
 		return err
 	}
 
@@ -269,13 +276,16 @@ func (p *btrfsPool) Volumes() ([]Volume, error) {
 
 	var volumes []Volume
 
-	subs, err := BtrfsSubvolumeList(context.Background(), mnt)
+	subs, err := p.utils.SubvolumeList(context.Background(), mnt)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, sub := range subs {
-		volumes = append(volumes, btrfsVolume(filepath.Join(mnt, sub.Path)))
+		volumes = append(volumes, newBtrfsVolume(
+			filepath.Join(mnt, sub.Path),
+			p.utils,
+		))
 	}
 
 	return volumes, nil
@@ -288,11 +298,11 @@ func (p *btrfsPool) AddVolume(name string) (Volume, error) {
 	}
 
 	mnt = filepath.Join(mnt, name)
-	if _, err := run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
+	if _, err := p.utils.run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
 		return nil, err
 	}
 
-	return btrfsVolume(mnt), nil
+	return newBtrfsVolume(mnt, p.utils), nil
 }
 
 func (p *btrfsPool) RemoveVolume(name string) error {
@@ -302,7 +312,7 @@ func (p *btrfsPool) RemoveVolume(name string) error {
 	}
 
 	mnt = path.Join(mnt, name)
-	_, err := run(context.Background(), "btrfs", "subvolume", "delete", mnt)
+	_, err := p.utils.run(context.Background(), "btrfs", "subvolume", "delete", mnt)
 
 	return err
 }
@@ -314,12 +324,12 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 		return usage, ErrDeviceNotMounted
 	}
 
-	du, err := BtrfsGetDiskUsage(context.Background(), mnt)
+	du, err := p.utils.GetDiskUsage(context.Background(), mnt)
 	if err != nil {
 		return Usage{}, err
 	}
 
-	fsi, err := BtrfsList(context.Background(), p.name, true)
+	fsi, err := p.utils.List(context.Background(), p.name, true)
 	if err != nil {
 		return Usage{}, err
 	}
@@ -373,52 +383,62 @@ func (p *btrfsPool) Reserved() (uint64, error) {
 	return total, nil
 }
 
-type btrfsVolume string
-
-func (v btrfsVolume) Path() string {
-	return string(v)
+type btrfsVolume struct {
+	path  string
+	utils *BtrfsUtil
 }
 
-func (v btrfsVolume) Volumes() ([]Volume, error) {
+func newBtrfsVolume(path string, utils *BtrfsUtil) *btrfsVolume {
+	return &btrfsVolume{
+		path:  path,
+		utils: utils,
+	}
+}
+
+func (v *btrfsVolume) Path() string {
+	return v.path
+}
+
+func (v *btrfsVolume) Volumes() ([]Volume, error) {
 	var volumes []Volume
 
-	subs, err := BtrfsSubvolumeList(context.Background(), string(v))
+	subs, err := v.utils.SubvolumeList(context.Background(), v.Path())
 	if err != nil {
 		return nil, err
 	}
 
 	for _, sub := range subs {
-		volumes = append(volumes, btrfsVolume(filepath.Join(string(v), sub.Path)))
+		volumes = append(volumes, newBtrfsVolume(filepath.Join(v.Path(), sub.Path), v.utils))
 	}
 
 	return volumes, nil
 }
 
-func (v btrfsVolume) AddVolume(name string) (Volume, error) {
-	mnt := path.Join(string(v), name)
-	if _, err := run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
+func (v *btrfsVolume) AddVolume(name string) (Volume, error) {
+	mnt := path.Join(v.Path(), name)
+	if _, err := v.utils.run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
 		return nil, err
 	}
 
-	return btrfsVolume(mnt), nil
+	return newBtrfsVolume(mnt, v.utils), nil
 }
 
-func (v btrfsVolume) RemoveVolume(name string) error {
-	mnt := path.Join(string(v), name)
-	_, err := run(context.Background(), "btrfs", "subvolume", "remove", mnt)
+func (v *btrfsVolume) RemoveVolume(name string) error {
+	mnt := path.Join(v.Path(), name)
+	_, err := v.utils.run(context.Background(), "btrfs", "subvolume", "remove", mnt)
 
 	return err
 }
 
 // Usage return the volume usage
-func (v btrfsVolume) Usage() (usage Usage, err error) {
+func (v *btrfsVolume) Usage() (usage Usage, err error) {
 	ctx := context.Background()
-	info, err := BtrfsSubvolumeInfo(ctx, string(v))
+	info, err := v.utils.SubvolumeInfo(ctx, v.Path())
 	if err != nil {
 		return usage, err
 	}
 
-	groups, err := BtrfsQGroupList(ctx, string(v))
+	groups, err := v.utils.QGroupList(ctx, v.Path())
 	if err != nil {
 		return usage, err
 	}
@@ -437,7 +457,7 @@ func (v btrfsVolume) Usage() (usage Usage, err error) {
 }
 
 // Limit size of volume, setting size to 0 means unlimited
-func (v btrfsVolume) Limit(size uint64) error {
+func (v *btrfsVolume) Limit(size uint64) error {
 	ctx := context.Background()
 
 	limit := "none"
@@ -445,18 +465,17 @@ func (v btrfsVolume) Limit(size uint64) error {
 		limit = fmt.Sprint(size)
 	}
 	log.Debug().Str("limit", limit).Msgf("limit volume %s", v.Name())
-	_, err := run(ctx, "btrfs", "qgroup", "limit", limit, string(v))
+	_, err := v.utils.run(ctx, "btrfs", "qgroup", "limit", limit, v.Path())
 
 	return err
 }
 
 // Name of the filesystem
-func (v btrfsVolume) Name() string {
-	_, name := filepath.Split(string(v))
-	return name
+func (v *btrfsVolume) Name() string {
+	return filepath.Base(v.Path())
 }
 
 // FsType of the filesystem
-func (v btrfsVolume) FsType() string {
+func (v *btrfsVolume) FsType() string {
 	return "btrfs"
 }
