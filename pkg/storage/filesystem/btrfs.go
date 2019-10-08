@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -91,7 +90,8 @@ func (b *btrfs) Create(ctx context.Context, name string, devices DeviceCache, po
 	}
 
 	// update cached devices
-	for _, dev := range devices {
+	for idx := range devices {
+		dev := &devices[idx]
 		dev.Label = name
 		dev.Filesystem = BtrfsFSType
 	}
@@ -223,34 +223,35 @@ func (p *btrfsPool) UnMount() error {
 	return syscall.Unmount(mnt, syscall.MNT_DETACH)
 }
 
-func (p *btrfsPool) AddDevice(device *Device) error {
-	mnt, ok := p.Mounted()
-	if !ok {
-		return ErrDeviceNotMounted
-	}
+func (p *btrfsPool) addDevice(device *Device, root string) error {
 	ctx := context.Background()
 
-	if _, err := p.utils.run(ctx, "btrfs", "device", "add", device.Path, mnt); err != nil {
+	if err := p.utils.DeviceAdd(ctx, device.Path, root); err != nil {
 		return err
 	}
-
-	p.devices = append(p.devices, *device)
 
 	// update cached device
 	device.Label = p.name
 	device.Filesystem = BtrfsFSType
 
+	p.devices = append(p.devices, *device)
+
 	return nil
 }
 
-func (p *btrfsPool) RemoveDevice(device *Device) error {
+func (p *btrfsPool) AddDevice(device *Device) error {
 	mnt, ok := p.Mounted()
 	if !ok {
 		return ErrDeviceNotMounted
 	}
+
+	return p.addDevice(device, mnt)
+}
+
+func (p *btrfsPool) removeDevice(device *Device, root string) error {
 	ctx := context.Background()
 
-	if _, err := p.utils.run(ctx, "btrfs", "device", "remove", device.Path, mnt); err != nil {
+	if err := p.utils.DeviceRemove(ctx, device.Path, root); err != nil {
 		return err
 	}
 
@@ -266,6 +267,15 @@ func (p *btrfsPool) RemoveDevice(device *Device) error {
 	device.Label = ""
 
 	return nil
+}
+
+func (p *btrfsPool) RemoveDevice(device *Device) error {
+	mnt, ok := p.Mounted()
+	if !ok {
+		return ErrDeviceNotMounted
+	}
+
+	return p.removeDevice(device, mnt)
 }
 
 func (p *btrfsPool) Volumes() ([]Volume, error) {
@@ -291,18 +301,26 @@ func (p *btrfsPool) Volumes() ([]Volume, error) {
 	return volumes, nil
 }
 
+func (p *btrfsPool) addVolume(root string) (*btrfsVolume, error) {
+	if err := p.utils.SubvolumeAdd(context.Background(), root); err != nil {
+		return nil, err
+	}
+
+	return newBtrfsVolume(root, p.utils), nil
+}
+
 func (p *btrfsPool) AddVolume(name string) (Volume, error) {
 	mnt, ok := p.Mounted()
 	if !ok {
 		return nil, ErrDeviceNotMounted
 	}
 
-	mnt = filepath.Join(mnt, name)
-	if _, err := p.utils.run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
-		return nil, err
-	}
+	root := filepath.Join(mnt, name)
+	return p.addVolume(root)
+}
 
-	return newBtrfsVolume(mnt, p.utils), nil
+func (p *btrfsPool) removeVolume(root string) error {
+	return p.utils.SubvolumeRemove(context.Background(), root)
 }
 
 func (p *btrfsPool) RemoveVolume(name string) error {
@@ -311,10 +329,8 @@ func (p *btrfsPool) RemoveVolume(name string) error {
 		return ErrDeviceNotMounted
 	}
 
-	mnt = path.Join(mnt, name)
-	_, err := p.utils.run(context.Background(), "btrfs", "subvolume", "delete", mnt)
-
-	return err
+	root := filepath.Join(mnt, name)
+	return p.removeVolume(root)
 }
 
 // Size return the pool size
@@ -415,7 +431,7 @@ func (v *btrfsVolume) Volumes() ([]Volume, error) {
 }
 
 func (v *btrfsVolume) AddVolume(name string) (Volume, error) {
-	mnt := path.Join(v.Path(), name)
+	mnt := filepath.Join(v.Path(), name)
 	if _, err := v.utils.run(context.Background(), "btrfs", "subvolume", "create", mnt); err != nil {
 		return nil, err
 	}
@@ -424,7 +440,7 @@ func (v *btrfsVolume) AddVolume(name string) (Volume, error) {
 }
 
 func (v *btrfsVolume) RemoveVolume(name string) error {
-	mnt := path.Join(v.Path(), name)
+	mnt := filepath.Join(v.Path(), name)
 	_, err := v.utils.run(context.Background(), "btrfs", "subvolume", "remove", mnt)
 
 	return err

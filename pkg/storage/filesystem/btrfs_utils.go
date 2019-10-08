@@ -122,6 +122,30 @@ func (u *BtrfsUtil) SubvolumeInfo(ctx context.Context, path string) (volume Btrf
 	return
 }
 
+// SubvolumeAdd adds a new subvolume at path
+func (u *BtrfsUtil) SubvolumeAdd(ctx context.Context, root string) error {
+	_, err := u.run(ctx, "btrfs", "subvolume", "create", root)
+	return err
+}
+
+// SubvolumeRemove removes a subvolume
+func (u *BtrfsUtil) SubvolumeRemove(ctx context.Context, root string) error {
+	_, err := u.run(ctx, "btrfs", "subvolume", "delete", root)
+	return err
+}
+
+// DeviceAdd adds a device to a btrfs pool
+func (u *BtrfsUtil) DeviceAdd(ctx context.Context, dev string, root string) error {
+	_, err := u.run(ctx, "btrfs", "device", "add", dev, root)
+	return err
+}
+
+// DeviceRemove removes a device from a btrfs pool
+func (u *BtrfsUtil) DeviceRemove(ctx context.Context, dev string, root string) error {
+	_, err := u.run(ctx, "btrfs", "device", "remove", dev, root)
+	return err
+}
+
 func parseSubvolInfo(output string) (volume BtrfsVolume, err error) {
 	values := make(map[string]string)
 	for _, line := range strings.Split(output, "\n") {
