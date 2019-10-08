@@ -284,10 +284,10 @@ func (n *networker) CreateNR(network pkg.Network) (string, error) {
 				return "", err
 			}
 		}
-	}
-
-	if err := n.reservePort(netNR.WGListenPort); err != nil {
-		return "", err
+	} else if os.IsNotExist(err) {
+		if err := n.reservePort(netNR.WGListenPort); err != nil {
+			return "", err
+		}
 	}
 
 	netr, err := nr.New(network.NetID, netNR, network.IPRange)
