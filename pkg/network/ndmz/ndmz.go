@@ -232,6 +232,9 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 			Str("dmz side", vethDMZ).
 			Msg("create veth pair to connect network resource and ndmz")
 
+		_ = ifaceutil.Delete(vethDMZ, nil)
+		_ = ifaceutil.Delete(vethNR, nrNS)
+
 		if _, _, err = ip.SetupVethWithName(vethDMZ, vethNR, 1500, nrNS); err != nil {
 			return errors.Wrap(err, "failed to create veth pair for to connect network resource and ndmz")
 		}
