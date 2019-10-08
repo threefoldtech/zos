@@ -147,7 +147,7 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, addrs []strin
 		return join, err
 	}
 
-	netRes, err := nr.New(networkdID, localNR)
+	netRes, err := nr.New(networkdID, localNR, network.IPRange)
 	if err != nil {
 		return join, errors.Wrap(err, "failed to load network resource")
 	}
@@ -269,7 +269,7 @@ func (n *networker) CreateNR(network pkg.Network) (string, error) {
 		return "", err
 	}
 
-	netr, err := nr.New(network.NetID, netNR)
+	netr, err := nr.New(network.NetID, netNR, network.IPRange)
 	if err != nil {
 		return "", err
 	}
@@ -367,7 +367,7 @@ func (n *networker) DeleteNR(network pkg.Network) error {
 		return err
 	}
 
-	nr, err := nr.New(network.NetID, netNR)
+	nr, err := nr.New(network.NetID, netNR, network.IPRange)
 	if err != nil {
 		return errors.Wrap(err, "failed to load network resource")
 	}
