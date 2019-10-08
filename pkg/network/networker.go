@@ -241,6 +241,7 @@ func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 // CreateNR implements pkg.Networker interface
 func (n *networker) CreateNR(network pkg.Network) (string, error) {
 	var err error
+	var nodeID = n.identity.NodeID().Identity()
 
 	if err := validateNetwork(&network); err != nil {
 		log.Error().Err(err).Msg("network object format invalid")
@@ -255,7 +256,7 @@ func (n *networker) CreateNR(network pkg.Network) (string, error) {
 		Str("network", string(b)).
 		Msg("create NR")
 
-	netNR, err := ResourceByNodeID(n.identity.NodeID().Identity(), network.NetResources)
+	netNR, err := ResourceByNodeID(nodeID, network.NetResources)
 	if err != nil {
 		return "", err
 	}
@@ -263,6 +264,26 @@ func (n *networker) CreateNR(network pkg.Network) (string, error) {
 	privateKey, err := n.extractPrivateKey(netNR.WGPrivateKey)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to extract private key from network object")
+	}
+
+	// check if there is a reserved wireguard port for this NR already
+	// or if we need to update it
+	storedNet, err := n.networkOf(string(network.NetID))
+
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+
+	if err == nil {
+		storedNR, err := ResourceByNodeID(nodeID, storedNet.NetResources)
+		if err != nil {
+			return "", err
+		}
+		if netNR.WGListenPort != storedNR.WGListenPort {
+			if err := n.releasePort(storedNR.WGListenPort); err != nil {
+				return "", err
+			}
+		}
 	}
 
 	if err := n.reservePort(netNR.WGListenPort); err != nil {
