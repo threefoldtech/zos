@@ -39,12 +39,11 @@ type VolumeResult struct {
 	ID string `json:"volume_id"`
 }
 
-// VolumeProvision is entry point to provision a volume
-func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+func volumeProvisionImpl(ctx context.Context, reservation *Reservation) (VolumeResult, error) {
 	client := GetZBus(ctx)
 	var config Volume
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
-		return nil, err
+		return VolumeResult{}, err
 	}
 
 	storageClient := stubs.NewStorageModuleStub(client)
@@ -62,6 +61,11 @@ func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}
 	return VolumeResult{
 		ID: reservation.ID,
 	}, err
+}
+
+// VolumeProvision is entry point to provision a volume
+func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+	return volumeProvisionImpl(ctx, reservation)
 }
 
 func volumeDecommission(ctx context.Context, reservation *Reservation) error {
