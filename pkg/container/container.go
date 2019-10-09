@@ -6,12 +6,15 @@ import (
 	"github.com/pkg/errors"
 
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/BurntSushi/toml"
 
 	"github.com/rs/zerolog/log"
 
@@ -166,6 +169,7 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		return id, err
 	}
 	log.Info().Msgf("args %+v", spec.Process.Args)
+	log.Info().Msgf("env %+v", spec.Process.Env)
 	log.Info().Msgf("root %+v", spec.Root)
 	for _, linxNS := range spec.Linux.Namespaces {
 		log.Info().Msgf("namespace %+v", linxNS.Type)
@@ -297,4 +301,56 @@ func (c *containerModule) Delete(ns string, id pkg.ContainerID) error {
 	}
 
 	return container.Delete(ctx)
+}
+
+// readEnvs reads the environment variable from the statup.toml file
+func readEnvs(r io.Reader) ([]string, error) {
+	env := struct {
+		Startup struct {
+			Entry struct {
+				Name string `json:"name"`
+				Args struct {
+					Name string            `json:"name"`
+					Dir  string            `json:"dir"`
+					Env  map[string]string `json:"env"`
+				} `json:"args"`
+			} `json:"entry"`
+		} `json:"startup"`
+	}{}
+	if _, err := toml.DecodeReader(r, &env); err != nil {
+		return nil, err
+	}
+
+	result := make([]string, 0, len(env.Startup.Entry.Args.Env))
+	for k, v := range env.Startup.Entry.Args.Env {
+		result = append(result, fmt.Sprintf("%s=%s", k, v))
+	}
+	return result, nil
+}
+
+// mergeEnvs merge a into b
+// all the key from a will endup in b
+// if a key is present in both, key from a are kept
+func mergeEnvs(a, b []string) []string {
+	ma := make(map[string]string, len(a))
+	mb := make(map[string]string, len(b))
+
+	for _, s := range a {
+		ss := strings.SplitN(s, "=", 2)
+		ma[ss[0]] = ss[1]
+	}
+	for _, s := range b {
+		ss := strings.SplitN(s, "=", 2)
+		mb[ss[0]] = ss[1]
+	}
+
+	for ka, va := range ma {
+		mb[ka] = va
+	}
+
+	result := make([]string, 0, len(mb))
+	for k, v := range mb {
+		result = append(result, fmt.Sprintf("%s=%s", k, v))
+	}
+	return result
 }
