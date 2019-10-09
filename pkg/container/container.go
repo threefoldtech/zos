@@ -30,11 +30,11 @@ const (
 
 var (
 	ignoreMntTypes = map[string]struct{}{
-		"proc":   struct{}{},
-		"tmpfs":  struct{}{},
-		"devpts": struct{}{},
-		"mqueue": struct{}{},
-		"sysfs":  struct{}{},
+		"proc":   {},
+		"tmpfs":  {},
+		"devpts": {},
+		"mqueue": {},
+		"sysfs":  {},
 	}
 )
 
