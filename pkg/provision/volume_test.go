@@ -29,7 +29,7 @@ func TestVolumeProvisionExists(t *testing.T) {
 	client.On("Request", module, version, "Path", reservation.ID).
 		Return("/some/path", nil)
 
-	result, err := volumeProvision(ctx, &reservation)
+	result, err := volumeProvisionImpl(ctx, &reservation)
 	require.NoError(err)
 	require.EqualValues(VolumeResult{"reservation-id"}, result)
 }
@@ -61,7 +61,7 @@ func TestVolumeProvisionNew(t *testing.T) {
 	client.On("Request", module, version, "CreateFilesystem", reservation.ID, 10*gigabyte, pkg.DeviceType(SSDDiskType)).
 		Return("/some/path", nil)
 
-	result, err := volumeProvision(ctx, &reservation)
+	result, err := volumeProvisionImpl(ctx, &reservation)
 	require.NoError(err)
 	require.EqualValues(VolumeResult{"reservation-id"}, result)
 }
