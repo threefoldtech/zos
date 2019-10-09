@@ -54,7 +54,7 @@ func (b *btrfs) btrfs(ctx context.Context, args ...string) ([]byte, error) {
 	return b.utils.run(ctx, "btrfs", args...)
 }
 
-func (b *btrfs) Create(ctx context.Context, name string, devices DeviceCache, policy pkg.RaidProfile) (Pool, error) {
+func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*Device) (Pool, error) {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {
 		return nil, fmt.Errorf("invalid name")
@@ -90,8 +90,7 @@ func (b *btrfs) Create(ctx context.Context, name string, devices DeviceCache, po
 	}
 
 	// update cached devices
-	for idx := range devices {
-		dev := &devices[idx]
+	for _, dev := range devices {
 		dev.Label = name
 		dev.Filesystem = BtrfsFSType
 	}
@@ -139,11 +138,11 @@ func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
 
 type btrfsPool struct {
 	name    string
-	devices DeviceCache
+	devices []*Device
 	utils   *BtrfsUtil
 }
 
-func newBtrfsPool(name string, devices DeviceCache, utils *BtrfsUtil) *btrfsPool {
+func newBtrfsPool(name string, devices []*Device, utils *BtrfsUtil) *btrfsPool {
 	return &btrfsPool{
 		name:    name,
 		devices: devices,
@@ -229,7 +228,7 @@ func (p *btrfsPool) addDevice(device *Device, root string) error {
 	device.Label = p.name
 	device.Filesystem = BtrfsFSType
 
-	p.devices = append(p.devices, *device)
+	p.devices = append(p.devices, device)
 
 	return nil
 }

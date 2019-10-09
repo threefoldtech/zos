@@ -176,14 +176,14 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 
 		for i := 0; i < possiblePools; i++ {
 			log.Debug().Msgf("Creating new volume %d", i)
-			poolDevices := filesystem.DeviceCache{}
+			poolDevices := []*filesystem.Device{}
 
 			for j := 0; j < int(policy.Disks); j++ {
 				log.Debug().Msgf("Grabbing device %d: %s for new volume", i*int(policy.Disks)+j, fdisks[idx][i*int(policy.Disks)+j].Path)
-				poolDevices = append(poolDevices, fdisks[idx][i*int(policy.Disks)+j])
+				poolDevices = append(poolDevices, &fdisks[idx][i*int(policy.Disks)+j])
 			}
 
-			pool, err := fs.Create(ctx, uuid.New().String(), poolDevices, policy.Raid)
+			pool, err := fs.Create(ctx, uuid.New().String(), policy.Raid, poolDevices...)
 			if err != nil {
 				return err
 			}

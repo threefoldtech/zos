@@ -41,9 +41,10 @@ func (m *TestDeviceManager) Device(ctx context.Context, path string) (*Device, e
 	return nil, fmt.Errorf("device not found")
 }
 
-func (m *TestDeviceManager) ByLabel(ctx context.Context, label string) (DeviceCache, error) {
-	var filterred DeviceCache
-	for _, device := range m.devices {
+func (m *TestDeviceManager) ByLabel(ctx context.Context, label string) ([]*Device, error) {
+	var filterred []*Device
+	for idx := range m.devices {
+		device := &m.devices[idx]
 		if device.Label == label {
 			filterred = append(filterred, device)
 		}
@@ -69,7 +70,7 @@ func TestBtrfsCreateSingle(t *testing.T) {
 		Return([]byte{}, nil)
 
 	fs := newBtrfs(mgr, &exec)
-	_, err := fs.Create(context.Background(), "test-single", mgr.devices, pkg.Single)
+	_, err := fs.Create(context.Background(), "test-single", pkg.Single, &mgr.devices[0])
 	require.NoError(err)
 
 	require.Equal("test-single", mgr.devices[0].Label)
@@ -94,7 +95,7 @@ func TestBtrfsCreateRaid1(t *testing.T) {
 		"/tmp/dev1", "/tmp/dev2").Return([]byte{}, nil)
 
 	fs := newBtrfs(mgr, &exec)
-	_, err := fs.Create(context.Background(), "test-raid1", mgr.devices, pkg.Raid1)
+	_, err := fs.Create(context.Background(), "test-raid1", pkg.Raid1, &mgr.devices[0], &mgr.devices[1])
 	require.NoError(err)
 
 	require.Equal("test-raid1", mgr.devices[0].Label)

@@ -17,7 +17,7 @@ type DeviceManager interface {
 	// Devices finds all devices on a system
 	Devices(ctx context.Context) (DeviceCache, error)
 	// ByLabel finds all devices with the specified label
-	ByLabel(ctx context.Context, label string) (DeviceCache, error)
+	ByLabel(ctx context.Context, label string) ([]*Device, error)
 }
 
 // DeviceCache represents a list of cached in memory devices
@@ -82,10 +82,11 @@ func (l *lsblkDeviceManager) Devices(ctx context.Context) (DeviceCache, error) {
 	return l.devices, nil
 }
 
-func (l *lsblkDeviceManager) ByLabel(ctx context.Context, label string) (DeviceCache, error) {
-	var filtered DeviceCache
+func (l *lsblkDeviceManager) ByLabel(ctx context.Context, label string) ([]*Device, error) {
+	var filtered []*Device
 
-	for _, device := range l.devices {
+	for idx := range l.devices {
+		device := &l.devices[idx]
 		if device.Label == label {
 			filtered = append(filtered, device)
 		}

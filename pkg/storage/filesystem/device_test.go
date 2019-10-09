@@ -52,9 +52,9 @@ func TestDeviceManagerScan(t *testing.T) {
 		require.NotEmpty(dev.DiskType, "device: %s", dev.Path)
 	}
 
-	cached, err = mgr.ByLabel(ctx, "test")
+	filtered, err := mgr.ByLabel(ctx, "test")
 	require.NoError(err)
-	require.Len(cached, 1)
+	require.Len(filtered, 1)
 
 	require.Equal("/tmp/dev1", cached[0].Path)
 
