@@ -75,3 +75,4 @@ ZOS and it's Wireguard mesh per user is a quite novel way to do things, but ther
 As it is now, user networks must be completely provisioned by the user. That is: a user has to manage the subnets allocated to the network resources in the network themselves, give it an IP and also give an IP address to the containers hosting the workloads.
 
 - fully routable IPv6 to your mesh
+In a next phase, your private network can host a dual stacked network, incorporating a fully routable IPv6 network per network resource, where a user can choose the farmer that will provide transit. 
