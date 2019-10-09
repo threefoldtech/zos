@@ -301,7 +301,7 @@ func (s *storageModule) ensureCache() error {
 		cacheFs = fs
 	}
 
-	if !filesystem.IsPathMounted(cacheTarget) {
+	if !filesystem.IsMountPoint(cacheTarget) {
 		log.Debug().Msgf("Mounting cache partition in %s", cacheTarget)
 		return filesystem.BindMount(cacheFs, cacheTarget)
 	}

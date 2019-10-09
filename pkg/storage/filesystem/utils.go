@@ -4,27 +4,22 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 )
 
-// getMountTarget returns the mount target of a device or false if the
-// device is not mounted.
-// panic, it panics if it can't read /proc/mounts
-func getMountTarget(device string) (string, bool) {
-	file, err := os.Open("/proc/mounts")
-	if err != nil {
-		panic(fmt.Errorf("failed to read /proc/mounts: %s", err))
-	}
-
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
+func getMountTarget(f io.Reader, device string) (string, bool) {
+	scanner := bufio.NewScanner(f)
 
 	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
+		line := strings.TrimSpace(scanner.Text())
+		if len(line) == 0 {
+			continue
+		}
+		fields := strings.Fields(line)
 		if fields[0] == device {
 			return fields[1], true
 		}
@@ -33,8 +28,22 @@ func getMountTarget(device string) (string, bool) {
 	return "", false
 }
 
-// IsPathMounted checks if a path is mounted on a disk
-func IsPathMounted(path string) bool {
+// GetMountTarget returns the mount target of a device or false if the
+// device is not mounted.
+// panic, it panics if it can't read /proc/mounts
+func GetMountTarget(device string) (string, bool) {
+	file, err := os.Open("/proc/mounts")
+	if err != nil {
+		panic(fmt.Errorf("failed to read /proc/mounts: %s", err))
+	}
+
+	defer file.Close()
+
+	return getMountTarget(file, device)
+}
+
+// IsMountPoint checks if a path is a mount point
+func IsMountPoint(path string) bool {
 	file, err := os.Open("/proc/mounts")
 	if err != nil {
 		panic(fmt.Errorf("failed to read /proc/mounts: %s", err))

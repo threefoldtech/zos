@@ -167,7 +167,7 @@ func (p *btrfsPool) Mounted() (string, bool) {
 
 func (p *btrfsPool) mounted(fs *Btrfs) (string, bool) {
 	for _, device := range fs.Devices {
-		if target, ok := getMountTarget(device.Path); ok {
+		if target, ok := GetMountTarget(device.Path); ok {
 			return target, true
 		}
 	}

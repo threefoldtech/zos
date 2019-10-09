@@ -192,116 +192,28 @@ func TestBtrfsCreateSingle(t *testing.T) {
 	//basePoolTest(t, &exec, pool)
 }
 
-func TestBtrfsPoolMounted(t *testing.T) {
-	const tmp = `Label: 'pool'  uuid: 081717ad-77d5-488a-afd0-ab9108784f70
-Total devices 1 FS bytes used 206665822208
-devid    1 size 462713520128 used 211548110848 path /dev/sdb2
-`
-
+func TestBtrfsCreateRaid1(t *testing.T) {
 	require := require.New(t)
-
-	devices :=
-		DeviceCache{
-			Device{Path: "/tmp/dev1", DiskType: pkg.SSDDevice, Label: "pool"},
-		}
+	mgr := &TestDeviceManager{
+		devices: DeviceCache{
+			Device{Path: "/tmp/dev1", DiskType: pkg.SSDDevice},
+			Device{Path: "/tmp/dev2", DiskType: pkg.SSDDevice},
+		},
+	}
 
 	var exec TestExecuter
-	utils := newUtils(&exec)
-	pool := newBtrfsPool("pool", devices, &utils)
 
-	exec.On("run", mock.Anything, "btrfs", "filesystem", "show", "--raw", "-m", pool.Name()).
-		Return([]byte{}, nil)
+	exec.On("run", mock.Anything, "mkfs.btrfs", "-L", "test-raid1",
+		"-d", "raid1", "-m", "raid1",
+		"/tmp/dev1", "/tmp/dev2").Return([]byte{}, nil)
 
-	_, ok := pool.Mounted()
-	require.False(ok)
+	fs := newBtrfs(mgr, &exec)
+	_, err := fs.Create(context.Background(), "test-raid1", mgr.devices, pkg.Raid1)
+	require.NoError(err)
 
-	exec.ExpectedCalls = nil
+	require.Equal("test-raid1", mgr.devices[0].Label)
+	require.Equal(BtrfsFSType, mgr.devices[0].Filesystem)
 
-	exec.On("run", mock.Anything, "btrfs", "filesystem", "show", "--raw", "-m", pool.Name()).
-		Return([]byte(tmp), nil)
-
-	_, ok = pool.Mounted()
-	require.True(ok)
-
+	require.Equal("test-raid1", mgr.devices[1].Label)
+	require.Equal(BtrfsFSType, mgr.devices[1].Filesystem)
 }
-
-// func TestBtrfsRaid1(t *testing.T) {
-// 	devices, err := SetupDevices(3)
-// 	require.NoError(t, err, "failed to initialize devices")
-
-// 	defer devices.Destroy()
-
-// 	loops := devices.Loops()
-// 	fs := NewBtrfs(TestDeviceManager{loops})
-
-// 	pool, err := fs.Create(context.Background(), "test-raid1", loops[:2], pkg.Raid1) //use the first 2 disks
-
-// 	require.NoError(t, err)
-
-// 	basePoolTest(t, pool)
-
-// 	//make sure pool is mounted
-// 	_, err = pool.Mount()
-// 	require.NoError(t, err)
-
-// 	defer pool.UnMount()
-
-// 	// raid  specific tests
-
-// 	t.Run("add device", func(t *testing.T) {
-// 		// add a device to array
-// 		err = pool.AddDevice(&loops[2])
-// 		require.NoError(t, err)
-// 	})
-
-// 	t.Run("remove device", func(t *testing.T) {
-// 		// remove device from array
-// 		err = pool.RemoveDevice(&loops[0])
-// 		require.NoError(t, err)
-// 	})
-
-// 	t.Run("remove second device", func(t *testing.T) {
-// 		// remove a 2nd device should fail because raid1 should
-// 		// have at least 2 devices
-// 		err = pool.RemoveDevice(&loops[1])
-// 		require.Error(t, err)
-// 	})
-// }
-
-// func TestBtrfsList(t *testing.T) {
-// 	devices, err := SetupDevices(2)
-// 	require.NoError(t, err, "failed to initialize devices")
-
-// 	defer devices.Destroy()
-// 	loops := devices.Loops()
-// 	fs := NewBtrfs(TestDeviceManager{loops})
-
-// 	names := make(map[string]struct{})
-// 	for i, loop := range loops {
-// 		name := fmt.Sprintf("test-list-%d", i)
-// 		names[name] = struct{}{}
-// 		_, err := fs.Create(context.Background(), name, DeviceCache{loop}, pkg.Single)
-// 		require.NoError(t, err)
-// 	}
-
-// 	pools, err := fs.List(context.Background(), func(p Pool) bool {
-// 		return strings.HasPrefix(p.Name(), "test-")
-// 	})
-
-// 	require.NoError(t, err)
-
-// 	for _, pool := range pools {
-// 		if !strings.HasPrefix(pool.Name(), "test-list") {
-// 			continue
-// 		}
-
-// 		_, exist := names[pool.Name()]
-// 		require.True(t, exist, "pool %s is not listed", pool)
-
-// 		delete(names, pool.Name())
-// 	}
-
-// 	ok := assert.Len(t, names, 0)
-// 	assert.True(t, ok, "not all pools were listed")
-
-// }
