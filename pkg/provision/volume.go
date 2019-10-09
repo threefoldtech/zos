@@ -22,7 +22,7 @@ const (
 
 const (
 	// gigabyte to byte conversion
-	gigabyte = 1024 * 1024 * 1024
+	gigabyte uint64 = 1024 * 1024 * 1024
 )
 
 // Volume defines a mount point
@@ -49,10 +49,12 @@ func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}
 
 	storageClient := stubs.NewStorageModuleStub(client)
 
-	path, err := storageClient.Path(reservation.ID)
+	_, err := storageClient.Path(reservation.ID)
 	if err == nil {
 		log.Info().Str("id", reservation.ID).Msg("volume already deployed")
-		return path, nil
+		return VolumeResult{
+			ID: reservation.ID,
+		}, nil
 	}
 
 	_, err = storageClient.CreateFilesystem(reservation.ID, config.Size*gigabyte, pkg.DeviceType(config.Type))
