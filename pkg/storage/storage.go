@@ -53,6 +53,11 @@ func New() (pkg.StorageModule, error) {
 		Disks:    1,
 		MaxPools: 0,
 	})
+
+	if err == nil {
+		log.Info().Msgf("Finished initializing storage module")
+	}
+
 	return s, err
 }
 
@@ -86,7 +91,6 @@ What Initialize will do is the following:
 **/
 func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	log.Info().Msgf("Initializing storage module")
-	defer log.Info().Msgf("Finished initializing storage module")
 
 	// Make sure we finish in 1 minute
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)

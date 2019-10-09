@@ -40,11 +40,16 @@ type Device struct {
 	Children   []Device       `json:"children"`
 	DiskType   pkg.DeviceType `json:"-"`
 	ReadTime   uint64         `json:"-"`
+	//HasPartions is different from children, because once the
+	//devices are flattend in the device, cache, the children list is
+	//zeroed (since all devices are flat), then has partions is set to
+	//make sure the device is not altered.
+	HasPartions bool `json:"-"`
 }
 
 // Used assumes that the device is used if it has custom label or fstype or children
 func (d *Device) Used() bool {
-	return len(d.Label) != 0 || len(d.Filesystem) != 0 || len(d.Children) > 0
+	return len(d.Label) != 0 || len(d.Filesystem) != 0 || len(d.Children) > 0 || d.HasPartions
 }
 
 // lsblkDeviceManager uses the lsblk utility to scann the disk for devices, and
@@ -149,6 +154,9 @@ func (l *lsblkDeviceManager) flattenDevices(devices DeviceCache) DeviceCache {
 	for _, device := range devices {
 		children := device.Children
 		device.Children = nil
+		if len(children) > 0 {
+			device.HasPartions = true
+		}
 		list = append(list, device)
 		list = append(list, l.flattenDevices(children)...)
 	}
