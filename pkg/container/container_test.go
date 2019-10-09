@@ -1,6 +1,7 @@
 package container
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -41,7 +42,7 @@ func TestMergeEnvs(t *testing.T) {
 		[]string{"HELLO=HELLO"},
 	)
 
-	assert.EqualValues(t,
-		[]string{"FOO=BAR", "HELLO=WORLD"},
-		env)
+	assert.Equal(t,
+		sort.StringSlice([]string{"HELLO=WORLD", "FOO=BAR"}),
+		sort.StringSlice(env))
 }
