@@ -1,8 +1,8 @@
 package stubs
 
 import (
-	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
+	zbus "github.com/threefoldtech/zbus"
+	pkg "github.com/threefoldtech/zos/pkg"
 )
 
 type NetworkerStub struct {
@@ -78,6 +78,19 @@ func (s *NetworkerStub) Join(arg0 pkg.NetID, arg1 string, arg2 []string) (ret0 p
 	}
 	ret1 = new(zbus.RemoteError)
 	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerStub) Leave(arg0 pkg.NetID, arg1 string) (ret0 error) {
+	args := []interface{}{arg0, arg1}
+	result, err := s.client.Request(s.module, s.object, "Leave", args...)
+	if err != nil {
+		panic(err)
+	}
+	ret0 = new(zbus.RemoteError)
+	if err := result.Unmarshal(0, &ret0); err != nil {
 		panic(err)
 	}
 	return

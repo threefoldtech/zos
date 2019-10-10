@@ -160,6 +160,28 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, addrs []strin
 	return netRes.Join(containerID, ips)
 }
 
+func (n *networker) Leave(networkdID pkg.NetID, containerID string) error {
+	log.Info().Str("network-id", string(networkdID)).Msg("leaving network")
+
+	network, err := n.networkOf(string(networkdID))
+	if err != nil {
+		return errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
+	}
+
+	nodeID := n.identity.NodeID().Identity()
+	localNR, err := ResourceByNodeID(nodeID, network.NetResources)
+	if err != nil {
+		return err
+	}
+
+	netRes, err := nr.New(networkdID, localNR, network.IPRange)
+	if err != nil {
+		return errors.Wrap(err, "failed to load network resource")
+	}
+
+	return netRes.Leave(containerID)
+}
+
 // ZDBPrepare sends a macvlan interface into the
 // network namespace of a ZDB container
 func (n networker) ZDBPrepare() (string, error) {

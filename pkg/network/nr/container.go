@@ -116,3 +116,27 @@ func (nr *NetResource) Join(containerID string, addrs []net.IP) (join pkg.Member
 
 	return join, bridge.AttachNic(hostVeth, br)
 }
+
+// Leave delete a container network namespace
+func (nr *NetResource) Leave(containerID string) error {
+	log.Info().
+		Str("namespace", containerID).
+		Str("container", containerID).
+		Msg("delete container network namespace")
+
+	ns, err := namespace.GetByName(containerID)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if os.IsNotExist(err) {
+		// nothing to do, early return
+		return nil
+	}
+	defer ns.Close()
+
+	err = namespace.Delete(ns)
+	if err != nil {
+		return err
+	}
+	return nil
+}
