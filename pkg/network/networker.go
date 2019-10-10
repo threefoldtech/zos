@@ -65,7 +65,7 @@ func validateNetwork(n *pkg.Network) error {
 		return fmt.Errorf("network name cannot be empty")
 	}
 
-	if n.IPRange == nil {
+	if n.IPRange.IP == nil {
 		return fmt.Errorf("network IP range cannot be empty")
 	}
 
@@ -86,7 +86,7 @@ func validateNR(nr pkg.NetResource) error {
 	if nr.NodeID == "" {
 		return fmt.Errorf("network resource node ID cannot empty")
 	}
-	if nr.Subnet == nil {
+	if nr.Subnet.IP == nil {
 		return fmt.Errorf("network resource subnet cannot empty")
 	}
 
@@ -147,7 +147,7 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, addrs []strin
 		return join, err
 	}
 
-	netRes, err := nr.New(networkdID, localNR, network.IPRange)
+	netRes, err := nr.New(networkdID, localNR, &network.IPRange.IPNet)
 	if err != nil {
 		return join, errors.Wrap(err, "failed to load network resource")
 	}
@@ -312,7 +312,7 @@ func (n *networker) CreateNR(network pkg.Network) (string, error) {
 		}
 	}
 
-	netr, err := nr.New(network.NetID, netNR, network.IPRange)
+	netr, err := nr.New(network.NetID, netNR, &network.IPRange.IPNet)
 	if err != nil {
 		return "", err
 	}
@@ -410,7 +410,7 @@ func (n *networker) DeleteNR(network pkg.Network) error {
 		return err
 	}
 
-	nr, err := nr.New(network.NetID, netNR, network.IPRange)
+	nr, err := nr.New(network.NetID, netNR, &network.IPRange.IPNet)
 	if err != nil {
 		return errors.Wrap(err, "failed to load network resource")
 	}

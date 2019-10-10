@@ -65,3 +65,27 @@ func TestVolumeProvisionNew(t *testing.T) {
 	require.NoError(err)
 	require.EqualValues(VolumeResult{"reservation-id"}, result)
 }
+
+func TestVolumeDecomission(t *testing.T) {
+	require := require.New(t)
+
+	var client TestClient
+	ctx := context.Background()
+	ctx = WithZBus(ctx, &client)
+
+	const module = "storage"
+	version := zbus.ObjectID{Name: "storage", Version: "0.0.1"}
+
+	reservation := Reservation{
+		ID:   "reservation-id",
+		User: "user",
+		Type: VolumeReservation,
+	}
+
+	// force creation by returning an error
+	client.On("Request", module, version, "ReleaseFilesystem", reservation.ID).
+		Return(nil)
+
+	err := volumeDecommission(ctx, &reservation)
+	require.NoError(err)
+}

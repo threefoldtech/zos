@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg/schema"
 )
 
 func TestNetworkUnmarshal(t *testing.T) {
@@ -45,17 +46,17 @@ func TestEncodeDecode(t *testing.T) {
 	network := &Network{
 		NetID: NetID("test"),
 		Name:  "supernet",
-		IPRange: &net.IPNet{
+		IPRange: schema.IPRange{net.IPNet{
 			IP:   net.ParseIP("10.0.0.0"),
 			Mask: net.CIDRMask(16, 32),
-		},
+		}},
 		NetResources: []NetResource{
 			{
 				NodeID: "node1",
-				Subnet: &net.IPNet{
+				Subnet: schema.IPRange{net.IPNet{
 					IP:   net.ParseIP("10.0.1.0"),
 					Mask: net.CIDRMask(24, 32),
-				},
+				}},
 				Peers: []Peer{
 					{
 						Subnet: &net.IPNet{
