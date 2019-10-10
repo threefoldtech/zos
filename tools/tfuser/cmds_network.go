@@ -12,6 +12,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/provision"
+	types "github.com/threefoldtech/zos/pkg/schema"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/pkg/errors"
@@ -31,11 +32,11 @@ func cmdCreateNetwork(c *cli.Context) error {
 	if ipRange == "" {
 		return fmt.Errorf("ip range cannot be empty")
 	}
-	_, ipnet, err := net.ParseCIDR(ipRange)
+
+	ipnet, err := types.ParseIPRange(ipRange)
 	if err != nil {
 		errors.Wrap(err, "invalid ip range")
 	}
-
 	network := &pkg.Network{
 		Name:         name,
 		IPRange:      ipnet,
@@ -74,7 +75,7 @@ func cmdsAddNode(c *cli.Context) error {
 		return fmt.Errorf("subnet cannot be empty")
 	}
 	fmt.Println("subnet", subnet)
-	_, ipnet, err := net.ParseCIDR(subnet)
+	ipnet, err := types.ParseIPRange(subnet)
 	if err != nil {
 		return errors.Wrap(err, "invalid subnet")
 	}
@@ -221,8 +222,8 @@ func generatePeers(nodeID string, n pkg.Network) []pkg.Peer {
 		}
 
 		allowedIPs := make([]net.IPNet, 2)
-		allowedIPs[0] = *nr.Subnet
-		allowedIPs[1] = *wgIP(nr.Subnet)
+		allowedIPs[0] = nr.Subnet.IPNet
+		allowedIPs[1] = *wgIP(&nr.Subnet.IPNet)
 
 		peers = append(peers, pkg.Peer{
 			WGPublicKey: nr.WGPublicKey,
