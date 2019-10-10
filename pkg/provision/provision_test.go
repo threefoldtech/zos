@@ -57,3 +57,12 @@ func TestClientOperation(t *testing.T) {
 	require.Equal("result", str)
 	require.Nil(rerr)
 }
+
+type TestOwnerCache struct {
+	mock.Mock
+}
+
+func (t *TestOwnerCache) OwnerOf(id string) (string, error) {
+	result := t.Called(id)
+	return result.String(0), result.Error(1)
+}
