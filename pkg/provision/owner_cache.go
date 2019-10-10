@@ -12,11 +12,6 @@ type ReservationGetter interface {
 	Get(id string) (*Reservation, error)
 }
 
-// OwnerCache interface
-type OwnerCache interface {
-	OwnerOf(reservationID string) (string, error)
-}
-
 // ownerCache allows to get the user ID of owner of a reservation
 type ownerCache struct {
 	local  ReservationGetter

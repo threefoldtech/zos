@@ -48,33 +48,32 @@ type ZDBResult struct {
 // ZDBMapping is a helper struct that allow to keep
 // a mapping between a 0-db namespace and the container ID
 // in which it lives
-type ZDBMapping struct {
+type zdbMapping struct {
 	m map[string]string
 	sync.RWMutex
 }
 
+// NewZDBMapping creates a new ZDBMapping object
+func NewZDBMapping() ZDBMapping {
+	return &zdbMapping{
+		m: make(map[string]string),
+	}
+}
+
 // Get returns the container ID where namespace lives
 // if the namespace is not found an empty string and false is returned
-func (z *ZDBMapping) Get(namespace string) (string, bool) {
+func (z *zdbMapping) Get(namespace string) (string, bool) {
 	z.RLock()
 	defer z.RUnlock()
-
-	if z.m == nil {
-		return "", false
-	}
 
 	id, ok := z.m[namespace]
 	return id, ok
 }
 
 // Set saves the mapping between the namespace and a container ID
-func (z *ZDBMapping) Set(namespace, container string) {
+func (z *zdbMapping) Set(namespace, container string) {
 	z.Lock()
 	defer z.Unlock()
-
-	if z.m == nil {
-		z.m = make(map[string]string, 1)
-	}
 
 	z.m[namespace] = container
 }
