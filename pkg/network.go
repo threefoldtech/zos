@@ -30,6 +30,8 @@ type Networker interface {
 	// The member name specifies the name of the member, and must be unique
 	// The NetID is the network id to join
 	Join(networkdID NetID, containerID string, addrs []string) (join Member, err error)
+	// Leave delete a container nameapce created by Join
+	Leave(networkdID NetID, containerID string) (err error)
 
 	// ZDBPrepare creates a network namespace with a macvlan interface into it
 	// to allow the 0-db container to be publicly accessible
