@@ -22,6 +22,7 @@ import (
 const (
 	redisSocket = "unix:///var/run/redis.sock"
 	zinitSocket = "/var/run/zinit.sock"
+	module      = "upgrade"
 )
 
 // setup is a sanity check function, the whole purpose of this
@@ -72,21 +73,9 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
-	if upgrade.DetectBootMethod() != upgrade.BootMethodFList {
-		log.Info().Msg("not booted with an flist. life upgrade is not supported")
-		// wait forever
-		select {}
-	}
-
 	zinit, err := zinit.New(zinitSocket)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to zinit")
-	}
-
-	// recover procedure to make sure upgrade always has what it needs
-	// to work
-	if err := setup(zinit); err != nil {
-		log.Fatal().Err(err).Msg("upgraded setup failed")
 	}
 
 	zbusClient, err := zbus.NewRedisClient(broker)
@@ -102,14 +91,41 @@ func main() {
 		Zinit:   zinit,
 	}
 
-	log.Info().Msg("start upgrade daemon")
-
-	ticker := time.NewTicker(time.Second * time.Duration(interval))
+	server, err := zbus.NewRedisServer(module, broker, 1)
+	if err != nil {
+		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
+	}
+	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, &upgrader)
 
 	ctx, _ := utils.WithSignal(context.Background())
+
+	go func() {
+		if err := server.Run(ctx); err != nil && err != context.Canceled {
+			log.Fatal().Err(err).Msg("unexpected error")
+		}
+	}()
+
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("shutting down")
 	})
+
+	if upgrade.DetectBootMethod() != upgrade.BootMethodFList {
+		log.Info().Msg("not booted with an flist. life upgrade is not supported")
+		<-ctx.Done()
+	} else {
+		log.Info().Msg("start upgrade daemon")
+		// recover procedure to make sure upgrade always has what it needs
+		// to work
+		if err := setup(zinit); err != nil {
+			log.Fatal().Err(err).Msg("upgraded setup failed")
+		}
+
+		upgradeWorker(ctx, upgrader, interval)
+	}
+}
+
+func upgradeWorker(ctx context.Context, upgrader upgrade.Upgrader, interval int) {
+	ticker := time.NewTicker(time.Second * time.Duration(interval))
 
 	for {
 		err := SafeUpgrade(&upgrader)

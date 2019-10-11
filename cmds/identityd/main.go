@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/threefoldtech/zos/pkg/stubs"
+
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
 
@@ -52,6 +54,13 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create module root")
 	}
 
+	redis, err := zbus.NewRedisClient(msgBrokerCon)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create zbus client")
+	}
+
+	upgrade := stubs.NewUpgradeModuleStub(redis)
+
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workers)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create zbus server")
@@ -83,8 +92,15 @@ func main() {
 	go func() {
 
 		f := func() error {
-			log.Info().Msg("start registration of the node")
-			_, err := store.RegisterNode(nodeID, farmID, "fixme")
+			version := "unknown"
+
+			v, err := upgrade.Version()
+			if err == nil {
+				version = v.String()
+			}
+			log.Info().Str("version", version).Msg("start registration of the node")
+
+			_, err = store.RegisterNode(nodeID, farmID, version)
 			if err != nil {
 				log.Error().Err(err).Msg("fail to register node identity")
 				return err
