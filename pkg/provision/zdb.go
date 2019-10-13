@@ -130,7 +130,7 @@ func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult,
 			Port:      zdbPort,
 		}, nil
 	}
-	panic("we are here")
+
 	// if we reached here, we need to create the 0-db namespace
 	log.Debug().Msg("try to allocate storage")
 	containerID, vPath, err := storage.Allocate(config.DiskType, config.Size*gigabyte, config.Mode)
