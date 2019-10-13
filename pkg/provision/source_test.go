@@ -48,10 +48,11 @@ func TestHTTPReservationSourceMultiple(t *testing.T) {
 
 	nodeID := pkg.StrIdentifier("node-id")
 	source := PollSource(&store, nodeID)
-	chn := source.Reservations(context.Background())
 
 	// don't delay the test for long
 	source.(*pollSource).maxSleep = 500 * time.Microsecond
+
+	chn := source.Reservations(context.Background())
 
 	store.On("Poll", nodeID, true, mock.Anything).
 		Return([]*Reservation{
