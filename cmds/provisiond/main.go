@@ -89,7 +89,7 @@ func main() {
 	// From here we start the real provision engine that will live
 	// for the rest of the life of the node
 	source := provision.CombinedSource(
-		provision.HTTPSource(remoteStore, nodeID),
+		provision.PollSource(remoteStore, nodeID),
 		provision.NewDecommissionSource(localStore),
 	)
 
