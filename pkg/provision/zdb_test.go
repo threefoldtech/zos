@@ -208,5 +208,6 @@ func TestZDBProvisionNoMappingContainerDoesNotExists(t *testing.T) {
 	// it succeeded.
 	// TODO: start a mock server on this address
 	require.Error(err)
-	require.True(strings.Contains(err.Error(), "failed to connect to 0-db at unix:///var/run/zdb_container-id/zdb.sock"))
+	fmt.Println("Error:", err)
+	require.True(strings.Contains(err.Error(), "failed to connect to 0-db at unix:///var/run/zdb_container-id"))
 }
