@@ -79,6 +79,10 @@ func (z *zdbMapping) Set(namespace, container string) {
 }
 
 func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+	return zdbProvisionImpl(ctx, reservation)
+}
+
+func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult, error) {
 
 	var (
 		client = GetZBus(ctx)
@@ -93,7 +97,7 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 		containerIP net.IP
 	)
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
-		return nil, errors.Wrap(err, "failed to decode reservation schema")
+		return ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	// verify if the namespace isn't already deployed
@@ -102,12 +106,12 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 	if ok {
 		c, err := container.Inspect(zdbContainerNS, pkg.ContainerID(containerID))
 		if err != nil {
-			return nil, err
+			return ZDBResult{}, err
 		}
 
 		ips, err := network.Addrs(nwmod.ZDBIface, c.Network.Namespace)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to get 0-db container IP")
+			return ZDBResult{}, errors.Wrap(err, "failed to get 0-db container IP")
 		}
 		for _, ip := range ips {
 			if isPublic(ip) {
@@ -115,8 +119,9 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 				break
 			}
 		}
+
 		if containerIP == nil {
-			return nil, errors.Wrap(err, "failed to get 0-db container IP")
+			return ZDBResult{}, errors.New("failed to get 0-db container IP")
 		}
 
 		return ZDBResult{
@@ -125,12 +130,12 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 			Port:      zdbPort,
 		}, nil
 	}
-
+	panic("we are here")
 	// if we reached here, we need to create the 0-db namespace
 	log.Debug().Msg("try to allocate storage")
 	containerID, vPath, err := storage.Allocate(config.DiskType, config.Size*gigabyte, config.Mode)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to allocate storage")
+		return ZDBResult{}, errors.Wrap(err, "failed to allocate storage")
 	}
 
 	slog := log.With().
@@ -144,7 +149,7 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 	//FIXME: find a better way then parsing error content
 	// Here we loose the error value cause the error comes from zbus
 	if err != nil && !strings.Contains(err.Error(), "not found") {
-		return nil, errors.Wrapf(err, "failed to check if 0-db container already exists")
+		return ZDBResult{}, errors.Wrapf(err, "failed to check if 0-db container already exists")
 	}
 
 	//FIXME: find a better way then parsing error content
@@ -153,7 +158,7 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 
 		containerIP, err = createZdbContainer(ctx, containerID, config.Mode, vPath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create 0-db container")
+			return ZDBResult{}, errors.Wrapf(err, "failed to create 0-db container")
 		}
 
 		// save in which container this namespace will be running
@@ -166,12 +171,12 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 		slog.Debug().Msg("not known, check it from the container")
 		c, err := container.Inspect(zdbContainerNS, pkg.ContainerID(containerID))
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to have a 0-db container running")
+			return ZDBResult{}, errors.Wrap(err, "failed to have a 0-db container running")
 		}
 
 		ips, err := network.Addrs(nwmod.ZDBIface, c.Network.Namespace)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to get 0-db container IP")
+			return ZDBResult{}, errors.Wrap(err, "failed to get 0-db container IP")
 		}
 		for _, ip := range ips {
 			if isPublic(ip) {
@@ -180,7 +185,7 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 			}
 		}
 		if containerIP == nil {
-			return nil, errors.Wrap(err, "failed to get 0-db container IP")
+			return ZDBResult{}, errors.Wrap(err, "failed to get 0-db container IP")
 		}
 	}
 	slog.Info().IPAddr("ip", containerIP).Msg("container IP found")
@@ -191,7 +196,7 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 		Msg("create 0-db namespace")
 
 	if err := createZDBNamespace(containerID, nsID, config); err != nil {
-		return nil, err
+		return ZDBResult{}, err
 	}
 
 	return ZDBResult{

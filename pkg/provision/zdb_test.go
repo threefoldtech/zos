@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,8 +10,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 )
 
-func TestZDBProvisionNew(t *testing.T) {
-	t.Skip("not implemented")
+func TestZDBProvisionExists(t *testing.T) {
 	require := require.New(t)
 
 	var client TestClient
@@ -37,10 +37,28 @@ func TestZDBProvisionNew(t *testing.T) {
 		Data: MustMarshal(t, zdb),
 	}
 
+	cache.On("Get", reservation.ID).Return("container-id", true)
+
+	client.On("Request", "container", zbus.ObjectID{Name: "container", Version: "0.0.1"},
+		"Inspect", "zdb", pkg.ContainerID("container-id")).
+		Return(pkg.Container{
+			Name: "container-id",
+			Network: pkg.NetworkInfo{
+				Namespace: "net-ns",
+			},
+		}, nil)
+
+	client.On("Request", "network", zbus.ObjectID{Name: "network", Version: "0.0.1"},
+		"Addrs",
+		"zdb0", "net-ns").Return([]net.IP{net.ParseIP("2001:cdba::3257:9652")}, nil)
+
 	client.On("Request", module, version, "Path", reservation.ID).
 		Return("/some/path", nil)
 
-	result, err := zdbProvision(ctx, &reservation)
+	result, err := zdbProvisionImpl(ctx, &reservation)
+
 	require.NoError(err)
-	require.EqualValues(VolumeResult{"reservation-id"}, result)
+	require.Equal(reservation.ID, result.Namespace)
+	require.Equal("2001:cdba::3257:9652", result.IP)
+	require.EqualValues(zdbPort, result.Port)
 }
