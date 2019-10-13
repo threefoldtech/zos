@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -108,14 +109,14 @@ func TestZDBProvisionNoMappingContainerExists(t *testing.T) {
 		"zdb0", "net-ns").Return([]net.IP{net.ParseIP("2001:cdba::3257:9652")}, nil)
 
 	_, err := zdbProvisionImpl(ctx, &reservation)
-
 	// unfortunately the provision will try (as last step) to dial
 	// the unix socket of the server, and then actually configure
 	// the namespace and set the limits, password, etc...
 	// for now we just handle the connection error and assume
 	// it succeeded.
 	// TODO: start a mock server on this address
-	require.EqualError(err, "failed to connect to 0-db at unix:///var/run/zdb_container-id/zdb.sock: dial unix /var/run/zdb_container-id/zdb.sock: connect: no such file or directory")
+	require.Error(err)
+	require.True(strings.Contains(err.Error(), "failed to connect to 0-db at unix:///var/run/zdb_container-id/zdb.sock"))
 }
 
 func TestZDBProvisionNoMappingContainerDoesNotExists(t *testing.T) {
@@ -206,5 +207,6 @@ func TestZDBProvisionNoMappingContainerDoesNotExists(t *testing.T) {
 	// for now we just handle the connection error and assume
 	// it succeeded.
 	// TODO: start a mock server on this address
-	require.EqualError(err, "failed to connect to 0-db at unix:///var/run/zdb_container-id/zdb.sock: dial unix /var/run/zdb_container-id/zdb.sock: connect: no such file or directory")
+	require.Error(err)
+	require.True(strings.Contains(err.Error(), "failed to connect to 0-db at unix:///var/run/zdb_container-id/zdb.sock"))
 }
