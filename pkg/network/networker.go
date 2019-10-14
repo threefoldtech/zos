@@ -174,7 +174,7 @@ func (n *networker) Leave(networkdID pkg.NetID, containerID string) error {
 		return err
 	}
 
-	netRes, err := nr.New(networkdID, localNR, network.IPRange)
+	netRes, err := nr.New(networkdID, localNR, &network.IPRange.IPNet)
 	if err != nil {
 		return errors.Wrap(err, "failed to load network resource")
 	}
