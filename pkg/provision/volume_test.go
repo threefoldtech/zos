@@ -82,7 +82,7 @@ func TestVolumeDecomission(t *testing.T) {
 		Type: VolumeReservation,
 	}
 
-	// force creation by returning an error
+	// force decomission by returning a nil error
 	client.On("Request", module, version, "ReleaseFilesystem", reservation.ID).
 		Return(nil)
 

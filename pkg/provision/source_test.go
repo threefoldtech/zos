@@ -40,6 +40,7 @@ func TestHTTPReservationSource(t *testing.T) {
 
 	require.Len(reservations, 2)
 	require.Equal("res-1", reservations[0].ID)
+	require.Equal("res-2", reservations[1].ID)
 }
 
 func TestHTTPReservationSourceMultiple(t *testing.T) {
@@ -73,4 +74,7 @@ func TestHTTPReservationSourceMultiple(t *testing.T) {
 
 	require.Len(reservations, 4)
 	require.Equal("res-1", reservations[0].ID)
+	require.Equal("res-2", reservations[1].ID)
+	require.Equal("res-3", reservations[2].ID)
+	require.Equal("res-4", reservations[3].ID)
 }
