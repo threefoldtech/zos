@@ -172,6 +172,7 @@ func main() {
 	})
 
 	if bootMethod != upgrade.BootMethodFList {
+		log.Info().Msg("node is not booted from an flist. upgrade is not supported")
 		<-ctx.Done()
 		return
 	}
@@ -207,7 +208,6 @@ func main() {
 			break
 		}
 	}
-
 }
 
 func identityMgr(root string) (pkg.IdentityManager, error) {
