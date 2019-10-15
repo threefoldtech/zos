@@ -3,7 +3,7 @@ package pkg
 import (
 	"net"
 
-	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
@@ -50,7 +50,7 @@ type Network struct {
 	//unique id inside the reservation is an autoincrement (USE AS NET_ID)
 	NetID NetID `json:"net_id"`
 	// IP range of the network, must be an IPv4 /16
-	IPRange schema.IPRange `json:"ip_range"`
+	IPRange types.IPNet `json:"ip_range"`
 
 	NetResources []NetResource `json:"net_resources"`
 }
@@ -59,7 +59,7 @@ type Network struct {
 type NetResource struct {
 	NodeID string `json:"node_id"`
 	// IPV4 subnet from network IPRange
-	Subnet schema.IPRange `json:"subnet"`
+	Subnet types.IPNet `json:"subnet"`
 
 	WGPrivateKey string `json:"wg_private_key"`
 	WGPublicKey  string `json:"wg_public_key"`

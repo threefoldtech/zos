@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/pkg/network/types"
 )
 
 func TestNetworkProvision(t *testing.T) {
@@ -25,11 +25,11 @@ func TestNetworkProvision(t *testing.T) {
 		// we set netid here ourselves although it's set by the provision
 		// method just to make sure that assertion pass.
 		NetID:   networkID("user", "net1"),
-		IPRange: schema.MustParseIPRange("192.168.1.0/24"),
+		IPRange: types.MustParseIPNet("192.168.1.0/24"),
 		NetResources: []pkg.NetResource{
 			{
 				NodeID: "node-1",
-				Subnet: schema.MustParseIPRange("192.168.1.0/24"),
+				Subnet: types.MustParseIPNet("192.168.1.0/24"),
 			},
 		},
 	}
@@ -63,11 +63,11 @@ func TestNetworkDecommission(t *testing.T) {
 		// we set netid here ourselves although it's set by the provision
 		// method just to make sure that assertion pass.
 		NetID:   networkID("user", "net1"),
-		IPRange: schema.MustParseIPRange("192.168.1.0/24"),
+		IPRange: types.MustParseIPNet("192.168.1.0/24"),
 		NetResources: []pkg.NetResource{
 			{
 				NodeID: "node-1",
-				Subnet: schema.MustParseIPRange("192.168.1.0/24"),
+				Subnet: types.MustParseIPNet("192.168.1.0/24"),
 			},
 		},
 	}
