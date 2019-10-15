@@ -71,11 +71,11 @@ type NetResource struct {
 // Peer is the description of a peer of a NetResource
 type Peer struct {
 	// IPV4 subnet of the network resource of the peer
-	Subnet *net.IPNet `json:"subnet"`
+	Subnet types.IPNet `json:"subnet"`
 
-	WGPublicKey string      `json:"wg_public_key"`
-	AllowedIPs  []net.IPNet `json:"allowed_ips"`
-	Endpoint    string      `json:"endpoint"`
+	WGPublicKey string        `json:"wg_public_key"`
+	AllowedIPs  []types.IPNet `json:"allowed_ips"`
+	Endpoint    string        `json:"endpoint"`
 }
 
 // NetID is a type defining the ID of a network

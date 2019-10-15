@@ -256,7 +256,7 @@ func (nr *NetResource) routes() ([]*netlink.Route, error) {
 
 	for _, peer := range nr.resource.Peers {
 		routes = append(routes, &netlink.Route{
-			Dst: peer.Subnet,
+			Dst: &peer.Subnet.IPNet,
 			Gw:  wgIP.IP,
 		})
 	}

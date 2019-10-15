@@ -65,7 +65,7 @@ func validateNetwork(n *pkg.Network) error {
 		return fmt.Errorf("network name cannot be empty")
 	}
 
-	if n.IPRange.IP == nil {
+	if n.IPRange.Nil() {
 		return fmt.Errorf("network IP range cannot be empty")
 	}
 
@@ -116,7 +116,7 @@ func validatePeer(p pkg.Peer) error {
 		return fmt.Errorf("peer wireguard public key cannot empty")
 	}
 
-	if p.Subnet == nil {
+	if p.Subnet.Nil() {
 		return fmt.Errorf("peer wireguard subnet cannot empty")
 	}
 

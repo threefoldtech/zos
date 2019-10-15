@@ -46,30 +46,30 @@ func TestEncodeDecode(t *testing.T) {
 	network := &Network{
 		NetID: NetID("test"),
 		Name:  "supernet",
-		IPRange: types.IPNet{net.IPNet{
+		IPRange: types.NewIPNet(&net.IPNet{
 			IP:   net.ParseIP("10.0.0.0"),
 			Mask: net.CIDRMask(16, 32),
-		}},
+		}),
 		NetResources: []NetResource{
 			{
 				NodeID: "node1",
-				Subnet: types.IPNet{net.IPNet{
+				Subnet: types.NewIPNet(&net.IPNet{
 					IP:   net.ParseIP("10.0.1.0"),
 					Mask: net.CIDRMask(24, 32),
-				}},
+				}),
 				Peers: []Peer{
 					{
-						Subnet: &net.IPNet{
+						Subnet: types.NewIPNet(&net.IPNet{
 							IP:   net.ParseIP("10.0.2.0"),
 							Mask: net.CIDRMask(24, 32),
-						},
+						}),
 						Endpoint:    "172.20.0.90:6380",
 						WGPublicKey: "pubkey",
-						AllowedIPs: []net.IPNet{
-							{
+						AllowedIPs: []types.IPNet{
+							types.NewIPNet(&net.IPNet{
 								IP:   net.ParseIP("10.0.1.0"),
 								Mask: net.CIDRMask(24, 32),
-							},
+							}),
 						},
 					},
 				},
