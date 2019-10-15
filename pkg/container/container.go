@@ -3,18 +3,16 @@ package container
 import (
 	"context"
 
+	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
 
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/BurntSushi/toml"
 
 	"github.com/rs/zerolog/log"
 
@@ -65,12 +63,7 @@ func New(root string, containerd string) pkg.ContainerModule {
 }
 
 // Run creates and starts a container
-// THIS IS A WIP Create action and it's not fully implemented atm
 func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID, err error) {
-	log.Info().
-		Str("namesapce", ns).
-		Str("data", fmt.Sprintf("%+v", data)).
-		Msgf("create new container")
 	// create a new client connected to the default socket path for containerd
 	client, err := containerd.New(c.containerd)
 	if err != nil {
@@ -88,8 +81,8 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		return id, ErrEmptyRootFS
 	}
 
-	if err := setResolvConf(data.RootFS); err != nil {
-		return id, errors.Wrap(err, "failed to set resolv.conf")
+	if err := applyStartup(&data, filepath.Join(data.RootFS, ".startup.toml")); err != nil {
+		errors.Wrap(err, "error updating environment variable from startup file")
 	}
 
 	if data.Interactive {
@@ -116,8 +109,14 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		oci.WithRootFSPath(data.RootFS),
 		oci.WithProcessArgs(args...),
 		oci.WithEnv(data.Env),
+		oci.WithHostResolvconf,
 		removeRunMount(),
 	}
+
+	if data.WorkingDir != "" {
+		opts = append(opts, oci.WithProcessCwd(data.WorkingDir))
+	}
+
 	if data.Interactive {
 		opts = append(
 			opts,
@@ -154,6 +153,11 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 			}),
 		)
 	}
+
+	log.Info().
+		Str("namespace", ns).
+		Str("data", fmt.Sprintf("%+v", data)).
+		Msgf("create new container")
 
 	container, err := client.NewContainer(
 		ctx,
@@ -303,54 +307,45 @@ func (c *containerModule) Delete(ns string, id pkg.ContainerID) error {
 	return container.Delete(ctx)
 }
 
-// readEnvs reads the environment variable from the statup.toml file
-func readEnvs(r io.Reader) ([]string, error) {
-	env := struct {
-		Startup struct {
-			Entry struct {
-				Name string `json:"name"`
-				Args struct {
-					Name string            `json:"name"`
-					Dir  string            `json:"dir"`
-					Env  map[string]string `json:"env"`
-				} `json:"args"`
-			} `json:"entry"`
-		} `json:"startup"`
-	}{}
-	if _, err := toml.DecodeReader(r, &env); err != nil {
-		return nil, err
+func (c *containerModule) ensureNamespace(ctx context.Context, client *containerd.Client, namespace string) error {
+	service := client.NamespaceService()
+	namespaces, err := service.List(ctx)
+	if err != nil {
+		return err
 	}
 
-	result := make([]string, 0, len(env.Startup.Entry.Args.Env))
-	for k, v := range env.Startup.Entry.Args.Env {
-		result = append(result, fmt.Sprintf("%s=%s", k, v))
+	for _, ns := range namespaces {
+		if ns == namespace {
+			return nil
+		}
 	}
-	return result, nil
+
+	return service.Create(ctx, namespace, nil)
 }
 
-// mergeEnvs merge a into b
-// all the key from a will endup in b
-// if a key is present in both, key from a are kept
-func mergeEnvs(a, b []string) []string {
-	ma := make(map[string]string, len(a))
-	mb := make(map[string]string, len(b))
+func applyStartup(data *pkg.Container, path string) error {
+	f, err := os.Open(path)
+	if err == nil {
+		defer f.Close()
+		log.Info().Msg("startup file found")
 
-	for _, s := range a {
-		ss := strings.SplitN(s, "=", 2)
-		ma[ss[0]] = ss[1]
-	}
-	for _, s := range b {
-		ss := strings.SplitN(s, "=", 2)
-		mb[ss[0]] = ss[1]
-	}
+		startup := startup{}
+		if _, err := toml.DecodeReader(f, &startup); err != nil {
+			return err
+		}
 
-	for ka, va := range ma {
-		mb[ka] = va
-	}
+		entry, ok := startup.Entries["entry"]
+		if !ok {
+			return nil
+		}
 
-	result := make([]string, 0, len(mb))
-	for k, v := range mb {
-		result = append(result, fmt.Sprintf("%s=%s", k, v))
+		data.Env = mergeEnvs(entry.Envs(), data.Env)
+		if data.Entrypoint == "" && entry.Entrypoint() != "" {
+			data.Entrypoint = entry.Entrypoint()
+		}
+		if data.WorkingDir == "" && entry.WorkingDir() != "" {
+			data.WorkingDir = entry.WorkingDir()
+		}
 	}
-	return result
+	return nil
 }
