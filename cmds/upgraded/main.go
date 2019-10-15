@@ -112,25 +112,6 @@ func main() {
 
 	bootMethod := upgrade.DetectBootMethod()
 
-	if bootMethod == upgrade.BootMethodFList {
-
-		// 1. Do upgrade to latest version
-		if err := SafeUpgrade(&upgrader); err == upgrade.ErrRestartNeeded {
-			log.Info().Msg("restarting upgraded")
-			return
-		} else if err != nil {
-			log.Fatal().Err(err).Msg("upgrade failed")
-		}
-
-		// recover procedure to make sure upgrade always has what it needs
-		// to work
-		if err := setup(zinit); err != nil {
-			log.Fatal().Err(err).Msg("upgraded setup failed")
-		}
-	} else {
-		log.Info().Msg("not booted with an flist. life upgrade is not supported")
-	}
-
 	// 2. Register the node to BCDB
 	// at this point we are running latest version
 	idMgr, err := identityMgr(identityRoot)
@@ -163,6 +144,7 @@ func main() {
 	f := func() error {
 		return registerNode(nodeID, farmID, version, idStore)
 	}
+
 	if err := backoff.Retry(f, backoff.NewExponentialBackOff()); err == nil {
 		log.Info().Msg("node registered successfully")
 	}
@@ -172,6 +154,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
 	}
+
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, &idMgr)
 
 	ctx, cancel := utils.WithSignal(context.Background())
@@ -188,41 +171,43 @@ func main() {
 		log.Info().Msg("shutting down")
 	})
 
-	// 4. Start watcher for new version
 	if bootMethod != upgrade.BootMethodFList {
 		<-ctx.Done()
-	} else {
-		log.Info().Msg("start upgrade daemon")
-		ticker := time.NewTicker(time.Second * time.Duration(interval))
+		return
+	}
 
-		for {
-			err := SafeUpgrade(&upgrader)
-			if err == upgrade.ErrRestartNeeded {
-				log.Info().Msg("restarting upgraded")
-				return
-			} else if err != nil {
-				//TODO: crash or continue!
-				log.Error().Err(err).Msg("upgrade failed")
-			}
+	// 4. Start watcher for new version
+	log.Info().Msg("start upgrade daemon")
+	ticker := time.NewTicker(time.Second * time.Duration(interval))
 
-			version, err := upgrader.Version()
-			if err != nil {
-				log.Fatal().Err(err).Msg("failed to read current version")
-			}
+	for {
+		err := SafeUpgrade(&upgrader)
+		if err == upgrade.ErrRestartNeeded {
+			log.Info().Msg("restarting upgraded")
+			return
+		} else if err != nil {
+			//TODO: crash or continue!
+			log.Error().Err(err).Msg("upgrade failed")
+		}
 
-			log.Info().Str("version", version.String()).Msg("new version installed")
+		version, err := upgrader.Version()
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to read current version")
+		}
 
-			if _, err = idStore.RegisterNode(nodeID, farmID, version.String()); err != nil {
-				log.Error().Err(err).Msg("fail to register node identity")
-			}
+		log.Info().Str("version", version.String()).Msg("new version installed")
 
-			select {
-			case <-ticker.C:
-			case <-ctx.Done():
-				break
-			}
+		if _, err = idStore.RegisterNode(nodeID, farmID, version.String()); err != nil {
+			log.Error().Err(err).Msg("fail to register node identity")
+		}
+
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			break
 		}
 	}
+
 }
 
 func identityMgr(root string) (pkg.IdentityManager, error) {

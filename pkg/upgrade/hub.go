@@ -46,6 +46,8 @@ func (h *Hub) Info(flist string) (info FListInfo, err error) {
 		panic("invalid base url")
 	}
 
+	info.Repository = filepath.Dir(flist)
+
 	u.Path = filepath.Join("api", "flist", flist, "light")
 	response, err := http.Get(u.String())
 	if err != nil {
@@ -66,7 +68,8 @@ func (h *Hub) Info(flist string) (info FListInfo, err error) {
 }
 
 // LoadInfo get boot info set by bootstrap process
-func LoadInfo(path string) (info FListInfo, err error) {
+func LoadInfo(fqn string, path string) (info FListInfo, err error) {
+	info.Repository = filepath.Dir(fqn)
 	f, err := os.Open(path)
 	if err != nil {
 		return info, err
@@ -81,12 +84,19 @@ func LoadInfo(path string) (info FListInfo, err error) {
 
 // FListInfo reflects node boot information (flist + version)
 type FListInfo struct {
-	Name    string `json:"name"`
-	Target  string `json:"target"`
-	Type    string `json:"type"`
-	Updated uint64 `json:"updated"`
-	Hash    string `json:"hash"`
-	Size    uint64 `json:"size"`
+	Name       string `json:"name"`
+	Target     string `json:"target"`
+	Type       string `json:"type"`
+	Updated    uint64 `json:"updated"`
+	Hash       string `json:"hash"`
+	Size       uint64 `json:"size"`
+	Repository string `json:"-"`
+}
+
+// File is the file of an flist
+type File struct {
+	Path string `json:"path"`
+	Size uint64 `json:"size"`
 }
 
 // Commit write version to version file
@@ -119,4 +129,49 @@ func (b *FListInfo) Version() (semver.Version, error) {
 	}
 
 	return b.extractVersion(b.Name)
+}
+
+// Absolute returns the actual flist name
+func (b *FListInfo) Absolute() string {
+	name := b.Name
+	if b.Type == "symlink" {
+		name = b.Target
+	}
+
+	return filepath.Join(b.Repository, name)
+}
+
+// Files gets the list of the files of an flist
+func (b *FListInfo) Files() ([]File, error) {
+	flist := b.Absolute()
+	if len(flist) == 0 {
+		return nil, fmt.Errorf("invalid flist info")
+	}
+
+	var content struct {
+		Content []File `json:"content"`
+	}
+
+	u, err := url.Parse(HubBaseURL)
+	if err != nil {
+		panic("invalid base url")
+	}
+
+	u.Path = filepath.Join("api", "flist", flist)
+	response, err := http.Get(u.String())
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+	defer ioutil.ReadAll(response.Body)
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get flist info: %s", response.Status)
+	}
+
+	dec := json.NewDecoder(response.Body)
+
+	err = dec.Decode(&content)
+	return content.Content, err
 }

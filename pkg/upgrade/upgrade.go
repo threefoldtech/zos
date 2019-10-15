@@ -36,7 +36,7 @@ var (
 	// ErrRestartNeeded is returned if upgraded requires a restart
 	ErrRestartNeeded = fmt.Errorf("restart needed")
 
-	// services that can't be updated with normal procedure
+	// services that can't be uninstalled with normal procedure
 	protected = []string{"upgraded", "redis"}
 )
 
@@ -85,9 +85,19 @@ func (u *Upgrader) Name() string {
 	return strings.TrimSpace(string(data))
 }
 
+// CurrentInfo returns current flist information
+func (u *Upgrader) CurrentInfo() (FListInfo, error) {
+	name := u.Name()
+	if len(name) == 0 {
+		return FListInfo{}, fmt.Errorf("flist name is not known")
+	}
+
+	return LoadInfo(name, infoFile)
+}
+
 // Version always returns curent version of flist
 func (u *Upgrader) Version() (semver.Version, error) {
-	info, err := LoadInfo(infoFile)
+	info, err := u.CurrentInfo()
 	if err != nil {
 		return semver.Version{}, errors.Wrap(err, "failed to load flist info")
 	}
@@ -222,6 +232,71 @@ func (u *Upgrader) upgradeSelf(root string) error {
 	return ErrRestartNeeded
 }
 
+func (u *Upgrader) uninstall() error {
+	current, err := u.CurrentInfo()
+	if err != nil {
+		return errors.Wrap(err, "failed to get current flist info")
+	}
+
+	files, err := current.Files()
+	if err != nil {
+		return errors.Wrap(err, "failed to get list of current installed files")
+	}
+
+	//stop all services names
+	var names []string
+	for _, file := range files {
+		dir := filepath.Dir(file.Path)
+		if dir != "/etc/zinit" {
+			continue
+		}
+
+		name := filepath.Base(file.Path)
+		if !strings.HasSuffix(name, ".yaml") {
+			continue
+		}
+
+		name = strings.TrimSuffix(name, ".yaml")
+		// skip self and redis
+		if isIn(name, protected) {
+			continue
+		}
+
+		names = append(names, name)
+	}
+
+	_, err = u.stopMultiple(10*time.Second, names...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to stop services: %+v", names)
+	}
+
+	// we do a forget so any changes of the zinit config
+	// themselves get reflected once monitored again
+	for _, name := range names {
+		if err := u.Zinit.Forget(name); err != nil {
+			log.Error().Err(err).Str("service", name).Msg("error on zinit forget")
+		}
+	}
+
+	// now delete ALL files, ignore what doesn't delete
+	for _, file := range files {
+		stat, err := os.Stat(file.Path)
+		if err != nil {
+			log.Error().Err(err).Str("file", file.Path).Msg("failed to check file")
+			continue
+		}
+		if stat.IsDir() {
+			continue
+		}
+
+		if err := os.Remove(file.Path); err != nil {
+			log.Error().Err(err).Str("file", file.Path).Msg("failed to remove file")
+		}
+	}
+
+	return nil
+}
+
 func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 	log.Info().Str("flist", u.Name()).Str("version", version.String()).Msg("start applying upgrade")
 
@@ -240,6 +315,10 @@ func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 		return err
 	}
 
+	if err := u.uninstall(); err != nil {
+		log.Error().Err(err).Msg("failed to unistall current flist. Upgraded anyway")
+	}
+
 	// once the flist is mounted we can inspect
 	// it for all zinit config files.
 	files, err := ioutil.ReadDir(filepath.Join(flistRoot, "etc", "zinit"))
@@ -254,26 +333,7 @@ func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 			continue
 		}
 
-		name = strings.TrimSuffix(name, ".yaml")
-		// skip self and redis
-		if isIn(name, protected) {
-			continue
-		}
-
-		names = append(names, name)
-	}
-
-	stopped, err := u.stopMultiple(10*time.Second, names...)
-	if err != nil {
-		return errors.Wrapf(err, "failed to stop services: %+v", names)
-	}
-
-	// we do a forget so any changes of the zinit config
-	// themselves get reflected once monitored again
-	for _, stopped := range stopped {
-		if err := u.Zinit.Forget(stopped); err != nil {
-			log.Error().Err(err).Str("service", stopped).Msg("error on zinit forget")
-		}
+		names = append(names, strings.TrimSuffix(name, ".yaml"))
 	}
 
 	if err := copyRecursive(flistRoot, "/", currentBinPath()); err != nil {

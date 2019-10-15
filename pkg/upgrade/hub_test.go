@@ -20,3 +20,17 @@ func TestInfo(t *testing.T) {
 
 	require.Equal(t, semver.MustParse("0.2.0"), ver)
 }
+
+func TestInfoGet(t *testing.T) {
+	const flist = "tf-zos/zos:0.1.0-rc1.flist"
+
+	var hub Hub
+	info, err := hub.Info(flist)
+	require.NoError(t, err)
+	require.Equal(t, flist, info.Absolute())
+
+	files, err := info.Files()
+	require.NoError(t, err)
+
+	require.NotEmpty(t, files)
+}
