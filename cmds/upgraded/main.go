@@ -128,7 +128,10 @@ func main() {
 	if bootMethod == upgrade.BootMethodFList {
 		v, err := upgrader.Version()
 		if err != nil {
-			log.Fatal().Err(err).Msg("failed to read current version")
+			//NOTE: this is set to error intentionally (not fatal)
+			//this will cause version to be 0.0.0 and will force an
+			//immediate update of the flist to latest
+			log.Error().Err(err).Msg("failed to read current version")
 		}
 		version = v.String()
 	} else {
