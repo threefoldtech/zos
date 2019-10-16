@@ -1,1 +1,4 @@
-../../../../zinit/upgraded.yaml
+exec: upgraded -d
+after:
+  - boot
+  - flistd

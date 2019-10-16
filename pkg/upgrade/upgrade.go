@@ -72,10 +72,10 @@ func DetectBootMethod() BootMethod {
 // Upgrader is the component that is responsible
 // to keep 0-OS up to date
 type Upgrader struct {
-	FLister pkg.Flister
-	Zinit   *zinit.Client
-
-	hub Hub
+	FLister      pkg.Flister
+	Zinit        *zinit.Client
+	NoSelfUpdate bool
+	hub          Hub
 }
 
 // Name always return name of the boot flist. If name file
@@ -196,6 +196,11 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]stri
 // next time this method is called, it will match the flist
 // revision, and hence will continue updating all the other daemons
 func (u *Upgrader) upgradeSelf(root string) error {
+	if u.NoSelfUpdate {
+		log.Debug().Msg("skipping self upgrade")
+		return nil
+	}
+
 	current := currentRevision()
 	log.Debug().Str("revision", current).Msg("current revision")
 

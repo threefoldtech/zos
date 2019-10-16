@@ -79,11 +79,13 @@ func main() {
 		broker   string
 		interval int
 		ver      bool
+		debug    bool
 	)
 
 	flag.StringVar(&broker, "broker", redisSocket, "connection string to broker")
 	flag.IntVar(&interval, "interval", 600, "interval in seconds between update checks, default to 600")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
+	flag.BoolVar(&debug, "d", false, "when set, no self update is done before upgradeing")
 
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
@@ -106,8 +108,9 @@ func main() {
 	flister := stubs.NewFlisterStub(cl)
 
 	upgrader := upgrade.Upgrader{
-		FLister: flister,
-		Zinit:   zinit,
+		FLister:      flister,
+		Zinit:        zinit,
+		NoSelfUpdate: debug,
 	}
 
 	bootMethod := upgrade.DetectBootMethod()
