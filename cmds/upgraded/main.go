@@ -97,13 +97,13 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to zinit")
 	}
 
-	zbusClient, err := zbus.NewRedisClient(broker)
+	cl, err := zbus.NewRedisClient(broker)
 	if err != nil {
 		log.Error().Err(err).Msg("fail to connect to broker")
 		return
 	}
 
-	flister := stubs.NewFlisterStub(zbusClient)
+	flister := stubs.NewFlisterStub(cl)
 
 	upgrader := upgrade.Upgrader{
 		FLister: flister,
