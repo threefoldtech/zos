@@ -133,7 +133,7 @@ func (u *Upgrader) Upgrade() error {
 	return nil
 }
 
-func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]string, error) {
+func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
 	services := make(map[string]struct{})
 	for _, name := range service {
 		log.Info().Str("service", name).Msg("stopping service")
@@ -146,20 +146,20 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]stri
 	}
 
 	deadline := time.After(timeout)
-	var stopped []string
 
 	for len(services) > 0 {
+		var stopped []string
 		for service := range services {
 			status, err := u.Zinit.Status(service)
 			if err != nil {
-				return stopped, err
+				return err
 			}
 
 			if status.Target != zinit.ServiceTargetDown {
 				// it means some other entity (another client or command line)
 				// has set the service back to up. I think we should immediately return
 				// with an error instead.
-				return stopped, fmt.Errorf("expected service target should be DOWN. found UP")
+				return fmt.Errorf("expected service '%s' target should be DOWN. found UP", service)
 			}
 
 			if status.State.Exited() {
@@ -181,13 +181,14 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) ([]stri
 		select {
 		case <-deadline:
 			for service := range services {
+				log.Warn().Str("service", service).Msg("service didn't stop in time. use SIGKILL")
 				u.Zinit.Kill(service, syscall.SIGKILL)
 			}
 		case <-time.After(1 * time.Second):
 		}
 	}
 
-	return stopped, nil
+	return nil
 }
 
 // upgradeSelf will try to check if the flist has
@@ -245,7 +246,7 @@ func (u *Upgrader) uninstall() error {
 
 	files, err := current.Files()
 	if err != nil {
-		return errors.Wrap(err, "failed to get list of current installed files")
+		return errors.Wrapf(err, "failed to get list of current installed files for '%s'", current.Absolute())
 	}
 
 	//stop all services names
@@ -270,9 +271,10 @@ func (u *Upgrader) uninstall() error {
 		names = append(names, name)
 	}
 
-	_, err = u.stopMultiple(10*time.Second, names...)
-	if err != nil {
-		return errors.Wrapf(err, "failed to stop services: %+v", names)
+	log.Debug().Strs("services", names).Msg("stopping services")
+
+	if err = u.stopMultiple(20*time.Second, names...); err != nil {
+		return errors.Wrapf(err, "failed to stop services")
 	}
 
 	// we do a forget so any changes of the zinit config
@@ -285,9 +287,10 @@ func (u *Upgrader) uninstall() error {
 
 	// now delete ALL files, ignore what doesn't delete
 	for _, file := range files {
+		log.Debug().Str("file", file.Path).Msg("deleting file")
 		stat, err := os.Stat(file.Path)
 		if err != nil {
-			log.Error().Err(err).Str("file", file.Path).Msg("failed to check file")
+			log.Debug().Err(err).Str("file", file.Path).Msg("failed to check file")
 			continue
 		}
 		if stat.IsDir() {
@@ -324,6 +327,7 @@ func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 		log.Error().Err(err).Msg("failed to unistall current flist. Upgraded anyway")
 	}
 
+	log.Info().Msg("clean up complete, copying new files")
 	// once the flist is mounted we can inspect
 	// it for all zinit config files.
 	files, err := ioutil.ReadDir(filepath.Join(flistRoot, "etc", "zinit"))
@@ -341,10 +345,13 @@ func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
 		names = append(names, strings.TrimSuffix(name, ".yaml"))
 	}
 
-	if err := copyRecursive(flistRoot, "/", currentBinPath()); err != nil {
+	log.Debug().Strs("services", names).Msg("new services")
+
+	if err := copyRecursive(flistRoot, "/"); err != nil {
 		return err
 	}
 
+	log.Debug().Msg("copying files complete")
 	// start all services in the flist
 	for _, name := range names {
 		if err := u.Zinit.Monitor(name); err != nil {

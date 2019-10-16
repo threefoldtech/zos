@@ -186,6 +186,7 @@ func main() {
 	// 4. Start watcher for new version
 	log.Info().Msg("start upgrade daemon")
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
+	defer ticker.Stop()
 
 	for {
 		err := SafeUpgrade(&upgrader)
@@ -202,7 +203,7 @@ func main() {
 			log.Fatal().Err(err).Msg("failed to read current version")
 		}
 
-		log.Info().Str("version", version.String()).Msg("new version installed")
+		log.Info().Str("version", version.String()).Msg("current")
 
 		if _, err = idStore.RegisterNode(nodeID, farmID, version.String()); err != nil {
 			log.Error().Err(err).Msg("fail to register node identity")
@@ -210,8 +211,9 @@ func main() {
 
 		select {
 		case <-ticker.C:
+			log.Debug().Msg("checking for updates")
 		case <-ctx.Done():
-			break
+			return
 		}
 	}
 }
