@@ -127,7 +127,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create identity client")
 	}
 
-	var version string
+	var current string
 	if bootMethod == upgrade.BootMethodFList {
 		v, err := upgrader.Version()
 		if err != nil {
@@ -136,9 +136,9 @@ func main() {
 			//immediate update of the flist to latest
 			log.Error().Err(err).Msg("failed to read current version")
 		}
-		version = v.String()
+		current = v.String()
 	} else {
-		version = "not booted from flist"
+		current = "not booted from flist"
 	}
 
 	nodeID := idMgr.NodeID()
@@ -147,12 +147,16 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to read farm ID")
 	}
 
-	f := func() error {
-		return registerNode(nodeID, farmID, version, idStore)
+	register := func(v string) error {
+		return registerNode(nodeID, farmID, v, idStore)
 	}
 
-	if err := backoff.Retry(f, backoff.NewExponentialBackOff()); err == nil {
-		log.Info().Msg("node registered successfully")
+	if err := backoff.Retry(func() error {
+		return register(current)
+	}, backoff.NewExponentialBackOff()); err != nil {
+		log.Error().Err(err).Msg("failed to register node")
+	} else {
+		log.Info().Str("version", current).Msg("node registered successfully")
 	}
 
 	// 3. start zbus server to serve identity interface
@@ -203,10 +207,18 @@ func main() {
 			log.Fatal().Err(err).Msg("failed to read current version")
 		}
 
-		log.Info().Str("version", version.String()).Msg("current")
+		if version.String() != current {
+			log.Info().Str("version", version.String()).Msg("new version")
 
-		if _, err = idStore.RegisterNode(nodeID, farmID, version.String()); err != nil {
-			log.Error().Err(err).Msg("fail to register node identity")
+			if err := backoff.Retry(func() error {
+				return register(version.String())
+			}, backoff.NewExponentialBackOff()); err != nil {
+				log.Error().Err(err).Msg("failed to register node")
+			} else {
+				log.Info().Str("version", version.String()).Msg("node registered successfully")
+			}
+
+			current = version.String()
 		}
 
 		select {
@@ -263,7 +275,6 @@ func registerNode(nodeID, farmID pkg.Identifier, version string, store identity.
 
 	_, err := store.RegisterNode(nodeID, farmID, version)
 	if err != nil {
-		log.Error().Err(err).Msg("fail to register node identity")
 		return err
 	}
 	return nil
