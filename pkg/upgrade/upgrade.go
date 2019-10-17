@@ -37,7 +37,7 @@ var (
 	ErrRestartNeeded = fmt.Errorf("restart needed")
 
 	// services that can't be uninstalled with normal procedure
-	protected = []string{"upgraded", "redis"}
+	protected = []string{"identityd", "redis"}
 )
 
 // BootMethod defines the node boot method

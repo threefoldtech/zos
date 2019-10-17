@@ -1,4 +1,0 @@
-exec: upgraded -d
-after:
-  - boot
-  - flistd
