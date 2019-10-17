@@ -75,7 +75,7 @@ type Upgrader struct {
 	FLister      pkg.Flister
 	Zinit        *zinit.Client
 	NoSelfUpdate bool
-	hub          Hub
+	hub          hubClient
 }
 
 // Name always return name of the boot flist. If name file
@@ -85,19 +85,19 @@ func (u *Upgrader) Name() string {
 	return strings.TrimSpace(string(data))
 }
 
-// CurrentInfo returns current flist information
-func (u *Upgrader) CurrentInfo() (FListInfo, error) {
+// currentInfo returns current flist information
+func (u *Upgrader) currentInfo() (flistInfo, error) {
 	name := u.Name()
 	if len(name) == 0 {
-		return FListInfo{}, fmt.Errorf("flist name is not known")
+		return flistInfo{}, fmt.Errorf("flist name is not known")
 	}
 
-	return LoadInfo(name, infoFile)
+	return loadInfo(name, infoFile)
 }
 
 // Version always returns curent version of flist
 func (u *Upgrader) Version() (semver.Version, error) {
-	info, err := u.CurrentInfo()
+	info, err := u.currentInfo()
 	if err != nil {
 		return semver.Version{}, errors.Wrap(err, "failed to load flist info")
 	}
@@ -239,7 +239,7 @@ func (u *Upgrader) upgradeSelf(root string) error {
 }
 
 func (u *Upgrader) uninstall() error {
-	current, err := u.CurrentInfo()
+	current, err := u.currentInfo()
 	if err != nil {
 		return errors.Wrap(err, "failed to get current flist info")
 	}
@@ -305,7 +305,7 @@ func (u *Upgrader) uninstall() error {
 	return nil
 }
 
-func (u *Upgrader) applyUpgrade(version semver.Version, info FListInfo) error {
+func (u *Upgrader) applyUpgrade(version semver.Version, info flistInfo) error {
 	log.Info().Str("flist", u.Name()).Str("version", version.String()).Msg("start applying upgrade")
 
 	flistRoot, err := u.FLister.Mount(u.hub.MountURL(u.Name()), u.hub.StorageURL())
