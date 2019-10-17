@@ -34,9 +34,8 @@ const (
 )
 
 const (
-	module       = "identityd"
-	identityRoot = "/var/cache/modules/identityd"
-	seedName     = "seed.txt"
+	module   = "identityd"
+	seedName = "seed.txt"
 )
 
 // setup is a sanity check function, the whole purpose of this
@@ -77,11 +76,13 @@ func SafeUpgrade(upgrader *upgrade.Upgrader) error {
 func main() {
 	var (
 		broker   string
+		root     string
 		interval int
 		ver      bool
 		debug    bool
 	)
 
+	flag.StringVar(&root, "root", "/var/cache/modules/identityd", "root working directory of the module")
 	flag.StringVar(&broker, "broker", redisSocket, "connection string to broker")
 	flag.IntVar(&interval, "interval", 600, "interval in seconds between update checks, default to 600")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
@@ -117,7 +118,7 @@ func main() {
 
 	// 2. Register the node to BCDB
 	// at this point we are running latest version
-	idMgr, err := identityMgr(identityRoot)
+	idMgr, err := identityMgr(root)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create identity manager")
 	}
