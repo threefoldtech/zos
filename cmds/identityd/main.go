@@ -166,7 +166,7 @@ func main() {
 		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
 	}
 
-	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, &idMgr)
+	server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, idMgr)
 
 	ctx, cancel := utils.WithSignal(context.Background())
 	// register the cancel function with defer if the process stops because of a update
