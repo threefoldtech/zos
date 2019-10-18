@@ -45,3 +45,78 @@ Workloads that are then provisioned are started in a newly created Container, an
 
 The Network resource itself then handles the routing and firewalling for the containers that are connected to it. Also, the Network Resource takes care of internet connectivity, so that the container can reach out to other services on the Internet.
 
+![like this](NR_layout.png)
+
+Also in a later phase, a User  will be able to add IPv6 prefixes to his Network Resources, so that containers are reachable over IPv6.
+
+Fully-routed IPv6 will then be available, where an Exit NR will be the entrypoint towards that network.
+
+## Network Resource Internals
+
+Each NR is basically a router for the User Network, but to allow NRs to access the Internet through the Node's local connection, there are some other internal routers to be added.
+
+Internally it looks like this :
+
+```text
++------------------------------------------------------------------------------+
+|                                   |wg mesh                                   |
+|    +-------------+          +-----+-------+                                  |
+|    |             |          | NR cust1    |   100.64.0.1/16                  |
+|    | container   +----------+ 10.3.1.0/24 +----------------------+           |
+|    | cust1       |      veth|             | public               |           |
+|    +-------------+          +-------------+                      |           |
+|                                                                  |           |
+|    +-------------+          +-------------+                      |           |
+|    |             |          | NR cust200  |   100.64.0.200/24    |           |
+|    | container   +----------+ 10.3.1.0/24 +----------------------+           |
+|    | cust200     |      veth|             | public               |           |
+|    +-------------+          +------+------+                      |           |
+|                                    |wg mesh                      |           |
+|      10.101.123.34/16                                            |           |
+|      +------------+                                              |tonrs      |
+|      |            |                                    +------------------+  |
+|      |  zos       +------+                             |    100.64.0.1/16 |  |
+|      |            |      |             10.101.12.231/16|  ndmz            |  |
+|      +---+--------+ NIC  +-----------------------------+                  |  |
+|          |               |                     public  +------------------+  |
+|          +--------+------+                                                   |
+|                   |                                                          |
+|                   |                                                          |
++------------------------------------------------------------------------------+
+                    |
+                    |
+                    |
+                    |   10.101.0.0/16                                 10.101.0.1
+ +------------------+------------------------------------------------------------
+
+ NAT
+ --------
+ rules NR custA
+ nft add rule inet nat postrouting oifname public masquerade
+ nft add rule inet filter input iifname public ct state { established, related } accept
+ nft add rule inet filter input iifname public drop
+
+ rules NR custB
+ nft add rule inet nat postrouting oifname public masquerade
+ nft add rule inet filter input iifname public ct state { established, related } accept
+ nft add rule inet filter input iifname public drop
+
+ rules ndmz
+ nft add rule inet nat postrouting oifname public masquerade
+ nft add rule inet filter input iifname public ct state { established, related } accept
+ nft add rule inet filter input iifname public drop
+
+
+ Routing
+
+ if NR only needs to get out:
+ ip route add default via 100.64.0.1 dev public
+
+ if an NR wants to use another NR as exitpoint
+ ip route add default via destnr
+   with for AllowedIPs 0.0.0.0/0 on that wg peer
+
+```
+
+During startup of the Node, the ndmz is put in place, following the configuration if it has a single internet connection , or that with a dual-nic setup, a separate nic is used for internet access.
+
