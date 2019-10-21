@@ -7,25 +7,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/threefoldtech/zos/pkg/provision"
 )
-
-type reservation struct {
-	Reservation *provision.Reservation `json:"reservation"`
-	Result      *provision.Result      `json:"result"`
-	Deleted     bool                   `json:"deleted"`
-	NodeID      string                 `json:"node_id"`
-}
-
-type provisionStore struct {
-	sync.Mutex
-	Reservations []*reservation `json:"reservations"`
-}
 
 var listen string
 
@@ -60,8 +46,7 @@ func main() {
 	router.HandleFunc("/nodes/{node_id}", nodeStore.nodeDetail).Methods("GET")
 	router.HandleFunc("/nodes/{node_id}/interfaces", nodeStore.registerIfaces).Methods("POST")
 	router.HandleFunc("/nodes/{node_id}/ports", nodeStore.registerPorts).Methods("POST")
-	// router.HandleFunc("/nodes/{node_id}/configure_public", configurePublic).Methods("POST")
-	// router.HandleFunc("/nodes/{node_id}/select_exit", chooseExit).Methods("POST")
+	router.HandleFunc("/nodes/{node_id}/configure_public", nodeStore.configurePublic).Methods("POST")
 	router.HandleFunc("/nodes/{node_id}/capacity", nodeStore.registerCapacity).Methods("POST")
 	router.HandleFunc("/nodes", nodeStore.listNodes).Methods("GET")
 

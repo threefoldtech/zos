@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/threefoldtech/zos/pkg/schema"
@@ -13,6 +14,7 @@ import (
 
 type nodeStore struct {
 	Nodes []*directory.TfgridNode2 `json:"nodes"`
+	m     sync.RWMutex
 }
 
 func LoadNodeStore() (nodeStore, error) {
@@ -34,6 +36,9 @@ func LoadNodeStore() (nodeStore, error) {
 }
 
 func (s *nodeStore) Save() error {
+	s.m.RLock()
+	defer s.m.RUnlock()
+
 	f, err := os.OpenFile("nodes.json", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0660)
 	if err != nil {
 		return err
@@ -46,10 +51,18 @@ func (s *nodeStore) Save() error {
 }
 
 func (s *nodeStore) List() []*directory.TfgridNode2 {
-	return s.Nodes
+	s.m.RLock()
+	defer s.m.RUnlock()
+	out := make([]*directory.TfgridNode2, len(s.Nodes))
+
+	copy(out, s.Nodes)
+	return out
 }
 
 func (s *nodeStore) Get(nodeID string) (*directory.TfgridNode2, error) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+
 	for _, n := range s.Nodes {
 		if n.NodeID == nodeID {
 			return n, nil
@@ -59,6 +72,9 @@ func (s *nodeStore) Get(nodeID string) (*directory.TfgridNode2, error) {
 }
 
 func (s *nodeStore) Add(node directory.TfgridNode2) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+
 	for i, n := range s.Nodes {
 		if n.NodeID == node.NodeID {
 			s.Nodes[i].FarmID = node.FarmID
