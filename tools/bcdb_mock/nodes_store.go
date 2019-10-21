@@ -124,6 +124,18 @@ func (s *nodeStore) updateCapacity(nodeID string, t string, cap directory.Tfgrid
 	return nil
 }
 
+func (s *nodeStore) updateUptime(nodeID string, uptime int64) error {
+	node, err := s.Get(nodeID)
+	if err != nil {
+		return err
+	}
+
+	node.Uptime = uptime
+	node.Updated = schema.Date{time.Now()}
+
+	return nil
+}
+
 func (s *nodeStore) SetInterfaces(nodeID string, ifaces []directory.TfgridNodeIface1) error {
 	node, err := s.Get(nodeID)
 	if err != nil {

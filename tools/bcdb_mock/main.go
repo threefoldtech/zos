@@ -53,6 +53,7 @@ func main() {
 	router.HandleFunc("/nodes/{node_id}/ports", nodeStore.registerPorts).Methods("POST")
 	router.HandleFunc("/nodes/{node_id}/configure_public", nodeStore.configurePublic).Methods("POST")
 	router.HandleFunc("/nodes/{node_id}/capacity", nodeStore.registerCapacity).Methods("POST")
+	router.HandleFunc("/nodes/{node_id}/uptime", nodeStore.updateUptimeHandler).Methods("POST")
 	router.HandleFunc("/nodes", nodeStore.listNodes).Methods("GET")
 
 	router.HandleFunc("/farms", farmStore.registerFarm).Methods("POST")

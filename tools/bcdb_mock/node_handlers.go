@@ -194,41 +194,24 @@ func (s *nodeStore) registerPorts(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// func registerFarm(w http.ResponseWriter, r *http.Request) {
-// 	log.Println("farm register request received")
+func (s *nodeStore) updateUptimeHandler(w http.ResponseWriter, r *http.Request) {
 
-// 	defer r.Body.Close()
+	defer r.Body.Close()
 
-// 	info := farmInfo{}
-// 	if err := json.NewDecoder(r.Body).Decode(&info); err != nil {
-// 		http.Error(w, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
+	input := struct {
+		Uptime uint64
+	}{}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		httpError(w, err, http.StatusBadRequest)
+		return
+	}
 
-// 	farmStore[info.ID] = &info
-// 	w.WriteHeader(http.StatusCreated)
-// }
+	nodeID := mux.Vars(r)["node_id"]
+	fmt.Printf("node uptime received %s %d\n", nodeID, input.Uptime)
 
-// func listFarm(w http.ResponseWriter, r *http.Request) {
-// 	var farms = make([]*farmInfo, 0, len(farmStore))
-// 	for _, info := range farmStore {
-// 		farms = append(farms, info)
-// 	}
-
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	_ = json.NewEncoder(w).Encode(farms)
-// }
-
-// func getFarm(w http.ResponseWriter, r *http.Request) {
-// 	farmID := mux.Vars(r)["farm_id"]
-// 	farm, ok := farmStore[farmID]
-// 	if !ok {
-// 		http.Error(w, fmt.Sprintf("farm %s not found", farmID), http.StatusNotFound)
-// 		return
-// 	}
-
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	_ = json.NewEncoder(w).Encode(farm)
-// }
+	if err := s.updateUptime(nodeID, int64(input.Uptime)); err != nil {
+		httpError(w, err, http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
