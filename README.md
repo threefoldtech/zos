@@ -22,7 +22,7 @@ If you want to contribute read the [contribution guideline](CONTRIBUTING.md) and
 - **test network**: Mostly stable features that need to be tested at scale, allow preview and test of new features. Always the latest and greatest. This network can be reset sometimes, but should be relatively stable. Uses BCDB hosted at `bcdb.test.grid.tf:8901`
 - **dev network**: ephemeral network only setup to develop and test new features. Can be created and reset at anytime. Uses a [mock of BCDB](tools/bcdb_mock) hosted at `https://bcdb.dev.grid.tf`. This mock is also meant for developer to run locally in their development environment.
 
-Learn more about the different network by reading the [upgrade documentation](docs/upgrade/readme.md#philosophy)
+Learn more about the different network by reading the [upgrade documentation](/docs/identity/upgrade.md#philosophy)
 
 ## Owners
 
