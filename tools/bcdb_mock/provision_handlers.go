@@ -1,5 +1,14 @@
 package main
 
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/threefoldtech/zos/pkg/provision"
+)
+
 // import (
 // 	"encoding/json"
 // 	"fmt"
@@ -12,39 +21,27 @@ package main
 // 	"github.com/threefoldtech/zos/pkg/provision"
 // )
 
-// func reserve(w http.ResponseWriter, r *http.Request) {
-// 	nodeID := mux.Vars(r)["node_id"]
+func (s *provisionStore) reserve(w http.ResponseWriter, r *http.Request) {
+	nodeID := mux.Vars(r)["node_id"]
 
-// 	_, ok := nodeStore[nodeID]
-// 	if !ok {
-// 		http.Error(w, fmt.Sprintf("node %s not found", nodeID), http.StatusNotFound)
-// 		return
-// 	}
+	defer r.Body.Close()
+	res := &provision.Reservation{}
+	if err := json.NewDecoder(r.Body).Decode(res); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-// 	defer r.Body.Close()
-// 	res := &provision.Reservation{}
-// 	if err := json.NewDecoder(r.Body).Decode(res); err != nil {
-// 		http.Error(w, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
+	if err := provision.Verify(res); err != nil {
+		errmsg := fmt.Sprintf("reservation signature invalid: %s", err.Error())
+		http.Error(w, errmsg, http.StatusBadRequest)
+		return
+	}
 
-// 	if err := provision.Verify(res); err != nil {
-// 		errmsg := fmt.Sprintf("reservation signature invalid: %s", err.Error())
-// 		http.Error(w, errmsg, http.StatusBadRequest)
-// 		return
-// 	}
+	s.Add(nodeID, res)
 
-// 	provStore.Lock()
-// 	defer provStore.Unlock()
-
-// 	res.ID = fmt.Sprintf("r-%d", len(provStore.Reservations))
-// 	provStore.Reservations = append(provStore.Reservations, &reservation{
-// 		Reservation: res,
-// 		NodeID:      nodeID,
-// 	})
-// 	w.Header().Set("Location", "/reservations/"+res.ID)
-// 	w.WriteHeader(http.StatusCreated)
-// }
+	w.Header().Set("Location", "/reservations/"+res.ID)
+	w.WriteHeader(http.StatusCreated)
+}
 
 // func pollReservations(w http.ResponseWriter, r *http.Request) {
 // 	nodeID := mux.Vars(r)["node_id"]

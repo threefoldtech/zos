@@ -28,6 +28,11 @@ func main() {
 	if err != nil {
 		log.Fatalln("error loading farm store: %v", err)
 	}
+	provStore, err := LoadProvisionStore()
+	if err != nil {
+		log.Fatalln("error loading provision store: %v", err)
+	}
+
 	// provStore = &provisionStore{Reservations: make([]*reservation, 0, 20)}
 
 	defer func() {
@@ -61,7 +66,7 @@ func main() {
 	// router.HandleFunc("/allocations", listAlloc).Methods("GET")
 	// router.HandleFunc("/allocations/{node_id}", getAlloc).Methods("GET")
 
-	// router.HandleFunc("/reservations/{node_id}", reserve).Methods("POST")
+	router.HandleFunc("/reservations/{node_id}", nodeStore.Requires("node_id", provStore.reserve)).Methods("POST")
 	// router.HandleFunc("/reservations/{node_id}/poll", pollReservations).Methods("GET")
 	// router.HandleFunc("/reservations/{id}", getReservation).Methods("GET")
 	// router.HandleFunc("/reservations/{id}", reservationResult).Methods("PUT")

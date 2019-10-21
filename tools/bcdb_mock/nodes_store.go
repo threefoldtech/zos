@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
 
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
@@ -149,4 +152,23 @@ func (s *nodeStore) SetWGPorts(nodeID string, ports []uint) error {
 
 	node.WGPorts = ports
 	return nil
+}
+
+func (s *nodeStore) Requires(key string, handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		nodeID, ok := mux.Vars(r)[key]
+		if !ok {
+			// programming error, we should panic in this case
+			panic("invalid node-id key")
+		}
+
+		_, err := s.Get(nodeID)
+		if err != nil {
+			// node not found
+			httpError(w, errors.Wrap(err, "node not found"), http.StatusNotFound)
+			return
+		}
+
+		handler(w, r)
+	}
 }

@@ -6,7 +6,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
@@ -22,9 +21,9 @@ type provisionStore struct {
 	m            sync.RWMutex
 }
 
-func LoadProvisionStore() (nodeStore, error) {
-	store := nodeStore{
-		Nodes: []*directory.TfgridNode2{},
+func LoadProvisionStore() (provisionStore, error) {
+	store := provisionStore{
+		Reservations: []*reservation{},
 	}
 	f, err := os.OpenFile("reservations.json", os.O_RDONLY, 0660)
 	if err != nil {
@@ -77,10 +76,13 @@ func (s *provisionStore) Get(ID string) (*reservation, error) {
 	return nil, fmt.Errorf("reservation %s not found", ID)
 }
 
-func (s *provisionStore) Add(r reservation) error {
+func (s *provisionStore) Add(nodeID string, res *provision.Reservation) error {
 	s.m.Lock()
 	defer s.m.Unlock()
-
-	s.Reservations = append(s.Reservations, &r)
+	res.ID = fmt.Sprintf("r-%d", len(s.Reservations))
+	s.Reservations = append(s.Reservations, &reservation{
+		NodeID:      nodeID,
+		Reservation: res,
+	})
 	return nil
 }
