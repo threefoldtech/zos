@@ -12,7 +12,7 @@ Once initialized, with the network daemon running (a process that will handle al
 
 ## networkd functionality
 
-The network daemon is in itself responsible for a few tasks, and working together with the provision daemon it mainly sets up the local infrastructure to get the user network resources, together with the wireguard configurations for the user's mesh network.
+The network daemon is in itself responsible for a few tasks, and working together with the [provision daemon](../provision) it mainly sets up the local infrastructure to get the user network resources, together with the wireguard configurations for the user's mesh network.
 
 The Wireguard mesh is an overlay network. That means that traffic of that network is encrypted and encapsulated in a new traffic frame that the gets transferred over the underlay network, here in essence the network that has been set up during boot of the node.
 
