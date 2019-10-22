@@ -96,6 +96,10 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
+	if err := os.MkdirAll(root, 0750); err != nil {
+		log.Fatal().Err(err).Str("root", root).Msg("failed to create root directory")
+	}
+
 	zinit, err := zinit.New(zinitSocket)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to zinit")
