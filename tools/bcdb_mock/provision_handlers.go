@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -43,109 +46,70 @@ func (s *provisionStore) reserve(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// func pollReservations(w http.ResponseWriter, r *http.Request) {
-// 	nodeID := mux.Vars(r)["node_id"]
-// 	var since time.Time
-// 	s := r.URL.Query().Get("since")
-// 	if s == "" {
-// 		// if since is not specificed, send all reservation since last hour
-// 		since = time.Now().Add(-time.Hour)
-// 	} else {
-// 		timestamp, err := strconv.ParseInt(s, 10, 64)
-// 		if err != nil {
-// 			http.Error(w, "since query argument format not valid", http.StatusBadRequest)
-// 			return
-// 		}
-// 		since = time.Unix(timestamp, 0)
-// 	}
+func (s *provisionStore) poll(w http.ResponseWriter, r *http.Request) {
+	nodeID := mux.Vars(r)["node_id"]
+	var since time.Time
+	sinceStr := r.URL.Query().Get("since")
+	if sinceStr == "" {
+		// if since is not specificed, send all reservation since last hour
+		since = time.Now().Add(-time.Hour)
+	} else {
+		timestamp, err := strconv.ParseInt(sinceStr, 10, 64)
+		if err != nil {
+			http.Error(w, "since query argument format not valid", http.StatusBadRequest)
+			return
+		}
+		since = time.Unix(timestamp, 0)
+	}
 
-// 	_, ok := nodeStore[nodeID]
-// 	if !ok {
-// 		http.Error(w, fmt.Sprintf("node %s not found", nodeID), http.StatusNotFound)
-// 		return
-// 	}
+	all, err := strconv.ParseBool(r.URL.Query().Get("all"))
+	if err != nil {
+		all = false
+	}
 
-// 	all, err := strconv.ParseBool(r.URL.Query().Get("all"))
-// 	if err != nil {
-// 		all = false
-// 	}
+	output := []*provision.Reservation{}
+	if all {
+		// just get all reservation for this nodeID
+		output = s.GetReservations(nodeID, all, since)
+	} else {
+		// otherwise start long polling
+		timeout := time.Now().Add(time.Second * 20)
+		for {
+			output = s.GetReservations(nodeID, all, since)
+			if len(output) > 0 {
+				break
+			}
 
-// 	output := []*provision.Reservation{}
-// 	if all {
-// 		// just get all reservation for this nodeID
-// 		output = getRes(nodeID, all, since)
-// 	} else {
-// 		// otherwise start long polling
-// 		timeout := time.Now().Add(time.Second * 20)
-// 		for {
-// 			output = getRes(nodeID, all, since)
-// 			if len(output) > 0 {
-// 				break
-// 			}
+			if time.Now().After(timeout) {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+	}
 
-// 			if time.Now().After(timeout) {
-// 				break
-// 			}
-// 			time.Sleep(time.Second)
-// 		}
-// 	}
+	w.Header().Add("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(output); err != nil {
+		log.Printf("error encoding empty reservation slice: %v", err)
+	}
+}
 
-// 	w.Header().Add("content-type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	if err := json.NewEncoder(w).Encode(output); err != nil {
-// 		log.Printf("error encoding empty reservation slice: %v", err)
-// 	}
-// }
+func (s *provisionStore) get(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
 
-// func getRes(nodeID string, all bool, since time.Time) []*provision.Reservation {
-// 	output := []*provision.Reservation{}
+	reservation, err := s.Get(id)
+	if err != nil {
+		httpError(w, err, http.StatusNotFound)
+		return
+	}
 
-// 	provStore.Lock()
-// 	defer provStore.Unlock()
+	w.Header().Add("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
-// 	for _, r := range provStore.Reservations {
-// 		// skip reservation aimed at another node
-// 		if r.NodeID != nodeID {
-// 			continue
-// 		}
-
-// 		if all ||
-// 			(!r.Reservation.Expired() && since.Before(r.Reservation.Created)) ||
-// 			(r.Reservation.ToDelete && !r.Deleted) {
-// 			output = append(output, r.Reservation)
-// 		}
-// 	}
-
-// 	return output
-// }
-
-// func getReservation(w http.ResponseWriter, r *http.Request) {
-// 	id := mux.Vars(r)["id"]
-
-// 	provStore.Lock()
-// 	defer provStore.Unlock()
-
-// 	w.Header().Add("content-type", "application/json")
-
-// 	obj := struct {
-// 		Reservation *provision.Reservation `json:"reservation"`
-// 		Result      *provision.Result      `json:"result"`
-// 	}{}
-
-// 	for _, r := range provStore.Reservations {
-// 		if r.Reservation.ID == id {
-// 			w.WriteHeader(http.StatusOK)
-// 			obj.Reservation = r.Reservation
-// 			obj.Result = r.Result
-// 			if err := json.NewEncoder(w).Encode(obj); err != nil {
-// 				log.Printf("error during json encoding of reservation: %v", err)
-// 			}
-// 			return
-// 		}
-// 	}
-
-// 	w.WriteHeader(http.StatusNotFound)
-// }
+	if err := json.NewEncoder(w).Encode(reservation.Reservation); err != nil {
+		log.Printf("error during json encoding of reservation: %v", err)
+	}
+}
 
 // func reservationResult(w http.ResponseWriter, r *http.Request) {
 // 	id := mux.Vars(r)["id"]

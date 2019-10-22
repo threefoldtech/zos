@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/threefoldtech/zos/pkg/provision"
 )
@@ -85,4 +86,26 @@ func (s *provisionStore) Add(nodeID string, res *provision.Reservation) error {
 		Reservation: res,
 	})
 	return nil
+}
+
+func (s *provisionStore) GetReservations(nodeID string, all bool, since time.Time) []*provision.Reservation {
+	output := []*provision.Reservation{}
+
+	s.m.RLock()
+	defer s.m.RUnlock()
+
+	for _, r := range s.Reservations {
+		// skip reservation aimed at another node
+		if r.NodeID != nodeID {
+			continue
+		}
+
+		if all ||
+			(!r.Reservation.Expired() && since.Before(r.Reservation.Created)) ||
+			(r.Reservation.ToDelete && !r.Deleted) {
+			output = append(output, r.Reservation)
+		}
+	}
+
+	return output
 }
