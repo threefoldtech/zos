@@ -63,9 +63,6 @@ func main() {
 	// compatibility with gedis_http
 	router.HandleFunc("/nodes/list", resStore.cockpitListNodes).Methods("POST")
 	router.HandleFunc("/farms/list", farmStore.cockpitListFarm).Methods("POST")
-	// router.HandleFunc("/allocations", registerAlloc).Methods("POST")
-	// router.HandleFunc("/allocations", listAlloc).Methods("GET")
-	// router.HandleFunc("/allocations/{node_id}", getAlloc).Methods("GET")
 
 	router.HandleFunc("/reservations/{node_id}", resStore.Requires("node_id", provStore.reserve)).Methods("POST")
 	router.HandleFunc("/reservations/{node_id}/poll", resStore.Requires("node_id", provStore.poll)).Methods("GET")
