@@ -51,7 +51,7 @@ Wireguard is a special type of VPN, where every instance is as well server for m
 ![like so](https://github.com/threefoldtech/zos/blob/master/specs/network/HIDDEN-PUBLIC.png)
 
 - **wireguard port management**  
-Every wireguard point (a network resource point) needs a destination/port combo when it's  publicly reachable. The destination is a public ip, but the port is the differentiator. So we need to make sure every nwetwork wireguard listening port is unique in the node wehere it runs, and can be reapplied in case of a node's reboot.
+Every wireguard point (a network resource point) needs a destination/port combo when it's  publicly reachable. The destination is a public ip, but the port is the differentiator. So we need to make sure every network wireguard listening port is unique in the node where it runs, and can be reapplied in case of a node's reboot.
 ZOS registers the ports **already in use** to the BCDB, so a user can the pick a port that is not yet used.
 
 - **wireguard and hidden nodes**  
