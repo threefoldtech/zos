@@ -2,7 +2,7 @@
 
 ## Boot and initial setup
 
-At boot, be it from an usb stick or PXE, ZOS starts up the kernel, with a few necessary parameters like farmerid and/or possible network parameters, but basically once the kernel has started, zinit among other things, starts the network initializer.
+At boot, be it from an usb stick or PXE, ZOS starts up the kernel, with a few necessary parameters like farm ID and/or possible network parameters, but basically once the kernel has started, [zinit](https://github.com/threefoldtech/zinit) among other things, starts the network initializer.
 
 In short, that process loops over the available network interfaces and tries to obtain an IP address that also provides for a default gateway. That means: it tries to get Internet connectivity. Without it, ZOS stops there, as not being able to register itself, nor start other processes, there wouldn't be any use for it to be started anyway.
 
