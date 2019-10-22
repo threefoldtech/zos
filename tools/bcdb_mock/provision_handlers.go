@@ -24,7 +24,7 @@ import (
 // 	"github.com/threefoldtech/zos/pkg/provision"
 // )
 
-func (s *provisionStore) reserve(w http.ResponseWriter, r *http.Request) {
+func (s *reservationsStore) reserve(w http.ResponseWriter, r *http.Request) {
 	nodeID := mux.Vars(r)["node_id"]
 
 	defer r.Body.Close()
@@ -46,7 +46,7 @@ func (s *provisionStore) reserve(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *provisionStore) poll(w http.ResponseWriter, r *http.Request) {
+func (s *reservationsStore) poll(w http.ResponseWriter, r *http.Request) {
 	nodeID := mux.Vars(r)["node_id"]
 	var since time.Time
 	sinceStr := r.URL.Query().Get("since")
@@ -94,7 +94,7 @@ func (s *provisionStore) poll(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *provisionStore) get(w http.ResponseWriter, r *http.Request) {
+func (s *reservationsStore) get(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	reservation, err := s.Get(id)
@@ -111,7 +111,7 @@ func (s *provisionStore) get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *provisionStore) setResult(w http.ResponseWriter, r *http.Request) {
+func (s *reservationsStore) putResult(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	reservation, err := s.Get(id)
@@ -132,47 +132,33 @@ func (s *provisionStore) setResult(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// func reservationDeleted(w http.ResponseWriter, r *http.Request) {
-// 	id := mux.Vars(r)["id"]
+func (s *reservationsStore) putDeleted(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
 
-// 	provStore.Lock()
-// 	defer provStore.Unlock()
+	reservation, err := s.Get(id)
+	if err != nil {
+		httpError(w, err, http.StatusNotFound)
+		return
+	}
 
-// 	var rsvt *reservation
-// 	for _, rsvt = range provStore.Reservations {
-// 		if rsvt.Reservation.ID == id {
-// 			break
-// 		}
-// 	}
+	reservation.Deleted = true
 
-// 	if r == nil {
-// 		http.Error(w, fmt.Sprintf("reservation %s not found", id), http.StatusNotFound)
-// 		return
-// 	}
+	w.WriteHeader(http.StatusOK)
 
-// 	rsvt.Deleted = true
+}
 
-// 	w.WriteHeader(http.StatusOK)
+func (s *reservationsStore) delete(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
 
-// }
+	w.Header().Add("content-type", "application/json")
 
-// func deleteReservation(w http.ResponseWriter, r *http.Request) {
-// 	id := mux.Vars(r)["id"]
+	reservation, err := s.Get(id)
+	if err != nil {
+		httpError(w, err, http.StatusNotFound)
+		return
+	}
 
-// 	provStore.Lock()
-// 	defer provStore.Unlock()
+	reservation.Reservation.ToDelete = true
 
-// 	w.Header().Add("content-type", "application/json")
-
-// 	for _, r := range provStore.Reservations {
-// 		if r.Reservation.ID == id {
-
-// 			r.Reservation.ToDelete = true
-
-// 			w.WriteHeader(http.StatusOK)
-// 			return
-// 		}
-// 	}
-
-// 	w.WriteHeader(http.StatusNotFound)
-// }
+	w.WriteHeader(http.StatusOK)
+}

@@ -17,13 +17,13 @@ type reservation struct {
 	NodeID      string                 `json:"node_id"`
 }
 
-type provisionStore struct {
+type reservationsStore struct {
 	Reservations []*reservation `json:"reservations"`
 	m            sync.RWMutex
 }
 
-func LoadProvisionStore() (provisionStore, error) {
-	store := provisionStore{
+func LoadProvisionStore() (reservationsStore, error) {
+	store := reservationsStore{
 		Reservations: []*reservation{},
 	}
 	f, err := os.OpenFile("reservations.json", os.O_RDONLY, 0660)
@@ -40,7 +40,7 @@ func LoadProvisionStore() (provisionStore, error) {
 	return store, nil
 }
 
-func (s *provisionStore) Save() error {
+func (s *reservationsStore) Save() error {
 	s.m.RLock()
 	defer s.m.RUnlock()
 
@@ -55,7 +55,7 @@ func (s *provisionStore) Save() error {
 	return nil
 }
 
-func (s *provisionStore) List() []*reservation {
+func (s *reservationsStore) List() []*reservation {
 	s.m.RLock()
 	defer s.m.RUnlock()
 	out := make([]*reservation, len(s.Reservations))
@@ -64,7 +64,7 @@ func (s *provisionStore) List() []*reservation {
 	return out
 }
 
-func (s *provisionStore) Get(ID string) (*reservation, error) {
+func (s *reservationsStore) Get(ID string) (*reservation, error) {
 	s.m.RLock()
 	defer s.m.RUnlock()
 
@@ -77,7 +77,7 @@ func (s *provisionStore) Get(ID string) (*reservation, error) {
 	return nil, fmt.Errorf("reservation %s not found", ID)
 }
 
-func (s *provisionStore) Add(nodeID string, res *provision.Reservation) error {
+func (s *reservationsStore) Add(nodeID string, res *provision.Reservation) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	res.ID = fmt.Sprintf("r-%d", len(s.Reservations))
@@ -88,7 +88,7 @@ func (s *provisionStore) Add(nodeID string, res *provision.Reservation) error {
 	return nil
 }
 
-func (s *provisionStore) GetReservations(nodeID string, all bool, since time.Time) []*provision.Reservation {
+func (s *reservationsStore) GetReservations(nodeID string, all bool, since time.Time) []*provision.Reservation {
 	output := []*provision.Reservation{}
 
 	s.m.RLock()
