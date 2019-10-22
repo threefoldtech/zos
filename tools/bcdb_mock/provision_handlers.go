@@ -111,37 +111,26 @@ func (s *provisionStore) get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func reservationResult(w http.ResponseWriter, r *http.Request) {
-// 	id := mux.Vars(r)["id"]
+func (s *provisionStore) setResult(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
 
-// 	provStore.Lock()
+	reservation, err := s.Get(id)
+	if err != nil {
+		httpError(w, err, http.StatusNotFound)
+		return
+	}
 
-// 	var rsvt *reservation
-// 	for _, rsvt = range provStore.Reservations {
-// 		if rsvt.Reservation.ID == id {
-// 			break
-// 		}
-// 	}
-// 	provStore.Unlock()
+	w.Header().Add("content-type", "application/json")
 
-// 	if r == nil {
-// 		http.Error(w, fmt.Sprintf("reservation %s not found", id), http.StatusNotFound)
-// 		return
-// 	}
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&reservation.Result); err != nil {
+		log.Printf("failed to decode reservation result: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-// 	w.Header().Add("content-type", "application/json")
-
-// 	defer r.Body.Close()
-// 	result := &provision.Result{}
-// 	if err := json.NewDecoder(r.Body).Decode(result); err != nil {
-// 		log.Printf("failed to decode reservation result: %v", err)
-// 		http.Error(w, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
-// 	rsvt.Result = result
-
-// 	w.WriteHeader(http.StatusOK)
-// }
+	w.WriteHeader(http.StatusOK)
+}
 
 // func reservationDeleted(w http.ResponseWriter, r *http.Request) {
 // 	id := mux.Vars(r)["id"]

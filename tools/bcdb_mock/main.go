@@ -70,7 +70,7 @@ func main() {
 	router.HandleFunc("/reservations/{node_id}", nodeStore.Requires("node_id", provStore.reserve)).Methods("POST")
 	router.HandleFunc("/reservations/{node_id}/poll", nodeStore.Requires("node_id", provStore.poll)).Methods("GET")
 	router.HandleFunc("/reservations/{id}", provStore.get).Methods("GET")
-	// router.HandleFunc("/reservations/{id}", reservationResult).Methods("PUT")
+	router.HandleFunc("/reservations/{id}", provStore.putResult).Methods("PUT")
 	// router.HandleFunc("/reservations/{id}/deleted", reservationDeleted).Methods("PUT")
 	// router.HandleFunc("/reservations/{id}", deleteReservation).Methods("DELETE")
 
