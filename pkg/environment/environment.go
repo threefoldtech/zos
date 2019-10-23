@@ -99,7 +99,7 @@ func getEnvironmentFromParams(params kernel.Params) Environment {
 	}
 
 	farmerID, found := params.Get("farmer_id")
-	if !found || farmerID[0] == "" {
+	if !found || len(farmerID) < 1 || farmerID[0] == "" {
 		// fmt.Println("Warning: no valid farmer_id found in kernel parameter, fallback to orphanage")
 		env.Orphan = true
 
