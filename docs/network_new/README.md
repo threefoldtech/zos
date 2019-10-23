@@ -56,7 +56,7 @@ Every wireguard point (a network resource point) needs a destination/port combo 
 ZOS registers the ports **already in use** to the BCDB, so a user can the pick a port that is not yet used.
 
 - **wireguard and hidden nodes**  
-Hidden nodes are nodes that are in essence hidden behind a firewall, and unreachable from the Internet to an internal net, be it as an IPv4 NATed host or an IPv6 host that is firewalled in any way, where it's impossible to have connection initiations form the Internet to the node.  
+Hidden nodes are nodes that are in essence hidden behind a firewall, and unreachable from the Internet to an internal network, be it as an IPv4 NATed host or an IPv6 host that is firewalled in any way, where it's impossible to have connection initiations form the Internet to the node.  
 As such, these nodes can only partake in a network as client-only towards publicly reachable peers, and can only initiate the connections themselves. (ref previous drawing).  
 To make sure connectivity stays up, the clients (all) have a keepalive towards all their peers so that communications towards network resources in hidden nodes can be established.
 
