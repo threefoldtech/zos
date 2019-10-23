@@ -16,7 +16,7 @@ Hidden nodes can thus only be participating as client nodes for a specific user 
 Also, a Mesh is static: once it is configured, and thus during the lifetime of the network, there is one node containing the aggregator for Mesh clients that live on hidden nodes. So if then an aggregator node has died or is not reachable any more, the mesh needs to be reapplied, with __some__ publicly reachable node as aggregator node.
 
 So it goes a bit like ![this](HIDDEN-PUBLIC.png)
-The Exit labeled NR in that graph is the poing where Network Resources in Hidden Nodes connect to. These Exit NRs are then the transfer nodes between Hidden NRs.
+The Exit labeled NR in that graph is the point where Network Resources in Hidden Nodes connect to. These Exit NRs are then the transfer nodes between Hidden NRs.
 
 ## ZOS networkd
 
@@ -61,13 +61,13 @@ Internally it looks like this :
 +------------------------------------------------------------------------------+
 |                                   |wg mesh                                   |
 |    +-------------+          +-----+-------+                                  |
-|    |             |          | NR cust1    |   100.64.0.1/16                  |
+|    |             |          | NR cust1    |   100.64.0.123/16                |
 |    | container   +----------+ 10.3.1.0/24 +----------------------+           |
 |    | cust1       |      veth|             | public               |           |
 |    +-------------+          +-------------+                      |           |
 |                                                                  |           |
 |    +-------------+          +-------------+                      |           |
-|    |             |          | NR cust200  |   100.64.0.200/24    |           |
+|    |             |          | NR cust200  |   100.64.4.200/16    |           |
 |    | container   +----------+ 10.3.1.0/24 +----------------------+           |
 |    | cust200     |      veth|             | public               |           |
 |    +-------------+          +------+------+                      |           |
@@ -120,3 +120,4 @@ Internally it looks like this :
 
 During startup of the Node, the ndmz is put in place, following the configuration if it has a single internet connection , or that with a dual-nic setup, a separate nic is used for internet access.
 
+The ndmz network has the carrier-grade nat allocation assigned, so we don'tinterfere with RFC1918 private IPv4 address space, so users can use any of them (and not any of `100.64.0.0/10`, of course)

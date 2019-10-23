@@ -56,42 +56,51 @@ That means that there would be two networks, either by different physical switch
 
 A Node, being part of the Grid, has no concept of 'Farmer'. The only relationship for a Node with a Farmer is the fact that that is registered 'somewhere (TM)', and that a such workloads on a Node will be remunerated with Tokens. For the rest, a Node is a wholly stand-alone thing that participates in the Grid.
 
-```+----------------------------------------------------------------------------------------------------------------------------+
+```text
+                                           172.16.1.0/24
+                                           2a02:1807:1100:10::/64
++--------------------------------------+
+| +--------------+                     |                    +-----------------------+
+| |Node  ZOS     |             +-------+                    |                       |
+| |              +-------------+1GBit  +--------------------+   1GBit switch        |
+| |              | br-zos      +-------+                    |                       |
+| |              |                     |                    |                       |
+| |              |                     |                    |                       |
+| |              |                     |                    +------------------+----+
+| +--------------+                     |                                       |          +-----------+
+|                                      |                      OOB Network      |          |           |
+|                                      |                                       +----------+ ROUTER    |
+|                                      |                                                  |           |
+|                                      |                                                  |           |
+|                                      |                                                  |           |
+|                    +------------+    |                                       +----------+           |
+|                    |  Public    |    |                                       |          |           |
+|                    | container  |    |                                       |          +-----+-----+
+|                    |            |    |                                       |                |
+|                    |            |    |                                       |                |
+|                    +---+--------+    |                   +-------------------+--------+       |
+|                        |             |                   |  10GBit Switch             |       |
+|                  br-pub|     +-------+                   |                            |       |
+|                        +-----+10GBit +-------------------+                            |       +---------->
+|                              +-------+                   |                            |        Internet
+|                                      |                   |                            |
+|                                      |                   +----------------------------+
++--------------------------------------+
+                                          185.69.167.128/26        Public network
+                                          2a02:1807:1100:0::/64
 
-                                                                                172.16.1.0/24
-                                                                                2a02:1807:1100:10::/64
-
-  +------------------------------------------------------------------------------------+
-  |                                                                                    |                    +-----------------------+
-  |                                                                                    |                    |                       |
-  |                                                                                    |                    |   1GBit switch        |
-  |                                                                                    |                    |                       |
-  |                                                                                    |                    |                       |
-  |                                                                                    |                    |                       |
-  |                                                                                    |                    +-----------------------+
-  |                                                                                    |                                                  +-----------+
-  |                                                                                    |                                                  |           |
-  |                                                                                    |                                                  | ROUTER    |
-  |                                                                                    |                                                  |           |
-  |                                                                                    |                                                  |           |
-  |                                                                                    |                                                  |           |
-  |                                                                                    |                                                  |           |
-  |                                                                                    |                                                  |           |
-  |                                                                                    |                                                  +-----------+
-  |                                                                                    |
-  |                                                                                    |
-  |                                                                                    |                   +----------------------------+
-  |                                                                                    |                   |  10GBit Switch             |
-  |                                                                                    |                   |                            |
-  |                                                                                    |                   |                            |
-  |                                                                                    |                   |                            |
-  |                                                                                    |                   |                            |
-  |                                                                                    |                   +----------------------------+
-  +------------------------------------------------------------------------------------+
-
-
-                                                 185.69.167.128/26
-                                                 2a02:1807:1100:0::/64
-
-+----------------------------------------------------------------------------------------------------------------------------+
 ```
+
+Where the underlay part of the wireguard interfaces get instantiated in the Public container (namespace), and once created these wireuard interfacesget sent into the User Network (Network Resource), where a user can then configure the interface a he sees fit.
+
+The router of the farmer fulfills 2 roles:
+
+- NAT everything in the OOB network to the outside, so that nodes can start and register themselves, as well get tasks to execute from the BCDB.
+- Route the assigned IPv4 subnet and IPv6 public prefix on the public segment, to which the public container is connected.
+
+As such, in case that the farmer wants to provide IPv4 public access for grid proxies, the node will need at least one (1) IPv4 address. It's free to the farmer to assign IPv4 addresses to only a part of the Nodes.
+OTOH, it is quite important to have a proper IPv6 setup, because things will work out better.
+
+It's the Farmer's task to set up the Router and the switches.
+
+In a simpler setup (small number of nodes for instance), the farmer could setup a single switch and make 2 port-based VLANs to separate OOB and Public, or even wit single-nic nodes, just put them directly on the public segment, but then he will have to provide a DHCP server on the Public network.
