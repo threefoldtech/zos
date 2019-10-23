@@ -74,7 +74,7 @@ func getEnvironmentFromParams(params kernel.Params) Environment {
 	var env Environment
 
 	runmode, found := params.Get("runmode")
-	if !found {
+	if !found || len(runmode) < 1 {
 		// Fallback to default production mode
 		runmode = []string{string(RunningMain)}
 	}
