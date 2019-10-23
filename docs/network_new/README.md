@@ -25,7 +25,7 @@ As the nodes do not have any way to be accessed, be it over the underlaying netw
 ## Techie talk
 
 - **boot and initial setup**  
-For ZOS to work at all (the network is the computer), it needs an internet connection. That is: it needs to be able the BCDB over the internet.  
+For ZOS to work at all (the network is the computer), it needs an internet connection. That is: it needs to be able to communicate with the BCDB over the internet.  
 So ZOS starts with that: with the `internet` process, that tries go get the node to receive an IP address. That process will have set-up a bridge (`zos`), connected to an interface that is on an Internet-capable network. That bridge will have an IP address that has Internet access.
 Also, that bridge is there for future public interfaces into workloads.  
 Once ZOS can reach the Internet, the rest of the system can be  started, where ultimately, the `networkd` daemon is started.
