@@ -35,13 +35,14 @@ Once ZOS can reach the Internet, the rest of the system can be  started, where u
 These tasks are mostly setting up network resources for users, where a network resource is a subnet in the user's wireguard mesh.
 
 - **multi-nic setups**  
+
 When someone is a farmer, exploiting nodes somewhere in a datacentre, where the nodes have multiple NICs, it is advisable (though not necessary) to differentiate OOB traffic (like initial boot setup) from user traffic (as well the overlay network as the outgoing NAT for nodes for IPv4) to be on a different NIC. With these parameters, a user will have to make sure their switches are properly configured, more in docs later.
 
 - **registering and configurations**  
+
 Once a node has booted and properly initialized, registering and configuring the node to be able to accept workloads and their associated network configs, is a two-step process.  
 First, the node registers it's live network setup to the BCDB. That is : all NICs with their associated IP addresses and routes are registered so a farm admin can in a second phase configure eventual separate NICs to handle different kinds of workloads.
 In that secondary phase, a farm admin can then set-up the NICs and their associated IP's manually, so that workloads can start using them.
-- **farmer considerations**  
 
 
 ## wireguard explanations
@@ -72,13 +73,3 @@ So for now, a farmer is better off to have his nodes really reachable over a pub
 While the mesh can work over IPv4 __and__ IPv6 at the same time, the peers can only be reached through one protocol at the same time. That is a peer is IPv4 __or__ IPv6, not both. Hence if a peer is reachable over IPv4, the client towards that peer needs to reach it over IPv4 too and thus needs an IPv4 address.
 We advise strongly to have all nodes properly set-up on a routable unfirewalled IPv6 network, so that these problems have no reason to exist.
 
-## future
-
-- **CNI** 
-ZOS and it's Wireguard mesh per user is a quite novel way to do things, but there are many overlay networks that are built to solve other network requirements in very different ways, and these solutions could be intagrated in a later phase, through the use of `CNI`, a common way to request a network for a user, or for a specific workload.
-
-- **automated provisioning**  
-As it is now, user networks must be completely provisioned by the user. That is: a user has to manage the subnets allocated to the network resources in the network themselves, give it an IP and also give an IP address to the containers hosting the workloads.
-
-- **fully routable IPv6 to your mesh**  
-In a next phase, your private network can host a dual stacked network, incorporating a fully routable IPv6 network per network resource, where a user can choose the farmer that will provide transit. 
