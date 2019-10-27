@@ -25,15 +25,16 @@ jobs:
 
     - name: Collecting files
       run: |
-        mkdir -p /tmp/archive/{bin,etc/zinit}
-        cp bin/* /tmp/archive/bin/
-        cp -r zinit/* /tmp/archive/etc/zinit
+        mkdir -p ${{ github.workspace }}/archive/{bin,etc/zinit}
+        cp bin/* ${{ github.workspace }}/archive/bin/
+        cp -r zinit/* ${{ github.workspace }}/archive/etc/zinit
 
-    - name: Build FList 
+    - name: Publishing flist
       if: success()
-      uses: threefoldtech/action-publish@v1-release
+      uses: threefoldtech/publish-flist@master
       with:
+        action: publish
         user: tf-autobuilder
-        root: /tmp/archive
+        root: archive
         token: ${{ secrets.HUB_JWT }}
         name: zos-${{ github.sha }}.tar.gz
