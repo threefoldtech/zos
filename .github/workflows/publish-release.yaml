@@ -1,0 +1,63 @@
+name: Publishing Files
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Publishing Files
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Set up Go 1.13
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13
+      id: go
+
+    - name: Checkout code into the Go module directory
+      uses: actions/checkout@v1
+
+    - name: Build binaries
+      run: |
+        cd cmds
+        make
+      env:
+        GO111MODULE: on
+
+    - name: Collecting files
+      run: |
+        mkdir -p ${{ github.workspace }}/archive/{bin,etc/zinit}
+        cp bin/* ${{ github.workspace }}/archive/bin/
+        cp -r zinit/* ${{ github.workspace }}/archive/etc/zinit
+
+    - name: Publish flist
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        action: publish
+        user: tf-autobuilder
+        root: archive
+        token: ${{ secrets.HUB_JWT }}
+        name: zos-${{ github.sha }}.flist
+
+    - name: Promote flist (production)
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        action: promote
+        user: tf-zos
+        token: ${{ secrets.HUB_JWT }}
+        name: tf-autobuilder/zos-${{ github.sha }}.flist
+        target: zos-${{ github.sha }}.flist
+
+    - name: Symlink flist (production)
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        action: symlink
+        user: tf-zos
+        token: ${{ secrets.HUB_JWT }}
+        name: zos-${{ github.sha }}.flist
+        target: zos:production:latest.flist
+
