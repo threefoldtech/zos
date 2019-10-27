@@ -39,3 +39,23 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         name: zos-${{ github.sha }}.flist
 
+    - name: Promote flist
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        action: promote
+        user: tf-zos
+        token: ${{ secrets.HUB_JWT }}
+        name: tf-autobuilder/zos-${{ github.sha }}.flist
+        target: zos-{{ github.sha }}.flist
+
+    - name: Symlink flist
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        action: symlink
+        user: tf-zos
+        token: ${{ secrets.HUB_JWT }}
+        name: zos-${{ github.sha }}.flist
+        target: zos:development:latest.flist
+
