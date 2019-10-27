@@ -29,7 +29,7 @@ jobs:
         cp bin/* ${{ github.workspace }}/archive/bin/
         cp -r zinit/* ${{ github.workspace }}/archive/etc/zinit
 
-    - name: Publishing flist
+    - name: Publish flist
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
@@ -39,7 +39,7 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         name: zos-${{ github.sha }}.flist
 
-    - name: Promote flist
+    - name: Promote flist (development)
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
@@ -47,9 +47,9 @@ jobs:
         user: tf-zos
         token: ${{ secrets.HUB_JWT }}
         name: tf-autobuilder/zos-${{ github.sha }}.flist
-        target: zos-{{ github.sha }}.flist
+        target: zos-${{ github.sha }}.flist
 
-    - name: Symlink flist
+    - name: Symlink flist (development)
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
