@@ -1,19 +1,19 @@
-name: flist build
+name: Publishing Files
 on: [push]
-jobs:
 
+jobs:
   build:
-    name: Flist build
+    name: Publishing Files
     runs-on: ubuntu-latest
     steps:
 
-    - name: Set up go 1.13
+    - name: Set up Go 1.13
       uses: actions/setup-go@v1
       with:
         go-version: 1.13
       id: go
 
-    - name: Check out code into the Go module directory
+    - name: Checkout code into the Go module directory
       uses: actions/checkout@v1
 
     - name: Build binaries
