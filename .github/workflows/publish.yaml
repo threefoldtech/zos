@@ -38,3 +38,4 @@ jobs:
         root: archive
         token: ${{ secrets.HUB_JWT }}
         name: zos-${{ github.sha }}.flist
+
