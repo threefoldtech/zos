@@ -37,4 +37,4 @@ jobs:
         user: tf-autobuilder
         root: archive
         token: ${{ secrets.HUB_JWT }}
-        name: zos-${{ github.sha }}.tar.gz
+        name: zos-${{ github.sha }}.flist
