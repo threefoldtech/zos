@@ -25,7 +25,6 @@ jobs:
 
     - name: Collecting files
       run: |
-        ls ${{ github.workspace }}
         mkdir -p ${{ github.workspace }}/archive/{bin,etc/zinit}
         cp bin/* ${{ github.workspace }}/archive/bin/
         cp -r zinit/* ${{ github.workspace }}/archive/etc/zinit
