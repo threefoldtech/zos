@@ -29,7 +29,6 @@ jobs:
         mkdir -p ${{ github.workspace }}/archive/{bin,etc/zinit}
         cp bin/* ${{ github.workspace }}/archive/bin/
         cp -r zinit/* ${{ github.workspace }}/archive/etc/zinit
-        find ${{ github.workspace }}
 
     - name: Publishing flist
       if: success()
