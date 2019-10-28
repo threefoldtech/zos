@@ -1,7 +1,9 @@
-name: Publishing Files
+name: Release (production)
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - !v*-*
+      - v*
 
 jobs:
   build:
@@ -49,7 +51,7 @@ jobs:
         user: tf-zos
         token: ${{ secrets.HUB_JWT }}
         name: tf-autobuilder/zos-${{ github.sha }}.flist
-        target: zos-${{ github.sha }}.flist
+        target: zos-${{ github.ref }}.flist
 
     - name: Symlink flist (production)
       if: success()
@@ -58,6 +60,6 @@ jobs:
         action: symlink
         user: tf-zos
         token: ${{ secrets.HUB_JWT }}
-        name: zos-${{ github.sha }}.flist
+        name: zos-${{ github.ref }}.flist
         target: zos:production:latest.flist
 
