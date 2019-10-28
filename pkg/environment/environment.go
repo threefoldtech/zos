@@ -33,22 +33,22 @@ const (
 
 	// Orphanage is the default farmid where nodes are registered
 	// if no farmid were specified on the kernel command line
-	OrphanageDev  string = "FBresPWUedSi5rBdfhVEr969dCinfq2GpBSdjiM6UrAb"
-	OrphanageTest string = "FBresPWUedSi5rBdfhVEr969dCinfq2GpBSdjiM6UrAb"
-	OrphanageMain string = "undefined-yet"
+	OrphanageDev  string = "orphan"
+	OrphanageTest string = "orphan"
+	OrphanageMain string = "orphan"
 )
 
 var (
 	envDev = Environment{
 		RunningMode: RunningDev,
-		BcdbURL:     "https://bcdb.dev.grid.tf",
+		BcdbURL:     "https://explorer.devnet.grid.tf",
 		// ProvisionTimeout:  60,
 		// ProvisionInterval: 10,
 	}
 
 	envTest = Environment{
 		RunningMode:   RunningTest,
-		BcdbURL:       "tcp://bcdb.test.grid.tf:8901",
+		BcdbURL:       "tcp://explorer.testnet.grid.tf:8901",
 		BcdbNamespace: "default",
 		// ProvisionTimeout:  120,
 		// ProvisionInterval: 10,
