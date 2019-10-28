@@ -158,7 +158,7 @@ func nodeFromSchema(node directory.TfgridNode2) types.Node {
 		}(),
 		PublicConfig: func() *types.PubIface {
 			cfg := node.PublicConfig
-			if cfg == nil {
+			if cfg == nil || cfg.Master == "" {
 				return nil
 			}
 			pub := types.PubIface{
