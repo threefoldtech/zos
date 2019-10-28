@@ -2,8 +2,8 @@ name: Release (testing)
 on:
   push:
     tags:
-      - v*
-      - !v*-*
+      - 'v*'
+      - '!v*-*'
 
 jobs:
   build:
