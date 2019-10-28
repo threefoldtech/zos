@@ -33,7 +33,7 @@ jobs:
         cp bin/* ${{ github.workspace }}/archive/bin/
         cp -r zinit/* ${{ github.workspace }}/archive/etc/zinit
 
-    - name: Publish flist
+    - name: Uploading flist (${{ github.sha }})
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
@@ -43,7 +43,7 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         name: zos-${{ github.sha }}.flist
 
-    - name: Promote flist (production)
+    - name: Promote flist (${{ github.ref }})
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
