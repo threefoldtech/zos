@@ -2,8 +2,7 @@ name: Release (production)
 on:
   push:
     tags:
-      - !v*-*
-      - v*
+      - '!v*-*'
 
 jobs:
   build:
