@@ -62,13 +62,15 @@ So. Let's have some abbreviations settled first:
 
 - #### A Tno has an ExitPoint (for IPv6)
   
-  TL;DR: Any network needs to get out *somewhere*. [Some more explanation](exitpoints.md)
+  TL;DR: Any network needs to get out *somewhere*.
 
   A Node that happens to live in an Internet Network (to differentiate from a Tenant network), more explictly, a network that is directly routable and accessible (unlike a home network), can be specified as an Exit Node.  
   That Node can then host Exitpoints for Tenant Networks.  
   Let's explain that.  
   Entities in a Tenant Network, where a TN being an overlay network, can only communicate with peers that are part of that network. At a certain point there is a gateway needed for this network to communicate with the 'external' world (BBI): that is an ExitPoint. ExitPoints can only live in Nodes designated for that purpose, namely Exit Nodes. Exit Nodes can only live in networks that are bidirectionally reachable for THE Internet (BBI).  
   An ExitPoint is *always* a part of a Network Resource (see below).
+
+  NOTE: this applies **only** to IPv6. There is no notion of exitpoints for IPv4 workloads.
 
 - #### Network Resource: (NR)
   

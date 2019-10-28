@@ -44,12 +44,10 @@ Once a node has booted and properly initialized, registering and configuring the
 First, the node registers it's live network setup to the BCDB. That is : all NICs with their associated IP addresses and routes are registered so a farm admin can in a second phase configure eventual separate NICs to handle different kinds of workloads.
 In that secondary phase, a farm admin can then set-up the NICs and their associated IP's manually, so that workloads can start using them.
 
-
 ## wireguard explanations
 
 - **wireguard as pointopoint links and what that means**  
-Wireguard is a special type of VPN, where every instance is as well server for multiple peers as client towards multiple peers. That way you can create fanning-out connections als receive connections from multiple peers, creating effectively a mesh of connections Like this :
-![like so](https://github.com/threefoldtech/zos/blob/master/specs/network/HIDDEN-PUBLIC.png)
+Wireguard is a special type of VPN, where every instance is as well server for multiple peers as client towards multiple peers. That way you can create fanning-out connections als receive connections from multiple peers, creating effectively a mesh of connections Like this : ![like so](HIDDEN-PUBLIC.png)
 
 - **wireguard port management**  
 Every wireguard point (a network resource point) needs a destination/port combo when it's  publicly reachable. The destination is a public ip, but the port is the differentiator. So we need to make sure every network wireguard listening port is unique in the node where it runs, and can be reapplied in case of a node's reboot.
@@ -72,4 +70,3 @@ So for now, a farmer is better off to have his nodes really reachable over a pub
 - **IPv6 and IPv4 considerations**  
 While the mesh can work over IPv4 __and__ IPv6 at the same time, the peers can only be reached through one protocol at the same time. That is a peer is IPv4 __or__ IPv6, not both. Hence if a peer is reachable over IPv4, the client towards that peer needs to reach it over IPv4 too and thus needs an IPv4 address.
 We advise strongly to have all nodes properly set-up on a routable unfirewalled IPv6 network, so that these problems have no reason to exist.
-
