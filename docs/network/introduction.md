@@ -1,4 +1,4 @@
-# zos networking
+# Introduction to networkd the network manager of 0-OS
 
 ## Boot and initial setup
 
@@ -10,7 +10,7 @@ Once it has obtained Internet connectivity, ZOS can then proceed to make itself 
 
 Once initialized, with the network daemon running (a process that will handle all things related to networking), ZOS will set up some basic services so that workloads can themselves use that network.
 
-## networkd functionality
+## Networkd functionality
 
 The network daemon is in itself responsible for a few tasks, and working together with the [provision daemon](../provision) it mainly sets up the local infrastructure to get the user network resources, together with the wireguard configurations for the user's mesh network.
 
@@ -44,7 +44,7 @@ Once a node has booted and properly initialized, registering and configuring the
 First, the node registers it's live network setup to the BCDB. That is : all NICs with their associated IP addresses and routes are registered so a farm admin can in a second phase configure eventual separate NICs to handle different kinds of workloads.
 In that secondary phase, a farm admin can then set-up the NICs and their associated IP's manually, so that workloads can start using them.
 
-## wireguard explanations
+## Wireguard explanations
 
 - **wireguard as pointopoint links and what that means**  
 Wireguard is a special type of VPN, where every instance is as well server for multiple peers as client towards multiple peers. That way you can create fanning-out connections als receive connections from multiple peers, creating effectively a mesh of connections Like this : ![like so](HIDDEN-PUBLIC.png)
@@ -58,7 +58,7 @@ Hidden nodes are nodes that are in essence hidden behind a firewall, and unreach
 As such, these nodes can only partake in a network as client-only towards publicly reachable peers, and can only initiate the connections themselves. (ref previous drawing).  
 To make sure connectivity stays up, the clients (all) have a keepalive towards all their peers so that communications towards network resources in hidden nodes can be established.
 
-## caveats
+## Caveats
 
 - **hidden nodes**  
 Hidden nodes live (mostly) behind firewalls that keep state about connections and these states have a lifetime. We try at best to keep these communications going, but depending of the firewall your mileage may vary (YMMV ;-))
