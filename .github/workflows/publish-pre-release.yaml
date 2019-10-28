@@ -39,7 +39,7 @@ jobs:
         user: tf-autobuilder
         root: archive
         token: ${{ secrets.HUB_JWT }}
-        name: zos-${{ github.sha }}.flist
+        name: zos-${{ github.tag }}.flist
 
     - name: Promote flist (testing)
       if: success()
@@ -48,16 +48,16 @@ jobs:
         action: promote
         user: tf-zos
         token: ${{ secrets.HUB_JWT }}
-        name: tf-autobuilder/zos-${{ github.sha }}.flist
-        target: zos-${{ github.sha }}.flist
+        name: tf-autobuilder/zos-${{ github.tag }}.flist
+        target: zos-${{ github.tag }}.flist
 
-    - name: Symlink flist (testing)
+    - name: Symlink flist (testing -> ${{ github.tag }})
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
         action: symlink
         user: tf-zos
         token: ${{ secrets.HUB_JWT }}
-        name: zos-${{ github.sha }}.flist
+        name: zos-${{ github.tag }}.flist
         target: zos:testing:latest.flist
 
