@@ -177,7 +177,7 @@ func (s *nodeStore) Requires(key string, handler http.HandlerFunc) http.HandlerF
 		_, err := s.Get(nodeID)
 		if err != nil {
 			// node not found
-			httpError(w, errors.Wrap(err, "node not found"), http.StatusNotFound)
+			httpError(w, errors.Wrapf(err, "node not found: %s", nodeID), http.StatusNotFound)
 			return
 		}
 

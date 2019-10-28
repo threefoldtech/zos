@@ -22,18 +22,16 @@ func main() {
 
 	nodeStore, err := LoadNodeStore()
 	if err != nil {
-		log.Fatalln("error loading node store: %v", err)
+		log.Fatalf("error loading node store: %v\n", err)
 	}
 	farmStore, err := LoadfarmStore()
 	if err != nil {
-		log.Fatalln("error loading farm store: %v", err)
+		log.Fatalf("error loading farm store: %v\n", err)
 	}
 	resStore, err := LoadProvisionStore()
 	if err != nil {
-		log.Fatalln("error loading provision store: %v", err)
+		log.Fatalf("error loading provision store: %v\n", err)
 	}
-
-	// provStore = &provisionStore{Reservations: make([]*reservation, 0, 20)}
 
 	defer func() {
 		if err := nodeStore.Save(); err != nil {
