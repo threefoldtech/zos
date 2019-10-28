@@ -14,8 +14,8 @@ type farmStore struct {
 	m     sync.RWMutex
 }
 
-func LoadfarmStore() (farmStore, error) {
-	store := farmStore{
+func loadfarmStore() (*farmStore, error) {
+	store := &farmStore{
 		Farms: []*directory.TfgridFarm1{},
 	}
 	f, err := os.OpenFile("farms.json", os.O_RDONLY, 0660)

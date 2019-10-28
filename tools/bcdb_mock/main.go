@@ -20,15 +20,15 @@ func main() {
 
 	flag.Parse()
 
-	nodeStore, err := LoadNodeStore()
+	nodeStore, err := loadNodeStore()
 	if err != nil {
 		log.Fatalf("error loading node store: %v\n", err)
 	}
-	farmStore, err := LoadfarmStore()
+	farmStore, err := loadfarmStore()
 	if err != nil {
 		log.Fatalf("error loading farm store: %v\n", err)
 	}
-	resStore, err := LoadProvisionStore()
+	resStore, err := loadProvisionStore()
 	if err != nil {
 		log.Fatalf("error loading provision store: %v\n", err)
 	}

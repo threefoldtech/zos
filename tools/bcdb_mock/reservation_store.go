@@ -22,8 +22,8 @@ type reservationsStore struct {
 	m            sync.RWMutex
 }
 
-func LoadProvisionStore() (reservationsStore, error) {
-	store := reservationsStore{
+func loadProvisionStore() (*reservationsStore, error) {
+	store := &reservationsStore{
 		Reservations: []*reservation{},
 	}
 	f, err := os.OpenFile("reservations.json", os.O_RDONLY, 0660)

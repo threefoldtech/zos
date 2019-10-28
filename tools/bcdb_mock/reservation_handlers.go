@@ -12,18 +12,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-// import (
-// 	"encoding/json"
-// 	"fmt"
-// 	"log"
-// 	"net/http"
-// 	"strconv"
-// 	"time"
-
-// 	"github.com/gorilla/mux"
-// 	"github.com/threefoldtech/zos/pkg/provision"
-// )
-
 func (s *reservationsStore) reserve(w http.ResponseWriter, r *http.Request) {
 	nodeID := mux.Vars(r)["node_id"]
 

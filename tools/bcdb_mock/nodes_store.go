@@ -20,8 +20,8 @@ type nodeStore struct {
 	m     sync.RWMutex
 }
 
-func LoadNodeStore() (nodeStore, error) {
-	store := nodeStore{
+func loadNodeStore() (*nodeStore, error) {
+	store := &nodeStore{
 		Nodes: []*directory.TfgridNode2{},
 	}
 	f, err := os.OpenFile("nodes.json", os.O_RDONLY, 0660)
@@ -83,13 +83,13 @@ func (s *nodeStore) Add(node directory.TfgridNode2) error {
 			s.Nodes[i].FarmID = node.FarmID
 			s.Nodes[i].OsVersion = node.OsVersion
 			s.Nodes[i].Location = node.Location
-			s.Nodes[i].Updated = schema.Date{time.Now()}
+			s.Nodes[i].Updated = schema.Date{Time: time.Now()}
 			return nil
 		}
 	}
 
-	node.Created = schema.Date{time.Now()}
-	node.Updated = schema.Date{time.Now()}
+	node.Created = schema.Date{Time: time.Now()}
+	node.Updated = schema.Date{Time: time.Now()}
 	s.Nodes = append(s.Nodes, &node)
 	return nil
 }
@@ -131,7 +131,7 @@ func (s *nodeStore) updateUptime(nodeID string, uptime int64) error {
 	}
 
 	node.Uptime = uptime
-	node.Updated = schema.Date{time.Now()}
+	node.Updated = schema.Date{Time: time.Now()}
 
 	return nil
 }
