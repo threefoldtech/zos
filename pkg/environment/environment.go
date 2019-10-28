@@ -74,10 +74,9 @@ func getEnvironmentFromParams(params kernel.Params) Environment {
 	var env Environment
 
 	runmode, found := params.Get("runmode")
-	if !found {
+	if !found || len(runmode) < 1 {
 		// Fallback to default production mode
-		runmode = make([]string, 1)
-		runmode[0] = string(RunningMain)
+		runmode = []string{string(RunningMain)}
 	}
 
 	switch RunningMode(runmode[0]) {
@@ -91,8 +90,16 @@ func getEnvironmentFromParams(params kernel.Params) Environment {
 		env = envProd
 	}
 
+	if RunningMode(runmode[0]) == RunningDev {
+		//allow override of the bcdb url in dev mode
+		bcdb, found := params.Get("bcdb")
+		if found && len(bcdb) >= 1 {
+			env.BcdbURL = bcdb[0]
+		}
+	}
+
 	farmerID, found := params.Get("farmer_id")
-	if !found || farmerID[0] == "" {
+	if !found || len(farmerID) < 1 || farmerID[0] == "" {
 		// fmt.Println("Warning: no valid farmer_id found in kernel parameter, fallback to orphanage")
 		env.Orphan = true
 
