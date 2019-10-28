@@ -1,6 +1,16 @@
 name: Release (testing)
 on:
   push:
+    # Matching on any tags which is not a production release
+    # Matching:
+    #  - v1.0.0-beta5
+    #  - v1.0.1-rc3
+    #  - v2.1.4-hotfix-87
+    #
+    # Ignoring:
+    #  - v1.0.0
+    #  - v1.1.0
+    #  - v2.1.13
     tags:
       - 'v*-*'
 

@@ -1,11 +1,5 @@
 name: Release (development)
-on:
-    # push:
-    # Do not trigger this event if it's a new tag
-    # We use tag for release (testing, production), not development
-    # tags-ignore:
-    # - v*
-  [push]
+on: [push]
 
 jobs:
   build:
