@@ -3,8 +3,8 @@ on:
   push:
     # Do not trigger this event if it's a new tag
     # We use tag for release (testing, production), not development
-    tags:
-      - !*
+    tags-ignore:
+      - v*
 
 jobs:
   build:
