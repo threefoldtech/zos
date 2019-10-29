@@ -1,5 +1,8 @@
 name: Release (development)
-on: [push]
+on: 
+  push:
+    branches: 
+    - master
 
 jobs:
   build:
