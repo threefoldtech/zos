@@ -58,7 +58,7 @@ jobs:
         action: readlink
         user: tf-zos
         token: ${{ secrets.HUB_JWT }}
-        name: zos:development:latest.flist
+        name: tf-zos/zos:development:latest.flist
 
     - name: Delete current build
       if: success()
