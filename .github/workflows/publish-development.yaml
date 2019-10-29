@@ -39,6 +39,17 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         name: zos-${{ github.sha }}.flist
 
+    - name: Promote flist (${{ github.sha }})
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        action: promote
+        user: tf-zos
+        root: archive
+        token: ${{ secrets.HUB_JWT }}
+        name: tf-autobuilder/zos-${{ github.sha }}.flist
+        target: zos-${{ github.sha }}.flist
+
     - name: Readlink of current development build
       if: success()
       id: readlink
