@@ -27,7 +27,7 @@ func TestContainerProvisionExists(t *testing.T) {
 	container := Container{
 		FList: "https://hub.grid.tf/thabet/redis.flist",
 		Network: Network{
-			NetwokID: pkg.NetID("net1"),
+			NetworkID: pkg.NetID("net1"),
 			IPs: []net.IP{
 				net.ParseIP("192.168.1.1"),
 			},
@@ -70,7 +70,7 @@ func TestContainerProvisionNew(t *testing.T) {
 	container := Container{
 		FList: "https://hub.grid.tf/thabet/redis.flist",
 		Network: Network{
-			NetwokID: pkg.NetID("net1"),
+			NetworkID: pkg.NetID("net1"),
 			IPs: []net.IP{
 				net.ParseIP("192.168.1.1"),
 			},
@@ -94,7 +94,7 @@ func TestContainerProvisionNew(t *testing.T) {
 		pkg.ContainerID(reservation.ID)).
 		Return(pkg.Container{}, zbus.RemoteError{"does not exist"})
 
-	netID := networkID(reservation.User, string(container.Network.NetwokID))
+	netID := networkID(reservation.User, string(container.Network.NetworkID))
 
 	// since it's a new container, a call to join the network is made
 	client.On("Request",
@@ -148,7 +148,7 @@ func TestContainerProvisionWithMounts(t *testing.T) {
 	container := Container{
 		FList: "https://hub.grid.tf/thabet/redis.flist",
 		Network: Network{
-			NetwokID: pkg.NetID("net1"),
+			NetworkID: pkg.NetID("net1"),
 			IPs: []net.IP{
 				net.ParseIP("192.168.1.1"),
 			},
@@ -182,7 +182,7 @@ func TestContainerProvisionWithMounts(t *testing.T) {
 		pkg.ContainerID(reservation.ID)).
 		Return(pkg.Container{}, zbus.RemoteError{"does not exist"})
 
-	netID := networkID(reservation.User, string(container.Network.NetwokID))
+	netID := networkID(reservation.User, string(container.Network.NetworkID))
 
 	// since it's a new container, a call to join the network is made
 	client.On("Request",

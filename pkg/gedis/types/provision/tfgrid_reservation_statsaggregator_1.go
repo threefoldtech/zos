@@ -14,7 +14,7 @@ type TfgridReservationStatsaggregator1 struct {
 //TfgridReservationResult1 jsx schema
 type TfgridReservationResult1 struct {
 	Category   TfgridReservationResult1CategoryEnum `json:"category"`
-	WorkloadID int64                                `json:"workload_id"`
+	WorkloadID string                               `json:"workload_id"`
 	DataJSON   string                               `json:"data_json"`
 	Signature  []byte                               `json:"signature"`
 	State      TfgridReservationResult1StateEnum    `json:"state"`

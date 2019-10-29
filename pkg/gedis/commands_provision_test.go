@@ -29,17 +29,20 @@ func TestProvisionGet(t *testing.T) {
 		"gwid": id,
 	}
 
+	workload := `{"workload_id": 10, "type": 0, "size": 100}`
+
 	conn.On("Do", "default.workload_manager.workload_get", mustMarshal(t, args)).
 		Return(mustMarshal(t, Args{
 			"workload_id": id,
-			"content":     "raw message",
+			"type":        types.TfgridReservationWorkload1TypeVolume,
+			"content":     json.RawMessage(workload),
 		}), nil)
 
 	res, err := gedis.Get(id)
 
 	require.NoError(err)
 	require.Equal(id, res.ID)
-	require.Equal(`"raw message"`, string(res.Data))
+	EqualJSON(t, mustMarshal(t, Args{"type": "HDD", "size": 100}), res.Data)
 	//require.Equal(node.NodeID, "node-1")
 	conn.AssertCalled(t, "Close")
 }
@@ -60,11 +63,22 @@ func TestProvisionPoll(t *testing.T) {
 		"epoch":   time.Unix(),
 	}
 
+	workloadVol := `{"workload_id": 10, "type": 0, "size": 100}`
+	workloadZdb := `{"workload_id": 10, "mode": 0, "size": 100}`
+
 	conn.On("Do", "default.workload_manager.workloads_list", mustMarshal(t, args)).
 		Return(mustMarshal(t, Args{
 			"workloads": []types.TfgridReservationWorkload1{
-				{WorkloadID: "1", Type: types.TfgridReservationWorkload1TypeVolume},
-				{WorkloadID: "2", Type: types.TfgridReservationWorkload1TypeContainer},
+				{
+					WorkloadID: "1",
+					Type:       types.TfgridReservationWorkload1TypeVolume,
+					Workload:   json.RawMessage(workloadVol),
+				},
+				{
+					WorkloadID: "2",
+					Type:       types.TfgridReservationWorkload1TypeZdb,
+					Workload:   json.RawMessage(workloadZdb),
+				},
 			},
 		}), nil)
 
@@ -72,7 +86,8 @@ func TestProvisionPoll(t *testing.T) {
 
 	require.NoError(err)
 	require.Len(reservations, 2)
-	require.Equal(reservations[1].Type, provision.ContainerReservation)
+	require.Equal(reservations[0].Type, provision.VolumeReservation)
+	require.Equal(reservations[1].Type, provision.ZDBReservation)
 	conn.AssertCalled(t, "Close")
 
 	args = Args{
@@ -83,8 +98,16 @@ func TestProvisionPoll(t *testing.T) {
 	conn.On("Do", "default.workload_manager.workloads_list", mustMarshal(t, args)).
 		Return(mustMarshal(t, Args{
 			"workloads": []types.TfgridReservationWorkload1{
-				{WorkloadID: "1", Type: types.TfgridReservationWorkload1TypeVolume},
-				{WorkloadID: "2", Type: types.TfgridReservationWorkload1TypeContainer},
+				{
+					WorkloadID: "1",
+					Type:       types.TfgridReservationWorkload1TypeVolume,
+					Workload:   json.RawMessage(workloadVol),
+				},
+				{
+					WorkloadID: "2",
+					Type:       types.TfgridReservationWorkload1TypeZdb,
+					Workload:   json.RawMessage(workloadZdb),
+				},
 			},
 		}), nil)
 
@@ -92,7 +115,8 @@ func TestProvisionPoll(t *testing.T) {
 
 	require.NoError(err)
 	require.Len(reservations, 2)
-	require.Equal(reservations[1].Type, provision.ContainerReservation)
+	require.Equal(reservations[0].Type, provision.VolumeReservation)
+	require.Equal(reservations[1].Type, provision.ZDBReservation)
 	conn.AssertCalled(t, "Close")
 
 }
@@ -116,10 +140,10 @@ func TestProvisionFeedback(t *testing.T) {
 	}
 
 	args := Args{
-		"reservation_id": 101,
+		"reservation_id": "101",
 		"result": types.TfgridReservationResult1{
 			Category:   types.TfgridReservationResult1CategoryContainer,
-			WorkloadID: 101,
+			WorkloadID: "101",
 			DataJSON:   string(result.Data),
 			Signature:  result.Signature,
 			State:      types.TfgridReservationResult1StateOk,
@@ -153,8 +177,8 @@ func TestProvisionReserve(t *testing.T) {
 			FList:      "http://hub.grid.tf/test/test.flist",
 			Entrypoint: "/bin/app",
 			Network: provision.Network{
-				NetwokID: "123",
-				IPs:      []net.IP{net.ParseIP("192.168.1.1")},
+				NetworkID: "123",
+				IPs:       []net.IP{net.ParseIP("192.168.1.1")},
 			},
 		})),
 		Signature: []byte("signature"),

@@ -1,14 +1,34 @@
 package provision
 
+import (
+	"fmt"
+
+	"github.com/threefoldtech/zos/pkg/provision"
+)
+
 //TfgridReservationVolume1 jsx schema
 type TfgridReservationVolume1 struct {
 	WorkloadID      int64                               `json:"workload_id"`
-	NodeID          int64                               `json:"node_id"`
-	ReservationID   int64                               `json:"reservation_id"`
+	NodeID          string                              `json:"node_id"`
 	Size            int64                               `json:"size"`
 	Type            TfgridReservationVolume1TypeEnum    `json:"type"`
 	StatsAggregator []TfgridReservationStatsaggregator1 `json:"stats_aggregator"`
-	FarmerTid       int64                               `json:"farmer_tid"`
+}
+
+// ToProvisionType converts TfgridReservationVolume1 to provision.Volume
+func (v TfgridReservationVolume1) ToProvisionType() (provision.Volume, error) {
+	volume := provision.Volume{
+		Size: uint64(v.Size),
+	}
+	switch v.Type.String() {
+	case "HDD":
+		volume.Type = provision.HDDDiskType
+	case "SSD":
+		volume.Type = provision.SSDDiskType
+	default:
+		return volume, fmt.Errorf("disk type %s not supported", v.Type.String())
+	}
+	return volume, nil
 }
 
 //TfgridReservationVolume1TypeEnum jsx schema
