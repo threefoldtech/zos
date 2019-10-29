@@ -53,7 +53,7 @@ jobs:
         root: archive
         token: ${{ secrets.HUB_JWT }}
         name: tf-autobuilder/zos-${{ github.sha }}.flist
-        target: ${{ steps.setname.outputs.build }}.flist
+        target: ${{ steps.setname.outputs.build }}
 
     - name: Readlink of current development build
       if: success()
@@ -81,6 +81,6 @@ jobs:
         action: symlink
         user: tf-zos
         token: ${{ secrets.HUB_JWT }}
-        name: zos-${{ github.sha }}.flist
+        name: ${{ steps.setname.outputs.build }}
         target: zos:development:latest.flist
 
