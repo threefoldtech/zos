@@ -61,6 +61,26 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         name: tf-autobuilder/zos-${{ github.sha }}.flist
         target: zos-${{ github.ref }}.flist
+    
+    - name: Symlink flist (development)
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        action: symlink
+        user: tf-zos
+        token: ${{ secrets.HUB_JWT }}
+        name: zos-${{ github.ref }}.flist
+        target: zos:development:latest.flist
+    
+    - name: Symlink flist (testing)
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        action: symlink
+        user: tf-zos
+        token: ${{ secrets.HUB_JWT }}
+        name: zos-${{ github.ref }}.flist
+        target: zos:testing:latest.flist
 
     - name: Symlink flist (production)
       if: success()
