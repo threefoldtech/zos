@@ -55,18 +55,21 @@ func (s *pollSource) Reservations(ctx context.Context) <-chan *Reservation {
 	all := true
 	go func() {
 		next := time.Now()
+		last := time.Now()
 		defer close(ch)
-		for {
-			time.Sleep(next.Sub(time.Now()))
-			since := next
-			next = time.Now().Add(s.maxSleep)
 
-			res, err := s.store.Poll(pkg.StrIdentifier(s.nodeID), all, since)
+		for {
+			now := time.Now()
+			time.Sleep(next.Sub(now))
+			next = now.Add(s.maxSleep)
+
+			res, err := s.store.Poll(pkg.StrIdentifier(s.nodeID), all, last)
 			if err != nil && err != ErrPollEOS {
 				log.Error().Err(err).Msg("failed to get reservation")
-				time.Sleep(time.Second * 20)
+				continue
 			}
 
+			last = time.Now()
 			all = false
 
 			select {
