@@ -184,35 +184,6 @@ func farmFromSchema(farm directory.TfgridFarm1) network.Farm {
 	}
 }
 
-func (g *Gedis) updateGenericNodeCapacity(captype string, node pkg.Identifier, mru, cru, hru, sru uint64) error {
-	_, err := g.Send("nodes", "update_"+captype+"_capacity", Args{
-		"node_id": node.Identity(),
-		"resource": directory.TfgridNodeResourceAmount1{
-			Cru: int64(cru),
-			Mru: int64(mru),
-			Hru: int64(hru),
-			Sru: int64(sru),
-		},
-	})
-
-	return err
-}
-
-//UpdateTotalNodeCapacity implements pkg.IdentityManager interface
-func (g *Gedis) UpdateTotalNodeCapacity(node pkg.Identifier, mru, cru, hru, sru uint64) error {
-	return g.updateGenericNodeCapacity("total", node, mru, cru, hru, sru)
-}
-
-//UpdateReservedNodeCapacity implements pkg.IdentityManager interface
-func (g *Gedis) UpdateReservedNodeCapacity(node pkg.Identifier, mru, cru, hru, sru uint64) error {
-	return g.updateGenericNodeCapacity("reserved", node, mru, cru, hru, sru)
-}
-
-//UpdateUsedNodeCapacity implements pkg.IdentityManager interface
-func (g *Gedis) UpdateUsedNodeCapacity(node pkg.Identifier, mru, cru, hru, sru uint64) error {
-	return g.updateGenericNodeCapacity("used", node, mru, cru, hru, sru)
-}
-
 //GetFarm implements pkg.IdentityManager interface
 func (g *Gedis) GetFarm(farm pkg.Identifier) (*network.Farm, error) {
 	id, err := strconv.ParseInt(farm.Identity(), 10, 64)

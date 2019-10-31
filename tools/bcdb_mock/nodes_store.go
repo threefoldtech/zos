@@ -1,15 +1,19 @@
 package main
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 	"github.com/threefoldtech/zos/pkg/schema"
 
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
@@ -136,6 +140,48 @@ func (s *nodeStore) updateUptime(nodeID string, uptime int64) error {
 	return nil
 }
 
+func (s *nodeStore) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks) error {
+	node, err := s.Get(nodeID)
+	if err != nil {
+		return err
+	}
+
+	proof := directory.TfgridNodeProof1{
+		Created: schema.Date{Time: time.Now()},
+	}
+
+	proof.Hardware = map[string]interface{}{
+		"sections": dmi.Sections,
+		"tooling":  dmi.Tooling,
+	}
+	proof.HardwareHash, err = hashProof(proof.Hardware)
+	if err != nil {
+		return err
+	}
+
+	proof.Disks = map[string]interface{}{
+		"aggregator":  disks.Aggregator,
+		"environment": disks.Environment,
+		"devices":     disks.Devices,
+		"tool":        disks.Tool,
+	}
+	proof.DiskHash, err = hashProof(proof.Disks)
+	if err != nil {
+		return err
+	}
+
+	// don't save the proof if we already have one with the same
+	// hash/content
+	for _, p := range node.Proofs {
+		if proof.Equal(p) {
+			return nil
+		}
+	}
+
+	node.Proofs = append(node.Proofs, proof)
+	return nil
+}
+
 func (s *nodeStore) SetInterfaces(nodeID string, ifaces []directory.TfgridNodeIface1) error {
 	node, err := s.Get(nodeID)
 	if err != nil {
@@ -183,4 +229,31 @@ func (s *nodeStore) Requires(key string, handler http.HandlerFunc) http.HandlerF
 
 		handler(w, r)
 	}
+}
+
+// hashProof return the hex encoded md5 hash of the json encoded version of p
+func hashProof(p map[string]interface{}) (string, error) {
+
+	// we are trying to have always produce same hash for same content of p
+	// so we convert the map into a list so we can sort
+	// the key and workaround the fact that maps are not sorted
+
+	type kv struct {
+		k string
+		v interface{}
+	}
+
+	kvs := make([]kv, len(p))
+	for k, v := range p {
+		kvs = append(kvs, kv{k: k, v: v})
+	}
+	sort.Slice(kvs, func(i, j int) bool { return kvs[i].k < kvs[j].k })
+
+	b, err := json.Marshal(kvs)
+	if err != nil {
+		return "", err
+	}
+	h := md5.New()
+	bh := h.Sum(b)
+	return fmt.Sprintf("%x", bh), nil
 }

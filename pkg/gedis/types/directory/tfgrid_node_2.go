@@ -62,6 +62,11 @@ type TfgridNodeProof1 struct {
 	Disks        map[string]interface{} `json:"disks"`
 }
 
+// Equal test of 2 proofs have the same hashes
+func (p TfgridNodeProof1) Equal(proof TfgridNodeProof1) bool {
+	return p.DiskHash == proof.DiskHash && p.HardwareHash == proof.HardwareHash
+}
+
 // TfgridNodePublicIface1TypeEnum jsx schema
 type TfgridNodePublicIface1TypeEnum uint8
 

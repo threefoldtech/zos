@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/threefoldtech/zos/pkg/capacity"
+
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
 	"github.com/threefoldtech/zos/pkg/network/types"
 
@@ -97,7 +99,8 @@ func (s *nodeStore) cockpitListNodes(w http.ResponseWriter, r *http.Request) {
 func (s *nodeStore) registerCapacity(w http.ResponseWriter, r *http.Request) {
 	x := struct {
 		Capacity directory.TfgridNodeResourceAmount1 `json:"capacity,omitempty"`
-		DMI      *dmi.DMI                            `json:"dmi,omitempty"`
+		DMI      dmi.DMI                             `json:"dmi,omitempty"`
+		Disks    capacity.Disks                      `json:"disks,omitempty"`
 	}{}
 
 	if err := json.NewDecoder(r.Body).Decode(&x); err != nil {
@@ -107,6 +110,11 @@ func (s *nodeStore) registerCapacity(w http.ResponseWriter, r *http.Request) {
 
 	nodeID := mux.Vars(r)["node_id"]
 	if err := s.updateTotalCapacity(nodeID, x.Capacity); err != nil {
+		httpError(w, err, http.StatusNotFound)
+		return
+	}
+
+	if err := s.StoreProof(nodeID, x.DMI, x.Disks); err != nil {
 		httpError(w, err, http.StatusNotFound)
 		return
 	}
