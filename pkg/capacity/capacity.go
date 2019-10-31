@@ -4,6 +4,7 @@ import (
 	"github.com/shirou/gopsutil/host"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
+	"github.com/threefoldtech/zos/pkg/capacity/smartctl"
 )
 
 // Capacity hold the amount of resource unit of a node
@@ -60,4 +61,41 @@ func (r *ResourceOracle) Uptime() (uint64, error) {
 		return 0, err
 	}
 	return info.Uptime, nil
+}
+
+// Disks contains the hardware information about the disk of a node
+type Disks struct {
+	Tool        string          `json:"tool"`
+	Environment string          `json:"environment"`
+	Aggregator  string          `json:"aggregator"`
+	Devices     []smartctl.Info `json:"devices"`
+}
+
+// Disks list and parse the hardware information using smartctl
+func (r *ResourceOracle) Disks() (d Disks, err error) {
+	devices, err := smartctl.ListDevices()
+	if err != nil {
+		return
+	}
+
+	var info smartctl.Info
+	d.Devices = make([]smartctl.Info, len(devices))
+
+	for i, device := range devices {
+		info, err = smartctl.DeviceInfo(device)
+		if err != nil {
+			return
+		}
+		d.Devices[i] = info
+		if d.Environment == "" {
+			d.Environment = info.Environment
+		}
+		if d.Tool == "" {
+			d.Tool = info.Tool
+		}
+	}
+
+	d.Aggregator = "0-OS smartctl aggregator"
+
+	return
 }
