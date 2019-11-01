@@ -9,16 +9,36 @@ import (
 )
 
 func TestInfo(t *testing.T) {
-	const input = `{"size": 0, "name": "zos:development:latest.flist", "target": "zos:development:0.2.0.flist", "type": "symlink", "updated": 1569924782, "md5": "9798ef9b930b49ab18c45953cf1d2369"}`
+	tt := []struct {
+		name    string
+		input   string
+		version semver.Version
+	}{
+		{
+			name:    "0.2.0",
+			input:   `{"size": 0, "name": "zos:development:latest.flist", "target": "zos:development:0.2.0.flist", "type": "symlink", "updated": 1569924782, "md5": "9798ef9b930b49ab18c45953cf1d2369"}`,
+			version: semver.MustParse("0.2.0"),
+		},
+		{
+			name:    "v0.2.0",
+			input:   `{"size": 0, "name": "zos:development:latest.flist", "target": "zos:development:v0.2.0.flist", "type": "symlink", "updated": 1569924782, "md5": "9798ef9b930b49ab18c45953cf1d2369"}`,
+			version: semver.MustParse("0.2.0"),
+		},
+	}
 
-	var info flistInfo
-	err := json.Unmarshal([]byte(input), &info)
-	require.NoError(t, err)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
 
-	ver, err := info.Version()
-	require.NoError(t, err)
+			var info flistInfo
+			err := json.Unmarshal([]byte(tc.input), &info)
+			require.NoError(t, err)
 
-	require.Equal(t, semver.MustParse("0.2.0"), ver)
+			ver, err := info.Version()
+			require.NoError(t, err)
+
+			require.Equal(t, tc.version, ver)
+		})
+	}
 }
 
 func TestInfoGet(t *testing.T) {
