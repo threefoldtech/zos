@@ -62,7 +62,7 @@ func TestHTTPReservationSourceMultiple(t *testing.T) {
 			&Reservation{ID: "2-1"},
 		}, nil) // return nil error so it tries again
 
-	store.On("Poll", nodeID, uint64(2)).
+	store.On("Poll", nodeID, uint64(3)).
 		Return([]*Reservation{
 			&Reservation{ID: "3-1"},
 			&Reservation{ID: "4-1"},
