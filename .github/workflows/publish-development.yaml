@@ -40,12 +40,12 @@ jobs:
         user: tf-autobuilder
         root: archive
         token: ${{ secrets.HUB_JWT }}
-        name: zos:${{ github.sha }}.flist
+        name: zos-${{ github.sha }}.flist
 
     - name: Set name of the development build
       id: setname
       run: |
-        echo "::set-output name=build::zos-$(date +%y%m%d.%H%M%S.0)-dev.flist"
+        echo "::set-output name=build::zos:v$(date +%y%m%d.%H%M%S.0)-dev.flist"
 
     - name: Promote flist (${{ github.sha }})
       if: success()
@@ -55,7 +55,7 @@ jobs:
         user: tf-zos
         root: archive
         token: ${{ secrets.HUB_JWT }}
-        name: tf-autobuilder/zos:${{ github.sha }}.flist
+        name: tf-autobuilder/zos-${{ github.sha }}.flist
         target: ${{ steps.setname.outputs.build }}
 
     - name: Readlink of current development build

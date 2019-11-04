@@ -49,7 +49,7 @@ jobs:
         user: tf-autobuilder
         root: archive
         token: ${{ secrets.HUB_JWT }}
-        name: zos:${{ github.sha }}.flist
+        name: zos-${{ github.sha }}.flist
 
     - name: Promote flist (${{ github.ref }})
       if: success()
@@ -58,7 +58,7 @@ jobs:
         action: promote
         user: tf-zos
         token: ${{ secrets.HUB_JWT }}
-        name: tf-autobuilder/zos:${{ github.sha }}.flist
+        name: tf-autobuilder/zos-${{ github.sha }}.flist
         target: zos:${{ github.ref }}.flist
 
     - name: Symlink flist (development)
