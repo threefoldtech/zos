@@ -9,6 +9,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	zosV1PoolPrefix = "sp_"
+)
+
 var (
 	zeros [512]byte
 )
@@ -43,13 +47,13 @@ func migrate(ctx context.Context, m DeviceManager, exe executer) (DeviceManager,
 	var destroyMe []Device
 loop:
 	for _, device := range devices {
-		if strings.HasPrefix(device.Label, "sp_") {
+		if strings.HasPrefix(device.Label, zosV1PoolPrefix) {
 			destroyMe = append(destroyMe, device)
 			continue
 		}
 
 		for _, child := range device.Children {
-			if strings.HasPrefix(child.Label, "sp_") {
+			if strings.HasPrefix(child.Label, zosV1PoolPrefix) {
 				destroyMe = append(destroyMe, device)
 				continue loop
 			}
