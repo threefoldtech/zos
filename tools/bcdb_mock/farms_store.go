@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
 )
 
@@ -56,7 +57,7 @@ func (s *farmStore) List() []*directory.TfgridFarm1 {
 	return out
 }
 
-func (s *farmStore) Get(name string) (*directory.TfgridFarm1, error) {
+func (s *farmStore) GetByName(name string) (*directory.TfgridFarm1, error) {
 	s.m.RLock()
 	defer s.m.RUnlock()
 
@@ -68,7 +69,17 @@ func (s *farmStore) Get(name string) (*directory.TfgridFarm1, error) {
 	return nil, fmt.Errorf("farm %s not found", name)
 }
 
-func (s *farmStore) Add(farm directory.TfgridFarm1) error {
+func (s *farmStore) GetByID(id int) (*directory.TfgridFarm1, error) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+
+	if id <= 0 || id > len(s.Farms) {
+		return nil, fmt.Errorf("farm with id %d not found", id)
+	}
+	return s.Farms[id-1], nil
+}
+
+func (s *farmStore) Add(farm directory.TfgridFarm1) (pkg.FarmID, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -78,10 +89,11 @@ func (s *farmStore) Add(farm directory.TfgridFarm1) error {
 			f.Location = farm.Location
 			f.Email = farm.Email
 			f.ResourcePrices = farm.ResourcePrices
-			return nil
+			return pkg.FarmID(f.ID), nil
 		}
 	}
 
+	farm.ID = uint64(len(s.Farms) + 1) // ids starts at 1
 	s.Farms = append(s.Farms, &farm)
-	return nil
+	return pkg.FarmID(farm.ID), nil
 }

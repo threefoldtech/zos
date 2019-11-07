@@ -2,6 +2,9 @@ package environment
 
 import (
 	"os"
+	"strconv"
+
+	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/threefoldtech/zos/pkg/kernel"
 )
@@ -15,7 +18,7 @@ type Environment struct {
 	BcdbNamespace string
 	BcdbPassword  string
 
-	FarmerID string
+	FarmerID pkg.FarmID
 	Orphan   bool
 
 	// ProvisionTimeout  int64
@@ -33,9 +36,9 @@ const (
 
 	// Orphanage is the default farmid where nodes are registered
 	// if no farmid were specified on the kernel command line
-	OrphanageDev  string = "orphan"
-	OrphanageTest string = "orphan"
-	OrphanageMain string = "orphan"
+	OrphanageDev  pkg.FarmID = 0
+	OrphanageTest pkg.FarmID = 0
+	OrphanageMain pkg.FarmID = 0
 )
 
 var (
@@ -64,12 +67,12 @@ var (
 )
 
 // Get return the running environment of the node
-func Get() Environment {
+func Get() (Environment, error) {
 	params := kernel.GetParams()
 	return getEnvironmentFromParams(params)
 }
 
-func getEnvironmentFromParams(params kernel.Params) Environment {
+func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	var runmode []string
 	var env Environment
 
@@ -114,7 +117,11 @@ func getEnvironmentFromParams(params kernel.Params) Environment {
 
 	} else {
 		env.Orphan = false
-		env.FarmerID = farmerID[0]
+		id, err := strconv.ParseUint(farmerID[0], 10, 64)
+		if err != nil {
+			return env, err
+		}
+		env.FarmerID = pkg.FarmID(id)
 	}
 
 	// Checking if there environment variable
@@ -144,5 +151,5 @@ func getEnvironmentFromParams(params kernel.Params) Environment {
 	// 	}
 	// }
 
-	return env
+	return env, nil
 }

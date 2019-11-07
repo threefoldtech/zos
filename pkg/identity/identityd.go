@@ -46,9 +46,12 @@ func (d *identityManager) NodeID() pkg.StrIdentifier {
 }
 
 // FarmID returns the farm ID of the node or an error if no farm ID is configured
-func (d *identityManager) FarmID() (pkg.StrIdentifier, error) {
-	env := environment.Get()
-	return pkg.StrIdentifier(env.FarmerID), nil
+func (d *identityManager) FarmID() (pkg.FarmID, error) {
+	env, err := environment.Get()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to parse node environment")
+	}
+	return env.FarmerID, nil
 }
 
 // Sign signs the message with privateKey and returns a signature.

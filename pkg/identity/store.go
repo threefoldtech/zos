@@ -16,8 +16,8 @@ import (
 // IDStore is the interface defining the
 // client side of an identity store
 type IDStore interface {
-	RegisterNode(node pkg.Identifier, farm pkg.Identifier, version string, loc geoip.Location) (string, error)
-	RegisterFarm(farm pkg.Identifier, name string, email string, wallet []string) (string, error)
+	RegisterNode(node pkg.Identifier, farm pkg.FarmID, version string, loc geoip.Location) (string, error)
+	RegisterFarm(tid uint64, name string, email string, wallet []string) (pkg.FarmID, error)
 }
 
 type httpIDStore struct {
@@ -30,11 +30,11 @@ func NewHTTPIDStore(url string) IDStore {
 }
 
 // RegisterNode implements the IDStore interface
-func (s *httpIDStore) RegisterNode(node pkg.Identifier, farm pkg.Identifier, version string, loc geoip.Location) (string, error) {
+func (s *httpIDStore) RegisterNode(node pkg.Identifier, farm pkg.FarmID, version string, loc geoip.Location) (string, error) {
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(directory.TfgridNode2{
 		NodeID:    node.Identity(),
-		FarmID:    farm.Identity(),
+		FarmID:    uint64(farm),
 		OsVersion: version,
 		Location: directory.TfgridLocation1{
 			City:      loc.City,
@@ -65,23 +65,33 @@ type farmRegisterReq struct {
 }
 
 // RegisterFarm implements the IDStore interface
-func (s *httpIDStore) RegisterFarm(farm pkg.Identifier, name string, email string, wallet []string) (string, error) {
+func (s *httpIDStore) RegisterFarm(tid uint64, name string, email string, wallet []string) (pkg.FarmID, error) {
 	buf := bytes.Buffer{}
-	err := json.NewEncoder(&buf).Encode(farmRegisterReq{
-		ID:   farm.Identity(),
-		Name: name,
+	err := json.NewEncoder(&buf).Encode(directory.TfgridFarm1{
+		ThreebotID:      tid,
+		Name:            name,
+		Email:           email,
+		WalletAddresses: wallet,
 	})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	resp, err := http.Post(s.baseURL+"/farms", "application/json", &buf)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	if resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("wrong response status code received: %v", resp.Status)
+		return 0, fmt.Errorf("wrong response status code received: %v", resp.Status)
 	}
 
-	return name, nil
+	defer resp.Body.Close()
+	id := struct {
+		ID pkg.FarmID `json:"id"`
+	}{}
+	if err := json.NewDecoder(resp.Body).Decode(&id); err != nil {
+		return 0, err
+	}
+
+	return id.ID, nil
 }
