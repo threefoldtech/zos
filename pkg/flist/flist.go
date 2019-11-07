@@ -100,7 +100,7 @@ func New(root string, storage pkg.VolumeAllocater) pkg.Flister {
 }
 
 // Mount implements the Flister.Mount interface
-func (f *flistModule) Mount(url, storage string) (string, error) {
+func (f *flistModule) Mount(url, storage string, opts pkg.MountOptions) (string, error) {
 	sublog := log.With().Str("url", url).Str("storage", storage).Logger()
 	sublog.Info().Msg("request to mount flist")
 
