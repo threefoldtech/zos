@@ -4,6 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
+
+	"github.com/threefoldtech/zos/pkg"
+
+	"github.com/pkg/errors"
 
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
 
@@ -21,11 +26,17 @@ func (s *farmStore) registerFarm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.Add(info); err != nil {
+	id, err := s.Add(info)
+	if err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(struct {
+		ID pkg.FarmID `json:"id"`
+	}{
+		id,
+	})
 }
 
 func (s *farmStore) listFarm(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +56,15 @@ func (s *farmStore) cockpitListFarm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *farmStore) getFarm(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["farm_id"]
-	farm, err := s.Get(name)
+	sid := mux.Vars(r)["farm_id"]
+
+	id, err := strconv.Atoi(sid)
+	if err != nil {
+		httpError(w, errors.Wrap(err, "id should be an integer"), http.StatusBadRequest)
+		return
+	}
+
+	farm, err := s.GetByID(id)
 	if err != nil {
 		httpError(w, err, http.StatusNotFound)
 		return

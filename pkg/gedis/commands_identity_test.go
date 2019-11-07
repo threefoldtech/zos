@@ -22,7 +22,7 @@ func TestRegisterFarm(t *testing.T) {
 
 	args := Args{
 		"farm": directory.TfgridFarm1{
-			ThreebotID:      "farm-id",
+			ThreebotID:      10,
 			Name:            "my-node",
 			Email:           "azmy@test.com",
 			WalletAddresses: []string{"addr1", "addr2"},
@@ -33,14 +33,14 @@ func TestRegisterFarm(t *testing.T) {
 		Return(mustMarshal(t, Args{"farm_id": 123}), nil)
 
 	id, err := gedis.RegisterFarm(
-		pkg.StrIdentifier("farm-id"),
+		10,
 		"my-node",
 		"azmy@test.com",
 		[]string{"addr1", "addr2"},
 	)
 
 	require.NoError(err)
-	require.Equal(id, "123")
+	require.Equal(id, pkg.FarmID(123))
 	conn.AssertCalled(t, "Close")
 }
 
@@ -58,7 +58,7 @@ func TestRegisterNode(t *testing.T) {
 	args := Args{
 		"node": directory.TfgridNode2{
 			NodeID:       "node-1",
-			FarmID:       "farm-1",
+			FarmID:       1,
 			OsVersion:    "v1.1.0",
 			PublicKeyHex: hex.EncodeToString(base58.Decode("node-1")),
 			Location: directory.TfgridLocation1{
@@ -76,7 +76,7 @@ func TestRegisterNode(t *testing.T) {
 
 	id, err := gedis.RegisterNode(
 		pkg.StrIdentifier("node-1"),
-		pkg.StrIdentifier("farm-1"),
+		pkg.FarmID(1),
 		"v1.1.0",
 		l,
 	)
@@ -95,7 +95,7 @@ func TestListNode(t *testing.T) {
 	}
 
 	args := Args{
-		"farm_id": "farm-1",
+		"farm_id": 1,
 		"country": "eg",
 		"city":    "cairo",
 	}
@@ -107,7 +107,7 @@ func TestListNode(t *testing.T) {
 		}}), nil)
 
 	nodes, err := gedis.ListNode(
-		pkg.StrIdentifier("farm-1"), "eg", "cairo",
+		pkg.FarmID(1), "eg", "cairo",
 	)
 
 	require.NoError(err)
@@ -156,7 +156,7 @@ func TestGetFarm(t *testing.T) {
 
 	conn.On("Do", "default.farms.get", mustMarshal(t, args)).
 		Return(mustMarshal(t, directory.TfgridFarm1{
-			ID:   "100",
+			ID:   100,
 			Name: "farm-1",
 		}), nil)
 
@@ -185,8 +185,8 @@ func TestListFarm(t *testing.T) {
 
 	conn.On("Do", "default.farms.list", mustMarshal(t, args)).
 		Return(mustMarshal(t, Args{"farms": []directory.TfgridFarm1{
-			{ID: "1", Name: "farm-1"},
-			{ID: "2", Name: "farm-2"},
+			{ID: 1, Name: "farm-1"},
+			{ID: 2, Name: "farm-2"},
 		}}), nil)
 
 	nodes, err := gedis.ListFarm("eg", "cairo")
