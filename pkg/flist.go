@@ -10,6 +10,11 @@ var (
 		ReadOnly: false,
 		Limit:    256,
 	}
+
+	//ReadOnlyMountOptions shortcut for readonly mount options
+	ReadOnlyMountOptions = MountOptions{
+		ReadOnly: true,
+	}
 )
 
 // MountOptions struct
