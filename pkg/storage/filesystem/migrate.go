@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"strings"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -14,18 +15,10 @@ const (
 )
 
 var (
-	zeros [512]byte
+	zeros [1024]byte
 )
 
 func wipe(ctx context.Context, device *Device, exe executer) error {
-	//we first make an msdos parition, because we know it's 512 bytes
-	//creating the msdos partition table also makes us validate that this
-	//is indeed a valid block device
-	if _, err := exe.run(ctx, "parted", "-s", device.Path, "mktable", "msdos"); err != nil {
-		return errors.Wrap(err, "failed to create msdos partition table")
-	}
-
-	//then we write down this exact amount to device
 	return ioutil.WriteFile(device.Path, zeros[:], 0660)
 }
 
@@ -66,14 +59,12 @@ loop:
 			log.Error().Err(err).Str("device", device.Path).Msg("failed to wipe disk")
 		}
 	}
+
 	if len(destroyMe) > 0 {
-		if out, err := exe.run(ctx, "sync"); err != nil {
-			log.Error().Err(err).Str("out", string(out)).Msg("failed sync devices")
-		}
+		syscall.Sync()
 		if out, err := exe.run(ctx, "partprobe"); err != nil {
 			log.Error().Err(err).Str("out", string(out)).Msg("failed to partprobe")
 		}
-
 	}
 
 	return m.Reset(), nil

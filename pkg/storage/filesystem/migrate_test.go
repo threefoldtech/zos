@@ -26,25 +26,20 @@ func TestMigrate(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	// we expect calls to wipe for /tmp/fakeb and /tmp/fakec
-	exec.On("run", ctx, "parted", "-s", "/tmp/fakeb", "mktable", "msdos").Return([]byte{}, nil)
-	exec.On("run", ctx, "parted", "-s", "/tmp/fakec", "mktable", "msdos").Return([]byte{}, nil)
 
-	exec.On("run", ctx, "sync").Return([]byte{}, nil)
 	exec.On("run", ctx, "partprobe").Return([]byte{}, nil)
 	_, err := migrate(ctx, &mgr, &exec)
 	require.NoError(err)
 
-	exec.AssertCalled(t, "run", ctx, "parted", "-s", "/tmp/fakeb", "mktable", "msdos")
-	exec.AssertCalled(t, "run", ctx, "parted", "-s", "/tmp/fakec", "mktable", "msdos")
-	exec.AssertNotCalled(t, "run", ctx, "parted", "-s", "/tmp/fakea", "mktable", "msdos")
-	exec.AssertNotCalled(t, "run", ctx, "parted", "-s", "/tmp/faked", "mktable", "msdos")
-	exec.AssertNotCalled(t, "run", ctx, "parted", "-s", "/tmp/fakee", "mktable", "msdos")
-
 	for _, fake := range []string{"/tmp/fakeb", "/tmp/fakec"} {
 		stat, err := os.Stat(fake)
 		require.NoError(err)
-		require.Equal(int64(512), stat.Size())
+		require.Equal(int64(1024), stat.Size())
 		os.Remove(fake)
+	}
+
+	for _, fake := range []string{"/tmp/fakea", "/tmp/faked", "/tmp/fakee"} {
+		_, err := os.Stat(fake)
+		require.True(os.IsNotExist(err))
 	}
 }
