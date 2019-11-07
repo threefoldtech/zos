@@ -31,6 +31,8 @@ func TestMigrate(t *testing.T) {
 	_, err := migrate(ctx, &mgr, &exec)
 	require.NoError(err)
 
+	exec.AssertCalled(t, "run", ctx, "partprobe")
+
 	for _, fake := range []string{"/tmp/fakeb", "/tmp/fakec"} {
 		stat, err := os.Stat(fake)
 		require.NoError(err)
