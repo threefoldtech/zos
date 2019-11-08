@@ -119,10 +119,15 @@ func (f *flistModule) Mount(url, storage string, opts pkg.MountOptions) (string,
 		sublog.Error().Err(err).Msg("fail to generate random id for the mount")
 		return "", err
 	}
-
-	path, err := f.storage.CreateFilesystem(rnd, 256*mib, pkg.SSDDevice)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
+	var args []string
+	if !opts.ReadOnly {
+		path, err := f.storage.CreateFilesystem(rnd, 256*mib, pkg.SSDDevice)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
+		}
+		args = append(args, "-backend", path)
+	} else {
+		args = append(args, "-ro")
 	}
 
 	mountpoint := filepath.Join(f.mountpoint, rnd)
@@ -132,8 +137,7 @@ func (f *flistModule) Mount(url, storage string, opts pkg.MountOptions) (string,
 	pidPath := filepath.Join(f.pid, rnd) + ".pid"
 	logPath := filepath.Join(f.log, rnd) + ".log"
 
-	args := []string{
-		"-backend", path,
+	args = append(args,
 		"-cache", f.cache,
 		"-meta", flistPath,
 		"-storage-url", storage,
@@ -141,7 +145,7 @@ func (f *flistModule) Mount(url, storage string, opts pkg.MountOptions) (string,
 		"-pid", pidPath,
 		"-log", logPath,
 		mountpoint,
-	}
+	)
 	sublog.Info().Strs("args", args).Msg("starting 0-fs daemon")
 	cmd := f.commander.Command("g8ufs", args...)
 
