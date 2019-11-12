@@ -121,7 +121,7 @@ func (f *flistModule) Mount(url, storage string, opts pkg.MountOptions) (string,
 	}
 	var args []string
 	if !opts.ReadOnly {
-		path, err := f.storage.CreateFilesystem(rnd, 256*mib, pkg.SSDDevice)
+		path, err := f.storage.CreateFilesystem(rnd, opts.Limit*mib, pkg.SSDDevice)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
 		}

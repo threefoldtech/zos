@@ -8,7 +8,7 @@ var (
 	//DefaultMountOptions has sane values for mount
 	DefaultMountOptions = MountOptions{
 		ReadOnly: false,
-		Limit:    256,
+		Limit:    256, //Mib
 	}
 
 	//ReadOnlyMountOptions shortcut for readonly mount options
@@ -19,8 +19,10 @@ var (
 
 // MountOptions struct
 type MountOptions struct {
+	// ReadOnly
 	ReadOnly bool
-	Limit    uint64
+	// Limit size of read-write layer in Mib
+	Limit uint64
 }
 
 //Flister is the interface for the flist module
