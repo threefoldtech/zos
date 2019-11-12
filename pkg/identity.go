@@ -25,7 +25,7 @@ type IdentityManager interface {
 
 	// FarmID return the farm id this node is part of. this is usually a configuration
 	// that the node is booted with. An error is returned if the farmer id is not configured
-	FarmID() (StrIdentifier, error)
+	FarmID() (FarmID, error)
 
 	// Sign signs the message with privateKey and returns a signature.
 	Sign(message []byte) ([]byte, error)
@@ -39,3 +39,6 @@ type IdentityManager interface {
 	// Decrypt decrypts message with the private of the node
 	Decrypt(message []byte) ([]byte, error)
 }
+
+// FarmID is the identification of a farm
+type FarmID uint64

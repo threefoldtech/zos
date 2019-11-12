@@ -69,7 +69,7 @@ type PubIface struct {
 // Node is the public information about a node
 type Node struct {
 	NodeID string `json:"node_id"`
-	FarmID string `json:"farm_id"`
+	FarmID uint64 `json:"farm_id"`
 
 	Ifaces []*IfaceInfo `json:"ifaces"`
 

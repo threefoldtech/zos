@@ -14,7 +14,7 @@ import (
 
 type testIdentityManager struct {
 	id   string
-	farm string
+	farm uint64
 }
 
 var _ pkg.IdentityManager = (*testIdentityManager)(nil)
@@ -26,8 +26,8 @@ func (t *testIdentityManager) NodeID() pkg.StrIdentifier {
 
 // FarmID return the farm id this node is part of. this is usually a configuration
 // that the node is booted with. An error is returned if the farmer id is not configured
-func (t *testIdentityManager) FarmID() (pkg.StrIdentifier, error) {
-	return pkg.StrIdentifier(t.farm), nil
+func (t *testIdentityManager) FarmID() (pkg.FarmID, error) {
+	return pkg.FarmID(t.farm), nil
 }
 
 // Sign signs the message with privateKey and returns a signature.
