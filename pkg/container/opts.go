@@ -77,7 +77,7 @@ func withCoreX() oci.SpecOpts {
 		s.Mounts = append(s.Mounts, specs.Mount{
 			Destination: "/corex",
 			Type:        "bind",
-			Source:      "/sbin/corex",
+			Source:      "/usr/bin/corex",
 			Options:     []string{"rbind", "ro"},
 		})
 		return nil
