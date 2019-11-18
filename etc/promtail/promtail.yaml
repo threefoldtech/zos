@@ -1,0 +1,29 @@
+server:
+  http_listen_port: 80
+  grpc_listen_port: 9095
+
+positions:
+  filename: /tmp/positions.yaml
+
+scrape_configs:
+- job_name: zos
+  static_configs:
+    - targets:
+        - localhost
+      labels:
+        job: zinit
+        __path__: /var/cache/log/system.log
+  pipeline_stages:
+    - regex:
+        expression: '^\[(?P<stream>.)\]\s(?P<module>[^:]+):\s*(?P<message>.*)'
+    - json:
+        expressions:
+          level:
+          time:
+        source: message
+    - timestamp:
+        source: time
+        format: RFC3339
+    - labels:
+        level:
+        module:

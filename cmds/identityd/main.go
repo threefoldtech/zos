@@ -21,7 +21,6 @@ import (
 
 	"flag"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/upgrade"
@@ -88,8 +87,6 @@ func main() {
 	flag.IntVar(&interval, "interval", 600, "interval in seconds between update checks, default to 600")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 	flag.BoolVar(&debug, "d", false, "when set, no self update is done before upgradeing")
-
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	flag.Parse()
 	if ver {
