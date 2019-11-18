@@ -12,10 +12,11 @@ scrape_configs:
         - localhost
       labels:
         job: zinit
+        node: "NODE-ID"
         __path__: /var/cache/log/system.log
   pipeline_stages:
     - regex:
-        expression: '^\[(?P<stream>.)\]\s(?P<module>[^:]+):\s*(?P<message>.*)'
+        expression: '^\[.\]\s(?P<module>[^:]+):\s*(?P<message>.*)'
     - json:
         expressions:
           level:
