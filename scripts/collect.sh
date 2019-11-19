@@ -1,4 +1,5 @@
-#!env bash
+#!/bin/sh
+set -e
 
 # This file is used by CI to build an archive with
 # all the binaries, and config files for flist building
@@ -10,6 +11,6 @@ if [ -z "${archive}" ]; then
     exit 1
 fi
 
-mkdir -p ${archive}/{bin,etc/zinit}
+mkdir -p ${archive}/bin ${archive}/etc
 cp bin/* ${archive}/bin/
 cp -r etc/* ${archive}/etc/
