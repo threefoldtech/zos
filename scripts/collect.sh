@@ -1,4 +1,4 @@
-#!env bash
+#!/bin/sh
 
 # This file is used by CI to build an archive with
 # all the binaries, and config files for flist building
