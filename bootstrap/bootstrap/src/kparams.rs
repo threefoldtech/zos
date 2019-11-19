@@ -1,19 +1,18 @@
+use failure::Error;
 use shlex::split;
 use std::collections::HashMap;
-use failure::Error;
 use std::fs;
 
 const PARAM_FILE: &str = "/proc/cmdline";
-type Params = HashMap<String,Option<String>>;
+type Params = HashMap<String, Option<String>>;
 
-pub fn params() -> Result<Params, Error>{
+pub fn params() -> Result<Params, Error> {
     let bytes = fs::read(PARAM_FILE)?;
-    
     parse(&bytes)
 }
 
 fn parse(bytes: &[u8]) -> Result<Params, Error> {
-    let args = match split(std::str::from_utf8(bytes)?){
+    let args = match split(std::str::from_utf8(bytes)?) {
         Some(args) => args,
         None => bail!("failed to parse kernel params"),
     };
@@ -43,7 +42,6 @@ mod tests {
     fn test_parse() -> Result<(), Error> {
         let input: &str = "initrd=initramfs-linux.img root=UUID=10f9e7bb-ba63-4fbd-a95e-c78b5496cfbe rootflags=subvol=root rw b43.allhwsupport=1";
         let result = parse(input.as_bytes())?;
-        
         assert_eq!(result.len(), 5);
         assert_eq!(result["rw"], None);
         assert_eq!(result["rootflags"], Some(String::from("subvol=root")));
