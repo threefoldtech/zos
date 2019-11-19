@@ -1,6 +1,8 @@
 name: Release (development)
 on: 
   push:
+    branches:
+      - '*'
     tags-ignore:
       - v*
 
