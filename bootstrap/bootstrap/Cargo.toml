@@ -1,0 +1,12 @@
+[package]
+name = "bootstrap"
+version = "0.1.0"
+authors = ["Muhamad Azmy <muhamad@incubaid.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+retry = "0.5.1"
+shlex = "0.1.1"
+failure = "0.1.6"
