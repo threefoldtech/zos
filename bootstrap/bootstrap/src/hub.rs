@@ -1,7 +1,8 @@
 use failure::Error;
 use reqwest::{get, StatusCode};
-use serde::Deserialize;
-use std::fs::OpenOptions;
+use serde::{Deserialize, Serialize};
+use serde_json;
+use std::fs::{write, OpenOptions};
 use std::io::copy;
 use std::path::Path;
 
@@ -9,13 +10,13 @@ const HUB: &str = "https://hub.grid.tf";
 
 type Result<T> = std::result::Result<T, Error>;
 
-struct Repo {
+pub struct Repo {
     base: String,
     name: String,
 }
 
-#[derive(Deserialize)]
-struct Flist {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Flist {
     #[serde(rename = "type")]
     pub kind: String,
     pub updated: u64,
@@ -30,10 +31,13 @@ struct Flist {
 }
 
 impl Repo {
-    pub fn new(name: String) -> Repo {
+    pub fn new<T>(name: T) -> Repo
+    where
+        T: AsRef<str>,
+    {
         Repo {
             base: String::from(HUB),
-            name: name,
+            name: String::from(name.as_ref()),
         }
     }
 
@@ -58,6 +62,7 @@ impl Repo {
 }
 
 impl Flist {
+    /// download the flist to `out`
     pub fn download<T>(&self, out: T) -> Result<()>
     where
         T: AsRef<Path>,
@@ -70,6 +75,15 @@ impl Flist {
         }
 
         copy(&mut response, &mut file)?;
+        Ok(())
+    }
+
+    /// write the flist info (in json format) to out
+    pub fn write<T>(&self, out: T) -> Result<()>
+    where
+        T: AsRef<Path>,
+    {
+        write(out, serde_json::to_vec(self)?)?;
         Ok(())
     }
 }

@@ -6,9 +6,11 @@ extern crate log;
 mod bootstrap;
 mod hub;
 mod kparams;
+mod workdir;
+mod zfs;
 
 fn main() {
-    simple_logger::init().unwrap();
+    simple_logger::init_with_level(log::Level::Debug).unwrap();
     info!("bootstrapping!");
 
     match bootstrap::bootstrap() {
