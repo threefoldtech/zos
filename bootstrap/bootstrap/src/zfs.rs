@@ -62,15 +62,24 @@ impl Zfs {
             &self.target,
             target.as_ref()
         );
-        dir::copy_with_progress(&self.target, target, &opts, |info: dir::TransitProcess| {
+        /*
+         |info: dir::TransitProcess| {
             print!(
                 "Copying {} {}/{}\r",
                 info.file_name, info.file_bytes_copied, info.file_total_bytes
             );
             dir::TransitProcessResult::ContinueOrAbort
-        })?;
+        }
+         */
+        dir::copy(&self.target, target, &opts)?;
 
         Ok(())
+    }
+}
+
+impl AsRef<Path> for Zfs {
+    fn as_ref(&self) -> &Path {
+        &self.target
     }
 }
 

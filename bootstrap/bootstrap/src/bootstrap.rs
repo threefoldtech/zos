@@ -73,9 +73,15 @@ fn boostrap_zos(mode: RunMode) -> Result<()> {
 
     let fs = Zfs::mount("backend", "machine.flist", "root")?;
     debug!("zfs started, now copying all files");
-    fs.copy("/tmp/test-output")
+    fs.copy("/tmp/test-output")?;
 
-    // Ok(())
+    // we need to find all yaml files under /etc/zinit to start monitoring them
+    let mut cfg = std::path::PathBuf::new();
+    cfg.push(fs);
+    cfg.push("etc");
+    cfg.push("zinit");
+
+    Ok(())
 }
 
 pub fn bootstrap() -> Result<()> {
