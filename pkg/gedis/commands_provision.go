@@ -3,6 +3,7 @@ package gedis
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/threefoldtech/zos/pkg/schema"
@@ -111,6 +112,19 @@ func (g *Gedis) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservati
 		}
 		reservations[i] = r
 	}
+
+	// sorts the primitive in the oder they need to be processed by provisiond
+	// network, zdb, volumes, container
+	sort.Slice(reservations, func(i int, j int) bool {
+		order := map[provision.ReservationType]int{
+			provision.DebugReservation:     0,
+			provision.NetworkReservation:   1,
+			provision.ZDBReservation:       2,
+			provision.VolumeReservation:    3,
+			provision.ContainerReservation: 4,
+		}
+		return order[reservations[i].Type] < order[reservations[j].Type]
+	})
 
 	return reservations, nil
 }
