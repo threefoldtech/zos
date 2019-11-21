@@ -1,6 +1,7 @@
 use failure::Error;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
+use walkdir::WalkDir;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -53,20 +54,25 @@ impl Zfs {
     where
         P: AsRef<Path>,
     {
-        // TODO: implement recursive copy in rust
-        // I already tried to use fs_extra but this
-        // crate sucks.
-
         debug!(
-            "copying from {:?} -to-> {:?}",
-            &self.target,
-            target.as_ref()
+            "copying from {} -to-> {}",
+            &self.target.display(),
+            target.as_ref().display()
         );
 
-        Command::new("sh")
-            .arg("-c")
-            .arg(format!("cp -a {:?}/* {:?}", &self.target, target.as_ref()))
-            .status()?;
+        for entry in WalkDir::new(&self.target) {
+            let entry = entry?;
+            let src = entry.path();
+            let mut dst = PathBuf::new();
+            dst.push(&target);
+            dst.push(src.strip_prefix(&self.target)?);
+            if entry.file_type().is_dir() {
+                std::fs::create_dir_all(dst)?;
+            } else {
+                std::fs::copy(&src, &dst)?;
+            }
+        }
+
         Ok(())
     }
 }
