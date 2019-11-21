@@ -15,7 +15,7 @@ func TestIPv6SuffixFromInputBytesAsHex_7_Simple_Nil(t *testing.T) {
 
 func TestIPv6SuffixFromInputBytesAsHex_8_Simple_Nil(t *testing.T) {
 	suffix := IPv6SuffixFromInputBytesAsHex(nil, 8)
-	const expectedSuffix = ":d41d:8cd9:8f00:b204"
+	const expectedSuffix = "d41d:8cd9:8f00:b204"
 	if suffix != expectedSuffix {
 		t.Fatalf("%s != %s", suffix, expectedSuffix)
 	}
@@ -24,6 +24,14 @@ func TestIPv6SuffixFromInputBytesAsHex_8_Simple_Nil(t *testing.T) {
 func TestIPv6SuffixFromInputBytesAsHex_7_Simple_42(t *testing.T) {
 	suffix := IPv6SuffixFromInputBytesAsHex([]byte{0x42}, 7)
 	const expectedSuffix = "9d:5ed6:78fe:57bc"
+	if suffix != expectedSuffix {
+		t.Fatalf("%s != %s", suffix, expectedSuffix)
+	}
+}
+
+func TestIPv6SuffixFromInputBytesAsHex_8_Simple_42(t *testing.T) {
+	suffix := IPv6SuffixFromInputBytesAsHex([]byte{0x42}, 8)
+	const expectedSuffix = "9d5e:d678:fe57:bcca"
 	if suffix != expectedSuffix {
 		t.Fatalf("%s != %s", suffix, expectedSuffix)
 	}
@@ -41,7 +49,7 @@ func TestIPv6SuffixFromInputBytesAsHex_7_Simple_NodeID(t *testing.T) {
 func TestIPv6SuffixFromInputBytesAsHex_8_Simple_NodeID(t *testing.T) {
 	const nodeID = "A34YUGenHKyhjDMAUKZe4cVDtJM2wQ4n4XRkfGUUEYdy"
 	suffix := IPv6SuffixFromInputBytesAsHex([]byte(nodeID[:]), 8)
-	const expectedSuffix = ":8bd3:3610:7ee9:1507"
+	const expectedSuffix = "8bd3:3610:7ee9:1507"
 	if suffix != expectedSuffix {
 		t.Fatalf("%s != %s", suffix, expectedSuffix)
 	}

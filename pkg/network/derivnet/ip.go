@@ -2,6 +2,7 @@ package derivnet
 
 import (
 	"fmt"
+	"bytes"
 	"crypto/md5"
 )
 
@@ -30,17 +31,17 @@ func IPv6SuffixFromInputBytesAsHex(b []byte, n int) string {
 		hexDigit = "0123456789abcdef"
 	)
 	out := make([]byte, 0, maxLen)
-	gs := 2
+	gs := 0
 	if len(ob) % 2 == 1 {
 		gs = 1
 	}
 	for _, o := range ob {
+		out = append(out, hexDigit[o>>4], hexDigit[o&0xF])
+		gs++
 		if gs == 2 {
 			out = append(out, ':')
 			gs = 0
 		}
-		out = append(out, hexDigit[o>>4], hexDigit[o&0xF])
-		gs++
 	}
-	return string(out)
+	return string(bytes.TrimSuffix(out, []byte{':'}))
 }
