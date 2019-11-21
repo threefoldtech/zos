@@ -11,7 +11,7 @@ mod zfs;
 mod zinit;
 
 fn main() {
-    simple_logger::init_with_level(log::Level::Debug).unwrap();
+    simple_logger::init_with_level(log::Level::Info).unwrap();
     info!("bootstrapping!");
 
     match bootstrap::bootstrap() {
@@ -21,4 +21,6 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    std::process::exit(0);
 }

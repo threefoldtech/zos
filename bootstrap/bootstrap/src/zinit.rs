@@ -8,13 +8,16 @@ pub fn monitor<T>(name: T) -> Result<()>
 where
     T: AsRef<str>,
 {
-    let status = Command::new("zinit")
+    let output = Command::new("zinit")
         .arg("monitor")
         .arg(name.as_ref())
-        .status()?;
-    if status.success() {
+        .output()?;
+    if output.status.success() {
         return Ok(());
     }
-
-    bail!("failed to monitor service '{}': {}", name.as_ref(), status);
+    bail!(
+        "failed to monitor service '{}': {:?}",
+        name.as_ref(),
+        output
+    );
 }

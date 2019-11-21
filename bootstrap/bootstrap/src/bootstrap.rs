@@ -110,7 +110,13 @@ fn boostrap_zos(mode: RunMode) -> Result<()> {
         match name.rfind(".yaml") {
             None => continue,
             Some(idx) => {
-                zinit::monitor(&name[0..idx])?;
+                let service = &name[0..idx];
+                match zinit::monitor(service) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        warn!("failed to monitor service '{}': {}", service, err);
+                    }
+                }
             }
         }
     }

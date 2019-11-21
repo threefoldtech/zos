@@ -1,5 +1,4 @@
 use failure::Error;
-use fs_extra::dir;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 
@@ -54,25 +53,20 @@ impl Zfs {
     where
         P: AsRef<Path>,
     {
-        let mut opts = dir::CopyOptions::new();
-        opts.overwrite = true;
-        opts.copy_inside = true;
+        // TODO: implement recursive copy in rust
+        // I already tried to use fs_extra but this
+        // crate sucks.
+
         debug!(
             "copying from {:?} -to-> {:?}",
             &self.target,
             target.as_ref()
         );
-        /*
-         |info: dir::TransitProcess| {
-            print!(
-                "Copying {} {}/{}\r",
-                info.file_name, info.file_bytes_copied, info.file_total_bytes
-            );
-            dir::TransitProcessResult::ContinueOrAbort
-        }
-         */
-        dir::copy(&self.target, target, &opts)?;
 
+        Command::new("sh")
+            .arg("-c")
+            .arg(format!("cp -a {:?}/* {:?}", &self.target, target.as_ref()))
+            .status()?;
         Ok(())
     }
 }
