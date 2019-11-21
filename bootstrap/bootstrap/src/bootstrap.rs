@@ -2,6 +2,7 @@ use super::hub;
 use super::kparams;
 use super::workdir::WorkDir;
 use super::zfs::Zfs;
+use super::zinit;
 
 use failure::Error;
 use retry;
@@ -73,14 +74,39 @@ fn boostrap_zos(mode: RunMode) -> Result<()> {
 
     let fs = Zfs::mount("backend", "machine.flist", "root")?;
     debug!("zfs started, now copying all files");
-    fs.copy("/tmp/test-output")?;
+    fs.copy("/")?; //copy everything to root
 
     // we need to find all yaml files under /etc/zinit to start monitoring them
     let mut cfg = std::path::PathBuf::new();
     cfg.push(fs);
     cfg.push("etc");
     cfg.push("zinit");
+    let services = std::fs::read_dir(&cfg)?;
+    for service in services {
+        let service = service?;
+        let path = service.path();
 
+        if !path.is_file() {
+            continue;
+        }
+        let name = match path.file_name() {
+            Some(name) => match name.to_str() {
+                Some(name) => name,
+                None => {
+                    warn!("failed to process name: {:?}", path);
+                    continue;
+                }
+            },
+            None => continue,
+        };
+
+        match name.rfind(".yaml") {
+            None => continue,
+            Some(idx) => {
+                zinit::monitor(&name[0..idx])?;
+            }
+        }
+    }
     Ok(())
 }
 

@@ -8,6 +8,7 @@ mod hub;
 mod kparams;
 mod workdir;
 mod zfs;
+mod zinit;
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
