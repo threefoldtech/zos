@@ -16,5 +16,5 @@ where
         return Ok(());
     }
 
-    bail!("failed to monitor service: {}", status);
+    bail!("failed to monitor service '{}': {}", name.as_ref(), status);
 }

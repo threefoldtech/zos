@@ -74,14 +74,21 @@ fn boostrap_zos(mode: RunMode) -> Result<()> {
 
     let fs = Zfs::mount("backend", "machine.flist", "root")?;
     debug!("zfs started, now copying all files");
-    fs.copy("/")?; //copy everything to root
+    //copy everything to root
+    match fs.copy("/") {
+        Ok(_) => {}
+        Err(err) => bail!("failed to copy files to rootfs: {}", err),
+    };
 
     // we need to find all yaml files under /etc/zinit to start monitoring them
     let mut cfg = std::path::PathBuf::new();
-    cfg.push(fs);
+    cfg.push(&fs);
     cfg.push("etc");
     cfg.push("zinit");
-    let services = std::fs::read_dir(&cfg)?;
+    let services = match std::fs::read_dir(&cfg) {
+        Ok(services) => services,
+        Err(err) => bail!("failed to read directory '{:?}': {}", cfg, err),
+    };
     for service in services {
         let service = service?;
         let path = service.path();
