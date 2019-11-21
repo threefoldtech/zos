@@ -80,7 +80,7 @@ func (p WireguardPeer1) ToProvisionType() (pkg.Peer, error) {
 		WGPublicKey: p.PublicKey,
 		Endpoint:    p.Endpoint,
 		AllowedIPs:  make([]types.IPNet, len(p.AllowedIPs)),
-		Subnet:       types.NewIPNetFromSchema(p.IPRange),
+		Subnet:      types.NewIPNetFromSchema(p.IPRange),
 	}
 
 	var err error
