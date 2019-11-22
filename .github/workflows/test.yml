@@ -57,9 +57,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@master
       - name: Prepare musl
-        run: |
-          apt-get update
-          apt-get install musl
+        use: mstksg/get-package@v1
+        with:
+          apt-get: musl
       - name: Setup toolchain
         uses: actions-rs/toolchain@v1
         with:
