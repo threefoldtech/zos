@@ -117,7 +117,7 @@ mod tests {
         let line: Vec<&str> = output.split_whitespace().collect();
 
         assert_eq!(line[0], &flist.md5);
-        std::fs::remove_file(temp);
+        let _ = std::fs::remove_file(temp);
         Ok(())
     }
 }
