@@ -42,7 +42,7 @@ jobs:
           user: tf-autobuilder
           root: archive
           token: ${{ secrets.HUB_JWT }}
-          name: ${{ steps.setname.outputs.build }}.flist
+          name: ${{ steps.setname.outputs.build }}
       - name: Symlink flist (development)
         if: success()
         uses: threefoldtech/publish-flist@master
