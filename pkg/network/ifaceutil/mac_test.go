@@ -9,7 +9,7 @@ import (
 
 func TestHardwareAddrFromInputBytes_Simple_Nil(t *testing.T) {
 	addr := HardwareAddrFromInputBytes(nil)
-	expectedAddr := net.HardwareAddr{0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00}
+	expectedAddr := net.HardwareAddr{0xd6, 0x1d, 0x8c, 0xd9, 0x8f, 0x00}
 	if bytes.Compare(addr[:], expectedAddr[:]) != 0 {
 		t.Fatalf("%v != %v", addr, expectedAddr)
 	}
@@ -17,7 +17,7 @@ func TestHardwareAddrFromInputBytes_Simple_Nil(t *testing.T) {
 
 func TestHardwareAddrFromInputBytes_Simple_42(t *testing.T) {
 	addr := HardwareAddrFromInputBytes([]byte{0x42})
-	expectedAddr := net.HardwareAddr{0x9d, 0x5e, 0xd6, 0x78, 0xfe, 0x57}
+	expectedAddr := net.HardwareAddr{0x9e, 0x5e, 0xd6, 0x78, 0xfe, 0x57}
 	if bytes.Compare(addr[:], expectedAddr[:]) != 0 {
 		t.Fatalf("%v != %v", addr, expectedAddr)
 	}
@@ -26,7 +26,7 @@ func TestHardwareAddrFromInputBytes_Simple_42(t *testing.T) {
 func TestHardwareAddrFromInputBytes_Simple_FromNodeID(t *testing.T) {
 	const nodeID = "A34YUGenHKyhjDMAUKZe4cVDtJM2wQ4n4XRkfGUUEYdy"
 	addr := HardwareAddrFromInputBytes([]byte(nodeID[:]))
-	expectedAddr := net.HardwareAddr{0x8b, 0xd3, 0x36, 0x10, 0x7e, 0xe9}
+	expectedAddr := net.HardwareAddr{0x8a, 0xd3, 0x36, 0x10, 0x7e, 0xe9}
 	if bytes.Compare(addr[:], expectedAddr[:]) != 0 {
 		t.Fatalf("%v != %v", addr, expectedAddr)
 	}

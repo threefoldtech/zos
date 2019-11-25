@@ -12,17 +12,22 @@ func HardwareAddrFromInputBytes(b []byte) net.HardwareAddr {
 	var (
 		offset int
 		hs     [md5.Size]byte
+		buf    []byte
 		addr   net.HardwareAddr
 	)
 outerLoop:
 	for {
 		hs = md5.Sum(b[:])
 		offset = 0
-		addr = net.HardwareAddr(hs[offset : offset+hwMacAddress])
+		buf = hs[offset : offset+hwMacAddress]
+		buf[0] = (buf[0] | 2) & 0xfe // Set local bit, ensure unicast address
+		addr = net.HardwareAddr(buf)
 		for !isHardwareAddrInValidRange(addr) {
 			if offset < hwMaxHashOffset {
 				offset++
-				addr = net.HardwareAddr(hs[offset : offset+hwMacAddress])
+				buf = hs[offset : offset+hwMacAddress]
+				buf[0] = (buf[0] | 2) & 0xfe // Set local bit, ensure unicast address
+				addr = net.HardwareAddr(buf)
 			} else {
 				b = hs[:]
 				continue outerLoop

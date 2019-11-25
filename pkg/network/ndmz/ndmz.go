@@ -66,34 +66,34 @@ func Create() error {
 
 	if namespace.Exists("public") {
 		err = createMacVlan(netNS)
-		if err != nil {
-			return err
-		}
-		// set mac address to something static to make sure we receive the same IP from a DHCP server
-		pubiface,err := getPublicIface()
-		if err != nil {
-			return err
-		}
-		mac, err := ifaceutil.GetMAC(pubiface,nil)
-		if err != nil {
-			return err
-		}
-		mac = ifaceutil.HardwareAddrFromInputBytes(mac[:])
-		err = ifaceutil.SetMAC("public",mac,netNS)
 	} else {
 		err = attachVeth(netNS)
-		if err != nil {
-			return err
-		}
-		// set mac address to something static to make sure we receive the same IP from a DHCP server
-		mac, err := ifaceutil.GetMAC("zos",nil)
-		if err != nil {
-			return err
-		}
-		mac = ifaceutil.HardwareAddrFromInputBytes(mac[:])
-		err = ifaceutil.SetMAC("public",mac,netNS)
 	}
 	if err != nil {
+		return err
+	}
+
+	// set mac address to something static to make sure we receive the same IP from a DHCP server
+	pubiface, err := getPublicIface()
+	if err != nil {
+		return err
+	}
+	mac, err := ifaceutil.GetMAC(pubiface, nil)
+	if err != nil {
+		return err
+	}
+
+	log.Debug().
+		Str("iface", pubiface).
+		Str("mac", mac.String()).
+		Msg("public iface found")
+
+	mac = ifaceutil.HardwareAddrFromInputBytes(mac[:])
+	log.Debug().
+		Str("mac", mac.String()).
+		Msg("set mac on public iface")
+
+	if err = ifaceutil.SetMAC("public", mac, netNS); err != nil {
 		return err
 	}
 
@@ -133,7 +133,10 @@ func createMacVlan(netNS ns.NetNS) error {
 
 func attachVeth(netNS ns.NetNS) error {
 
-	const (vethHost= "to-dmz"; vethNDMZ = "public")
+	const (
+		vethHost = "to-dmz"
+		vethNDMZ = "public"
+	)
 
 	if !ifaceutil.Exists(vethHost, nil) || !ifaceutil.Exists(vethNDMZ, netNS) {
 		if _, _, err := ip.SetupVethWithName(vethHost, vethNDMZ, 1500, netNS); err != nil {

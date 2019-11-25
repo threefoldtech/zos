@@ -89,10 +89,10 @@ func HasDefaultGW(link netlink.Link) (bool, net.IP, error) {
 	}
 
 	log.Info().Msg("IP addresses found")
-	for i, addr := range addrs {
+	for _, addr := range addrs {
 		log.Info().
 			Str("interface", link.Attrs().Name).
-			IPAddr(string(i), addr.IP).Msg("")
+			IPAddr("ip", addr.IP).Send()
 	}
 
 	routes, err := netlink.RouteList(link, netlink.FAMILY_ALL)
@@ -214,6 +214,11 @@ func SetMAC(name string, mac net.HardwareAddr, netNS ns.NetNS) error {
 			if err != nil {
 				return err
 			}
+			if err := netlink.LinkSetDown(link); err != nil {
+				return err
+			}
+			defer netlink.LinkSetUp(link)
+
 			return netlink.LinkSetHardwareAddr(link, mac)
 
 		})
@@ -222,8 +227,11 @@ func SetMAC(name string, mac net.HardwareAddr, netNS ns.NetNS) error {
 	if err != nil {
 		return err
 	}
+	if err := netlink.LinkSetDown(link); err != nil {
+		return err
+	}
+	defer netlink.LinkSetUp(link)
 	return netlink.LinkSetHardwareAddr(link, mac)
-
 }
 
 // Delete deletes the named interface
