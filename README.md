@@ -24,6 +24,14 @@ If you want to contribute read the [contribution guideline](CONTRIBUTING.md) and
 
 Learn more about the different network by reading the [upgrade documentation](/docs/identity/upgrade.md#philosophy)
 
+### Provisioning of workloads
+ZOS does not expose an interface, instead of wait for reservation to happen on a trusted
+source, and once this reservation is available, the node will actually apply it to reality. You can start reading about [provisioning](docs/provision) in this document.
+
+Currently zos supports two different source:
+- BCDB
+- BCDB mock
+
 ## Owners
 
 [@zaibon](https://github.com/zaibon) [@maxux](https://github.com/maxux) [@muhamadazmy](https://github.com/muhamadazmy) [@delandtj](https://github.com/delandtj) [@leesmet](https://github.com/leesmet)
