@@ -51,6 +51,7 @@ impl Repo {
             self.name,
             flist.as_ref()
         );
+
         let mut response = get(&url)?;
         let mut info: Flist = match response.status() {
             StatusCode::OK => response.json()?,

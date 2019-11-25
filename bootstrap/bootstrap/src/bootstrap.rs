@@ -1,3 +1,4 @@
+use super::config;
 use super::hub;
 use super::kparams;
 use super::workdir::WorkDir;
@@ -58,7 +59,16 @@ fn boostrap_zos(mode: RunMode) -> Result<()> {
     debug!("using flist: {}/{}", FLIST_REPO, flist);
     let repo = hub::Repo::new(FLIST_REPO);
     let flist = retry::retry(retry::delay::Exponential::from_millis(200), || {
-        repo.get(flist)
+        info!("get flist info: {}", flist);
+        let info = match repo.get(flist) {
+            Ok(info) => info,
+            Err(err) => {
+                error!("failed to get info: {}", err);
+                bail!("failed to get info: {}", err);
+            }
+        };
+
+        Ok(info)
     });
 
     let flist = match flist {
@@ -70,7 +80,27 @@ fn boostrap_zos(mode: RunMode) -> Result<()> {
     flist.write(FLIST_INFO_FILE)?;
     std::fs::write(FLIST_NAME_FILE, format!("{}/{}", FLIST_REPO, flist.name))?;
 
-    flist.download("machine.flist")?;
+    let result = retry::retry(retry::delay::Exponential::from_millis(200), || {
+        info!("download flist: {}", flist.name);
+
+        // the entire point of this match is the
+        // logging of the error.
+        match flist.download("machine.flist") {
+            Ok(ok) => Ok(ok),
+            Err(err) => {
+                error!("failed to download flist: {}", err);
+                bail!("failed to download flist: {}", err);
+            }
+        }
+    });
+
+    // I can't use the ? because error from retry
+    // is not compatible with failure::Error for
+    // some reason.
+    match result {
+        Err(err) => bail!("{:?}", err),
+        _ => (),
+    };
 
     let fs = Zfs::mount("backend", "machine.flist", "root")?;
     debug!("zfs started, now copying all files");
@@ -123,7 +153,8 @@ fn boostrap_zos(mode: RunMode) -> Result<()> {
     Ok(())
 }
 
-pub fn bootstrap() -> Result<()> {
+/// bootstrap stage install and starts all zos daemons
+pub fn bootstrap(_: &config::Config) -> Result<()> {
     let mode = runmode()?;
     debug!("runmode: {:?}", mode);
     let result = WorkDir::run(WORKDIR, || -> Result<()> {
@@ -132,4 +163,79 @@ pub fn bootstrap() -> Result<()> {
     })?;
 
     result
+}
+
+/// update stage make sure we are running latest
+/// version of bootstrap
+pub fn update(cfg: &config::Config) -> Result<()> {
+    let result = WorkDir::run(WORKDIR, || -> Result<()> {
+        update_bootstrap(cfg.debug)?;
+        Ok(())
+    })?;
+
+    result
+}
+
+// find the latest bootstrap binary on the hub. and make sure
+// it's installed and available on the system, before starting
+// the actual system bootstrap.
+fn update_bootstrap(debug: bool) -> Result<()> {
+    // we are running in a tmpfs workdir in this method
+    let repo = hub::Repo::new("tf-autobuilder");
+    let name = if debug {
+        "bootstrap:development.flist"
+    } else {
+        "bootstrap:latest.flist"
+    };
+
+    let flist = retry::retry(retry::delay::Exponential::from_millis(200), || {
+        info!("get flist info: {}", name);
+        //the full point of this match is the logging.
+        let info = match repo.get(name) {
+            Ok(info) => info,
+            Err(err) => {
+                error!("failed to get info: {}", err);
+                bail!("failed to get info: {}", err);
+            }
+        };
+
+        Ok(info)
+    });
+
+    let flist = match flist {
+        Ok(flist) => flist,
+        Err(e) => bail!("failed to download flist: {:?}", e),
+    };
+
+    let result = retry::retry(retry::delay::Exponential::from_millis(200), || {
+        info!("download flist: {}", flist.name);
+
+        // the entire point of this match is the
+        // logging of the error.
+        match flist.download("bootstrap.flist") {
+            Ok(ok) => Ok(ok),
+            Err(err) => {
+                error!("failed to download flist: {}", err);
+                bail!("failed to download flist: {}", err);
+            }
+        }
+    });
+
+    // I can't use the ? because error from retry
+    // is not compatible with failure::Error for
+    // some reason.
+    match result {
+        Err(err) => bail!("{:?}", err),
+        _ => (),
+    };
+
+    let fs = Zfs::mount("backend", "bootstrap.flist", "root")?;
+    debug!("zfs started, now copying all files");
+
+    // this trick here to allow overriding
+    // the current running bootstrap binary
+    let bin: Vec<String> = std::env::args().take(1).collect();
+    std::fs::rename(&bin[0], format!("{}.bak", &bin[0]))?;
+
+    fs.copy("/")
 }
