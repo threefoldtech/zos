@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg/network"
