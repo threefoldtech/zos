@@ -25,12 +25,14 @@ If you want to contribute read the [contribution guideline](CONTRIBUTING.md) and
 Learn more about the different network by reading the [upgrade documentation](/docs/identity/upgrade.md#philosophy)
 
 ### Provisioning of workloads
-ZOS does not expose an interface, instead of wait for reservation to happen on a trusted
-source, and once this reservation is available, the node will actually apply it to reality. You can start reading about [provisioning](docs/provision) in this document.
+ZOS does not expose an interface, instead it waits for reservation to happen on a trusted source, and once this reservation is available, the node will actually apply it to reality. You can start reading about [provisioning](docs/provision) in this document.
 
 Currently zos supports two different source:
-- BCDB
-- BCDB mock
+#### BCDB
+Already used by **test network**. All nodes started with `runmode=test` will work against the test network instance.
+
+#### BCDB mock
+Already used by **dev network**. All nodes started with `runmode=dev` will work against the dev network instance. In `dev` modes the node will also respect a `bcdb=<url>` flag to control witch mock instance you want to use for local development.
 
 ## Owners
 
