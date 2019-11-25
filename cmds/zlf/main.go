@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/app"
 )
 
 func reader(c io.Reader, r *redis.Client, channel string) {
@@ -28,6 +29,8 @@ func reader(c io.Reader, r *redis.Client, channel string) {
 }
 
 func main() {
+	app.Initialize()
+
 	lUnix := flag.String("logs", "/var/run/log.sock", "zinit unix socket")
 	rChan := flag.String("channel", "zinit-logs", "redis logs channel name")
 	rHost := flag.String("host", "localhost", "redis host")
