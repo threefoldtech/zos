@@ -224,7 +224,7 @@ func (u *Upgrader) uninstall(from FListEvent) error {
 func (u *Upgrader) applyUpgrade(from, to FListEvent) error {
 	log.Info().Str("flist", to.Fqdn()).Str("version", to.TryVersion().String()).Msg("start applying upgrade")
 
-	flistRoot, err := u.FLister.Mount(u.hub.MountURL(to.Name), u.hub.StorageURL(), pkg.ReadOnlyMountOptions)
+	flistRoot, err := u.FLister.Mount(u.hub.MountURL(to.Fqdn()), u.hub.StorageURL(), pkg.ReadOnlyMountOptions)
 	if err != nil {
 		return err
 	}
