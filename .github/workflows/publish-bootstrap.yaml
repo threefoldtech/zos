@@ -1,7 +1,9 @@
 name: Publish Bootstrap
 on:
   push:
-    path:
+    paths-ignore:
+      - '*'
+    paths:
       - 'bootstrap/bootstrap/**'
       - '.github/workflows/publish-bootstrap.yaml'
 
