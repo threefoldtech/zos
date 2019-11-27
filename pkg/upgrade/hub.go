@@ -67,6 +67,37 @@ func (h *hubClient) Info(flist string) (info flistInfo, err error) {
 	return info, err
 }
 
+func (h *hubClient) List(repo string) ([]flistInfo, error) {
+	u, err := url.Parse(hubBaseURL)
+	if err != nil {
+		panic("invalid base url")
+	}
+
+	u.Path = filepath.Join("api", "flist", repo)
+	response, err := http.Get(u.String())
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+	defer ioutil.ReadAll(response.Body)
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get repository listing: %s", response.Status)
+	}
+
+	dec := json.NewDecoder(response.Body)
+
+	var result []flistInfo
+	err = dec.Decode(&result)
+
+	for i := range result {
+		result[i].Repository = repo
+	}
+
+	return result, err
+}
+
 // flistInfo reflects node boot information (flist + version)
 type flistInfo struct {
 	Name       string `json:"name"`
