@@ -232,6 +232,12 @@ func main() {
 		switch event := event.(type) {
 		case *upgrade.FListEvent:
 			// new flist available
+			version, err := event.Version()
+			if err != nil {
+				log.Error().Err(err).Msg("failed to parse new version")
+				continue
+			}
+
 			from, err := boot.Current()
 			if err != nil {
 				log.Fatal().Err(err).Msg("failed to load current boot information")
@@ -253,6 +259,14 @@ func main() {
 
 			if err := boot.Set(*event); err != nil {
 				log.Error().Err(err).Msg("failed to update boot information")
+			}
+
+			if err := backoff.Retry(func() error {
+				return register(version.String())
+			}, backoff.NewExponentialBackOff()); err != nil {
+				log.Error().Err(err).Msg("failed to register node")
+			} else {
+				log.Info().Str("version", version.String()).Msg("node registered successfully")
 			}
 		}
 	}

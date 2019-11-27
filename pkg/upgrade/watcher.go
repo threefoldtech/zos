@@ -112,6 +112,8 @@ func (w *FListSemverWatcher) Watch(ctx context.Context) (<-chan Event, error) {
 				return
 			}
 
+			log.Debug().Str("flist", w.FList).Msg("check updates")
+
 			info, err := w.client.Info(w.FList)
 			if err != nil {
 				log.Error().Err(err).Str("flist", w.FList).Msg("failed to get flist info")
