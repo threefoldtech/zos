@@ -364,7 +364,7 @@ func (nr *NetResource) createVethPair() error {
 			Str("veth", vethName).
 			Msg("Create veth pair in net namespace")
 
-		hostVeth, containerVeth, err := ip.SetupVeth(vethName, 1500, hostNS)
+		containerVeth, hostVeth, err := ip.SetupVeth(vethName, 1500, hostNS)
 		if err != nil {
 			return err
 		}
