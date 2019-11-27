@@ -174,6 +174,10 @@ func (p *btrfsPool) mounted(fs *Btrfs) (string, bool) {
 	return "", false
 }
 
+func (p *btrfsPool) ID() int {
+	return 0
+}
+
 func (p *btrfsPool) Name() string {
 	return p.name
 }
@@ -287,6 +291,7 @@ func (p *btrfsPool) Volumes() ([]Volume, error) {
 
 	for _, sub := range subs {
 		volumes = append(volumes, newBtrfsVolume(
+			sub.ID,
 			filepath.Join(mnt, sub.Path),
 			p.utils,
 		))
@@ -296,11 +301,17 @@ func (p *btrfsPool) Volumes() ([]Volume, error) {
 }
 
 func (p *btrfsPool) addVolume(root string) (*btrfsVolume, error) {
-	if err := p.utils.SubvolumeAdd(context.Background(), root); err != nil {
+	ctx := context.Background()
+	if err := p.utils.SubvolumeAdd(ctx, root); err != nil {
 		return nil, err
 	}
 
-	return newBtrfsVolume(root, p.utils), nil
+	volume, err := p.utils.SubvolumeInfo(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
+	return newBtrfsVolume(volume.ID, root, p.utils), nil
 }
 
 func (p *btrfsPool) AddVolume(name string) (Volume, error) {
@@ -314,7 +325,19 @@ func (p *btrfsPool) AddVolume(name string) (Volume, error) {
 }
 
 func (p *btrfsPool) removeVolume(root string) error {
-	return p.utils.SubvolumeRemove(context.Background(), root)
+	ctx := context.Background()
+	qgroups, err := p.utils.QGroupList(ctx, root)
+	if err != nil {
+		return err
+	}
+
+	for _, qgroup := range qgroups {
+		log.Debug().Msgf("delete qgroup %s", qgroup.ID)
+		if err := p.utils.QGroupDestroy(ctx, qgroup.ID, root); err != nil {
+			return err
+		}
+	}
+	return p.utils.SubvolumeRemove(ctx, root)
 }
 
 func (p *btrfsPool) RemoveVolume(name string) error {
@@ -393,16 +416,57 @@ func (p *btrfsPool) Reserved() (uint64, error) {
 	return total, nil
 }
 
+func (p *btrfsPool) Maintenance() error {
+	// this method cleans up all the unused
+	// qgroups that could exists on a filesystem
+
+	volumes, err := p.Volumes()
+	if err != nil {
+		return err
+	}
+	subVolsIDs := map[string]struct{}{}
+	for _, volume := range volumes {
+		// use the 0/X notation to match the qgroup IDs format
+		subVolsIDs[fmt.Sprintf("0/%d", volume.ID())] = struct{}{}
+	}
+
+	ctx := context.Background()
+	qgroups, err := p.utils.QGroupList(ctx, p.Path())
+	if err != nil {
+		return err
+	}
+
+	for qgroupID := range qgroups {
+		// for all qgroup that doesn't have an linked
+		// volume, delete the qgroup
+		_, ok := subVolsIDs[qgroupID]
+		if !ok {
+			log.Debug().Str("id", qgroupID).Msg("destroy qgroup")
+			if err := p.utils.QGroupDestroy(ctx, qgroupID, p.Path()); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 type btrfsVolume struct {
+	id    int
 	path  string
 	utils *BtrfsUtil
 }
 
-func newBtrfsVolume(path string, utils *BtrfsUtil) *btrfsVolume {
+func newBtrfsVolume(ID int, path string, utils *BtrfsUtil) *btrfsVolume {
 	return &btrfsVolume{
+		id:    ID,
 		path:  path,
 		utils: utils,
 	}
+}
+
+func (v *btrfsVolume) ID() int {
+	return v.id
 }
 
 func (v *btrfsVolume) Path() string {
@@ -418,19 +482,25 @@ func (v *btrfsVolume) Volumes() ([]Volume, error) {
 	}
 
 	for _, sub := range subs {
-		volumes = append(volumes, newBtrfsVolume(filepath.Join(v.Path(), sub.Path), v.utils))
+		volumes = append(volumes, newBtrfsVolume(sub.ID, filepath.Join(v.Path(), sub.Path), v.utils))
 	}
 
 	return volumes, nil
 }
 
 func (v *btrfsVolume) AddVolume(name string) (Volume, error) {
+	ctx := context.Background()
 	mnt := filepath.Join(v.Path(), name)
-	if err := v.utils.SubvolumeAdd(context.Background(), mnt); err != nil {
+	if err := v.utils.SubvolumeAdd(ctx, mnt); err != nil {
 		return nil, err
 	}
 
-	return newBtrfsVolume(mnt, v.utils), nil
+	volume, err := v.utils.SubvolumeInfo(ctx, mnt)
+	if err != nil {
+		return nil, err
+	}
+
+	return newBtrfsVolume(volume.ID, mnt, v.utils), nil
 }
 
 func (v *btrfsVolume) RemoveVolume(name string) error {

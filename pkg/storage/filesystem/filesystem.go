@@ -14,6 +14,8 @@ type Usage struct {
 
 // Volume represents a logical volume in the pool. Volumes can be nested
 type Volume interface {
+	// Volume ID
+	ID() int
 	// Path of the volume
 	Path() string
 	// Volumes are all subvolumes of this volume
@@ -50,7 +52,10 @@ type Pool interface {
 	Type() pkg.DeviceType
 	// Reserved is reserved size of the devices in bytes
 	Reserved() (uint64, error)
-
+	// Maintenance is a routine that is called at boot
+	// and that all implementer can use to do some clean up and
+	// other maintenance on the pool
+	Maintenance() error
 	// Health() ?
 }
 
