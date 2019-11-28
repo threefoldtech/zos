@@ -20,10 +20,11 @@ func TestVerifySignature(t *testing.T) {
 	require.NoError(t, err)
 
 	r := &Reservation{
-		ID:   "reservationID",
-		User: keyPair.Identity(),
-		Type: ContainerReservation,
-		Data: data,
+		ID:     "reservationID",
+		NodeID: "node1",
+		User:   keyPair.Identity(),
+		Type:   ContainerReservation,
+		Data:   data,
 	}
 
 	err = r.Sign(keyPair.PrivateKey)

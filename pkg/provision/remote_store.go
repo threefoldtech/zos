@@ -23,8 +23,11 @@ func NewHTTPStore(url string) *HTTPStore {
 }
 
 // Reserve adds a reservation to the BCDB
-func (s *HTTPStore) Reserve(r *Reservation, nodeID pkg.Identifier) (string, error) {
-	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, nodeID.Identity())
+func (s *HTTPStore) Reserve(r *Reservation) (string, error) {
+	if r.NodeID == "" {
+		return "", fmt.Errorf("nodeID cannot be empty in the reservation")
+	}
+	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, r.NodeID)
 
 	buf := &bytes.Buffer{}
 

@@ -17,11 +17,11 @@ func (r *Reservation) Sign(privateKey ed25519.PrivateKey) error {
 	//FIME: Since the ID is only set when the reservation is sent to bcdb
 	// we cannot use it in the signature. This is a problem
 
-	// _, err := buf.WriteString(r.ID)
-	// if err != nil {
-	// 	return err
-	// }
-	_, err := buf.WriteString(r.User)
+	_, err := buf.WriteString(r.NodeID)
+	if err != nil {
+		return err
+	}
+	_, err = buf.WriteString(r.User)
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,12 @@ func Verify(r *Reservation) error {
 	//FIME: Since the ID is only set when the reservation is sent to bcdb
 	// we cannot use it in the signature. This is a problem
 
-	_, err := buf.WriteString(r.User)
+	_, err := buf.WriteString(r.NodeID)
+	if err != nil {
+		return err
+	}
+
+	_, err = buf.WriteString(r.User)
 	if err != nil {
 		return err
 	}
