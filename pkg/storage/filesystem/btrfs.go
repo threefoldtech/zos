@@ -326,6 +326,11 @@ func (p *btrfsPool) AddVolume(name string) (Volume, error) {
 
 func (p *btrfsPool) removeVolume(root string) error {
 	ctx := context.Background()
+
+	if err := p.utils.SubvolumeRemove(ctx, root); err != nil {
+		return err
+	}
+
 	qgroups, err := p.utils.QGroupList(ctx, root)
 	if err != nil {
 		return err
@@ -337,7 +342,7 @@ func (p *btrfsPool) removeVolume(root string) error {
 			return err
 		}
 	}
-	return p.utils.SubvolumeRemove(ctx, root)
+	return nil
 }
 
 func (p *btrfsPool) RemoveVolume(name string) error {
