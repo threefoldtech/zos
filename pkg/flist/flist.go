@@ -232,20 +232,14 @@ func (f *flistModule) Umount(path string) error {
 		//than leaking
 	}
 
-	log.Debug().Strs("options", opts).Msg("mount options")
-
 	if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil {
 		log.Error().Err(err).Str("path", path).Msg("fail to umount flist")
 	}
-
-	log.Debug().Str("pid", pidPath).Msg("waiting for pid")
 
 	if err := waitPidFile(time.Second*2, pidPath, false); err != nil {
 		log.Error().Err(err).Str("path", path).Msg("0-fs daemon did not stop properly")
 		return err
 	}
-
-	log.Debug().Str("pid", pidPath).Msg("pid file released")
 
 	// clean up working dirs
 	logPath := filepath.Join(f.log, name) + ".log"
@@ -260,8 +254,6 @@ func (f *flistModule) Umount(path string) error {
 	if opts.Find("-ro") >= 0 {
 		return nil
 	}
-
-	log.Debug().Str("name", name).Msg("clean up storage")
 
 	if err := f.storage.ReleaseFilesystem(name); err != nil {
 		return errors.Wrap(err, "fail to clean up subvolume")

@@ -238,8 +238,14 @@ func upgradeLoop(
 		log.Fatal().Err(err).Str("flist", flistWatcher.FList).Msg("failed to watch flist")
 	}
 
+	bins, err := boot.CurrentBins()
+	if err != nil {
+		log.Warn().Err(err).Msg("could not load current binaries list")
+	}
+
 	repoWatcher := upgrade.FListRepoWatcher{
-		Repo: "tf-zos-bins",
+		Repo:    "tf-zos-bins",
+		Current: bins,
 	}
 
 	repoEvents, err := repoWatcher.Watch(ctx)
@@ -310,8 +316,11 @@ func upgradeLoop(
 				}
 			}
 
-			log.Debug().Msg("all binaries in the repo has been processed")
-			//TODO: make sure we update the persisted list of binaries
+			if err := boot.SetBins(repoWatcher.Current); err != nil {
+				log.Error().Err(err).Msg("failed to update local db of installed binaries")
+			}
+
+			log.Debug().Msg("finish processing binary updates")
 		}
 	}
 }
