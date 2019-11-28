@@ -162,13 +162,6 @@ func basePoolTest(t *testing.T, pool Pool) {
 		assert.Equal(t, uint64(1024*1024*1024), usage.Size)
 	})
 
-	t.Run("test subvolume list no subvolumes", func(t *testing.T) {
-		volumes, err := volume.Volumes()
-		require.NoError(t, err)
-
-		assert.Empty(t, volumes)
-	})
-
 	t.Run("test limit subvolume", func(t *testing.T) {
 		usage, err := volume.Usage()
 		require.NoError(t, err)

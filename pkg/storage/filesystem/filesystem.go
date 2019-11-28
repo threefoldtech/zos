@@ -18,12 +18,6 @@ type Volume interface {
 	ID() int
 	// Path of the volume
 	Path() string
-	// Volumes are all subvolumes of this volume
-	Volumes() ([]Volume, error)
-	// AddVolume adds a new subvolume with the given name
-	AddVolume(name string) (Volume, error)
-	// RemoveVolume removes a subvolume with the given name
-	RemoveVolume(name string) error
 	// Usage reports the current usage of the volume
 	Usage() (Usage, error)
 	// Limit the maximum size of the volume
@@ -56,7 +50,15 @@ type Pool interface {
 	// and that all implementer can use to do some clean up and
 	// other maintenance on the pool
 	Maintenance() error
+
 	// Health() ?
+
+	// Volumes are all subvolumes of this volume
+	Volumes() ([]Volume, error)
+	// AddVolume adds a new subvolume with the given name
+	AddVolume(name string) (Volume, error)
+	// RemoveVolume removes a subvolume with the given name
+	RemoveVolume(name string) error
 }
 
 // Filter closure for Filesystem list

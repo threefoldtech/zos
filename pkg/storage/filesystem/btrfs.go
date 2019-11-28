@@ -186,6 +186,16 @@ func (p *btrfsPool) Path() string {
 	return filepath.Join("/mnt", p.name)
 }
 
+// Limit on a pool is not supported yet
+func (p *btrfsPool) Limit(size uint64) error {
+	return fmt.Errorf("not implemented")
+}
+
+// FsType of the filesystem of this volume
+func (p *btrfsPool) FsType() string {
+	return "btrfs"
+}
+
 // Mount mounts the pool in it's default mount location under /mnt/name
 func (p *btrfsPool) Mount() (string, error) {
 	ctx := context.Background()
@@ -385,16 +395,6 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 	return Usage{Size: totalSize / raidSizeDivisor[du.Data.Profile], Used: uint64(fsi[0].Used)}, nil
 }
 
-// Limit on a pool is not supported yet
-func (p *btrfsPool) Limit(size uint64) error {
-	return fmt.Errorf("not implemented")
-}
-
-// FsType of the filesystem of this volume
-func (p *btrfsPool) FsType() string {
-	return "btrfs"
-}
-
 // Type of the physical storage used for this pool
 func (p *btrfsPool) Type() pkg.DeviceType {
 	// We only create heterogenous pools for now
@@ -478,39 +478,14 @@ func (v *btrfsVolume) Path() string {
 	return v.path
 }
 
-func (v *btrfsVolume) Volumes() ([]Volume, error) {
-	var volumes []Volume
-
-	subs, err := v.utils.SubvolumeList(context.Background(), v.Path())
-	if err != nil {
-		return nil, err
-	}
-
-	for _, sub := range subs {
-		volumes = append(volumes, newBtrfsVolume(sub.ID, filepath.Join(v.Path(), sub.Path), v.utils))
-	}
-
-	return volumes, nil
+// Name of the filesystem
+func (v *btrfsVolume) Name() string {
+	return filepath.Base(v.Path())
 }
 
-func (v *btrfsVolume) AddVolume(name string) (Volume, error) {
-	ctx := context.Background()
-	mnt := filepath.Join(v.Path(), name)
-	if err := v.utils.SubvolumeAdd(ctx, mnt); err != nil {
-		return nil, err
-	}
-
-	volume, err := v.utils.SubvolumeInfo(ctx, mnt)
-	if err != nil {
-		return nil, err
-	}
-
-	return newBtrfsVolume(volume.ID, mnt, v.utils), nil
-}
-
-func (v *btrfsVolume) RemoveVolume(name string) error {
-	mnt := filepath.Join(v.Path(), name)
-	return v.utils.SubvolumeRemove(context.Background(), mnt)
+// FsType of the filesystem
+func (v *btrfsVolume) FsType() string {
+	return "btrfs"
 }
 
 // Usage return the volume usage
@@ -544,14 +519,4 @@ func (v *btrfsVolume) Limit(size uint64) error {
 	ctx := context.Background()
 
 	return v.utils.QGroupLimit(ctx, size, v.Path())
-}
-
-// Name of the filesystem
-func (v *btrfsVolume) Name() string {
-	return filepath.Base(v.Path())
-}
-
-// FsType of the filesystem
-func (v *btrfsVolume) FsType() string {
-	return "btrfs"
 }
