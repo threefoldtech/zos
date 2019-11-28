@@ -318,7 +318,7 @@ func (nr *NetResource) createNetNS() error {
 func (nr *NetResource) createVethPair() error {
 
 	nsName, err := nr.Namespace()
-	nrVethName := fmt.Sprintf("nr-%s", nr.id)
+	nrVethName := fmt.Sprintf("nr-%s", nr.id[:12])
 
 	netNS, err := namespace.GetByName(nsName)
 	if err != nil {
