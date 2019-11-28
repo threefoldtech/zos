@@ -56,9 +56,9 @@ jobs:
       with:
         token: ${{ secrets.HUB_JWT }}
         action: crosslink
-        user: tf-autobuilder
-        name: zos:${{ github.ref }}.flist
-        target: tf-zos/zos:development:latest.flist
+        user: tf-zos
+        name: zos:development:latest.flist
+        target: tf-autobuilder/zos:${{ github.ref }}.flist
     
     - name: Symlink flist (testing)
       if: success()
@@ -66,9 +66,9 @@ jobs:
       with:
         token: ${{ secrets.HUB_JWT }}
         action: crosslink
-        user: tf-autobuilder
-        name: zos:${{ github.ref }}.flist
-        target: tf-zos/zos:testing:latest.flist
+        user: tf-zos
+        name: zos:testing:latest.flist
+        target: tf-autobuilder/zos:${{ github.ref }}.flist
 
     - name: Symlink flist (production)
       if: success()
@@ -76,7 +76,7 @@ jobs:
       with:
         token: ${{ secrets.HUB_JWT }}
         action: crosslink
-        user: tf-autobuilder
-        name: zos:${{ github.ref }}.flist
-        target: tf-zos/zos:production:latest.flist
+        user: tf-zos
+        name: zos:production:latest.flist
+        target: tf-autobuilder/zos:${{ github.ref }}.flist
 
