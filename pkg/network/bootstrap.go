@@ -77,7 +77,7 @@ func Bootstrap() error {
 		}
 
 		log.Info().Str("interface", device.Name).Msg("attach interface to default bridge")
-		if err := bridge.AttachNic(device, br); err != nil {
+		if err := bridge.AttachNicWithMac(device, br); err != nil {
 			log.Warn().Err(err).
 				Str("device", device.Name).
 				Str("bridge", br.Name).
