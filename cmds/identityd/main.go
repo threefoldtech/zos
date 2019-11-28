@@ -249,7 +249,12 @@ func upgradeLoop(
 
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case e := <-flistEvents:
+			if e == nil {
+				continue
+			}
 			event := e.(*upgrade.FListEvent)
 			// new flist available
 			version, err := event.Version()
@@ -289,6 +294,9 @@ func upgradeLoop(
 				log.Info().Str("version", version.String()).Msg("node registered successfully")
 			}
 		case e := <-repoEvents:
+			if e == nil {
+				continue
+			}
 			event := e.(*upgrade.RepoEvent)
 			for _, bin := range event.ToDel {
 				if err := upgrader.UninstallBinary(bin); err != nil {
@@ -302,6 +310,8 @@ func upgradeLoop(
 				}
 			}
 
+			log.Debug().Msg("all binaries in the repo has been processed")
+			//TODO: make sure we update the persisted list of binaries
 		}
 	}
 }
