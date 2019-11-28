@@ -2,12 +2,11 @@ package upgrade
 
 import (
 	"context"
-	"fmt"
+	"time"
+
 	"github.com/blang/semver"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"path"
-	"time"
 )
 
 /**
@@ -48,11 +47,6 @@ func (f *FListEvent) EventType() EventType {
 	return FList
 }
 
-//Fqdn return full name of the flist (with repo)
-func (f *FListEvent) Fqdn() string {
-	return path.Join(f.Repository, f.Name)
-}
-
 //TryVersion will try to parse the version from flist
 //other wise return empty version 0.0.0
 func (f *FListEvent) TryVersion() semver.Version {
@@ -76,7 +70,6 @@ var _ Watcher = &FListSemverWatcher{}
 // Watch an flist change in version
 // The Event returned by the channel is of concrete type FListEvent
 func (w *FListSemverWatcher) Watch(ctx context.Context) (<-chan Event, error) {
-
 	if w.Duration == time.Duration(0) {
 		//default delay of 5min
 		w.Duration = 600 * time.Second
@@ -145,12 +138,19 @@ func (w *FListSemverWatcher) Watch(ctx context.Context) (<-chan Event, error) {
 	return ch, nil
 }
 
-type RepoEvent struct {
-	Repo  string
-	ToAdd []FListEvent
-	ToDel []FListEvent
+//RepoFList holds information of flist from a repo list operation
+type RepoFList struct {
+	listFListInfo
 }
 
+//RepoEvent is returned by the repo watcher
+type RepoEvent struct {
+	Repo  string
+	ToAdd []RepoFList
+	ToDel []RepoFList
+}
+
+//EventType returns event type
 func (e *RepoEvent) EventType() EventType {
 	return Repo
 }
@@ -158,31 +158,31 @@ func (e *RepoEvent) EventType() EventType {
 //FListRepoWatcher type
 type FListRepoWatcher struct {
 	Repo     string
-	Current  map[string]FListEvent
+	Current  map[string]RepoFList
 	Duration time.Duration
 
 	client hubClient
 }
 
-func (w *FListRepoWatcher) list() (map[string]FListEvent, error) {
+func (w *FListRepoWatcher) list() (map[string]RepoFList, error) {
 	packages, err := w.client.List(w.Repo)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make(map[string]FListEvent)
+	result := make(map[string]RepoFList)
 	for _, pkg := range packages {
-		flist := FListEvent{pkg}
+		flist := RepoFList{pkg}
 		result[flist.Fqdn()] = flist
 	}
 
 	return result, nil
 }
 
-func (w *FListRepoWatcher) diff(packages map[string]FListEvent) (toAdd, toDel []FListEvent) {
+func (w *FListRepoWatcher) diff(packages map[string]RepoFList) (toAdd, toDel []RepoFList) {
 	for name, pkg := range packages {
 		current, ok := w.Current[name]
-		if !ok || pkg.Hash != current.Hash {
+		if !ok || pkg.Updated != current.Updated {
 			toAdd = append(toAdd, pkg)
 		}
 	}
@@ -197,7 +197,13 @@ func (w *FListRepoWatcher) diff(packages map[string]FListEvent) (toAdd, toDel []
 	return
 }
 
+// Watch watches a full repo for changes. Event is always of concrete type RepoEvent
 func (w *FListRepoWatcher) Watch(ctx context.Context) (<-chan Event, error) {
+	if w.Duration == time.Duration(0) {
+		//default delay of 5min
+		w.Duration = 600 * time.Second
+	}
+
 	packages, err := w.list()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get available packages")
@@ -255,5 +261,5 @@ func (w *FListRepoWatcher) Watch(ctx context.Context) (<-chan Event, error) {
 
 	}()
 
-	return ch, fmt.Errorf("not implemented")
+	return ch, nil
 }

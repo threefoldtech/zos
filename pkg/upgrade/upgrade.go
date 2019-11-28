@@ -49,7 +49,38 @@ type Upgrader struct {
 // instead the upgraded daemon will be completely stopped
 func (u *Upgrader) Upgrade(from, to FListEvent) error {
 	return u.applyUpgrade(from, to)
+}
 
+// InstallBinary from a single flist.
+func (u *Upgrader) InstallBinary(flist RepoFList) error {
+	log.Info().Str("flist", flist.Fqdn()).Msg("start applying upgrade")
+
+	flistRoot, err := u.FLister.Mount(u.hub.MountURL(flist.Fqdn()), u.hub.StorageURL(), pkg.ReadOnlyMountOptions)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err := u.FLister.Umount(flistRoot); err != nil {
+			log.Error().Err(err).Msgf("fail to umount flist at %s: %v", flistRoot, err)
+		}
+	}()
+
+	if err := copyRecursive(flistRoot, "/"); err != nil {
+		return errors.Wrapf(err, "failed to install flist: %s", flist.Fqdn())
+	}
+
+	//TODO: run upgrade script?
+	//Suggestion: instead of running a script may be it's
+	//better to have an action manefist to control the kind
+	//of operations the flist can do to the system. To avoid
+	//running custom code on the node that can be harmful.
+	return nil
+}
+
+// UninstallBinary  from a single flist.
+func (u *Upgrader) UninstallBinary(flist RepoFList) error {
+	return u.uninstall(flist.listFListInfo)
 }
 
 func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
@@ -157,9 +188,7 @@ func (u *Upgrader) upgradeSelf(root string) error {
 	return ErrRestartNeeded
 }
 
-func (u *Upgrader) uninstall(from FListEvent) error {
-	current := from
-
+func (u *Upgrader) uninstall(current listFListInfo) error {
 	files, err := current.Files()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get list of current installed files for '%s'", current.Absolute())
@@ -209,6 +238,7 @@ func (u *Upgrader) uninstall(from FListEvent) error {
 			log.Debug().Err(err).Str("file", file.Path).Msg("failed to check file")
 			continue
 		}
+
 		if stat.IsDir() {
 			continue
 		}
@@ -239,7 +269,7 @@ func (u *Upgrader) applyUpgrade(from, to FListEvent) error {
 		return err
 	}
 
-	if err := u.uninstall(from); err != nil {
+	if err := u.uninstall(from.listFListInfo); err != nil {
 		log.Error().Err(err).Msg("failed to unistall current flist. Upgraded anyway")
 	}
 

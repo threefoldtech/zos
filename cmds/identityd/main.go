@@ -10,14 +10,15 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/flist"
 	"github.com/threefoldtech/zos/pkg/gedis"
 	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg/upgrade"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/flist"
 	"github.com/threefoldtech/zos/pkg/identity"
 
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/upgrade"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/threefoldtech/zos/pkg/version"
 )
@@ -115,15 +115,6 @@ func main() {
 		log.Fatal().Err(err).Str("root", root).Msg("failed to create root directory")
 	}
 
-	zinit, err := zinit.New(zinitSocket)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to zinit")
-	}
-
-	// with volume allocation is set to nil this flister can be
-	// only used for RO mounts. Otherwise it will panic
-	flister := flist.New(root, nil)
-
 	boot := upgrade.Boot{}
 
 	bootMethod := boot.DetectBootMethod()
@@ -169,9 +160,9 @@ func main() {
 		return registerNode(nodeID, farmID, v, idStore, loc)
 	}
 
-	if err := backoff.Retry(func() error {
+	if err := backoff.RetryNotify(func() error {
 		return register(current)
-	}, backoff.NewExponentialBackOff()); err != nil {
+	}, backoff.NewExponentialBackOff(), retryNotify); err != nil {
 		log.Error().Err(err).Msg("failed to register node")
 	} else {
 		log.Info().Str("version", current).Msg("node registered successfully")
@@ -211,26 +202,55 @@ func main() {
 	// 4. Start watcher for new version
 	log.Info().Msg("start upgrade daemon")
 
+	upgradeLoop(ctx, &boot, root, debug, register)
+}
+
+func upgradeLoop(
+	ctx context.Context,
+	boot *upgrade.Boot,
+	root string,
+	debug bool,
+	register func(string) error) {
+
+	zinit, err := zinit.New(zinitSocket)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to zinit")
+	}
+
+	// with volume allocation is set to nil this flister can be
+	// only used for RO mounts. Otherwise it will panic
+	flister := flist.New(root, nil)
+
 	upgrader := upgrade.Upgrader{
 		FLister:      flister,
 		Zinit:        zinit,
 		NoSelfUpdate: debug,
 	}
 
-	watcher := upgrade.FListSemverWatcher{
+	flistWatcher := upgrade.FListSemverWatcher{
 		FList:    boot.Name(),
 		Current:  boot.MustVersion(), //if we are here version must be valid
 		Duration: 600 * time.Second,
 	}
 
-	events, err := watcher.Watch(ctx)
+	flistEvents, err := flistWatcher.Watch(ctx)
 	if err != nil {
-		log.Fatal().Err(err).Str("flist", boot.Name()).Msg("failed to watch flist")
+		log.Fatal().Err(err).Str("flist", flistWatcher.FList).Msg("failed to watch flist")
 	}
 
-	for event := range events {
-		switch event := event.(type) {
-		case *upgrade.FListEvent:
+	repoWatcher := upgrade.FListRepoWatcher{
+		Repo: "tf-zos-bins",
+	}
+
+	repoEvents, err := repoWatcher.Watch(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Str("repo", repoWatcher.Repo).Msg("failed to watch repo")
+	}
+
+	for {
+		select {
+		case e := <-flistEvents:
+			event := e.(*upgrade.FListEvent)
 			// new flist available
 			version, err := event.Version()
 			if err != nil {
@@ -261,15 +281,33 @@ func main() {
 				log.Error().Err(err).Msg("failed to update boot information")
 			}
 
-			if err := backoff.Retry(func() error {
+			if err := backoff.RetryNotify(func() error {
 				return register(version.String())
-			}, backoff.NewExponentialBackOff()); err != nil {
+			}, backoff.NewExponentialBackOff(), retryNotify); err != nil {
 				log.Error().Err(err).Msg("failed to register node")
 			} else {
 				log.Info().Str("version", version.String()).Msg("node registered successfully")
 			}
+		case e := <-repoEvents:
+			event := e.(*upgrade.RepoEvent)
+			for _, bin := range event.ToDel {
+				if err := upgrader.UninstallBinary(bin); err != nil {
+					log.Error().Err(err).Str("flist", bin.Fqdn()).Msg("failed to uninstall flist")
+				}
+			}
+
+			for _, bin := range event.ToAdd {
+				if err := upgrader.InstallBinary(bin); err != nil {
+					log.Error().Err(err).Str("flist", bin.Fqdn()).Msg("failed to install flist")
+				}
+			}
+
 		}
 	}
+}
+
+func retryNotify(err error, d time.Duration) {
+	log.Warn().Err(err).Str("sleep", d.String()).Msg("registration failed")
 }
 
 func identityMgr(root string) (pkg.IdentityManager, error) {
