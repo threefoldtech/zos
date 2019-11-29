@@ -239,3 +239,16 @@ fn update_bootstrap(debug: bool) -> Result<()> {
 
     fs.copy("/")
 }
+
+pub fn install(cfg: &config::Config) -> Result<()> {
+    let result = WorkDir::run(WORKDIR, || -> Result<()> {
+        install_bins()?;
+        Ok(())
+    })?;
+
+    result
+}
+
+fn install_bins() -> Result<()> {
+    Ok(())
+}
