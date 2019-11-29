@@ -27,7 +27,7 @@ pub struct Flist {
     pub target: String,
 
     #[serde(skip)]
-    url: String,
+    pub url: String,
 }
 
 impl Repo {
