@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg"
@@ -337,21 +338,20 @@ func (p *btrfsPool) AddVolume(name string) (Volume, error) {
 func (p *btrfsPool) removeVolume(root string) error {
 	ctx := context.Background()
 
-	if err := p.utils.SubvolumeRemove(ctx, root); err != nil {
-		return err
-	}
-
-	qgroups, err := p.utils.QGroupList(ctx, root)
+	info, err := p.utils.SubvolumeInfo(ctx, root)
 	if err != nil {
 		return err
 	}
 
-	for _, qgroup := range qgroups {
-		log.Debug().Msgf("delete qgroup %s", qgroup.ID)
-		if err := p.utils.QGroupDestroy(ctx, qgroup.ID, root); err != nil {
-			return err
-		}
+	if err := p.utils.SubvolumeRemove(ctx, root); err != nil {
+		return err
 	}
+
+	qgroupID := fmt.Sprintf("0/%d", info.ID)
+	if err := p.utils.QGroupDestroy(ctx, qgroupID, p.Path()); err != nil {
+		return errors.Wrapf(err, "failed to delete qgroup %s", qgroupID)
+	}
+
 	return nil
 }
 
