@@ -15,7 +15,7 @@ pub struct Repo {
     name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Flist {
     #[serde(rename = "type")]
     pub kind: String,

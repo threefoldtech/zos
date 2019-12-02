@@ -205,6 +205,19 @@ func main() {
 	upgradeLoop(ctx, &boot, root, debug, register)
 }
 
+func getBinsRepo() string {
+	env, _ := environment.Get()
+
+	switch env.RunningMode {
+	case environment.RunningDev:
+		return "tf-zos-bins.dev"
+	case environment.RunningTest:
+		return "tf-zos-bins.test"
+	default:
+		return "tf-zos-bins"
+	}
+}
+
 func upgradeLoop(
 	ctx context.Context,
 	boot *upgrade.Boot,
@@ -244,7 +257,7 @@ func upgradeLoop(
 	}
 
 	repoWatcher := upgrade.FListRepoWatcher{
-		Repo:    "tf-zos-bins",
+		Repo:    getBinsRepo(),
 		Current: bins,
 	}
 

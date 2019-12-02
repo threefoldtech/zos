@@ -1,6 +1,5 @@
 use super::config;
 use super::hub;
-use super::kparams;
 use super::workdir::WorkDir;
 use super::zfs::Zfs;
 use super::zinit;
@@ -16,45 +15,11 @@ const WORKDIR: &str = "/tmp/bootstrap";
 
 type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
-enum RunMode {
-    Prod,
-    Test,
-    Dev,
-}
-
-fn runmode() -> Result<RunMode> {
-    let params = kparams::params()?;
-    let mode = match params.get("runmode") {
-        Some(mode) => match mode {
-            Some(mode) => match mode.as_ref() {
-                "prod" => RunMode::Prod,
-                "dev" => RunMode::Dev,
-                "test" => RunMode::Test,
-                m => {
-                    bail!("unknown runmode: {}", m);
-                }
-            },
-            None => {
-                //that's an error because runmode was
-                //provided as a kernel argumet but with no
-                //value
-                bail!("missing runmode value");
-            }
-        },
-        // runmode was not provided in cmdline
-        // so default is prod
-        None => RunMode::Prod,
-    };
-
-    Ok(mode)
-}
-
-fn boostrap_zos(mode: RunMode) -> Result<()> {
-    let flist = match mode {
-        RunMode::Prod => "zos:production:latest.flist",
-        RunMode::Dev => "zos:development:latest.flist",
-        RunMode::Test => "zos:testing:latest.flist",
+fn boostrap_zos(cfg: &config::Config) -> Result<()> {
+    let flist = match cfg.runmode {
+        config::RunMode::Prod => "zos:production:latest.flist",
+        config::RunMode::Dev => "zos:development:latest.flist",
+        config::RunMode::Test => "zos:testing:latest.flist",
     };
 
     debug!("using flist: {}/{}", FLIST_REPO, flist);
@@ -85,11 +50,10 @@ fn boostrap_zos(mode: RunMode) -> Result<()> {
 }
 
 /// bootstrap stage install and starts all zos daemons
-pub fn bootstrap(_: &config::Config) -> Result<()> {
-    let mode = runmode()?;
-    debug!("runmode: {:?}", mode);
+pub fn bootstrap(cfg: &config::Config) -> Result<()> {
+    debug!("runmode: {:?}", cfg.runmode);
     let result = WorkDir::run(WORKDIR, || -> Result<()> {
-        boostrap_zos(mode)?;
+        boostrap_zos(cfg)?;
         Ok(())
     })?;
 
@@ -147,21 +111,27 @@ fn update_bootstrap(debug: bool) -> Result<()> {
 }
 
 ///install installs all binaries from the tf-zos-bins repo
-pub fn install(_cfg: &config::Config) -> Result<()> {
+pub fn install(cfg: &config::Config) -> Result<()> {
     let result = WorkDir::run(WORKDIR, || -> Result<()> {
-        install_packages()?;
+        install_packages(cfg)?;
         Ok(())
     })?;
 
     result
 }
 
-fn install_packages() -> Result<()> {
-    let repo = hub::Repo::new(BIN_REPO);
+fn install_packages(cfg: &config::Config) -> Result<()> {
+    let repo = match cfg.runmode {
+        config::RunMode::Prod => BIN_REPO.to_owned(),
+        config::RunMode::Dev => format!("{}.dev", BIN_REPO),
+        config::RunMode::Test => format!("{}.test", BIN_REPO),
+    };
+
+    let client = hub::Repo::new(&repo);
     let packages = retry::retry(retry::delay::Exponential::from_millis(200), || {
         info!("list packages in: {}", BIN_REPO);
         //the full point of this match is the logging.
-        let packages = match repo.list() {
+        let packages = match client.list() {
             Ok(info) => info,
             Err(err) => {
                 error!("failed to list repo '{}': {}", BIN_REPO, err);
@@ -177,12 +147,21 @@ fn install_packages() -> Result<()> {
         Err(err) => bail!("failed to list '{}': {:?}", BIN_REPO, err),
     };
 
+    let mut map = std::collections::HashMap::new();
     for package in packages.iter() {
         match install_package(package) {
             Ok(_) => {}
             Err(err) => warn!("failed to install package '{}': {}", package.url, err),
         };
+
+        map.insert(format!("{}/{}", repo, package.name), package.clone());
     }
+
+    let output = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open("/tmp/bins.info")?;
+    serde_json::to_writer(&output, &map)?;
 
     Ok(())
 }
