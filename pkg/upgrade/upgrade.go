@@ -70,11 +70,50 @@ func (u *Upgrader) InstallBinary(flist RepoFList) error {
 		return errors.Wrapf(err, "failed to install flist: %s", flist.Fqdn())
 	}
 
-	//TODO: run upgrade script?
-	//Suggestion: instead of running a script may be it's
-	//better to have an action manefist to control the kind
-	//of operations the flist can do to the system. To avoid
-	//running custom code on the node that can be harmful.
+	p := filepath.Join(flistRoot, "etc", "zinit")
+	log.Debug().Str("path", p).Msg("checking for zinit unit files")
+	files, err := ioutil.ReadDir(p)
+	if os.IsNotExist(err) {
+		log.Debug().Err(err).Msg("/etc/zinit not found on flist")
+		return nil
+	} else if err != nil {
+		return errors.Wrap(err, "failed to list package services")
+	}
+
+	var services []string
+	for _, file := range files {
+		if !strings.HasSuffix(file.Name(), ".yaml") {
+			continue
+		}
+
+		service := strings.TrimSuffix(file.Name(), ".yaml")
+		services = append(services, service)
+	}
+
+	return u.ensureRestarted(services...)
+}
+
+func (u *Upgrader) ensureRestarted(service ...string) error {
+	log.Debug().Strs("services", service).Msg("ensure services")
+	if len(service) == 0 {
+		return nil
+	}
+
+	log.Debug().Strs("services", service).Msg("restarting services")
+	if err := u.stopMultiple(20*time.Second, service...); err != nil {
+		return err
+	}
+
+	for _, name := range service {
+		if err := u.Zinit.Forget(name); err != nil {
+			log.Warn().Err(err).Str("service", name).Msg("could not forget service")
+		}
+
+		if err := u.Zinit.Monitor(name); err != nil {
+			log.Error().Err(err).Str("service", name).Msg("could not monitor service")
+		}
+	}
+
 	return nil
 }
 
@@ -188,10 +227,10 @@ func (u *Upgrader) upgradeSelf(root string) error {
 	return ErrRestartNeeded
 }
 
-func (u *Upgrader) uninstall(current listFListInfo) error {
-	files, err := current.Files()
+func (u *Upgrader) uninstall(flist listFListInfo) error {
+	files, err := flist.Files()
 	if err != nil {
-		return errors.Wrapf(err, "failed to get list of current installed files for '%s'", current.Absolute())
+		return errors.Wrapf(err, "failed to get list of current installed files for '%s'", flist.Absolute())
 	}
 
 	//stop all services names
