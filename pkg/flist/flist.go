@@ -354,18 +354,17 @@ func waitPidFile(timeout time.Duration, path string, exists bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-loop:
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(delay):
+		default:
 			_, err := os.Stat(path)
 			// check exist but the file is not there yet,
 			// or check NOT exist but it is still there
 			// we try again
 			if (exists && os.IsNotExist(err)) || (!exists && err == nil) {
-				continue loop
+				break //the select statement
 			} else if err != nil && !os.IsNotExist(err) {
 				//another error that is NOT IsNotExist.
 				return err
@@ -373,6 +372,8 @@ loop:
 				return nil
 			}
 		}
+
+		<-time.After(delay)
 	}
 }
 
