@@ -220,24 +220,25 @@ func containerDecommission(ctx context.Context, reservation *Reservation) error 
 	}
 
 	info, err := container.Inspect(tenantNS, containerID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to inspect container %s", containerID)
-	}
-
-	if err := container.Delete(tenantNS, containerID); err != nil {
-		return errors.Wrapf(err, "failed to delete container %s", containerID)
-	}
-
-	rootFS := info.RootFS
-	if info.Interactive {
-		rootFS, err = findRootFS(info.Mounts)
-		if err != nil {
-			return err
+	if err == nil {
+		if err := container.Delete(tenantNS, containerID); err != nil {
+			return errors.Wrapf(err, "failed to delete container %s", containerID)
 		}
-	}
 
-	if err := flist.Umount(rootFS); err != nil {
-		return errors.Wrapf(err, "failed to unmount flist at %s", rootFS)
+		rootFS := info.RootFS
+		if info.Interactive {
+			rootFS, err = findRootFS(info.Mounts)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := flist.Umount(rootFS); err != nil {
+			return errors.Wrapf(err, "failed to unmount flist at %s", rootFS)
+		}
+
+	} else {
+		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
 	}
 
 	netID := networkID(reservation.User, string(config.Network.NetworkID))
