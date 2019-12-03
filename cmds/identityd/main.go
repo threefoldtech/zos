@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -218,6 +219,24 @@ func getBinsRepo() string {
 	}
 }
 
+// allow reinstall if receive signal USR1
+// only allowed in debug mode
+func debugReinstall(boot *upgrade.Boot, up *upgrade.Upgrader) {
+	c := make(chan os.Signal)
+	signal.Notify(c, syscall.SIGUSR1)
+
+	go func() {
+		for range c {
+			current, err := boot.Current()
+			if err != nil {
+				log.Error().Err(err).Msg("couldn't get current flist info")
+				continue
+			}
+
+			up.Upgrade(current, current)
+		}
+	}()
+}
 func upgradeLoop(
 	ctx context.Context,
 	boot *upgrade.Boot,
@@ -238,6 +257,10 @@ func upgradeLoop(
 		FLister:      flister,
 		Zinit:        zinit,
 		NoSelfUpdate: debug,
+	}
+
+	if debug {
+		debugReinstall(boot, &upgrader)
 	}
 
 	flistWatcher := upgrade.FListSemverWatcher{
