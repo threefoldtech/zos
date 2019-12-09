@@ -107,7 +107,7 @@ func Create(nodeID pkg.Identifier) error {
 			return err
 		}
 		if !received {
-			return errors.Errorf("public interface in ndmz didn't received an IP. make sure dhcp is working")
+			return errors.Errorf("public interface in ndmz did not received an IP. make sure dhcp is working")
 		}
 		return nil
 	})
