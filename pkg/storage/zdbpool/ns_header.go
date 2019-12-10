@@ -2,11 +2,14 @@ package zdbpool
 
 import (
 	"encoding/binary"
-	"github.com/pkg/errors"
 	"io"
+
+	"github.com/pkg/errors"
 )
 
 const (
+	nsFlagsPublic   = 1
+	nsFlagsWorm     = 2
 	nsFlagsExtended = 4
 )
 
@@ -31,6 +34,39 @@ type Header struct {
 	MaxSize  uint64
 }
 
+// WriteHeader writes header data to writer
+func WriteHeader(w io.Writer, h Header) error {
+
+	if err := binary.Write(
+		w,
+		binary.LittleEndian,
+		baseHeader{
+			NameLength:     uint8(len(h.Name)),
+			PasswordLength: uint8(len(h.Password)),
+			Flags:          nsFlagsPublic | nsFlagsExtended,
+		}); err != nil {
+		return err
+	}
+
+	for _, str := range []string{h.Name, h.Password} {
+		if _, err := io.WriteString(w, str); err != nil {
+			return err
+		}
+	}
+
+	if err := binary.Write(
+		w,
+		binary.LittleEndian,
+		extendedHeader{
+			Version: 1,
+			MaxSize: h.MaxSize,
+		}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ReadHeader reands namespace header
 func ReadHeader(r io.Reader) (header Header, err error) {
 	var bh baseHeader
@@ -53,7 +89,7 @@ func ReadHeader(r io.Reader) (header Header, err error) {
 	header.Name = string(name)
 	header.Password = string(passwrd)
 
-	if bh.Flags != nsFlagsExtended {
+	if bh.Flags&nsFlagsExtended == 0 {
 		return
 	}
 

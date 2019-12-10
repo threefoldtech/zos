@@ -1,11 +1,7 @@
 package storage
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -17,6 +13,7 @@ import (
 
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
+	"github.com/threefoldtech/zos/pkg/storage/zdbpool"
 )
 
 // Allocation describes a zdb insance that is good for namespace allocation
@@ -25,85 +22,8 @@ type Allocation struct {
 	VolumePath string
 }
 
-type zdbNamespace struct {
-	ID   string      `json:"-"`
-	Size uint64      `json:"size"`
-	Mode pkg.ZDBMode `json:"mode"`
-}
-
-type zdbNamespaces []zdbNamespace
-
-func (s zdbNamespaces) Total() (total uint64) {
-	for i := range s {
-		total += s[i].Size
-	}
-
-	return
-}
-
 func isZdbVolume(volume filesystem.Volume) bool {
 	return strings.HasPrefix(volume.Name(), zdbPoolPrefix)
-}
-
-type zdbVolume struct {
-	filesystem.Volume
-}
-
-func (v *zdbVolume) CreateNamespace(ns string, info zdbNamespace) error {
-	dir := filepath.Join(v.Path(), ns)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	infoFile, err := os.Create(filepath.Join(dir, ".info"))
-	if err != nil {
-		return err
-	}
-	defer infoFile.Close()
-
-	enc := json.NewEncoder(infoFile)
-	return enc.Encode(info)
-}
-
-func (v *zdbVolume) GetNamespace(ns string) (info zdbNamespace, err error) {
-	infoPath := filepath.Join(v.Path(), ns, ".info")
-
-	infoFile, err := os.Open(infoPath)
-	if err != nil {
-		return info, err
-	}
-
-	defer infoFile.Close()
-
-	dec := json.NewDecoder(infoFile)
-	err = dec.Decode(&info)
-	info.ID = ns
-	return info, err
-}
-
-func (v *zdbVolume) ListNamespaces() (zdbNamespaces, error) {
-	dirs, err := ioutil.ReadDir(v.Path())
-	if err != nil {
-		return nil, err
-	}
-
-	var namespaces zdbNamespaces
-	for _, dir := range dirs {
-		if !dir.IsDir() {
-			continue
-		}
-
-		info, err := v.GetNamespace(dir.Name())
-		if os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-
-		namespaces = append(namespaces, info)
-	}
-
-	return namespaces, nil
 }
 
 func (s *storageModule) Allocate2(nsID string, diskType pkg.DeviceType, size uint64, mode pkg.ZDBMode) (allocation Allocation, err error) {
@@ -133,19 +53,16 @@ func (s *storageModule) Allocate2(nsID string, diskType pkg.DeviceType, size uin
 				continue
 			}
 
-			zdb := zdbVolume{volume}
+			zdb := zdbpool.New(volume.Path())
 
-			_, err := zdb.GetNamespace(nsID)
-			if os.IsNotExist(err) {
+			if !zdb.Exists(nsID) {
 				continue
-			} else if err != nil {
-				return allocation, errors.Wrapf(err, "failed to get namespace info on volume '%s'", volume.Path())
 			}
 
 			// we found the namespace
 			allocation = Allocation{
-				VolumeID:   zdb.Name(),
-				VolumePath: zdb.Path(),
+				VolumeID:   volume.Name(),
+				VolumePath: volume.Path(),
 			}
 
 			return allocation, nil
@@ -181,16 +98,15 @@ func (s *storageModule) Allocate2(nsID string, diskType pkg.DeviceType, size uin
 				continue
 			}
 
-			zdb := zdbVolume{volume}
+			zdb := zdbpool.New(volume.Path())
 
-			namespaces, err := zdb.ListNamespaces()
+			reserved, err := zdb.Reserved()
 			if err != nil {
 				return allocation, errors.Wrapf(err, "failed to list namespaces from volume '%s'", volume.Path())
 			}
 
-			quota := namespaces.Total()
-			if quota+size > usage.Size {
-				// not enough space for this namespace
+			if reserved+size > usage.Size {
+				// not enough space on this namespace
 				continue
 			}
 
@@ -198,7 +114,7 @@ func (s *storageModule) Allocate2(nsID string, diskType pkg.DeviceType, size uin
 				candidates,
 				Candidate{
 					Volume: volume,
-					Free:   usage.Size - (quota + size),
+					Free:   usage.Size - (reserved + size),
 				})
 
 			return allocation, nil
@@ -229,13 +145,10 @@ func (s *storageModule) Allocate2(nsID string, diskType pkg.DeviceType, size uin
 
 	}
 
-	zdb := zdbVolume{volume}
+	zdb := zdbpool.New(volume.Path())
 
-	if err := zdb.CreateNamespace(nsID, zdbNamespace{
-		Size: size,
-		Mode: mode,
-	}); err != nil {
-		return allocation, errors.Wrapf(err, "failed to create namespace directory: '%s/%s'", zdb.Path(), nsID)
+	if err := zdb.Create(nsID, "", size); err != nil {
+		return allocation, errors.Wrapf(err, "failed to create namespace directory: '%s/%s'", volume.Path(), nsID)
 	}
 
 	return Allocation{

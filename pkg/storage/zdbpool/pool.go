@@ -44,6 +44,28 @@ func (p *ZDBPool) Reserved() (uint64, error) {
 	return total, nil
 }
 
+// Create a namespace. Note that this create only reserve the name
+// space size (and create namespace descriptor) this must be followed
+// by an actual zdb NSNEW call to create the database files.
+func (p *ZDBPool) Create(name, password string, size uint64) error {
+	dir := filepath.Join(p.path, name)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return errors.Wrapf(err, "namespace '%' directory creation failed", dir)
+	}
+	path := filepath.Join(dir, "zdb-namespace")
+	writer, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	return WriteHeader(writer, Header{
+		Name:     name,
+		Password: password,
+		MaxSize:  size,
+	})
+}
+
 // Namespace gets a namespace info from pool
 func (p *ZDBPool) Namespace(name string) (info NSInfo, err error) {
 	path := filepath.Join(p.path, name, "zdb-namespace")
@@ -51,6 +73,7 @@ func (p *ZDBPool) Namespace(name string) (info NSInfo, err error) {
 	if err != nil {
 		return info, err
 	}
+
 	defer f.Close()
 	header, err := ReadHeader(f)
 	if err != nil {
