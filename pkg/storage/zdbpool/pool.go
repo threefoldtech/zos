@@ -25,7 +25,7 @@ func New(path string) ZDBPool {
 // NSInfo is a struct containing information about a 0-db namespace
 type NSInfo struct {
 	Name string
-	Size uint32
+	Size uint64
 }
 
 // Reserved return the amount of storage that has been reserved by all the
@@ -52,8 +52,8 @@ func (p *ZDBPool) Namespace(name string) (info NSInfo, err error) {
 		return info, err
 	}
 	defer f.Close()
-	var header Header
-	if err := ReadHeader(f, &header); err != nil {
+	header, err := ReadHeader(f)
+	if err != nil {
 		return info, errors.Wrapf(err, "failed to read namespace header at %s", path)
 	}
 

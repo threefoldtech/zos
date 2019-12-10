@@ -17,10 +17,10 @@ func TestNamespaces(t *testing.T) {
 
 	require.Equal(t, 2, len(ns))
 	assert.Equal(t, "test", ns[0].Name)
-	assert.Equal(t, uint32(1025), ns[0].Size)
+	assert.Equal(t, uint64(1025), ns[0].Size)
 
 	assert.Equal(t, "test2", ns[1].Name)
-	assert.Equal(t, uint32(123132), ns[1].Size)
+	assert.Equal(t, uint64(123132), ns[1].Size)
 }
 
 func TestReserved(t *testing.T) {

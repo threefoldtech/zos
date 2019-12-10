@@ -13,12 +13,23 @@ func TestReadHeader(t *testing.T) {
 	require.NoError(t, err)
 	defer f.Close()
 
-	h := Header{}
-	ReadHeader(f, &h)
+	h, err := ReadHeader(f)
 	require.NoError(t, err)
 
-	assert.Equal(t, uint8(4), h.NameLength)
-	assert.Equal(t, uint8(0), h.PasswordLength)
-	assert.Equal(t, uint32(1025), h.MaxSize)
-	assert.Equal(t, uint8(1), h.Flags)
+	assert.Equal(t, "test", h.Name)
+	assert.Equal(t, "", h.Password)
+	assert.Equal(t, uint64(1025), h.MaxSize)
+}
+
+func TestReadHeaderExtended(t *testing.T) {
+	f, err := os.Open("./test_data/zdb-namespace.v2")
+	require.NoError(t, err)
+	defer f.Close()
+
+	h, err := ReadHeader(f)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test", h.Name)
+	assert.Equal(t, "azmy", h.Password)
+	assert.Equal(t, uint64(0x40000000), h.MaxSize) // 1G
 }
