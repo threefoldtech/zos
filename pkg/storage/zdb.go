@@ -144,8 +144,6 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 					Volume: volume,
 					Free:   usage.Size - (reserved + size),
 				})
-
-			return allocation, nil
 		}
 	}
 
