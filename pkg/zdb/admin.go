@@ -2,6 +2,7 @@ package zdb
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gomodule/redigo/redis"
 )
@@ -19,6 +20,21 @@ func (c *Client) CreateNamespace(name string) error {
 		return fmt.Errorf(ok)
 	}
 	return nil
+}
+
+// Exist checks if namespace exists
+func (c *Client) Exist(name string) (bool, error) {
+	con := c.pool.Get()
+	defer con.Close()
+
+	_, err := con.Do("NSINFO", name)
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // DeleteNamespace deletes a namespace. Only admin can do this.
