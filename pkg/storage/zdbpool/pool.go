@@ -50,7 +50,7 @@ func (p *ZDBPool) Reserved() (uint64, error) {
 func (p *ZDBPool) Create(name, password string, size uint64) error {
 	dir := filepath.Join(p.path, name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return errors.Wrapf(err, "namespace '%' directory creation failed", dir)
+		return errors.Wrapf(err, "namespace '%s' directory creation failed", dir)
 	}
 	path := filepath.Join(dir, "zdb-namespace")
 	writer, err := os.Create(path)
