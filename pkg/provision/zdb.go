@@ -94,6 +94,7 @@ func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult,
 		return ZDBResult{}, err
 	}
 
+	// this call will actually configure the namespace in zdb and set the password
 	if err := createZDBNamespace(cont.Name, nsID, config); err != nil {
 		return ZDBResult{}, err
 	}

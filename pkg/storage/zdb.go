@@ -104,6 +104,8 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 
 	var candidates []Candidate
 	// okay, so this is a new allocation
+	// we search all the pools for a zdb subvolume that can
+	// hold the new namespace
 	for _, pool := range s.volumes {
 		// skip pool with wrong disk type
 		if pool.Type() != diskType {
@@ -157,12 +159,15 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 		volume = candidates[0]
 	} else {
 		// no candidates, so we have to try to create a new subvolume.
+		// and start a new zdb instance
 		name, err := genZDBPoolName()
 		if err != nil {
 			return allocation, errors.Wrap(err, "failed to generate new sub-volume name")
 		}
 
-		volume, err = s.createSubvol(size, name, diskType)
+		// we create the zdb instance with 0 (unlimited) because this subvolume is gonna
+		// be used for a new instance of ZDB.
+		volume, err = s.createSubvol(0, name, diskType)
 		if err != nil {
 			return allocation, errors.Wrap(err, "failed to create sub-volume")
 		}
