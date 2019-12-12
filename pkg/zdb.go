@@ -22,7 +22,7 @@ type ZDBNamespace struct {
 	Port     int // Listen port of the 0-db owning the namespace
 }
 
-// Allocation is returned when calling the ZDB alocator it containes
+// Allocation is returned when calling the ZDB allocate. it contains
 // the volume ID and the volume path that has the namespace allocated
 type Allocation struct {
 	VolumeID   string

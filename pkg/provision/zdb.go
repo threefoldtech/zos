@@ -204,7 +204,7 @@ func createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg
 		log.Debug().Err(err).Str("duration", d.String()).Msg("waiting for zdb to start")
 	}); err != nil {
 		cleanup()
-		return errors.Wrapf(err, "failed to estaplish connection to zdb")
+		return errors.Wrapf(err, "failed to establish connection to zdb")
 	}
 
 	return nil
