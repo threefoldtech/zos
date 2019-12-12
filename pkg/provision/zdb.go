@@ -49,12 +49,9 @@ func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, e
 }
 
 func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult, error) {
-
 	var (
-		client = GetZBus(ctx)
-
-		container = stubs.NewContainerModuleStub(client)
-		storage   = stubs.NewZDBAllocaterStub(client)
+		client  = GetZBus(ctx)
+		storage = stubs.NewZDBAllocaterStub(client)
 
 		nsID        = reservation.ID
 		config      ZDB
@@ -65,27 +62,16 @@ func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult,
 	}
 
 	// if we reached here, we need to create the 0-db namespace
-	log.Debug().Msg("try to allocate storage")
+	log.Debug().Msg("allocating storage for namespace")
 	allocation, err := storage.Allocate(nsID, config.DiskType, config.Size*gigabyte, config.Mode)
 	if err != nil {
 		return ZDBResult{}, errors.Wrap(err, "failed to allocate storage")
 	}
 
-	containerID := allocation.VolumeID
-	volumePath := allocation.VolumePath
+	containerID := pkg.ContainerID(allocation.VolumeID)
 
-	cont, err := container.Inspect(zdbContainerNS, pkg.ContainerID(containerID))
-	if err != nil && strings.Contains(err.Error(), "not found") {
-		// container not found, create one
-		if err := createZdbContainer(ctx, containerID, config.Mode, volumePath); err != nil {
-			return ZDBResult{}, err
-		}
-		cont, err = container.Inspect(zdbContainerNS, pkg.ContainerID(containerID))
-		if err != nil {
-			return ZDBResult{}, err
-		}
-	} else if err != nil {
-		// other error
+	cont, err := ensureZdbContainer(ctx, allocation, config.Mode)
+	if err != nil {
 		return ZDBResult{}, err
 	}
 
@@ -95,7 +81,7 @@ func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult,
 	}
 
 	// this call will actually configure the namespace in zdb and set the password
-	if err := createZDBNamespace(cont.Name, nsID, config); err != nil {
+	if err := createZDBNamespace(containerID, nsID, config); err != nil {
 		return ZDBResult{}, err
 	}
 
@@ -106,15 +92,45 @@ func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult,
 	}, nil
 }
 
-func createZdbContainer(ctx context.Context, name string, mode pkg.ZDBMode, volumePath string) error {
+func ensureZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) (pkg.Container, error) {
 	var (
+		client    = GetZBus(ctx)
+		container = stubs.NewContainerModuleStub(client)
+	)
+
+	name := pkg.ContainerID(allocation.VolumeID)
+
+	cont, err := container.Inspect(zdbContainerNS, name)
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		// container not found, create one
+		if err := createZdbContainer(ctx, allocation, mode); err != nil {
+			return cont, err
+		}
+		cont, err = container.Inspect(zdbContainerNS, name)
+		if err != nil {
+			return pkg.Container{}, err
+		}
+	} else if err != nil {
+		// other error
+		return pkg.Container{}, err
+	}
+
+	return cont, nil
+
+}
+
+func createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) error {
+	var (
+		name       = pkg.ContainerID(allocation.VolumeID)
+		volumePath = allocation.VolumePath
+
 		client = GetZBus(ctx)
 
 		cont    = stubs.NewContainerModuleStub(client)
 		flist   = stubs.NewFlisterStub(client)
 		network = stubs.NewNetworkerStub(client)
 
-		slog = log.With().Str("containerID", name).Logger()
+		slog = log.With().Str("containerID", string(name)).Logger()
 	)
 
 	slog.Debug().Str("flist", zdbFlistURL).Msg("mounting flist")
@@ -127,8 +143,8 @@ func createZdbContainer(ctx context.Context, name string, mode pkg.ZDBMode, volu
 	}
 
 	cleanup := func() {
-		if err := cont.Delete(zdbContainerNS, pkg.ContainerID(name)); err != nil {
-			slog.Error().Str("container", name).Err(err).Msg("failed to delete 0-db container")
+		if err := cont.Delete(zdbContainerNS, name); err != nil {
+			slog.Error().Err(err).Msg("failed to delete 0-db container")
 		}
 
 		if err := flist.Umount(rootFS); err != nil {
@@ -155,7 +171,7 @@ func createZdbContainer(ctx context.Context, name string, mode pkg.ZDBMode, volu
 	_, err = cont.Run(
 		zdbContainerNS,
 		pkg.Container{
-			Name:        name,
+			Name:        string(name),
 			RootFS:      rootFS,
 			Entrypoint:  cmd,
 			Interactive: false,
@@ -178,8 +194,8 @@ func createZdbContainer(ctx context.Context, name string, mode pkg.ZDBMode, volu
 	}
 
 	return nil
-
 }
+
 func getZDBIP(ctx context.Context, container pkg.Container) (containerIP net.IP, err error) {
 	var (
 		client  = GetZBus(ctx)
@@ -206,7 +222,11 @@ func getZDBIP(ctx context.Context, container pkg.Container) (containerIP net.IP,
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxInterval = time.Minute * 2
-	if err := backoff.Retry(getIP, bo); err != nil {
+	bo.MaxElapsedTime = time.Minute * 2
+
+	if err := backoff.RetryNotify(getIP, bo, func(err error, d time.Duration) {
+		log.Debug().Err(err).Str("duration", d.String()).Msg("failed to get zdb public IP")
+	}); err != nil {
 		return nil, errors.Wrapf(err, "failed to get an IP for 0-db container %s", container.Name)
 	}
 
@@ -217,7 +237,7 @@ func getZDBIP(ctx context.Context, container pkg.Container) (containerIP net.IP,
 	return containerIP, nil
 }
 
-func createZDBNamespace(containerID, nsID string, config ZDB) error {
+func createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
 	zdbCl := zdb.New()
 
 	addr := fmt.Sprintf("unix://%s/zdb.sock", socketDir(containerID))
@@ -275,7 +295,12 @@ func zdbDecommission(ctx context.Context, reservation *Reservation) error {
 		return err
 	}
 
-	containerID := allocation.VolumeID
+	_, err = ensureZdbContainer(ctx, allocation, config.Mode)
+	if err != nil {
+		return errors.Wrap(err, "failed to find namespace zdb container")
+	}
+
+	containerID := pkg.ContainerID(allocation.VolumeID)
 	addr := fmt.Sprintf("unix://%s/zdb.sock", socketDir(containerID))
 	slog.Debug().Str("addr", addr).Msg("connect to 0-db and delete namespace")
 
@@ -296,7 +321,7 @@ func zdbConnectionURL(ip string, port uint16) string {
 	return fmt.Sprintf("tcp://[%s]:%d", ip, port)
 }
 
-func socketDir(containerID string) string {
+func socketDir(containerID pkg.ContainerID) string {
 	return fmt.Sprintf("/var/run/zdb_%s", containerID)
 }
 
