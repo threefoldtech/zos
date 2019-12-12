@@ -182,6 +182,21 @@ func main() {
 					Action: generateContainer,
 				},
 				{
+					Name:  "k8s",
+					Usage: "Generate k8s cluster provisioning schema",
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "master",
+							Usage: "URL of the master node",
+						},
+						cli.StringFlag{
+							Name:  "token",
+							Usage: "authentication token",
+						},
+					},
+					Action: generateK8S,
+				},
+				{
 					Name:  "storage",
 					Usage: "Generate volumes and 0-db namespace provisioning schema",
 					Subcommands: []cli.Command{

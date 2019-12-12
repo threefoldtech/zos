@@ -2,8 +2,7 @@
 
 ## Overview
 Containers on the grid runs on node booting zos with 0-fs filesystem.
-Those have some characteristics to keep in mind to make it work with k8s
- zOS has no virtual machine capabilities .  it can be implemented 
+Those have some characteristics to keep in mind to make it work with k8s zOS has no virtual machine capabilities .  it can be implemented 
 With firecracker adapting the kernel config with 5.4 and virtio-fs on top of 0-fs. 
 zOS is multi user and is not accessible from the outside.
 0-OS root filesystem is a tmpfs. Any new binaries that we want to include on the node should or be included in the base image or be downloaded using an flist.

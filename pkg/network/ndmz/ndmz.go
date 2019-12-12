@@ -118,6 +118,23 @@ func Create(nodeID pkg.Identifier) error {
 	return applyFirewall()
 }
 
+// Delete delete the ndmz network namespace and all interfaces attached to it
+func Delete() error {
+	netNS, err := namespace.GetByName(netNSNDMZ)
+	if err == nil {
+		if err := namespace.Delete(netNS); err != nil {
+			return err
+		}
+	}
+
+	if bridge.Exists(BridgeNDMZ) {
+		if err := bridge.Delete(BridgeNDMZ); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func createMacVlan(netNS ns.NetNS) error {
 	if !macvlan.Exists("public", netNS) {
 		pubIface, err := getPublicIface()
