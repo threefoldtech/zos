@@ -193,6 +193,25 @@ func createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg
 		return errors.Wrap(err, "failed to create container")
 	}
 
+	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir)
+	cl := zdb.New(socket)
+	defer cl.Close()
+
+	check := func() error {
+		return cl.Connect()
+	}
+
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = time.Minute * 2
+	bo.MaxElapsedTime = time.Minute * 2
+
+	if err := backoff.RetryNotify(check, bo, func(err error, d time.Duration) {
+		log.Debug().Err(err).Str("duration", d.String()).Msg("waiting for zdb to start")
+	}); err != nil {
+		cleanup()
+		return errors.Wrapf(err, "failed to estaplish connection to zdb")
+	}
+
 	return nil
 }
 
@@ -238,10 +257,10 @@ func getZDBIP(ctx context.Context, container pkg.Container) (containerIP net.IP,
 }
 
 func createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
-	zdbCl := zdb.New()
-
 	addr := fmt.Sprintf("unix://%s/zdb.sock", socketDir(containerID))
-	if err := zdbCl.Connect(addr); err != nil {
+	zdbCl := zdb.New(addr)
+
+	if err := zdbCl.Connect(); err != nil {
 		return errors.Wrapf(err, "failed to connect to 0-db at %s", addr)
 	}
 	defer zdbCl.Close()
@@ -304,8 +323,8 @@ func zdbDecommission(ctx context.Context, reservation *Reservation) error {
 	addr := fmt.Sprintf("unix://%s/zdb.sock", socketDir(containerID))
 	slog.Debug().Str("addr", addr).Msg("connect to 0-db and delete namespace")
 
-	zdbCl := zdb.New()
-	if err := zdbCl.Connect(addr); err != nil {
+	zdbCl := zdb.New(addr)
+	if err := zdbCl.Connect(); err != nil {
 		return errors.Wrapf(err, "failed to connect to 0-db at %s", addr)
 	}
 	defer zdbCl.Close()

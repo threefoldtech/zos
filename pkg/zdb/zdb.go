@@ -12,30 +12,32 @@ import (
 
 // Client is a connection to a 0-db
 type Client struct {
+	addr string
 	pool *redis.Pool
 }
 
 // New creates a client to 0-db pointed by addr
 // addr format: TODO:
-func New() *Client {
-	return &Client{}
+func New(addr string) *Client {
+	return &Client{
+		addr: addr,
+	}
 }
 
 // Connect dials addr and creates a pool of connection
-func (c *Client) Connect(addr string) error {
-	if c.pool != nil {
-		return fmt.Errorf("already connected")
-	}
+func (c *Client) Connect() error {
+	if c.pool == nil {
+		pool, err := newRedisPool(c.addr)
+		if err != nil {
+			return errors.Wrapf(err, "failed to connect to %s", c.addr)
+		}
 
-	pool, err := newRedisPool(addr)
-	if err != nil {
-		return errors.Wrapf(err, "failed to connect to %s", addr)
+		c.pool = pool
 	}
-	c.pool = pool
 
 	con := c.pool.Get()
 	defer con.Close()
-	_, err = con.Do("PING")
+	_, err := con.Do("PING")
 
 	return err
 }
