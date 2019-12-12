@@ -206,7 +206,7 @@ func getZDBIP(ctx context.Context, container pkg.Container) (containerIP net.IP,
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxInterval = time.Minute * 2
-	if err := backoff.RetryNotify(getIP, bo, nil); err != nil {
+	if err := backoff.Retry(getIP, bo); err != nil {
 		return nil, errors.Wrapf(err, "failed to get an IP for 0-db container %s", container.Name)
 	}
 
