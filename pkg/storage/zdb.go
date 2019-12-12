@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 
@@ -16,10 +15,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/storage/zdbpool"
 )
 
-func isZdbVolume(volume filesystem.Volume) bool {
-	return strings.HasPrefix(volume.Name(), zdbPoolPrefix)
-}
-
 func (s *storageModule) Find(nsID string) (allocation pkg.Allocation, err error) {
 	for _, pool := range s.volumes {
 		volumes, err := pool.Volumes()
@@ -29,7 +24,7 @@ func (s *storageModule) Find(nsID string) (allocation pkg.Allocation, err error)
 
 		for _, volume := range volumes {
 			// skip all non-zdb volume
-			if !isZdbVolume(volume) {
+			if !filesystem.IsZDBVolume(volume) {
 				continue
 			}
 
@@ -77,7 +72,7 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 
 		for _, volume := range volumes {
 			// skip all non-zdb volume
-			if !isZdbVolume(volume) {
+			if !filesystem.IsZDBVolume(volume) {
 				continue
 			}
 
@@ -124,19 +119,17 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 
 		for _, volume := range volumes {
 			// skip all non-zdb volume
-			if !isZdbVolume(volume) {
+			if !filesystem.IsZDBVolume(volume) {
 				continue
 			}
 
-			zdb := zdbpool.New(volume.Path())
-
-			reserved, err := zdb.Reserved()
+			volumeUsage, err := volume.Usage()
 			if err != nil {
 				return allocation, errors.Wrapf(err, "failed to list namespaces from volume '%s'", volume.Path())
 			}
 
-			if reserved+size > usage.Size {
-				// not enough space on this namespace
+			if volumeUsage.Size+size > usage.Size {
+				// not enough space on this volume
 				continue
 			}
 
@@ -144,7 +137,7 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 				candidates,
 				Candidate{
 					Volume: volume,
-					Free:   usage.Size - (reserved + size),
+					Free:   usage.Size - (volumeUsage.Size + size),
 				})
 		}
 	}
