@@ -259,11 +259,10 @@ func getZDBIP(ctx context.Context, container pkg.Container) (containerIP net.IP,
 func createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
 	addr := fmt.Sprintf("unix://%s/zdb.sock", socketDir(containerID))
 	zdbCl := zdb.New(addr)
-
+	defer zdbCl.Close()
 	if err := zdbCl.Connect(); err != nil {
 		return errors.Wrapf(err, "failed to connect to 0-db at %s", addr)
 	}
-	defer zdbCl.Close()
 
 	exists, err := zdbCl.Exist(nsID)
 	if err != nil {
@@ -324,10 +323,10 @@ func zdbDecommission(ctx context.Context, reservation *Reservation) error {
 	slog.Debug().Str("addr", addr).Msg("connect to 0-db and delete namespace")
 
 	zdbCl := zdb.New(addr)
+	defer zdbCl.Close()
 	if err := zdbCl.Connect(); err != nil {
 		return errors.Wrapf(err, "failed to connect to 0-db at %s", addr)
 	}
-	defer zdbCl.Close()
 
 	if err := zdbCl.DeleteNamespace(nsID); err != nil {
 		return errors.Wrapf(err, "failed to delete namespace in 0-db at %s", addr)
