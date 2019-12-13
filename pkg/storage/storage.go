@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,6 +34,8 @@ type storageModule struct {
 	brokenPools   []pkg.BrokenPool
 	devices       filesystem.DeviceManager
 	brokenDevices []pkg.BrokenDevice
+
+	mu sync.RWMutex
 }
 
 // New create a new storage module service
@@ -74,6 +77,8 @@ func New() (pkg.StorageModule, error) {
 
 // Total gives the total amount of storage available for a device type
 func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var total uint64
 
 	for idx := range s.volumes {
@@ -95,11 +100,15 @@ func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
 
 // BrokenPools lists the broken storage pools that have been detected
 func (s *storageModule) BrokenPools() []pkg.BrokenPool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.brokenPools
 }
 
 // BrokenDevices lists the broken devices that have been detected
 func (s *storageModule) BrokenDevices() []pkg.BrokenDevice {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.brokenDevices
 }
 
@@ -111,6 +120,10 @@ What Initialize will do is the following:
  - If new pools were created, the pool is going to be mounted automatically
 **/
 func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
+	// lock for the entire initialization method, so other code which relies
+	// on this observes this as an atomic operation
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	log.Info().Msgf("Initializing storage module")
 
 	// Make sure we finish in 1 minute
