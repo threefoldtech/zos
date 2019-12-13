@@ -333,7 +333,9 @@ func socketDir(containerID pkg.ContainerID) string {
 	return fmt.Sprintf("/var/run/zdb_%s", containerID)
 }
 
-func zdbConnection(id pkg.ContainerID) *zdb.Client {
+// we declare this method as a variable so we can
+// mock it in testing.
+var zdbConnection = func(id pkg.ContainerID) zdb.Client {
 	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir(id))
 	return zdb.New(socket)
 }

@@ -9,7 +9,7 @@ import (
 
 // CreateNamespace creates a new namespace. Only admin can do this.
 // By default, a namespace is not password protected, is public and not size limited.
-func (c *Client) CreateNamespace(name string) error {
+func (c *clientImpl) CreateNamespace(name string) error {
 	con := c.pool.Get()
 	defer con.Close()
 	ok, err := redis.String(con.Do("NSNEW", name))
@@ -23,7 +23,7 @@ func (c *Client) CreateNamespace(name string) error {
 }
 
 // Exist checks if namespace exists
-func (c *Client) Exist(name string) (bool, error) {
+func (c *clientImpl) Exist(name string) (bool, error) {
 	con := c.pool.Get()
 	defer con.Close()
 
@@ -40,7 +40,7 @@ func (c *Client) Exist(name string) (bool, error) {
 // DeleteNamespace deletes a namespace. Only admin can do this.
 // You can't remove the namespace you're currently using.
 // Any other clients using this namespace will be moved to a special state, awaiting to be disconnected.
-func (c *Client) DeleteNamespace(name string) error {
+func (c *clientImpl) DeleteNamespace(name string) error {
 	con := c.pool.Get()
 	defer con.Close()
 	ok, err := redis.String(con.Do("NSDEL", name))
@@ -54,14 +54,14 @@ func (c *Client) DeleteNamespace(name string) error {
 }
 
 // Namespaces returns a slice of all available namespaces name.
-func (c *Client) Namespaces() ([]string, error) {
+func (c *clientImpl) Namespaces() ([]string, error) {
 	con := c.pool.Get()
 	defer con.Close()
 	return redis.Strings(con.Do("NSLIST"))
 }
 
 // NamespaceSetSize sets the maximum size in bytes, of the namespace's data set
-func (c *Client) NamespaceSetSize(name string, size uint64) error {
+func (c *clientImpl) NamespaceSetSize(name string, size uint64) error {
 	con := c.pool.Get()
 	defer con.Close()
 	ok, err := redis.String(con.Do("NSSET", name, "maxsize", size))
@@ -75,7 +75,7 @@ func (c *Client) NamespaceSetSize(name string, size uint64) error {
 }
 
 // NamespaceSetPassword locks the namespace by a password, use * password to clear it
-func (c *Client) NamespaceSetPassword(name, password string) error {
+func (c *clientImpl) NamespaceSetPassword(name, password string) error {
 	con := c.pool.Get()
 	defer con.Close()
 	ok, err := redis.String(con.Do("NSSET", name, "password", password))
@@ -89,7 +89,7 @@ func (c *Client) NamespaceSetPassword(name, password string) error {
 }
 
 // NamespaceSetPublic changes the public flag, a public namespace can be read-only if a password is set
-func (c *Client) NamespaceSetPublic(name string, public bool) error {
+func (c *clientImpl) NamespaceSetPublic(name string, public bool) error {
 	con := c.pool.Get()
 	defer con.Close()
 
@@ -109,7 +109,7 @@ func (c *Client) NamespaceSetPublic(name string, public bool) error {
 }
 
 // DBSize returns the size of the database in bytes
-func (c *Client) DBSize() (uint64, error) {
+func (c *clientImpl) DBSize() (uint64, error) {
 	con := c.pool.Get()
 	defer con.Close()
 
