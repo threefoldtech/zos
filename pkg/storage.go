@@ -35,6 +35,26 @@ func (e ErrNotEnoughSpace) Error() string {
 // i.e. SSD or HDD
 type DeviceType string
 
+type (
+	// BrokenDevice is a disk which is somehow not fully functional. Storage keeps
+	// track of disks which have failed at some point, so they are not used, and
+	// to be able to later report this to other daemons.
+	BrokenDevice struct {
+		// Path to allow identification of the disk
+		Path string
+		// Err returned which lead to the disk being marked as faulty
+		Err error
+	}
+
+	// BrokenPool contains info about a malfunctioning storage pool
+	BrokenPool struct {
+		// Label of the broken pool
+		Label string
+		// Err returned by the action which let to the pool being marked as broken
+		Err error
+	}
+)
+
 // Known device types
 const (
 	SSDDevice DeviceType = "SSD"
@@ -110,4 +130,8 @@ type StorageModule interface {
 
 	// Total gives the total amount of storage available for a device type
 	Total(kind DeviceType) (uint64, error)
+	// BrokenPools lists the broken storage pools that have been detected
+	BrokenPools() []BrokenPool
+	// BrokenDevices lists the broken devices that have been detected
+	BrokenDevices() []BrokenDevice
 }
