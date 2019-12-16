@@ -2,7 +2,6 @@ package provision
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/zdb"
 
 	"github.com/pkg/errors"
@@ -134,14 +134,7 @@ func createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg
 		slog = log.With().Str("containerID", string(name)).Logger()
 	)
 
-	// sanity check
-	if len(allocation.VolumeID) < 12 {
-		return fmt.Errorf("invalid volume ID length, expecting zdb<GUID> format, got '%s'", allocation.VolumeID)
-	}
-	hw, err := hex.DecodeString(allocation.VolumeID[len(allocation.VolumeID)-12:])
-	if err != nil {
-		return errors.Wrapf(err, "invalid volume id, expected GUID format got '%s' instead", allocation.VolumeID)
-	}
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(allocation.VolumeID))
 
 	slog.Debug().Str("flist", zdbFlistURL).Msg("mounting flist")
 	rootFS, err := flist.Mount(zdbFlistURL, "", pkg.MountOptions{
