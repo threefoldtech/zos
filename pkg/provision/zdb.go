@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -133,6 +134,15 @@ func createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg
 		slog = log.With().Str("containerID", string(name)).Logger()
 	)
 
+	// sanity check
+	if len(allocation.VolumeID) < 12 {
+		return fmt.Errorf("invalid volume ID length, expecting zdb<GUID> format, got '%s'", allocation.VolumeID)
+	}
+	hw, err := hex.DecodeString(allocation.VolumeID[len(allocation.VolumeID)-12:])
+	if err != nil {
+		return errors.Wrapf(err, "invalid volume id, expected GUID format got '%s' instead", allocation.VolumeID)
+	}
+
 	slog.Debug().Str("flist", zdbFlistURL).Msg("mounting flist")
 	rootFS, err := flist.Mount(zdbFlistURL, "", pkg.MountOptions{
 		Limit:    10,
@@ -153,7 +163,7 @@ func createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg
 	}
 
 	// create the network namespace and macvlan for the 0-db container
-	netNsName, err := network.ZDBPrepare()
+	netNsName, err := network.ZDBPrepare(hw)
 	if err != nil {
 		if err := flist.Umount(rootFS); err != nil {
 			slog.Error().Err(err).Str("path", rootFS).Msgf("failed to unmount")

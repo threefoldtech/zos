@@ -105,7 +105,7 @@ func CreatePublicNS(iface *types.PubIface, nodeID pkg.Identifier) error {
 		return err
 	}
 
-	if err := macvlan.Install(pubIface, ips, routes, pubNS); err != nil {
+	if err := macvlan.Install(pubIface, nil, ips, routes, pubNS); err != nil {
 		return err
 	}
 
