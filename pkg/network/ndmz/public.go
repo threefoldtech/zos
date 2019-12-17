@@ -11,8 +11,8 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func getPublicIface() (string, error) {
-	var ifaceName string
+func getPublicIface() (netlink.Link, error) {
+	var iface netlink.Link
 
 	pubNS, err := namespace.GetByName(types.PublicNamespace)
 
@@ -31,36 +31,36 @@ func getPublicIface() (string, error) {
 			ifaceIndex = public.Attrs().ParentIndex
 			return nil
 		}); err != nil {
-			return "", err
+			return nil, err
 		}
 
 		master, err := netlink.LinkByIndex(ifaceIndex)
 		if err != nil {
-			return "", errors.Wrapf(err, "failed to get link by index %d", ifaceIndex)
+			return nil, errors.Wrapf(err, "failed to get link by index %d", ifaceIndex)
 		}
-		ifaceName = master.Attrs().Name
+		iface = master
 	} else {
 		zos, err := netlink.LinkByName("zos")
 		if err != nil {
-			return "", errors.Wrap(err, "failed to get zos link")
+			return nil, errors.Wrap(err, "failed to get zos link")
 		}
 		// find the name of the interface attached to zos bridge
 		links, err := netlink.LinkList()
 		if err != nil {
-			return "", errors.Wrap(err, "failed to list interfaces")
+			return nil, errors.Wrap(err, "failed to list interfaces")
 		}
 		for _, link := range links {
 			if link.Attrs().MasterIndex == zos.Attrs().Index && link.Type() == "device" {
-				ifaceName = link.Attrs().Name
+				iface = link
 				break
 			}
 		}
 	}
 
-	if ifaceName == "" {
-		return "", fmt.Errorf("not interface with default gateway found")
+	if iface == nil {
+		return nil, fmt.Errorf("not interface with default gateway found")
 	}
 
-	log.Info().Str("iface", ifaceName).Msg("interface with default gateway found")
-	return ifaceName, nil
+	log.Info().Str("iface", iface.Attrs().Name).Msg("interface with default gateway found")
+	return iface, nil
 }

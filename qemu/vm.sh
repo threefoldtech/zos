@@ -73,6 +73,7 @@ qemu-system-x86_64 -kernel $image \
     -m 3072 -enable-kvm -cpu host \
     -uuid $uuid \
     -netdev bridge,id=zos0,br=${bridge} -device virtio-net-pci,netdev=zos0,mac="${basemac}1" \
+    -netdev bridge,id=zos1,br=${bridge} -device virtio-net-pci,netdev=zos1,mac="${basemac}2" \
     -drive file=fat:rw:$basepath/overlay,format=raw \
     -append "${cmdline} console=ttyS1,115200" \
     -drive file=$vmdir/vda.qcow2,if=virtio -drive file=$vmdir/vdb.qcow2,if=virtio \
