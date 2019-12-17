@@ -222,8 +222,8 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 			pool, err := fs.Create(ctx, uuid.New().String(), policy.Raid, poolDevices...)
 			if err != nil {
 				// Failure to create a filesystem -> disk is dead. It is possible
-				// that multiple devides are used to create a single pool, and only
-				// one devide is actuall broken. We should probably expand on
+				// that multiple devices are used to create a single pool, and only
+				// one devices is actuall broken. We should probably expand on
 				// this once we start to use storagepools spanning multiple disks.
 				for _, dev := range poolDevices {
 					s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: dev.Path, Err: err})
