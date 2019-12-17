@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,8 +30,12 @@ var (
 )
 
 type storageModule struct {
-	volumes []filesystem.Pool
-	devices filesystem.DeviceManager
+	volumes       []filesystem.Pool
+	brokenPools   []pkg.BrokenPool
+	devices       filesystem.DeviceManager
+	brokenDevices []pkg.BrokenDevice
+
+	mu sync.RWMutex
 }
 
 // New create a new storage module service
@@ -46,8 +51,10 @@ func New() (pkg.StorageModule, error) {
 	}
 
 	s := &storageModule{
-		volumes: []filesystem.Pool{},
-		devices: m,
+		volumes:       []filesystem.Pool{},
+		brokenPools:   []pkg.BrokenPool{},
+		devices:       m,
+		brokenDevices: []pkg.BrokenDevice{},
 	}
 
 	// go for a simple linear setup right now
@@ -70,6 +77,8 @@ func New() (pkg.StorageModule, error) {
 
 // Total gives the total amount of storage available for a device type
 func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var total uint64
 
 	for idx := range s.volumes {
@@ -89,6 +98,20 @@ func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
 	return total, nil
 }
 
+// BrokenPools lists the broken storage pools that have been detected
+func (s *storageModule) BrokenPools() []pkg.BrokenPool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.brokenPools
+}
+
+// BrokenDevices lists the broken devices that have been detected
+func (s *storageModule) BrokenDevices() []pkg.BrokenDevice {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.brokenDevices
+}
+
 /**
 initialize, must be called at least onetime each boot.
 What Initialize will do is the following:
@@ -97,6 +120,10 @@ What Initialize will do is the following:
  - If new pools were created, the pool is going to be mounted automatically
 **/
 func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
+	// lock for the entire initialization method, so other code which relies
+	// on this observes this as an atomic operation
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	log.Info().Msgf("Initializing storage module")
 
 	// Make sure we finish in 1 minute
@@ -121,11 +148,13 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		}
 		_, err = volume.Mount()
 		if err != nil {
-			return err
+			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: volume.Name(), Err: err})
+			log.Warn().Msgf("Failed to mount volume %v", volume.Name())
+			continue
 		}
 		log.Debug().Msgf("Mounted volume %s", volume.Name())
+		s.volumes = append(s.volumes, volume)
 	}
-	s.volumes = append(s.volumes, existingPools...)
 
 	// list disks
 	log.Info().Msgf("Finding free disks")
@@ -192,7 +221,14 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 
 			pool, err := fs.Create(ctx, uuid.New().String(), policy.Raid, poolDevices...)
 			if err != nil {
-				return err
+				// Failure to create a filesystem -> disk is dead. It is possible
+				// that multiple devices are used to create a single pool, and only
+				// one devices is actuall broken. We should probably expand on
+				// this once we start to use storagepools spanning multiple disks.
+				for _, dev := range poolDevices {
+					s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: dev.Path, Err: err})
+				}
+				continue
 			}
 
 			newPools = append(newPools, pool)
@@ -206,18 +242,17 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		if _, mounted := newPools[idx].Mounted(); !mounted {
 			log.Debug().Msgf("Mounting volume %s", newPools[idx].Name())
 			if _, err = newPools[idx].Mount(); err != nil {
-				return err
+				s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: newPools[idx].Name(), Err: err})
+				continue
 			}
+			s.volumes = append(s.volumes, newPools[idx])
 		}
 	}
-
-	s.volumes = append(s.volumes, newPools...)
 
 	return s.ensureCache()
 }
 
 func (s *storageModule) Maintenance() error {
-
 	for _, pool := range s.volumes {
 		log.Info().
 			Str("pool", pool.Name()).
@@ -322,7 +357,6 @@ func (s *storageModule) ensureCache() error {
 		fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
 		if errors.Is(err, pkg.ErrNotEnoughSpace{}) {
 			// No space on SSD (probably no SSD in the node at all), try HDD
-			err = nil
 			fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
 		}
 		if err != nil {
