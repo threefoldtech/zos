@@ -257,7 +257,7 @@ func workloadFromRaw(s json.RawMessage, t provision.ReservationType) (interface{
 	case provision.VolumeReservation:
 		v := provision.Volume{}
 		err := json.Unmarshal([]byte(s), &v)
-		return nil, err
+		return v, err
 
 	case provision.NetworkReservation:
 		n := pkg.Network{}

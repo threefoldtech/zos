@@ -50,8 +50,7 @@ var (
 
 	envTest = Environment{
 		RunningMode: RunningTest,
-		// BcdbURL:     "tcp://explorer.testnet.grid.tf:8901",
-		BcdbURL: "tcp://0.tcp.ngrok.io:14669",
+		BcdbURL:     "tcp://explorer.testnet.grid.tf:8901",
 		// ProvisionTimeout:  120,
 		// ProvisionInterval: 10,
 	}
@@ -81,7 +80,9 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		runmode = []string{string(RunningMain)}
 	}
 
-	switch RunningMode(runmode[0]) {
+	mode := RunningMode(runmode[0])
+
+	switch mode {
 	case RunningDev:
 		env = envDev
 	case RunningTest:
@@ -92,7 +93,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		env = envProd
 	}
 
-	if RunningMode(runmode[0]) == RunningDev {
+	if mode == RunningDev || mode == RunningTest {
 		//allow override of the bcdb url in dev mode
 		bcdb, found := params.Get("bcdb")
 		if found && len(bcdb) >= 1 {
