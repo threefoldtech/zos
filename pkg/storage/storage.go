@@ -143,7 +143,11 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	for _, volume := range existingPools {
 		if _, mounted := volume.Mounted(); mounted {
 			log.Debug().Msgf("Volume %s already mounted", volume.Name())
-			// volume is already mounted, skip mounting it again
+			// volume is already mounted, skip mounting it again, make sure it is
+			// in the list of available pools. Since we are in the initialize method,
+			// we can safely assume the pool has not been added before, so no need
+			// to check for duplicate entries.
+			s.volumes = append(s.volumes, volume)
 			continue
 		}
 		_, err = volume.Mount()
