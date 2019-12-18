@@ -282,6 +282,7 @@ func (u *Upgrader) uninstall(flist listFListInfo) error {
 
 		if file.Path == flistIdentityPath {
 			log.Debug().Str("file", file.Path).Msg("skip deleting file")
+			continue
 		}
 
 		if err := os.Remove(file.Path); err != nil {
