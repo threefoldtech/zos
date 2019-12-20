@@ -104,18 +104,22 @@ func main() {
 						},
 						{
 							Name:  "add-node",
-							Usage: "add a node to a existing network",
+							Usage: "Add a node to a existing network",
 							Flags: []cli.Flag{
 								cli.StringFlag{
 									Name:  "node",
-									Usage: "node ID of the node to add to the network",
+									Usage: "Node ID of the node to add to the network",
 								},
 								cli.StringFlag{
 									Name:  "subnet",
-									Usage: "subnet to use on this node. The subnet needs to be included in the IP range of the network",
+									Usage: "Subnet to use on this node. The subnet needs to be included in the IP range of the network",
 								},
 								cli.UintFlag{
 									Name:  "port",
+									Usage: "Wireguard port to use. if not specified, tfuser will automatically check BCDB for free fort to use",
+								},
+								cli.UintFlag{
+									Name:  "l3",
 									Usage: "Wireguar port to use. if not specified, tfuser will automatically check BCDB for free fort to use",
 								},
 							},
@@ -123,11 +127,11 @@ func main() {
 						},
 						{
 							Name:  "remove-node",
-							Usage: "prints the wg-quick configuration file for a certain user in the network",
+							Usage: "Removes a Network Resource from the network",
 							Flags: []cli.Flag{
 								cli.StringFlag{
 									Name:  "node",
-									Usage: "node ID to remove from the network",
+									Usage: "Node ID to remove from the network",
 								},
 							},
 							Action: cmdsRemoveNode,

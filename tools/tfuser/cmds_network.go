@@ -205,6 +205,39 @@ func pickPort(nodeID string) (uint, error) {
 	return p, nil
 }
 
+// a node has either a public namespace with []ipv4 or/and []ipv6 -or-
+// some interface has received a SLAAC addr
+// which has been registered in BCDB
+func getEndPointAddrs(nodeID string) ([]types.IPNet, error) {
+	node, err := client.GetNode(pkg.StrIdentifier(nodeID))
+	if err != nil {
+		return []types.IPNet{}, err
+	}
+	var endpoints []types.IPNet
+	if node.PublicConfig != nil {
+		if &node.PublicConfig.IPv4 != nil {
+			if node.PublicConfig.IPv4.IP.IsGlobalUnicast() {
+				endpoints = append(endpoints, node.PublicConfig.IPv4)
+			}
+		}
+		if &node.PublicConfig.IPv6 != nil {
+			if node.PublicConfig.IPv6.IP.IsGlobalUnicast() {
+				endpoints = append(endpoints, node.PublicConfig.IPv6)
+			}
+		}
+	} else {
+		for _, iface := range node.Ifaces {
+			for _, ip := range iface.Addrs {
+				if !ip.IP.IsGlobalUnicast() {
+					continue
+				}
+				endpoints = append(endpoints, ip)
+			}
+		}
+	}
+	return endpoints, nil
+}
+
 func isIn(l []uint, i uint) bool {
 	for _, x := range l {
 		if i == x {
