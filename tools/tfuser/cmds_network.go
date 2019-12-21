@@ -103,8 +103,22 @@ func cmdsAddNode(c *cli.Context) error {
 		return errors.Wrap(err, "failed to encrypt private key")
 	}
 
+	pubSubnets, err := getEndPointAddrs(pkg.StrIdentifier(nodeID))
+	if err != nil {
+		return errors.Wrap(err, "failed to get node public endpoints")
+	}
+
+	// In rust this bullshit could be written easily as:
+	// let ips = pubEndpoints.into_iter().map(|n| n.IP).collect();
+	// but alas
+	var endpoints []net.IP
+	for _, sn := range pubSubnets {
+		endpoints = append(endpoints, sn.IP)
+	}
+
 	nr := pkg.NetResource{
 		NodeID:       nodeID,
+		PubEndpoints: endpoints,
 		Subnet:       ipnet,
 		WGListenPort: uint16(port),
 		WGPublicKey:  privateKey.PublicKey().String(),
@@ -208,33 +222,36 @@ func pickPort(nodeID string) (uint, error) {
 // a node has either a public namespace with []ipv4 or/and []ipv6 -or-
 // some interface has received a SLAAC addr
 // which has been registered in BCDB
-func getEndPointAddrs(nodeID string) ([]types.IPNet, error) {
-	node, err := client.GetNode(pkg.StrIdentifier(nodeID))
+func getEndPointAddrs(nodeID pkg.Identifier) ([]types.IPNet, error) {
+	node, err := client.GetNode(nodeID)
 	if err != nil {
-		return []types.IPNet{}, err
+		return nil, err
 	}
 	var endpoints []types.IPNet
 	if node.PublicConfig != nil {
-		if &node.PublicConfig.IPv4 != nil {
-			if node.PublicConfig.IPv4.IP.IsGlobalUnicast() {
+		if node.PublicConfig.IPv4.IP != nil {
+			ip := node.PublicConfig.IPv4.IP
+			if ip.IsGlobalUnicast() && !isPrivateIP(ip) {
 				endpoints = append(endpoints, node.PublicConfig.IPv4)
 			}
 		}
-		if &node.PublicConfig.IPv6 != nil {
-			if node.PublicConfig.IPv6.IP.IsGlobalUnicast() {
+		if node.PublicConfig.IPv6.IP != nil {
+			ip := node.PublicConfig.IPv6.IP
+			if ip.IsGlobalUnicast() && !isPrivateIP(ip) {
 				endpoints = append(endpoints, node.PublicConfig.IPv6)
 			}
 		}
 	} else {
 		for _, iface := range node.Ifaces {
 			for _, ip := range iface.Addrs {
-				if !ip.IP.IsGlobalUnicast() {
+				if !ip.IP.IsGlobalUnicast() || isPrivateIP(ip.IP) {
 					continue
 				}
 				endpoints = append(endpoints, ip)
 			}
 		}
 	}
+	// If the length is 0, then its a hidden node
 	return endpoints, nil
 }
 
@@ -248,6 +265,20 @@ func isIn(l []uint, i uint) bool {
 }
 
 func generatePeers(nodeID string, n pkg.Network) []pkg.Peer {
+	var hasIPv4, hasIPv6 bool
+	for _, nr := range n.NetResources {
+		if nr.NodeID == nodeID {
+			for _, endpoint := range nr.PubEndpoints {
+				if endpoint.To4() != nil {
+					hasIPv4 = true
+				} else {
+					hasIPv6 = true
+				}
+
+			}
+		}
+	}
+
 	peers := make([]pkg.Peer, 0, len(n.NetResources))
 	for _, nr := range n.NetResources {
 		if nr.NodeID == nodeID {
@@ -258,9 +289,19 @@ func generatePeers(nodeID string, n pkg.Network) []pkg.Peer {
 		allowedIPs[0] = nr.Subnet
 		allowedIPs[1] = types.NewIPNet(wgIP(&nr.Subnet.IPNet))
 
+		var endpoint string
+		if len(nr.PubEndpoints) == 0 {
+			// peer is hidden so it has no endpoint
+			endpoint = ""
+		} else {
+			// TODO monday
+		}
+
 		peers = append(peers, pkg.Peer{
 			WGPublicKey: nr.WGPublicKey,
+			Subnet:      nr.Subnet,
 			AllowedIPs:  allowedIPs,
+			Endpoint:    "",
 		})
 	}
 	return peers
@@ -275,4 +316,36 @@ func wgIP(subnet *net.IPNet) *net.IPNet {
 		IP:   net.IPv4(0x64, 0x40, a, b),
 		Mask: net.CIDRMask(32, 32),
 	}
+}
+
+func isPrivateIP(ip net.IP) bool {
+	privateIPBlocks := []*net.IPNet{}
+	for _, cidr := range []string{
+		"127.0.0.0/8",    // IPv4 loopback
+		"10.0.0.0/8",     // RFC1918
+		"172.16.0.0/12",  // RFC1918
+		"192.168.0.0/16", // RFC1918
+		"169.254.0.0/16", // RFC3927 link-local
+		"::1/128",        // IPv6 loopback
+		"fe80::/10",      // IPv6 link-local
+		"fc00::/7",       // IPv6 unique local addr
+	} {
+		_, block, err := net.ParseCIDR(cidr)
+		if err != nil {
+			panic(fmt.Errorf("parse error on %q: %v", cidr, err))
+		}
+		privateIPBlocks = append(privateIPBlocks, block)
+	}
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	fmt.Println(ip)
+	for _, block := range privateIPBlocks {
+		fmt.Println(block.IP)
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

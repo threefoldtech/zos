@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"errors"
 	"net"
 
 	"github.com/threefoldtech/zos/pkg/network/types"
@@ -59,6 +60,8 @@ type Network struct {
 // NetResource is the description of a part of a network local to a specific node
 type NetResource struct {
 	NodeID string `json:"node_id"`
+	// Public endpoints
+	PubEndpoints []net.IP `json:"pub_endpoints"`
 	// IPV4 subnet from network IPRange
 	Subnet types.IPNet `json:"subnet"`
 
@@ -88,3 +91,10 @@ var (
 	// NetworkSchemaLatestVersion network object latest version
 	NetworkSchemaLatestVersion = NetworkSchemaV1
 )
+
+// TODO
+type Endpoint struct{}
+
+func (e *Endpoint) UnmarshalJSON([]byte) error   { return errors.New("Not implemented") }
+func (e *Endpoint) MarshalJSON() ([]byte, error) { return nil, errors.New("Not implemented") }
+func (e *Endpoint) String() string               { return "" }
