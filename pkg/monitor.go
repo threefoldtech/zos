@@ -1,7 +1,8 @@
 package pkg
 
 //go:generate mkdir -p stubs
-//go:generate zbusc -module monitor -version 0.0.1 -name monitor -package stubs github.com/threefoldtech/zos/pkg+Monitor stubs/monitor_stub.go
+//go:generate zbusc -module monitor -version 0.0.1 -name system -package stubs github.com/threefoldtech/zos/pkg+SystemMonitor stubs/system_monitor_stub.go
+//go:generate zbusc -module monitor -version 0.0.1 -name host -package stubs github.com/threefoldtech/zos/pkg+HostMonitor stubs/host_monitor_stub.go
 
 import (
 	"context"
@@ -48,9 +49,12 @@ type CPUTimesStat []TimesStat
 // DisksIOCountersStat alias for map[string]IOCountersStat required by zbus
 type DisksIOCountersStat map[string]IOCountersStat
 
-//Monitor interface
-type Monitor interface {
+//SystemMonitor interface
+type SystemMonitor interface {
 	Memory(ctx context.Context) <-chan VirtualMemoryStat
 	CPU(ctx context.Context) <-chan CPUTimesStat
 	Disks(ctx context.Context) <-chan DisksIOCountersStat
+}
+
+type HostMonitor interface {
 }

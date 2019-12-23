@@ -12,15 +12,15 @@ import (
 )
 
 var (
-	_ pkg.Monitor = (*Monitor)(nil)
+	_ pkg.SystemMonitor = (*SystemMonitor)(nil)
 )
 
-// Monitor stream
-type Monitor struct {
+// SystemMonitor stream
+type SystemMonitor struct {
 	Duration time.Duration
 }
 
-func (m *Monitor) duration() time.Duration {
+func (m *SystemMonitor) duration() time.Duration {
 	if m.Duration == time.Duration(0) {
 		m.Duration = 2 * time.Second
 	}
@@ -29,7 +29,7 @@ func (m *Monitor) duration() time.Duration {
 }
 
 // Memory starts memory monitor stream
-func (m *Monitor) Memory(ctx context.Context) <-chan pkg.VirtualMemoryStat {
+func (m *SystemMonitor) Memory(ctx context.Context) <-chan pkg.VirtualMemoryStat {
 	duration := m.duration()
 	ch := make(chan pkg.VirtualMemoryStat)
 	go func() {
@@ -55,7 +55,7 @@ func (m *Monitor) Memory(ctx context.Context) <-chan pkg.VirtualMemoryStat {
 }
 
 // CPU starts cpu monitor stream
-func (m *Monitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
+func (m *SystemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
 	duration := m.duration()
 	ch := make(chan pkg.CPUTimesStat)
 	go func() {
@@ -90,7 +90,7 @@ func (m *Monitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
 }
 
 // Disks starts disk monitor stream
-func (m *Monitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersStat {
+func (m *SystemMonitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersStat {
 	duration := m.duration()
 
 	ch := make(chan pkg.DisksIOCountersStat)

@@ -6,24 +6,24 @@ import (
 	pkg "github.com/threefoldtech/zos/pkg"
 )
 
-type MonitorStub struct {
+type SystemMonitorStub struct {
 	client zbus.Client
 	module string
 	object zbus.ObjectID
 }
 
-func NewMonitorStub(client zbus.Client) *MonitorStub {
-	return &MonitorStub{
+func NewSystemMonitorStub(client zbus.Client) *SystemMonitorStub {
+	return &SystemMonitorStub{
 		client: client,
 		module: "monitor",
 		object: zbus.ObjectID{
-			Name:    "monitor",
+			Name:    "system",
 			Version: "0.0.1",
 		},
 	}
 }
 
-func (s *MonitorStub) CPU(ctx context.Context) (<-chan pkg.CPUTimesStat, error) {
+func (s *SystemMonitorStub) CPU(ctx context.Context) (<-chan pkg.CPUTimesStat, error) {
 	ch := make(chan pkg.CPUTimesStat)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "CPU")
 	if err != nil {
@@ -42,7 +42,7 @@ func (s *MonitorStub) CPU(ctx context.Context) (<-chan pkg.CPUTimesStat, error) 
 	return ch, nil
 }
 
-func (s *MonitorStub) Disks(ctx context.Context) (<-chan pkg.DisksIOCountersStat, error) {
+func (s *SystemMonitorStub) Disks(ctx context.Context) (<-chan pkg.DisksIOCountersStat, error) {
 	ch := make(chan pkg.DisksIOCountersStat)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "Disks")
 	if err != nil {
@@ -61,7 +61,7 @@ func (s *MonitorStub) Disks(ctx context.Context) (<-chan pkg.DisksIOCountersStat
 	return ch, nil
 }
 
-func (s *MonitorStub) Memory(ctx context.Context) (<-chan pkg.VirtualMemoryStat, error) {
+func (s *SystemMonitorStub) Memory(ctx context.Context) (<-chan pkg.VirtualMemoryStat, error) {
 	ch := make(chan pkg.VirtualMemoryStat)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "Memory")
 	if err != nil {

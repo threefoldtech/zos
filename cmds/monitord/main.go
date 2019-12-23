@@ -35,7 +35,7 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
-	monitor := monitord.Monitor{
+	monitor := monitord.SystemMonitor{
 		Duration: 2 * time.Second,
 	}
 
@@ -44,7 +44,7 @@ func main() {
 		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
 	}
 
-	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, &monitor)
+	server.Register(zbus.ObjectID{Name: "system", Version: "0.0.1"}, &monitor)
 
 	log.Info().
 		Str("broker", msgBrokerCon).
