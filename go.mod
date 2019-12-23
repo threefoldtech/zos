@@ -39,7 +39,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.1
 	github.com/pkg/errors v0.8.1
 	github.com/rs/zerolog v1.15.0
-	github.com/shirou/gopsutil v2.18.12+incompatible
+	github.com/shirou/gopsutil v2.19.11+incompatible
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
