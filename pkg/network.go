@@ -79,7 +79,7 @@ type Peer struct {
 
 	WGPublicKey string        `json:"wg_public_key"`
 	AllowedIPs  []types.IPNet `json:"allowed_ips"`
-	Endpoint    string        `json:"endpoint"`
+	Endpoint    string        `json:"endpoint,omitempty"`
 }
 
 // NetID is a type defining the ID of a network

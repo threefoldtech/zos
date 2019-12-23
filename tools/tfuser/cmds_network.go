@@ -60,6 +60,8 @@ func cmdsAddNode(c *cli.Context) error {
 		nodeID = c.String("node")
 		subnet = c.String("subnet")
 		port   = c.Uint("port")
+
+		forceHidden = c.Bool("force-hidden")
 	)
 
 	network, err = loadNetwork(schema)
@@ -102,17 +104,19 @@ func cmdsAddNode(c *cli.Context) error {
 		return errors.Wrap(err, "failed to encrypt private key")
 	}
 
-	pubSubnets, err := getEndPointAddrs(pkg.StrIdentifier(nodeID))
-	if err != nil {
-		return errors.Wrap(err, "failed to get node public endpoints")
-	}
-
-	// In rust this bullshit could be written easily as:
-	// let ips = pubEndpoints.into_iter().map(|n| n.IP).collect();
-	// but alas
 	var endpoints []net.IP
-	for _, sn := range pubSubnets {
-		endpoints = append(endpoints, sn.IP)
+	if !forceHidden {
+		pubSubnets, err := getEndPointAddrs(pkg.StrIdentifier(nodeID))
+		if err != nil {
+			return errors.Wrap(err, "failed to get node public endpoints")
+		}
+
+		// In rust this bullshit could be written easily as:
+		// let ips = pubEndpoints.into_iter().map(|n| n.IP).collect();
+		// but alas
+		for _, sn := range pubSubnets {
+			endpoints = append(endpoints, sn.IP)
+		}
 	}
 
 	nr := pkg.NetResource{
@@ -312,6 +316,7 @@ func generatePeers(n *pkg.Network) error {
 	for _, nr := range n.NetResources {
 		if len(nr.PubEndpoints) == 0 {
 			hiddenSubnets[nr.NodeID] = nr.Subnet
+			continue
 		}
 		if !hasIPv4(nr) {
 			ipv6OnlySubnets[nr.NodeID] = nr.Subnet
@@ -360,7 +365,7 @@ func generatePeers(n *pkg.Network) error {
 
 				// Endpoint must be IPv4
 				var endpoint string
-				for _, pep := range nr.PubEndpoints {
+				for _, pep := range onr.PubEndpoints {
 					if pep.To4() != nil {
 						endpoint = fmt.Sprintf("%s:%d", pep.String(), nr.WGListenPort)
 					}
