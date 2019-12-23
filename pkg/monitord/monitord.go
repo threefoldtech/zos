@@ -109,13 +109,17 @@ func (m *Monitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersStat {
 		for {
 			select {
 			case <-time.After(duration):
+				now := time.Now()
 				counter, err := disk.IOCountersWithContext(ctx, names...)
 				if err != nil {
 					log.Error().Err(err).Msg("failed to read IO counter for disks")
 				}
 				result := make(pkg.DisksIOCountersStat)
 				for k, v := range counter {
-					result[k] = pkg.IOCountersStat(v)
+					result[k] = pkg.IOCountersStat{
+						IOCountersStat: v,
+						Time:           now,
+					}
 				}
 
 				ch <- result

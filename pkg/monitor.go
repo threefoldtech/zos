@@ -17,7 +17,18 @@ import (
 type VirtualMemoryStat mem.VirtualMemoryStat
 
 // IOCountersStat struct
-type IOCountersStat disk.IOCountersStat
+type IOCountersStat struct {
+	disk.IOCountersStat
+	Time time.Time
+}
+
+func (s *IOCountersStat) String() string {
+	return fmt.Sprintf(
+		"Read: (%d Bytes, %d Op), Write: (%d Bytes, %d Op)",
+		s.ReadBytes, s.ReadCount,
+		s.WriteBytes, s.WriteCount,
+	)
+}
 
 //TimesStat struct
 type TimesStat struct {
@@ -26,9 +37,9 @@ type TimesStat struct {
 	Time    time.Time
 }
 
-func (t *TimesStat) String() string {
+func (s *TimesStat) String() string {
 	return fmt.Sprintf("CPU: %s Percent: %0.00f (U: %0.00f, S: %0.00f, I: %0.00f)",
-		t.CPU, t.Percent, t.User, t.System, t.Idle)
+		s.CPU, s.Percent, s.User, s.System, s.Idle)
 }
 
 // CPUTimesStat alias for []TimesStat required by zbus
