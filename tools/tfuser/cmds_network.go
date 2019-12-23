@@ -74,7 +74,6 @@ func cmdsAddNode(c *cli.Context) error {
 	if subnet == "" {
 		return fmt.Errorf("subnet cannot be empty")
 	}
-	fmt.Println("subnet", subnet)
 	ipnet, err := types.ParseIPNet(subnet)
 	if err != nil {
 		return errors.Wrap(err, "invalid subnet")
@@ -127,8 +126,8 @@ func cmdsAddNode(c *cli.Context) error {
 
 	network.NetResources = append(network.NetResources, nr)
 
-	for i, nr := range network.NetResources {
-		network.NetResources[i].Peers = generatePeers(nr.NodeID, *network)
+	if err = generatePeers(network); err != nil {
+		return errors.Wrap(err, "failed to generate peers")
 	}
 
 	r, err := embed(network, provision.NetworkReservation)
@@ -176,7 +175,7 @@ func cmdsRemoveNode(c *cli.Context) error {
 	}
 	// r, err := embed(network, provision.NetworkReservation)
 	// if err != nil {
-	// 	return err
+	//	return err
 	// }
 
 	return output(schema, r)
@@ -264,47 +263,170 @@ func isIn(l []uint, i uint) bool {
 	return false
 }
 
-func generatePeers(nodeID string, n pkg.Network) []pkg.Peer {
-	var hasIPv4, hasIPv6 bool
+func hasIPv4(n pkg.NetResource) bool {
+	for _, pep := range n.PubEndpoints {
+		if pep.To4() != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// This function assumes:
+// - that a hidden node has functioning IPv4
+// - that a public node ALWAYS has public IPv6, and OPTIONALLY public IPv4
+// - that any public endpoint on any node is actually reachable (i.e. no firewall
+//		blocking incomming traffic)
+func generatePeers(n *pkg.Network) error {
+	// Find public node, which will be used to connect all hidden nodes.
+	// In case there are hidden nodes, the public node needs IPv4 support as well.
+	var hasHiddenNodes bool
 	for _, nr := range n.NetResources {
-		if nr.NodeID == nodeID {
-			for _, endpoint := range nr.PubEndpoints {
-				if endpoint.To4() != nil {
-					hasIPv4 = true
-				} else {
-					hasIPv6 = true
+		if len(nr.PubEndpoints) == 0 {
+			hasHiddenNodes = true
+			break
+		}
+	}
+
+	// Look for a public node to connect hidden nodes. This is only needed
+	// in case there are hidden nodes.
+	var pubNr string
+	if hasHiddenNodes {
+		for _, nr := range n.NetResources {
+			if hasIPv4(nr) {
+				pubNr = nr.NodeID
+				break
+			}
+		}
+		if pubNr == "" {
+			return errors.New("Network has hidden nodes but no public IPv4 node exists")
+		}
+	}
+
+	// Find all hidden nodes, and collect their subnets. Also collect the subnets
+	// of public IPv6 only nodes, since hidden nodes need IPv4 to connect.
+	hiddenSubnets := make(map[string]types.IPNet)
+	// also maintain subnets from nodes who have only IPv6 since this will also
+	// need to be routed for hidden nodes
+	ipv6OnlySubnets := make(map[string]types.IPNet)
+	for _, nr := range n.NetResources {
+		if len(nr.PubEndpoints) == 0 {
+			hiddenSubnets[nr.NodeID] = nr.Subnet
+		}
+		if !hasIPv4(nr) {
+			ipv6OnlySubnets[nr.NodeID] = nr.Subnet
+		}
+	}
+
+	for i := range n.NetResources {
+		// Note: we need to loop by index and manually asign nr, doing
+		// for _, nr := range ... causes nr to be copied, meaning we can't modify
+		// it in place
+		nr := &n.NetResources[i]
+		nr.Peers = []pkg.Peer{}
+		for _, onr := range n.NetResources {
+			if nr.NodeID == onr.NodeID {
+				continue
+			}
+
+			if len(nr.PubEndpoints) == 0 {
+				// If node is hidden, set only public peers (with IPv4), and set first public peer to
+				// contain all hidden subnets, except for the one owned by the node
+				if !hasIPv4(onr) {
+					continue
 				}
+
+				allowedIPs := make([]types.IPNet, 2)
+				allowedIPs[0] = onr.Subnet
+				allowedIPs[1] = types.NewIPNet(wgIP(&onr.Subnet.IPNet))
+
+				// Also add all other subnets if this is the pub node
+				if onr.NodeID == pubNr {
+					for owner, subnet := range hiddenSubnets {
+						// Do not add our own subnet
+						if owner == nr.NodeID {
+							continue
+						}
+
+						allowedIPs = append(allowedIPs, subnet)
+						allowedIPs = append(allowedIPs, types.NewIPNet(wgIP(&subnet.IPNet)))
+					}
+
+					for _, subnet := range ipv6OnlySubnets {
+						allowedIPs = append(allowedIPs, subnet)
+						allowedIPs = append(allowedIPs, types.NewIPNet(wgIP(&subnet.IPNet)))
+					}
+				}
+
+				// Endpoint must be IPv4
+				var endpoint string
+				for _, pep := range nr.PubEndpoints {
+					if pep.To4() != nil {
+						endpoint = fmt.Sprintf("%s:%d", pep.String(), nr.WGListenPort)
+					}
+				}
+
+				nr.Peers = append(nr.Peers, pkg.Peer{
+					WGPublicKey: onr.WGPublicKey,
+					Subnet:      onr.Subnet,
+					AllowedIPs:  allowedIPs,
+					Endpoint:    endpoint,
+				})
+			} else {
+				// if we are not hidden, we add all other nodes, unless we don't
+				// have IPv4, because then we also can't connect to hidden nodes.
+				// Ignore hidden nodes if we don't have IPv4
+				if !hasIPv4(*nr) && len(onr.PubEndpoints) == 0 {
+					continue
+				}
+
+				allowedIPs := make([]types.IPNet, 2)
+				allowedIPs[0] = onr.Subnet
+				allowedIPs[1] = types.NewIPNet(wgIP(&onr.Subnet.IPNet))
+
+				// if the peer is hidden but we have IPv4,  we can connect to it, but we don't know
+				// an endpoint.
+				if len(onr.PubEndpoints) == 0 {
+					nr.Peers = append(nr.Peers, pkg.Peer{
+						WGPublicKey: onr.WGPublicKey,
+						Subnet:      onr.Subnet,
+						AllowedIPs:  allowedIPs,
+						Endpoint:    "",
+					})
+					continue
+				}
+
+				// both nodes are public therefore we can connect over IPv6
+
+				// if this is the selected pubNr - also need to add allowedIPs
+				// for the hidden nodes
+				if onr.NodeID == pubNr {
+					for _, subnet := range hiddenSubnets {
+						allowedIPs = append(allowedIPs, subnet)
+						allowedIPs = append(allowedIPs, types.NewIPNet(wgIP(&subnet.IPNet)))
+					}
+				}
+
+				var endpoint string
+				for _, pep := range onr.PubEndpoints {
+					if pep.To16() != nil {
+						endpoint = fmt.Sprintf("[%s]:%d", pep.String(), onr.WGListenPort)
+					}
+				}
+
+				nr.Peers = append(nr.Peers, pkg.Peer{
+					WGPublicKey: onr.WGPublicKey,
+					Subnet:      onr.Subnet,
+					AllowedIPs:  allowedIPs,
+					Endpoint:    endpoint,
+				})
 
 			}
 		}
+
 	}
 
-	peers := make([]pkg.Peer, 0, len(n.NetResources))
-	for _, nr := range n.NetResources {
-		if nr.NodeID == nodeID {
-			continue
-		}
-
-		allowedIPs := make([]types.IPNet, 2)
-		allowedIPs[0] = nr.Subnet
-		allowedIPs[1] = types.NewIPNet(wgIP(&nr.Subnet.IPNet))
-
-		var endpoint string
-		if len(nr.PubEndpoints) == 0 {
-			// peer is hidden so it has no endpoint
-			endpoint = ""
-		} else {
-			// TODO monday
-		}
-
-		peers = append(peers, pkg.Peer{
-			WGPublicKey: nr.WGPublicKey,
-			Subnet:      nr.Subnet,
-			AllowedIPs:  allowedIPs,
-			Endpoint:    "",
-		})
-	}
-	return peers
+	return nil
 }
 
 func wgIP(subnet *net.IPNet) *net.IPNet {
@@ -340,9 +462,7 @@ func isPrivateIP(ip net.IP) bool {
 		return true
 	}
 
-	fmt.Println(ip)
 	for _, block := range privateIPBlocks {
-		fmt.Println(block.IP)
 		if block.Contains(ip) {
 			return true
 		}
