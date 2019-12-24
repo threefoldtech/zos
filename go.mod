@@ -22,6 +22,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gizak/termui v3.1.0+incompatible // indirect
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/go-ole/go-ole v1.2.4 // indirect

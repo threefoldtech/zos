@@ -35,21 +35,26 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
-	monitor := monitord.SystemMonitor{
-		Duration: 2 * time.Second,
+	system, err := monitord.NewSystemMonitor(2 * time.Second)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to initialize system monitor")
 	}
-
+	host, err := monitord.NewHostMonitor(2 * time.Second)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to initialize host monitor")
+	}
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
 	if err != nil {
 		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
 	}
 
-	server.Register(zbus.ObjectID{Name: "system", Version: "0.0.1"}, &monitor)
+	server.Register(zbus.ObjectID{Name: "host", Version: "0.0.1"}, host)
+	server.Register(zbus.ObjectID{Name: "system", Version: "0.0.1"}, system)
 
 	log.Info().
 		Str("broker", msgBrokerCon).
 		Uint("worker nr", workerNr).
-		Msg("starting flist module")
+		Msg("starting monitor module")
 
 	ctx, _ := utils.WithSignal(context.Background())
 	utils.OnDone(ctx, func(_ error) {

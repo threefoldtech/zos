@@ -12,32 +12,32 @@ import (
 )
 
 var (
-	_ pkg.SystemMonitor = (*SystemMonitor)(nil)
+	_ pkg.SystemMonitor = (*systemMonitor)(nil)
 )
 
-// SystemMonitor stream
-type SystemMonitor struct {
-	Duration time.Duration
+// systemMonitor stream
+type systemMonitor struct {
+	duration time.Duration
 }
 
-func (m *SystemMonitor) duration() time.Duration {
-	if m.Duration == time.Duration(0) {
-		m.Duration = 2 * time.Second
+// NewSystemMonitor creates new system of system monitor
+func NewSystemMonitor(duration time.Duration) (pkg.SystemMonitor, error) {
+	if duration == 0 {
+		duration = 2 * time.Second
 	}
 
-	return m.Duration
+	return &systemMonitor{duration: duration}, nil
 }
 
 // Memory starts memory monitor stream
-func (m *SystemMonitor) Memory(ctx context.Context) <-chan pkg.VirtualMemoryStat {
-	duration := m.duration()
+func (m *systemMonitor) Memory(ctx context.Context) <-chan pkg.VirtualMemoryStat {
 	ch := make(chan pkg.VirtualMemoryStat)
 	go func() {
 		defer close(ch)
 
 		for {
 			select {
-			case <-time.After(duration):
+			case <-time.After(m.duration):
 				vm, err := mem.VirtualMemory()
 				if err != nil {
 					log.Error().Err(err).Msg("failed to read memory status")
@@ -55,15 +55,14 @@ func (m *SystemMonitor) Memory(ctx context.Context) <-chan pkg.VirtualMemoryStat
 }
 
 // CPU starts cpu monitor stream
-func (m *SystemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
-	duration := m.duration()
+func (m *systemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
 	ch := make(chan pkg.CPUTimesStat)
 	go func() {
 		defer close(ch)
 
 		for {
 			select {
-			case <-time.After(duration):
+			case <-time.After(m.duration):
 				percents, err := cpu.PercentWithContext(ctx, 0, true)
 				if err != nil {
 					log.Error().Err(err).Msg("failed to read cpu usage percentage")
@@ -90,9 +89,7 @@ func (m *SystemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
 }
 
 // Disks starts disk monitor stream
-func (m *SystemMonitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersStat {
-	duration := m.duration()
-
+func (m *systemMonitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersStat {
 	ch := make(chan pkg.DisksIOCountersStat)
 	go func() {
 		defer close(ch)
@@ -108,7 +105,7 @@ func (m *SystemMonitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersSta
 
 		for {
 			select {
-			case <-time.After(duration):
+			case <-time.After(m.duration):
 				now := time.Now()
 				counter, err := disk.IOCountersWithContext(ctx, names...)
 				if err != nil {

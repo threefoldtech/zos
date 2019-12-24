@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
@@ -56,5 +57,7 @@ type SystemMonitor interface {
 	Disks(ctx context.Context) <-chan DisksIOCountersStat
 }
 
+// HostMonitor interface
 type HostMonitor interface {
+	Version(ctx context.Context) <-chan semver.Version
 }
