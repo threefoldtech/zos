@@ -197,7 +197,7 @@ func (nr *NetResource) ConfigureWG(privateKey string) error {
 
 		for _, route := range routes {
 			route.LinkIndex = wg.Attrs().Index
-			if err := netlink.RouteAdd(route); err != nil && !os.IsExist(err) {
+			if err := netlink.RouteAdd(&route); err != nil && !os.IsExist(err) {
 				log.Error().
 					Err(err).
 					Str("route", route.String()).
@@ -249,19 +249,21 @@ func (nr *NetResource) Delete() error {
 	return nil
 }
 
-func (nr *NetResource) routes() ([]*netlink.Route, error) {
-	routes := make([]*netlink.Route, 0, len(nr.resource.Peers)+1)
+func (nr *NetResource) routes() ([]netlink.Route, error) {
+	routes := make([]netlink.Route, 0, len(nr.resource.Peers)+1)
 
-	wgIP := wgIP(&nr.resource.Subnet.IPNet)
+	// wgIP := wgIP(&nr.resource.Subnet.IPNet)
 
-	for _, peer := range nr.resource.Peers {
-		routes = append(routes, &netlink.Route{
-			Dst: &peer.Subnet.IPNet,
-			Gw:  wgIP.IP,
+	peers := nr.resource.Peers
+	for i := range peers {
+		wgip := wgIP(&peers[i].Subnet.IPNet)
+		routes = append(routes, netlink.Route{
+			Dst: &peers[i].Subnet.IPNet,
+			Gw:  wgip.IP,
 		})
 	}
 
-	routes = append(routes, &netlink.Route{
+	routes = append(routes, netlink.Route{
 		Dst: nr.ipRange,
 	})
 
