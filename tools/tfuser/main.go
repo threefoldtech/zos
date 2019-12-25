@@ -140,6 +140,11 @@ func main() {
 							},
 							Action: cmdsRemoveNode,
 						},
+						{
+							Name:   "graph",
+							Usage:  "create a dot graph of the network",
+							Action: cmdGraphNetwork,
+						},
 					},
 				},
 				{

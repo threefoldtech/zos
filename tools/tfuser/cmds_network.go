@@ -4,9 +4,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/threefoldtech/zos/pkg"
@@ -15,12 +17,34 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
+	"github.com/emicklei/dot"
+
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
 func init() {
 	rand.Seed(int64(time.Now().Nanosecond()))
+}
+
+func cmdGraphNetwork(c *cli.Context) error {
+	var (
+		network = &pkg.Network{}
+		schema  = c.GlobalString("schema")
+		err     error
+	)
+
+	network, err = loadNetwork(schema)
+	if err != nil {
+		return err
+	}
+
+	outfile, err := os.Create(schema + ".dot")
+	if err != nil {
+		return err
+	}
+
+	return networkGraph(*network, outfile)
 }
 
 func cmdCreateNetwork(c *cli.Context) error {
@@ -434,6 +458,39 @@ func generatePeers(n *pkg.Network) error {
 	return nil
 }
 
+func networkGraph(n pkg.Network, w io.Writer) error {
+	nodes := make(map[string]dot.Node)
+	graph := dot.NewGraph(dot.Directed)
+
+	for _, nr := range n.NetResources {
+		node := graph.Node(strings.Join([]string{nr.NodeID, nr.Subnet.String()}, "\n")).Box()
+		if len(nr.PubEndpoints) == 0 {
+			node.Attr("style", "dashed")
+			node.Attr("color", "blue")
+		}
+		nodes[nr.WGPublicKey] = node
+	}
+
+	for _, nr := range n.NetResources {
+		for _, peer := range nr.Peers {
+			allowedIPs := make([]string, 0, len(peer.AllowedIPs)/2)
+			for _, aip := range peer.AllowedIPs {
+				if !isCGN(aip) {
+					allowedIPs = append(allowedIPs, aip.String())
+				}
+			}
+
+			edge := graph.Edge(nodes[nr.WGPublicKey], nodes[peer.WGPublicKey], strings.Join(allowedIPs, "\n"))
+			if peer.Endpoint == "" {
+				edge.Attr("color", "blue").Attr("style", "dashed")
+			}
+		}
+	}
+
+	graph.Write(w)
+	return nil
+}
+
 func wgIP(subnet *net.IPNet) *net.IPNet {
 	// example: 10.3.1.0 -> 100.64.3.1
 	a := subnet.IP[len(subnet.IP)-3]
@@ -473,4 +530,12 @@ func isPrivateIP(ip net.IP) bool {
 		}
 	}
 	return false
+}
+
+func isCGN(subnet types.IPNet) bool {
+	_, block, err := net.ParseCIDR("100.64.0.0/10")
+	if err != nil {
+		panic(err)
+	}
+	return block.Contains(subnet.IP)
 }
