@@ -464,6 +464,7 @@ func networkGraph(n pkg.Network, w io.Writer) error {
 
 	for _, nr := range n.NetResources {
 		node := graph.Node(strings.Join([]string{nr.NodeID, nr.Subnet.String()}, "\n")).Box()
+		// set special style for "hidden" nodes
 		if len(nr.PubEndpoints) == 0 {
 			node.Attr("style", "dashed")
 			node.Attr("color", "blue")
@@ -482,7 +483,13 @@ func networkGraph(n pkg.Network, w io.Writer) error {
 
 			edge := graph.Edge(nodes[nr.WGPublicKey], nodes[peer.WGPublicKey], strings.Join(allowedIPs, "\n"))
 			if peer.Endpoint == "" {
+				// connections to this peer are IPv4 -> blue, and can not be initiated by this node -> dashed
 				edge.Attr("color", "blue").Attr("style", "dashed")
+				continue
+			}
+			if net.ParseIP(peer.Endpoint[:strings.LastIndex(peer.Endpoint, ":")]).To4() != nil {
+				// IPv4 connection -> blue
+				edge.Attr("color", "blue")
 			}
 		}
 	}
