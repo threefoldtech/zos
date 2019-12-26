@@ -28,6 +28,7 @@ func cpuRender(client zbus.Client, grid *ui.Grid, r func()) error {
 	for i := range plot.Data {
 		plot.Data[i] = make([]float64, size)
 	}
+
 	plot.MaxVal = 100
 	plot.DataLabels = func() []string {
 		var labels []string

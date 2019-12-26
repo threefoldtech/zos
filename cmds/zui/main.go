@@ -59,21 +59,30 @@ func main() {
 	cpu.Title = "CPU"
 	cpu.Border = true
 
+	mem := ui.NewGrid()
+	mem.Title = "Memory"
+	mem.Border = true
+
 	grid.Set(
 		ui.NewRow(1.0/4,
 			ui.NewCol(1, cpu),
 		),
+		ui.NewRow(1.0/4,
+			ui.NewCol(1, mem),
+		),
 	)
 
 	render := func() {
-		ui.Render(header)
-		ui.Render(grid)
+		ui.Render(header, grid)
 	}
 
 	if err := headerRenderer(client, header, render); err != nil {
 		log.Error().Err(err).Msg("failed to start header renderer")
 	}
 	if err := cpuRender(client, cpu, render); err != nil {
+		log.Error().Err(err).Msg("failed to tart cpu renderer")
+	}
+	if err := memRender(client, mem, render); err != nil {
 		log.Error().Err(err).Msg("failed to tart cpu renderer")
 	}
 
