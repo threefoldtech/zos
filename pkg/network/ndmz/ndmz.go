@@ -59,6 +59,14 @@ func Create(nodeID pkg.Identifier) error {
 		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
 			return errors.Wrapf(err, "failed to enable ipv6 forwarding in gateway namespace")
 		}
+		lo, err := netlink.LinkByName("lo")
+		if err != nil {
+			return errors.Wrapf(err, "Wut? no \"lo\" interface in network namespace : %s?", netNSNDMZ)
+
+		}
+		if err := netlink.LinkSetUp(lo); err != nil {
+			return errors.Wrapf(err, "failed to bring \"lo\" up in %s", netNSNDMZ)
+		}
 		return nil
 	}); err != nil {
 		return err
