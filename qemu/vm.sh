@@ -74,7 +74,7 @@ qemu-system-x86_64 -kernel $image \
     -uuid $uuid \
     -netdev bridge,id=zos0,br=${bridge} -device virtio-net-pci,netdev=zos0,mac="${basemac}1" \
     -drive file=fat:rw:$basepath/overlay,format=raw \
-    -append "${cmdline} console=ttyS1,115200" \
+    -append "${cmdline}" \
     -drive file=$vmdir/vda.qcow2,if=virtio -drive file=$vmdir/vdb.qcow2,if=virtio \
     -drive file=$vmdir/vdc.qcow2,if=virtio -drive file=$vmdir/vdd.qcow2,if=virtio \
     -drive file=$vmdir/vde.qcow2,if=virtio \

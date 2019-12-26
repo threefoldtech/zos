@@ -55,14 +55,14 @@ func main() {
 	grid.Set(ui.NewRow(1, ui.NewCol(1, widgets.NewParagraph())))
 
 	render := func() {
-		ui.Clear()
 		ui.Render(header)
 		ui.Render(grid)
 	}
 
 	headerRenderer(client, header, render)
-
+	ui.Clear()
 	render()
+
 	uiEvents := ui.PollEvents()
 	for {
 		select {
@@ -74,7 +74,7 @@ func main() {
 				payload := e.Payload.(ui.Resize)
 				header.SetRect(0, 0, payload.Width, headerHeight)
 				grid.SetRect(0, headerHeight, payload.Width, payload.Height-headerHeight)
-				//ui.Clear()
+				ui.Clear()
 				render()
 			}
 		}
