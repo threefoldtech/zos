@@ -438,8 +438,9 @@ func generatePeers(n *pkg.Network) error {
 
 				var endpoint string
 				for _, pep := range onr.PubEndpoints {
-					if pep.To16() != nil {
+					if pep.To4() == nil && pep.To16() != nil {
 						endpoint = fmt.Sprintf("[%s]:%d", pep.String(), onr.WGListenPort)
+						break
 					}
 				}
 
@@ -468,6 +469,7 @@ func networkGraph(n pkg.Network, w io.Writer) error {
 		if len(nr.PubEndpoints) == 0 {
 			node.Attr("style", "dashed")
 			node.Attr("color", "blue")
+			graph.AddToSameRank("hidden nodes", node)
 		}
 		nodes[nr.WGPublicKey] = node
 	}
