@@ -51,15 +51,32 @@ func main() {
 		Bg:       ui.ColorClear,
 		Modifier: ui.ModifierBold,
 	}
+	grid.Title = "System"
+
 	grid.SetRect(0, headerHeight-2, width, height)
-	grid.Set(ui.NewRow(1, ui.NewCol(1, widgets.NewParagraph())))
+
+	cpu := ui.NewGrid()
+	cpu.Title = "CPU"
+	cpu.Border = true
+
+	grid.Set(
+		ui.NewRow(1.0/4,
+			ui.NewCol(1, cpu),
+		),
+	)
 
 	render := func() {
 		ui.Render(header)
 		ui.Render(grid)
 	}
 
-	headerRenderer(client, header, render)
+	if err := headerRenderer(client, header, render); err != nil {
+		log.Error().Err(err).Msg("failed to start header renderer")
+	}
+	if err := cpuRender(client, cpu, render); err != nil {
+		log.Error().Err(err).Msg("failed to tart cpu renderer")
+	}
+
 	ui.Clear()
 	render()
 
