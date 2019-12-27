@@ -63,12 +63,20 @@ func main() {
 	mem.Title = "Memory"
 	mem.Border = true
 
+	net := ui.NewGrid()
+	net.Title = "Networ"
+	net.Border = true
+
 	grid.Set(
 		ui.NewRow(1.0/4,
 			ui.NewCol(1, cpu),
 		),
 		ui.NewRow(1.0/4,
 			ui.NewCol(1, mem),
+		),
+		ui.NewRow(1.0/2,
+			ui.NewCol(1.0/2, net),
+			// add provision info here.
 		),
 	)
 
@@ -80,11 +88,15 @@ func main() {
 		log.Error().Err(err).Msg("failed to start header renderer")
 	}
 	if err := cpuRender(client, cpu, render); err != nil {
-		log.Error().Err(err).Msg("failed to tart cpu renderer")
+		log.Error().Err(err).Msg("failed to start cpu renderer")
 	}
 	if err := memRender(client, mem, render); err != nil {
-		log.Error().Err(err).Msg("failed to tart cpu renderer")
+		log.Error().Err(err).Msg("failed to start mem renderer")
 	}
+
+	// if err := netRender(client, net, render); err != nil {
+	// 	log.Error().Err(err).Msg("failed to start net renderer")
+	// }
 
 	ui.Clear()
 	render()
