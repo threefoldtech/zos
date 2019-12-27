@@ -173,6 +173,7 @@ func cmdsAddAccess(c *cli.Context) error {
 
 		nodeID = c.String("node")
 		subnet = c.String("subnet")
+		ip4    = c.Bool("ip4")
 	)
 
 	network, err = loadNetwork(schema)
@@ -210,6 +211,31 @@ func cmdsAddAccess(c *cli.Context) error {
 		return errors.New("access node must have at least 1 public endpoint")
 	}
 
+	var endpoint string
+	for _, ep := range node.PubEndpoints {
+		if ep.To4() != nil {
+			// ipv4 address
+			if ip4 {
+				endpoint = fmt.Sprintf("%s:%d", ep.String(), node.WGListenPort)
+				break
+			}
+			// we want ipv6 so use the next address
+			continue
+		}
+		if ep.To16() != nil {
+			// due to the previous branch this can now only be an ipv6 address
+			if !ip4 {
+				endpoint = fmt.Sprintf("[%s]:%d", node.PubEndpoints[0].String(), node.WGListenPort)
+				break
+			}
+			// we want ipv4 so use next address
+			continue
+		}
+	}
+	if endpoint == "" {
+		return errors.New("access node has no public endpoint of the requested type")
+	}
+
 	privateKey, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
 		return errors.Wrap(err, "error during wireguard key generation")
@@ -219,21 +245,13 @@ func cmdsAddAccess(c *cli.Context) error {
 		NodeID:      nodeID,
 		Subnet:      ipnet,
 		WGPublicKey: privateKey.PublicKey().String(),
+		IP4:         ip4,
 	}
 
 	network.AccessPoints = append(network.AccessPoints, ap)
 
 	if err = generatePeers(network); err != nil {
 		return errors.Wrap(err, "failed to generate peers")
-	}
-
-	var endpoint string
-	if node.PubEndpoints[0].To4() != nil {
-		endpoint = fmt.Sprintf("%s:%d", node.PubEndpoints[0].String(), node.WGListenPort)
-	} else if node.PubEndpoints[0].To16() != nil {
-		endpoint = fmt.Sprintf("[%s]:%d", node.PubEndpoints[0].String(), node.WGListenPort)
-	} else {
-		return errors.New("access node has invalid public endpoint")
 	}
 
 	wgConf, err := genWGQuick(privateKey.String(), ipnet, node.WGPublicKey, network.IPRange, endpoint)
@@ -627,6 +645,7 @@ PersistentKeepalive = 20
 
 func networkGraph(n pkg.Network, w io.Writer) error {
 	nodes := make(map[string]dot.Node)
+	nodesByID := make(map[string]dot.Node)
 	graph := dot.NewGraph(dot.Directed)
 
 	for _, nr := range n.NetResources {
@@ -638,6 +657,22 @@ func networkGraph(n pkg.Network, w io.Writer) error {
 			graph.AddToSameRank("hidden nodes", node)
 		}
 		nodes[nr.WGPublicKey] = node
+		nodesByID[nr.NodeID] = node
+	}
+
+	// add external access
+	for _, ea := range n.AccessPoints {
+		node := graph.Node(strings.Join([]string{"External network", ea.Subnet.String()}, "\n")).Box()
+		// set style for hidden nodes
+		node.Attr("style", "dashed")
+		node.Attr("color", "green")
+		graph.AddToSameRank("external access", node)
+		// add link to access point
+		edge := graph.Edge(node, nodesByID[ea.NodeID], n.IPRange.String())
+		if ea.IP4 {
+			edge.Attr("color", "blue")
+		}
+		nodes[ea.WGPublicKey] = node
 	}
 
 	for _, nr := range n.NetResources {

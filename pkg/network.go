@@ -101,4 +101,5 @@ type AccessPoint struct {
 	// Subnet to be routed through this access point
 	Subnet      types.IPNet `json:"subnet"`
 	WGPublicKey string      `json:"wg_public_key"`
+	IP4         bool        `json:"ip4"`
 }

@@ -157,6 +157,10 @@ func main() {
 									Name:  "subnet",
 									Usage: "Local subnet which will have access to the network",
 								},
+								cli.BoolFlag{
+									Name:  "ip4",
+									Usage: "Use an IPv4 connection instead of IPv6",
+								},
 							},
 							Action: cmdsAddAccess,
 						},
