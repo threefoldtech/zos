@@ -11,17 +11,24 @@ import (
 )
 
 func memRender(client zbus.Client, grid *ui.Grid, r func()) error {
+	usedPlot := widgets.NewSparkline()
 
-	plot := widgets.NewSparkline()
-	plot.Title = "Memory"
+	usedPlot.MaxVal = 100
+	usedPlot.LineColor = ui.ColorRed
 
-	plot.MaxVal = 100
-	plot.LineColor = ui.ColorGreen
+	used := widgets.NewSparklineGroup(usedPlot)
+	used.Title = "Used Memory"
+	freePlot := widgets.NewSparkline()
 
-	w := widgets.NewSparklineGroup(plot)
+	freePlot.MaxVal = 100
+	freePlot.LineColor = ui.ColorGreen
+
+	free := widgets.NewSparklineGroup(freePlot)
+	free.Title = "Free Memory"
 	grid.Set(
 		ui.NewRow(1,
-			ui.NewCol(1, w),
+			ui.NewCol(1./2, used),
+			ui.NewCol(1./2, free),
 		),
 	)
 
@@ -33,12 +40,18 @@ func memRender(client zbus.Client, grid *ui.Grid, r func()) error {
 
 	go func() {
 		for point := range stream {
-			size := w.Size().X - 2
-			data := append(plot.Data, point.UsedPercent)
+			size := used.Size().X - 2
+			data := append(usedPlot.Data, point.UsedPercent)
 			if len(data) > size {
 				data = data[len(data)-size:]
 			}
-			plot.Data = data
+			usedPlot.Data = data
+			size = free.Size().X - 2
+			data = append(freePlot.Data, 100-point.UsedPercent)
+			if len(data) > size {
+				data = data[len(data)-size:]
+			}
+			freePlot.Data = data
 			r()
 		}
 	}()
