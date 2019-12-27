@@ -13,18 +13,20 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/net"
+	"github.com/vishvananda/netlink"
 )
 
 // VirtualMemoryStat struct
 type VirtualMemoryStat mem.VirtualMemoryStat
 
-// IOCountersStat struct
-type IOCountersStat struct {
+// DiskIOCountersStat struct
+type DiskIOCountersStat struct {
 	disk.IOCountersStat
 	Time time.Time
 }
 
-func (s *IOCountersStat) String() string {
+func (s *DiskIOCountersStat) String() string {
 	return fmt.Sprintf(
 		"Read: (%d Bytes, %d Op), Write: (%d Bytes, %d Op)",
 		s.ReadBytes, s.ReadCount,
@@ -48,16 +50,30 @@ func (s *TimesStat) String() string {
 type CPUTimesStat []TimesStat
 
 // DisksIOCountersStat alias for map[string]IOCountersStat required by zbus
-type DisksIOCountersStat map[string]IOCountersStat
+type DisksIOCountersStat map[string]DiskIOCountersStat
+
+// NicIOCounterStat counter for a nic
+type NicIOCounterStat net.IOCountersStat
+
+// NicsIOCounterStat alias for []NicIOCounterStat
+type NicsIOCounterStat []NicIOCounterStat
+
+// NetlinkAddress alias
+type NetlinkAddress netlink.Addr
+
+// NetlinkAddresses alias for [][]NetlinkAddress
+type NetlinkAddresses []NetlinkAddress
 
 //SystemMonitor interface
 type SystemMonitor interface {
 	Memory(ctx context.Context) <-chan VirtualMemoryStat
 	CPU(ctx context.Context) <-chan CPUTimesStat
 	Disks(ctx context.Context) <-chan DisksIOCountersStat
+	Nics(ctx context.Context) <-chan NicsIOCounterStat
 }
 
 // HostMonitor interface
 type HostMonitor interface {
 	Version(ctx context.Context) <-chan semver.Version
+	IPs(ctx context.Context) <-chan NetlinkAddresses
 }

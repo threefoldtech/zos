@@ -8,6 +8,7 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/net"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -37,16 +38,20 @@ func (m *systemMonitor) Memory(ctx context.Context) <-chan pkg.VirtualMemoryStat
 
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-time.After(m.duration):
 				vm, err := mem.VirtualMemory()
 				if err != nil {
 					log.Error().Err(err).Msg("failed to read memory status")
 					continue
 				}
-
-				ch <- pkg.VirtualMemoryStat(*vm)
-			case <-ctx.Done():
-				return
+				result := pkg.VirtualMemoryStat(*vm)
+				select {
+				case ch <- result:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
@@ -62,6 +67,8 @@ func (m *systemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
 
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-time.After(m.duration):
 				percents, err := cpu.PercentWithContext(ctx, 0, true)
 				if err != nil {
@@ -78,9 +85,11 @@ func (m *systemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
 						Time:      now,
 					})
 				}
-				ch <- result
-			case <-ctx.Done():
-				return
+				select {
+				case ch <- result:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
@@ -105,6 +114,8 @@ func (m *systemMonitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersSta
 
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-time.After(m.duration):
 				now := time.Now()
 				counter, err := disk.IOCountersWithContext(ctx, names...)
@@ -113,15 +124,49 @@ func (m *systemMonitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersSta
 				}
 				result := make(pkg.DisksIOCountersStat)
 				for k, v := range counter {
-					result[k] = pkg.IOCountersStat{
+					result[k] = pkg.DiskIOCountersStat{
 						IOCountersStat: v,
 						Time:           now,
 					}
 				}
 
-				ch <- result
+				select {
+				case ch <- result:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return ch
+}
+
+func (m *systemMonitor) Nics(ctx context.Context) <-chan pkg.NicsIOCounterStat {
+	ch := make(chan pkg.NicsIOCounterStat)
+	go func() {
+		defer close(ch)
+
+		for {
+			select {
 			case <-ctx.Done():
 				return
+			case <-time.After(m.duration):
+				counters, err := net.IOCountersWithContext(ctx, true)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to get network counters")
+					continue
+				}
+				var result pkg.NicsIOCounterStat
+				for _, nic := range counters {
+					result = append(result, pkg.NicIOCounterStat(nic))
+				}
+
+				select {
+				case ch <- result:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()

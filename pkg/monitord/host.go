@@ -8,14 +8,18 @@ import (
 	"github.com/blang/semver"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/upgrade"
+	"github.com/vishvananda/netlink"
 )
 
 // HostMonitor monitor host information
 type hostMonitor struct {
 	duration time.Duration
 
+	// version related
 	watcher *fsnotify.Watcher
 	version semver.Version
 	boot    upgrade.Boot
@@ -68,4 +72,50 @@ func (h *hostMonitor) Version(ctx context.Context) <-chan semver.Version {
 	}()
 
 	return ch
+}
+
+func (h *hostMonitor) IPs(ctx context.Context) <-chan pkg.NetlinkAddresses {
+	updates := make(chan netlink.AddrUpdate)
+	if err := netlink.AddrSubscribe(updates, ctx.Done()); err != nil {
+		log.Fatal().Err(err).Msg("failed to listen to netlink address updates")
+	}
+
+	link, err := netlink.LinkByName(network.DefaultBridge)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("could not find the '%s' bridge", network.DefaultBridge)
+	}
+
+	get := func() pkg.NetlinkAddresses {
+		var result pkg.NetlinkAddresses
+		values, _ := netlink.AddrList(link, netlink.FAMILY_ALL)
+		for _, value := range values {
+			result = append(result, pkg.NetlinkAddress(value))
+		}
+
+		return result
+	}
+
+	addresses := get()
+
+	ch := make(chan pkg.NetlinkAddresses)
+	go func() {
+		defer close(ch)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case update := <-updates:
+				if update.LinkIndex != link.Attrs().Index {
+					continue
+				}
+
+				addresses = get()
+			case <-time.After(h.duration):
+				ch <- addresses
+			}
+		}
+	}()
+
+	return ch
+
 }

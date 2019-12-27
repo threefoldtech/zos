@@ -79,3 +79,22 @@ func (s *SystemMonitorStub) Memory(ctx context.Context) (<-chan pkg.VirtualMemor
 	}()
 	return ch, nil
 }
+
+func (s *SystemMonitorStub) Nics(ctx context.Context) (<-chan pkg.NicsIOCounterStat, error) {
+	ch := make(chan pkg.NicsIOCounterStat)
+	recv, err := s.client.Stream(ctx, s.module, s.object, "Nics")
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		defer close(ch)
+		for event := range recv {
+			var obj pkg.NicsIOCounterStat
+			if err := event.Unmarshal(&obj); err != nil {
+				panic(err)
+			}
+			ch <- obj
+		}
+	}()
+	return ch, nil
+}
