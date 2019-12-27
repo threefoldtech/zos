@@ -9,6 +9,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/types"
 
 	mapset "github.com/deckarep/golang-set"
 
@@ -249,23 +250,48 @@ func (nr *NetResource) Delete() error {
 	return nil
 }
 
-func (nr *NetResource) routes() ([]netlink.Route, error) {
-	routes := make([]netlink.Route, 0, len(nr.resource.Peers)+1)
+// func (nr *NetResource) routes() ([]netlink.Route, error) {
+// 	routes := make([]netlink.Route, 0, len(nr.resource.Peers)+1)
+//
+// 	// wgIP := wgIP(&nr.resource.Subnet.IPNet)
+//
+// 	peers := nr.resource.Peers
+// 	for i := range peers {
+// 		wgip := wgIP(&peers[i].Subnet.IPNet)
+// 		routes = append(routes, netlink.Route{
+// 			Dst: &peers[i].Subnet.IPNet,
+// 			Gw:  wgip.IP,
+// 		})
+// 	}
+//
+// 	routes = append(routes, netlink.Route{
+// 		Dst: nr.ipRange,
+// 	})
+//
+// 	return routes, nil
+// }
 
-	// wgIP := wgIP(&nr.resource.Subnet.IPNet)
+func isSubnet(n types.IPNet) bool {
+	ones, bits := n.IPNet.Mask.Size()
+	return ones < bits
+}
+
+func (nr *NetResource) routes() ([]netlink.Route, error) {
+	routes := make([]netlink.Route, 0)
 
 	peers := nr.resource.Peers
 	for i := range peers {
 		wgip := wgIP(&peers[i].Subnet.IPNet)
-		routes = append(routes, netlink.Route{
-			Dst: &peers[i].Subnet.IPNet,
-			Gw:  wgip.IP,
-		})
+		for j := range peers[i].AllowedIPs {
+			if !isSubnet(peers[i].AllowedIPs[j]) {
+				continue
+			}
+			routes = append(routes, netlink.Route{
+				Dst: &peers[i].AllowedIPs[j].IPNet,
+				Gw:  wgip.IP,
+			})
+		}
 	}
-
-	routes = append(routes, netlink.Route{
-		Dst: nr.ipRange,
-	})
 
 	return routes, nil
 }
