@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"errors"
 	"net"
 
 	"github.com/threefoldtech/zos/pkg/network/types"
@@ -55,6 +54,8 @@ type Network struct {
 	IPRange types.IPNet `json:"ip_range"`
 
 	NetResources []NetResource `json:"net_resources"`
+
+	AccessPoints []AccessPoint `json:"access_points,omitempty"`
 }
 
 // NetResource is the description of a part of a network local to a specific node
@@ -92,9 +93,12 @@ var (
 	NetworkSchemaLatestVersion = NetworkSchemaV1
 )
 
-// TODO
-type Endpoint struct{}
-
-func (e *Endpoint) UnmarshalJSON([]byte) error   { return errors.New("Not implemented") }
-func (e *Endpoint) MarshalJSON() ([]byte, error) { return nil, errors.New("Not implemented") }
-func (e *Endpoint) String() string               { return "" }
+// AccessPoint info for a network, defining a node which will act as the AP, and
+// the subnet which will be routed through it
+type AccessPoint struct {
+	// NodeID of the access point in the network
+	NodeID string `json:"node_id"`
+	// Subnet to be routed through this access point
+	Subnet      types.IPNet `json:"subnet"`
+	WGPublicKey string      `json:"wg_public_key"`
+}

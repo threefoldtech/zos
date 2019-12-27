@@ -145,6 +145,21 @@ func main() {
 							Usage:  "create a dot graph of the network",
 							Action: cmdGraphNetwork,
 						},
+						{
+							Name:  "add-access",
+							Usage: "Add external access to the network",
+							Flags: []cli.Flag{
+								cli.StringFlag{
+									Name:  "node",
+									Usage: "Node ID of the node which will act as an access point",
+								},
+								cli.StringFlag{
+									Name:  "subnet",
+									Usage: "Local subnet which will have access to the network",
+								},
+							},
+							Action: cmdsAddAccess,
+						},
 					},
 				},
 				{

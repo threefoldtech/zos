@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/threefoldtech/zos/pkg"
@@ -135,9 +137,6 @@ func cmdsAddNode(c *cli.Context) error {
 			return errors.Wrap(err, "failed to get node public endpoints")
 		}
 
-		// In rust this bullshit could be written easily as:
-		// let ips = pubEndpoints.into_iter().map(|n| n.IP).collect();
-		// but alas
 		for _, sn := range pubSubnets {
 			endpoints = append(endpoints, sn.IP)
 		}
@@ -157,6 +156,92 @@ func cmdsAddNode(c *cli.Context) error {
 	if err = generatePeers(network); err != nil {
 		return errors.Wrap(err, "failed to generate peers")
 	}
+
+	r, err := embed(network, provision.NetworkReservation)
+	if err != nil {
+		return err
+	}
+
+	return output(schema, r)
+}
+
+func cmdsAddAccess(c *cli.Context) error {
+	var (
+		network = &pkg.Network{}
+		schema  = c.GlobalString("schema")
+		err     error
+
+		nodeID = c.String("node")
+		subnet = c.String("subnet")
+	)
+
+	network, err = loadNetwork(schema)
+	if err != nil {
+		return err
+	}
+
+	if nodeID == "" {
+		return fmt.Errorf("nodeID cannot be empty")
+	}
+
+	if subnet == "" {
+		return fmt.Errorf("subnet cannot be empty")
+	}
+	ipnet, err := types.ParseIPNet(subnet)
+	if err != nil {
+		return errors.Wrap(err, "invalid subnet")
+	}
+
+	var nodeExists bool
+	var node pkg.NetResource
+	for _, nr := range network.NetResources {
+		if nr.NodeID == nodeID {
+			node = nr
+			nodeExists = true
+			break
+		}
+	}
+
+	if !nodeExists {
+		return errors.New("can not add access through a node which is not in the network")
+	}
+
+	if len(node.PubEndpoints) == 0 {
+		return errors.New("access node must have at least 1 public endpoint")
+	}
+
+	privateKey, err := wgtypes.GeneratePrivateKey()
+	if err != nil {
+		return errors.Wrap(err, "error during wireguard key generation")
+	}
+
+	ap := pkg.AccessPoint{
+		NodeID:      nodeID,
+		Subnet:      ipnet,
+		WGPublicKey: privateKey.PublicKey().String(),
+	}
+
+	network.AccessPoints = append(network.AccessPoints, ap)
+
+	if err = generatePeers(network); err != nil {
+		return errors.Wrap(err, "failed to generate peers")
+	}
+
+	var endpoint string
+	if node.PubEndpoints[0].To4() != nil {
+		endpoint = fmt.Sprintf("%s:%d", node.PubEndpoints[0].String(), node.WGListenPort)
+	} else if node.PubEndpoints[0].To16() != nil {
+		endpoint = fmt.Sprintf("[%s]:%d", node.PubEndpoints[0].String(), node.WGListenPort)
+	} else {
+		return errors.New("access node has invalid public endpoint")
+	}
+
+	wgConf, err := genWGQuick(privateKey.String(), ipnet, node.WGPublicKey, network.IPRange, endpoint)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(wgConf)
 
 	r, err := embed(network, provision.NetworkReservation)
 	if err != nil {
@@ -304,7 +389,7 @@ func hasIPv4(n pkg.NetResource) bool {
 // - that a hidden node has functioning IPv4
 // - that a public node ALWAYS has public IPv6, and OPTIONALLY public IPv4
 // - that any public endpoint on any node is actually reachable (i.e. no firewall
-//		blocking incomming traffic)
+//		blocking incoming traffic)
 func generatePeers(n *pkg.Network) error {
 	// Find public node, which will be used to connect all hidden nodes.
 	// In case there are hidden nodes, the public node needs IPv4 support as well.
@@ -331,6 +416,31 @@ func generatePeers(n *pkg.Network) error {
 		}
 	}
 
+	// We also need to inform nodes how to route the external access subnets.
+	// Working with the knowledge that these external subnets come in through
+	// the network through a single access point, which is part of the network
+	// and thus already routed, we can map the external subnets to the subnet
+	// of the access point, and add these external subnets to all peers who also
+	// have the associated internal subnet.
+	//
+	// Map the network subnets to their respective node ids first for easy access later
+	internalSubnets := make(map[string]types.IPNet)
+	for _, nr := range n.NetResources {
+		internalSubnets[nr.NodeID] = nr.Subnet
+	}
+
+	externalSubnets := make(map[string][]types.IPNet) // go does not like `types.IPNet` as key
+	for _, ap := range n.AccessPoints {
+		externalSubnets[internalSubnets[ap.NodeID].String()] = append(externalSubnets[internalSubnets[ap.NodeID].String()], ap.Subnet)
+	}
+
+	// Maintain a mapping of access point nodes to the subnet and wg key they give access
+	// to, as these need to be added as peers as well for these nodes
+	accessPoints := make(map[string][]pkg.AccessPoint)
+	for _, ap := range n.AccessPoints {
+		accessPoints[ap.NodeID] = append(accessPoints[ap.NodeID], ap)
+	}
+
 	// Find all hidden nodes, and collect their subnets. Also collect the subnets
 	// of public IPv6 only nodes, since hidden nodes need IPv4 to connect.
 	hiddenSubnets := make(map[string]types.IPNet)
@@ -348,7 +458,7 @@ func generatePeers(n *pkg.Network) error {
 	}
 
 	for i := range n.NetResources {
-		// Note: we need to loop by index and manually asign nr, doing
+		// Note: we need to loop by index and manually assign nr, doing
 		// for _, nr := range ... causes nr to be copied, meaning we can't modify
 		// it in place
 		nr := &n.NetResources[i]
@@ -358,16 +468,18 @@ func generatePeers(n *pkg.Network) error {
 				continue
 			}
 
+			allowedIPs := make([]types.IPNet, 2)
+			allowedIPs[0] = onr.Subnet
+			allowedIPs[1] = types.NewIPNet(wgIP(&onr.Subnet.IPNet))
+
+			var endpoint string
+
 			if len(nr.PubEndpoints) == 0 {
 				// If node is hidden, set only public peers (with IPv4), and set first public peer to
 				// contain all hidden subnets, except for the one owned by the node
 				if !hasIPv4(onr) {
 					continue
 				}
-
-				allowedIPs := make([]types.IPNet, 2)
-				allowedIPs[0] = onr.Subnet
-				allowedIPs[1] = types.NewIPNet(wgIP(&onr.Subnet.IPNet))
 
 				// Also add all other subnets if this is the pub node
 				if onr.NodeID == pubNr {
@@ -388,40 +500,21 @@ func generatePeers(n *pkg.Network) error {
 				}
 
 				// Endpoint must be IPv4
-				var endpoint string
 				for _, pep := range onr.PubEndpoints {
 					if pep.To4() != nil {
 						endpoint = fmt.Sprintf("%s:%d", pep.String(), nr.WGListenPort)
+						break
 					}
 				}
-
-				nr.Peers = append(nr.Peers, pkg.Peer{
-					WGPublicKey: onr.WGPublicKey,
-					Subnet:      onr.Subnet,
-					AllowedIPs:  allowedIPs,
-					Endpoint:    endpoint,
-				})
+			} else if len(onr.PubEndpoints) == 0 && hasIPv4(*nr) {
+				// if the peer is hidden but we have IPv4,  we can connect to it, but we don't know
+				// an endpoint.
+				endpoint = ""
 			} else {
 				// if we are not hidden, we add all other nodes, unless we don't
 				// have IPv4, because then we also can't connect to hidden nodes.
 				// Ignore hidden nodes if we don't have IPv4
 				if !hasIPv4(*nr) && len(onr.PubEndpoints) == 0 {
-					continue
-				}
-
-				allowedIPs := make([]types.IPNet, 2)
-				allowedIPs[0] = onr.Subnet
-				allowedIPs[1] = types.NewIPNet(wgIP(&onr.Subnet.IPNet))
-
-				// if the peer is hidden but we have IPv4,  we can connect to it, but we don't know
-				// an endpoint.
-				if len(onr.PubEndpoints) == 0 {
-					nr.Peers = append(nr.Peers, pkg.Peer{
-						WGPublicKey: onr.WGPublicKey,
-						Subnet:      onr.Subnet,
-						AllowedIPs:  allowedIPs,
-						Endpoint:    "",
-					})
 					continue
 				}
 
@@ -436,28 +529,101 @@ func generatePeers(n *pkg.Network) error {
 					}
 				}
 
-				var endpoint string
+				// Since the node is not hidden, we know that it MUST have at least
+				// 1 IPv6 address
 				for _, pep := range onr.PubEndpoints {
 					if pep.To4() == nil && pep.To16() != nil {
 						endpoint = fmt.Sprintf("[%s]:%d", pep.String(), onr.WGListenPort)
 						break
 					}
 				}
-
-				nr.Peers = append(nr.Peers, pkg.Peer{
-					WGPublicKey: onr.WGPublicKey,
-					Subnet:      onr.Subnet,
-					AllowedIPs:  allowedIPs,
-					Endpoint:    endpoint,
-				})
-
 			}
+
+			// Add subnets for external access
+			for i := 0; i < len(allowedIPs); i++ {
+				for _, subnet := range externalSubnets[allowedIPs[i].String()] {
+					allowedIPs = append(allowedIPs, subnet)
+					allowedIPs = append(allowedIPs, types.NewIPNet(wgIP(&subnet.IPNet)))
+				}
+			}
+
+			nr.Peers = append(nr.Peers, pkg.Peer{
+				WGPublicKey: onr.WGPublicKey,
+				Subnet:      onr.Subnet,
+				AllowedIPs:  allowedIPs,
+				Endpoint:    endpoint,
+			})
 		}
 
+		// Add configured external access peers
+		for _, ea := range accessPoints[nr.NodeID] {
+			allowedIPs := make([]types.IPNet, 2)
+			allowedIPs[0] = ea.Subnet
+			allowedIPs[1] = types.NewIPNet(wgIP(&ea.Subnet.IPNet))
+
+			nr.Peers = append(nr.Peers, pkg.Peer{
+				WGPublicKey: ea.WGPublicKey,
+				Subnet:      ea.Subnet,
+				AllowedIPs:  allowedIPs,
+				Endpoint:    "",
+			})
+		}
 	}
 
 	return nil
 }
+
+func isIPv4Subnet(n types.IPNet) bool {
+	ones, bits := n.IPNet.Mask.Size()
+	if bits != 32 {
+		return false
+	}
+	return ones <= 30
+}
+
+func genWGQuick(wgPrivateKey string, localSubnet types.IPNet, peerWgPubKey string, allowedSubnet types.IPNet, peerEndpoint string) (string, error) {
+	type data struct {
+		PrivateKey    string
+		Address       string
+		PeerWgPubKey  string
+		AllowedSubnet string
+		PeerEndpoint  string
+	}
+
+	if !isIPv4Subnet(localSubnet) {
+		return "", errors.New("local subnet is not a valid IPv4 subnet")
+	}
+
+	tmpl, err := template.New("wg").Parse(wgTmpl)
+	if err != nil {
+		return "", err
+	}
+	buf := &bytes.Buffer{}
+
+	if err := tmpl.Execute(buf, data{
+		PrivateKey:    wgPrivateKey,
+		Address:       types.NewIPNet(wgIP(&localSubnet.IPNet)).String(),
+		PeerWgPubKey:  peerWgPubKey,
+		AllowedSubnet: strings.Join([]string{allowedSubnet.String(), types.NewIPNet(wgSubnet(&allowedSubnet.IPNet)).String()}, ","),
+		PeerEndpoint:  peerEndpoint,
+	}); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+var wgTmpl = `
+[Interface]
+PrivateKey = {{.PrivateKey}}
+Address = {{.Address}}
+
+[Peer]
+PublicKey = {{.PeerWgPubKey}}
+AllowedIPs = {{.AllowedSubnet}}
+PersistentKeepalive = 20
+{{if .PeerEndpoint}}Endpoint = {{.PeerEndpoint}}{{end}}
+`
 
 func networkGraph(n pkg.Network, w io.Writer) error {
 	nodes := make(map[string]dot.Node)
@@ -508,6 +674,19 @@ func wgIP(subnet *net.IPNet) *net.IPNet {
 	return &net.IPNet{
 		IP:   net.IPv4(0x64, 0x40, a, b),
 		Mask: net.CIDRMask(32, 32),
+	}
+}
+
+func wgSubnet(subnet *net.IPNet) *net.IPNet {
+	// example: 10.3.1.0 -> 100.64.3.1
+	a := subnet.IP[len(subnet.IP)-3]
+	b := subnet.IP[len(subnet.IP)-2]
+
+	ones, _ := subnet.Mask.Size()
+
+	return &net.IPNet{
+		IP:   net.IPv4(0x64, 0x40, a, b),
+		Mask: net.CIDRMask(ones+8, 32),
 	}
 }
 
