@@ -2,6 +2,8 @@ package monitord
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
@@ -118,4 +120,31 @@ func (h *hostMonitor) IPs(ctx context.Context) <-chan pkg.NetlinkAddresses {
 
 	return ch
 
+}
+
+func (h *hostMonitor) Uptime(ctx context.Context) <-chan time.Duration {
+	ch := make(chan time.Duration)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(h.duration):
+				data, err := ioutil.ReadFile("/proc/uptime")
+				if err != nil {
+					log.Error().Err(err).Msg("failed to read data from /proc/uptime")
+					continue
+				}
+				var uptime float64
+				if _, err := fmt.Sscanf(string(data), "%f", &uptime); err != nil {
+					log.Error().Err(err).Msg("failed to parse uptime data")
+					continue
+				}
+
+				ch <- time.Duration(uptime * float64(time.Second))
+			}
+		}
+	}()
+
+	return ch
 }

@@ -85,12 +85,7 @@ func cpuRender(client zbus.Client, grid *ui.Grid, r func()) error {
 			size := plot.Size().X - 7 // the 7 is for frame and padding
 			for i, cpu := range point {
 				data := append(plot.Data[i], cpu.Percent)
-				//size limit
-				if len(data) > size {
-					data = data[len(data)-size:]
-				}
-
-				plot.Data[i] = data
+				plot.Data[i] = trimFloat64(data, size)
 				table.Rows[i][1] = fmt.Sprintf("%0.00f%%", cpu.Percent)
 			}
 			r()

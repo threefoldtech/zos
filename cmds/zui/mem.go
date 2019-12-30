@@ -48,10 +48,8 @@ func memRender(client zbus.Client, grid *ui.Grid, r func()) error {
 			usedPlot.Data = data
 			size = free.Size().X - 2
 			data = append(freePlot.Data, 100-point.UsedPercent)
-			if len(data) > size {
-				data = data[len(data)-size:]
-			}
-			freePlot.Data = data
+			freePlot.Data = trimFloat64(data, size)
+
 			r()
 		}
 	}()

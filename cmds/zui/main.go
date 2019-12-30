@@ -11,6 +11,13 @@ import (
 	"github.com/threefoldtech/zos/pkg/version"
 )
 
+func trimFloat64(a []float64, size int) []float64 {
+	if len(a) > size {
+		return a[len(a)-size:]
+	}
+	return a
+}
+
 func main() {
 	app.Initialize()
 
@@ -94,9 +101,9 @@ func main() {
 		log.Error().Err(err).Msg("failed to start mem renderer")
 	}
 
-	// if err := netRender(client, net, render); err != nil {
-	// 	log.Error().Err(err).Msg("failed to start net renderer")
-	// }
+	if err := netRender(client, net, render); err != nil {
+		log.Error().Err(err).Msg("failed to start net renderer")
+	}
 
 	ui.Clear()
 	render()
