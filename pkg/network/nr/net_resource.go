@@ -7,8 +7,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/macvlan"
+
 	"github.com/threefoldtech/zos/pkg/network/types"
 
 	mapset "github.com/deckarep/golang-set"
@@ -98,7 +99,7 @@ func (nr *NetResource) Create(pubNS ns.NetNS) error {
 	if err := nr.createNetNS(); err != nil {
 		return err
 	}
-	if err := nr.createVethPair(); err != nil {
+	if err := nr.attachToNRBridge(); err != nil {
 		return err
 	}
 	if err := nr.createWireguard(pubNS); err != nil {
@@ -144,7 +145,7 @@ func (nr *NetResource) ConfigureWG(privateKey string) error {
 		return fmt.Errorf("network namespace %s does not exits", nsName)
 	}
 
-	var handler = func(_ ns.NetNS) error {
+	handler := func(_ ns.NetNS) error {
 
 		wgName, err := nr.WGName()
 		if err != nil {
@@ -250,27 +251,6 @@ func (nr *NetResource) Delete() error {
 	return nil
 }
 
-// func (nr *NetResource) routes() ([]netlink.Route, error) {
-// 	routes := make([]netlink.Route, 0, len(nr.resource.Peers)+1)
-//
-// 	// wgIP := wgIP(&nr.resource.Subnet.IPNet)
-//
-// 	peers := nr.resource.Peers
-// 	for i := range peers {
-// 		wgip := wgIP(&peers[i].Subnet.IPNet)
-// 		routes = append(routes, netlink.Route{
-// 			Dst: &peers[i].Subnet.IPNet,
-// 			Gw:  wgip.IP,
-// 		})
-// 	}
-//
-// 	routes = append(routes, netlink.Route{
-// 		Dst: nr.ipRange,
-// 	})
-//
-// 	return routes, nil
-// }
-
 func isSubnet(n types.IPNet) bool {
 	ones, bits := n.IPNet.Mask.Size()
 	return ones < bits
@@ -336,17 +316,24 @@ func (nr *NetResource) createNetNS() error {
 	if err != nil {
 		return err
 	}
-	netNS.Close()
+	defer netNS.Close()
+	err = netNS.Do(func(_ ns.NetNS) error {
+		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
+			return err
+		}
+		if err := ifaceutil.SetLoUp(); err != nil {
+			return err
+		}
+		return nil
+	})
 	return nil
 }
 
-// createVethPair creates a veth pair inside the namespace of the
-// network resource and sends one side back to the host namespace
-// the host side of the veth pair is attach to the bridge of the network resource
-func (nr *NetResource) createVethPair() error {
-
+// We're no setting up a veth pair any more, instead, we use a macvlan
+// directly attached to the bridge and sent into the NR namespace
+func (nr *NetResource) attachToNRBridge() error {
 	nsName, err := nr.Namespace()
-	nrVethName := fmt.Sprintf("nr-%s", nr.id[:12])
+	nrIfaceName := fmt.Sprintf("nr-%s", nr.id[:12])
 
 	netNS, err := namespace.GetByName(nsName)
 	if err != nil {
@@ -359,81 +346,28 @@ func (nr *NetResource) createVethPair() error {
 		return err
 	}
 
-	brLink, err := bridge.Get(bridgeName)
-	if err != nil {
-		return fmt.Errorf("bridge %s does not exits", bridgeName)
+	log.Debug().Str("create macvlan", nrIfaceName).Msg("attachNRToBridge")
+	if _, err := macvlan.Create(nrIfaceName, bridgeName, netNS); err != nil {
+		return err
 	}
 
-	exists := false
-	hostIface := ""
-	var handler = func(hostNS ns.NetNS) error {
-		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
-			return err
-		}
-
-		if _, err := netlink.LinkByName(nrVethName); err == nil {
-			exists = true
-			return nil
-		}
-
-		if err := ifaceutil.SetLoUp(); err != nil {
-			return err
-		}
-
-		log.Info().
-			Str("namespace", nsName).
-			Str("veth", nrVethName).
-			Msg("Create veth pair in net namespace")
-
-		hostVeth, nrVeth, err := ip.SetupVeth(nrVethName, 1500, hostNS)
-		if err != nil {
-			return err
-		}
-		hostIface = hostVeth.Name
-
-		link, err := netlink.LinkByName(nrVeth.Name)
+	var handler = func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(nrIfaceName)
 		if err != nil {
 			return err
 		}
 
 		ipnet := nr.resource.Subnet
 		ipnet.IP[len(ipnet.IP)-1] = 0x01
-		log.Info().Str("addr", ipnet.String()).Msg("set address on veth interface")
+		log.Info().Str("addr", ipnet.String()).Msg("set address on macvlan interface")
 
 		addr := &netlink.Addr{IPNet: &ipnet.IPNet, Label: ""}
 		if err = netlink.AddrAdd(link, addr); err != nil && !os.IsExist(err) {
 			return err
 		}
-
-		return nil
+		return netlink.LinkSetUp(link)
 	}
-	if err := netNS.Do(handler); err != nil {
-		return err
-	}
-
-	if exists {
-		return nil
-	}
-
-	hostVeth, err := netlink.LinkByName(hostIface)
-	if err != nil {
-		return err
-	}
-
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", hostVeth.Attrs().Name), "1"); err != nil {
-		return errors.Wrapf(err, "failed to disable ip6 on veth %s", hostVeth.Attrs().Name)
-	}
-
-	log.Info().
-		Str("net resource veth", nrVethName).
-		Str("host veth", hostIface).
-		Str("bridge", bridgeName).
-		Msg("attach veth to bridge")
-
-	if err := bridge.AttachNic(hostVeth, brLink); err != nil {
-		return errors.Wrapf(err, "failed to attach veth %s to bridge %s", nrVethName, bridgeName)
-	}
-	return nil
+	return netNS.Do(handler)
 }
 
 // createBridge creates a bridge in the host namespace
