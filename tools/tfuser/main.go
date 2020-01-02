@@ -118,10 +118,6 @@ func main() {
 									Name:  "port",
 									Usage: "Wireguard port to use. if not specified, tfuser will automatically check BCDB for free fort to use",
 								},
-								cli.UintFlag{
-									Name:  "l3",
-									Usage: "Wireguar port to use. if not specified, tfuser will automatically check BCDB for free fort to use",
-								},
 								cli.BoolFlag{
 									Name:  "force-hidden",
 									Usage: "Forcibly mark the node as hidden, even if it is registered with public endpoints",
