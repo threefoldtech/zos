@@ -225,8 +225,10 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 		return err
 	}
 
-	if _, err = macvlan.Create(publicIfaceName, BridgeNDMZ, nrNS); err != nil {
-		return err
+	if !ifaceutil.Exists(publicIfaceName, nrNS) {
+		if _, err = macvlan.Create(publicIfaceName, BridgeNDMZ, nrNS); err != nil {
+			return err
+		}
 	}
 
 	return nrNS.Do(func(_ ns.NetNS) error {

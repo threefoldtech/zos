@@ -346,9 +346,11 @@ func (nr *NetResource) attachToNRBridge() error {
 		return err
 	}
 
-	log.Debug().Str("create macvlan", nrIfaceName).Msg("attachNRToBridge")
-	if _, err := macvlan.Create(nrIfaceName, bridgeName, netNS); err != nil {
-		return err
+	if !ifaceutil.Exists(nrIfaceName, netNS) {
+		log.Debug().Str("create macvlan", nrIfaceName).Msg("attachNRToBridge")
+		if _, err := macvlan.Create(nrIfaceName, bridgeName, netNS); err != nil {
+			return err
+		}
 	}
 
 	var handler = func(_ ns.NetNS) error {
