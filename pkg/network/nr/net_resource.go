@@ -329,8 +329,8 @@ func (nr *NetResource) createNetNS() error {
 	return nil
 }
 
-// We're no setting up a veth pair any more, instead, we use a macvlan
-// directly attached to the bridge and sent into the NR namespace
+// attachToNRBridge creates a macvlan interface in the NR namespace, and attaches
+// it to the NR bridge
 func (nr *NetResource) attachToNRBridge() error {
 	nsName, err := nr.Namespace()
 	nrIfaceName := fmt.Sprintf("nr-%s", nr.id[:12])
