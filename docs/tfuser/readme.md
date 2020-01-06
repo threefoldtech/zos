@@ -15,113 +15,175 @@ It has 3 main commands:
 Here is a full example how you would use tfuser to create a network schema.
 
 1. create a network from scratch
-`tfuser generate --schema network.json network create --node {nodeID}`
+`tfuser generate network create --name {NETWORK_NAME} --cidr ${CIDR}`
 
-the `--node` flag point to the node ID of the exit node we have chosen for the network.  
-the value of the `--schema` flag is a path where the provisoin schema will be written by tfuser. If not specified the schema will be printed to stdout.
+`NETWORK_NAME`: Arbitrary name of your network.
+`CIDR`: The prefix which will be used by the network resources in the network.
+
+The schema will be printed on stdout, and should be saved for further actions.
 
 2. add another node to the network:
-`tfuser generate --schema network.json network add-node --node {nodeID}`
+`tfuser generate --schema ${SCHEMA_NAME} network add-node --node {NODE_ID} --subnet ${SUBNET} --port ${WGPORT}`
 
-the `--node` flag point to the node ID we want to add to the network
+`SCHEMA_NAME`: The file name of in which the current schema is stored. The new node
+	will be added to the schema, and the new schema version will be saved in the file.
+`NODE_ID`: The ID of the node to add in the reservation.
+`SUBNET`: The subnet to assign to the network resource on this node. All workloads
+	in this network resource will receive an IP from this subnet. The subnet must be
+	part of the `CIDR` provided when the network is created.
+`WGPORT`: Optional wireguard listening port on the host. If this is not specified, one will be
+	generated automatically. It is the responsibility of the caller to ensure this port
+	is not already in use.
 
 The result of these two command should looks like:
 ```json
 {
   "id": "",
-  "user_id": "E6Zb6cLHYuuXm1KSMeYc1DYNKfknGQqFVKS7tMc3mBvJ",
+  "user_id": "",
   "type": "network",
   "data": {
-    "network_id": "ZKhTrpy7tubzG5fxqdsWzwoXbEhtwJ1yxDBz8xDUf9J",
-    "resources": [
+    "name": "suitnet",
+    "net_id": "",
+    "ip_range": "172.20.0.0/16",
+    "net_resources": [
       {
-        "node_id": {
-          "id": "qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3",
-          "farmer_id": "CemYjciEmuvYVKDFXYaZLdGsCdLDRp4U1Xu1LPPrQNkK",
-          "reachability_v4": "public",
-          "reachability_v6": "public"
-        },
-        "prefix": "2a02:1802:5e:1001::/64",
-        "link_local": "fe80::1001/64",
+        "node_id": "qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3",
+        "subnet": "172.20.1.0/24",
+        "wg_private_key": "53955637e985a7763ac45c3d08cc0e40d64bfc1806db79bc9b0c092b3479567dffb42eda4ae460cc22131e4d254895b89af0e8acdd97a2fd87cfd4e12be8c23d617bd2c93f86aa1eaab35aa8cf57327de6a4dfb8066490cbc06e51de",
+        "wg_public_key": "ZdSn/3gDfD1urtDCOPdOFwF0XsTAidJTSpwPETegZGw=",
+        "wg_listen_port": 12345,
         "peers": [
           {
-            "type": "wireguard",
-            "prefix": "2a02:1802:5e:1001::/64",
-            "Connection": {
-              "ip": "2a02:1802:5e:0:1000:0:ff:1",
-              "port": 4097,
-              "key": "tDbiZ+1kng5fhRbjTQanmF83ETtvj1Rs5AG1fiOh+RQ=",
-              "private_key": "66e445cb705e14788f01cff5355869eafa2ec70c9ea8bb9c4cf32557f683770e3c5125b6e865afad1d0593f0d6c54887275452b1f0db4429d23aeca729ed5dec37ea74edf62df099017cb0bec49c1929dce7bc793018491afb6b8918"
-            }
+            "subnet": "172.20.2.0/24",
+            "wg_public_key": "TxC9PcNEBpNtwAvWePRA5/jQz4musN0aayQ3Jk6w3AU=",
+            "allowed_ips": [
+              "172.20.2.0/24",
+              "100.64.20.2/32"
+            ],
+            "endpoint": ""
           },
           {
-            "type": "wireguard",
-            "prefix": "2a02:1802:5e:153f::/64",
-            "Connection": {
-              "ip": "<nil>",
-              "port": 5439,
-              "key": "UOqDqmhynYYRmn0E1tMP+176ApHH33tyZTO7Br49LBg=",
-              "private_key": "b0f3fb4d599e41b459c011ea2057348501e7a22f6be7a21d5e82cb3ce439ee57c2a231ffcc62cdc71eb42e8336a4b404146fa28b124d02c19216271cead7e3a5d096b730eb5190fe8a655340a78fa403053f22a4dd0548f79da777f4"
-            }
+            "subnet": "172.20.3.0/24",
+            "wg_public_key": "tA0tYq2Z+tIeG1oW+1QJ/cJN6FpDX17ogwf3SefaGjs=",
+            "allowed_ips": [
+              "172.20.3.0/24",
+              "100.64.20.3/32"
+            ],
+            "endpoint": "[2a02:1802:5e:0:225:90ff:fef4:2917]:12347"
+          },
+          {
+            "subnet": "172.20.4.0/24",
+            "wg_public_key": "0VcC6PCOW4JDZERtOUljSKXiPfd0di5qRQ/SHFn9XCs=",
+            "allowed_ips": [
+              "172.20.4.0/24",
+              "100.64.20.4/32"
+            ],
+            "endpoint": "[2a02:1802:5e:0:225:90ff:fef4:40af]:12348"
           }
-        ],
-        "exit_point": 1
+        ]
       },
       {
-        "node_id": {
-          "id": "37zg5cmfHQdMmzcqdBR7YFRCQZqA35wdEChk7ccR4tNM",
-          "farmer_id": "CemYjciEmuvYVKDFXYaZLdGsCdLDRp4U1Xu1LPPrQNkK",
-          "reachability_v4": "hidden",
-          "reachability_v6": "hidden"
-        },
-        "prefix": "2a02:1802:5e:153f::/64",
-        "link_local": "fe80::153f/64",
+        "node_id": "Gr8NxBLHe7yjSsnSTgTqGr7BHbyAUVPJqs8fnudEE4Sf",
+        "subnet": "172.20.2.0/24",
+        "wg_private_key": "73eaebb93d9efe7bc7e3efaabcb757b6f115abfcbf24dedfbd26952d228eeb7a65e9f5138c1dc6490a8155dfd126750e712856485f9731b12aecf819855db0e0efac34029142f1179ef62bb7bbdac49439810b04a3bb8fe4b696e3a4",
+        "wg_public_key": "TxC9PcNEBpNtwAvWePRA5/jQz4musN0aayQ3Jk6w3AU=",
+        "wg_listen_port": 12346,
         "peers": [
           {
-            "type": "wireguard",
-            "prefix": "2a02:1802:5e:1001::/64",
-            "Connection": {
-              "ip": "2a02:1802:5e:0:1000:0:ff:1",
-              "port": 4097,
-              "key": "tDbiZ+1kng5fhRbjTQanmF83ETtvj1Rs5AG1fiOh+RQ=",
-              "private_key": "66e445cb705e14788f01cff5355869eafa2ec70c9ea8bb9c4cf32557f683770e3c5125b6e865afad1d0593f0d6c54887275452b1f0db4429d23aeca729ed5dec37fa74edf62df099017cb0bec49c1929dce7bc793018491afb6b8918"
-            }
+            "subnet": "172.20.1.0/24",
+            "wg_public_key": "ZdSn/3gDfD1urtDCOPdOFwF0XsTAidJTSpwPETegZGw=",
+            "allowed_ips": [
+              "172.20.1.0/24",
+              "100.64.20.1/32",
+              "172.20.3.0/24",
+              "100.64.20.3/32",
+              "172.20.4.0/24",
+              "100.64.20.4/32"
+            ],
+            "endpoint": "185.69.166.246:12345"
+          }
+        ]
+      },
+      {
+        "node_id": "48YmkyvfoXnXqEojpJieMfFPnCv2enEuqEJcmhvkcdAk",
+        "subnet": "172.20.3.0/24",
+        "wg_private_key": "c5d25d7990110fdd8613e129b89af294427feba69d2bb6e8d460eaf68dff030952f070b220308ddb9e58035545335cd14fa89bb4094cdc2aa32a8a7a82b3d398ec739a2f23148fa9478984329daa6083d5e222660352537444730b7c",
+        "wg_public_key": "tA0tYq2Z+tIeG1oW+1QJ/cJN6FpDX17ogwf3SefaGjs=",
+        "wg_listen_port": 12347,
+        "peers": [
+          {
+            "subnet": "172.20.1.0/24",
+            "wg_public_key": "ZdSn/3gDfD1urtDCOPdOFwF0XsTAidJTSpwPETegZGw=",
+            "allowed_ips": [
+              "172.20.1.0/24",
+              "100.64.20.1/32",
+              "172.20.2.0/24",
+              "100.64.20.2/32"
+            ],
+            "endpoint": "[2a02:1802:5e:0:1000::f6]:12345"
           },
           {
-            "type": "wireguard",
-            "prefix": "2a02:1802:5e:153f::/64",
-            "Connection": {
-              "ip": "<nil>",
-              "port": 5439,
-              "key": "UOqDqmhynYYRmn0E1tMP+176ApHH33tyZTO7Br49LBg=",
-              "private_key": "b0f3fb4d599e41a459c011ea2057348501e7a22f6be7a21d5e82cb3ce439ee57c2a231ffcc62cdc71eb42e8336a4b404146fa28b124d02c19216271cead7e3a5d096b730eb5190fe8a655340a78fa403053f22a4dd0548f79da777f4"
-            }
+            "subnet": "172.20.4.0/24",
+            "wg_public_key": "0VcC6PCOW4JDZERtOUljSKXiPfd0di5qRQ/SHFn9XCs=",
+            "allowed_ips": [
+              "172.20.4.0/24",
+              "100.64.20.4/32"
+            ],
+            "endpoint": "[2a02:1802:5e:0:225:90ff:fef4:40af]:12348"
           }
-        ],
-        "exit_point": 0
+        ]
+      },
+      {
+        "node_id": "BpTAry1Na2s1J8RAHNyDsbvaBSM3FjR4gMXEKga3UPbs",
+        "subnet": "172.20.4.0/24",
+        "wg_private_key": "4ca059feb0831ed84dfa5a436fcbfa3a23e9b57766b1a1a2d4167a0f7407265010077008b689b6926cc13cd2383db30102435df0c75b2dca2989a42e307972c4ec4b9860f38c0684aea69e5b6d6b40a051320de86ac5b3536d8c619f",
+        "wg_public_key": "0VcC6PCOW4JDZERtOUljSKXiPfd0di5qRQ/SHFn9XCs=",
+        "wg_listen_port": 12348,
+        "peers": [
+          {
+            "subnet": "172.20.1.0/24",
+            "wg_public_key": "ZdSn/3gDfD1urtDCOPdOFwF0XsTAidJTSpwPETegZGw=",
+            "allowed_ips": [
+              "172.20.1.0/24",
+              "100.64.20.1/32",
+              "172.20.2.0/24",
+              "100.64.20.2/32"
+            ],
+            "endpoint": "[2a02:1802:5e:0:1000::f6]:12345"
+          },
+          {
+            "subnet": "172.20.3.0/24",
+            "wg_public_key": "tA0tYq2Z+tIeG1oW+1QJ/cJN6FpDX17ogwf3SefaGjs=",
+            "allowed_ips": [
+              "172.20.3.0/24",
+              "100.64.20.3/32"
+            ],
+            "endpoint": "[2a02:1802:5e:0:225:90ff:fef4:2917]:12347"
+          }
+        ]
       }
-    ],
-    "prefix_zero": "2a02:1802:5e::/64",
-    "exit_point": {
-      "ipv4_conf": null,
-      "ipv4_dnat": null,
-      "ipv6_conf": {
-        "addr": "fe80::1000:1/64",
-        "gateway": "fe80::1",
-        "metric": 0,
-        "iface": "public"
-      },
-      "ipv6_allow": []
-    },
-    "allocation_nr": 0,
-    "version": 1
+    ]
   },
-  "signature": "",
-  "created": "",
+  "created": "0001-01-01T00:00:00Z",
   "duration": 0,
+  "to_delete": false
 }
 ```
 
+#### Network provisioning graph
+
+Once you have a reservation schema of a network, it is possible to create a
+dot file of the schema, which can then be turned into an image of the network
+graph. This shows how different network resources will reach each other.
+
+`tfuser generate --schema ${SCHEMA} network graph`
+
+Will print the dot file on stdout. You can then use your preferred layout engine
+to generate the image.
+
+Example image generated from the schema above:
+
+![Example network graph](example_graph.png)
 
 ### Generate a container provisioning schema
 
