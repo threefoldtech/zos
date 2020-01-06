@@ -65,6 +65,16 @@ type NetlinkAddress netlink.Addr
 // NetlinkAddresses alias for [][]NetlinkAddress
 type NetlinkAddresses []NetlinkAddress
 
+// PoolStats is pool statistics reported by storaged
+type PoolStats struct {
+	disk.UsageStat
+	// Counters IO counter for each pool device
+	Counters map[string]disk.IOCountersStat `json:"counters"`
+}
+
+// PoolsStats alias for map[string]PoolStats
+type PoolsStats map[string]PoolStats
+
 //SystemMonitor interface
 type SystemMonitor interface {
 	Memory(ctx context.Context) <-chan VirtualMemoryStat
