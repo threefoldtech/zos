@@ -31,7 +31,7 @@ func init() {
 
 func cmdGraphNetwork(c *cli.Context) error {
 	var (
-		network = &pkg.Network{}
+		network = &Network{}
 		schema  = c.GlobalString("schema")
 		err     error
 	)
@@ -63,7 +63,7 @@ func cmdCreateNetwork(c *cli.Context) error {
 	if err != nil {
 		errors.Wrap(err, "invalid ip range")
 	}
-	network := &pkg.Network{
+	network := pkg.Network{
 		Name:         name,
 		IPRange:      ipnet,
 		NetResources: []pkg.NetResource{},
@@ -79,7 +79,7 @@ func cmdCreateNetwork(c *cli.Context) error {
 
 func cmdsAddNode(c *cli.Context) error {
 	var (
-		network = &pkg.Network{}
+		network = &Network{}
 		schema  = c.GlobalString("schema")
 		err     error
 
@@ -130,25 +130,26 @@ func cmdsAddNode(c *cli.Context) error {
 		return errors.Wrap(err, "failed to encrypt private key")
 	}
 
+	pubSubnets, err := getEndPointAddrs(pkg.StrIdentifier(nodeID))
+	if err != nil {
+		return errors.Wrap(err, "failed to get node public endpoints")
+	}
 	var endpoints []net.IP
 	if !forceHidden {
-		pubSubnets, err := getEndPointAddrs(pkg.StrIdentifier(nodeID))
-		if err != nil {
-			return errors.Wrap(err, "failed to get node public endpoints")
-		}
-
 		for _, sn := range pubSubnets {
 			endpoints = append(endpoints, sn.IP)
 		}
 	}
 
-	nr := pkg.NetResource{
-		NodeID:       nodeID,
+	nr := NetResource{
+		NetResource: pkg.NetResource{
+			NodeID:       nodeID,
+			Subnet:       ipnet,
+			WGListenPort: uint16(port),
+			WGPublicKey:  privateKey.PublicKey().String(),
+			WGPrivateKey: hex.EncodeToString(encrypted),
+		},
 		PubEndpoints: endpoints,
-		Subnet:       ipnet,
-		WGListenPort: uint16(port),
-		WGPublicKey:  privateKey.PublicKey().String(),
-		WGPrivateKey: hex.EncodeToString(encrypted),
 	}
 
 	network.NetResources = append(network.NetResources, nr)
@@ -157,7 +158,7 @@ func cmdsAddNode(c *cli.Context) error {
 		return errors.Wrap(err, "failed to generate peers")
 	}
 
-	r, err := embed(network, provision.NetworkReservation)
+	r, err := embed(pkgNetFromNetwork(*network), provision.NetworkReservation)
 	if err != nil {
 		return err
 	}
@@ -167,7 +168,7 @@ func cmdsAddNode(c *cli.Context) error {
 
 func cmdsAddAccess(c *cli.Context) error {
 	var (
-		network = &pkg.Network{}
+		network = &Network{}
 		schema  = c.GlobalString("schema")
 		err     error
 
@@ -194,7 +195,7 @@ func cmdsAddAccess(c *cli.Context) error {
 	}
 
 	var nodeExists bool
-	var node pkg.NetResource
+	var node NetResource
 	for _, nr := range network.NetResources {
 		if nr.NodeID == nodeID {
 			node = nr
@@ -241,7 +242,7 @@ func cmdsAddAccess(c *cli.Context) error {
 		return errors.Wrap(err, "error during wireguard key generation")
 	}
 
-	ap := pkg.AccessPoint{
+	ap := AccessPoint{
 		NodeID:      nodeID,
 		Subnet:      ipnet,
 		WGPublicKey: privateKey.PublicKey().String(),
@@ -261,7 +262,7 @@ func cmdsAddAccess(c *cli.Context) error {
 
 	fmt.Println(wgConf)
 
-	r, err := embed(network, provision.NetworkReservation)
+	r, err := embed(pkgNetFromNetwork(*network), provision.NetworkReservation)
 	if err != nil {
 		return err
 	}
@@ -271,7 +272,7 @@ func cmdsAddAccess(c *cli.Context) error {
 
 func cmdsRemoveNode(c *cli.Context) error {
 	var (
-		network = &pkg.Network{}
+		network = &Network{}
 		schema  = c.GlobalString("schema")
 		nodeID  = c.String("node")
 		err     error
@@ -295,7 +296,7 @@ func cmdsRemoveNode(c *cli.Context) error {
 
 	// we don't remove the peer from the other network resource
 	// while this is dirty wireguard doesn't really care
-	raw, err := json.Marshal(network)
+	raw, err := json.Marshal(pkgNetFromNetwork(*network))
 	if err != nil {
 		return err
 	}
@@ -312,8 +313,8 @@ func cmdsRemoveNode(c *cli.Context) error {
 	return output(schema, r)
 }
 
-func loadNetwork(name string) (network *pkg.Network, err error) {
-	network = &pkg.Network{}
+func loadNetwork(name string) (*Network, error) {
+	network := &pkg.Network{}
 
 	if name == "" {
 		return nil, fmt.Errorf("schema name cannot be empty")
@@ -332,7 +333,16 @@ func loadNetwork(name string) (network *pkg.Network, err error) {
 	if err := json.Unmarshal(r.Data, network); err != nil {
 		return nil, errors.Wrapf(err, "failed to decode json encoded network at %s", name)
 	}
-	return network, nil
+
+	net := networkFromPkgNet(*network)
+
+	if err = setPubEndpoints(&net); err != nil {
+		return nil, err
+	}
+
+	extractAccessPoints(&net)
+
+	return &net, nil
 }
 
 func pickPort(nodeID string) (uint, error) {
@@ -394,7 +404,7 @@ func isIn(l []uint, i uint) bool {
 	return false
 }
 
-func hasIPv4(n pkg.NetResource) bool {
+func hasIPv4(n NetResource) bool {
 	for _, pep := range n.PubEndpoints {
 		if pep.To4() != nil {
 			return true
@@ -408,7 +418,7 @@ func hasIPv4(n pkg.NetResource) bool {
 // - that a public node ALWAYS has public IPv6, and OPTIONALLY public IPv4
 // - that any public endpoint on any node is actually reachable (i.e. no firewall
 //		blocking incoming traffic)
-func generatePeers(n *pkg.Network) error {
+func generatePeers(n *Network) error {
 	// Find public node, which will be used to connect all hidden nodes.
 	// In case there are hidden nodes, the public node needs IPv4 support as well.
 	var hasHiddenNodes bool
@@ -454,7 +464,7 @@ func generatePeers(n *pkg.Network) error {
 
 	// Maintain a mapping of access point nodes to the subnet and wg key they give access
 	// to, as these need to be added as peers as well for these nodes
-	accessPoints := make(map[string][]pkg.AccessPoint)
+	accessPoints := make(map[string][]AccessPoint)
 	for _, ap := range n.AccessPoints {
 		accessPoints[ap.NodeID] = append(accessPoints[ap.NodeID], ap)
 	}
@@ -520,7 +530,7 @@ func generatePeers(n *pkg.Network) error {
 				// Endpoint must be IPv4
 				for _, pep := range onr.PubEndpoints {
 					if pep.To4() != nil {
-						endpoint = fmt.Sprintf("%s:%d", pep.String(), nr.WGListenPort)
+						endpoint = fmt.Sprintf("%s:%d", pep.String(), onr.WGListenPort)
 						break
 					}
 				}
@@ -643,7 +653,7 @@ PersistentKeepalive = 20
 {{if .PeerEndpoint}}Endpoint = {{.PeerEndpoint}}{{end}}
 `
 
-func networkGraph(n pkg.Network, w io.Writer) error {
+func networkGraph(n Network, w io.Writer) error {
 	nodes := make(map[string]dot.Node)
 	nodesByID := make(map[string]dot.Node)
 	graph := dot.NewGraph(dot.Directed)
@@ -761,4 +771,66 @@ func isCGN(subnet types.IPNet) bool {
 		panic(err)
 	}
 	return block.Contains(subnet.IP)
+}
+
+func setPubEndpoints(n *Network) error {
+	for i := range n.NetResources {
+		pep, err := getEndPointAddrs(pkg.StrIdentifier(n.NetResources[i].NodeID))
+		if err != nil {
+			return err
+		}
+
+		var endpoints []net.IP
+		for _, sn := range pep {
+			endpoints = append(endpoints, sn.IP)
+		}
+
+		n.NetResources[i].PubEndpoints = endpoints
+	}
+
+	// remove the pub endpoints from nodes which we assume have been marked
+	// as force hidden
+	hiddenNodes := make(map[string]struct{})
+	for _, nr := range n.NetResources {
+		if len(nr.PubEndpoints) > 0 {
+			for _, peer := range nr.Peers {
+				if peer.Endpoint == "" {
+					hiddenNodes[peer.WGPublicKey] = struct{}{}
+				}
+			}
+		}
+	}
+
+	for i := range n.NetResources {
+		if _, exists := hiddenNodes[n.NetResources[i].WGPublicKey]; exists {
+			n.NetResources[i].PubEndpoints = nil
+		}
+	}
+
+	return nil
+}
+
+func extractAccessPoints(n *Network) {
+	// gather all actual nodes, using their wg pubkey as key in the map (NodeID
+	// can't be seen in the actual peer struct)
+	actualNodes := make(map[string]struct{})
+	for _, nr := range n.NetResources {
+		actualNodes[nr.WGPublicKey] = struct{}{}
+	}
+
+	aps := []AccessPoint{}
+	for _, nr := range n.NetResources {
+		for _, peer := range nr.Peers {
+			if _, exists := actualNodes[peer.WGPublicKey]; !exists {
+				// peer is not a node so it must be external
+				aps = append(aps, AccessPoint{
+					NodeID:      nr.NodeID,
+					Subnet:      peer.Subnet,
+					WGPublicKey: peer.WGPublicKey,
+					// we can't infer if we use IPv6 or IPv4
+				})
+			}
+		}
+	}
+	n.AccessPoints = aps
 }

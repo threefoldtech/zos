@@ -54,15 +54,11 @@ type Network struct {
 	IPRange types.IPNet `json:"ip_range"`
 
 	NetResources []NetResource `json:"net_resources"`
-
-	AccessPoints []AccessPoint `json:"access_points,omitempty"`
 }
 
 // NetResource is the description of a part of a network local to a specific node
 type NetResource struct {
 	NodeID string `json:"node_id"`
-	// Public endpoints
-	PubEndpoints []net.IP `json:"pub_endpoints"`
 	// IPV4 subnet from network IPRange
 	Subnet types.IPNet `json:"subnet"`
 
@@ -80,7 +76,7 @@ type Peer struct {
 
 	WGPublicKey string        `json:"wg_public_key"`
 	AllowedIPs  []types.IPNet `json:"allowed_ips"`
-	Endpoint    string        `json:"endpoint,omitempty"`
+	Endpoint    string        `json:"endpoint"`
 }
 
 // NetID is a type defining the ID of a network
@@ -92,14 +88,3 @@ var (
 	// NetworkSchemaLatestVersion network object latest version
 	NetworkSchemaLatestVersion = NetworkSchemaV1
 )
-
-// AccessPoint info for a network, defining a node which will act as the AP, and
-// the subnet which will be routed through it
-type AccessPoint struct {
-	// NodeID of the access point in the network
-	NodeID string `json:"node_id"`
-	// Subnet to be routed through this access point
-	Subnet      types.IPNet `json:"subnet"`
-	WGPublicKey string      `json:"wg_public_key"`
-	IP4         bool        `json:"ip4"`
-}
