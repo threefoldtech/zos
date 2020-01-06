@@ -75,7 +75,6 @@ type SystemMonitor interface {
 
 // HostMonitor interface
 type HostMonitor interface {
-	IPs(ctx context.Context) <-chan NetlinkAddresses
 	Uptime(ctx context.Context) <-chan time.Duration
 }
 

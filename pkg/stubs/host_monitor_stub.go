@@ -3,7 +3,6 @@ package stubs
 import (
 	"context"
 	zbus "github.com/threefoldtech/zbus"
-	pkg "github.com/threefoldtech/zos/pkg"
 	"time"
 )
 
@@ -22,25 +21,6 @@ func NewHostMonitorStub(client zbus.Client) *HostMonitorStub {
 			Version: "0.0.1",
 		},
 	}
-}
-
-func (s *HostMonitorStub) IPs(ctx context.Context) (<-chan pkg.NetlinkAddresses, error) {
-	ch := make(chan pkg.NetlinkAddresses)
-	recv, err := s.client.Stream(ctx, s.module, s.object, "IPs")
-	if err != nil {
-		return nil, err
-	}
-	go func() {
-		defer close(ch)
-		for event := range recv {
-			var obj pkg.NetlinkAddresses
-			if err := event.Unmarshal(&obj); err != nil {
-				panic(err)
-			}
-			ch <- obj
-		}
-	}()
-	return ch, nil
 }
 
 func (s *HostMonitorStub) Uptime(ctx context.Context) (<-chan time.Duration, error) {

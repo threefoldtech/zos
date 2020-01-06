@@ -1,12 +1,14 @@
 package network
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 
@@ -473,6 +475,89 @@ func (n *networker) releasePort(port uint16) error {
 	}
 
 	return nil
+}
+
+func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
+	updates := make(chan netlink.AddrUpdate)
+	if err := netlink.AddrSubscribe(updates, ctx.Done()); err != nil {
+		log.Fatal().Err(err).Msg("failed to listen to netlink address updates")
+	}
+
+	link, err := netlink.LinkByName(DefaultBridge)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("could not find the '%s' bridge", DefaultBridge)
+	}
+
+	get := func() pkg.NetlinkAddresses {
+		var result pkg.NetlinkAddresses
+		values, _ := netlink.AddrList(link, netlink.FAMILY_ALL)
+		for _, value := range values {
+			result = append(result, pkg.NetlinkAddress(value))
+		}
+
+		return result
+	}
+
+	addresses := get()
+
+	ch := make(chan pkg.NetlinkAddresses)
+	go func() {
+		defer close(ch)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case update := <-updates:
+				if update.LinkIndex != link.Attrs().Index {
+					continue
+				}
+
+				addresses = get()
+			case <-time.After(2 * time.Second):
+				ch <- addresses
+			}
+		}
+	}()
+
+	return ch
+
+}
+
+func (n *networker) DMZAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
+	updates, err := ndmz.Monitor(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to listen to netlink address updates for dmz")
+	}
+
+	get := func() pkg.NetlinkAddresses {
+		var result pkg.NetlinkAddresses
+		values, _ := ndmz.Addresses()
+		for _, value := range values {
+			result = append(result, pkg.NetlinkAddress(value))
+		}
+
+		return result
+	}
+
+	addresses := get()
+
+	ch := make(chan pkg.NetlinkAddresses)
+	go func() {
+		defer close(ch)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-updates:
+				addresses = get()
+			case <-time.After(2 * time.Second):
+				ch <- addresses
+			}
+		}
+	}()
+
+	return ch
+
 }
 
 // publicMasterIface return the name of the master interface

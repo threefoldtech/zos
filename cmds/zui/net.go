@@ -37,14 +37,14 @@ func netRender(client zbus.Client, grid *ui.Grid, r func()) error {
 	)
 
 	monitor := stubs.NewSystemMonitorStub(client)
-	host := stubs.NewHostMonitorStub(client)
+	netd := stubs.NewNetworkerStub(client)
 	ctx := context.Background()
 	stats, err := monitor.Nics(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start net monitor stream")
 	}
 
-	address, err := host.IPs(ctx)
+	address, err := netd.ZOSAddresses(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start ip monitor stream")
 	}

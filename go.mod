@@ -50,6 +50,7 @@ require (
 	github.com/threefoldtech/zbus v0.1.2
 	github.com/urfave/cli v1.22.1
 	github.com/vishvananda/netlink v1.0.0
+	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/whs/nacl-sealed-box v0.0.0-20180930164530-92b9ba845d8d
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb // indirect

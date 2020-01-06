@@ -2,6 +2,7 @@ package ndmz
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -109,6 +111,44 @@ func Delete() error {
 	}
 
 	return nil
+}
+
+// Addresses returns the IPs of the public interface inside the dmz namespace
+func Addresses() ([]netlink.Addr, error) {
+	netns, err := namespace.GetByName(netNSNDMZ)
+	if err != nil {
+		return nil, err
+	}
+
+	defer netns.Close()
+	var addr []netlink.Addr
+	err = netns.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(publicIfaceName)
+		if err != nil {
+			return err
+		}
+		addr, err = netlink.AddrList(link, netlink.FAMILY_ALL)
+		return err
+	})
+
+	return addr, err
+}
+
+// Monitor the dmz namespace for updates
+func Monitor(ctx context.Context) (chan netlink.AddrUpdate, error) {
+	ns, err := netns.GetFromName(netNSNDMZ)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan netlink.AddrUpdate)
+	if err := netlink.AddrSubscribeAt(ns, ch, ctx.Done()); err != nil {
+		close(ch)
+		ns.Close()
+		return nil, err
+	}
+
+	return ch, nil
 }
 
 func createMacVlan(netNS ns.NetNS) error {
