@@ -2,7 +2,6 @@ package ndmz
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -21,7 +20,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
 
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -34,11 +32,13 @@ import (
 const (
 	//BridgeNDMZ is the name of the ipv4 routing bridge in the ndmz namespace
 	BridgeNDMZ = "br-ndmz"
-	netNSNDMZ  = "ndmz"
+	//NetNSNDMZ name of the dmz namespace
+	NetNSNDMZ = "ndmz"
 
 	ndmzNsMACDerivationSuffix = "-ndmz"
 
-	publicIfaceName = "public"
+	// PublicIfaceName interface name of dmz
+	PublicIfaceName = "public"
 )
 
 //Create create the NDMZ network namespace and configure its default routes and addresses
@@ -46,9 +46,9 @@ func Create(nodeID pkg.Identifier) error {
 
 	os.RemoveAll("/var/cache/modules/networkd/lease/dmz/")
 
-	netNS, err := namespace.GetByName(netNSNDMZ)
+	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
-		netNS, err = namespace.Create(netNSNDMZ)
+		netNS, err = namespace.Create(NetNSNDMZ)
 		if err != nil {
 			return err
 		}
@@ -103,7 +103,7 @@ func Create(nodeID pkg.Identifier) error {
 
 // Delete deletes the NDMZ network namespace
 func Delete() error {
-	netNS, err := namespace.GetByName(netNSNDMZ)
+	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err == nil {
 		if err := namespace.Delete(netNS); err != nil {
 			return errors.Wrap(err, "failed to delete ndmz network namespace")
@@ -115,7 +115,7 @@ func Delete() error {
 
 // Addresses returns the IPs of the public interface inside the dmz namespace
 func Addresses() ([]netlink.Addr, error) {
-	netns, err := namespace.GetByName(netNSNDMZ)
+	netns, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func Addresses() ([]netlink.Addr, error) {
 	defer netns.Close()
 	var addr []netlink.Addr
 	err = netns.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(publicIfaceName)
+		link, err := netlink.LinkByName(PublicIfaceName)
 		if err != nil {
 			return err
 		}
@@ -132,23 +132,6 @@ func Addresses() ([]netlink.Addr, error) {
 	})
 
 	return addr, err
-}
-
-// Monitor the dmz namespace for updates
-func Monitor(ctx context.Context) (chan netlink.AddrUpdate, error) {
-	ns, err := netns.GetFromName(netNSNDMZ)
-	if err != nil {
-		return nil, err
-	}
-
-	ch := make(chan netlink.AddrUpdate)
-	if err := netlink.AddrSubscribeAt(ns, ch, ctx.Done()); err != nil {
-		close(ch)
-		ns.Close()
-		return nil, err
-	}
-
-	return ch, nil
 }
 
 func createMacVlan(netNS ns.NetNS) error {
@@ -176,7 +159,7 @@ func createMacVlan(netNS ns.NetNS) error {
 }
 
 func createRoutingBridge(netNS ns.NetNS) error {
-	if bridge.Exists(BridgeNDMZ) && namespace.Exists(netNSNDMZ) {
+	if bridge.Exists(BridgeNDMZ) && namespace.Exists(NetNSNDMZ) {
 		return nil
 	}
 
@@ -246,7 +229,7 @@ func applyFirewall() error {
 		return errors.Wrap(err, "failed to build nft rule set")
 	}
 
-	if err := nft.Apply(&buf, netNSNDMZ); err != nil {
+	if err := nft.Apply(&buf, NetNSNDMZ); err != nil {
 		return errors.Wrap(err, "failed to apply nft rule set")
 	}
 
@@ -265,8 +248,8 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 		return err
 	}
 
-	if !ifaceutil.Exists(publicIfaceName, nrNS) {
-		if _, err = macvlan.Create(publicIfaceName, BridgeNDMZ, nrNS); err != nil {
+	if !ifaceutil.Exists(PublicIfaceName, nrNS) {
+		if _, err = macvlan.Create(PublicIfaceName, BridgeNDMZ, nrNS); err != nil {
 			return err
 		}
 	}
@@ -277,7 +260,7 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 			return errors.Wrap(err, "ip allocation for network resource")
 		}
 
-		pubIface, err := netlink.LinkByName(publicIfaceName)
+		pubIface, err := netlink.LinkByName(PublicIfaceName)
 		if err != nil {
 			return err
 		}
