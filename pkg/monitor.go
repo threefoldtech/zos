@@ -3,6 +3,7 @@ package pkg
 //go:generate mkdir -p stubs
 //go:generate zbusc -module monitor -version 0.0.1 -name system -package stubs github.com/threefoldtech/zos/pkg+SystemMonitor stubs/system_monitor_stub.go
 //go:generate zbusc -module monitor -version 0.0.1 -name host -package stubs github.com/threefoldtech/zos/pkg+HostMonitor stubs/host_monitor_stub.go
+//go:generate zbusc -module identityd -version 0.0.1 -name monitor -package stubs github.com/threefoldtech/zos/pkg+VersionMonitor stubs/version_monitor_stub.go
 
 import (
 	"context"
@@ -74,7 +75,11 @@ type SystemMonitor interface {
 
 // HostMonitor interface
 type HostMonitor interface {
-	Version(ctx context.Context) <-chan semver.Version
 	IPs(ctx context.Context) <-chan NetlinkAddresses
 	Uptime(ctx context.Context) <-chan time.Duration
+}
+
+// VersionMonitor is provided by identityd
+type VersionMonitor interface {
+	Version(ctx context.Context) <-chan semver.Version
 }

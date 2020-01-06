@@ -2,9 +2,9 @@ package stubs
 
 import (
 	"context"
-	semver "github.com/blang/semver"
 	zbus "github.com/threefoldtech/zbus"
 	pkg "github.com/threefoldtech/zos/pkg"
+	"time"
 )
 
 type HostMonitorStub struct {
@@ -43,16 +43,16 @@ func (s *HostMonitorStub) IPs(ctx context.Context) (<-chan pkg.NetlinkAddresses,
 	return ch, nil
 }
 
-func (s *HostMonitorStub) Version(ctx context.Context) (<-chan semver.Version, error) {
-	ch := make(chan semver.Version)
-	recv, err := s.client.Stream(ctx, s.module, s.object, "Version")
+func (s *HostMonitorStub) Uptime(ctx context.Context) (<-chan time.Duration, error) {
+	ch := make(chan time.Duration)
+	recv, err := s.client.Stream(ctx, s.module, s.object, "Uptime")
 	if err != nil {
 		return nil, err
 	}
 	go func() {
 		defer close(ch)
 		for event := range recv {
-			var obj semver.Version
+			var obj time.Duration
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}

@@ -20,7 +20,7 @@ func headerRenderer(c zbus.Client, h *widgets.Paragraph, r func()) error {
 
 	h.Text = "Zero OS"
 
-	host := stubs.NewHostMonitorStub(c)
+	host := stubs.NewVersionMonitorStub(c)
 	ctx := context.Background()
 	ch, err := host.Version(ctx)
 	if err != nil {

@@ -50,32 +50,6 @@ func NewHostMonitor(duration time.Duration) (pkg.HostMonitor, error) {
 	}, nil
 }
 
-// Version get stream of version information
-func (h *hostMonitor) Version(ctx context.Context) <-chan semver.Version {
-	h.version, _ = h.boot.Version()
-	ch := make(chan semver.Version)
-	go func() {
-		defer close(ch)
-		defer h.watcher.Close()
-
-		for {
-			select {
-			case e := <-h.watcher.Events:
-				if e.Op == fsnotify.Create || e.Op == fsnotify.Write {
-					h.version, _ = h.boot.Version()
-					ch <- h.version
-				}
-			case <-time.After(h.duration):
-				ch <- h.version
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return ch
-}
-
 func (h *hostMonitor) IPs(ctx context.Context) <-chan pkg.NetlinkAddresses {
 	updates := make(chan netlink.AddrUpdate)
 	if err := netlink.AddrSubscribe(updates, ctx.Done()); err != nil {
