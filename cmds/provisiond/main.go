@@ -88,7 +88,6 @@ func main() {
 	ctx := context.Background()
 	ctx = provision.WithZBus(ctx, client)
 	ctx = provision.WithOwnerCache(ctx, ownerCache)
-	ctx = provision.WithZDBMapping(ctx, provision.NewZDBMapping())
 
 	// From here we start the real provision engine that will live
 	// for the rest of the life of the node
@@ -132,7 +131,7 @@ func bcdbClient() (store, error) {
 	}
 
 	// use gedis for production bcdb
-	store, err := gedis.New(env.BcdbURL, env.BcdbNamespace, env.BcdbPassword)
+	store, err := gedis.New(env.BcdbURL, env.BcdbPassword)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail to connect to BCDB")
 	}

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,8 +30,12 @@ var (
 )
 
 type storageModule struct {
-	volumes []filesystem.Pool
-	devices filesystem.DeviceManager
+	volumes       []filesystem.Pool
+	brokenPools   []pkg.BrokenPool
+	devices       filesystem.DeviceManager
+	brokenDevices []pkg.BrokenDevice
+
+	mu sync.RWMutex
 }
 
 // New create a new storage module service
@@ -45,8 +51,10 @@ func New() (pkg.StorageModule, error) {
 	}
 
 	s := &storageModule{
-		volumes: []filesystem.Pool{},
-		devices: m,
+		volumes:       []filesystem.Pool{},
+		brokenPools:   []pkg.BrokenPool{},
+		devices:       m,
+		brokenDevices: []pkg.BrokenDevice{},
 	}
 
 	// go for a simple linear setup right now
@@ -60,11 +68,17 @@ func New() (pkg.StorageModule, error) {
 		log.Info().Msgf("Finished initializing storage module")
 	}
 
+	if err := s.Maintenance(); err != nil {
+		log.Error().Err(err).Msg("storage devices maintenance failed")
+	}
+
 	return s, err
 }
 
 // Total gives the total amount of storage available for a device type
 func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var total uint64
 
 	for idx := range s.volumes {
@@ -84,6 +98,20 @@ func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
 	return total, nil
 }
 
+// BrokenPools lists the broken storage pools that have been detected
+func (s *storageModule) BrokenPools() []pkg.BrokenPool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.brokenPools
+}
+
+// BrokenDevices lists the broken devices that have been detected
+func (s *storageModule) BrokenDevices() []pkg.BrokenDevice {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.brokenDevices
+}
+
 /**
 initialize, must be called at least onetime each boot.
 What Initialize will do is the following:
@@ -92,6 +120,10 @@ What Initialize will do is the following:
  - If new pools were created, the pool is going to be mounted automatically
 **/
 func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
+	// lock for the entire initialization method, so other code which relies
+	// on this observes this as an atomic operation
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	log.Info().Msgf("Initializing storage module")
 
 	// Make sure we finish in 1 minute
@@ -111,16 +143,22 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	for _, volume := range existingPools {
 		if _, mounted := volume.Mounted(); mounted {
 			log.Debug().Msgf("Volume %s already mounted", volume.Name())
-			// volume is already mounted, skip mounting it again
+			// volume is already mounted, skip mounting it again, make sure it is
+			// in the list of available pools. Since we are in the initialize method,
+			// we can safely assume the pool has not been added before, so no need
+			// to check for duplicate entries.
+			s.volumes = append(s.volumes, volume)
 			continue
 		}
 		_, err = volume.Mount()
 		if err != nil {
-			return err
+			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: volume.Name(), Err: err})
+			log.Warn().Msgf("Failed to mount volume %v", volume.Name())
+			continue
 		}
 		log.Debug().Msgf("Mounted volume %s", volume.Name())
+		s.volumes = append(s.volumes, volume)
 	}
-	s.volumes = append(s.volumes, existingPools...)
 
 	// list disks
 	log.Info().Msgf("Finding free disks")
@@ -187,7 +225,14 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 
 			pool, err := fs.Create(ctx, uuid.New().String(), policy.Raid, poolDevices...)
 			if err != nil {
-				return err
+				// Failure to create a filesystem -> disk is dead. It is possible
+				// that multiple devices are used to create a single pool, and only
+				// one devices is actuall broken. We should probably expand on
+				// this once we start to use storagepools spanning multiple disks.
+				for _, dev := range poolDevices {
+					s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: dev.Path, Err: err})
+				}
+				continue
 			}
 
 			newPools = append(newPools, pool)
@@ -201,19 +246,41 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		if _, mounted := newPools[idx].Mounted(); !mounted {
 			log.Debug().Msgf("Mounting volume %s", newPools[idx].Name())
 			if _, err = newPools[idx].Mount(); err != nil {
-				return err
+				s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: newPools[idx].Name(), Err: err})
+				continue
 			}
+			s.volumes = append(s.volumes, newPools[idx])
 		}
 	}
 
-	s.volumes = append(s.volumes, newPools...)
-
 	return s.ensureCache()
+}
+
+func (s *storageModule) Maintenance() error {
+	for _, pool := range s.volumes {
+		log.Info().
+			Str("pool", pool.Name()).
+			Msg("start storage pool maintained")
+		if err := pool.Maintenance(); err != nil {
+			log.Error().
+				Err(err).
+				Str("pool", pool.Name()).
+				Msg("error during maintainace")
+			return err
+		}
+		log.Info().
+			Str("pool", pool.Name()).
+			Msg("finished storage pool maintained")
+	}
+	return nil
 }
 
 // CreateFilesystem with the given size in a storage pool.
 func (s *storageModule) CreateFilesystem(name string, size uint64, poolType pkg.DeviceType) (string, error) {
 	log.Info().Msgf("Creating new volume with size %d", size)
+	if strings.HasPrefix(name, "zdb") {
+		return "", fmt.Errorf("invalid volume name. zdb prefix is reserved")
+	}
 
 	fs, err := s.createSubvol(size, name, poolType)
 	if err != nil {
@@ -294,7 +361,6 @@ func (s *storageModule) ensureCache() error {
 		fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
 		if errors.Is(err, pkg.ErrNotEnoughSpace{}) {
 			// No space on SSD (probably no SSD in the node at all), try HDD
-			err = nil
 			fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
 		}
 		if err != nil {
@@ -315,25 +381,31 @@ func (s *storageModule) ensureCache() error {
 // if the requested disk type does not have a storage pool available, an error is
 // returned
 func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.DeviceType) (filesystem.Volume, error) {
-	var fs filesystem.Volume
 	var err error
 
+	type Candidate struct {
+		Pool      filesystem.Pool
+		Available uint64
+	}
+
+	var candidates []Candidate
+
 	// pick an appropriate pool
-	for idx := range s.volumes {
+	for _, pool := range s.volumes {
 		// ignore pools which don't have the right device type
-		if s.volumes[idx].Type() != poolType {
+		if pool.Type() != poolType {
 			continue
 		}
 
-		usage, err := s.volumes[idx].Usage()
+		usage, err := pool.Usage()
 		if err != nil {
 			log.Error().Msgf("Failed to get current volume usage: %v", err)
 			continue
 		}
 
-		reserved, err := s.volumes[idx].Reserved()
+		reserved, err := pool.Reserved()
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to get size of pool %s", s.volumes[idx].Name())
+			log.Error().Err(err).Msgf("failed to get size of pool %s", pool.Name())
 			continue
 		}
 
@@ -341,30 +413,44 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 			Uint64("max size", usage.Size).
 			Uint64("reserved", reserved).
 			Uint64("new size", reserved+size).
-			Msgf("usage of pool %s", s.volumes[idx].Name())
+			Msgf("usage of pool %s", pool.Name())
 		// Make sure adding this filesystem would not bring us over the disk limit
 		if reserved+size > usage.Size {
 			log.Info().Msgf("Disk does not have enough space left to hold filesystem")
 			continue
 		}
 
-		fsn, err := s.volumes[idx].AddVolume(name)
+		candidates = append(candidates, Candidate{
+			Pool:      pool,
+			Available: usage.Size - (reserved + size), // available after new subvolume
+		})
+
+	}
+
+	if len(candidates) == 0 {
+		return nil, pkg.ErrNotEnoughSpace{DeviceType: poolType}
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		// reverse sorting so most available is at beginning
+		return candidates[i].Available > candidates[j].Available
+	})
+
+	var volume filesystem.Volume
+	for _, candidate := range candidates {
+		volume, err = candidate.Pool.AddVolume(name)
 		if err != nil {
-			log.Error().Msgf("Failed to create new filesystem: %v", err)
+			log.Error().Err(err).Str("pool", candidate.Pool.Name()).Msg("failed to create new filesystem")
 			continue
 		}
-		if err = fsn.Limit(size); err != nil {
-			log.Error().Msgf("Failed to set size limit on new filesystem: %v", err)
+		if err = volume.Limit(size); err != nil {
+			candidate.Pool.RemoveVolume(volume.Name()) // try to recover
+			log.Error().Err(err).Str("volume", volume.Path()).Msg("failed to set volume size limit")
 			continue
 		}
-		fs = fsn
-		break
+
+		return volume, nil
 	}
 
-	if err != nil || fs != nil {
-		return fs, err
-	}
-
-	// no error but also no volume, so we didn't manage to create one
-	return nil, pkg.ErrNotEnoughSpace{DeviceType: poolType}
+	return nil, fmt.Errorf("failed to create subvolume, logs might have more information")
 }

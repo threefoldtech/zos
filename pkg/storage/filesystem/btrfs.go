@@ -8,9 +8,11 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/storage/zdbpool"
 )
 
 var (
@@ -174,12 +176,26 @@ func (p *btrfsPool) mounted(fs *Btrfs) (string, bool) {
 	return "", false
 }
 
+func (p *btrfsPool) ID() int {
+	return 0
+}
+
 func (p *btrfsPool) Name() string {
 	return p.name
 }
 
 func (p *btrfsPool) Path() string {
 	return filepath.Join("/mnt", p.name)
+}
+
+// Limit on a pool is not supported yet
+func (p *btrfsPool) Limit(size uint64) error {
+	return fmt.Errorf("not implemented")
+}
+
+// FsType of the filesystem of this volume
+func (p *btrfsPool) FsType() string {
+	return "btrfs"
 }
 
 // Mount mounts the pool in it's default mount location under /mnt/name
@@ -287,6 +303,7 @@ func (p *btrfsPool) Volumes() ([]Volume, error) {
 
 	for _, sub := range subs {
 		volumes = append(volumes, newBtrfsVolume(
+			sub.ID,
 			filepath.Join(mnt, sub.Path),
 			p.utils,
 		))
@@ -295,12 +312,18 @@ func (p *btrfsPool) Volumes() ([]Volume, error) {
 	return volumes, nil
 }
 
-func (p *btrfsPool) addVolume(root string) (*btrfsVolume, error) {
-	if err := p.utils.SubvolumeAdd(context.Background(), root); err != nil {
+func (p *btrfsPool) addVolume(root string) (Volume, error) {
+	ctx := context.Background()
+	if err := p.utils.SubvolumeAdd(ctx, root); err != nil {
 		return nil, err
 	}
 
-	return newBtrfsVolume(root, p.utils), nil
+	volume, err := p.utils.SubvolumeInfo(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
+	return newBtrfsVolume(volume.ID, root, p.utils), nil
 }
 
 func (p *btrfsPool) AddVolume(name string) (Volume, error) {
@@ -314,7 +337,23 @@ func (p *btrfsPool) AddVolume(name string) (Volume, error) {
 }
 
 func (p *btrfsPool) removeVolume(root string) error {
-	return p.utils.SubvolumeRemove(context.Background(), root)
+	ctx := context.Background()
+
+	info, err := p.utils.SubvolumeInfo(ctx, root)
+	if err != nil {
+		return err
+	}
+
+	if err := p.utils.SubvolumeRemove(ctx, root); err != nil {
+		return err
+	}
+
+	qgroupID := fmt.Sprintf("0/%d", info.ID)
+	if err := p.utils.QGroupDestroy(ctx, qgroupID, p.Path()); err != nil {
+		return errors.Wrapf(err, "failed to delete qgroup %s", qgroupID)
+	}
+
+	return nil
 }
 
 func (p *btrfsPool) RemoveVolume(name string) error {
@@ -357,16 +396,6 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 	return Usage{Size: totalSize / raidSizeDivisor[du.Data.Profile], Used: uint64(fsi[0].Used)}, nil
 }
 
-// Limit on a pool is not supported yet
-func (p *btrfsPool) Limit(size uint64) error {
-	return fmt.Errorf("not implemented")
-}
-
-// FsType of the filesystem of this volume
-func (p *btrfsPool) FsType() string {
-	return "btrfs"
-}
-
 // Type of the physical storage used for this pool
 func (p *btrfsPool) Type() pkg.DeviceType {
 	// We only create heterogenous pools for now
@@ -393,49 +422,78 @@ func (p *btrfsPool) Reserved() (uint64, error) {
 	return total, nil
 }
 
+func (p *btrfsPool) Maintenance() error {
+	// this method cleans up all the unused
+	// qgroups that could exists on a filesystem
+
+	volumes, err := p.Volumes()
+	if err != nil {
+		return err
+	}
+	subVolsIDs := map[string]struct{}{}
+	for _, volume := range volumes {
+		// use the 0/X notation to match the qgroup IDs format
+		subVolsIDs[fmt.Sprintf("0/%d", volume.ID())] = struct{}{}
+	}
+
+	ctx := context.Background()
+	qgroups, err := p.utils.QGroupList(ctx, p.Path())
+	if err != nil {
+		return err
+	}
+
+	for qgroupID := range qgroups {
+		// for all qgroup that doesn't have an linked
+		// volume, delete the qgroup
+		_, ok := subVolsIDs[qgroupID]
+		if !ok {
+			log.Debug().Str("id", qgroupID).Msg("destroy qgroup")
+			if err := p.utils.QGroupDestroy(ctx, qgroupID, p.Path()); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 type btrfsVolume struct {
+	id    int
 	path  string
 	utils *BtrfsUtil
 }
 
-func newBtrfsVolume(path string, utils *BtrfsUtil) *btrfsVolume {
-	return &btrfsVolume{
+func newBtrfsVolume(ID int, path string, utils *BtrfsUtil) Volume {
+	dir := filepath.Base(path)
+	vol := btrfsVolume{
+		id:    ID,
 		path:  path,
 		utils: utils,
 	}
+
+	if strings.HasPrefix(dir, "zdb") {
+		return &zdbBtrfsVolume{vol}
+	}
+
+	return &vol
+}
+
+func (v *btrfsVolume) ID() int {
+	return v.id
 }
 
 func (v *btrfsVolume) Path() string {
 	return v.path
 }
 
-func (v *btrfsVolume) Volumes() ([]Volume, error) {
-	var volumes []Volume
-
-	subs, err := v.utils.SubvolumeList(context.Background(), v.Path())
-	if err != nil {
-		return nil, err
-	}
-
-	for _, sub := range subs {
-		volumes = append(volumes, newBtrfsVolume(filepath.Join(v.Path(), sub.Path), v.utils))
-	}
-
-	return volumes, nil
+// Name of the filesystem
+func (v *btrfsVolume) Name() string {
+	return filepath.Base(v.Path())
 }
 
-func (v *btrfsVolume) AddVolume(name string) (Volume, error) {
-	mnt := filepath.Join(v.Path(), name)
-	if err := v.utils.SubvolumeAdd(context.Background(), mnt); err != nil {
-		return nil, err
-	}
-
-	return newBtrfsVolume(mnt, v.utils), nil
-}
-
-func (v *btrfsVolume) RemoveVolume(name string) error {
-	mnt := filepath.Join(v.Path(), name)
-	return v.utils.SubvolumeRemove(context.Background(), mnt)
+// FsType of the filesystem
+func (v *btrfsVolume) FsType() string {
+	return "btrfs"
 }
 
 // Usage return the volume usage
@@ -471,12 +529,42 @@ func (v *btrfsVolume) Limit(size uint64) error {
 	return v.utils.QGroupLimit(ctx, size, v.Path())
 }
 
-// Name of the filesystem
-func (v *btrfsVolume) Name() string {
-	return filepath.Base(v.Path())
+type zdbBtrfsVolume struct {
+	btrfsVolume
 }
 
-// FsType of the filesystem
-func (v *btrfsVolume) FsType() string {
-	return "btrfs"
+func (v *zdbBtrfsVolume) Usage() (usage Usage, err error) {
+	ctx := context.Background()
+	info, err := v.utils.SubvolumeInfo(ctx, v.Path())
+	if err != nil {
+		return usage, err
+	}
+
+	groups, err := v.utils.QGroupList(ctx, v.Path())
+	if err != nil {
+		return usage, err
+	}
+
+	group, ok := groups[fmt.Sprintf("0/%d", info.ID)]
+	if !ok {
+		// no qgroup associated with the subvolume id! means no limit, but we also
+		// cannot read the usage.
+		return
+	}
+
+	zdb := zdbpool.New(v.Path())
+	size, err := zdb.Reserved()
+	if err != nil {
+		return usage, errors.Wrapf(err, "failed to calculate namespaces size")
+	}
+	// otherwise, we return the size as maxrefer and usage as the rfer of the
+	// associated group
+	// todo: size should be the size of the pool, if maxrfer is 0
+	return Usage{Used: group.Rfer, Size: size}, nil
+}
+
+// IsZDBVolume checks if this is a zdb subvolume
+func IsZDBVolume(v Volume) bool {
+	_, ok := v.(*zdbBtrfsVolume)
+	return ok
 }

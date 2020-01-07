@@ -7,18 +7,25 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/macvlan"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/vishvananda/netlink"
 )
 
+const (
+	publicNsMACDerivationSuffix = "-public"
+)
+
 // CreatePublicNS creates a public namespace in a node
-func CreatePublicNS(iface *types.PubIface) error {
+func CreatePublicNS(iface *types.PubIface, nodeID pkg.Identifier) error {
 	var (
 		pubNS    ns.NetNS
 		pubIface *netlink.Macvlan
 		err      error
+		mac      net.HardwareAddr
 	)
 
 	if !namespace.Exists(types.PublicNamespace) {
@@ -37,6 +44,7 @@ func CreatePublicNS(iface *types.PubIface) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to create public mac vlan interface")
 			}
+			mac = ifaceutil.HardwareAddrFromInputBytes([]byte(nodeID.Identity() + publicNsMACDerivationSuffix))
 		default:
 			return fmt.Errorf("unsupported public interface type %s", iface.Type)
 		}
@@ -94,7 +102,7 @@ func CreatePublicNS(iface *types.PubIface) error {
 		return err
 	}
 
-	if err := macvlan.Install(pubIface, ips, routes, pubNS); err != nil {
+	if err := macvlan.Install(pubIface, mac, ips, routes, pubNS); err != nil {
 		return err
 	}
 
