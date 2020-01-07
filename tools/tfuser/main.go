@@ -157,6 +157,10 @@ func main() {
 									Name:  "ip4",
 									Usage: "Use an IPv4 connection instead of IPv6",
 								},
+								cli.StringFlag{
+									Name:  "wgpubkey",
+									Usage: "The wireguard public key of the external node, encoded in base64. If this flag is provided, you will need to manually set your private key in the generated wireguard config. If not provided, a keypair will be generated.",
+								},
 							},
 							Action: cmdsAddAccess,
 						},

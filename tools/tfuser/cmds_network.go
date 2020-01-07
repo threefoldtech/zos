@@ -172,9 +172,11 @@ func cmdsAddAccess(c *cli.Context) error {
 		schema  = c.GlobalString("schema")
 		err     error
 
-		nodeID = c.String("node")
-		subnet = c.String("subnet")
-		ip4    = c.Bool("ip4")
+		nodeID   = c.String("node")
+		subnet   = c.String("subnet")
+		wgPubKey = c.String("wgpubkey")
+
+		ip4 = c.Bool("ip4")
 	)
 
 	network, err = loadNetwork(schema)
@@ -237,15 +239,19 @@ func cmdsAddAccess(c *cli.Context) error {
 		return errors.New("access node has no public endpoint of the requested type")
 	}
 
-	privateKey, err := wgtypes.GeneratePrivateKey()
-	if err != nil {
-		return errors.Wrap(err, "error during wireguard key generation")
+	var privateKey wgtypes.Key
+	if wgPubKey == "" {
+		privateKey, err = wgtypes.GeneratePrivateKey()
+		if err != nil {
+			return errors.Wrap(err, "error during wireguard key generation")
+		}
+		wgPubKey = privateKey.PublicKey().String()
 	}
 
 	ap := AccessPoint{
 		NodeID:      nodeID,
 		Subnet:      ipnet,
-		WGPublicKey: privateKey.PublicKey().String(),
+		WGPublicKey: wgPubKey,
 		IP4:         ip4,
 	}
 
