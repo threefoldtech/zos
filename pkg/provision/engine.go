@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/threefoldtech/zos/pkg"
@@ -20,6 +19,7 @@ type ReservationReadWriter interface {
 	Add(r *Reservation) error
 	Get(id string) (*Reservation, error)
 	Remove(id string) error
+	Counters() pkg.ProvisionCounters
 }
 
 // Feedbacker defines the method that needs to be implemented
@@ -29,30 +29,10 @@ type Feedbacker interface {
 	Deleted(id string) error
 }
 
-// Counter value for safe increment/decrement
-type Counter int64
-
-// Increment counter atomically by one
-func (c *Counter) Increment() int64 {
-	return atomic.AddInt64((*int64)(c), 1)
-}
-
-// Decrement counter atomically by one
-func (c *Counter) Decrement() int64 {
-	return atomic.AddInt64((*int64)(c), -1)
-}
-
-// Current returns the current value
-func (c *Counter) Current() int64 {
-	return atomic.LoadInt64((*int64)(c))
-}
-
 type defaultEngine struct {
 	source ReservationSource
 	store  ReservationReadWriter
 	fb     Feedbacker
-
-	stats map[ReservationType]*Counter
 }
 
 // New creates a new engine. Once started, the engine
@@ -71,7 +51,6 @@ func New(source ReservationSource, rw ReservationReadWriter, fb Feedbacker) Engi
 		source: source,
 		store:  rw,
 		fb:     fb,
-		stats:  stats,
 	}
 }
 
@@ -146,9 +125,6 @@ func (e *defaultEngine) provision(ctx context.Context, r *Reservation) error {
 		return err
 	}
 
-	// increment counter for this reservation type
-	e.stats[r.Type].Increment()
-
 	if err := e.store.Add(r); err != nil {
 		return errors.Wrapf(err, "failed to cache reservation %s locally", r.ID)
 	}
@@ -166,8 +142,6 @@ func (e *defaultEngine) decommission(ctx context.Context, r *Reservation) error 
 	if err != nil {
 		return errors.Wrap(err, "decommissioning of reservation failed")
 	}
-
-	e.stats[r.Type].Decrement()
 
 	if err := e.store.Remove(r.ID); err != nil {
 		return errors.Wrapf(err, "failed to remove reservation %s from cache", r.ID)
@@ -234,17 +208,9 @@ func (e *defaultEngine) Counters(ctx context.Context) <-chan pkg.ProvisionCounte
 			case <-ctx.Done():
 			}
 
-			stats := pkg.ProvisionCounters{
-				Container: e.stats[ContainerReservation].Current(),
-				Volume:    e.stats[VolumeReservation].Current(),
-				Network:   e.stats[NetworkReservation].Current(),
-				ZDB:       e.stats[ZDBReservation].Current(),
-				Debug:     e.stats[DebugReservation].Current(),
-			}
-
 			select {
 			case <-ctx.Done():
-			case ch <- stats:
+			case ch <- e.store.Counters():
 			}
 		}
 	}()

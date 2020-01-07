@@ -7,15 +7,44 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
+
+// Counter value for safe increment/decrement
+type Counter int64
+
+// Increment counter atomically by one
+func (c *Counter) Increment() int64 {
+	return atomic.AddInt64((*int64)(c), 1)
+}
+
+// Decrement counter atomically by one
+func (c *Counter) Decrement() int64 {
+	return atomic.AddInt64((*int64)(c), -1)
+}
+
+// Current returns the current value
+func (c *Counter) Current() int64 {
+	return atomic.LoadInt64((*int64)(c))
+}
 
 // FSStore is a in reservation store
 // using the filesystem as backend
 type FSStore struct {
 	sync.RWMutex
 	root string
+
+	counters struct {
+		containers Counter
+		volumes    Counter
+		networks   Counter
+		zdb        Counter
+		debug      Counter
+	}
 }
 
 // NewFSStore creates a in memory reservation store
@@ -29,6 +58,34 @@ func NewFSStore(root string) (*FSStore, error) {
 	return &FSStore{
 		root: root,
 	}, nil
+}
+
+// Counters returns stats about the cashed reservations
+func (s *FSStore) Counters() pkg.ProvisionCounters {
+	return pkg.ProvisionCounters{
+		Container: s.counters.containers.Current(),
+		Volume:    s.counters.volumes.Current(),
+		Network:   s.counters.networks.Current(),
+		ZDB:       s.counters.zdb.Current(),
+		Debug:     s.counters.debug.Current(),
+	}
+}
+
+func (s *FSStore) counterFor(typ ReservationType) *Counter {
+	switch typ {
+	case ContainerReservation:
+		return &s.counters.containers
+	case VolumeReservation:
+		return &s.counters.volumes
+	case NetworkReservation:
+		return &s.counters.networks
+	case ZDBReservation:
+		return &s.counters.zdb
+	case DebugReservation:
+		return &s.counters.debug
+	default:
+		panic("unknown counter type")
+	}
 }
 
 // Add a reservation to the store
@@ -58,6 +115,8 @@ func (s *FSStore) Add(r *Reservation) error {
 		return err
 	}
 
+	s.counterFor(r.Type).Increment()
+
 	return nil
 }
 
@@ -66,11 +125,21 @@ func (s *FSStore) Remove(id string) error {
 	s.Lock()
 	defer s.Unlock()
 
+	r, err := s.Get(id)
+	if os.IsNotExist(errors.Cause(err)) {
+		return nil
+	}
+
 	path := filepath.Join(s.root, id)
-	err := os.Remove(path)
-	if err != nil && !os.IsNotExist(err) {
+	err = os.Remove(path)
+	if os.IsNotExist(err) {
+		// shouldn't happen because we just did a get
+		return nil
+	} else if err != nil {
 		return err
 	}
+
+	s.counterFor(r.Type).Decrement()
 
 	return nil
 }
@@ -115,7 +184,7 @@ func (s *FSStore) Get(id string) (*Reservation, error) {
 	path := filepath.Join(s.root, id)
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("reservation %s not found", id)
+		return nil, errors.Wrapf(err, "reservation %s not found", id)
 	} else if err != nil {
 		return nil, err
 	}
