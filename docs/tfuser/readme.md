@@ -36,6 +36,11 @@ Here is a full example how you would use tfuser to create a network schema.
 `--force-hidden`: Optional flag which marks the node which is going to be added as hidden, even if it reports itself as having
 	public endpoints.
 
+A list of node (ids) can be found on the explorers. Currently there are 2:
+
+- devnet explorer: https://explorer.devnet.grid.tf
+- testnet explorer: https://explorer.testnet.grid.tf
+
 3. add external access to your network:
 `tfuser generate --schema network.json network add-access --node qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3 --subnet 10.1.0.0/24`
 
