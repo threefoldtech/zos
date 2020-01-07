@@ -155,7 +155,7 @@ func main() {
 								},
 								cli.BoolFlag{
 									Name:  "ip4",
-									Usage: "Use an IPv4 connection instead of IPv6",
+									Usage: "Use an IPv4 connection instead of IPv6 for the wireguard endpoint to the access node",
 								},
 								cli.StringFlag{
 									Name:  "wgpubkey",
