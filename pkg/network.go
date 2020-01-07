@@ -50,6 +50,8 @@ type Networker interface {
 
 	// DMZAddresses monitoring streams for dmz public interface
 	DMZAddresses(ctx context.Context) <-chan NetlinkAddresses
+
+	PublicAddresses(ctx context.Context) <-chan NetlinkAddresses
 }
 
 // Network represent the description if a user private network
