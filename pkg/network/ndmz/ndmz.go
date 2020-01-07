@@ -53,15 +53,6 @@ func Create(nodeID pkg.Identifier) error {
 
 	defer netNS.Close()
 
-	if err := netNS.Do(func(_ ns.NetNS) error {
-		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
-			return errors.Wrapf(err, "failed to enable ipv6 forwarding in gateway namespace")
-		}
-		return ifaceutil.SetLoUp()
-	}); err != nil {
-		return err
-	}
-
 	if err := createRoutingBridge(netNS); err != nil {
 		return err
 	}
@@ -89,7 +80,12 @@ func Create(nodeID pkg.Identifier) error {
 		if !received {
 			return errors.Errorf("public interface in ndmz did not received an IP. make sure dhcp is working")
 		}
-		return nil
+
+		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
+			return errors.Wrapf(err, "failed to enable ipv6 forwarding in gateway namespace")
+		}
+
+		return ifaceutil.SetLoUp()
 	})
 	if err != nil {
 		return err

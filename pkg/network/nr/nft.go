@@ -61,6 +61,7 @@ table inet filter {
   chain input {
     type filter hook input priority 0; policy accept;
     jump base_checks
+    ip6 nexthdr icmpv6 accept
     iifname "public" counter drop
   }
 
