@@ -4,6 +4,7 @@ package pkg
 //go:generate zbusc -module monitor -version 0.0.1 -name system -package stubs github.com/threefoldtech/zos/pkg+SystemMonitor stubs/system_monitor_stub.go
 //go:generate zbusc -module monitor -version 0.0.1 -name host -package stubs github.com/threefoldtech/zos/pkg+HostMonitor stubs/host_monitor_stub.go
 //go:generate zbusc -module identityd -version 0.0.1 -name monitor -package stubs github.com/threefoldtech/zos/pkg+VersionMonitor stubs/version_monitor_stub.go
+//go:generate zbusc -module provision -version 0.0.1 -name provision -package stubs github.com/threefoldtech/zos/pkg+ProvisionMonitor stubs/provision_monitor_stub.go
 
 import (
 	"context"
@@ -75,7 +76,7 @@ type PoolStats struct {
 // PoolsStats alias for map[string]PoolStats
 type PoolsStats map[string]PoolStats
 
-//SystemMonitor interface
+//SystemMonitor interface (provided by monitord)
 type SystemMonitor interface {
 	Memory(ctx context.Context) <-chan VirtualMemoryStat
 	CPU(ctx context.Context) <-chan CPUTimesStat
@@ -83,12 +84,26 @@ type SystemMonitor interface {
 	Nics(ctx context.Context) <-chan NicsIOCounterStat
 }
 
-// HostMonitor interface
+// HostMonitor interface (provided by monitord)
 type HostMonitor interface {
 	Uptime(ctx context.Context) <-chan time.Duration
 }
 
-// VersionMonitor is provided by identityd
+// VersionMonitor interface (provided by identityd)
 type VersionMonitor interface {
 	Version(ctx context.Context) <-chan semver.Version
+}
+
+// ProvisionCounters struct
+type ProvisionCounters struct {
+	Container int64 `json:"container"`
+	Volume    int64 `jons:"volume"`
+	Network   int64 `json:"network"`
+	ZDB       int64 `json:"zdb"`
+	Debug     int64 `json:"debug"`
+}
+
+// ProvisionMonitor interface
+type ProvisionMonitor interface {
+	Counters(ctx context.Context) <-chan ProvisionCounters
 }

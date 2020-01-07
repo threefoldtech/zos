@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 	"time"
 
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/stubs"
 
 	"github.com/pkg/errors"
@@ -27,10 +29,30 @@ type Feedbacker interface {
 	Deleted(id string) error
 }
 
+// Counter value for safe increment/decrement
+type Counter int64
+
+// Increment counter atomically by one
+func (c *Counter) Increment() int64 {
+	return atomic.AddInt64((*int64)(c), 1)
+}
+
+// Decrement counter atomically by one
+func (c *Counter) Decrement() int64 {
+	return atomic.AddInt64((*int64)(c), -1)
+}
+
+// Current returns the current value
+func (c *Counter) Current() int64 {
+	return atomic.LoadInt64((*int64)(c))
+}
+
 type defaultEngine struct {
 	source ReservationSource
 	store  ReservationReadWriter
 	fb     Feedbacker
+
+	stats map[ReservationType]*Counter
 }
 
 // New creates a new engine. Once started, the engine
@@ -40,10 +62,16 @@ type defaultEngine struct {
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
 func New(source ReservationSource, rw ReservationReadWriter, fb Feedbacker) Engine {
+	stats := make(map[ReservationType]*Counter)
+	for typ := range provisioners {
+		stats[typ] = new(Counter)
+	}
+
 	return &defaultEngine{
 		source: source,
 		store:  rw,
 		fb:     fb,
+		stats:  stats,
 	}
 }
 
@@ -86,6 +114,7 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 				if err := e.provision(ctx, reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to provision reservation %s", reservation.ID)
 				}
+
 			}
 		}
 	}
@@ -117,6 +146,9 @@ func (e *defaultEngine) provision(ctx context.Context, r *Reservation) error {
 		return err
 	}
 
+	// increment counter for this reservation type
+	e.stats[r.Type].Increment()
+
 	if err := e.store.Add(r); err != nil {
 		return errors.Wrapf(err, "failed to cache reservation %s locally", r.ID)
 	}
@@ -134,6 +166,8 @@ func (e *defaultEngine) decommission(ctx context.Context, r *Reservation) error 
 	if err != nil {
 		return errors.Wrap(err, "decommissioning of reservation failed")
 	}
+
+	e.stats[r.Type].Decrement()
 
 	if err := e.store.Remove(r.ID); err != nil {
 		return errors.Wrapf(err, "failed to remove reservation %s from cache", r.ID)
@@ -189,4 +223,31 @@ func (e *defaultEngine) reply(ctx context.Context, r *Reservation, rErr error, i
 	result.Signature = sig
 
 	return e.fb.Feedback(r.ID, result)
+}
+
+func (e *defaultEngine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
+	ch := make(chan pkg.ProvisionCounters)
+	go func() {
+		for {
+			select {
+			case <-time.After(2 * time.Second):
+			case <-ctx.Done():
+			}
+
+			stats := pkg.ProvisionCounters{
+				Container: e.stats[ContainerReservation].Current(),
+				Volume:    e.stats[VolumeReservation].Current(),
+				Network:   e.stats[NetworkReservation].Current(),
+				ZDB:       e.stats[ZDBReservation].Current(),
+				Debug:     e.stats[DebugReservation].Current(),
+			}
+
+			select {
+			case <-ctx.Done():
+			case ch <- stats:
+			}
+		}
+	}()
+
+	return ch
 }
