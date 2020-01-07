@@ -71,7 +71,11 @@ func Create(nodeID pkg.Identifier) error {
 		return err
 	}
 
-	err = netNS.Do(func(_ ns.NetNS) error {
+	if err = applyFirewall(); err != nil {
+		return err
+	}
+
+	return netNS.Do(func(_ ns.NetNS) error {
 		// run DHCP to interface public in ndmz
 		received, err := dhcp.Probe(types.PublicIface)
 		if err != nil {
@@ -80,18 +84,36 @@ func Create(nodeID pkg.Identifier) error {
 		if !received {
 			return errors.Errorf("public interface in ndmz did not received an IP. make sure dhcp is working")
 		}
+		// check if in the mean time SLAAC gave us an IPv6 deft gw, save it, and reapply after enabling forwarding
+		checkipv6 := net.ParseIP("2606:4700:4700::1111")
+		routes, err := netlink.RouteGet(checkipv6)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get the IPv6 routes in ndmz")
+		}
 
-		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
-			return errors.Wrapf(err, "failed to enable ipv6 forwarding in gateway namespace")
+		if len(routes) == 1 {
+			if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
+				return errors.Wrapf(err, "failed to enable ipv6 forwarding in gateway namespace")
+			}
+			pubiface, err := netlink.LinkByName(types.PublicIface)
+			if err != nil {
+				return errors.Wrapf(err, "ndmz:couldn't find public iface")
+			}
+			deftgw := &netlink.Route{
+				Dst: &net.IPNet{
+					IP:   net.ParseIP("::"),
+					Mask: net.CIDRMask(0, 128),
+				},
+				Gw:        routes[0].Gw,
+				LinkIndex: pubiface.Attrs().Index,
+			}
+			if err = netlink.RouteAdd(deftgw); err != nil {
+				return errors.Wrapf(err, "could not reapply the default route")
+			}
 		}
 
 		return ifaceutil.SetLoUp()
 	})
-	if err != nil {
-		return err
-	}
-
-	return applyFirewall()
 }
 
 // Delete deletes the NDMZ network namespace
@@ -169,6 +191,12 @@ func createRoutingBridge(netNS ns.NetNS) error {
 					Mask: net.CIDRMask(64, 128),
 				},
 			},
+			&netlink.Addr{
+				IPNet: &net.IPNet{
+					IP:   net.ParseIP("fd00::1"),
+					Mask: net.CIDRMask(64, 128),
+				},
+			},
 		}
 
 		for _, addr := range addrs {
@@ -229,7 +257,8 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 			return err
 		}
 
-		ipv6 := net.ParseIP(fmt.Sprintf("fe80::%x%x", addr.IP[2], addr.IP[3]))
+		ipv6 := net.ParseIP(fmt.Sprintf("fd00::%x", addr.IP[3]))
+
 		if err := netlink.AddrAdd(pubIface, &netlink.Addr{IPNet: &net.IPNet{
 			IP:   ipv6,
 			Mask: net.CIDRMask(64, 128),
