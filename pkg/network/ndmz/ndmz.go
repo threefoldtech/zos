@@ -154,23 +154,32 @@ func createRoutingBridge(netNS ns.NetNS) error {
 	}
 
 	return netNS.Do(func(_ ns.NetNS) error {
-		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", tonrsIface), "1"); err != nil {
-			return errors.Wrapf(err, "failed to disable ip6 on macvlan %s", tonrsIface)
-		}
 
 		link, err := netlink.LinkByName(tonrsIface)
 		if err != nil {
 			return err
 		}
 
-		err = netlink.AddrAdd(link, &netlink.Addr{
-			IPNet: &net.IPNet{
-				IP:   net.ParseIP("100.127.0.1"),
-				Mask: net.CIDRMask(16, 32),
+		addrs := []*netlink.Addr{
+			&netlink.Addr{
+				IPNet: &net.IPNet{
+					IP:   net.ParseIP("100.127.0.1"),
+					Mask: net.CIDRMask(16, 32),
+				},
 			},
-		})
-		if err != nil && !os.IsExist(err) {
-			return err
+			&netlink.Addr{
+				IPNet: &net.IPNet{
+					IP:   net.ParseIP("fe80::1"),
+					Mask: net.CIDRMask(64, 128),
+				},
+			},
+		}
+
+		for _, addr := range addrs {
+			err = netlink.AddrAdd(link, addr)
+			if err != nil && !os.IsExist(err) {
+				return err
+			}
 		}
 
 		return netlink.LinkSetUp(link)
@@ -224,6 +233,14 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 			return err
 		}
 
+		ipv6 := net.ParseIP(fmt.Sprintf("fe80::%x%x", addr.IP[2], addr.IP[3]))
+		if err := netlink.AddrAdd(pubIface, &netlink.Addr{IPNet: &net.IPNet{
+			IP:   ipv6,
+			Mask: net.CIDRMask(64, 128),
+		}}); err != nil && !os.IsExist(err) {
+			return err
+		}
+
 		if err = netlink.LinkSetUp(pubIface); err != nil {
 			return err
 		}
@@ -239,6 +256,19 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 		if err != nil && !os.IsExist(err) {
 			return err
 		}
+
+		err = netlink.RouteAdd(&netlink.Route{
+			Dst: &net.IPNet{
+				IP:   net.ParseIP("::"),
+				Mask: net.CIDRMask(0, 128),
+			},
+			Gw:        net.ParseIP("fe80::1"),
+			LinkIndex: pubIface.Attrs().Index,
+		})
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
+
 		return nil
 	})
 }
