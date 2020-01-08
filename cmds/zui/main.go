@@ -78,7 +78,7 @@ func main() {
 		ui.NewRow(1.0/4,
 			ui.NewCol(1, cpu),
 		),
-		ui.NewRow(1.0/4,
+		ui.NewRow(1.0/8,
 			ui.NewCol(1, mem),
 		),
 		ui.NewRow(1.0/2,

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
@@ -10,25 +11,23 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func memRender(client zbus.Client, grid *ui.Grid, r func()) error {
-	usedPlot := widgets.NewSparkline()
+func memRender(client zbus.Client, grid *ui.Grid, render func()) error {
+	const (
+		mega = 1024 * 1024
+	)
 
-	usedPlot.MaxVal = 100
-	usedPlot.LineColor = ui.ColorRed
+	percent := widgets.NewGauge()
+	percent.Percent = 0
+	percent.BarColor = ui.ColorGreen
+	percent.Title = "Memory Percent"
 
-	used := widgets.NewSparklineGroup(usedPlot)
-	used.Title = "Used Memory"
-	freePlot := widgets.NewSparkline()
+	total := widgets.NewParagraph()
+	total.Title = "Memory"
 
-	freePlot.MaxVal = 100
-	freePlot.LineColor = ui.ColorGreen
-
-	free := widgets.NewSparklineGroup(freePlot)
-	free.Title = "Free Memory"
 	grid.Set(
 		ui.NewRow(1,
-			ui.NewCol(1./2, used),
-			ui.NewCol(1./2, free),
+			ui.NewCol(1./2, percent),
+			ui.NewCol(1./2, total),
 		),
 	)
 
@@ -40,17 +39,17 @@ func memRender(client zbus.Client, grid *ui.Grid, r func()) error {
 
 	go func() {
 		for point := range stream {
-			size := used.Size().X - 2
-			data := append(usedPlot.Data, point.UsedPercent)
-			if len(data) > size {
-				data = data[len(data)-size:]
+			percent.Percent = int(point.UsedPercent)
+			if point.UsedPercent < 50 {
+				percent.BarColor = ui.ColorGreen
+			} else if point.UsedPercent >= 50 && point.UsedPercent < 90 {
+				percent.BarColor = ui.ColorMagenta
+			} else if point.UsedPercent > 90 {
+				percent.BarColor = ui.ColorRed
 			}
-			usedPlot.Data = data
-			size = free.Size().X - 2
-			data = append(freePlot.Data, 100-point.UsedPercent)
-			freePlot.Data = trimFloat64(data, size)
 
-			r()
+			total.Text = fmt.Sprintf("Total: %d MB, Used: %d MB, Free: %d MB", point.Total/mega, point.Used/mega, point.Free/mega)
+			render()
 		}
 	}()
 
