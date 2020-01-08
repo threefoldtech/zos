@@ -258,6 +258,7 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 		}
 
 		ipv6 := net.ParseIP(fmt.Sprintf("fd00::%x%x", addr.IP[2], addr.IP[3]))
+		log.Debug().Msgf("ndmz: setting public NR ip to: %s from %s", ipv6.String(), addr.IP.String())
 
 		if err := netlink.AddrAdd(pubIface, &netlink.Addr{IPNet: &net.IPNet{
 			IP:   ipv6,
