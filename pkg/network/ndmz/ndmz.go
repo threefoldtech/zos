@@ -257,7 +257,7 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 			return err
 		}
 
-		ipv6 := net.ParseIP(fmt.Sprintf("fd00::%x%x", addr.IP[2], addr.IP[3]))
+		ipv6 := convertIpv4ToIpv6(addr.IP)
 		log.Debug().Msgf("ndmz: setting public NR ip to: %s from %s", ipv6.String(), addr.IP.String())
 
 		if err := netlink.AddrAdd(pubIface, &netlink.Addr{IPNet: &net.IPNet{
@@ -297,4 +297,15 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 
 		return nil
 	})
+}
+
+func convertIpv4ToIpv6(ip net.IP) net.IP {
+	var ipv6 string
+	if len(ip) == net.IPv4len {
+		ipv6 = fmt.Sprintf("fd00::%02x%02x", ip[2], ip[3])
+	} else {
+		ipv6 = fmt.Sprintf("fd00::%02x%02x", ip[14], ip[15])
+	}
+	fmt.Println(ipv6)
+	return net.ParseIP(ipv6)
 }
