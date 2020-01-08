@@ -13,7 +13,7 @@ import (
 // if the interface gets a lease from the dhcp server, dhcpProbe return true and a nil error
 // if something unexpected happens a non nil error is return
 // if the interface didn't receive an lease, false and a nil error is returns
-func Probe(inf string) (bool, error) {
+func Probe(inf string, family int) (bool, error) {
 	link, err := netlink.LinkByName(inf)
 	if err != nil {
 		return false, err
@@ -52,7 +52,7 @@ func Probe(inf string) (bool, error) {
 		case <-timeout:
 			stay = false
 		default:
-			hasGW, _, err = ifaceutil.HasDefaultGW(link)
+			hasGW, _, err = ifaceutil.HasDefaultGW(link, family)
 			if err != nil {
 				return false, err
 			}

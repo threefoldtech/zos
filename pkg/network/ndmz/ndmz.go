@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/types"
@@ -81,18 +83,30 @@ func Create(nodeID pkg.Identifier) error {
 			return errors.Wrapf(err, "ndmz: failed to disable ipv6 forwarding in ndmz namespace")
 		}
 		// run DHCP to interface public in ndmz
-		received, err := dhcp.Probe(types.PublicIface)
+		received, err := dhcp.Probe(types.PublicIface, netlink.FAMILY_V4)
 		if err != nil {
 			return err
 		}
 		if !received {
 			return errors.Errorf("public interface in ndmz did not received an IP. make sure dhcp is working")
 		}
-		// check if in the mean time SLAAC gave us an IPv6 deft gw, save it, and reapply after enabling forwarding
-		checkipv6 := net.ParseIP("2606:4700:4700::1111")
-		routes, err := netlink.RouteGet(checkipv6)
-		if err != nil {
-			return errors.Wrapf(err, "ndmz: failed to get the IPv6 routes in ndmz")
+
+		var routes []netlink.Route
+		getRoutes := func() (err error) {
+			log.Info().Msg("wait for slaac to give ipv6")
+			// check if in the mean time SLAAC gave us an IPv6 deft gw, save it, and reapply after enabling forwarding
+			checkipv6 := net.ParseIP("2606:4700:4700::1111")
+			routes, err = netlink.RouteGet(checkipv6)
+			if err != nil {
+				return errors.Wrapf(err, "ndmz: failed to get the IPv6 routes in ndmz")
+			}
+			return nil
+		}
+
+		bo := backoff.NewExponentialBackOff()
+		bo.MaxElapsedTime = 15 * time.Second
+		if err := backoff.Retry(getRoutes, bo); err != nil {
+			return err
 		}
 
 		if len(routes) == 1 {
@@ -133,23 +147,43 @@ func Delete() error {
 }
 
 func createPublicIface(netNS ns.NetNS) error {
+	var pubIface string
 	if !ifaceutil.Exists(types.PublicIface, netNS) {
 
-		var (
-			master netlink.Link
-			err    error
-		)
-
+		// find which interface to use as master for the macvlan
 		if namespace.Exists(types.PublicNamespace) {
-			master, err = getPublicIface()
+			pubNS, err := namespace.GetByName(types.PublicNamespace)
+			defer pubNS.Close()
+
+			var ifaceIndex int
+			// get the name of the public interface in the public namespace
+			if err := pubNS.Do(func(_ ns.NetNS) error {
+				// get the name of the interface connected to the public segment
+				public, err := netlink.LinkByName(types.PublicIface)
+				if err != nil {
+					return errors.Wrap(err, "failed to get public link")
+				}
+
+				ifaceIndex = public.Attrs().ParentIndex
+				return nil
+			}); err != nil {
+				return err
+			}
+
+			master, err := netlink.LinkByIndex(ifaceIndex)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get link by index %d", ifaceIndex)
+			}
+			pubIface = master.Attrs().Name
 		} else {
-			master, err = netlink.LinkByName("zos")
-		}
-		if err != nil {
-			return err
+			found, err := ifaceutil.HostIPV6Iface()
+			if err != nil {
+				return errors.Wrap(err, "failed to find a valid network interface to use as parent for ndmz public interface")
+			}
+			pubIface = found
 		}
 
-		_, err = macvlan.Create(types.PublicIface, master.Attrs().Name, netNS)
+		_, err := macvlan.Create(types.PublicIface, pubIface, netNS)
 		return err
 	}
 
@@ -181,7 +215,7 @@ func createRoutingBridge(netNS ns.NetNS) error {
 		if err != nil {
 			return err
 		}
-		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", tonrsIface), "1"); err != nil {
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", tonrsIface), "0"); err != nil {
 			return errors.Wrapf(err, "failed to enable ip6 on interface %s", tonrsIface)
 		}
 
