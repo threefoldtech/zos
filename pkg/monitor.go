@@ -55,7 +55,11 @@ type CPUTimesStat []TimesStat
 type DisksIOCountersStat map[string]DiskIOCountersStat
 
 // NicIOCounterStat counter for a nic
-type NicIOCounterStat net.IOCountersStat
+type NicIOCounterStat struct {
+	net.IOCountersStat
+	RateOut uint64
+	RateIn  uint64
+}
 
 // NicsIOCounterStat alias for []NicIOCounterStat
 type NicsIOCounterStat []NicIOCounterStat

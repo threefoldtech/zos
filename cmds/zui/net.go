@@ -4,105 +4,123 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/network"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func netRender(client zbus.Client, grid *ui.Grid, r func()) error {
-	rx := widgets.NewSparkline()
-	rx.LineColor = ui.ColorBlue
+func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client, render func()) error {
+	table.Title = "Addresses"
+	table.FillRow = true
+	table.RowSeparator = false
 
-	tx := widgets.NewSparkline()
-	tx.LineColor = ui.ColorMagenta
+	table.Rows = [][]string{
+		{"ZOS", "Not Configured"},
+		{"DMZ", "Not Configured"},
+		{"Public", "Not Configured"},
+	}
 
-	net := widgets.NewSparklineGroup(rx, tx)
-	net.Title = "Network"
+	stub := stubs.NewNetworkerStub(client)
+	zos, err := stub.ZOSAddresses(ctx)
+	if err != nil {
+		return err
+	}
+	dmz, err := stub.DMZAddresses(ctx)
+	if err != nil {
+		return err
+	}
 
-	info := widgets.NewParagraph()
-	info.Title = "Addresses"
+	pub, err := stub.PublicAddresses(ctx)
+	if err != nil {
+		return err
+	}
+
+	toString := func(al pkg.NetlinkAddresses) string {
+		var buf strings.Builder
+		for _, a := range al {
+			if buf.Len() > 0 {
+				buf.WriteString(", ")
+			}
+
+			buf.WriteString(a.String())
+		}
+
+		return buf.String()
+	}
+
+	go func() {
+		for {
+			table.ColumnWidths = []int{6, table.Size().X - 9}
+			select {
+			case a := <-zos:
+				table.Rows[0][1] = toString(a)
+			case a := <-dmz:
+				table.Rows[1][1] = toString(a)
+			case a := <-pub:
+				table.Rows[2][1] = toString(a)
+			}
+
+			render()
+		}
+	}()
+
+	return nil
+}
+
+func netRender(client zbus.Client, grid *ui.Grid, render func()) error {
+	addresses := widgets.NewTable()
+	statistics := widgets.NewTable()
+
+	statistics.Rows = [][]string{
+		{"NIC", "SENT", "RECV"},
+	}
 
 	grid.Set(
-		ui.NewRow(1.0/3,
-			ui.NewCol(1, info),
+		ui.NewRow(1.0/2,
+			ui.NewCol(1, addresses),
 		),
-		ui.NewRow(2.0/3,
-			ui.NewCol(1, net),
+		ui.NewRow(1.0/2,
+			ui.NewCol(1, statistics),
 		),
 	)
 
-	monitor := stubs.NewSystemMonitorStub(client)
-	netd := stubs.NewNetworkerStub(client)
 	ctx := context.Background()
+
+	if err := addressRender(ctx, addresses, client, render); err != nil {
+		return err
+	}
+
+	monitor := stubs.NewSystemMonitorStub(client)
 	stats, err := monitor.Nics(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start net monitor stream")
 	}
 
-	address, err := netd.ZOSAddresses(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to start ip monitor stream")
-	}
-
-	var buffer strings.Builder
-
-	var sent uint64
-	var recv uint64
-	t := time.Now()
-
 	go func() {
-		for {
-			select {
-			case a := <-address:
-				buffer.Reset()
-				for _, ip := range a {
-					if buffer.Len() > 0 {
-						buffer.WriteByte('\n')
-					}
-					buffer.WriteString(ip.String())
+		for s := range stats {
+			if len(statistics.Rows) != len(s)+1 {
+				rows := [][]string{
+					[]string{"NIC", "SENT", "RECV"},
 				}
-				info.Text = buffer.String()
-			case s := <-stats:
-				for _, nic := range s {
-					if nic.Name != network.DefaultBridge {
-						continue
-					}
-					size := net.Size().X - 2
-					if sent == 0 || recv == 0 {
-						sent = nic.BytesSent
-						recv = nic.BytesRecv
-						continue
-					}
-
-					//nic.
-					now := time.Now()
-					delta := float64(now.Sub(t)) / float64(time.Second)
-					rrate := float64(nic.BytesRecv-recv) / delta
-					trate := float64(nic.BytesSent-sent) / delta
-					sent = nic.BytesSent
-					recv = nic.BytesRecv
-					t = now
-
-					rrate = rrate / 1024 // KB
-					trate = trate / 1024 // KB
-
-					rx.Title = fmt.Sprintf("%0.00f KB", rrate)
-					tx.Title = fmt.Sprintf("%0.00f KB", trate)
-
-					rx.Data = append(rx.Data, rrate)
-					tx.Data = append(tx.Data, trate)
-
-					rx.Data = trimFloat64(rx.Data, size)
-					tx.Data = trimFloat64(tx.Data, size)
+				for i := 0; i < len(s); i++ {
+					rows = append(rows, make([]string, 3))
 				}
+
+				statistics.Rows = rows
 			}
 
-			r()
+			rows := statistics.Rows
+			for i, nic := range s {
+				rows[i+1][0] = nic.Name
+				rows[i+1][1] = fmt.Sprintf("%d KB", nic.RateOut/1024)
+				rows[i+1][2] = fmt.Sprintf("%d KB", nic.RateIn/1024)
+			}
+
+			render()
 		}
 	}()
 

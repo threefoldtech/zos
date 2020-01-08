@@ -142,16 +142,30 @@ func (m *systemMonitor) Disks(ctx context.Context) <-chan pkg.DisksIOCountersSta
 	return ch
 }
 
+func (m *systemMonitor) rate(h map[string]uint64, k string, v uint64, since, now time.Time) uint64 {
+	old, ok := h[k]
+	h[k] = v
+	if !ok {
+		return 0
+	}
+
+	rate := float64(v-old) / float64(now.Sub(since)/time.Second)
+	return uint64(rate)
+}
+
 func (m *systemMonitor) Nics(ctx context.Context) <-chan pkg.NicsIOCounterStat {
 	ch := make(chan pkg.NicsIOCounterStat)
 	go func() {
 		defer close(ch)
+		t := time.Now()
+		out := make(map[string]uint64)
+		in := make(map[string]uint64)
 
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(m.duration):
+			case now := <-time.After(m.duration):
 				counters, err := net.IOCountersWithContext(ctx, true)
 				if err != nil {
 					log.Error().Err(err).Msg("failed to get network counters")
@@ -159,9 +173,14 @@ func (m *systemMonitor) Nics(ctx context.Context) <-chan pkg.NicsIOCounterStat {
 				}
 				var result pkg.NicsIOCounterStat
 				for _, nic := range counters {
-					result = append(result, pkg.NicIOCounterStat(nic))
+					result = append(result, pkg.NicIOCounterStat{
+						IOCountersStat: nic,
+						RateOut:        m.rate(out, nic.Name, nic.BytesSent, t, now),
+						RateIn:         m.rate(in, nic.Name, nic.BytesRecv, t, now),
+					})
 				}
 
+				t = now
 				select {
 				case ch <- result:
 				case <-ctx.Done():
