@@ -54,11 +54,11 @@ func Create(nodeID pkg.Identifier) error {
 	defer netNS.Close()
 
 	if err := createRoutingBridge(netNS); err != nil {
-		return err
+		return errors.Wrapf(err, "ndmz: createRoutingBride error")
 	}
 
 	if err := createPublicIface(netNS); err != nil {
-		return err
+		return errors.Wrapf(err, "ndmz: createPublicIface error")
 	}
 
 	// set mac address to something static to make sure we receive the same IP from a DHCP server
@@ -76,6 +76,10 @@ func Create(nodeID pkg.Identifier) error {
 	}
 
 	return netNS.Do(func(_ ns.NetNS) error {
+		// first, disable forwarding, so we can get an IPv6 deft route on public from an RA
+		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "0"); err != nil {
+			return errors.Wrapf(err, "ndmz: failed to disable ipv6 forwarding in ndmz namespace")
+		}
 		// run DHCP to interface public in ndmz
 		received, err := dhcp.Probe(types.PublicIface)
 		if err != nil {
@@ -88,12 +92,12 @@ func Create(nodeID pkg.Identifier) error {
 		checkipv6 := net.ParseIP("2606:4700:4700::1111")
 		routes, err := netlink.RouteGet(checkipv6)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get the IPv6 routes in ndmz")
+			return errors.Wrapf(err, "ndmz: failed to get the IPv6 routes in ndmz")
 		}
 
 		if len(routes) == 1 {
 			if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
-				return errors.Wrapf(err, "failed to enable ipv6 forwarding in gateway namespace")
+				return errors.Wrapf(err, "ndmz: failed to enable ipv6 forwarding in ndmz namespace")
 			}
 			pubiface, err := netlink.LinkByName(types.PublicIface)
 			if err != nil {
@@ -155,7 +159,7 @@ func createPublicIface(netNS ns.NetNS) error {
 func createRoutingBridge(netNS ns.NetNS) error {
 	if !bridge.Exists(BridgeNDMZ) {
 		if _, err := bridge.New(BridgeNDMZ); err != nil {
-			return err
+			return errors.Wrapf(err, "couldn't create bridge %s", BridgeNDMZ)
 		}
 	}
 
@@ -163,7 +167,7 @@ func createRoutingBridge(netNS ns.NetNS) error {
 
 	if !ifaceutil.Exists(tonrsIface, netNS) {
 		if _, err := macvlan.Create(tonrsIface, BridgeNDMZ, netNS); err != nil {
-			return err
+			return errors.Wrapf(err, "ndmz: couldn't create %s", tonrsIface)
 		}
 	}
 
@@ -176,6 +180,9 @@ func createRoutingBridge(netNS ns.NetNS) error {
 		link, err := netlink.LinkByName(tonrsIface)
 		if err != nil {
 			return err
+		}
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", tonrsIface), "1"); err != nil {
+			return errors.Wrapf(err, "failed to enable ip6 on interface %s", tonrsIface)
 		}
 
 		addrs := []*netlink.Addr{
