@@ -14,21 +14,49 @@ import (
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
-// Counter value for safe increment/decrement
-type Counter int64
+// Counter interface
+type Counter interface {
+	// Increment counter atomically by one
+	Increment() int64
+	// Decrement counter atomically by one
+	Decrement() int64
+	// Current returns the current value
+	Current() int64
+}
+
+type counterNop struct{}
+
+func (c *counterNop) Increment() int64 {
+	return 0
+}
+
+func (c *counterNop) Decrement() int64 {
+	return 0
+}
+
+func (c *counterNop) Current() int64 {
+	return 0
+}
+
+var (
+	nop counterNop
+)
+
+// counterImpl value for safe increment/decrement
+type counterImpl int64
 
 // Increment counter atomically by one
-func (c *Counter) Increment() int64 {
+func (c *counterImpl) Increment() int64 {
 	return atomic.AddInt64((*int64)(c), 1)
 }
 
 // Decrement counter atomically by one
-func (c *Counter) Decrement() int64 {
+func (c *counterImpl) Decrement() int64 {
 	return atomic.AddInt64((*int64)(c), -1)
 }
 
 // Current returns the current value
-func (c *Counter) Current() int64 {
+func (c *counterImpl) Current() int64 {
 	return atomic.LoadInt64((*int64)(c))
 }
 
@@ -39,11 +67,11 @@ type FSStore struct {
 	root string
 
 	counters struct {
-		containers Counter
-		volumes    Counter
-		networks   Counter
-		zdb        Counter
-		debug      Counter
+		containers counterImpl
+		volumes    counterImpl
+		networks   counterImpl
+		zdb        counterImpl
+		debug      counterImpl
 	}
 }
 
@@ -71,7 +99,7 @@ func (s *FSStore) Counters() pkg.ProvisionCounters {
 	}
 }
 
-func (s *FSStore) counterFor(typ ReservationType) *Counter {
+func (s *FSStore) counterFor(typ ReservationType) Counter {
 	switch typ {
 	case ContainerReservation:
 		return &s.counters.containers
@@ -84,7 +112,8 @@ func (s *FSStore) counterFor(typ ReservationType) *Counter {
 	case DebugReservation:
 		return &s.counters.debug
 	default:
-		panic("unknown counter type")
+		// this will avoid nil pointer
+		return &nop
 	}
 }
 
@@ -125,7 +154,7 @@ func (s *FSStore) Remove(id string) error {
 	s.Lock()
 	defer s.Unlock()
 
-	r, err := s.Get(id)
+	r, err := s.get(id)
 	if os.IsNotExist(errors.Cause(err)) {
 		return nil
 	}
@@ -181,6 +210,10 @@ func (s *FSStore) Get(id string) (*Reservation, error) {
 	s.RLock()
 	defer s.RUnlock()
 
+	return s.get(id)
+}
+
+func (s *FSStore) get(id string) (*Reservation, error) {
 	path := filepath.Join(s.root, id)
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
