@@ -153,6 +153,9 @@ func createPublicIface(netNS ns.NetNS) error {
 		// find which interface to use as master for the macvlan
 		if namespace.Exists(types.PublicNamespace) {
 			pubNS, err := namespace.GetByName(types.PublicNamespace)
+			if err != nil{
+				return err
+			}
 			defer pubNS.Close()
 
 			var ifaceIndex int
