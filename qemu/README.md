@@ -130,7 +130,7 @@ where `$yournic` is your wired interface (`ip -br link`)
 1. In order to not wreak havoc with your existing network setup (NetworkManager cruft),   it's better to split your nic, so that the rest keeps on working
 
 ```bash
-sudo ip link add link $yournic name forzos type macvlan mode bridge
+sudo ip link add link $yournic name forzos type macvlan mode passthru
 sudo sysctl -w net.ipv6.conf.forzos.disable_ipv6=1
 sudo ip link set forzos master zos0
 sudo ip link set forzos up
