@@ -332,6 +332,10 @@ func main() {
 					Usage: "end scrapping at that reservation ID",
 					Value: 500,
 				},
+				cli.BoolFlag{
+					Name:  "expired",
+					Usage: "include expired reservations",
+				},
 			},
 			Action: cmdsLive,
 		},
