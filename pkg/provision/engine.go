@@ -42,11 +42,6 @@ type defaultEngine struct {
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
 func New(source ReservationSource, rw ReservationReadWriter, fb Feedbacker) Engine {
-	stats := make(map[ReservationType]*Counter)
-	for typ := range provisioners {
-		stats[typ] = new(Counter)
-	}
-
 	return &defaultEngine{
 		source: source,
 		store:  rw,
