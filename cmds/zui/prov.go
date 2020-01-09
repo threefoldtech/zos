@@ -11,10 +11,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func provisionRender(client zbus.Client, grid *ui.Grid, render func()) error {
+func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 
 	prov := widgets.NewTable()
 	prov.Title = "Workloads"
+	prov.RowSeparator = false
 
 	prov.Rows = [][]string{
 		{"Containers", ""},
@@ -47,7 +48,7 @@ func provisionRender(client zbus.Client, grid *ui.Grid, render func()) error {
 			rows[3][1] = fmt.Sprint(counter.ZDB)
 			rows[4][1] = fmt.Sprint(counter.Debug)
 
-			render()
+			render.Signal()
 		}
 	}()
 

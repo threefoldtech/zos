@@ -11,7 +11,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func headerRenderer(c zbus.Client, h *widgets.Paragraph, r func()) error {
+func headerRenderer(c zbus.Client, h *widgets.Paragraph, r *Flag) error {
 	env, err := environment.Get()
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func headerRenderer(c zbus.Client, h *widgets.Paragraph, r func()) error {
 			v := fmt.Sprintf(format, version.String())
 			if h.Text != v {
 				h.Text = v
-				r()
+				r.Signal()
 			}
 		}
 	}()

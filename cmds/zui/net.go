@@ -13,7 +13,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client, render func()) error {
+func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client, render *Flag) error {
 	table.Title = "Addresses"
 	table.FillRow = true
 	table.RowSeparator = false
@@ -64,18 +64,19 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 				table.Rows[2][1] = toString(a)
 			}
 
-			render()
+			render.Signal()
 		}
 	}()
 
 	return nil
 }
 
-func netRender(client zbus.Client, grid *ui.Grid, render func()) error {
+func netRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	addresses := widgets.NewTable()
 	statistics := widgets.NewTable()
 
 	statistics.Title = "Traffic"
+	statistics.RowSeparator = false
 	statistics.Rows = [][]string{
 		{"NIC", "SENT", "RECV"},
 	}
@@ -119,7 +120,7 @@ func netRender(client zbus.Client, grid *ui.Grid, render func()) error {
 			}
 
 			statistics.Rows = rows
-			render()
+			render.Signal()
 		}
 	}()
 

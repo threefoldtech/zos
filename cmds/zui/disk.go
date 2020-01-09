@@ -12,14 +12,14 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func diskRender(client zbus.Client, grid *ui.Grid, render func()) error {
+func diskRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	const (
 		mega = 1024 * 1024
 	)
 
 	pools := widgets.NewTable()
 	pools.Title = "Storage Pools"
-
+	pools.RowSeparator = false
 	pools.Rows = [][]string{
 		{"POOL", "TOTAL", "USED"},
 	}
@@ -63,7 +63,7 @@ func diskRender(client zbus.Client, grid *ui.Grid, render func()) error {
 			}
 
 			pools.Rows = rows
-			render()
+			render.Signal()
 		}
 	}()
 

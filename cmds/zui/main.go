@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"sync/atomic"
+	"time"
 
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
@@ -16,6 +18,19 @@ func trimFloat64(a []float64, size int) []float64 {
 		return a[len(a)-size:]
 	}
 	return a
+}
+
+// Flag is a safe flag
+type Flag int32
+
+// Signal raises flag
+func (f *Flag) Signal() {
+	atomic.SwapInt32((*int32)(f), 1)
+}
+
+//Signaled checks if flag was raised, and lowers the flag
+func (f *Flag) Signaled() bool {
+	return atomic.SwapInt32((*int32)(f), 0) == 1
 }
 
 func main() {
@@ -100,30 +115,32 @@ func main() {
 		),
 	)
 
-	render := func() {
-		ui.Render(header, grid)
-	}
+	var flag Flag
 
-	if err := headerRenderer(client, header, render); err != nil {
+	if err := headerRenderer(client, header, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start header renderer")
 	}
-	if err := cpuRender(client, cpu, render); err != nil {
+	if err := cpuRender(client, cpu, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start cpu renderer")
 	}
-	if err := memRender(client, mem, render); err != nil {
+	if err := memRender(client, mem, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start mem renderer")
 	}
 
-	if err := netRender(client, net, render); err != nil {
+	if err := netRender(client, net, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start net renderer")
 	}
 
-	if err := diskRender(client, disk, render); err != nil {
+	if err := diskRender(client, disk, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start net renderer")
 	}
 
-	if err := provisionRender(client, provision, render); err != nil {
+	if err := provisionRender(client, provision, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start net renderer")
+	}
+
+	render := func() {
+		ui.Render(header, grid)
 	}
 
 	ui.Clear()
@@ -141,6 +158,11 @@ func main() {
 				header.SetRect(0, 0, payload.Width, headerHeight)
 				grid.SetRect(0, headerHeight, payload.Width, payload.Height-headerHeight)
 				ui.Clear()
+				render()
+			}
+		case <-time.After(1 * time.Second):
+			// check if any of the widgets asks for a render
+			if flag.Signaled() {
 				render()
 			}
 		}

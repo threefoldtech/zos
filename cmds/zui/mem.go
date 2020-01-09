@@ -11,7 +11,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func memRender(client zbus.Client, grid *ui.Grid, render func()) error {
+func memRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	const (
 		mega = 1024 * 1024
 	)
@@ -49,7 +49,7 @@ func memRender(client zbus.Client, grid *ui.Grid, render func()) error {
 			}
 
 			total.Text = fmt.Sprintf("Total: %d MB, Used: %d MB, Free: %d MB", point.Total/mega, point.Used/mega, point.Free/mega)
-			render()
+			render.Signal()
 		}
 	}()
 

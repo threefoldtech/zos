@@ -11,7 +11,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func cpuRender(client zbus.Client, grid *ui.Grid, render func()) error {
+func cpuRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	const (
 		rows = 8
 		cols = 20
@@ -60,7 +60,7 @@ func cpuRender(client zbus.Client, grid *ui.Grid, render func()) error {
 			}
 			view.Mutex.Unlock()
 
-			render()
+			render.Signal()
 		}
 	}()
 
