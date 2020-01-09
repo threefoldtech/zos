@@ -98,8 +98,8 @@ func main() {
 	cell := ui.NewGrid()
 
 	cell.Set(
-		ui.NewRow(3.0/5, disk),
-		ui.NewRow(2.0/5, provision),
+		ui.NewRow(4.5/6, disk),
+		ui.NewRow(1.5/6, provision),
 	)
 
 	grid.Set(

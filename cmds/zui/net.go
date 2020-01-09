@@ -82,10 +82,10 @@ func netRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	}
 
 	grid.Set(
-		ui.NewRow(1./5,
+		ui.NewRow(1./6,
 			ui.NewCol(1, addresses),
 		),
-		ui.NewRow(4.0/5,
+		ui.NewRow(5.0/6,
 			ui.NewCol(1, statistics),
 		),
 	)
