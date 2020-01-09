@@ -74,16 +74,29 @@ func main() {
 	net.Title = "Networ"
 	net.Border = true
 
+	disk := ui.NewGrid()
+	disk.Title = "Disk"
+	disk.Border = true
+
+	provision := ui.NewGrid()
+	// split in 10 parts
+	cell := ui.NewGrid()
+
+	cell.Set(
+		ui.NewRow(3.0/5, disk),
+		ui.NewRow(2.0/5, provision),
+	)
+
 	grid.Set(
-		ui.NewRow(1.0/4,
+		ui.NewRow(2.0/10,
 			ui.NewCol(1, cpu),
 		),
-		ui.NewRow(1.0/8,
+		ui.NewRow(1.0/10,
 			ui.NewCol(1, mem),
 		),
-		ui.NewRow(1.0/2,
+		ui.NewRow(7.0/10,
 			ui.NewCol(1.0/2, net),
-			// add provision info here.
+			ui.NewCol(1.0/2, cell),
 		),
 	)
 
@@ -102,6 +115,14 @@ func main() {
 	}
 
 	if err := netRender(client, net, render); err != nil {
+		log.Error().Err(err).Msg("failed to start net renderer")
+	}
+
+	if err := diskRender(client, disk, render); err != nil {
+		log.Error().Err(err).Msg("failed to start net renderer")
+	}
+
+	if err := provisionRender(client, provision, render); err != nil {
 		log.Error().Err(err).Msg("failed to start net renderer")
 	}
 

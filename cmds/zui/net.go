@@ -75,15 +75,16 @@ func netRender(client zbus.Client, grid *ui.Grid, render func()) error {
 	addresses := widgets.NewTable()
 	statistics := widgets.NewTable()
 
+	statistics.Title = "Traffic"
 	statistics.Rows = [][]string{
 		{"NIC", "SENT", "RECV"},
 	}
 
 	grid.Set(
-		ui.NewRow(1.0/2,
+		ui.NewRow(1./5,
 			ui.NewCol(1, addresses),
 		),
-		ui.NewRow(1.0/2,
+		ui.NewRow(4.0/5,
 			ui.NewCol(1, statistics),
 		),
 	)
@@ -102,24 +103,22 @@ func netRender(client zbus.Client, grid *ui.Grid, render func()) error {
 
 	go func() {
 		for s := range stats {
-			if len(statistics.Rows) != len(s)+1 {
-				rows := [][]string{
-					[]string{"NIC", "SENT", "RECV"},
+			// keep the header
+			rows := statistics.Rows[:1]
+			for _, nic := range s {
+				if nic.Name == "lo" {
+					continue
 				}
-				for i := 0; i < len(s); i++ {
-					rows = append(rows, make([]string, 3))
-				}
-
-				statistics.Rows = rows
+				rows = append(rows,
+					[]string{
+						nic.Name,
+						fmt.Sprintf("%d KB", nic.RateOut/1024),
+						fmt.Sprintf("%d KB", nic.RateIn/1024),
+					},
+				)
 			}
 
-			rows := statistics.Rows
-			for i, nic := range s {
-				rows[i+1][0] = nic.Name
-				rows[i+1][1] = fmt.Sprintf("%d KB", nic.RateOut/1024)
-				rows[i+1][2] = fmt.Sprintf("%d KB", nic.RateIn/1024)
-			}
-
+			statistics.Rows = rows
 			render()
 		}
 	}()
