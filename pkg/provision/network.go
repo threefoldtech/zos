@@ -3,6 +3,7 @@ package provision
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 
@@ -59,7 +60,8 @@ func networkID(userID, name string) pkg.NetID {
 	buf := bytes.Buffer{}
 	buf.WriteString(userID)
 	buf.WriteString(name)
-	b := base58.Encode(buf.Bytes())
+	h := md5.Sum(buf.Bytes())
+	b := base58.Encode(h[:])
 	if len(b) > 13 {
 		b = b[:13]
 	}

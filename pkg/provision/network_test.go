@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
@@ -84,4 +85,39 @@ func TestNetworkDecommission(t *testing.T) {
 
 	err := networkDecommission(ctx, &reservation)
 	require.NoError(err)
+}
+
+func Test_networkID(t *testing.T) {
+	type args struct {
+		userID string
+		name   string
+	}
+	tests := []struct {
+		name string
+		args args
+		want pkg.NetID
+	}{
+		{
+			name: "net-1",
+			args: args{
+				userID: "user1",
+				name:   "net-1",
+			},
+			want: pkg.NetID("EJyFexd14LVGi"),
+		},
+		{
+			name: "net-2",
+			args: args{
+				userID: "user1",
+				name:   "net-2",
+			},
+			want: pkg.NetID("4ftuPjY3wuvho"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := networkID(tt.args.userID, tt.args.name)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

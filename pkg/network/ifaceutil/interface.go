@@ -77,9 +77,9 @@ func IsVirtEth(inf string) bool {
 
 // HasDefaultGW tests if a link as a default gateway configured
 // it return the ip of the gateway if there is one
-func HasDefaultGW(link netlink.Link) (bool, net.IP, error) {
+func HasDefaultGW(link netlink.Link, family int) (bool, net.IP, error) {
 
-	addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+	addrs, err := netlink.AddrList(link, family)
 	if err != nil {
 		return false, nil, err
 	}
@@ -95,7 +95,7 @@ func HasDefaultGW(link netlink.Link) (bool, net.IP, error) {
 			IPAddr("ip", addr.IP).Send()
 	}
 
-	routes, err := netlink.RouteList(link, netlink.FAMILY_ALL)
+	routes, err := netlink.RouteList(link, family)
 	if err != nil {
 		return false, nil, err
 	}
@@ -259,4 +259,46 @@ func Delete(name string, netNS ns.NetNS) error {
 		return err
 	}
 	return netlink.LinkDel(link)
+}
+
+// HostIPV6Iface return the first physical interface to have an
+// ipv6 public address
+func HostIPV6Iface() (string, error) {
+
+	links, err := netlink.LinkList()
+	if err != nil {
+		return "", err
+	}
+
+	for _, link := range LinkFilter(links, []string{"device"}) {
+		addrs, err := netlink.AddrList(link, netlink.FAMILY_V6)
+		if err != nil {
+			return "", err
+		}
+
+		for _, addr := range addrs {
+			if addr.IP.IsGlobalUnicast() {
+				return link.Attrs().Name, nil
+			}
+		}
+	}
+
+	// not found on host interfaces, check on zos bridge
+	link, err := netlink.LinkByName("zos")
+	if err != nil {
+		return "", err
+	}
+
+	addrs, err := netlink.AddrList(link, netlink.FAMILY_V6)
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		if addr.IP.IsGlobalUnicast() {
+			return link.Attrs().Name, nil
+		}
+	}
+
+	return "", fmt.Errorf("no interface found with ipv6")
 }
