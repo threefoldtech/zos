@@ -40,12 +40,13 @@ For qemu to run, you need the have the vm connected to a network.
 
 There are 2 ways to do that, each with their own pitfalls.
 
-- using a bridge, that hosts it's own network, and NATs that network with the IP of the host  
+- using a bridge, that hosts it's own network, and NATs that network with the IP of the host   
   That means you have to provide your own IP-management on that network (dnsmasq), and you have to setup the NAT part.
 - also with a bridge, but that has a real connection  interface as slave  
   That way, your local network is providing for ip-configuration, and that will only work on wired interfaces. (i.e. wifi interfaces can't be a bridge slave)
 
 It's important to make the distinction: in case of your own hosted network, that doesn't look like it would be a real ZOS host connected to a network, which basically means that that is better not used for network testing.
+
 When using a direct wired connection, on a Linux development machine, you'll have to set it up on your own, as a personal computer has all sorts of automagic network setup tools.
 
 
@@ -136,11 +137,6 @@ sudo ip link set forzos up
 ```
 
 1. As your bridge is now directly connected to the same network as your machine, htere is nothing more to do; the VM will receive it's IP configuration the same as if it were a physical box connected to your wired lan
-
-Now, inside the bridge, the VM will be connected to the network like it's another
-computer, using the same network cable. You need to have a working DHCP server and Router Advertissment running to provide for IPv4 and IPv6.
-
-You can now start your virtual machine !
 
 1. Now run your vm
 
