@@ -304,6 +304,17 @@ func main() {
 			Action: cmdsProvision,
 		},
 		{
+			Name:  "delete",
+			Usage: "Mark a workload as to be deleted",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "id",
+					Usage: "workload id",
+				},
+			},
+			Action: cmdsDeleteReservation,
+		},
+		{
 			Name:  "live",
 			Usage: "show you all the reservations that are still alive",
 			Flags: []cli.Flag{
@@ -332,18 +343,19 @@ func main() {
 	}
 }
 
-type reserver interface {
+type reserveDeleter interface {
 	Reserve(r *provision.Reservation) (string, error)
+	Delete(id string) error
 }
 type clientIface interface {
 	network.TNoDB
-	reserver
+	reserveDeleter
 }
 
 func getClient(addr string) (clientIface, error) {
 	type client struct {
 		network.TNoDB
-		reserver
+		reserveDeleter
 	}
 
 	u, err := url.Parse(addr)
