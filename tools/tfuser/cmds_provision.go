@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
@@ -34,7 +34,7 @@ func encryptPassword(password, nodeID string) (string, error) {
 	}
 
 	encrypted, err := crypto.Encrypt([]byte(password), pubkey)
-	return base58.Encode(encrypted), err
+	return hex.EncodeToString(encrypted), err
 }
 
 func provisionCustomZDB(r *provision.Reservation) error {

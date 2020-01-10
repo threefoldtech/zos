@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/jbenet/go-base58"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/zdb"
@@ -59,7 +59,11 @@ func decryptPassword(client zbus.Client, password string) (string, error) {
 	}
 	identitry := stubs.NewIdentityManagerStub(client)
 
-	bytes := base58.Decode(password)
+	bytes, err := hex.DecodeString(password)
+	if err != nil {
+		return "", err
+	}
+
 	out, err := identitry.Decrypt(bytes)
 	return string(out), err
 }
