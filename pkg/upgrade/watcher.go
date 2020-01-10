@@ -198,13 +198,13 @@ func (w *FListRepoWatcher) diff(packages map[string]RepoFList) (toAdd, toDel []R
 }
 
 // Diff return the remote changes related to current list of packages
-func (w *FListRepoWatcher) Diff() (toAdd, toDell []RepoFList, err error) {
-	packages, err := w.list()
+func (w *FListRepoWatcher) Diff() (all map[string]RepoFList, toAdd, toDell []RepoFList, err error) {
+	all, err = w.list()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get available packages")
+		return all, nil, nil, errors.Wrap(err, "failed to get available packages")
 	}
 
-	toAdd, toDell = w.diff(packages)
+	toAdd, toDell = w.diff(all)
 	return
 }
 
