@@ -2,12 +2,12 @@ package provision
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strings"
 	"testing"
 
-	"github.com/jbenet/go-base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -57,10 +57,11 @@ func TestZDBProvision(t *testing.T) {
 	ctx := context.Background()
 	ctx = WithZBus(ctx, &client)
 
+	passwd := "pa$$w0rd"
 	conf := ZDB{
 		Size:     280682,
 		Mode:     pkg.ZDBModeSeq,
-		Password: "pa$$w0rd",
+		Password: hex.EncodeToString([]byte(passwd)),
 		DiskType: pkg.SSDDevice,
 		Public:   true,
 	}
@@ -100,7 +101,7 @@ func TestZDBProvision(t *testing.T) {
 		}, nil)
 
 	client.On("Request", "identityd", zbus.ObjectID{Name: "manager", Version: "0.0.1"},
-		"Decrypt", base58.Decode(conf.Password)).
+		"Decrypt", []byte(passwd)).
 		Return("password", nil)
 
 	client.On("Request", "network", zbus.ObjectID{Name: "network", Version: "0.0.1"},
@@ -133,10 +134,11 @@ func TestZDBProvisionNoMappingContainerDoesNotExists(t *testing.T) {
 	ctx := context.Background()
 	ctx = WithZBus(ctx, &client)
 
+	passwd := "pa$$w0rd"
 	zdb := ZDB{
 		Size:     10,
 		Mode:     pkg.ZDBModeSeq,
-		Password: "pa$$w0rd",
+		Password: hex.EncodeToString([]byte(passwd)),
 		DiskType: pkg.SSDDevice,
 		Public:   true,
 	}
@@ -154,7 +156,7 @@ func TestZDBProvisionNoMappingContainerDoesNotExists(t *testing.T) {
 	// zdb instance running that has enough space for the ns
 
 	client.On("Request", "identityd", zbus.ObjectID{Name: "manager", Version: "0.0.1"},
-		"Decrypt", base58.Decode(zdb.Password)).
+		"Decrypt", []byte(passwd)).
 		Return("password", nil)
 
 	client.On("Request", "storage", zbus.ObjectID{Name: "storage", Version: "0.0.1"},
