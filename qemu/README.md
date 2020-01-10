@@ -97,7 +97,7 @@ sudo dnsmasq --strict-order \
     --interface=zos0 \
     --bind-interfaces \
     --dhcp-range=192.168.123.20,192.168.123.50 \
-    --dhcp-range=::1000,::1fff,constructor,zos0,ra-stateless,12h \
+    --dhcp-range=::1000,::1fff,constructor:zos0,ra-stateless,12h \
     --conf-file="" \
     --pid-file=/var/run/qemu-dnsmasq-zos0.pid \
     --dhcp-leasefile=/var/run/qemu-dnsmasq-zos0.leases \
