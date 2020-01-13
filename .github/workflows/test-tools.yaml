@@ -1,9 +1,13 @@
-name: Tests and Coverage
-on: [push]
+name: Tests and Coverage for tools
+on:
+  push:
+    paths:
+      - 'tools/**'
+      - '.github/workflows/test-tools.yaml'
 
 jobs:
-  daemons:
-    name: Running Daemon Tests
+  tools:
+    name: Running Tools Tests
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.13
@@ -17,29 +21,21 @@ jobs:
 
     - name: Get dependencies
       run: |
-        cd pkg
+        cd tools
         make getdeps
+      env:
+        GO111MODULE: on
+
+    - name: Build tools
+      run: |
+        cd tools
+        make
       env:
         GO111MODULE: on
 
     - name: Run tests
       run: |
-        cd pkg
-        make coverage
-      env:
-        GO111MODULE: on
-
-    - name: Send coverage
-      if: success()
-      run: |
-        cd pkg
-        bash <(curl -s https://codecov.io/bash)
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-    - name: Build binaries
-      run: |
-        cd cmds
-        make
+        cd tools
+        make test
       env:
         GO111MODULE: on
