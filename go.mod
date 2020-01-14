@@ -12,10 +12,9 @@ require (
 	github.com/containerd/cgroups v0.0.0-20190911145653-fc51bcbe4714 // indirect
 	github.com/containerd/containerd v1.3.2
 	github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6 // indirect
-	github.com/containerd/fifo v0.0.0-20190816180239-bda0ff6ed73c // indirect
 	github.com/containerd/ttrpc v0.0.0-20191028202541-4f1b8fe65a5c // indirect
 	github.com/containerd/typeurl v0.0.0-20190911142611-5eb25027c9fd // indirect
-	github.com/containernetworking/cni v0.7.1
+	github.com/containernetworking/cni v0.7.2-0.20190807151350-8c6c47d1c7fc
 	github.com/containernetworking/plugins v0.8.2
 	github.com/dave/jennifer v1.3.0
 	github.com/deckarep/golang-set v1.7.1
@@ -23,6 +22,7 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/emicklei/dot v0.10.1
+	github.com/firecracker-microvm/firecracker-go-sdk v0.19.0
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
@@ -44,6 +44,7 @@ require (
 	github.com/rs/zerolog v1.17.2
 	github.com/shirou/gopsutil v2.19.11+incompatible
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/tcnksm/go-input v0.0.0-20180404061846-548a7d7a8ee8
