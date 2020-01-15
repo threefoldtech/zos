@@ -70,8 +70,8 @@ func (vm *VM) Validate() error {
 		return fmt.Errorf("invalid memory must be bigger than 0")
 	}
 
-	if vm.CPU == 0 {
-		return fmt.Errorf("invalid cpu must be bigger than 0")
+	if vm.CPU == 0 || vm.CPU > 32 {
+		return fmt.Errorf("invalid cpu must be between 1 and 32")
 	}
 
 	if stat, err := os.Stat(vm.Storage); err != nil || !stat.IsDir() {
@@ -81,9 +81,23 @@ func (vm *VM) Validate() error {
 	return nil
 }
 
+// VMInfo returned by the inspect method
+type VMInfo struct {
+	// Flag for enabling/disabling Hyperthreading
+	// Required: true
+	HtEnabled bool
+
+	// Memory size of VM
+	// Required: true
+	Memory int64
+
+	// Number of vCPUs (either 1 or an even number)
+	CPU int64
+}
+
 // VMModule defines the virtual machine module interface
 type VMModule interface {
 	Run(vm VM) error
-	Inspect(name string) (VM, error)
+	Inspect(name string) (VMInfo, error)
 	Delete(name string) error
 }

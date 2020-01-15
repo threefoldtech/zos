@@ -3,20 +3,24 @@ package vm
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const (
 	// FCBin  path for firecracker
-	FCBin             = "/bin/firecracker"
-	FCSockDir         = "/var/run/firecracker"
+	FCBin = "/bin/firecracker"
+	// JailerBin path for fc jailer
+	JailerBin = "/bin/jailer"
+	// FCSockDir where vm firecracker sockets are kept
+	FCSockDir = "/var/run/firecracker"
+
 	defaultKernelArgs = "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules"
 )
 
@@ -77,8 +81,9 @@ func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]models.Drive, error) {
 	return drives, nil
 }
 
-func (m *vmModuleImpl) skipName(n string) string {
-	return strings.ReplaceAll(n, string(filepath.Separator), "-")
+func (m *vmModuleImpl) socket(vm *pkg.VM) string {
+	id := vm.Name
+	return filepath.Join(vm.Storage, "firecracker", id, "root", "api.socket")
 }
 
 // Run vm
@@ -89,7 +94,7 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 
 	ctx := context.Background()
 
-	socket := filepath.Join(FCSockDir, fmt.Sprintf("fc.%s.sock", m.skipName(vm.Name)))
+	socket := m.socket(&vm)
 	if _, err := os.Stat(socket); err == nil {
 		return fmt.Errorf("a vm with same name already exists")
 	}
@@ -103,8 +108,12 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 		vm.KernelArgs = defaultKernelArgs
 	}
 
+	out, err := os.Create(filepath.Join(vm.Storage, "machine.log"))
+	if err != nil {
+		return err
+	}
+
 	cfg := firecracker.Config{
-		SocketPath:      socket,
 		KernelImagePath: vm.KernelImage,
 		KernelArgs:      vm.KernelArgs,
 		MachineCfg: models.MachineConfiguration{
@@ -112,29 +121,54 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 			MemSizeMib: firecracker.Int64(vm.Memory),
 			VcpuCount:  firecracker.Int64(int64(vm.CPU)),
 		},
-		Drives: devices,
+		JailerCfg: &firecracker.JailerConfig{
+			UID:           firecracker.Int(0),
+			GID:           firecracker.Int(0),
+			NumaNode:      firecracker.Int(0),
+			ExecFile:      FCBin,
+			JailerBinary:  JailerBin,
+			ID:            vm.Name,
+			ChrootBaseDir: vm.Storage,
+			Daemonize:     true,
+			// we probably need to change that to use mount instead
+			// of hard link
+			ChrootStrategy: firecracker.NewNaiveChrootStrategy(
+				filepath.Join(vm.Storage, "firecracker", vm.Name),
+				"vmlinuz",
+			),
+			Stdout: out,
+			Stderr: out,
+		},
+		Drives:         devices,
+		ForwardSignals: []os.Signal{}, // it has to be an empty list to prevent using the default
 	}
 
 	log.Debug().Msgf("Machine Config: %+v", cfg)
 
-	out, err := os.Create(filepath.Join(vm.Storage, "machine.log"))
-	if err != nil {
-		return err
-	}
+	cmd := firecracker.JailerCommandBuilder{}.
+		WithBin(JailerBin).
+		WithChrootBaseDir(vm.Storage).
+		WithDaemonize(true).
+		WithID(vm.Name).
+		WithStdout(out).
+		WithStderr(out).
+		WithExecFile(FCBin).
+		Build(ctx)
 
 	defer out.Close()
 
-	cmd := firecracker.VMCommandBuilder{}.
-		WithBin(FCBin).
-		WithSocketPath(socket).
-		WithStdout(out).
-		WithStderr(out).
-		Build(ctx)
+	// cmd := firecracker.VMCommandBuilder{}.
+	// 	WithBin(FCBin).
+	// 	WithSocketPath(socket).
+	// 	WithStdout(out).
+	// 	WithStderr(out).
+	// 	Build(ctx)
 
 	var opts []firecracker.Opt
 	opts = append(opts, firecracker.WithProcessRunner(cmd))
 
 	machine, err := firecracker.NewMachine(ctx, cfg, opts...)
+
 	if err != nil {
 		return err
 	}
@@ -142,8 +176,21 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	return machine.Start(ctx)
 }
 
-func (m *vmModuleImpl) Inspect(name string) (pkg.VM, error) {
-	return pkg.VM{}, nil
+func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
+	return pkg.VMInfo{}, nil
+
+	// client := firecracker.NewClient(m.socket(name), nil, false)
+
+	// cfg, err := client.GetMachineConfiguration()
+	// if err != nil {
+	// 	return pkg.VMInfo{}, errors.Wrap(err, "failed to get machine configuration")
+	// }
+
+	// return pkg.VMInfo{
+	// 	CPU:       *cfg.Payload.VcpuCount,
+	// 	Memory:    *cfg.Payload.MemSizeMib,
+	// 	HtEnabled: *cfg.Payload.HtEnabled,
+	// }, nil
 }
 
 func (m *vmModuleImpl) Delete(name string) error {
