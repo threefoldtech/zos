@@ -210,21 +210,22 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 }
 
 func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
+	if !m.exists(name) {
+		return pkg.VMInfo{}, fmt.Errorf("machine '%s' does not exist", name)
+	}
 
-	return pkg.VMInfo{}, nil
+	client := firecracker.NewClient(m.socket(name), nil, false)
 
-	// client := firecracker.NewClient(m.socket(name), nil, false)
+	cfg, err := client.GetMachineConfiguration()
+	if err != nil {
+		return pkg.VMInfo{}, errors.Wrap(err, "failed to get machine configuration")
+	}
 
-	// cfg, err := client.GetMachineConfiguration()
-	// if err != nil {
-	// 	return pkg.VMInfo{}, errors.Wrap(err, "failed to get machine configuration")
-	// }
-
-	// return pkg.VMInfo{
-	// 	CPU:       *cfg.Payload.VcpuCount,
-	// 	Memory:    *cfg.Payload.MemSizeMib,
-	// 	HtEnabled: *cfg.Payload.HtEnabled,
-	// }, nil
+	return pkg.VMInfo{
+		CPU:       *cfg.Payload.VcpuCount,
+		Memory:    *cfg.Payload.MemSizeMib,
+		HtEnabled: *cfg.Payload.HtEnabled,
+	}, nil
 }
 
 func (m *vmModuleImpl) Delete(name string) error {

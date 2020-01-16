@@ -35,7 +35,7 @@ func (s *VMModuleStub) Delete(arg0 string) (ret0 error) {
 	return
 }
 
-func (s *VMModuleStub) Inspect(arg0 string) (ret0 pkg.VM, ret1 error) {
+func (s *VMModuleStub) Inspect(arg0 string) (ret0 pkg.VMInfo, ret1 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.Request(s.module, s.object, "Inspect", args...)
 	if err != nil {
