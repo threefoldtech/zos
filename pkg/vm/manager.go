@@ -3,6 +3,7 @@ package vm
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -25,19 +26,23 @@ const (
 )
 
 // vmModuleImpl implements the VMModule interface
-type vmModuleImpl struct{}
+type vmModuleImpl struct {
+	root string
+}
 
 var (
 	_ pkg.VMModule = (*vmModuleImpl)(nil)
 )
 
 // NewVMModule creates a new instance of vm manager
-func NewVMModule() (pkg.VMModule, error) {
+func NewVMModule(root string) (pkg.VMModule, error) {
 	if err := os.MkdirAll(FCSockDir, 0755); err != nil {
 		return nil, err
 	}
 
-	return &vmModuleImpl{}, nil
+	return &vmModuleImpl{
+		root: root,
+	}, nil
 }
 
 func (m *vmModuleImpl) makeDisk(name string, size int64) error {
@@ -81,9 +86,40 @@ func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]models.Drive, error) {
 	return drives, nil
 }
 
-func (m *vmModuleImpl) socket(vm *pkg.VM) string {
-	id := vm.Name
-	return filepath.Join(vm.Storage, "firecracker", id, "root", "api.socket")
+func (m *vmModuleImpl) machineRoot(id string) string {
+	return filepath.Join(m.root, "firecracker", id, "root")
+}
+
+func (m *vmModuleImpl) socket(id string) string {
+	return filepath.Join(m.machineRoot(id), "api.socket")
+}
+
+func (m *vmModuleImpl) exists(id string) bool {
+	socket := m.socket(id)
+	con, err := net.Dial("unix", socket)
+	if err != nil {
+		return false
+	}
+
+	con.Close()
+	return true
+}
+
+func (m *vmModuleImpl) cleanFs(id string) error {
+	root := m.machineRoot(id)
+	stat, err := os.Stat(root)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	if !stat.IsDir() {
+		return fmt.Errorf("invalid machine root, expecting a directory")
+	}
+
+	// do all un-mounting
+	return os.RemoveAll(root)
 }
 
 // Run vm
@@ -94,9 +130,13 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 
 	ctx := context.Background()
 
-	socket := m.socket(&vm)
-	if _, err := os.Stat(socket); err == nil {
+	if m.exists(vm.Name) {
 		return fmt.Errorf("a vm with same name already exists")
+	}
+
+	// make sure to clean up previous roots just in case
+	if err := m.cleanFs(vm.Name); err != nil {
+		return err
 	}
 
 	devices, err := m.makeDevices(&vm)
@@ -128,12 +168,12 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 			ExecFile:      FCBin,
 			JailerBinary:  JailerBin,
 			ID:            vm.Name,
-			ChrootBaseDir: vm.Storage,
+			ChrootBaseDir: m.root,
 			Daemonize:     true,
 			// we probably need to change that to use mount instead
 			// of hard link
 			ChrootStrategy: firecracker.NewNaiveChrootStrategy(
-				filepath.Join(vm.Storage, "firecracker", vm.Name),
+				filepath.Join(m.root, "firecracker", vm.Name),
 				"vmlinuz",
 			),
 			Stdout: out,
@@ -147,7 +187,7 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 
 	cmd := firecracker.JailerCommandBuilder{}.
 		WithBin(JailerBin).
-		WithChrootBaseDir(vm.Storage).
+		WithChrootBaseDir(m.root).
 		WithDaemonize(true).
 		WithID(vm.Name).
 		WithStdout(out).
@@ -156,13 +196,6 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 		Build(ctx)
 
 	defer out.Close()
-
-	// cmd := firecracker.VMCommandBuilder{}.
-	// 	WithBin(FCBin).
-	// 	WithSocketPath(socket).
-	// 	WithStdout(out).
-	// 	WithStderr(out).
-	// 	Build(ctx)
 
 	var opts []firecracker.Opt
 	opts = append(opts, firecracker.WithProcessRunner(cmd))
@@ -177,6 +210,7 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 }
 
 func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
+
 	return pkg.VMInfo{}, nil
 
 	// client := firecracker.NewClient(m.socket(name), nil, false)
