@@ -1,11 +1,16 @@
 package vm
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"syscall"
+	"time"
 
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -32,6 +37,8 @@ type vmModuleImpl struct {
 
 var (
 	_ pkg.VMModule = (*vmModuleImpl)(nil)
+
+	errScanFound = fmt.Errorf("found")
 )
 
 // NewVMModule creates a new instance of vm manager
@@ -87,11 +94,11 @@ func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]models.Drive, error) {
 }
 
 func (m *vmModuleImpl) machineRoot(id string) string {
-	return filepath.Join(m.root, "firecracker", id, "root")
+	return filepath.Join(m.root, "firecracker", id)
 }
 
 func (m *vmModuleImpl) socket(id string) string {
-	return filepath.Join(m.machineRoot(id), "api.socket")
+	return filepath.Join(m.machineRoot(id), "root", "api.socket")
 }
 
 func (m *vmModuleImpl) exists(id string) bool {
@@ -173,7 +180,7 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 			// we probably need to change that to use mount instead
 			// of hard link
 			ChrootStrategy: firecracker.NewNaiveChrootStrategy(
-				filepath.Join(m.root, "firecracker", vm.Name),
+				m.machineRoot(vm.Name),
 				"vmlinuz",
 			),
 			Stdout: out,
@@ -205,7 +212,6 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	if err != nil {
 		return err
 	}
-
 	return machine.Start(ctx)
 }
 
@@ -228,6 +234,115 @@ func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
 	}, nil
 }
 
+func (m *vmModuleImpl) find(name string) (int, error) {
+	const (
+		proc   = "/proc"
+		search = "/firecracker"
+	)
+	idArg := fmt.Sprintf("--id=%s", name)
+	result := 0
+	err := filepath.Walk(proc, func(path string, info os.FileInfo, err error) error {
+		if path == proc {
+			// assend into proc
+			return nil
+		}
+
+		dir, name := filepath.Split(path)
+
+		if filepath.Clean(dir) != proc {
+			// this to make sure we only scan first level
+			return filepath.SkipDir
+		}
+
+		pid, err := strconv.Atoi(name)
+		if err != nil {
+			//not a number
+			return nil //continue scan
+		}
+		cmd, err := ioutil.ReadFile(filepath.Join(path, "cmdline"))
+		if os.IsNotExist(err) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		parts := bytes.Split(cmd, []byte{0})
+		if string(parts[0]) != search {
+			return nil
+		}
+
+		// a firecracker instance, now find id
+		for _, part := range parts {
+			if string(part) == idArg {
+				// a hit
+				result = pid
+				// this is to stop the scan, but also
+				// avoid
+				return errScanFound
+			}
+		}
+
+		return nil
+	})
+
+	if err == errScanFound {
+		return result, nil
+	} else if err != nil {
+		return 0, err
+	}
+
+	return 0, fmt.Errorf("vm '%s' not found", name)
+}
+
 func (m *vmModuleImpl) Delete(name string) error {
+	if !m.exists(name) {
+		return nil
+	}
+
+	pid, err := m.find(name)
+	if err != nil {
+		return err
+	}
+
+	client := firecracker.NewClient(m.socket(name), nil, false)
+	// timeout is request timeout, not machine timeout to shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+
+	defer cancel()
+	action := models.InstanceActionInfoActionTypeSendCtrlAltDel
+	info := models.InstanceActionInfo{
+		ActionType: &action,
+	}
+
+	defer m.cleanFs(name)
+	now := time.Now()
+
+	const (
+		termAfter = 5 * time.Second
+		killAfter = 10 * time.Second
+	)
+
+	_, err = client.CreateSyncAction(ctx, &info)
+	if err != nil {
+		return err
+	}
+
+	for {
+		if !m.exists(name) {
+			return nil
+		}
+
+		if time.Since(now) > termAfter {
+			syscall.Kill(pid, syscall.SIGTERM)
+		}
+
+		if time.Since(now) > killAfter {
+			syscall.Kill(pid, syscall.SIGKILL)
+			break
+		}
+
+		<-time.After(1 * time.Second)
+	}
+
 	return nil
 }
