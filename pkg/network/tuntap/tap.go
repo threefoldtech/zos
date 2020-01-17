@@ -3,7 +3,6 @@ package tuntap
 import (
 	"fmt"
 
-	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
@@ -20,15 +19,10 @@ func CreateTap(name string, master string, netns ns.NetNS) (*netlink.Tuntap, err
 		return nil, errors.Wrap(err, "failed to look up tap master")
 	}
 
-	tmpName, err := ip.RandomVethName()
-	if err != nil {
-		return nil, errors.Wrap(err, "could not generate temporary iface name")
-	}
-
 	tap := &netlink.Tuntap{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:         1500,
-			Name:        tmpName,
+			Name:        name,
 			ParentIndex: masterIface.Attrs().Index,
 			Namespace:   netlink.NsFd(int(netns.Fd())),
 		},
@@ -40,16 +34,10 @@ func CreateTap(name string, master string, netns ns.NetNS) (*netlink.Tuntap, err
 	}
 
 	err = netns.Do(func(_ ns.NetNS) error {
-		disableIPv6Cmd := fmt.Sprintf(disableIPv6Template, tmpName)
+		disableIPv6Cmd := fmt.Sprintf(disableIPv6Template, name)
 		if _, err := sysctl.Sysctl(disableIPv6Cmd, "1"); err != nil {
 			_ = netlink.LinkDel(tap)
 			return errors.Wrap(err, "failed to disable ipv6 on interface host side")
-		}
-
-		err := ip.RenameLink(tmpName, name)
-		if err != nil {
-			_ = netlink.LinkDel(tap)
-			return errors.Wrapf(err, "failed to rename tap to %q", name)
 		}
 
 		// Re-fetch tap to get all properties/attributes
