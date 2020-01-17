@@ -15,7 +15,6 @@ import (
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -169,28 +168,21 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 			VcpuCount:  firecracker.Int64(int64(vm.CPU)),
 		},
 		JailerCfg: &firecracker.JailerConfig{
-			UID:           firecracker.Int(0),
-			GID:           firecracker.Int(0),
-			NumaNode:      firecracker.Int(0),
-			ExecFile:      FCBin,
-			JailerBinary:  JailerBin,
-			ID:            vm.Name,
-			ChrootBaseDir: m.root,
-			Daemonize:     true,
-			// we probably need to change that to use mount instead
-			// of hard link
-			ChrootStrategy: firecracker.NewNaiveChrootStrategy(
-				m.machineRoot(vm.Name),
-				"vmlinuz",
-			),
-			Stdout: out,
-			Stderr: out,
+			UID:            firecracker.Int(0),
+			GID:            firecracker.Int(0),
+			NumaNode:       firecracker.Int(0),
+			ExecFile:       FCBin,
+			JailerBinary:   JailerBin,
+			ID:             vm.Name,
+			ChrootBaseDir:  m.root,
+			Daemonize:      true,
+			ChrootStrategy: NewMountStrategy(m.machineRoot(vm.Name)),
+			Stdout:         out,
+			Stderr:         out,
 		},
 		Drives:         devices,
 		ForwardSignals: []os.Signal{}, // it has to be an empty list to prevent using the default
 	}
-
-	log.Debug().Msgf("Machine Config: %+v", cfg)
 
 	cmd := firecracker.JailerCommandBuilder{}.
 		WithBin(JailerBin).
@@ -210,9 +202,16 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	machine, err := firecracker.NewMachine(ctx, cfg, opts...)
 
 	if err != nil {
+		//m.Delete(vm.Name)
 		return err
 	}
-	return machine.Start(ctx)
+
+	if err := machine.Start(ctx); err != nil {
+		//m.Delete(vm.Name)
+		return err
+	}
+
+	return nil
 }
 
 func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
@@ -221,7 +220,6 @@ func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
 	}
 
 	client := firecracker.NewClient(m.socket(name), nil, false)
-
 	cfg, err := client.GetMachineConfiguration()
 	if err != nil {
 		return pkg.VMInfo{}, errors.Wrap(err, "failed to get machine configuration")
@@ -295,10 +293,6 @@ func (m *vmModuleImpl) find(name string) (int, error) {
 }
 
 func (m *vmModuleImpl) Delete(name string) error {
-	if !m.exists(name) {
-		return nil
-	}
-
 	pid, err := m.find(name)
 	if err != nil {
 		return err
