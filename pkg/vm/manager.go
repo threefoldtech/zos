@@ -15,6 +15,7 @@ import (
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -112,20 +113,35 @@ func (m *vmModuleImpl) exists(id string) bool {
 }
 
 func (m *vmModuleImpl) cleanFs(id string) error {
-	root := m.machineRoot(id)
-	stat, err := os.Stat(root)
+	root := filepath.Join(m.machineRoot(id), "root")
+
+	files, err := ioutil.ReadDir(root)
 	if os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
 		return err
 	}
 
-	if !stat.IsDir() {
-		return fmt.Errorf("invalid machine root, expecting a directory")
+	for _, entry := range files {
+		if entry.IsDir() {
+			continue
+		}
+
+		// we try to unmount every file in the directory
+		// because it's faster than trying to find exactly
+		// what files are mounted under this location.
+		path := filepath.Join(root, entry.Name())
+		err := syscall.Unmount(
+			path,
+			syscall.MNT_DETACH,
+		)
+
+		if err != nil {
+			log.Warn().Err(err).Str("file", path).Msg("failed to unmount")
+		}
 	}
 
-	// do all un-mounting
-	return os.RemoveAll(root)
+	return os.RemoveAll(m.machineRoot(id))
 }
 
 // Run vm
@@ -202,12 +218,12 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	machine, err := firecracker.NewMachine(ctx, cfg, opts...)
 
 	if err != nil {
-		//m.Delete(vm.Name)
+		m.Delete(vm.Name)
 		return err
 	}
 
 	if err := machine.Start(ctx); err != nil {
-		//m.Delete(vm.Name)
+		m.Delete(vm.Name)
 		return err
 	}
 
@@ -241,7 +257,7 @@ func (m *vmModuleImpl) find(name string) (int, error) {
 	result := 0
 	err := filepath.Walk(proc, func(path string, info os.FileInfo, err error) error {
 		if path == proc {
-			// assend into proc
+			// assend into /proc
 			return nil
 		}
 
@@ -274,8 +290,7 @@ func (m *vmModuleImpl) find(name string) (int, error) {
 			if string(part) == idArg {
 				// a hit
 				result = pid
-				// this is to stop the scan, but also
-				// avoid
+				// this is to stop the scan.
 				return errScanFound
 			}
 		}
@@ -293,6 +308,12 @@ func (m *vmModuleImpl) find(name string) (int, error) {
 }
 
 func (m *vmModuleImpl) Delete(name string) error {
+	defer m.cleanFs(name)
+
+	if !m.exists(name) {
+		return nil
+	}
+
 	pid, err := m.find(name)
 	if err != nil {
 		return err
@@ -308,7 +329,6 @@ func (m *vmModuleImpl) Delete(name string) error {
 		ActionType: &action,
 	}
 
-	defer m.cleanFs(name)
 	now := time.Now()
 
 	const (
