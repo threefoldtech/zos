@@ -56,7 +56,7 @@ func CreateTap(name string, master string, netns ns.NetNS) (*netlink.Tuntap, err
 			return errors.New("tuntap iface does not have the expected 'tap' mode")
 		}
 
-		return nil
+		return netlink.LinkSetUp(tap)
 	})
 	if err != nil {
 		return nil, err
