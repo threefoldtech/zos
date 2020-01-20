@@ -174,6 +174,14 @@ func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) ([]firecracker.NetworkInterface, 
 
 // Run vm
 func (m *vmModuleImpl) Run(vm pkg.VM) error {
+	const (
+		// if this is enabled machine will start in the
+		// foreground. It's then required that vmd
+		// was also started from the cmdline not as a
+		// daemon so you have access to machine console
+		testing = false
+	)
+
 	if err := vm.Validate(); err != nil {
 		return errors.Wrap(err, "machine configuration validation failed")
 	}
@@ -219,7 +227,7 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 			JailerBinary:   JailerBin,
 			ID:             vm.Name,
 			ChrootBaseDir:  m.root,
-			Daemonize:      true,
+			Daemonize:      !testing,
 			ChrootStrategy: NewMountStrategy(m.machineRoot(vm.Name)),
 		},
 		Drives:            devices,
@@ -228,14 +236,23 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	}
 
 	ns := filepath.Join("/var/run/netns", vm.Network.Namespace)
-	cmd := firecracker.JailerCommandBuilder{}.
+	builder := firecracker.JailerCommandBuilder{}.
 		WithBin(JailerBin).
 		WithChrootBaseDir(m.root).
-		WithDaemonize(true).
+		WithDaemonize(!testing).
 		WithID(vm.Name).
 		WithExecFile(FCBin).
-		WithNetNS(ns).
-		Build(ctx)
+		WithNetNS(ns)
+
+	if testing {
+
+		builder = builder.
+			WithStderr(os.Stderr).
+			WithStdout(os.Stdout).
+			WithStdin(os.Stdin)
+	}
+
+	cmd := builder.Build(ctx)
 
 	var opts []firecracker.Opt
 	opts = append(opts, firecracker.WithProcessRunner(cmd))

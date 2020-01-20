@@ -47,12 +47,19 @@ func (s *MountStrategy) handler() firecracker.Handler {
 				return err
 			}
 
-			// mount kernel
-			if err := s.mount(machine.Cfg.KernelImagePath, s.rooted(machine.Cfg.KernelImagePath)); err != nil {
-				return err
-			}
+			for _, cfg := range []*string{&machine.Cfg.KernelImagePath} {
+				file := *cfg
+				if len(file) == 0 {
+					continue
+				}
 
-			machine.Cfg.KernelImagePath = filepath.Base(machine.Cfg.KernelImagePath)
+				// mount kernel
+				if err := s.mount(file, s.rooted(file)); err != nil {
+					return err
+				}
+
+				*cfg = filepath.Base(file)
+			}
 
 			// mount drives
 			for i, drive := range machine.Cfg.Drives {
