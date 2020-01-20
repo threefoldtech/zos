@@ -42,8 +42,12 @@ type Networker interface {
 	ZDBPrepare(hw net.HardwareAddr) (string, error)
 
 	// SetupTap sets up a tap device is the namespace for the networkID. It is hooked
-	// to the network bridge. The name must be the unique name of the network to join
-	SetupTap(networkID NetID, name string) error
+	// to the network bridge. The name of the tap interface is returned
+	SetupTap(networkID NetID) (string, error)
+
+	// RemoveTap removes the tap device with the given name from the namespace
+	// of the networkID
+	RemoveTap(networkID NetID, name string) error
 
 	// Addrs return the IP addresses of interface
 	// if the interface is in a network namespace netns needs to be not empty

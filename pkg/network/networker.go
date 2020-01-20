@@ -232,8 +232,48 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 
 // SetupTap interface in the network resource. We only allow 1 tap interface to be
 // set up per NR currently
-func (n *networker) SetupTap(networkdID pkg.NetID, name string) error {
+func (n *networker) SetupTap(networkdID pkg.NetID) (string, error) {
 	log.Info().Str("network-id", string(networkdID)).Msg("Setting up tap interface")
+
+	network, err := n.networkOf(string(networkdID))
+	if err != nil {
+		return "", errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
+	}
+
+	nodeID := n.identity.NodeID().Identity()
+	localNR, err := ResourceByNodeID(nodeID, network.NetResources)
+	if err != nil {
+		return "", err
+	}
+
+	netRes, err := nr.New(networkdID, localNR, &network.IPRange.IPNet)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to load network resource")
+	}
+
+	nsName, err := netRes.Namespace()
+	if err != nil {
+		return "", errors.Wrap(err, "could not get network namespace name")
+	}
+	log.Info().Str("ns name", nsName).Msg("Network namespace")
+
+	ns, err := namespace.GetByName(nsName)
+	if err != nil {
+		return "", errors.Wrapf(err, "could not get network namespace %s", nsName)
+	}
+
+	bridgeName, err := netRes.BridgeName()
+	if err != nil {
+		return "", errors.Wrap(err, "could not get network namespace bridge")
+	}
+
+	_, err = tuntap.CreateTap(TapIface, bridgeName, ns)
+
+	return TapIface, err
+}
+
+func (n *networker) RemoveTap(networkdID pkg.NetID, name string) error {
+	log.Info().Str("network-id", string(networkdID)).Msg("Removing tap interface")
 
 	network, err := n.networkOf(string(networkdID))
 	if err != nil {
@@ -255,20 +295,14 @@ func (n *networker) SetupTap(networkdID pkg.NetID, name string) error {
 	if err != nil {
 		return errors.Wrap(err, "could not get network namespace name")
 	}
+	log.Info().Str("ns name", nsName).Msg("Network namespace")
 
 	ns, err := namespace.GetByName(nsName)
 	if err != nil {
 		return errors.Wrapf(err, "could not get network namespace %s", nsName)
 	}
 
-	bridgeName, err := netRes.BridgeName()
-	if err != nil {
-		return errors.Wrap(err, "could not get network namespace bridge")
-	}
-
-	_, err = tuntap.CreateTap(TapIface, bridgeName, ns)
-
-	return err
+	return ifaceutil.Delete(name, ns)
 }
 
 // Addrs return the IP addresses of interface
