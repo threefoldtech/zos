@@ -10,8 +10,18 @@ import (
 
 // VMNetworkInfo structure
 type VMNetworkInfo struct {
-	NetworkInfo
+	// Namespace name
+	Namespace string
+	// Tap device name
+	Tap string
+	// Mac address of the device
 	MAC net.HardwareAddr
+	// Address of the device in the form of cidr
+	AddressCIDR string
+	// Gateway gateway address
+	GatewayIP string
+	// Nameservers dns servers
+	Nameservers []string
 }
 
 // Disk specifies vm disk params

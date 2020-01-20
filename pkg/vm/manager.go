@@ -144,6 +144,34 @@ func (m *vmModuleImpl) cleanFs(id string) error {
 	return os.RemoveAll(m.machineRoot(id))
 }
 
+func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) ([]firecracker.NetworkInterface, error) {
+	ip, netIP, err := net.ParseCIDR(vm.Network.AddressCIDR)
+	if err != nil {
+		return nil, err
+	}
+	netIP.IP = ip
+	gw := net.ParseIP(vm.Network.GatewayIP)
+	if gw == nil {
+		return nil, fmt.Errorf("invalid gateway IP: '%s'", vm.Network.GatewayIP)
+	}
+
+	nics := []firecracker.NetworkInterface{
+		{
+			StaticConfiguration: &firecracker.StaticNetworkConfiguration{
+				MacAddress:  vm.Network.MAC.String(),
+				HostDevName: vm.Network.Tap,
+				IPConfiguration: &firecracker.IPConfiguration{
+					IPAddr:      *netIP,
+					Gateway:     gw,
+					Nameservers: vm.Network.Nameservers,
+				},
+			},
+		},
+	}
+
+	return nics, nil
+}
+
 // Run vm
 func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	if err := vm.Validate(); err != nil {
@@ -166,13 +194,13 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 		return err
 	}
 
-	if len(vm.KernelArgs) == 0 {
-		vm.KernelArgs = defaultKernelArgs
-	}
-
-	out, err := os.Create(filepath.Join(vm.Storage, "machine.log"))
+	nics, err := m.makeNetwork(&vm)
 	if err != nil {
 		return err
+	}
+
+	if len(vm.KernelArgs) == 0 {
+		vm.KernelArgs = defaultKernelArgs
 	}
 
 	cfg := firecracker.Config{
@@ -193,24 +221,21 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 			ChrootBaseDir:  m.root,
 			Daemonize:      true,
 			ChrootStrategy: NewMountStrategy(m.machineRoot(vm.Name)),
-			Stdout:         out,
-			Stderr:         out,
 		},
-		Drives:         devices,
-		ForwardSignals: []os.Signal{}, // it has to be an empty list to prevent using the default
+		Drives:            devices,
+		NetworkInterfaces: nics,
+		ForwardSignals:    []os.Signal{}, // it has to be an empty list to prevent using the default
 	}
 
+	ns := filepath.Join("/var/run/netns", vm.Network.Namespace)
 	cmd := firecracker.JailerCommandBuilder{}.
 		WithBin(JailerBin).
 		WithChrootBaseDir(m.root).
 		WithDaemonize(true).
 		WithID(vm.Name).
-		WithStdout(out).
-		WithStderr(out).
 		WithExecFile(FCBin).
+		WithNetNS(ns).
 		Build(ctx)
-
-	defer out.Close()
 
 	var opts []firecracker.Opt
 	opts = append(opts, firecracker.WithProcessRunner(cmd))
