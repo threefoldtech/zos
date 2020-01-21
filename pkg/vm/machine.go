@@ -133,14 +133,14 @@ func (m *Machine) Start(ctx context.Context, base string) error {
 
 	cfg.Close()
 
-	return jailed.exec(base, ctx)
+	return jailed.exec(ctx, base)
 }
 
 func (m *Machine) cfgFilePath(base string) string {
 	return filepath.Join(m.root(base), "config.json")
 }
 
-func (m *Machine) exec(base string, ctx context.Context) error {
+func (m *Machine) exec(ctx context.Context, base string) error {
 	// prepare command
 	// because the --daemonize flag does not work as expected
 	// we are daemonizing with `ash and &` so we can use cmd.Run().
