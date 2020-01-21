@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"fmt"
-	"net"
 	"os"
 )
 
@@ -10,12 +9,10 @@ import (
 
 // VMNetworkInfo structure
 type VMNetworkInfo struct {
-	// Namespace name
-	Namespace string
 	// Tap device name
 	Tap string
 	// Mac address of the device
-	MAC net.HardwareAddr
+	MAC string
 	// Address of the device in the form of cidr
 	AddressCIDR string
 	// Gateway gateway address
@@ -24,8 +21,8 @@ type VMNetworkInfo struct {
 	Nameservers []string
 }
 
-// Disk specifies vm disk params
-type Disk struct {
+// VMDisk specifies vm disk params
+type VMDisk struct {
 	// Size is disk size in Mib
 	Size uint64
 }
@@ -45,13 +42,15 @@ type VM struct {
 	Storage string
 	// KernelImage path to uncompressed linux kernel ELF
 	KernelImage string
+	// InitrdImage (optiona) path to initrd disk
+	InitrdImage string
 	// KernelArgs to override the default kernel arguments. (default: "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules")
 	KernelArgs string
 	// RootImage path to root disk image
 	RootImage string
 	// Disks are a list of disks that are going to
 	// be auto allocated on the provided storage path
-	Disks []Disk
+	Disks []VMDisk
 }
 
 // Validate vm data
@@ -76,8 +75,8 @@ func (vm *VM) Validate() error {
 		return fmt.Errorf("storage is required")
 	}
 
-	if vm.Memory <= 0 {
-		return fmt.Errorf("invalid memory must be bigger than 0")
+	if vm.Memory < 512 {
+		return fmt.Errorf("invalid memory must not be less than 512M")
 	}
 
 	if vm.CPU == 0 || vm.CPU > 32 {

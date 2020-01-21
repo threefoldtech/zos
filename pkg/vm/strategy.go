@@ -10,6 +10,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// TODO: this is a dead code file. Was used when we use the firecracker-go-sdk to start
+// the machine.
+
 const (
 	mountFilesToRootFSHandlerName = "fcinit.MountFilesToRootFS"
 )
@@ -47,7 +50,7 @@ func (s *MountStrategy) handler() firecracker.Handler {
 				return err
 			}
 
-			for _, cfg := range []*string{&machine.Cfg.KernelImagePath} {
+			for _, cfg := range []*string{&machine.Cfg.KernelImagePath} { //, &machine.Cfg.InitrdPath} {
 				file := *cfg
 				if len(file) == 0 {
 					continue

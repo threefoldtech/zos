@@ -9,9 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/pkg/errors"
@@ -65,13 +67,13 @@ func (m *vmModuleImpl) makeDisk(name string, size int64) error {
 	return nil
 }
 
-func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]models.Drive, error) {
-	drives := []models.Drive{
+func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]Drive, error) {
+	drives := []Drive{
 		{
-			DriveID:      firecracker.String("1"),
-			IsReadOnly:   firecracker.Bool(false),
-			IsRootDevice: firecracker.Bool(true),
-			PathOnHost:   firecracker.String(vm.RootImage),
+			ID:         "1",
+			ReadOnly:   false,
+			RootDevice: true,
+			Path:       vm.RootImage,
 		},
 	}
 
@@ -82,11 +84,11 @@ func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]models.Drive, error) {
 			return nil, err
 		}
 
-		drives = append(drives, models.Drive{
-			DriveID:      firecracker.String(id),
-			IsReadOnly:   firecracker.Bool(false),
-			IsRootDevice: firecracker.Bool(false),
-			PathOnHost:   firecracker.String(path),
+		drives = append(drives, Drive{
+			ID:         id,
+			ReadOnly:   false,
+			RootDevice: false,
+			Path:       path,
 		})
 	}
 
@@ -144,44 +146,45 @@ func (m *vmModuleImpl) cleanFs(id string) error {
 	return os.RemoveAll(m.machineRoot(id))
 }
 
-func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) ([]firecracker.NetworkInterface, error) {
+func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) (iface Interface, cmdline string, err error) {
 	ip, netIP, err := net.ParseCIDR(vm.Network.AddressCIDR)
 	if err != nil {
-		return nil, err
+		return iface, cmdline, err
 	}
 	netIP.IP = ip
 	gw := net.ParseIP(vm.Network.GatewayIP)
 	if gw == nil {
-		return nil, fmt.Errorf("invalid gateway IP: '%s'", vm.Network.GatewayIP)
+		return iface, cmdline, fmt.Errorf("invalid gateway IP: '%s'", vm.Network.GatewayIP)
 	}
 
-	nics := []firecracker.NetworkInterface{
-		{
-			StaticConfiguration: &firecracker.StaticNetworkConfiguration{
-				MacAddress:  vm.Network.MAC.String(),
-				HostDevName: vm.Network.Tap,
-				IPConfiguration: &firecracker.IPConfiguration{
-					IPAddr:      *netIP,
-					Gateway:     gw,
-					Nameservers: vm.Network.Nameservers,
-				},
-			},
-		},
+	nic := Interface{
+		ID:  "eth0",
+		Tap: vm.Network.Tap,
+		Mac: vm.Network.MAC,
 	}
 
-	return nics, nil
+	dns0 := ""
+	dns1 := ""
+	if len(vm.Network.Nameservers) > 0 {
+		dns0 = vm.Network.Nameservers[0]
+	}
+	if len(vm.Network.Nameservers) > 1 {
+		dns1 = vm.Network.Nameservers[1]
+	}
+
+	cmdline = fmt.Sprintf("ip=%s::%s:%s:::off:%s:%s:",
+		ip.String(),
+		gw.String(),
+		net.IP(netIP.Mask).String(),
+		dns0,
+		dns1,
+	)
+
+	return nic, cmdline, nil
 }
 
 // Run vm
 func (m *vmModuleImpl) Run(vm pkg.VM) error {
-	const (
-		// if this is enabled machine will start in the
-		// foreground. It's then required that vmd
-		// was also started from the cmdline not as a
-		// daemon so you have access to machine console
-		testing = false
-	)
-
 	if err := vm.Validate(); err != nil {
 		return errors.Wrap(err, "machine configuration validation failed")
 	}
@@ -202,70 +205,59 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 		return err
 	}
 
-	nics, err := m.makeNetwork(&vm)
+	var kargs strings.Builder
+	kargs.WriteString(vm.KernelArgs)
+	if kargs.Len() == 0 {
+		kargs.WriteString(defaultKernelArgs)
+	}
+
+	nic, args, err := m.makeNetwork(&vm)
 	if err != nil {
 		return err
 	}
 
-	if len(vm.KernelArgs) == 0 {
-		vm.KernelArgs = defaultKernelArgs
+	if kargs.Len() != 0 {
+		kargs.WriteRune(' ')
 	}
 
-	cfg := firecracker.Config{
-		KernelImagePath: vm.KernelImage,
-		KernelArgs:      vm.KernelArgs,
-		MachineCfg: models.MachineConfiguration{
-			HtEnabled:  firecracker.Bool(false),
-			MemSizeMib: firecracker.Int64(vm.Memory),
-			VcpuCount:  firecracker.Int64(int64(vm.CPU)),
+	kargs.WriteString(args)
+
+	machine := Machine{
+		ID: vm.Name,
+		Boot: Boot{
+			Kernel: vm.KernelImage,
+			Initrd: vm.InitrdImage,
+			Args:   kargs.String(),
 		},
-		JailerCfg: &firecracker.JailerConfig{
-			UID:            firecracker.Int(0),
-			GID:            firecracker.Int(0),
-			NumaNode:       firecracker.Int(0),
-			ExecFile:       FCBin,
-			JailerBinary:   JailerBin,
-			ID:             vm.Name,
-			ChrootBaseDir:  m.root,
-			Daemonize:      !testing,
-			ChrootStrategy: NewMountStrategy(m.machineRoot(vm.Name)),
+		Config: Config{
+			CPU:       vm.CPU,
+			Mem:       vm.Memory,
+			HTEnabled: false,
 		},
-		Drives:            devices,
-		NetworkInterfaces: nics,
-		ForwardSignals:    []os.Signal{}, // it has to be an empty list to prevent using the default
+		Interfaces: []Interface{
+			nic,
+		},
+		Drives: devices,
 	}
 
-	ns := filepath.Join("/var/run/netns", vm.Network.Namespace)
-	builder := firecracker.JailerCommandBuilder{}.
-		WithBin(JailerBin).
-		WithChrootBaseDir(m.root).
-		WithDaemonize(!testing).
-		WithID(vm.Name).
-		WithExecFile(FCBin).
-		WithNetNS(ns)
-
-	if testing {
-
-		builder = builder.
-			WithStderr(os.Stderr).
-			WithStdout(os.Stdout).
-			WithStdin(os.Stdin)
-	}
-
-	cmd := builder.Build(ctx)
-
-	var opts []firecracker.Opt
-	opts = append(opts, firecracker.WithProcessRunner(cmd))
-
-	machine, err := firecracker.NewMachine(ctx, cfg, opts...)
-
-	if err != nil {
-		m.Delete(vm.Name)
+	if err := machine.Start(ctx, m.root); err != nil {
+		m.Delete(machine.ID)
 		return err
 	}
 
-	if err := machine.Start(ctx); err != nil {
-		m.Delete(vm.Name)
+	check := func() error {
+		if !m.exists(machine.ID) {
+			return fmt.Errorf("machine is not accepting connection")
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
+	defer cancel()
+
+	// wait for the machine to answer
+	if err := backoff.Retry(check, backoff.WithContext(backoff.NewConstantBackOff(2*time.Second), ctx)); err != nil {
+		m.Delete(machine.ID)
 		return err
 	}
 
