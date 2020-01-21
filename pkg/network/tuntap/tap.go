@@ -29,8 +29,12 @@ func CreateTap(name string, master string, netns ns.NetNS) (*netlink.Tuntap, err
 		Mode: netlink.TUNTAP_MODE_TAP,
 	}
 
-	if err := netlink.LinkAdd(tap); err != nil {
+	if err = netlink.LinkAdd(tap); err != nil {
 		return nil, errors.Wrap(err, "could not add tap device")
+	}
+
+	if err = netlink.LinkSetNsFd(tap, int(netns.Fd())); err != nil {
+		return nil, errors.Wrap(err, "could not move tap to network namespace")
 	}
 
 	err = netns.Do(func(_ ns.NetNS) error {
@@ -49,11 +53,18 @@ func CreateTap(name string, master string, netns ns.NetNS) (*netlink.Tuntap, err
 		var ok bool
 		tap, ok = link.(*netlink.Tuntap)
 		if !ok {
-			return fmt.Errorf("link %s should be of type tuntap", name)
-		}
-
-		if tap.Mode != netlink.TUNTAP_MODE_TAP {
-			return errors.New("tuntap iface does not have the expected 'tap' mode")
+			// right now, the netlink lib returns a `*GenericLink` for the tap interface,
+			// so  assign properties to a blank tap
+			gl, ok := link.(*netlink.GenericLink)
+			if !ok {
+				return fmt.Errorf("link %s should be of type tuntap", name)
+			}
+			tap = &netlink.Tuntap{LinkAttrs: gl.LinkAttrs, Mode: netlink.TUNTAP_MODE_TAP}
+		} else {
+			// make sure we have the right interface type
+			if tap.Mode != netlink.TUNTAP_MODE_TAP {
+				return errors.New("tuntap iface does not have the expected 'tap' mode")
+			}
 		}
 
 		return netlink.LinkSetUp(tap)
