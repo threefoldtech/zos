@@ -168,7 +168,7 @@ func (m *Machine) exec(base string, ctx context.Context) error {
 		// was also started from the cmdline not as a
 		// daemon so you have access to machine console
 
-		testing = true
+		testing = false
 	)
 
 	var cmd *exec.Cmd
