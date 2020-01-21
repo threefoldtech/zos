@@ -36,9 +36,6 @@ import (
 const (
 	// ZDBIface is the name of the interface used in the 0-db network namespace
 	ZDBIface = "zdb0"
-
-	// TapIface is the name of the tap interface if one is created in a namespace
-	TapIface = "nr-tap"
 )
 
 type networker struct {
@@ -232,43 +229,45 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 
 // SetupTap interface in the network resource. We only allow 1 tap interface to be
 // set up per NR currently
-func (n *networker) SetupTap(networkdID pkg.NetID, name string) error {
+func (n *networker) SetupTap(networkdID pkg.NetID) (string, error) {
 	log.Info().Str("network-id", string(networkdID)).Msg("Setting up tap interface")
 
 	network, err := n.networkOf(string(networkdID))
 	if err != nil {
-		return errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
+		return "", errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
 	}
 
 	nodeID := n.identity.NodeID().Identity()
 	localNR, err := ResourceByNodeID(nodeID, network.NetResources)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	netRes, err := nr.New(networkdID, localNR, &network.IPRange.IPNet)
 	if err != nil {
-		return errors.Wrap(err, "failed to load network resource")
-	}
-
-	nsName, err := netRes.Namespace()
-	if err != nil {
-		return errors.Wrap(err, "could not get network namespace name")
-	}
-
-	ns, err := namespace.GetByName(nsName)
-	if err != nil {
-		return errors.Wrapf(err, "could not get network namespace %s", nsName)
+		return "", errors.Wrap(err, "failed to load network resource")
 	}
 
 	bridgeName, err := netRes.BridgeName()
 	if err != nil {
-		return errors.Wrap(err, "could not get network namespace bridge")
+		return "", errors.Wrap(err, "could not get network namespace bridge")
 	}
 
-	_, err = tuntap.CreateTap(TapIface, bridgeName, ns)
+	tapIface, err := netRes.TapName()
+	if err != nil {
+		return "", errors.Wrap(err, "could not get network namespace tap device name")
+	}
 
-	return err
+	_, err = tuntap.CreateTap(tapIface, bridgeName)
+
+	return tapIface, err
+}
+
+// RemoveTap in the network resource.
+func (n *networker) RemoveTap(_ pkg.NetID, name string) error {
+	log.Info().Str("iface", name).Msg("Removing tap interface")
+
+	return ifaceutil.Delete(name, nil)
 }
 
 // Addrs return the IP addresses of interface
