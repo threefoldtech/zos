@@ -41,11 +41,11 @@ type Networker interface {
 	// hw is an optional hardware address that will be set on the new interface
 	ZDBPrepare(hw net.HardwareAddr) (string, error)
 
-	// SetupTap sets up a tap device is the namespace for the networkID. It is hooked
+	// SetupTap sets up a tap device in the network namespace for the networkID. It is hooked
 	// to the network bridge. The name of the tap interface is returned
 	SetupTap(networkID NetID) (string, error)
 
-	// RemoveTap removes the tap device with the given name from the namespace
+	// RemoveTap removes the tap device with the given name from the network namespace
 	// of the networkID
 	RemoveTap(networkID NetID, name string) error
 

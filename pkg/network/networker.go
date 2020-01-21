@@ -255,12 +255,12 @@ func (n *networker) SetupTap(networkdID pkg.NetID) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "could not get network namespace name")
 	}
-	log.Info().Str("ns name", nsName).Msg("Network namespace")
 
 	ns, err := namespace.GetByName(nsName)
 	if err != nil {
 		return "", errors.Wrapf(err, "could not get network namespace %s", nsName)
 	}
+	defer ns.Close()
 
 	bridgeName, err := netRes.BridgeName()
 	if err != nil {
@@ -295,12 +295,12 @@ func (n *networker) RemoveTap(networkdID pkg.NetID, name string) error {
 	if err != nil {
 		return errors.Wrap(err, "could not get network namespace name")
 	}
-	log.Info().Str("ns name", nsName).Msg("Network namespace")
 
 	ns, err := namespace.GetByName(nsName)
 	if err != nil {
 		return errors.Wrapf(err, "could not get network namespace %s", nsName)
 	}
+	defer ns.Close()
 
 	return ifaceutil.Delete(name, ns)
 }
