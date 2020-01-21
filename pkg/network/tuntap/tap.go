@@ -3,7 +3,6 @@ package tuntap
 import (
 	"fmt"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
@@ -11,9 +10,8 @@ import (
 
 const disableIPv6Template = "net.ipv6.conf.%s.disable_ipv6"
 
-// CreateTap creates a new tap device with the given name, sets the master interface and moves it
-// into the given network namespace.
-func CreateTap(name string, master string, netns ns.NetNS) (*netlink.Tuntap, error) {
+// CreateTap creates a new tap device with the given name, and sets the master interface
+func CreateTap(name string, master string) (*netlink.Tuntap, error) {
 	masterIface, err := netlink.LinkByName(master)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to look up tap master")
@@ -24,7 +22,6 @@ func CreateTap(name string, master string, netns ns.NetNS) (*netlink.Tuntap, err
 			MTU:         1500,
 			Name:        name,
 			ParentIndex: masterIface.Attrs().Index,
-			Namespace:   netlink.NsFd(int(netns.Fd())),
 		},
 		Mode: netlink.TUNTAP_MODE_TAP,
 	}
@@ -32,45 +29,49 @@ func CreateTap(name string, master string, netns ns.NetNS) (*netlink.Tuntap, err
 	if err = netlink.LinkAdd(tap); err != nil {
 		return nil, errors.Wrap(err, "could not add tap device")
 	}
+	defer func() {
+		if err != nil {
+			_ = netlink.LinkDel(tap)
+		}
+	}()
 
-	if err = netlink.LinkSetNsFd(tap, int(netns.Fd())); err != nil {
-		return nil, errors.Wrap(err, "could not move tap to network namespace")
+	// Setting the master iface on the link attrs at creation time seems to not work
+	// (at least not always), so explicitly set the master again once the iface is added.
+	if err = netlink.LinkSetMasterByIndex(tap, masterIface.Attrs().Index); err != nil {
+		return nil, errors.Wrap(err, "could not set tap master")
 	}
 
-	err = netns.Do(func(_ ns.NetNS) error {
-		disableIPv6Cmd := fmt.Sprintf(disableIPv6Template, name)
-		if _, err := sysctl.Sysctl(disableIPv6Cmd, "1"); err != nil {
-			_ = netlink.LinkDel(tap)
-			return errors.Wrap(err, "failed to disable ipv6 on interface host side")
-		}
+	disableIPv6Cmd := fmt.Sprintf(disableIPv6Template, name)
+	if _, err := sysctl.Sysctl(disableIPv6Cmd, "1"); err != nil {
+		return nil, errors.Wrap(err, "failed to disable ipv6 on interface host side")
+	}
 
-		// Re-fetch tap to get all properties/attributes
-		link, err := netlink.LinkByName(name)
-		if err != nil {
-			return errors.Wrapf(err, "failed to refetch tap interface %q", name)
-		}
-
-		var ok bool
-		tap, ok = link.(*netlink.Tuntap)
-		if !ok {
-			// right now, the netlink lib returns a `*GenericLink` for the tap interface,
-			// so  assign properties to a blank tap
-			gl, ok := link.(*netlink.GenericLink)
-			if !ok {
-				return fmt.Errorf("link %s should be of type tuntap", name)
-			}
-			tap = &netlink.Tuntap{LinkAttrs: gl.LinkAttrs, Mode: netlink.TUNTAP_MODE_TAP}
-		} else {
-			// make sure we have the right interface type
-			if tap.Mode != netlink.TUNTAP_MODE_TAP {
-				return errors.New("tuntap iface does not have the expected 'tap' mode")
-			}
-		}
-
-		return netlink.LinkSetUp(tap)
-	})
+	// Re-fetch tap to get all properties/attributes
+	var link netlink.Link
+	link, err = netlink.LinkByName(name)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to refetch tap interface %q", name)
+	}
+
+	var ok bool
+	tap, ok = link.(*netlink.Tuntap)
+	if !ok {
+		// right now, the netlink lib returns a `*GenericLink` for the tap interface,
+		// so  assign properties to a blank tap
+		gl, ok := link.(*netlink.GenericLink)
+		if !ok {
+			return nil, fmt.Errorf("link %s should be of type tuntap", name)
+		}
+		tap = &netlink.Tuntap{LinkAttrs: gl.LinkAttrs, Mode: netlink.TUNTAP_MODE_TAP}
+	} else {
+		// make sure we have the right interface type
+		if tap.Mode != netlink.TUNTAP_MODE_TAP {
+			return nil, errors.New("tuntap iface does not have the expected 'tap' mode")
+		}
+	}
+
+	if err = netlink.LinkSetUp(tap); err != nil {
+		return nil, errors.Wrap(err, "could not bring up tap iface")
 	}
 
 	return tap, nil
