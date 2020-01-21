@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"fmt"
-	"os"
 )
 
 //go:generate zbusc -module vmd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos/pkg+VMModule stubs/vmd_stub.go
@@ -24,7 +23,9 @@ type VMNetworkInfo struct {
 // VMDisk specifies vm disk params
 type VMDisk struct {
 	// Size is disk size in Mib
-	Size uint64
+	Path     string
+	ReadOnly bool
+	Root     bool
 }
 
 // VM config structure
@@ -37,17 +38,12 @@ type VM struct {
 	Memory int64
 	// Network is network info
 	Network VMNetworkInfo
-	// an allocated storage for the vm operation
-	// where files/virtual disks can be allocated
-	Storage string
 	// KernelImage path to uncompressed linux kernel ELF
 	KernelImage string
 	// InitrdImage (optiona) path to initrd disk
 	InitrdImage string
 	// KernelArgs to override the default kernel arguments. (default: "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules")
 	KernelArgs string
-	// RootImage path to root disk image
-	RootImage string
 	// Disks are a list of disks that are going to
 	// be auto allocated on the provided storage path
 	Disks []VMDisk
@@ -67,24 +63,12 @@ func (vm *VM) Validate() error {
 		return fmt.Errorf("kernel-image is required")
 	}
 
-	if missing(vm.RootImage) {
-		return fmt.Errorf("root-image is required")
-	}
-
-	if missing(vm.Storage) {
-		return fmt.Errorf("storage is required")
-	}
-
 	if vm.Memory < 512 {
 		return fmt.Errorf("invalid memory must not be less than 512M")
 	}
 
 	if vm.CPU == 0 || vm.CPU > 32 {
 		return fmt.Errorf("invalid cpu must be between 1 and 32")
-	}
-
-	if stat, err := os.Stat(vm.Storage); err != nil || !stat.IsDir() {
-		return fmt.Errorf("storage must exist and must be a directory")
 	}
 
 	return nil

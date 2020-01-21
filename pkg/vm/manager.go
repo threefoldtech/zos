@@ -68,27 +68,15 @@ func (m *vmModuleImpl) makeDisk(name string, size int64) error {
 }
 
 func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]Drive, error) {
-	drives := []Drive{
-		{
-			ID:         "1",
-			ReadOnly:   false,
-			RootDevice: true,
-			Path:       vm.RootImage,
-		},
-	}
-
+	var drives []Drive
 	for i, disk := range vm.Disks {
 		id := fmt.Sprintf("%d", i+2)
-		path := filepath.Join(vm.Storage, fmt.Sprintf("%s.disk", id))
-		if err := m.makeDisk(path, int64(disk.Size)); err != nil {
-			return nil, err
-		}
 
 		drives = append(drives, Drive{
 			ID:         id,
-			ReadOnly:   false,
-			RootDevice: false,
-			Path:       path,
+			ReadOnly:   disk.ReadOnly,
+			RootDevice: disk.Root,
+			Path:       disk.Path,
 		})
 	}
 
