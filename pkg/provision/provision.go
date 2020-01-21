@@ -37,11 +37,12 @@ var (
 	// reservation provisioners. Currently only containers are
 	// supported.
 	provisioners = map[ReservationType]provisioner{
-		ContainerReservation: containerProvision,
-		VolumeReservation:    volumeProvision,
-		NetworkReservation:   networkProvision,
-		ZDBReservation:       zdbProvision,
-		DebugReservation:     debugProvision,
+		ContainerReservation:  containerProvision,
+		VolumeReservation:     volumeProvision,
+		NetworkReservation:    networkProvision,
+		ZDBReservation:        zdbProvision,
+		DebugReservation:      debugProvision,
+		KubernetesReservation: kubernetesProvision,
 	}
 
 	decommissioners = map[ReservationType]decommissioner{
