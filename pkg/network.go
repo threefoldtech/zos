@@ -49,6 +49,13 @@ type Networker interface {
 	// of the networkID
 	RemoveTap(networkID NetID) error
 
+	// GetSubnet of the network with the given ID on the local node
+	GetSubnet(networkID NetID) (net.IPNet, error)
+
+	// GetDefaultGwIP returns the IP(v4) of the default gateway inside the network
+	// resource identified by the network ID on the local node
+	GetDefaultGwIP(networkID NetID) (net.IP, error)
+
 	// Addrs return the IP addresses of interface
 	// if the interface is in a network namespace netns needs to be not empty
 	Addrs(iface string, netns string) ([]net.IP, error)

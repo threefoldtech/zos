@@ -291,6 +291,52 @@ func (n *networker) RemoveTap(networkID pkg.NetID) error {
 	return ifaceutil.Delete(tapIface, nil)
 }
 
+// GetSubnet of a local network resource identified by the network ID
+func (n networker) GetSubnet(networkID pkg.NetID) (net.IPNet, error) {
+	network, err := n.networkOf(string(networkID))
+	if err != nil {
+		return net.IPNet{}, errors.Wrapf(err, "couldn't load network with id (%s)", networkID)
+	}
+
+	nodeID := n.identity.NodeID().Identity()
+	localNR, err := ResourceByNodeID(nodeID, network.NetResources)
+	if err != nil {
+		return net.IPNet{}, err
+	}
+
+	return localNR.Subnet.IPNet, nil
+}
+
+// GetDefaultGwIP returns the IP(v4) of the default gateway inside the network
+// resource identified by the network ID on the local node
+func (n networker) GetDefaultGwIP(networkID pkg.NetID) (net.IP, error) {
+	network, err := n.networkOf(string(networkID))
+	if err != nil {
+		return nil, errors.Wrapf(err, "couldn't load network with id (%s)", networkID)
+	}
+
+	nodeID := n.identity.NodeID().Identity()
+	localNR, err := ResourceByNodeID(nodeID, network.NetResources)
+	if err != nil {
+		return nil, err
+	}
+
+	// only IP4 atm
+	ip := localNR.Subnet.IP.To4()
+	if ip == nil {
+		return nil, errors.New("nr subnet is not valid IPv4")
+	}
+
+	// defaut gw is currenlty implied to be at `x.x.x.1`
+	// also a subnet in a NR is assumed to be a /24
+	if ip[len(ip)-1] != 0 {
+		return nil, fmt.Errorf("unexpected netresource IPv4 subnet %s", localNR.Subnet.IPNet.String())
+	}
+	ip[len(ip)-1] = 1
+
+	return ip, nil
+}
+
 // Addrs return the IP addresses of interface
 func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 	var ips []net.IP

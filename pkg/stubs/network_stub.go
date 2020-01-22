@@ -4,6 +4,7 @@ import (
 	"context"
 	zbus "github.com/threefoldtech/zbus"
 	pkg "github.com/threefoldtech/zos/pkg"
+	"net"
 )
 
 type NetworkerStub struct {
@@ -82,6 +83,38 @@ func (s *NetworkerStub) DeleteNR(arg0 pkg.Network) (ret0 error) {
 	}
 	ret0 = new(zbus.RemoteError)
 	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerStub) GetDefaultGwIP(arg0 pkg.NetID) (ret0 []uint8, ret1 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "GetDefaultGwIP", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerStub) GetSubnet(arg0 pkg.NetID) (ret0 net.IPNet, ret1 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "GetSubnet", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
 		panic(err)
 	}
 	return
