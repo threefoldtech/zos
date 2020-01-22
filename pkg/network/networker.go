@@ -229,12 +229,12 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 
 // SetupTap interface in the network resource. We only allow 1 tap interface to be
 // set up per NR currently
-func (n *networker) SetupTap(networkdID pkg.NetID) (string, error) {
-	log.Info().Str("network-id", string(networkdID)).Msg("Setting up tap interface")
+func (n *networker) SetupTap(networkID pkg.NetID) (string, error) {
+	log.Info().Str("network-id", string(networkID)).Msg("Setting up tap interface")
 
-	network, err := n.networkOf(string(networkdID))
+	network, err := n.networkOf(string(networkID))
 	if err != nil {
-		return "", errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
+		return "", errors.Wrapf(err, "couldn't load network with id (%s)", networkID)
 	}
 
 	nodeID := n.identity.NodeID().Identity()
@@ -243,7 +243,7 @@ func (n *networker) SetupTap(networkdID pkg.NetID) (string, error) {
 		return "", err
 	}
 
-	netRes, err := nr.New(networkdID, localNR, &network.IPRange.IPNet)
+	netRes, err := nr.New(networkID, localNR, &network.IPRange.IPNet)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to load network resource")
 	}
@@ -264,10 +264,31 @@ func (n *networker) SetupTap(networkdID pkg.NetID) (string, error) {
 }
 
 // RemoveTap in the network resource.
-func (n *networker) RemoveTap(_ pkg.NetID, name string) error {
-	log.Info().Str("iface", name).Msg("Removing tap interface")
+func (n *networker) RemoveTap(networkID pkg.NetID) error {
+	log.Info().Str("network-id", string(networkID)).Msg("Removing tap interface")
 
-	return ifaceutil.Delete(name, nil)
+	network, err := n.networkOf(string(networkID))
+	if err != nil {
+		return errors.Wrapf(err, "couldn't load network with id (%s)", networkID)
+	}
+
+	nodeID := n.identity.NodeID().Identity()
+	localNR, err := ResourceByNodeID(nodeID, network.NetResources)
+	if err != nil {
+		return err
+	}
+
+	netRes, err := nr.New(networkID, localNR, &network.IPRange.IPNet)
+	if err != nil {
+		return errors.Wrap(err, "failed to load network resource")
+	}
+
+	tapIface, err := netRes.TapName()
+	if err != nil {
+		return errors.Wrap(err, "could not get network namespace tap device name")
+	}
+
+	return ifaceutil.Delete(tapIface, nil)
 }
 
 // Addrs return the IP addresses of interface

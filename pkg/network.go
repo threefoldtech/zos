@@ -45,9 +45,9 @@ type Networker interface {
 	// to the network bridge. The name of the tap interface is returned
 	SetupTap(networkID NetID) (string, error)
 
-	// RemoveTap removes the tap device with the given name from the network namespace
+	// RemoveTap removes the tap device from the network namespace
 	// of the networkID
-	RemoveTap(networkID NetID, name string) error
+	RemoveTap(networkID NetID) error
 
 	// Addrs return the IP addresses of interface
 	// if the interface is in a network namespace netns needs to be not empty

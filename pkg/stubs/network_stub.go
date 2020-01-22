@@ -135,8 +135,8 @@ func (s *NetworkerStub) PublicAddresses(ctx context.Context) (<-chan pkg.Netlink
 	return ch, nil
 }
 
-func (s *NetworkerStub) RemoveTap(arg0 pkg.NetID, arg1 string) (ret0 error) {
-	args := []interface{}{arg0, arg1}
+func (s *NetworkerStub) RemoveTap(arg0 pkg.NetID) (ret0 error) {
+	args := []interface{}{arg0}
 	result, err := s.client.Request(s.module, s.object, "RemoveTap", args...)
 	if err != nil {
 		panic(err)
