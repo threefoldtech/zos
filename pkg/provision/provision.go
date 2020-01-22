@@ -46,10 +46,11 @@ var (
 	}
 
 	decommissioners = map[ReservationType]decommissioner{
-		ContainerReservation: containerDecommission,
-		VolumeReservation:    volumeDecommission,
-		NetworkReservation:   networkDecommission,
-		ZDBReservation:       zdbDecommission,
-		DebugReservation:     debugDecommission,
+		ContainerReservation:  containerDecommission,
+		VolumeReservation:     volumeDecommission,
+		NetworkReservation:    networkDecommission,
+		ZDBReservation:        zdbDecommission,
+		DebugReservation:      debugDecommission,
+		KubernetesReservation: kubernetesDecomission,
 	}
 )
