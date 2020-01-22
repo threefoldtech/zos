@@ -72,7 +72,7 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 	// TODO: check if vm already exists
 
 	var imagePath string
-	imagePath, err = flist.Mount(k3osFlistURL, "", pkg.ReadOnlyMountOptions)
+	imagePath, err = flist.NamedMount(reservation.ID, k3osFlistURL, "", pkg.ReadOnlyMountOptions)
 	if err != nil {
 		return errors.Wrap(err, "could not mount k3os flist")
 	}
@@ -188,8 +188,8 @@ func kubernetesDecomission(ctx context.Context, reservation *Reservation) error 
 
 		// storage = stubs.NewStorageModuleStub(client)
 		network = stubs.NewNetworkerStub(client)
-		// flist   = stubs.NewFlisterStub(client)
-		vm = stubs.NewVMModuleStub(client)
+		flist   = stubs.NewFlisterStub(client)
+		vm      = stubs.NewVMModuleStub(client)
 
 		cfg Kubernetes
 	)
@@ -207,8 +207,12 @@ func kubernetesDecomission(ctx context.Context, reservation *Reservation) error 
 	if err := network.RemoveTap(cfg.NetworkID); err != nil {
 		return errors.Wrap(err, "could not clean up tap device")
 	}
+
 	// TODO clean up storage
-	// TODO clean up flist
+
+	if err := flist.NamedUmount(reservation.ID); err != nil {
+		return errors.Wrap(err, "could not unmount flist")
+	}
 
 	return nil
 }
