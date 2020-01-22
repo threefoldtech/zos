@@ -13,9 +13,7 @@ import (
 
 func generateKubernetes(c *cli.Context) error {
 	var (
-		cpu             = c.Uint64("cpu")
-		memory          = c.Uint64("memory")
-		diskSize        = c.Uint64("disk-size")
+		size            = c.Uint("size")
 		netID           = c.String("networkd-id")
 		ipString        = c.String("ip")
 		plainSecret     = c.String("secret")
@@ -24,20 +22,12 @@ func generateKubernetes(c *cli.Context) error {
 		sshKeys         = c.StringSlice("ssh-keys")
 	)
 
-	if cpu == 0 || cpu > 32 {
-		return errors.New("Invalid amount of vCpu for vm")
-	}
-
-	if memory == 0 {
-		return errors.New("Invalid amount of memory for vm")
-	}
-
-	if diskSize == 0 {
-		return errors.New("Invalid disk size for vm")
+	if size == 0 || size > 2 {
+		return errors.New("only size 1 or 2 is supported for vm")
 	}
 
 	if netID == "" {
-		return errors.New("VM requires a network to run in")
+		return errors.New("vm requires a network to run in")
 	}
 
 	ip := net.ParseIP(ipString)
@@ -46,7 +36,7 @@ func generateKubernetes(c *cli.Context) error {
 	}
 
 	if plainSecret == "" {
-		return errors.New("A secret is required for kubernetes")
+		return errors.New("a secret is required for kubernetes")
 	}
 
 	pk, err := crypto.KeyFromID(pkg.StrIdentifier(nodeID))
@@ -70,9 +60,7 @@ func generateKubernetes(c *cli.Context) error {
 	}
 
 	kube := provision.Kubernetes{
-		CPUCount:      uint8(cpu),
-		Memory:        memory,
-		DiskSize:      diskSize,
+		Size:          uint8(size),
 		NetworkID:     pkg.NetID(netID),
 		IP:            ip,
 		ClusterSecret: encryptedSecret,

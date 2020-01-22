@@ -14,11 +14,8 @@ import (
 
 // Kubernetes reservation data
 type Kubernetes struct {
-	CPUCount uint8 `json:"cpu_count"`
-	// Memory in KB for the vm
-	Memory uint64 `json:"memory"`
-	// DiskSize in MB
-	DiskSize uint64 `json:"disk_size"`
+	// Size of the vm, this defines the amount of vCpu, memory, and the disk size
+	Size uint8 `json:"size"`
 
 	// NetworkID of the network namepsace in which to run the VM. The network
 	// must be provisioned previously.
@@ -45,7 +42,7 @@ type Kubernetes struct {
 const k3osFlistURL = "https://hub.grid.tf/lee/k3os.flist"
 
 func kubernetesProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
-	return "", kubernetesProvisionImpl(ctx, reservation)
+	return nil, kubernetesProvisionImpl(ctx, reservation)
 }
 
 func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) error {
@@ -55,6 +52,7 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		storage = stubs.NewStorageModuleStub(client)
 		network = stubs.NewNetworkerStub(client)
 		flist   = stubs.NewFlisterStub(client)
+		vm      = stubs.NewVMModuleStub(client)
 
 		config Kubernetes
 	)
@@ -69,7 +67,15 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		return errors.Wrap(err, "failed to decrypt namespace password")
 	}
 
-	// TODO: check if vm already exists
+	cpu, memory, disk, err := vmSize(config.Size)
+	if err != nil {
+		return errors.Wrap(err, "could not interpret vm size")
+	}
+
+	if _, err = vm.Inspect(reservation.ID); err == nil {
+		// vm is already running, nothing to do here
+		return nil
+	}
 
 	var imagePath string
 	imagePath, err = flist.NamedMount(reservation.ID, k3osFlistURL, "", pkg.ReadOnlyMountOptions)
@@ -83,9 +89,10 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		}
 	}()
 
+	// TODO: replace with vDisk alloc
 	var storagePath string
 	// disksize is in MB, make sure to convert
-	storagePath, err = storage.CreateFilesystem(reservation.ID, config.DiskSize*1024*1024, pkg.SSDDevice)
+	storagePath, err = storage.CreateFilesystem(reservation.ID, disk*1024*1024, pkg.SSDDevice)
 	if err != nil {
 		return errors.Wrap(err, "failed to reserve filesystem for vm")
 	}
@@ -112,14 +119,14 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		return errors.Wrap(err, "could not generate network info")
 	}
 
-	if err = kubernetesInstall(ctx, reservation.ID, storagePath, imagePath, netInfo, config); err != nil {
+	if err = kubernetesInstall(ctx, reservation.ID, cpu, memory, storagePath, imagePath, netInfo, config); err != nil {
 		return errors.Wrap(err, "failed to install k3s")
 	}
 
-	return kubernetesRun(ctx, reservation.ID, storagePath, imagePath, netInfo, config)
+	return kubernetesRun(ctx, reservation.ID, cpu, memory, storagePath, imagePath, netInfo, config)
 }
 
-func kubernetesInstall(ctx context.Context, name string, storagePath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
+func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, storagePath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(GetZBus(ctx))
 
 	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.mode=install k3os.install.silent k3os.install.device=/dev/vda k3os.token=%s k3os.server_url=https://172.31.1.50:6443", cfg.PlainClusterSecret)
@@ -141,8 +148,8 @@ func kubernetesInstall(ctx context.Context, name string, storagePath string, ima
 
 	installVM := pkg.VM{
 		Name:        name,
-		CPU:         cfg.CPUCount,
-		Memory:      int64(cfg.Memory),
+		CPU:         cpu,
+		Memory:      int64(memory),
 		Network:     networkInfo,
 		KernelImage: imagePath + "/k3os-vmlinux",
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
@@ -164,13 +171,13 @@ func kubernetesInstall(ctx context.Context, name string, storagePath string, ima
 	return vm.Delete(name)
 }
 
-func kubernetesRun(ctx context.Context, name string, storagePath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
+func kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, storagePath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(GetZBus(ctx))
 
 	kubevm := pkg.VM{
 		Name:        name,
-		CPU:         cfg.CPUCount,
-		Memory:      int64(cfg.Memory),
+		CPU:         cpu,
+		Memory:      int64(memory),
 		Network:     networkInfo,
 		KernelImage: imagePath + "/k3os-vmlinux",
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
@@ -248,4 +255,19 @@ func buildNetworkInfo(ctx context.Context, iface string, cfg Kubernetes) (pkg.VM
 	}
 
 	return networkInfo, nil
+}
+
+// returns the vCpu's, memory, disksize for a vm size
+// memory and disk size is expressed in MiB
+func vmSize(size uint8) (uint8, uint64, uint64, error) {
+	switch size {
+	case 1:
+		// 1 vCpu, 2 GiB RAM, 50 GB disk
+		return 1, 2 * 1024, 50 * 1024, nil
+	case 2:
+		// 2 vCpu, 4 GiB RAM, 100 GB disk
+		return 2, 4 * 1024, 100 * 1024, nil
+	}
+
+	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size 1 and 2 are supported", size)
 }

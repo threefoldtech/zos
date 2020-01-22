@@ -270,17 +270,9 @@ func main() {
 					Name:  "kubernetes",
 					Usage: "Provision a vm running a kubernetes server or agent on a node",
 					Flags: []cli.Flag{
-						cli.Uint64Flag{
-							Name:  "cpu, c",
-							Usage: "Amount of virtual CPU's to assign to the vm",
-						},
-						cli.Uint64Flag{
-							Name:  "memory, m",
-							Usage: "Amount of memory (in MiB) to assign to the vm",
-						},
-						cli.Uint64Flag{
-							Name:  "disk-size, d",
-							Usage: "Size of the disk (in MiB) to assign to the vm",
+						cli.UintFlag{
+							Name:  "size",
+							Usage: "Size of the VM, only 1 (small) and 2 (medium) are supported",
 						},
 						cli.StringFlag{
 							Name:  "network-id",
