@@ -102,26 +102,30 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 	}
 	defer func() {
 		if err != nil {
-			_ = network.RemoveTap(config.NetworkID, iface)
+			_ = network.RemoveTap(config.NetworkID)
 		}
 	}()
 
-	if err = kubernetesInstall(ctx, reservation.ID, storagePath, imagePath, iface, config); err != nil {
+	var netInfo pkg.VMNetworkInfo
+	netInfo, err = buildNetworkInfo(ctx, iface, config)
+	if err != nil {
+		return errors.Wrap(err, "could not generate network info")
+	}
+
+	if err = kubernetesInstall(ctx, reservation.ID, storagePath, imagePath, netInfo, config); err != nil {
 		return errors.Wrap(err, "failed to install k3s")
 	}
 
-	return kubernetesRun(ctx, reservation.ID, storagePath, imagePath, iface, config)
-
+	return kubernetesRun(ctx, reservation.ID, storagePath, imagePath, netInfo, config)
 }
 
-func kubernetesInstall(ctx context.Context, name string, storagePath string, imagePath string, iface string, cfg Kubernetes) error {
+func kubernetesInstall(ctx context.Context, name string, storagePath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(GetZBus(ctx))
 
 	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.mode=install k3os.install.silent k3os.install.device=/dev/vda k3os.token=%s k3os.server_url=https://172.31.1.50:6443", cfg.PlainClusterSecret)
 	// if there is no server url configured, the node is set up as a master, therefore
 	// this will cause nodes with an empty master list to be implicitly treated as
 	// a master node
-	// TODO: check multi master setup
 	for _, ip := range cfg.MasterIPs {
 		var ipstring string
 		if ip.To4() != nil {
@@ -136,17 +140,15 @@ func kubernetesInstall(ctx context.Context, name string, storagePath string, ima
 	}
 
 	installVM := pkg.VM{
-		Name:   name,
-		CPU:    cfg.CPUCount,
-		Memory: int64(cfg.Memory),
-
-		Storage:     storagePath,
+		Name:        name,
+		CPU:         cfg.CPUCount,
+		Memory:      int64(cfg.Memory),
+		Network:     networkInfo,
 		KernelImage: imagePath + "/k3os-vmlinux",
+		InitrdImage: imagePath + "/k3os-initrd-amd64",
 		KernelArgs:  cmdline,
-		// TODO other args
-
 		// TODO: Mount ISO
-		Disks: []pkg.Disk{{Size: cfg.DiskSize}},
+		// Disks: []pkg.Disk{{Size: cfg.DiskSize}},
 	}
 
 	if err := vm.Run(installVM); err != nil {
@@ -162,21 +164,84 @@ func kubernetesInstall(ctx context.Context, name string, storagePath string, ima
 	return vm.Delete(name)
 }
 
-func kubernetesRun(ctx context.Context, name string, storagePath string, imagePath string, iface string, cfg Kubernetes) error {
+func kubernetesRun(ctx context.Context, name string, storagePath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(GetZBus(ctx))
 
 	kubevm := pkg.VM{
-		Name:   name,
-		CPU:    cfg.CPUCount,
-		Memory: int64(cfg.Memory),
-
-		Storage:     storagePath,
+		Name:        name,
+		CPU:         cfg.CPUCount,
+		Memory:      int64(cfg.Memory),
+		Network:     networkInfo,
 		KernelImage: imagePath + "/k3os-vmlinux",
+		InitrdImage: imagePath + "/k3os-initrd-amd64",
 		KernelArgs:  "console=ttyS0 reboot=k panic=1",
-		// TODO other args
-
-		Disks: []pkg.Disk{{Size: cfg.DiskSize}},
+		// TODO disks
+		// Disks: []pkg.Disk{{Size: cfg.DiskSize}},
 	}
 
 	return vm.Run(kubevm)
+}
+
+func kubernetesDecomission(ctx context.Context, reservation *Reservation) error {
+	var (
+		client = GetZBus(ctx)
+
+		// storage = stubs.NewStorageModuleStub(client)
+		network = stubs.NewNetworkerStub(client)
+		// flist   = stubs.NewFlisterStub(client)
+		vm = stubs.NewVMModuleStub(client)
+
+		cfg Kubernetes
+	)
+
+	if err := json.Unmarshal(reservation.Data, &cfg); err != nil {
+		return errors.Wrap(err, "failed to decode reservation schema")
+	}
+
+	if _, err := vm.Inspect(reservation.ID); err == nil {
+		if err := vm.Delete(reservation.ID); err != nil {
+			return errors.Wrapf(err, "failed to delete vm %s", reservation.ID)
+		}
+	}
+
+	if err := network.RemoveTap(cfg.NetworkID); err != nil {
+		return errors.Wrap(err, "could not clean up tap device")
+	}
+	// TODO clean up storage
+	// TODO clean up flist
+
+	return nil
+}
+
+func buildNetworkInfo(ctx context.Context, iface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
+	network := stubs.NewNetworkerStub(GetZBus(ctx))
+
+	subnet, err := network.GetSubnet(cfg.NetworkID)
+	if err != nil {
+		return pkg.VMNetworkInfo{}, errors.Wrapf(err, "could not get network resource subnet")
+	}
+
+	if !subnet.Contains(cfg.IP) {
+		return pkg.VMNetworkInfo{}, fmt.Errorf("IP %s is not part of local nr subnet %s", cfg.IP.String(), subnet.String())
+	}
+
+	addrCIDR := net.IPNet{
+		IP:   cfg.IP,
+		Mask: subnet.Mask,
+	}
+
+	gw, err := network.GetDefaultGwIP(cfg.NetworkID)
+	if err != nil {
+		return pkg.VMNetworkInfo{}, errors.Wrapf(err, "could not get network resource default gateway")
+	}
+
+	networkInfo := pkg.VMNetworkInfo{
+		Tap:         iface,
+		MAC:         "", // rely on static IP configuration so we don't care here
+		AddressCIDR: addrCIDR.String(),
+		GatewayIP:   net.IP(gw).String(),
+		Nameservers: []string{"8.8.8.8", "8.8.4.4"},
+	}
+
+	return networkInfo, nil
 }
