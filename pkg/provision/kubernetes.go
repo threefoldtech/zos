@@ -49,7 +49,7 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 	var (
 		client = GetZBus(ctx)
 
-		storage = stubs.NewStorageModuleStub(client)
+		storage = stubs.NewVDiskModuleStub(client)
 		network = stubs.NewNetworkerStub(client)
 		flist   = stubs.NewFlisterStub(client)
 		vm      = stubs.NewVMModuleStub(client)
@@ -89,16 +89,15 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		}
 	}()
 
-	// TODO: replace with vDisk alloc
-	var storagePath string
-	// disksize is in MB, make sure to convert
-	storagePath, err = storage.CreateFilesystem(reservation.ID, disk*1024*1024, pkg.SSDDevice)
+	var diskPath string
+	diskName := fmt.Sprintf("%s-%s", reservation.ID, "vda")
+	diskPath, err = storage.Allocate(diskName, int64(disk))
 	if err != nil {
 		return errors.Wrap(err, "failed to reserve filesystem for vm")
 	}
 	defer func() {
 		if err != nil {
-			_ = storage.ReleaseFilesystem(storagePath)
+			_ = storage.Deallocate(diskName)
 		}
 	}()
 
@@ -119,14 +118,14 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		return errors.Wrap(err, "could not generate network info")
 	}
 
-	if err = kubernetesInstall(ctx, reservation.ID, cpu, memory, storagePath, imagePath, netInfo, config); err != nil {
+	if err = kubernetesInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
 		return errors.Wrap(err, "failed to install k3s")
 	}
 
-	return kubernetesRun(ctx, reservation.ID, cpu, memory, storagePath, imagePath, netInfo, config)
+	return kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
 }
 
-func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, storagePath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
+func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(GetZBus(ctx))
 
 	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.mode=install k3os.install.silent k3os.install.device=/dev/vda k3os.token=%s k3os.server_url=https://172.31.1.50:6443", cfg.PlainClusterSecret)
@@ -146,6 +145,12 @@ func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint6
 		cmdline = fmt.Sprintf("%s ssh_authorized_keys=%s", cmdline, key)
 	}
 
+	disks := make([]pkg.VMDisk, 2)
+	// install disk
+	disks[0] = pkg.VMDisk{Path: diskPath, ReadOnly: false, Root: false}
+	// install ISO
+	disks[1] = pkg.VMDisk{Path: imagePath + "/k3os-amd64.iso", ReadOnly: true, Root: false}
+
 	installVM := pkg.VM{
 		Name:        name,
 		CPU:         cpu,
@@ -154,8 +159,7 @@ func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint6
 		KernelImage: imagePath + "/k3os-vmlinux",
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
 		KernelArgs:  cmdline,
-		// TODO: Mount ISO
-		// Disks: []pkg.Disk{{Size: cfg.DiskSize}},
+		Disks:       disks,
 	}
 
 	if err := vm.Run(installVM); err != nil {
@@ -171,8 +175,12 @@ func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint6
 	return vm.Delete(name)
 }
 
-func kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, storagePath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
+func kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(GetZBus(ctx))
+
+	disks := make([]pkg.VMDisk, 1)
+	// installed disk
+	disks[0] = pkg.VMDisk{Path: diskPath, ReadOnly: false, Root: false}
 
 	kubevm := pkg.VM{
 		Name:        name,
@@ -182,8 +190,7 @@ func kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, s
 		KernelImage: imagePath + "/k3os-vmlinux",
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
 		KernelArgs:  "console=ttyS0 reboot=k panic=1",
-		// TODO disks
-		// Disks: []pkg.Disk{{Size: cfg.DiskSize}},
+		Disks:       disks,
 	}
 
 	return vm.Run(kubevm)
@@ -193,7 +200,7 @@ func kubernetesDecomission(ctx context.Context, reservation *Reservation) error 
 	var (
 		client = GetZBus(ctx)
 
-		// storage = stubs.NewStorageModuleStub(client)
+		storage = stubs.NewVDiskModuleStub(client)
 		network = stubs.NewNetworkerStub(client)
 		flist   = stubs.NewFlisterStub(client)
 		vm      = stubs.NewVMModuleStub(client)
@@ -215,7 +222,9 @@ func kubernetesDecomission(ctx context.Context, reservation *Reservation) error 
 		return errors.Wrap(err, "could not clean up tap device")
 	}
 
-	// TODO clean up storage
+	if err := storage.Deallocate(fmt.Sprintf("%s-%s", reservation.ID, "vda")); err != nil {
+		return errors.Wrap(err, "could not remove vDisk")
+	}
 
 	if err := flist.NamedUmount(reservation.ID); err != nil {
 		return errors.Wrap(err, "could not unmount flist")
