@@ -12,12 +12,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Boot config struct
 type Boot struct {
 	Kernel string `json:"kernel_image_path"`
 	Initrd string `json:"initrd_path,omitempty"`
 	Args   string `json:"boot_args"`
 }
 
+// Drive struct
 type Drive struct {
 	ID         string `json:"drive_id"`
 	Path       string `json:"path_on_host"`
@@ -25,18 +27,21 @@ type Drive struct {
 	ReadOnly   bool   `json:"is_read_only"`
 }
 
+// Interface nic struct
 type Interface struct {
 	ID  string `json:"iface_id"`
 	Tap string `json:"host_dev_name"`
 	Mac string `json:"guest_mac,omitempty"`
 }
 
+// Config struct
 type Config struct {
 	CPU       uint8 `json:"vcpu_count"`
 	Mem       int64 `json:"mem_size_mib"`
 	HTEnabled bool  `json:"ht_enabled"`
 }
 
+// Machine struct
 type Machine struct {
 	ID         string      `json:"-"`
 	Boot       Boot        `json:"boot-source"`
