@@ -327,7 +327,7 @@ func (n networker) GetDefaultGwIP(networkID pkg.NetID) (net.IP, error) {
 		return nil, errors.New("nr subnet is not valid IPv4")
 	}
 
-	// defaut gw is currenlty implied to be at `x.x.x.1`
+	// defaut gw is currently implied to be at `x.x.x.1`
 	// also a subnet in a NR is assumed to be a /24
 	ip[len(ip)-1] = 1
 

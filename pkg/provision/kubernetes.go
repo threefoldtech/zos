@@ -128,7 +128,7 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(GetZBus(ctx))
 
-	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.mode=install k3os.install.silent k3os.install.device=/dev/vda k3os.token=%s k3os.server_url=https://172.31.1.50:6443", cfg.PlainClusterSecret)
+	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.mode=install k3os.install.silent k3os.install.device=/dev/vda k3os.token=%s", cfg.PlainClusterSecret)
 	// if there is no server url configured, the node is set up as a master, therefore
 	// this will cause nodes with an empty master list to be implicitly treated as
 	// a master node
@@ -144,7 +144,7 @@ func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint6
 		cmdline = fmt.Sprintf("%s k3os.server_url=https://%s:6443", cmdline, ipstring)
 	}
 	for _, key := range cfg.SSHKeys {
-		cmdline = fmt.Sprintf("%s ssh_authorized_keys=%s", cmdline, key)
+		cmdline = fmt.Sprintf("%s ssh_authorized_keys=\"%s\"", cmdline, key)
 	}
 
 	disks := make([]pkg.VMDisk, 2)
@@ -191,7 +191,7 @@ func kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, d
 		Network:     networkInfo,
 		KernelImage: imagePath + "/k3os-vmlinux",
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
-		KernelArgs:  "console=ttyS0 reboot=k panic=1",
+		KernelArgs:  "console=ttyS0 reboot=k panic=1 boot_cmd=\"rm -f /etc/init.d/connman;rm -f /etc/resolv.conf; ln -s /proc/net/pnp /etc/resolv.conf\"",
 		Disks:       disks,
 	}
 
