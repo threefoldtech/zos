@@ -77,6 +77,3 @@ require (
 )
 
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
-
-// replace github.com/firecracker-microvm/firecracker-go-sdk v0.19.1-0.20200110212531-741fc8cb0f2e => github.com/smira/firecracker-go-sdk v0.19.1-0.20200113163310-d2ac2e5d36c9
-replace github.com/firecracker-microvm/firecracker-go-sdk v0.19.1-0.20200110212531-741fc8cb0f2e => ../firecracker-go-sdk
