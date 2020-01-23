@@ -19,8 +19,8 @@ func NewVDiskModuleStub(client zbus.Client) *VDiskModuleStub {
 	}
 }
 
-func (s *VDiskModuleStub) Allocate(arg0 int64) (ret0 string, ret1 error) {
-	args := []interface{}{arg0}
+func (s *VDiskModuleStub) Allocate(arg0 string, arg1 int64) (ret0 string, ret1 error) {
+	args := []interface{}{arg0, arg1}
 	result, err := s.client.Request(s.module, s.object, "Allocate", args...)
 	if err != nil {
 		panic(err)
