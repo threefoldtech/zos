@@ -14,7 +14,7 @@ import (
 func generateKubernetes(c *cli.Context) error {
 	var (
 		size            = c.Uint("size")
-		netID           = c.String("networkd-id")
+		netID           = c.String("network-id")
 		ipString        = c.String("ip")
 		plainSecret     = c.String("secret")
 		nodeID          = c.String("node")
@@ -73,5 +73,5 @@ func generateKubernetes(c *cli.Context) error {
 		return errors.Wrap(err, "could not generate reservation schema")
 	}
 
-	return output(c.GlobalString("output"), p)
+	return output(c.GlobalString("schema"), p)
 }

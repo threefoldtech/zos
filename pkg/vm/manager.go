@@ -275,7 +275,7 @@ func (m *vmModuleImpl) find(name string) (int, error) {
 		proc   = "/proc"
 		search = "/firecracker"
 	)
-	idArg := fmt.Sprintf("--id=%s", name)
+	idArg := name
 	result := 0
 	err := filepath.Walk(proc, func(path string, info os.FileInfo, err error) error {
 		if path == proc {

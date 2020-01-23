@@ -136,8 +136,10 @@ func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint6
 		var ipstring string
 		if ip.To4() != nil {
 			ipstring = ip.String()
-		} else {
+		} else if ip.To16() != nil {
 			ipstring = fmt.Sprintf("[%s]", ip.String())
+		} else {
+			return errors.New("invalid master IP")
 		}
 		cmdline = fmt.Sprintf("%s k3os.server_url=https://%s:6443", cmdline, ipstring)
 	}
@@ -163,7 +165,7 @@ func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint6
 	}
 
 	if err := vm.Run(installVM); err != nil {
-		return err
+		return errors.Wrap(err, "could not run vm")
 	}
 
 	// TODO: Currently the ISO does not support reboot from silent install, and

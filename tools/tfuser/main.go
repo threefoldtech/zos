@@ -273,6 +273,7 @@ func main() {
 						cli.UintFlag{
 							Name:  "size",
 							Usage: "Size of the VM, only 1 (small) and 2 (medium) are supported",
+							Value: 1,
 						},
 						cli.StringFlag{
 							Name:  "network-id",
@@ -296,9 +297,10 @@ func main() {
 						},
 						cli.StringSliceFlag{
 							Name:  "ssh-keys",
-							Usage: "Ssh keys to authorize for the vm. Can be either a full ssh key, or a `github:username` form which will pull the ssh keys from github",
+							Usage: "Ssh keys to authorize for the vm. Can be either a full ssh key, or a \"github:username\" form which will pull the ssh keys from github",
 						},
 					},
+					Action: generateKubernetes,
 				},
 				{
 					Name:  "debug",
