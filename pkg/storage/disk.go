@@ -1,13 +1,12 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 
-	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -34,9 +33,13 @@ func NewVDiskModule(v pkg.VolumeAllocater) (pkg.VDiskModule, error) {
 }
 
 // AllocateDisk with given size, return path to virtual disk (size in MB)
-func (d *vdiskModule) Allocate(size int64) (string, error) {
-	name := uuid.New().String()
-	path := filepath.Join(d.path, name)
+func (d *vdiskModule) Allocate(id string, size int64) (string, error) {
+	path := filepath.Join(d.path, id)
+
+	if _, err := os.Stat(path); err == nil {
+		// file exists
+		return path, errors.Wrapf(os.ErrExist, "disk with id '%s' already exists", id)
+	}
 
 	file, err := os.Create(path)
 	if err != nil {
@@ -49,10 +52,14 @@ func (d *vdiskModule) Allocate(size int64) (string, error) {
 }
 
 // DeallocateVDisk removes a virtual disk
-func (d *vdiskModule) Deallocate(path string) error {
+func (d *vdiskModule) Deallocate(id string) error {
+	path := filepath.Join(d.path, id)
+	// this to avoid passing an `injection` id like '../name'
+	// and end up deleting a file on the system. so only delete
+	// allocated disks
 	location := filepath.Dir(path)
 	if filepath.Clean(location) != d.path {
-		return fmt.Errorf("invalid disk path")
+		return fmt.Errorf("invalid disk id: '%s'", id)
 	}
 
 	return os.Remove(path)

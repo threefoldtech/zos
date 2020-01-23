@@ -127,10 +127,10 @@ type VolumeAllocater interface {
 
 // VDiskModule interface
 type VDiskModule interface {
-	// AllocateDisk with given size, return path to virtual disk
-	Allocate(size int64) (string, error)
+	// AllocateDisk with given id and size, return path to virtual disk
+	Allocate(id string, size int64) (string, error)
 	// DeallocateVDisk removes a virtual disk
-	Deallocate(path string) error
+	Deallocate(id string) error
 }
 
 // StorageModule defines the api for storage
