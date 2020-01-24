@@ -131,6 +131,10 @@ type VDiskModule interface {
 	Allocate(id string, size int64) (string, error)
 	// DeallocateVDisk removes a virtual disk
 	Deallocate(id string) error
+	// Exists checks if disk with that ID already allocated
+	Exists(id string) bool
+	// TODO: return information about the disk.
+	// Inspect(id string)
 }
 
 // StorageModule defines the api for storage
