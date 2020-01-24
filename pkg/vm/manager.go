@@ -340,7 +340,8 @@ func (m *vmModuleImpl) Delete(name string) error {
 
 	pid, err := m.find(name)
 	if err != nil {
-		return err
+		// machine already gone
+		return nil
 	}
 
 	client := firecracker.NewClient(m.socket(name), nil, false)
