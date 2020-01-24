@@ -91,14 +91,12 @@ func (m *vmModuleImpl) socket(id string) string {
 	return filepath.Join(m.machineRoot(id), "root", "api.socket")
 }
 
-func (m *vmModuleImpl) exists(id string) bool {
-	socket := m.socket(id)
-	con, err := net.Dial("unix", socket)
+func (m *vmModuleImpl) Exists(id string) bool {
+	_, err := m.find(id)
 	if err != nil {
 		return false
 	}
 
-	con.Close()
 	return true
 }
 
@@ -179,7 +177,7 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 
 	ctx := context.Background()
 
-	if m.exists(vm.Name) {
+	if m.Exists(vm.Name) {
 		return fmt.Errorf("a vm with same name already exists")
 	}
 
@@ -234,9 +232,17 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	}
 
 	check := func() error {
-		if !m.exists(machine.ID) {
-			return fmt.Errorf("machine is not accepting connection")
+		if !m.Exists(machine.ID) {
+			return fmt.Errorf("failed to spawn vm machine process '%s'", machine.ID)
 		}
+		//TODO: check unix connection
+		socket := m.socket(machine.ID)
+		con, err := net.Dial("unix", socket)
+		if err != nil {
+			return err
+		}
+
+		con.Close()
 		return nil
 	}
 
@@ -253,7 +259,7 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 }
 
 func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
-	if !m.exists(name) {
+	if !m.Exists(name) {
 		return pkg.VMInfo{}, fmt.Errorf("machine '%s' does not exist", name)
 	}
 
@@ -332,10 +338,6 @@ func (m *vmModuleImpl) find(name string) (int, error) {
 func (m *vmModuleImpl) Delete(name string) error {
 	defer m.cleanFs(name)
 
-	if !m.exists(name) {
-		return nil
-	}
-
 	pid, err := m.find(name)
 	if err != nil {
 		return err
@@ -364,7 +366,7 @@ func (m *vmModuleImpl) Delete(name string) error {
 	}
 
 	for {
-		if !m.exists(name) {
+		if !m.Exists(name) {
 			return nil
 		}
 
