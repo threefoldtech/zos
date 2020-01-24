@@ -90,3 +90,22 @@ func (d *vdiskModule) Exists(id string) bool {
 
 	return err == nil
 }
+
+// Inspect return info about the disk
+func (d *vdiskModule) Inspect(id string) (disk pkg.VDisk, err error) {
+	path, err := d.safePath(id)
+
+	if err != nil {
+		// invalid ID
+		return disk, err
+	}
+
+	disk.Path = path
+	stat, err := os.Stat(path)
+	if err != nil {
+		return disk, err
+	}
+
+	disk.Size = stat.Size()
+	return
+}

@@ -1,6 +1,9 @@
 package stubs
 
-import zbus "github.com/threefoldtech/zbus"
+import (
+	zbus "github.com/threefoldtech/zbus"
+	pkg "github.com/threefoldtech/zos/pkg"
+)
 
 type VDiskModuleStub struct {
 	client zbus.Client
@@ -55,6 +58,22 @@ func (s *VDiskModuleStub) Exists(arg0 string) (ret0 bool) {
 		panic(err)
 	}
 	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *VDiskModuleStub) Inspect(arg0 string) (ret0 pkg.VDisk, ret1 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "Inspect", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
 		panic(err)
 	}
 	return

@@ -125,6 +125,14 @@ type VolumeAllocater interface {
 	Path(name string) (path string, err error)
 }
 
+// VDisk info returned by a call to inspect
+type VDisk struct {
+	// Path to disk
+	Path string
+	// Size in bytes
+	Size int64
+}
+
 // VDiskModule interface
 type VDiskModule interface {
 	// AllocateDisk with given id and size, return path to virtual disk
@@ -133,8 +141,8 @@ type VDiskModule interface {
 	Deallocate(id string) error
 	// Exists checks if disk with that ID already allocated
 	Exists(id string) bool
-	// TODO: return information about the disk.
-	// Inspect(id string)
+	// Inspect return info about the disk
+	Inspect(id string) (VDisk, error)
 }
 
 // StorageModule defines the api for storage
