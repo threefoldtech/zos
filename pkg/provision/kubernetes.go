@@ -102,18 +102,19 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 	}()
 
 	var iface string
-	iface, err = network.SetupTap(config.NetworkID)
+	netID := networkID(reservation.User, string(config.NetworkID))
+	iface, err = network.SetupTap(netID)
 	if err != nil {
 		return errors.Wrap(err, "could not set up tap device")
 	}
 	defer func() {
 		if err != nil {
-			_ = network.RemoveTap(config.NetworkID)
+			_ = network.RemoveTap(netID)
 		}
 	}()
 
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = buildNetworkInfo(ctx, iface, config)
+	netInfo, err = buildNetworkInfo(ctx, reservation.User, iface, config)
 	if err != nil {
 		return errors.Wrap(err, "could not generate network info")
 	}
@@ -168,10 +169,20 @@ func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint6
 		return errors.Wrap(err, "could not run vm")
 	}
 
-	// TODO: Currently the ISO does not support reboot from silent install, and
-	// it will hang on shutdown. Install time is about 10 ish seconds on a decent system
-	// so use a 1 min timeout for now to be sure, and manually kill the vm.
-	time.Sleep(time.Minute * 1)
+	deadline, cancel := context.WithTimeout(ctx, time.Minute*5)
+	defer cancel()
+	for {
+		if !vm.Exists(name) {
+			// install is done
+			break
+		}
+		select {
+		case <-time.After(time.Second * 3):
+			// retry after 3 secs
+		case <-deadline.Done():
+			return errors.New("failed to install vm in 5 minutes")
+		}
+	}
 
 	// Delete the VM, the disk will be installed now
 	return vm.Delete(name)
@@ -191,7 +202,7 @@ func kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, d
 		Network:     networkInfo,
 		KernelImage: imagePath + "/k3os-vmlinux",
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
-		KernelArgs:  "console=ttyS0 reboot=k panic=1 boot_cmd=\"rm -f /etc/init.d/connman;rm -f /etc/resolv.conf; ln -s /proc/net/pnp /etc/resolv.conf\"",
+		KernelArgs:  "console=ttyS0 reboot=k panic=1",
 		Disks:       disks,
 	}
 
@@ -220,7 +231,8 @@ func kubernetesDecomission(ctx context.Context, reservation *Reservation) error 
 		}
 	}
 
-	if err := network.RemoveTap(cfg.NetworkID); err != nil {
+	netID := networkID(reservation.User, string(cfg.NetworkID))
+	if err := network.RemoveTap(netID); err != nil {
 		return errors.Wrap(err, "could not clean up tap device")
 	}
 
@@ -235,10 +247,11 @@ func kubernetesDecomission(ctx context.Context, reservation *Reservation) error 
 	return nil
 }
 
-func buildNetworkInfo(ctx context.Context, iface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
+func buildNetworkInfo(ctx context.Context, userID string, iface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(GetZBus(ctx))
 
-	subnet, err := network.GetSubnet(cfg.NetworkID)
+	netID := networkID(userID, string(cfg.NetworkID))
+	subnet, err := network.GetSubnet(netID)
 	if err != nil {
 		return pkg.VMNetworkInfo{}, errors.Wrapf(err, "could not get network resource subnet")
 	}
@@ -252,7 +265,7 @@ func buildNetworkInfo(ctx context.Context, iface string, cfg Kubernetes) (pkg.VM
 		Mask: subnet.Mask,
 	}
 
-	gw, err := network.GetDefaultGwIP(cfg.NetworkID)
+	gw, err := network.GetDefaultGwIP(netID)
 	if err != nil {
 		return pkg.VMNetworkInfo{}, errors.Wrapf(err, "could not get network resource default gateway")
 	}
