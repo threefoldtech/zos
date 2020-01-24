@@ -55,6 +55,8 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		vm      = stubs.NewVMModuleStub(client)
 
 		config Kubernetes
+
+		needsInstall = true
 	)
 
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
@@ -91,10 +93,20 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 
 	var diskPath string
 	diskName := fmt.Sprintf("%s-%s", reservation.ID, "vda")
-	diskPath, err = storage.Allocate(diskName, int64(disk))
-	if err != nil {
-		return errors.Wrap(err, "failed to reserve filesystem for vm")
+	if storage.Exists(diskName) {
+		needsInstall = false
+		info, err := storage.Inspect(diskName)
+		if err != nil {
+			return errors.Wrap(err, "could not get path to existing disk")
+		}
+		diskName = info.Path
+	} else {
+		diskPath, err = storage.Allocate(diskName, int64(disk))
+		if err != nil {
+			return errors.Wrap(err, "failed to reserve filesystem for vm")
+		}
 	}
+	// clean up the disk anyway, even if it has already been installed.
 	defer func() {
 		if err != nil {
 			_ = storage.Deallocate(diskName)
@@ -119,8 +131,10 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		return errors.Wrap(err, "could not generate network info")
 	}
 
-	if err = kubernetesInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
-		return errors.Wrap(err, "failed to install k3s")
+	if needsInstall {
+		if err = kubernetesInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
+			return errors.Wrap(err, "failed to install k3s")
+		}
 	}
 
 	return kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
