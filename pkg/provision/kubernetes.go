@@ -15,6 +15,7 @@ import (
 // Kubernetes reservation data
 type Kubernetes struct {
 	// Size of the vm, this defines the amount of vCpu, memory, and the disk size
+	// Docs: docs/kubernetes/sizes.md
 	Size uint8 `json:"size"`
 
 	// NetworkID of the network namepsace in which to run the VM. The network

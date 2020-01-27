@@ -54,19 +54,6 @@ func NewVMModule(root string) (pkg.VMModule, error) {
 	}, nil
 }
 
-func (m *vmModuleImpl) makeDisk(name string, size int64) error {
-	disk, err := os.Create(name)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create disk '%s'", name)
-	}
-	defer disk.Close()
-	if err := disk.Truncate(size * 1024 * 1024); err != nil {
-		return errors.Wrapf(err, "failed to truncate disk file '%s'", name)
-	}
-
-	return nil
-}
-
 func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]Drive, error) {
 	var drives []Drive
 	for i, disk := range vm.Disks {
@@ -169,6 +156,54 @@ func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) (iface Interface, cmdline string,
 	return nic, cmdline, nil
 }
 
+func (m *vmModuleImpl) tail(path string) (string, error) {
+	// fetch 2k of bytes from the path ?
+	// TODO: implement a better tail algo.
+
+	const (
+		tail = 2 * 1024 // 2K
+	)
+
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return "no logs available", nil
+	} else if err != nil {
+		return "", errors.Wrapf(err, "failed to tail file: %s", path)
+	}
+
+	defer f.Close()
+	info, err := f.Stat()
+	offset := info.Size()
+	if offset > tail {
+		offset = tail
+	}
+
+	_, err = f.Seek(-offset, 2)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to seek file: %s", path)
+	}
+
+	logs, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to read logs from: %s", path)
+	}
+
+	return string(logs), nil
+}
+
+func (m *vmModuleImpl) withLogs(path string, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	logs, tailErr := m.tail(path)
+	if tailErr != nil {
+		return errors.Wrapf(err, "failed to tail machine logs: %s", tailErr)
+	}
+
+	return errors.Wrapf(err, string(logs))
+}
+
 // Run vm
 func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	if err := vm.Validate(); err != nil {
@@ -226,9 +261,16 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 		Drives: devices,
 	}
 
-	if err := machine.Start(ctx, m.root); err != nil {
-		m.Delete(machine.ID)
-		return err
+	defer func() {
+		if err != nil {
+			m.Delete(machine.ID)
+		}
+	}()
+
+	logFile := machine.Log(m.root)
+
+	if err = machine.Start(ctx, m.root); err != nil {
+		return m.withLogs(logFile, err)
 	}
 
 	check := func() error {
@@ -250,9 +292,8 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	defer cancel()
 
 	// wait for the machine to answer
-	if err := backoff.Retry(check, backoff.WithContext(backoff.NewConstantBackOff(2*time.Second), ctx)); err != nil {
-		m.Delete(machine.ID)
-		return err
+	if err = backoff.Retry(check, backoff.WithContext(backoff.NewConstantBackOff(2*time.Second), ctx)); err != nil {
+		return m.withLogs(logFile, err)
 	}
 
 	return nil

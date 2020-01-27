@@ -3,6 +3,7 @@ package vm
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -145,6 +146,11 @@ func (m *Machine) cfgFilePath(base string) string {
 	return filepath.Join(m.root(base), "config.json")
 }
 
+// Log returns machine log file path
+func (m *Machine) Log(base string) string {
+	return filepath.Join(m.root(base), "machine.log")
+}
+
 func (m *Machine) exec(ctx context.Context, base string) error {
 	// prepare command
 	// because the --daemonize flag does not work as expected
@@ -176,11 +182,13 @@ func (m *Machine) exec(ctx context.Context, base string) error {
 		testing = false
 	)
 
+	logFile := m.Log(base)
+
 	var cmd *exec.Cmd
 	if !testing {
 		cmd = exec.CommandContext(ctx,
 			"ash", "-c",
-			strings.Join(args, " ")+" &",
+			fmt.Sprintf("%s > %s 2>&1 &", strings.Join(args, " "), logFile),
 		)
 	} else {
 		cmd = exec.CommandContext(ctx,

@@ -12,6 +12,8 @@ import (
 
 const (
 	vdiskVolumeName = "vdisks"
+
+	mib = 1024 * 1024
 )
 
 type vdiskModule struct {
@@ -51,7 +53,7 @@ func (d *vdiskModule) Allocate(id string, size int64) (string, error) {
 
 	defer file.Close()
 
-	return path, syscall.Fallocate(int(file.Fd()), 0, 0, size*1024*1024)
+	return path, syscall.Fallocate(int(file.Fd()), 0, 0, size*mib)
 }
 
 func (d *vdiskModule) safePath(id string) (string, error) {
