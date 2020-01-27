@@ -127,9 +127,43 @@ func (f *flistModule) Mount(url, storage string, opts pkg.MountOptions) (string,
 	return f.mount(rnd, url, storage, opts)
 }
 
+func (f *flistModule) mountpath(name string) (string, error) {
+	mountpath := filepath.Join(f.mountpoint, name)
+	if filepath.Dir(mountpath) != f.mountpoint {
+		return "", errors.New("invalid mount name")
+	}
+
+	return mountpath, nil
+}
+
+// valid checks that this mount path is free, and can be used
+func (f *flistModule) valid(path string) error {
+	stat, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return errors.Wrapf(err, "failed to check mountpoint: %s", path)
+	}
+
+	if !stat.IsDir() {
+		return fmt.Errorf("not a directory: %s", path)
+	}
+
+	if err := exec.Command("mountpoint", path).Run(); err == nil {
+		return fmt.Errorf("mount point '%s' is used", path)
+	}
+
+	return nil
+}
+
 func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (string, error) {
 	sublog := log.With().Str("url", url).Str("storage", storage).Logger()
 	sublog.Info().Msg("request to mount flist")
+
+	mountpoint, err := f.mountpath(name)
+	if err != nil {
+		return "", err
+	}
 
 	if storage == "" {
 		storage = defaultStorage
@@ -152,7 +186,10 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		args = append(args, "-ro")
 	}
 
-	mountpoint := filepath.Join(f.mountpoint, name)
+	if err := f.valid(mountpoint); err != nil {
+		return "", errors.Wrap(err, "invalid mount point")
+	}
+
 	if err := os.MkdirAll(mountpoint, 0755); err != nil {
 		return "", err
 	}
@@ -229,7 +266,7 @@ func (f *flistModule) Umount(path string) error {
 		return fmt.Errorf("specified path is not a directory")
 	}
 
-	if !strings.HasPrefix(path, f.root) {
+	if filepath.Dir(path) != filepath.Clean(f.mountpoint) {
 		return fmt.Errorf("trying to unmount a directory outside of the flist module boundaries")
 	}
 
