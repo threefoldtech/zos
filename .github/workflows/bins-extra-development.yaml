@@ -22,7 +22,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        /home/runner/work/zos/zos/bins/autobuilder/tf-build-deps.sh
+        pwd
+        find
+        find /home/runner/work
 
 
     - name: Build binaries
