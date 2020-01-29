@@ -39,4 +39,58 @@ jobs:
         user: tf-autobuilder
         root: bins/releases/containerd
         name: ${{ steps.package.outputs.name }}.flist
-    
+
+  firecracker:
+    name: 'Package: firecracker'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+
+    - name: Install dependencies
+      run: |
+        sudo bins/autobuild/tf-build-deps.sh
+
+    - name: Build package
+      id: package
+      run: |
+        cd bins
+        sudo ./bins-extra.sh --package firecracker
+
+    - name: Publish flist (${{ github.sha }})
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.HUB_JWT }}
+        action: publish
+        user: tf-autobuilder
+        root: bins/releases/firecracker
+        name: ${{ steps.package.outputs.name }}.flist
+ 
+  promtail:
+    name: 'Package: promtail'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+
+    - name: Install dependencies
+      run: |
+        sudo bins/autobuild/tf-build-deps.sh
+
+    - name: Build package
+      id: package
+      run: |
+        cd bins
+        sudo ./bins-extra.sh --package promtail
+
+    - name: Publish flist (${{ github.sha }})
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.HUB_JWT }}
+        action: publish
+        user: tf-autobuilder
+        root: bins/releases/promtail
+        name: ${{ steps.package.outputs.name }}.flist
+ 
