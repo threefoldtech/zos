@@ -7,10 +7,10 @@ apt-get update
 deps=(pkg-config make m4 autoconf libseccomp-dev)
 
 # system tools and libs
-deps+=(libssl-dev dnsmasq git curl bc wget unzip)
+deps+=(curl wget unzip)
 
 # storage and filesystem
-deps+=(e2fslibs-dev libblkid-dev uuid-dev libattr1-dev btrfs-tools)
+deps+=(btrfs-tools)
 
 apt-get install -y ${deps[@]}
 
