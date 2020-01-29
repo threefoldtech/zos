@@ -98,8 +98,8 @@ checksum() {
 #
 prepare() {
     if [ -z $GOPATH ]; then
-        echo "[-] gopath not defined"
-        exit 1
+        echo "[-] WARNING: setting default GOPATH: $HOME"
+        export GOPATH=$HOME
     fi
 }
 
