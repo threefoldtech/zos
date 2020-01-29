@@ -22,15 +22,12 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pwd
-        find
-        find /home/runner/work
-
+        bins/autobuild/tf-build-deps.sh
 
     - name: Build binaries
       run: |
         cd bins
-        bash bins-extra.sh --package containerd
+        bins-extra.sh --package containerd
 
     - name: Publish flist (${{ github.sha }})
       if: success()
