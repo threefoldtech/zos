@@ -217,6 +217,14 @@ ensure_libs() {
     popd
 }
 
+exclude_libs() {
+    echo "[+] excluding host critical libs"
+    rm -rf ${ROOTDIR}/usr/lib/ld-linux*
+    rm -rf ${ROOTDIR}/usr/lib/libc.*
+    rm -rf ${ROOTDIR}/usr/lib/libdl.*
+    rm -rf ${ROOTDIR}/usr/lib/libpthread.*
+}
+
 setpackage() {
     echo "[+] setting up package environment"
     pkg=$1
@@ -291,6 +299,8 @@ main() {
 
             setpackage ${package}
             build_${package}
+            ensure_libs
+            exclude_libs
 
             exit 0
 
