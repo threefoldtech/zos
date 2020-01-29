@@ -117,6 +117,10 @@ func cmdsProvision(c *cli.Context) error {
 			return errors.Wrap(err, "failed to sign the reservation")
 		}
 
+		if err := output(path, r); err != nil {
+			return errors.Wrapf(err, "failed to write provision schema to %s after signature", path)
+		}
+
 		id, err := client.Reserve(r)
 		if err != nil {
 			return errors.Wrap(err, "failed to send reservation")
@@ -124,10 +128,6 @@ func cmdsProvision(c *cli.Context) error {
 
 		fmt.Printf("Reservation for %v send to node %s\n", duration, r.NodeID)
 		fmt.Printf("Resource: %v\n", id)
-	}
-
-	if err := output(path, r); err != nil {
-		return errors.Wrapf(err, "failed to write provision schema to %s after signature", path)
 	}
 
 	return nil
@@ -145,4 +145,14 @@ func embed(schema interface{}, t provision.ReservationType) (*provision.Reservat
 	}
 
 	return r, nil
+}
+
+func cmdsDeleteReservation(c *cli.Context) error {
+	id := c.String("id")
+
+	if err := client.Delete(id); err != nil {
+		return errors.Wrapf(err, "failed to mark reservation %s to be deleted", id)
+	}
+	fmt.Printf("Reservation %v marked as to be deleted\n", id)
+	return nil
 }

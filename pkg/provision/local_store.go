@@ -213,6 +213,22 @@ func (s *FSStore) Get(id string) (*Reservation, error) {
 	return s.get(id)
 }
 
+// Exists checks if the reservation ID is in the store
+func (s *FSStore) Exists(id string) (bool, error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	path := filepath.Join(s.root, id)
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
 func (s *FSStore) get(id string) (*Reservation, error) {
 	path := filepath.Join(s.root, id)
 	f, err := os.Open(path)
