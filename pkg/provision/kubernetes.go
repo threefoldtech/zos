@@ -12,6 +12,12 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
+// KubernetesResult result returned by k3s reservation
+type KubernetesResult struct {
+	ID string `json:"id"`
+	IP string `json:"ip"`
+}
+
 // Kubernetes reservation data
 type Kubernetes struct {
 	// Size of the vm, this defines the amount of vCpu, memory, and the disk size
@@ -43,10 +49,10 @@ type Kubernetes struct {
 const k3osFlistURL = "https://hub.grid.tf/lee/k3os.flist"
 
 func kubernetesProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
-	return nil, kubernetesProvisionImpl(ctx, reservation)
+	return kubernetesProvisionImpl(ctx, reservation)
 }
 
-func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) error {
+func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) (result KubernetesResult, err error) {
 	var (
 		client = GetZBus(ctx)
 
@@ -61,29 +67,31 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 	)
 
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
-		return errors.Wrap(err, "failed to decode reservation schema")
+		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	var err error
+	result.ID = reservation.ID
+	result.IP = config.IP.String()
+
 	config.PlainClusterSecret, err = decryptPassword(client, config.ClusterSecret)
 	if err != nil {
-		return errors.Wrap(err, "failed to decrypt namespace password")
+		return result, errors.Wrap(err, "failed to decrypt namespace password")
 	}
 
 	cpu, memory, disk, err := vmSize(config.Size)
 	if err != nil {
-		return errors.Wrap(err, "could not interpret vm size")
+		return result, errors.Wrap(err, "could not interpret vm size")
 	}
 
 	if _, err = vm.Inspect(reservation.ID); err == nil {
 		// vm is already running, nothing to do here
-		return nil
+		return result, nil
 	}
 
 	var imagePath string
 	imagePath, err = flist.NamedMount(reservation.ID, k3osFlistURL, "", pkg.ReadOnlyMountOptions)
 	if err != nil {
-		return errors.Wrap(err, "could not mount k3os flist")
+		return result, errors.Wrap(err, "could not mount k3os flist")
 	}
 	// In case of future errrors in the provisioning make sure we clean up
 	defer func() {
@@ -98,13 +106,13 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 		needsInstall = false
 		info, err := storage.Inspect(diskName)
 		if err != nil {
-			return errors.Wrap(err, "could not get path to existing disk")
+			return result, errors.Wrap(err, "could not get path to existing disk")
 		}
 		diskName = info.Path
 	} else {
 		diskPath, err = storage.Allocate(diskName, int64(disk))
 		if err != nil {
-			return errors.Wrap(err, "failed to reserve filesystem for vm")
+			return result, errors.Wrap(err, "failed to reserve filesystem for vm")
 		}
 	}
 	// clean up the disk anyway, even if it has already been installed.
@@ -118,7 +126,7 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 	netID := networkID(reservation.User, string(config.NetworkID))
 	iface, err = network.SetupTap(netID)
 	if err != nil {
-		return errors.Wrap(err, "could not set up tap device")
+		return result, errors.Wrap(err, "could not set up tap device")
 	}
 	defer func() {
 		if err != nil {
@@ -129,16 +137,16 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) erro
 	var netInfo pkg.VMNetworkInfo
 	netInfo, err = buildNetworkInfo(ctx, reservation.User, iface, config)
 	if err != nil {
-		return errors.Wrap(err, "could not generate network info")
+		return result, errors.Wrap(err, "could not generate network info")
 	}
 
 	if needsInstall {
 		if err = kubernetesInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
-			return errors.Wrap(err, "failed to install k3s")
+			return result, errors.Wrap(err, "failed to install k3s")
 		}
 	}
 
-	return kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
+	return result, kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
 }
 
 func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
