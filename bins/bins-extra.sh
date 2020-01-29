@@ -229,12 +229,7 @@ exclude_libs() {
 }
 
 github_name() {
-    echo $GITHUB_ACTIONS
-    env
-
-    exit 1
-
-    if [ "$GITHUB_ACTIONS" == "true" ]; then
+    if [ "$HOME" == "/home/runner" ]; then
         echo "::set-output name=name::${1}"
     else
         echo "[+] github exported name: ${1}"
