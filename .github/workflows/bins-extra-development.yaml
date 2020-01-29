@@ -1,0 +1,41 @@
+name: Runtime packages
+on: 
+  push:
+    branches:
+      - 'bins-extra'
+    tags-ignore:
+      - v*
+
+jobs:
+  containerd:
+    name: Build and upload
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go 1.13
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13
+      id: go
+
+    - name: Install dependencies
+      run: |
+        bash bins/autobuilder/tf-build-deps.sh
+
+    - name: Checkout code into the Go module directory
+      uses: actions/checkout@v1
+
+    - name: Build binaries
+      run: |
+        cd bins
+        bash bins-extra.sh --package containerd
+
+    - name: Publish flist (${{ github.sha }})
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.HUB_JWT }}
+        action: publish
+        user: tf-autobuilder
+        root: releases/containerd
+        name: containerd-FIXME.flist
+    
