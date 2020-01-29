@@ -127,8 +127,10 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) (res
 	if err != nil {
 		return result, errors.Wrap(err, "could not set up tap device")
 	}
+
 	defer func() {
 		if err != nil {
+			_ = vm.Delete(reservation.ID)
 			_ = network.RemoveTap(netID)
 		}
 	}()
@@ -145,7 +147,8 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) (res
 		}
 	}
 
-	return result, kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
+	err = kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
+	return result, err
 }
 
 func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
