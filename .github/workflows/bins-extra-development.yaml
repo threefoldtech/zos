@@ -17,12 +17,13 @@ jobs:
         go-version: 1.13
       id: go
 
-    - name: Install dependencies
-      run: |
-        bash bins/autobuilder/tf-build-deps.sh
-
     - name: Checkout code into the Go module directory
       uses: actions/checkout@v1
+
+    - name: Install dependencies
+      run: |
+        bins/autobuilder/tf-build-deps.sh
+
 
     - name: Build binaries
       run: |
