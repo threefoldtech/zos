@@ -4,7 +4,7 @@
 apt-get update
 
 # toolchain dependencies
-deps=(pkg-config make m4 autoconf)
+deps=(pkg-config make m4 autoconf libseccomp-dev)
 
 # system tools and libs
 deps+=(libssl-dev dnsmasq git curl bc wget unzip)
