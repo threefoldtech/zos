@@ -1,70 +1,50 @@
 #!/bin/bash
 set -e
 
-# You need to use absolutes path
-WORKDIR="${PWD}/staging"
-TMPDIR="${PWD}/tmp"
-PKGDIR="${PWD}/packages"
-ROOTDIR="${PWD}/releases"
-
-# By default, we compile with (number of cpu threads + 1)
+# by default, we compile with (number of cpu threads + 1)
 # you can changes this to reduce computer load
 JOBS=$(($(grep -c 'bogomips' /proc/cpuinfo) + 1))
 MAKEOPTS="-j ${JOBS}"
+
+ROOTPKG="${PWD}/packages"
+
 USE_MIRROR=0
+DO_MRPROPER=0
 
-#
-# auto loading packages directory
-#
-packages=0
-DOWNLOADERS=()
-EXTRACTORS=()
+arguments() {
+    OPTS=$(getopt -o p:rh --long package:,mrproper,help -n 'parse-options' -- "$@")
+    if [ $? != 0 ]; then
+        echo "Failed parsing options" >&2
+        exit 1
+    fi
 
-for package in "${PKGDIR}"/*; do
-    # loading submodule
-    pkgname=$(basename $package)
-    # echo "[+] loading package: $pkgname"
+    if [ "$OPTS" != " --" ]; then
+        while true; do
+            case "$1" in
+                -p | --package)
+                    shift;
+                    package=$1
+                    shift ;;
 
-    . "${package}/${pkgname}.sh"
+                -r | --mrproper)
+                    DO_MRPROPER=1
+                    shift ;;
 
-    modules=$(($modules + 1))
-done
-
-unset package
-
-#
-# argument processing
-#
-OPTS=$(getopt -o p:h --long package:,help -n 'parse-options' -- "$@")
-if [ $? != 0 ]; then
-    echo "Failed parsing options." >&2
-    exit 1
-fi
-
-if [ "$OPTS" != " --" ] && [ "$OPTS" != " --release --" ]; then
-    while true; do
-        case "$1" in
-            -p | --package)
-                shift;
-                package=$1
+                -h | --help)
+                    echo "Usage:"
+                    echo " -p --package <pkg>   process specific package"
+                    echo " -r --mrproper        remove all files not provided by default"
+                    echo " -h --help            display this help message"
+                    exit 1
                 shift ;;
 
-            -h | --help)
-                echo "Usage:"
-                echo " -p --package <pkg>   process specific package"
-                echo " -h --help            display this help message"
-                exit 1
-            shift ;;
+                -- ) shift; break ;;
+                * ) break ;;
+            esac
+        done
+    fi
+}
 
-            -- ) shift; break ;;
-            * ) break ;;
-        esac
-    done
-fi
-
-#
-# Utilities
-#
 pushd() {
     command pushd "$@" > /dev/null
 }
@@ -73,15 +53,14 @@ popd() {
     command popd "$@" > /dev/null
 }
 
-#
-# interface tools
-#
-green="\033[32;1m"
-orange="\033[33;1m"
-blue="\033[34;1m"
-cyan="\033[36;1m"
-white="\033[37;1m"
-clean="\033[0m"
+setup() {
+    green="\033[32;1m"
+    orange="\033[33;1m"
+    blue="\033[34;1m"
+    cyan="\033[36;1m"
+    white="\033[37;1m"
+    clean="\033[0m"
+}
 
 success() {
     echo -e "${green}$1${clean}"
@@ -122,10 +101,6 @@ prepare() {
         echo "[-] gopath not defined"
         exit 1
     fi
-
-    echo "[+] ${modules} submodules loaded"
-
-    mkdir -p "${WORKDIR}"
 }
 
 #
@@ -210,6 +185,8 @@ ensure_libs() {
     echo "[+] verifing libraries dependancies"
     pushd "${ROOTDIR}"
 
+    mkdir -p usr/lib
+
     if [ ! -e lib64 ]; then ln -s usr/lib lib64; fi
     if [ ! -e lib ]; then ln -s lib64 lib; fi
 
@@ -240,38 +217,91 @@ ensure_libs() {
     popd
 }
 
-clean_staging() {
-    echo "[+] cleaning staging files"
+setpackage() {
+    echo "[+] setting up package environment"
+    pkg=$1
 
-    # cleaning staging files
-    rm -rf "${WORKDIR}"/*
+    # where build script is located
+    PKGDIR="${ROOTPKG}/${pkg}"
+
+    # files shipped with buildscript
+    FILESDIR="${PKGDIR}/files"
+
+    # temporary directory where to build stuff
+    WORKDIR="${PWD}/workdir/${pkg}"
+
+    # where final root files will be places
+    ROOTDIR="${PWD}/releases/${pkg}"
+
+    # where downloaded files will be stored
+    DISTDIR="${PWD}/distfiles/${pkg}"
+
+    mkdir -p "${WORKDIR}"
+    mkdir -p "${ROOTDIR}"
+    mkdir -p "${DISTDIR}"
+
+    rm -rf "${WORKDIR}/*"
+    rm -rf "${ROOTDIR}/*"
+    rm -rf "${DISTDIR}/*"
+
+    echo "[+] package script: $PKGDIR"
+    echo "[+] package files: $FILESDIR"
+    echo "[+] package workdir: $WORKDIR"
+    echo "[+] package rootdir: $ROOTDIR"
+    echo "[+] package distdir: $DISTDIR"
+
+    # sourcing package script
+    . ${PKGDIR}/${pkg}.sh
 }
 
-#
-# helpers
-#
-get_size() {
+mrproper() {
+    echo "[+] removing downloaded files"
+    rm -rf ${PWD}/distfiles/*
+
+    echo "[+] removing releases"
+    rm -rf ${PWD}/releases/*
+
+    echo "[+] removing staging files"
+    rm -rf ${PWD}/workdir/*
+}
+
+getsize() {
     du -shc --apparent-size $1 | tail -1 | awk '{ print $1 }'
 }
 
 main() {
+    setup
+
     info "===================================="
     info "=  Zero-OS Extra Binaries Builder  ="
     info "===================================="
     echo ""
 
     prepare
+    arguments $@
+
+    if [ $DO_MRPROPER == 1 ]; then
+        mrproper
+        exit 0
+    fi
 
     if [ ! -z ${package} ]; then
-        if [[ -d "${PKGDIR}/${package}" ]]; then
+        if [[ -d "${ROOTPKG}/${package}" ]]; then
             echo "[+] building package: ${package}"
+
+            setpackage ${package}
             build_${package}
+
+            exit 0
 
         else
             echo "[-] unknown package: ${package}"
             exit 1
         fi
     fi
+
+    echo "[+] nothing to do"
+    exit 1
 }
 
-main
+main $@
