@@ -24,7 +24,7 @@ jobs:
       run: |
         sudo bins/autobuild/tf-build-deps.sh
 
-    - name: Build binaries
+    - name: Build package
       id: package
       run: |
         cd bins

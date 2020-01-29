@@ -229,6 +229,11 @@ exclude_libs() {
 }
 
 github_name() {
+    echo $GITHUB_ACTIONS
+    set | grep GITHUB
+
+    exit 1
+
     if [ "$GITHUB_ACTIONS" == "true" ]; then
         echo "::set-output name=name::${1}"
     else
