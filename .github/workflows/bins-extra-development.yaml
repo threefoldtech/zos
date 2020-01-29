@@ -8,7 +8,7 @@ on:
 
 jobs:
   containerd:
-    name: 'Runtime: containerd'
+    name: 'Package: containerd'
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.13
@@ -27,7 +27,7 @@ jobs:
     - name: Build binaries
       run: |
         cd bins
-        sudo bins-extra.sh --package containerd
+        sudo ./bins-extra.sh --package containerd
 
     - name: Publish flist (${{ github.sha }})
       if: success()
@@ -36,6 +36,6 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         action: publish
         user: tf-autobuilder
-        root: releases/containerd
+        root: bins/releases/containerd
         name: containerd-FIXME.flist
     
