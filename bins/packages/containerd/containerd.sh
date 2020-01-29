@@ -1,16 +1,23 @@
-CONTAINERD_REPOSITORY="https://github.com/containerd/containerd"
-CONTAINERD_BRANCH="v1.2.7"
+CONTAINERD_VERSION="1.3.2"
+CONTAINERD_CHECKSUM="d28ec96dd7586f7a1763c54c5448921e"
+CONTAINERD_LINK="https://github.com/containerd/containerd/archive/v${CONTAINERD_VERSION}.tar.gz"
 CONTAINERD_HOME="${GOPATH}/src/github.com/containerd"
 
 download_containerd() {
-    download_git ${CONTAINERD_REPOSITORY} ${CONTAINERD_BRANCH}
+    download_file ${CONTAINERD_LINK} ${CONTAINERD_CHECKSUM} containerd-v${CONTAINERD_VERSION}.tar.gz
 }
 
 extract_containerd() {
-    event "refreshing" "containerd-${CONTAINERD_BRANCH}"
     mkdir -p ${CONTAINERD_HOME}
     rm -rf ${CONTAINERD_HOME}/containerd
-    cp -a ${WORKDIR}/containerd ${CONTAINERD_HOME}/
+
+    pushd ${CONTAINERD_HOME}
+
+    echo "[+] extracting: containerd-${CONTAINERD_VERSION}"
+    tar -xf ${DISTDIR}/containerd-v${CONTAINERD_VERSION}.tar.gz -C .
+    mv containerd-${CONTAINERD_VERSION} containerd
+
+    popd
 }
 
 prepare_containerd() {
@@ -25,18 +32,17 @@ compile_containerd() {
 install_containerd() {
     echo "[+] copying binaries"
 
-    mkdir -p "${ROOTDIR}/containerd"
-    pushd "${ROOTDIR}/containerd"
+    mkdir -p "${ROOTDIR}/usr/bin"
+    mkdir -p "${ROOTDIR}/etc/containerd"
+    mkdir -p "${ROOTDIR}/etc/zinit"
 
-    mkdir -p usr/bin
-    mkdir -p etc/containerd
-    mkdir -p etc/zinit
-
-    cp -av ${CONTAINERD_HOME}/containerd/bin/* "usr/bin/"
+    cp -av bin/* "${ROOTDIR}/usr/bin/"
+    cp -av ${FILESDIR}/config.toml "${ROOTDIR}/etc/containerd/"
+    cp -av ${FILESDIR}/containerd.yaml "${ROOTDIR}/etc/zinit/"
 }
 
 build_containerd() {
-    pushd "${WORKDIR}"
+    pushd "${DISTDIR}"
 
     download_containerd
     extract_containerd
@@ -47,6 +53,7 @@ build_containerd() {
     prepare_containerd
     compile_containerd
     install_containerd
+    ensure_libs
 
     popd
 }
