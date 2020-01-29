@@ -71,6 +71,7 @@ type FSStore struct {
 		volumes    counterImpl
 		networks   counterImpl
 		zdb        counterImpl
+		vm         counterImpl
 		debug      counterImpl
 	}
 }
@@ -95,6 +96,7 @@ func (s *FSStore) Counters() pkg.ProvisionCounters {
 		Volume:    s.counters.volumes.Current(),
 		Network:   s.counters.networks.Current(),
 		ZDB:       s.counters.zdb.Current(),
+		VM:        s.counters.vm.Current(),
 		Debug:     s.counters.debug.Current(),
 	}
 }
@@ -111,6 +113,8 @@ func (s *FSStore) counterFor(typ ReservationType) Counter {
 		return &s.counters.zdb
 	case DebugReservation:
 		return &s.counters.debug
+	case KubernetesReservation:
+		return &s.counters.vm
 	default:
 		// this will avoid nil pointer
 		return &nop
