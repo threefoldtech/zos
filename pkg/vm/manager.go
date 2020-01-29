@@ -120,15 +120,7 @@ func (m *vmModuleImpl) cleanFs(id string) error {
 }
 
 func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) (iface Interface, cmdline string, err error) {
-	ip, netIP, err := net.ParseCIDR(vm.Network.AddressCIDR)
-	if err != nil {
-		return iface, cmdline, err
-	}
-	netIP.IP = ip
-	gw := net.ParseIP(vm.Network.GatewayIP)
-	if gw == nil {
-		return iface, cmdline, fmt.Errorf("invalid gateway IP: '%s'", vm.Network.GatewayIP)
-	}
+	netIP := vm.Network.AddressCIDR
 
 	nic := Interface{
 		ID:  "eth0",
@@ -139,15 +131,15 @@ func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) (iface Interface, cmdline string,
 	dns0 := ""
 	dns1 := ""
 	if len(vm.Network.Nameservers) > 0 {
-		dns0 = vm.Network.Nameservers[0]
+		dns0 = vm.Network.Nameservers[0].String()
 	}
 	if len(vm.Network.Nameservers) > 1 {
-		dns1 = vm.Network.Nameservers[1]
+		dns1 = vm.Network.Nameservers[1].String()
 	}
 
 	cmdline = fmt.Sprintf("ip=%s::%s:%s:::off:%s:%s:",
-		ip.String(),
-		gw.String(),
+		netIP.IP.String(),
+		vm.Network.GatewayIP.String(),
 		net.IP(netIP.Mask).String(),
 		dns0,
 		dns1,

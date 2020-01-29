@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"net"
 )
 
 //go:generate zbusc -module vmd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos/pkg+VMModule stubs/vmd_stub.go
@@ -13,11 +14,11 @@ type VMNetworkInfo struct {
 	// Mac address of the device
 	MAC string
 	// Address of the device in the form of cidr
-	AddressCIDR string
+	AddressCIDR net.IPNet
 	// Gateway gateway address
-	GatewayIP string
+	GatewayIP net.IP
 	// Nameservers dns servers
-	Nameservers []string
+	Nameservers []net.IP
 }
 
 // VMDisk specifies vm disk params

@@ -295,9 +295,9 @@ func buildNetworkInfo(ctx context.Context, userID string, iface string, cfg Kube
 	networkInfo := pkg.VMNetworkInfo{
 		Tap:         iface,
 		MAC:         "", // rely on static IP configuration so we don't care here
-		AddressCIDR: addrCIDR.String(),
-		GatewayIP:   net.IP(gw).String(),
-		Nameservers: []string{"8.8.8.8", "8.8.4.4"},
+		AddressCIDR: addrCIDR,
+		GatewayIP:   net.IP(gw),
+		Nameservers: []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("8.8.4.4")},
 	}
 
 	return networkInfo, nil
