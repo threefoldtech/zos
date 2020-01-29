@@ -40,6 +40,7 @@ GLOBAL OPTIONS:
 ```
 
 ## Examples
+
 ### Build tfuser
 
 ```
@@ -70,6 +71,8 @@ GLOBAL OPTIONS:
    --help, -h              show help
    --version, -v           print the version
 ```
+
+## Examples
 
 ### Generate a network provisioning schema
 
