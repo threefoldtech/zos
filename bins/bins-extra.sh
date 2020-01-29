@@ -230,7 +230,7 @@ exclude_libs() {
 
 github_name() {
     echo $GITHUB_ACTIONS
-    set | grep GITHUB
+    env | grep GITHUB
 
     exit 1
 
