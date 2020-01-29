@@ -25,6 +25,7 @@ jobs:
         sudo bins/autobuild/tf-build-deps.sh
 
     - name: Build binaries
+      id: package
       run: |
         cd bins
         sudo ./bins-extra.sh --package containerd
@@ -37,5 +38,5 @@ jobs:
         action: publish
         user: tf-autobuilder
         root: bins/releases/containerd
-        name: containerd-FIXME.flist
+        name: ${{ steps.package.outputs.name }}.flist
     

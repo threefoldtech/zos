@@ -17,6 +17,7 @@ extract_firecracker() {
 
 prepare_firecracker() {
     echo "[+] prepare firecracker"
+    github_name "firecracker-${FIRECRACKER_VERSION}"
 }
 
 compile_firecracker() {

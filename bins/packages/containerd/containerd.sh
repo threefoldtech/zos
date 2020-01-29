@@ -22,6 +22,7 @@ extract_containerd() {
 
 prepare_containerd() {
     echo "[+] prepare containerd"
+    github_name "containerd-${CONTAINERD_VERSION}"
 }
 
 compile_containerd() {

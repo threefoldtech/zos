@@ -12,6 +12,7 @@ extract_promtail() {
 
 prepare_promtail() {
     echo "[+] prepare promtail"
+    github_name "promtail-${PROMTAIL_VERSION}"
 }
 
 compile_promtail() {

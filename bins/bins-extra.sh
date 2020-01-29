@@ -228,6 +228,14 @@ exclude_libs() {
     rm -rf ${ROOTDIR}/usr/lib/libpthread.*
 }
 
+github_name() {
+    if [ "$GITHUB_ACTIONS" == "true" ]; then
+        echo "::set-output name=name::${1}"
+    else
+        echo "[+] github exported name: ${1}"
+    fi
+}
+
 setpackage() {
     echo "[+] setting up package environment"
     pkg=$1
