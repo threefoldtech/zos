@@ -8,7 +8,7 @@ on:
 
 jobs:
   containerd:
-    name: Build and upload
+    name: Runtime: containerd
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.13
@@ -22,12 +22,12 @@ jobs:
 
     - name: Install dependencies
       run: |
-        bins/autobuild/tf-build-deps.sh
+        sudo bins/autobuild/tf-build-deps.sh
 
     - name: Build binaries
       run: |
         cd bins
-        bins-extra.sh --package containerd
+        sudo bins-extra.sh --package containerd
 
     - name: Publish flist (${{ github.sha }})
       if: success()
