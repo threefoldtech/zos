@@ -30,7 +30,7 @@ compile_containerd() {
 }
 
 install_containerd() {
-    echo "[+] copying binaries"
+    echo "[+] install containerd"
 
     mkdir -p "${ROOTDIR}/usr/bin"
     mkdir -p "${ROOTDIR}/etc/containerd"

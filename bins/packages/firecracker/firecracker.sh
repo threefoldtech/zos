@@ -24,7 +24,7 @@ compile_firecracker() {
 }
 
 install_firecracker() {
-    echo "[+] copying binaries"
+    echo "[+] install firecracker"
 
     mkdir -p "${ROOTDIR}/usr/bin"
     cp ${WORKDIR}/firecracker-v${FIRECRACKER_VERSION}-x86_64 ${ROOTDIR}/usr/bin/firecracker
