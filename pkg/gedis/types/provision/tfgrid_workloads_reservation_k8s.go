@@ -7,6 +7,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
+// TfgridWorkloadsReservationK8S1 struct
 type TfgridWorkloadsReservationK8S1 struct {
 	WorkloadID      int64                               `json:"workload_id"`
 	NodeID          string                              `json:"node_id"`
@@ -20,6 +21,7 @@ type TfgridWorkloadsReservationK8S1 struct {
 	FarmerTid       int64                               `json:"farmer_tid"`
 }
 
+// ToProvisionType converts type to internal provision type
 func (k TfgridWorkloadsReservationK8S1) ToProvisionType() (provision.Kubernetes, string, error) {
 	k8s := provision.Kubernetes{
 		Size:          k.Size,
