@@ -45,8 +45,7 @@ type Kubernetes struct {
 	PlainClusterSecret string `json:"-"`
 }
 
-// TODO: move flist
-const k3osFlistURL = "https://hub.grid.tf/lee/k3os.flist"
+const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
 
 func kubernetesProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
 	return kubernetesProvisionImpl(ctx, reservation)
