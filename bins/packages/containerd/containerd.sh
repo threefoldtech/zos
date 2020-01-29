@@ -53,7 +53,6 @@ build_containerd() {
     prepare_containerd
     compile_containerd
     install_containerd
-    ensure_libs
 
     popd
 }
