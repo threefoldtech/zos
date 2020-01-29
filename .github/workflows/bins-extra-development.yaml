@@ -36,7 +36,7 @@ jobs:
       with:
         token: ${{ secrets.HUB_JWT }}
         action: publish
-        user: tf-autobuilder
+        user: tf-zos-bins.dev
         root: bins/releases/containerd
         name: ${{ steps.package.outputs.name }}.flist
 
@@ -63,7 +63,7 @@ jobs:
       with:
         token: ${{ secrets.HUB_JWT }}
         action: publish
-        user: tf-autobuilder
+        user: tf-zos-bins.dev
         root: bins/releases/firecracker
         name: ${{ steps.package.outputs.name }}.flist
  
@@ -90,7 +90,7 @@ jobs:
       with:
         token: ${{ secrets.HUB_JWT }}
         action: publish
-        user: tf-autobuilder
+        user: tf-zos-bins.dev
         root: bins/releases/promtail
         name: ${{ steps.package.outputs.name }}.flist
  
