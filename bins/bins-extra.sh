@@ -98,8 +98,11 @@ checksum() {
 #
 prepare() {
     if [ -z $GOPATH ]; then
-        echo "[-] WARNING: setting default GOPATH: $HOME"
-        export GOPATH=$HOME
+        if command -v go > /dev/null; then
+            export GOPATH=$(go env GOPATH)
+        else
+            echo "[-] fatal: could not find go"
+        fi
     fi
 }
 
