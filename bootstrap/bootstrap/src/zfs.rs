@@ -1,4 +1,5 @@
 use failure::Error;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use walkdir::WalkDir;
@@ -66,10 +67,21 @@ impl Zfs {
             let mut dst = PathBuf::new();
             dst.push(&target);
             dst.push(src.strip_prefix(&self.target)?);
-            if entry.file_type().is_dir() {
+
+            let typ = entry.file_type();
+            if typ.is_dir() {
+                debug!("creating directory {:?}", dst);
                 std::fs::create_dir_all(dst)?;
-            } else {
+            } else if typ.is_file() {
+                debug!("installing file {:?}", dst);
                 std::fs::copy(&src, &dst)?;
+            } else if typ.is_symlink() {
+                let _ = fs::remove_file(&dst); // we don't care if file does not exist
+                let target = fs::read_link(src)?;
+                debug!("linking file {:?} -> {:?}", dst, target);
+                std::os::unix::fs::symlink(&dst, target)?;
+            } else {
+                error!("unsupported file type: ({:?}): {:?}", src, typ)
             }
         }
 
