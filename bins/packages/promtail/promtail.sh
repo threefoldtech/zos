@@ -2,6 +2,10 @@ PROMTAIL_VERSION="1.3.0"
 PROMTAIL_CHECKSUM="a8babf2a10a2762d5a8f996d83ef4134"
 PROMTAIL_LINK="https://github.com/grafana/loki/releases/download/v${PROMTAIL_VERSION}/promtail-linux-amd64.zip"
 
+dependencies_promtail() {
+    apt-get install -y unzip
+}
+
 download_promtail() {
     download_file ${PROMTAIL_LINK} ${PROMTAIL_CHECKSUM}
 }
@@ -38,6 +42,7 @@ install_promtail() {
 build_promtail() {
     pushd "${DISTDIR}"
 
+    dependencies_promtail
     download_promtail
     extract_promtail
 
