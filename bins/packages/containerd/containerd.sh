@@ -3,6 +3,23 @@ CONTAINERD_CHECKSUM="d28ec96dd7586f7a1763c54c5448921e"
 CONTAINERD_LINK="https://github.com/containerd/containerd/archive/v${CONTAINERD_VERSION}.tar.gz"
 CONTAINERD_HOME="${GOPATH}/src/github.com/containerd"
 
+dependencies_containerd() {
+    apt-get install -y btrfs-tools libseccomp-dev build-essential pkg-config
+
+    if [ -z $GOPATH ]; then
+        if command -v go > /dev/null; then
+            export GOPATH=$(go env GOPATH)
+        else
+            curl -L https://dl.google.com/go/go1.13.1.linux-amd64.tar.gz > /tmp/go1.13.1.linux-amd64.tar.gz
+            tar -C /usr/local -xzf /tmp/go1.13.1.linux-amd64.tar.gz
+            mkdir -p /gopath
+
+            export PATH=$PATH:/usr/local/go/bin
+            export GOPATH=/gopath
+        fi
+    fi
+}
+
 download_containerd() {
     download_file ${CONTAINERD_LINK} ${CONTAINERD_CHECKSUM} containerd-v${CONTAINERD_VERSION}.tar.gz
 }
@@ -45,6 +62,7 @@ install_containerd() {
 build_containerd() {
     pushd "${DISTDIR}"
 
+    dependencies_containerd
     download_containerd
     extract_containerd
 
