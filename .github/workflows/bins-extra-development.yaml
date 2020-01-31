@@ -31,15 +31,26 @@ jobs:
         cd bins
         sudo ./bins-extra.sh --package containerd
 
-    - name: Publish flist (${{ github.sha }})
+    - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
         token: ${{ secrets.HUB_JWT }}
         action: publish
-        user: tf-zos-bins.dev
+        user: tf-autobuilder
         root: bins/releases/containerd
         name: ${{ steps.package.outputs.name }}.flist
+
+    - name: Crosslink flist (tf-zos-bins.dev)
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.HUB_JWT }}
+        action: crosslink
+        user: tf-zos-bins.dev
+        name: containerd.flist
+        target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+
 
   firecracker:
     name: 'Package: firecracker'
@@ -59,16 +70,27 @@ jobs:
         cd bins
         sudo ./bins-extra.sh --package firecracker
 
-    - name: Publish flist (${{ github.sha }})
+    - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
         token: ${{ secrets.HUB_JWT }}
         action: publish
-        user: tf-zos-bins.dev
+        user: tf-autobuilder
         root: bins/releases/firecracker
         name: ${{ steps.package.outputs.name }}.flist
- 
+
+    - name: Crosslink flist (tf-zos-bins.dev)
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.HUB_JWT }}
+        action: crosslink
+        user: tf-zos-bins.dev
+        name: firecracker.flist
+        target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+
+
   promtail:
     name: 'Package: promtail'
     runs-on: ubuntu-latest
@@ -87,13 +109,24 @@ jobs:
         cd bins
         sudo ./bins-extra.sh --package promtail
 
-    - name: Publish flist (${{ github.sha }})
+    - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
         token: ${{ secrets.HUB_JWT }}
         action: publish
-        user: tf-zos-bins.dev
+        user: tf-autobuilder
         root: bins/releases/promtail
         name: ${{ steps.package.outputs.name }}.flist
- 
+
+    - name: Crosslink flist (tf-zos-bins.dev)
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.HUB_JWT }}
+        action: crosslink
+        user: tf-zos-bins.dev
+        name: promtail.flist
+        target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+
+
