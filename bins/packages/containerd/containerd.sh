@@ -1,7 +1,6 @@
 CONTAINERD_VERSION="1.3.2"
 CONTAINERD_CHECKSUM="d28ec96dd7586f7a1763c54c5448921e"
 CONTAINERD_LINK="https://github.com/containerd/containerd/archive/v${CONTAINERD_VERSION}.tar.gz"
-CONTAINERD_HOME="${GOPATH}/src/github.com/containerd"
 
 dependencies_containerd() {
     apt-get install -y btrfs-tools libseccomp-dev build-essential pkg-config
@@ -18,6 +17,8 @@ dependencies_containerd() {
             export GOPATH=/gopath
         fi
     fi
+
+    CONTAINERD_HOME="${GOPATH}/src/github.com/containerd"
 }
 
 download_containerd() {
