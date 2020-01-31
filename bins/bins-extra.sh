@@ -97,13 +97,7 @@ checksum() {
 # Sanity check
 #
 prepare() {
-    if [ -z $GOPATH ]; then
-        if command -v go > /dev/null; then
-            export GOPATH=$(go env GOPATH)
-        else
-            echo "[-] fatal: could not find go"
-        fi
-    fi
+    echo "[+] initializing build tool"
 }
 
 #
