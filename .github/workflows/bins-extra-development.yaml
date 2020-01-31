@@ -20,7 +20,7 @@ jobs:
     - name: Checkout code into the Go module directory
       uses: actions/checkout@v1
 
-    - name: Install dependencies
+    - name: Setup basesystem
       run: |
         cd bins
         sudo ./bins-extra.sh --package basesystem
@@ -48,7 +48,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v1
 
-    - name: Install dependencies
+    - name: Setup basesystem
       run: |
         cd bins
         sudo ./bins-extra.sh --package basesystem
@@ -76,7 +76,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v1
 
-    - name: Install dependencies
+    - name: Setup basesystem
       run: |
         cd bins
         sudo ./bins-extra.sh --package basesystem
