@@ -154,22 +154,7 @@ download_git() {
 
     echo "Loading ${repository}" > "${logfile}"
 
-    if [ -d "${target}" ]; then
-        event "updating" "${repository}" "[${branch}]"
-
-        # Ensure branch is up-to-date
-        pushd "${target}"
-
-        git fetch
-
-        git checkout "${branch}" >> "${logfile}" 2>&1
-        git pull origin "${branch}" >> "${logfile}" 2>&1
-
-        [[ ! -z "$tag" ]] && git reset --hard "$tag" >> "${logfile}"
-
-        popd
-        return
-    fi
+    [[ -d "${target}" ]] && rm -rf ${target}
 
     event "cloning" "${repository}" "[${branch}]"
     git clone -b "${branch}" "${repository}"
