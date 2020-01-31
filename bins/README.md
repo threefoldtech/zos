@@ -5,6 +5,11 @@ on runtime are downloaded via flist later, when the system booted.
 
 This directory contains a build script suite to build theses runtime dependencies.
 
+## Requirement
+
+The whole build system is intended to be used inside a Docker container using `ubuntu:18.04` image
+like the initramfs build script. This can be used inside Github Actions Steps.
+
 ## Package system
 
 The build system use a simple mechanism which build differents « packages ». Each packages
