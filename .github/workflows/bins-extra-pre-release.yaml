@@ -30,7 +30,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo bins/autobuild/tf-build-deps.sh
+        cd bins
+        sudo ./bins-extra.sh --package basesystem
 
     - name: Build package
       id: package
@@ -57,7 +58,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo bins/autobuild/tf-build-deps.sh
+        cd bins
+        sudo ./bins-extra.sh --package basesystem
 
     - name: Build package
       id: package
@@ -84,7 +86,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo bins/autobuild/tf-build-deps.sh
+        cd bins
+        sudo ./bins-extra.sh --package basesystem
 
     - name: Build package
       id: package
