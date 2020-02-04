@@ -41,39 +41,6 @@ GLOBAL OPTIONS:
 
 ## Examples
 
-### Build tfuser
-
-```
-$ cd tools
-$ make tfuser
-cd tfuser && go build -ldflags '-w -s -X github.com/threefoldtech/zos/pkg/version.Branch=fcvm -X github.com/threefoldtech/zos/pkg/version.Revision=c00740b8fbb75746cd02fb5614ccf57342b7a9f4 -X github.com/threefoldtech/zos/pkg/version.Dirty='
-$ cd tfuser
-$ ./tfuser --help
-NAME:
-   tfuser - Let you provision capacity on the ThreefoldGrid 2.0
-
-USAGE:
-   tfuser [global options] command [command options] [arguments...]
-
-VERSION:
-   0.0.1
-
-COMMANDS:
-   id             generate a user identity
-   generate, gen  Group of command to generate provisioning schemas
-   provision      Provision a workload
-   live           show you all the reservations that are still alive
-   help, h        Shows a list of commands or help for one command
-
-GLOBAL OPTIONS:
-   --debug, -d             enable debug logging
-   --bcdb value, -u value  URL of the BCDB (default: "https://explorer.devnet.grid.tf") [$BCDB_URL]
-   --help, -h              show help
-   --version, -v           print the version
-```
-
-## Examples
-
 ### Generate a network provisioning schema
 
 Here is a full example how you would use tfuser to create a network schema.
@@ -291,3 +258,7 @@ Generate an identity using `tfuser id`. This command will generate a `user.seed`
 ```shell
 tfuser provision --schema container.json --duration 2 --seed user.seed --node {nodeID}
 ```
+
+### Kubernetes Provisioning
+
+Check the get started guide [here](../kubernetes/getstarted.md)
