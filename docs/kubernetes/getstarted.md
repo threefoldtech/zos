@@ -16,13 +16,20 @@ Prerequisite:
 - linux based OS
 - [kubectl](https://kubernetes.io/fr/docs/tasks/tools/install-kubectl/)
 - github account with [ssh key linked to your account](https://help.github.com/en/enterprise/2.17/user/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
+- [wireguard](https://www.wireguard.com/install/)
+
+the script arguments are `startup.sh {GITHUB_ACCOUNT} {CIDR/16} {DURATION} {NUMBER_OF_NODES} {VM_SIZE}`
 
 ```
 $ chmod +x startup.sh
-$ ./startup.sh zgorizzo69 "173.40" 1 2
+$ ./startup.sh zgorizzo69 "174.40" 2h 3 1
 ```
 
-This will build tfuser provision a network
+This will provision a cluster with 3 nodes one master and two workers for 2 hours.
+`{GITHUB_ACCOUNT}` is mandatory as we will pull the ssh keys from github to authorize access to the vm.
+`{CIDR/16}` in this example will provision a network with a cidr of 174.40.0.0/16 so the master will have the ip 174.40.2.2 and workers ip: 174.40.3.2 174.40.4.2 etc ...
+`{DURATION}` By default is number of days. But also support notation with duration suffix like m for minute or h for hours
+There are two `{VM_SIZE}` VM_SIZE=1 (small) and VM_SIZE=2 (medium)
 
 # Provisioning and Deploiement of the cluster
 
@@ -60,9 +67,9 @@ To provision our VMs we first need to setup a network between different Nodes on
 We will use devnet Nodes to select some nodes go to :[devnet Cockpit](https://cockpit.devnet.grid.tf/)
 We picked three nodes identified by these NodeId
 
-- nodeid1: FTothsg9ZuJubAEzZByEgQQUmkWM637x93YH1QSJM242
+- nodeid1: qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3
 - nodeid2: 3NAkUYqm5iPRmNAnmLfjwdreqDssvsebj4uPUt9BxFPm
-- nodeid3: 2anfZwrzskXiUHPLTqH1veJAia8G6rW2eFLy5YFMa1MP
+- nodeid3: FTothsg9ZuJubAEzZByEgQQUmkWM637x93YH1QSJM242
 
 Becarefull NodeId is case sensitive
 
