@@ -9,11 +9,11 @@ data:
     - name: default
       protocol: layer2
       addresses:
-      - 192.168.168.240-192.168.168.250
+      - 173.30.1.240-173.30.1.250
     - name: public
       protocol: layer2
       addresses:
-      - 192.168.168.165-192.168.168.169
+      - 173.30.3.240.165-173.30.3.240.169
       auto-assign: false
 ---
 apiVersion: v1
@@ -28,4 +28,4 @@ spec:
     - port: 543
       targetPort: 6443
   type: LoadBalancer
-  loadBalancerIP: 192.168.168.168
+  loadBalancerIP: 173.30.3.168

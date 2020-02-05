@@ -7,6 +7,23 @@ We will then see how to connect to it and interact using kubectl on our local ma
 
 Finally we will go through some examples use cases to grasp the features offered by the cluster.
 
+# TL;DR
+
+If you quickly want to setup a kubernetes cluster and start to play with it, you can launch the startup script.
+
+Prerequisite:
+
+- linux based OS
+- [kubectl](https://kubernetes.io/fr/docs/tasks/tools/install-kubectl/)
+- github account with [ssh key linked to your account](https://help.github.com/en/enterprise/2.17/user/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
+
+```
+$ chmod +x startup.sh
+$ ./startup.sh zgorizzo69 "173.40" 1 2
+```
+
+This will build tfuser provision a network
+
 # Provisioning and Deploiement of the cluster
 
 Our CLI tool tfuser makes it easy to interact with the TFGrid and provision a kubernetes cluster.
@@ -376,27 +393,13 @@ StorageClass "local-path": Only support ReadWriteOnce access mode
 let's create a hostPath backed persistent volume claim and a pod to utilize it:
 
 ```
-cd ressources/storage/simple-localpath/
-kubectl create -f pvc.yaml
-kubectl create -f pod.yaml
-```
+$ cd ressources/storage/simple-localpath/
+$ kubectl create -f pvc.yaml
+$ kubectl create -f pod.yaml
+$ kubectl get pods -n default
+NAME                         READY   STATUS    RESTARTS   AGE
+volume-test                  1/1     Running   0          2m
 
-### longhorn
-
-K3s supports Longhorn. Longhorn is an open-source distributed block storage system for Kubernetes.
-Apply the longhorn.yaml to install Longhorn:
-
-```
-cd ressources/storage/longhorn/
-kubectl create -f longhorn.yaml
-kubectl create -f sc.yaml
-```
-
-Problem
-
-```
-[longhorn-manager-lp7v2] time="2020-01-08T09:52:05Z" level=error msg="Failed environment check, please make sure you have iscsiadm/open-iscsi installed on the host"
-[longhorn-manager-lp7v2] time="2020-01-08T09:52:05Z" level=fatal msg="Error starting manager: Environment check failed: Failed to execute: nsenter [--mount=/host/proc/1/ns/mnt --net=/host/proc/1/ns/net iscsiadm --version], output nsenter: failed to execute iscsiadm: No such file or directory\n, error exit status 1"
 ```
 
 ### Rook
@@ -430,7 +433,7 @@ We will create a NFS server instance that exports storage that is backed by the 
 
 ```
 $ kubectl create -f 2-nfs.yaml
-$  kubectl get pvc -n rook-nfs
+$ kubectl get pvc -n rook-nfs
 NAME                STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
 nfs-default-claim   Bound    pvc-9804c4f1-80e1-45ec-bf05-3dbdd012564e   1Gi        RWO            local-path     3m49s
 $ kubectl get po -n rook-nfs
@@ -498,124 +501,6 @@ usr/lib/modules/4.14.82-Zero-OS/kernel/drivers # find /usr/lib/modules | grep rd
 /usr/lib/modules/4.14.82-Zero-OS/kernel/drivers/media/rc/keymaps/rc-avermedia-cardbus.ko
 ```
 
-### Installing [rook CockroachDB](https://rook.io/docs/rook/v1.2/cockroachdb.html)
-
-**Deploy CockroachDB Operator**
-First deploy the Rook CockroachDB operator using the following commands:
-
-```
-cd resources/storage/rook-cockroachdb
-kubectl create -f operator.yaml
-```
-
-You can check if the operator is up and running with:
-
-```
- kubectl -n rook-cockroachdb-system get pod
-```
-
-**Create and Initialize CockroachDB Cluster**
-
-```
-kubectl create -f cluster.yaml
-kubectl -n rook-cockroachdb get clusters.cockroachdb.rook.io
-```
-
-To check if all the desired replicas are running, you should see the same number of entries from the following command as the replica count that was specified in cluster.yaml:
-
-```
-kubectl -n rook-cockroachdb get pod -l app=rook-cockroachdb
-```
-
-**Accessing the Database**
-To use the cockroach sql client to connect to the database cluster, run the following command in its entirety:
-
-```
-kubectl -n rook-cockroachdb-system exec -it $(kubectl -n rook-cockroachdb-system get pod -l app=rook-cockroachdb-operator -o jsonpath='{.items[0].metadata.name}') -- /cockroach/cockroach sql --insecure --host=cockroachdb-public.rook-cockroachdb
-```
-
-This will land you in a prompt where you can begin to run SQL commands directly on the database cluster.
-
-Example:
-
-```
-root@cockroachdb-public.rook-cockroachdb:26257/> show databases;
-+----------+
-| Database |
-+----------+
-| system   |
-| test     |
-+----------+
-(2 rows)
-
-Time: 2.105065ms
-```
-
-**Example App**
-If you want to run an example application to exercise your new CockroachDB cluster, there is a load generator application in the same directory as the operator and cluster resource files. The load generator will start writing random key-value pairs to the database cluster, verifying that the cluster is functional and can handle reads and writes.
-
-The rate at which the load generator writes data is configurable, so feel free to tweak the values in loadgen-kv.yaml. Setting --max-rate=0 will enable the load generator to go as fast as it can, putting a large amount of load onto your database cluster.
-
-To run the load generator example app, simply run:
-
-```
-kubectl create -f loadgen-kv.yaml
-```
-
-You can check on the progress and statistics of the load generator by running:
-
-```
- kubectl -n rook-cockroachdb logs -l app=loadgen
-```
-
-To connect to the database and view the data that the load generator has written, run the following command:
-
-```
-kubectl -n rook-cockroachdb-system exec -it $(kubectl -n rook-cockroachdb-system get pod -l app=rook-cockroachdb-operator -o jsonpath='{.items[0].metadata.name}') -- /cockroach/cockroach sql --insecure --host=cockroachdb-public.rook-cockroachdb -d test -e 'select * from kv'
-```
-
-### Installing [rook minio](https://rook.io/docs/rook/v1.2/minio-object-store.html)
-
-**Deploy Minio Operator**
-
-First deploy the Rook CockroachDB operator using the following commands:
-
-```
-cd resources/storage/rook-cockroachdb
-kubectl create -f operator.yaml
-```
-
-You can check if the operator is up and running with:
-
-```
- kubectl -n rook-cockroachdb-system get pod
-```
-
-**Create and Initialize a Distributed Minio Object Store**
-Now that the operator is running, we can create an instance of a distributed Minio object store by creating an instance of the objectstore.minio.rook.io resource. Some of that resource’s values are configurable, so feel free to browse object-store.yaml and tweak the settings to your liking.
-
-It is strongly recommended to update the values of accessKey and secretKey in object-store.yaml to a secure key pair, as described in the Minio client quickstart guide.
-
-When you are ready to create a Minio object store, simply run:
-
-```
-kubectl create -f object-store.yaml
-kubectl -n rook-minio get objectstores.minio.rook.io
-kubectl -n rook-minio get pod -l app=minio,objectstore=my-store
-```
-
-**Accessing the Object Store**
-
-Minio comes with an embedded web based object browser. In the example, the object store we have created can be exposed external to the cluster at the Kubernetes cluster IP via a “NodePort”. We can see which port has been assigned to the service via:
-
-```
-kubectl -n rook-minio get service minio-my-store -o jsonpath='{.spec.ports[0].nodePort}'
-```
-
-then navigate to the ip of a node and the port printed with the line above
-
-![minio webui](ressources/storage/rook-minio/miniowebui.png)
-
 ## Load balancing and external IP
 
 #### Klipper
@@ -630,26 +515,18 @@ The idea is to have a fix IP to connect to that can handle load balancing betwee
 We can apply the first two files in the metallb folder
 
 ```
-$ cd metallb
+$ cd ressources/metallb
 $ kubectl create -f 1-metallb.yaml
 $ kubectl create -f 2-config_and_registration_service.yaml
 ```
 
 this will install metallb on our cluster and configure it via a configmap
-and lastly it will create a service of type loadbalancer with a fix IP `192.168.168.168`
-
-### Registration address
-
-To achieve a fix registration address we can use a nginx reverse proxy to do a round robin load balancing
-on all our servers. See the example in the docker compose
-
-or we can run HAProxy to get a fix ip for all our servers
-
-Note that
+and lastly it will create a service of type loadbalancer with a fix IP `173.30.1.168`
+Take a look at the configmap if you want to modify the IP range available to metalLB.
 
 ## Public IP
 
-### TCP router
+### Accessing the cluster from a public domain
 
 we need to initiate a connection from the cluster to an external machine with a public IP. We direct the tunnel to the traefik (or any other ingress controller) service IP
 
@@ -661,21 +538,15 @@ metrics-server   ClusterIP      10.43.36.33     <none>        443/TCP           
 traefik          LoadBalancer   10.43.178.254   172.31.1.50   80:32015/TCP,443:32432/TCP,8080:30137/TCP   6d5h
 ```
 
-We can use TCP Router to do that
+We tried with [inlets](https://github.com/inlets/inlets).
+
+Follow the guide and you will end up executing this kind of command on your master node.
 
 ```
-trc -local 172.31.1.50:80 -remote zaibon.be:8082 -secret coucou
+inlets client  --remote "mydomain.be:8080"  --upstream "http://172.30.1.50:80"  --token "${AUTHTOKEN}"
 ```
 
-but the test have shown that it is too slow
-
-We tried with inlets
-
-```
-inlets client  --remote "zaibon.be:8080"  --upstream "http://172.31.1.50:80"  --token "${AUTHTOKEN}"
-```
-
-and the performance is good. If you have deployed the drupal-mysql example which contains an ingress ressources you can modify the ingress to the domain name here it is zaibon.be so that now when you hit http://zaibon.be you are redirected to the drupal website
+If you have deployed the drupal-mysql example which contains an ingress ressources you can modify the ingress to the domain name here it is mydomain.be so that now when you hit http://mydomain.be you are redirected to the drupal website
 
 ## CNI
 
@@ -731,34 +602,3 @@ Run K3s with --flannel-backend=none
 ## HA :warning: (WIP) :construction_worker:
 
 ![k3s ha architecture](ressources/ha/k3s-ha-architecture.svg)
-
----
-
-```
-$ ./tfuser generate --schema kube1.json kubernetes --size 1 --network-id kubetest --ip 173.30.1.2 --secret token --node qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3  --ssh-keys "github:zgorizzo69"
-
-$ ./tfuser -d provision --schema kube1.json --duration 2 --seed user.seed --node qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3  --master-ips 173.30.1.2
-```
-
-You can check the status again with the live command
-
-```
-$ ./tfuser live --seed user.seed --end 3000
-D:2581-1 Type:kubernetes expired at:02-Feb-2020 17:35:14state:     ok
-```
-
-Let's try to connect to our VM
-
-```
-
-```
-
-\$ ./tfuser generate --schema network.json \
- kubernetes --size 1 \
- --network-id kubenet \
- --ip 172.31.2.50 \
- --node 9aDDL13d8Q7fxz1LjNskTpgXEugBevpQmHo3DJcASTa2
-
-```
-
-```
