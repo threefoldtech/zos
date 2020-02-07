@@ -35,6 +35,8 @@ jobs:
 
     - name: Run tests
       run: |
+        find / | grep golint
+        env | grep GO
         cd tools
         make test
       env:
