@@ -154,7 +154,7 @@ echo "provisioning master node..."
 
 for ((i = 0; $WORKER_NODES - $i; i++)); do
     IP=${SUBNET[$i]//.0\/24/}.2
-    echo "IIIIp:"$IP
+    echo " - Ip:"$IP
     VM_IPS=${VM_IPS}" "${IP}
     $TFUSER_PATH generate --schema node$i.json kubernetes --size $VM_SIZE --network-id $NETWORK_NAME --ip $IP --master-ips $MASTER_IP --secret $SECRET --node ${NODE_ID[$i]} --ssh-keys "$GITHUB_ACCOUNT_OR_PUBKEY"
     $TFUSER_PATH -d provision --schema node$i.json --duration $CLUSTER_DURATION --seed $IDENTITY_FILE --node ${NODE_ID[$i]}
@@ -166,7 +166,15 @@ echo "waiting for provisioning..."
 sleep 10
 wg-quick down $CONFIG_PATH/wg.conf &>/dev/null || true
 wg-quick up $CONFIG_PATH/wg.conf
-ping $MASTER_IP
-$TFUSER_PATH live --seed $IDENTITY_FILE --end 3000
-
+printf "%s" "waiting for Master node $MASTER_IP to answer ..."
+while ! timeout 0.2 ping -c 1 -n $MASTER_IP &>/dev/null; do
+    printf "%c" "."
+done
+printf "\n%s\n" "Master is online"
+echo "Retrieving information needed to setup the cluster from the master node..."
+scp -o "StrictHostKeyChecking no" rancher@$MASTER_IP:/etc/rancher/k3s/k3s.yaml ./kube-config.yaml
+echo "\nkubeconfig file has been written to kube-config.yaml edit your ~/.kube/config accordingly"
+echo "to ssh into your master node execute this command"
+printf "\nssh rancher@%s\n" $MASTER_IP
+ssh -o "StrictHostKeyChecking no" rancher@$MASTER_IP 'k3s kubectl get nodes'
 exit

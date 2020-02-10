@@ -21,11 +21,11 @@ the script arguments are `startup.sh {GITHUB_ACCOUNT_OR_SSH_PUB_KEY} {CIDR/16} {
 
 ```
 $ chmod +x startup.sh
-$ ./startup.sh AAAAC3NzaC1lZDI1NTE5AAAAIIqFXIWd8mTrzYaQd3sGFNiT7xjSXfOaPYTzvRMD+WI6 "174.40" 2h 3 1
+$ ./startup.sh "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIqFXIWd8mTrzYaQd3sGFNiT7xjSXfOaPYTzvRMD+WI6" "174.40" 2h 3 1
 ```
 
 This will provision a cluster with 3 nodes one master and two workers for 2 hours.
-`{GITHUB_ACCOUNT_OR_SSH_PUB_KEY}` is mandatory as we will push teh ssh public key to authorize access to the vm.
+`{GITHUB_ACCOUNT_OR_SSH_PUB_KEY}` is mandatory as we will push the ssh public key to authorize access to the vm. Don't forget to add the ssh key algorithm before your public key like here `ssh-ed25519`
 If you want to specify your github account it needs to be with [a ssh key linked to your account](https://help.github.com/en/enterprise/2.17/user/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent) and you need to specify `github:` in front of your github account e.g.:`./startup.sh github:zgorizzo69 "174.40" 2h 3 1`
 `{CIDR/16}` in this example will provision a network with a cidr of 174.40.0.0/16 so the master will have the ip 174.40.2.2 and workers ip: 174.40.3.2 174.40.4.2 etc ...
 `{DURATION}` By default is number of days. But also support notation with duration suffix like m for minute or h for hours
@@ -106,10 +106,18 @@ We will need an external access to the network to be able to ssh into our VMs.
 
 ```
 $ ./tfuser generate --schema network.json network add-access --node qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3 \
-				      --subnet 173.30.4.0/24 --ip4 > wg.conf
+				       --subnet 173.30.4.0/24 --ip4 > wg.conf
 ```
 
 We generated the wireguard, a secure and fast VPN, configuration file that we will use here after in this guide.
+Note that we can also ask for an ipv6 configuration for `add-access` command only if you remove the --ip4 flag. To do so you will need to find a node with the [api](https://explorer.devnet.grid.tf/nodes) that has a public_config set to `null`.
+
+here is an example
+
+```
+$ ./tfuser generate --schema network.json network add-access --node BpTAry1Na2s1J8RAHNyDsbvaBSM3FjR4gMXEKga3UPbs \
+				      --subnet 173.30.4.0/24 > wg.conf
+```
 
 Let's take a look at a graphical representation of our network
 
@@ -160,20 +168,20 @@ Let's now provision some Kubernetes VM on those nodes
 ### Provision
 
 Let's provision a kubernetes VM on our first node and assign an IP allowed in the network `kubetest` defined here above.
-Replace `SSH_PUB_KEY` by your ssh public key. We choose an IP for the VM that is part of the subnet we previously defined for the node. We can't choose 173.30.3.1 as it is the IP of the network ressource itself.
+Replace `SSH_PUB_KEY` by your ssh public key and ssh key algorithm e.g. `"ssh-rsa AAAAB3NzaC1yc2EAAA.."`. We choose an IP for the VM that is part of the subnet we previously defined for the node. We can't choose 173.30.3.1 as it is the IP of the network ressource itself.
 
 ```
-./tfuser generate --schema kube1.json kubernetes --size 1 --network-id kubetest --ip 173.30.1.2 --secret token --node qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3  --ssh-keys "SSH_PUB_KEY" &&  \
+./tfuser generate --schema kube1.json kubernetes --size 1 --network-id kubetest --ip 173.30.1.2 --secret token --node qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3  --ssh-keys "{SSH_PUB_KEY}" &&  \
  ./tfuser -d provision --schema kube1.json --duration 2 --seed user.seed --node qzuTJJVd5boi6Uyoco1WWnSgzTb7q8uN79AjBT9x9N3
 ```
 
 ```
-./tfuser generate --schema kube2.json kubernetes --size 1 --network-id kubetest --ip 173.30.2.2 --master-ips 173.30.1.2 --secret token --node 3NAkUYqm5iPRmNAnmLfjwdreqDssvsebj4uPUt9BxFPm  --ssh-keys "SSH_PUB_KEY" &&  \
+./tfuser generate --schema kube2.json kubernetes --size 1 --network-id kubetest --ip 173.30.2.2 --master-ips 173.30.1.2 --secret token --node 3NAkUYqm5iPRmNAnmLfjwdreqDssvsebj4uPUt9BxFPm  --ssh-keys "{SSH_PUB_KEY}" &&  \
  ./tfuser -d provision --schema kube2.json --duration 2 --seed user.seed --node 3NAkUYqm5iPRmNAnmLfjwdreqDssvsebj4uPUt9BxFPm
 ```
 
 ```
-./tfuser generate --schema kube3.json kubernetes --size 1 --network-id kubetest --ip 173.30.3.2 --master-ips 173.30.1.2 --secret token --node FTothsg9ZuJubAEzZByEgQQUmkWM637x93YH1QSJM242  --ssh-keys "SSH_PUB_KEY" &&  \
+./tfuser generate --schema kube3.json kubernetes --size 1 --network-id kubetest --ip 173.30.3.2 --master-ips 173.30.1.2 --secret token --node FTothsg9ZuJubAEzZByEgQQUmkWM637x93YH1QSJM242  --ssh-keys "{SSH_PUB_KEY}" &&  \
  ./tfuser -d provision --schema kube3.json --duration 2 --seed user.seed --node FTothsg9ZuJubAEzZByEgQQUmkWM637x93YH1QSJM242
 ```
 
