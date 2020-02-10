@@ -171,10 +171,12 @@ while ! timeout 0.2 ping -c 1 -n $MASTER_IP &>/dev/null; do
     printf "%c" "."
 done
 printf "\n%s\n" "Master is online"
+sleep 3
 echo "Retrieving information needed to setup the cluster from the master node..."
+ssh -o "StrictHostKeyChecking no" rancher@$MASTER_IP 'k3s kubectl get nodes'
 scp -o "StrictHostKeyChecking no" rancher@$MASTER_IP:/etc/rancher/k3s/k3s.yaml ./kube-config.yaml
 echo "\nkubeconfig file has been written to kube-config.yaml edit your ~/.kube/config accordingly"
 echo "to ssh into your master node execute this command"
 printf "\nssh rancher@%s\n" $MASTER_IP
-ssh -o "StrictHostKeyChecking no" rancher@$MASTER_IP 'k3s kubectl get nodes'
+
 exit
