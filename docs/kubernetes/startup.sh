@@ -21,8 +21,8 @@ if [ -z "$1" ]; then
     echo "You need to specify your gihub account as first argument to link your ssh keys to the virtual machine"
     exit
 else
-    GITHUB_ACCOUNT=$1
-    echo "Public ssh key for github Account \"$GITHUB_ACCOUNT\" will be pushed to the VM's authorized_keys"
+    GITHUB_ACCOUNT_OR_PUBKEY=$1
+    echo "Public ssh key or github Account \"$GITHUB_ACCOUNT_OR_PUBKEY\" will be pushed to the VM's authorized_keys"
 fi
 
 if [ -z "$2" ]; then
@@ -148,7 +148,7 @@ if [ $retval_live -gt 0 ]; then
 fi
 echo "---Provisioning the Kubernetes VM"
 MASTER_IP=${FIRST_NODE_SUBNET//.0\/24/}.2
-$TFUSER_PATH generate --schema first_node.json kubernetes --size $VM_SIZE --network-id $NETWORK_NAME --ip $MASTER_IP --secret $SECRET --node $FIRST_NODE --ssh-keys "github:$GITHUB_ACCOUNT"
+$TFUSER_PATH generate --schema first_node.json kubernetes --size $VM_SIZE --network-id $NETWORK_NAME --ip $MASTER_IP --secret $SECRET --node $FIRST_NODE --ssh-keys "$GITHUB_ACCOUNT_OR_PUBKEY"
 $TFUSER_PATH -d provision --schema first_node.json --duration $CLUSTER_DURATION --seed $IDENTITY_FILE --node $FIRST_NODE
 echo "provisioning master node..."
 
@@ -156,7 +156,7 @@ for ((i = 0; $WORKER_NODES - $i; i++)); do
     IP=${SUBNET[$i]//.0\/24/}.2
     echo "IIIIp:"$IP
     VM_IPS=${VM_IPS}" "${IP}
-    $TFUSER_PATH generate --schema node$i.json kubernetes --size $VM_SIZE --network-id $NETWORK_NAME --ip $IP --master-ips $MASTER_IP --secret $SECRET --node ${NODE_ID[$i]} --ssh-keys "github:$GITHUB_ACCOUNT"
+    $TFUSER_PATH generate --schema node$i.json kubernetes --size $VM_SIZE --network-id $NETWORK_NAME --ip $IP --master-ips $MASTER_IP --secret $SECRET --node ${NODE_ID[$i]} --ssh-keys "$GITHUB_ACCOUNT_OR_PUBKEY"
     $TFUSER_PATH -d provision --schema node$i.json --duration $CLUSTER_DURATION --seed $IDENTITY_FILE --node ${NODE_ID[$i]}
     echo "provisioning worker node $i with ip:$IP..."
 done
