@@ -141,7 +141,7 @@ sudo ip link set forzos up
 1. Now run your vm
 
 ```bash
-./vm.sh -n myzos-01 -c farmer_id=2 printk.devmsg=on runmode=dev
+./vm.sh -n myzos-01 -b zos0 -c farmer_id=2 printk.devmsg=on runmode=dev
 ```
 
 where `runmode` is one of `dev` , `test`  or `prod`, 
