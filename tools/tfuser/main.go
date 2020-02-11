@@ -376,6 +376,10 @@ func main() {
 					Name:  "expired",
 					Usage: "include expired reservations",
 				},
+				cli.BoolFlag{
+					Name:  "deleted",
+					Usage: "include deleted reservations",
+				},
 			},
 			Action: cmdsLive,
 		},
