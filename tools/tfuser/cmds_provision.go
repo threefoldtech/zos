@@ -118,22 +118,23 @@ func cmdsProvision(c *cli.Context) error {
 		return errors.Wrap(err, "could not find provision schema")
 	}
 
-	r := &provision.Reservation{}
-	if err := json.Unmarshal(schema, r); err != nil {
+	var reservation provision.Reservation
+	if err := json.Unmarshal(schema, &reservation); err != nil {
 		return errors.Wrap(err, "failed to read the provision schema")
 	}
 
-	r.Duration = duration
-	r.Created = time.Now()
+	reservation.Duration = duration
+	reservation.Created = time.Now()
 	// set the user ID into the reservation schema
-	r.User = keypair.Identity()
+	reservation.User = keypair.Identity()
 
 	for _, nodeID := range nodeIDs {
+		r := reservation //make a copy
 		r.NodeID = nodeID
 
 		custom, ok := provCustomModifiers[r.Type]
 		if ok {
-			if err := custom(r); err != nil {
+			if err := custom(&r); err != nil {
 				return err
 			}
 		}
@@ -142,11 +143,7 @@ func cmdsProvision(c *cli.Context) error {
 			return errors.Wrap(err, "failed to sign the reservation")
 		}
 
-		if err := output(path, r); err != nil {
-			return errors.Wrapf(err, "failed to write provision schema to %s after signature", path)
-		}
-
-		id, err := client.Reserve(r)
+		id, err := client.Reserve(&r)
 		if err != nil {
 			return errors.Wrap(err, "failed to send reservation")
 		}
