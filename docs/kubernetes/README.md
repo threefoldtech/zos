@@ -1,4 +1,4 @@
-# Kubernetes cluster provisioning, deploiement and examples on Threefold Grid
+# Kubernetes cluster provisioning, deployment and examples on Threefold Grid
 
 In this guide we will walk you through the provisioning of a full-blown kubernetes cluster
 on the TF grid.
@@ -31,13 +31,13 @@ If you want to specify your github account it needs to be with [a ssh key linked
 `{DURATION}` By default is number of days. But also support notation with duration suffix like m for minute or h for hours
 There are two `{VM_SIZE}` VM_SIZE=1 (small) and VM_SIZE=2 (medium)
 
-# Provisioning and Deploiement of the cluster
+# Provisioning and Deployment of the cluster
 
 Our CLI tool tfuser makes it easy to interact with the TFGrid and provision a kubernetes cluster.
 
 ## Tfuser Install
 
-Tfuser is included in our zos repository. Let's clone the repository and build the binary
+Tfuser is a developer oriented tool used to interact with node on devnet. Let's clone the repository and build the binary
 
 ```
 $ git clone https://github.com/threefoldtech/zos
@@ -48,9 +48,9 @@ $ cd tfuser
 $ ./tfuser --help
 ```
 
-## Identity on the TF Grid (for devenet only)
+## Identity on the TF Grid (for devnet only)
 
-To interact with the grid we need an indentity which is simply some cryptographic keys that we will use to sign transaction on the network.
+To interact with the grid we need an identity which is simply some cryptographic keys that we will use to sign transaction on the network.
 Let's generate them with tfuser
 
 ```
@@ -110,7 +110,7 @@ $ ./tfuser generate --schema network.json network add-access --node qzuTJJVd5boi
 ```
 
 We generated the wireguard, a secure and fast VPN, configuration file that we will use here after in this guide.
-Note that we can also ask for an ipv6 configuration for `add-access` command only if you remove the --ip4 flag. To do so you will need to find a node with the [api](https://explorer.devnet.grid.tf/nodes) that has a public_config set to `null`.
+Note that we can also ask for an ipv6 configuration for `add-access` command only if you remove the --ip4 flag.
 
 here is an example
 
@@ -301,12 +301,12 @@ $ ./tfuser delete --id 2587-1
 Reservation 2587-1 marked as to be deleted
 ```
 
-## Workload deploiement
+## Workload deployment
 
 ### Wordpress example
 
-We will launch a wordpress deploiement connected to a mysql database.
-Let's first create the mysql deploiement including a service, a sceret for the DB password and a persistant volume. By default with k3s persistant volume storage class is [local-path](https://rancher.com/docs/k3s/latest/en/storage/)
+We will launch a wordpress deployment connected to a mysql database.
+Let's first create the mysql deployment including a service, a sceret for the DB password and a persistant volume. By default with k3s persistant volume storage class is [local-path](https://rancher.com/docs/k3s/latest/en/storage/)
 
 ```
 $ cd ressources/wordpress
@@ -320,7 +320,7 @@ $ kubectl create -f 4-mysql-svc.yaml
 service/mysql created
 ```
 
-let's do the same for the wordpress deploiement
+let's do the same for the wordpress deployment
 
 ```
 $ kubectl create -f 5-wordpress-pvc.yaml
