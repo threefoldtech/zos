@@ -179,7 +179,7 @@ func (g *Gedis) Feedback(id string, r *provision.Result) error {
 
 // Deleted implements provision.Feedbacker
 func (g *Gedis) Deleted(id string) error {
-	_, err := g.Send("tfgrid.workloads.workload_manager", "workload_deleted", Args{})
+	_, err := g.Send("tfgrid.workloads.workload_manager", "workload_deleted", Args{"workload_id": id})
 	return err
 }
 
@@ -353,6 +353,7 @@ func containerReservation(i interface{}, nodeID string) types.TfgridReservationC
 			{
 				NetworkID: string(c.Network.NetworkID),
 				Ipaddress: c.Network.IPs[0],
+				PublicIP6: c.Network.PublicIP6,
 			},
 		},
 		// StatsAggregator:   c.StatsAggregator,

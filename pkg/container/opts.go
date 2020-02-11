@@ -161,8 +161,8 @@ func WithCPUCount(cru uint) oci.SpecOpts {
 
 func cruToLimit(cru uint, totalCPU int) (quota int64, period uint64) {
 	var (
-		required float64 = float64(cru)
-		total    float64 = float64(totalCPU)
+		required = float64(cru)
+		total    = float64(totalCPU)
 		p        float64
 	)
 	quota = int64(1000000) // 1 sec
