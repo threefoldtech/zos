@@ -123,7 +123,7 @@ func cmdsProvision(c *cli.Context) error {
 			return errors.Wrap(err, "failed to send reservation")
 		}
 
-		fmt.Printf("Reservation for %v send to node %s\n", duration, reservation.NodeID)
+		fmt.Printf("Reservation for %v send to node %s\n", duration, r.NodeID)
 		fmt.Printf("Resource: %v\n", id)
 	}
 
