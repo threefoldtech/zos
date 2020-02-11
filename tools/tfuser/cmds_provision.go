@@ -23,8 +23,8 @@ var (
 	defaultDuration = day * 30
 )
 
-func encryptPassword(password, nodeID string) (string, error) {
-	if len(password) == 0 {
+func encryptSecret(plain, nodeID string) (string, error) {
+	if len(plain) == 0 {
 		return "", nil
 	}
 
@@ -33,7 +33,7 @@ func encryptPassword(password, nodeID string) (string, error) {
 		return "", err
 	}
 
-	encrypted, err := crypto.Encrypt([]byte(password), pubkey)
+	encrypted, err := crypto.Encrypt([]byte(plain), pubkey)
 	return hex.EncodeToString(encrypted), err
 }
 
@@ -43,7 +43,7 @@ func provisionCustomZDB(r *provision.Reservation) error {
 		return errors.Wrap(err, "failed to load zdb reservation schema")
 	}
 
-	encrypted, err := encryptPassword(config.Password, r.NodeID)
+	encrypted, err := encryptSecret(config.Password, r.NodeID)
 	if err != nil {
 		return err
 	}
@@ -54,9 +54,34 @@ func provisionCustomZDB(r *provision.Reservation) error {
 	return err
 }
 
+func provisionCustomContainer(r *provision.Reservation) error {
+	var config provision.Container
+	var err error
+	if err := json.Unmarshal(r.Data, &config); err != nil {
+		return errors.Wrap(err, "failed to load zdb reservation schema")
+	}
+
+	if config.SecretEnv == nil {
+		config.SecretEnv = make(map[string]string)
+	}
+
+	for k, v := range config.Env {
+		v, err := encryptSecret(v, r.NodeID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to encrypt env with key '%s'", k)
+		}
+		config.SecretEnv[k] = v
+	}
+	config.Env = make(map[string]string)
+	r.Data, err = json.Marshal(config)
+
+	return err
+}
+
 var (
 	provCustomModifiers = map[provision.ReservationType]func(r *provision.Reservation) error{
-		provision.ZDBReservation: provisionCustomZDB,
+		provision.ZDBReservation:       provisionCustomZDB,
+		provision.ContainerReservation: provisionCustomContainer,
 	}
 )
 
