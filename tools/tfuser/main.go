@@ -253,10 +253,6 @@ func main() {
 									Name:  "password, p",
 									Usage: "optional password",
 								},
-								cli.StringFlag{
-									Name:  "node, n",
-									Usage: "node ID. Required if password is set to encrypt the password",
-								},
 								cli.BoolFlag{
 									Name:  "public",
 									Usage: "TODO",

@@ -37,7 +37,7 @@ require (
 	github.com/go-openapi/validate v0.19.5 // indirect
 	github.com/go-redis/redis v6.15.5+incompatible
 	github.com/gogo/googleapis v1.3.0 // indirect
-	github.com/gomodule/redigo v1.7.0
+	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
