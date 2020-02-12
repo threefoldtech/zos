@@ -78,6 +78,10 @@ func (m *systemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
 				var result []pkg.TimesStat
 				now := time.Now()
 				times, err := cpu.Times(true)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to read cpu usage times")
+					continue
+				}
 				for i, time := range times {
 					result = append(result, pkg.TimesStat{
 						TimesStat: time,

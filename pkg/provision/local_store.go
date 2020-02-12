@@ -40,10 +40,6 @@ func (c *counterNop) Current() int64 {
 	return 0
 }
 
-var (
-	nop counterNop
-)
-
 // counterImpl value for safe increment/decrement
 type counterImpl int64
 
@@ -130,7 +126,7 @@ func (s *FSStore) counterFor(typ ReservationType) Counter {
 		return &s.counters.vm
 	default:
 		// this will avoid nil pointer
-		return &nop
+		return &counterNop{}
 	}
 }
 

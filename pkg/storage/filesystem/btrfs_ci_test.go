@@ -318,6 +318,7 @@ func TestCLeanUpQgroupsCI(t *testing.T) {
 	pools, err := fs.List(context.Background(), func(p Pool) bool {
 		return strings.HasPrefix(p.Name(), "test-")
 	})
+	require.NoError(t, err)
 	pool := pools[0]
 
 	_, err = pool.Mount()
