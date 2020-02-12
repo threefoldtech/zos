@@ -140,14 +140,15 @@ func (s *nodeStore) updateUptime(nodeID string, uptime int64) error {
 	return nil
 }
 
-func (s *nodeStore) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks) error {
+func (s *nodeStore) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor string) error {
 	node, err := s.Get(nodeID)
 	if err != nil {
 		return err
 	}
 
 	proof := directory.TfgridNodeProof1{
-		Created: schema.Date{Time: time.Now()},
+		Created:    schema.Date{Time: time.Now()},
+		Hypervisor: hypervisor,
 	}
 
 	proof.Hardware = map[string]interface{}{

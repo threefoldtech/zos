@@ -105,17 +105,13 @@ func (r *ResourceOracle) Disks() (d Disks, err error) {
 }
 
 // IsVM detect if machine is virtual
-func (r *ResourceOracle) IsVM() (bool, error) {
+func (r *ResourceOracle) GetHypervisor() (string, error) {
 	out, err := exec.Command("virt-what").CombinedOutput()
 
 	if err != nil {
-		return false, fmt.Errorf("could not detect if VM or not: %s", string(out))
+		return "", fmt.Errorf("could not detect if VM or not: %s", string(out))
 	}
 
 	out = bytes.TrimSpace(out)
-	if len(out) == 0 {
-		return false, nil
-	}
-
-	return true, nil
+	return string(out), nil
 }
