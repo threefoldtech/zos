@@ -57,8 +57,13 @@ func cap(ctx context.Context, client zbus.Client) {
 		log.Fatal().Err(err).Msgf("failed to read smartctl information from disks")
 	}
 
+	isVM, err := r.IsVM()
+	if err != nil {
+		log.Fatal().Err(err).Msgf("failed to read virtualized state")
+	}
+
 	log.Info().Msg("sends capacity detail to BCDB")
-	if err := store.Register(identity.NodeID(), *resources, *dmi, disks); err != nil {
+	if err := store.Register(identity.NodeID(), *resources, *dmi, disks, isVM); err != nil {
 		log.Fatal().Err(err).Msgf("failed to write resources capacity on BCDB")
 	}
 

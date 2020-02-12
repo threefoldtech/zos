@@ -1,6 +1,10 @@
 package capacity
 
 import (
+	"bytes"
+	"fmt"
+	"os/exec"
+
 	"github.com/shirou/gopsutil/host"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 	"github.com/threefoldtech/zos/pkg/capacity/smartctl"
@@ -98,4 +102,20 @@ func (r *ResourceOracle) Disks() (d Disks, err error) {
 	d.Aggregator = "0-OS smartctl aggregator"
 
 	return
+}
+
+// IsVM detect if machine is virtual
+func (r *ResourceOracle) IsVM() (bool, error) {
+	out, err := exec.Command("virt-what").CombinedOutput()
+
+	if err != nil {
+		return false, fmt.Errorf("could not detect if VM or not: %s", string(out))
+	}
+
+	out = bytes.TrimSpace(out)
+	if len(out) == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }

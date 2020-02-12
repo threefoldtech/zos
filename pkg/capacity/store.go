@@ -14,7 +14,7 @@ import (
 
 // Store is an interface to the bcdb store to report capacity
 type Store interface {
-	Register(nodeID pkg.Identifier, c Capacity, d dmi.DMI, disks Disks) error
+	Register(nodeID pkg.Identifier, c Capacity, d dmi.DMI, disks Disks, isVM bool) error
 	Ping(nodeID pkg.Identifier, uptime uint64) error
 }
 
@@ -29,12 +29,12 @@ func NewBCDBStore(gedis *gedis.Gedis) *BCDBStore {
 }
 
 // Register sends the capacity information to BCDB
-func (s *BCDBStore) Register(nodeID pkg.Identifier, c Capacity, d dmi.DMI, disks Disks) error {
+func (s *BCDBStore) Register(nodeID pkg.Identifier, c Capacity, d dmi.DMI, disks Disks, isVM bool) error {
 	if err := s.g.UpdateTotalNodeCapacity(nodeID, c.MRU, c.CRU, c.HRU, c.SRU); err != nil {
 		return err
 	}
 
-	return s.g.SendHardwareProof(nodeID, d, disks)
+	return s.g.SendHardwareProof(nodeID, d, disks, isVM)
 }
 
 // Ping sends an heart-beat to BCDB
@@ -53,15 +53,17 @@ func NewHTTPStore(url string) *HTTPStore {
 }
 
 // Register sends the capacity information to BCDB
-func (s *HTTPStore) Register(nodeID pkg.Identifier, c Capacity, d dmi.DMI, disks Disks) error {
+func (s *HTTPStore) Register(nodeID pkg.Identifier, c Capacity, d dmi.DMI, disks Disks, isVM bool) error {
 	x := struct {
 		Capacity Capacity `json:"capacity"`
 		DMI      dmi.DMI  `json:"dmi"`
 		Disks    Disks    `json:"disks"`
+		IsVM     bool     `json:"is_vm"`
 	}{
 		Capacity: c,
 		DMI:      d,
 		Disks:    disks,
+		IsVM:     isVM,
 	}
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(x)
