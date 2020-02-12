@@ -104,7 +104,7 @@ func (r *ResourceOracle) Disks() (d Disks, err error) {
 	return
 }
 
-// IsVM detect if machine is virtual
+//GetHypervisor gets the name of the hypervisor used on the node
 func (r *ResourceOracle) GetHypervisor() (string, error) {
 	out, err := exec.Command("virt-what").CombinedOutput()
 
