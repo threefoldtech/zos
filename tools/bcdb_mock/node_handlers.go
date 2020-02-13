@@ -128,7 +128,7 @@ func (s *nodeStore) registerCapacity(w http.ResponseWriter, r *http.Request) {
 		Capacity   directory.TfgridNodeResourceAmount1 `json:"capacity,omitempty"`
 		DMI        dmi.DMI                             `json:"dmi,omitempty"`
 		Disks      capacity.Disks                      `json:"disks,omitempty"`
-		Hypervisor string                              `json:"hypervisor,omitempty"`
+		Hypervisor []string                            `json:"hypervisor,omitempty"`
 	}{}
 
 	if err := json.NewDecoder(r.Body).Decode(&x); err != nil {
