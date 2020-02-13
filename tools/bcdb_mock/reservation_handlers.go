@@ -50,7 +50,7 @@ func (s *reservationsStore) poll(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	output := []*provision.Reservation{}
+	var output []*provision.Reservation
 	if from == 0 {
 		// just get all reservation for this nodeID
 		output = s.GetReservations(nodeID, from)
