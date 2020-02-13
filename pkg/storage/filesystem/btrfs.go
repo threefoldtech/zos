@@ -52,10 +52,6 @@ func NewBtrfs(manager DeviceManager) Filesystem {
 	return newBtrfs(manager, executerFunc(run))
 }
 
-func (b *btrfs) btrfs(ctx context.Context, args ...string) ([]byte, error) {
-	return b.utils.run(ctx, "btrfs", args...)
-}
-
 func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*Device) (Pool, error) {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {

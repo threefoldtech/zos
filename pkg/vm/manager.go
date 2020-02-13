@@ -76,11 +76,7 @@ func (m *vmModuleImpl) socket(id string) string {
 
 func (m *vmModuleImpl) Exists(id string) bool {
 	_, err := m.find(id)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 func (m *vmModuleImpl) cleanFs(id string) error {
@@ -161,6 +157,9 @@ func (m *vmModuleImpl) tail(path string) (string, error) {
 
 	defer f.Close()
 	info, err := f.Stat()
+	if err != nil {
+		return "", errors.Wrapf(err, "fail to stat %s", f.Name())
+	}
 	offset := info.Size()
 	if offset > tail {
 		offset = tail
@@ -312,7 +311,7 @@ func (m *vmModuleImpl) find(name string) (int, error) {
 	)
 	idArg := name
 	result := 0
-	err := filepath.Walk(proc, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(proc, func(path string, info os.FileInfo, _ error) error {
 		if path == proc {
 			// assend into /proc
 			return nil
