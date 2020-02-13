@@ -30,8 +30,10 @@ install_virtwhat() {
 
 
     cp ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}/virt-what ${ROOTDIR}/usr/bin/virt-what
+    cp ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}/virt-what-cpuid-helper ${ROOTDIR}/usr/bin/virt-what-cpuid-helper
 
     chmod +x ${ROOTDIR}/usr/bin/virt-what
+    chmod +x ${ROOTDIR}/usr/bin/virt-what-cpuid-helper
 }
 
 build_virtwhat() {
