@@ -139,8 +139,8 @@ jobs:
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
 
 
-  virt-what:
-    name: 'Package: virt-what'
+  virtwhat:
+    name: 'Package: virtwhat'
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -155,7 +155,7 @@ jobs:
       id: package
       run: |
         cd bins
-        sudo ./bins-extra.sh --package virt-what
+        sudo ./bins-extra.sh --package virtwhat
 
     - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
       if: success()
@@ -164,7 +164,7 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         action: publish
         user: tf-autobuilder
-        root: bins/releases/virt-what
+        root: bins/releases/virtwhat
         name: ${{ steps.package.outputs.name }}.flist
 
     - name: crosslink flist (tf-zos-bins)
@@ -174,7 +174,7 @@ jobs:
         token: ${{ secrets.hub_jwt }}
         action: crosslink
         user: tf-zos-bins
-        name: virt-what.flist
+        name: virtwhat.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
 
 

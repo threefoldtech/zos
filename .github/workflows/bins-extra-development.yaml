@@ -2,7 +2,7 @@ name: Runtime packages
 on: 
   push:
     branches:
-      - 'bins-extra'
+      - '*'
     tags-ignore:
       - v*
 
@@ -42,7 +42,7 @@ jobs:
         name: ${{ steps.package.outputs.name }}.flist
 
     - name: Crosslink flist (tf-zos-bins.dev)
-      if: success()
+      if: success() && github.ref == 'refs/heads/master'
       uses: threefoldtech/publish-flist@master
       with:
         token: ${{ secrets.HUB_JWT }}
@@ -81,7 +81,7 @@ jobs:
         name: ${{ steps.package.outputs.name }}.flist
 
     - name: Crosslink flist (tf-zos-bins.dev)
-      if: success()
+      if: success() && github.ref == 'refs/heads/master'
       uses: threefoldtech/publish-flist@master
       with:
         token: ${{ secrets.HUB_JWT }}
@@ -120,7 +120,7 @@ jobs:
         name: ${{ steps.package.outputs.name }}.flist
 
     - name: Crosslink flist (tf-zos-bins.dev)
-      if: success()
+      if: success() && github.ref == 'refs/heads/master'
       uses: threefoldtech/publish-flist@master
       with:
         token: ${{ secrets.HUB_JWT }}
@@ -129,8 +129,8 @@ jobs:
         name: promtail.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
   
-  virt-what:
-    name: 'Package: virt-what'
+  virtwhat:
+    name: 'Package: virtwhat'
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -145,7 +145,7 @@ jobs:
       id: package
       run: |
         cd bins
-        sudo ./bins-extra.sh --package virt-what
+        sudo ./bins-extra.sh --package virtwhat
 
     - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
       if: success()
@@ -154,60 +154,15 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         action: publish
         user: tf-autobuilder
-        root: bins/releases/virt-what
+        root: bins/releases/virtwhat
         name: ${{ steps.package.outputs.name }}.flist
 
     - name: Crosslink flist (tf-zos-bins.dev)
-      if: success()
+      if: success() && github.ref == 'refs/heads/master'
       uses: threefoldtech/publish-flist@master
       with:
         token: ${{ secrets.HUB_JWT }}
         action: crosslink
         user: tf-zos-bins.dev
-        name: virt-what.flist
+        name: virtwhat.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
-        virt-what:
-          name: 'Package: virt-what'
-          runs-on: ubuntu-latest
-          steps:
-          - name: Checkout code
-            uses: actions/checkout@v1
-      
-          - name: Setup basesystem
-            run: |
-              cd bins
-              sudo ./bins-extra.sh --package basesystem
-      
-          - name: Build package
-            id: package
-            run: |
-              cd bins
-              sudo ./bins-extra.sh --package virt-what
-      
-          - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-            if: success()
-            uses: threefoldtech/publish-flist@master
-            with:
-              token: ${{ secrets.HUB_JWT }}
-              action: publish
-              user: tf-autobuilder
-              root: bins/releases/virt-what
-              name: ${{ steps.package.outputs.name }}.flist
-      
-          - name: Crosslink flist (tf-zos-bins.dev)
-            if: success()
-            uses: threefoldtech/publish-flist@master
-            with:
-              token: ${{ secrets.HUB_JWT }}
-              action: crosslink
-              user: tf-zos-bins.dev
-              name: virt-what.flist
-              target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-      
-      
-      
-      
-      
-
-
