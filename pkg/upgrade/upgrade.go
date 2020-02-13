@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -168,7 +167,7 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
 		case <-deadline:
 			for service := range services {
 				log.Warn().Str("service", service).Msg("service didn't stop in time. use SIGKILL")
-				if err := u.Zinit.Kill(service, syscall.SIGKILL); err != nil {
+				if err := u.Zinit.Kill(service, zinit.SIGKILL); err != nil {
 					log.Error().Err(err).Msgf("failed to send SIGKILL to service %s", service)
 				}
 			}
