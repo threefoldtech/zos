@@ -173,8 +173,10 @@ func (s *nodeStore) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks,
 
 	// don't save the proof if we already have one with the same
 	// hash/content
-	for _, p := range node.Proofs {
-		if proof.Equal(p) {
+	for i := range node.Proofs {
+		if proof.Equal(node.Proofs[i]) {
+			// update hypervisor content
+			node.Proofs[i].Hypervisor = hypervisor
 			return nil
 		}
 	}
