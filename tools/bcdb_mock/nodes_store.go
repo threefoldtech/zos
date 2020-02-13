@@ -140,7 +140,7 @@ func (s *nodeStore) updateUptime(nodeID string, uptime int64) error {
 	return nil
 }
 
-func (s *nodeStore) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor string) error {
+func (s *nodeStore) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor []string) error {
 	node, err := s.Get(nodeID)
 	if err != nil {
 		return err
