@@ -1,9 +1,9 @@
 package capacity
 
 import (
-	"bytes"
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/shirou/gopsutil/host"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
@@ -105,13 +105,18 @@ func (r *ResourceOracle) Disks() (d Disks, err error) {
 }
 
 //GetHypervisor gets the name of the hypervisor used on the node
-func (r *ResourceOracle) GetHypervisor() (s []string, err error) {
+func (r *ResourceOracle) GetHypervisor() ([]string, error) {
 	out, err := exec.Command("virt-what").CombinedOutput()
 
 	if err != nil {
-		return s, fmt.Errorf("could not detect if VM or not: %s", string(out))
+		return nil, fmt.Errorf("could not detect if VM or not: %s", string(out))
 	}
 
-	out = bytes.TrimSpace(out)
-	return s, nil
+	str := strings.TrimSpace(string(out))
+	if len(str) == 0 {
+		return nil, nil
+	}
+
+	lines := strings.Split(str, "\n")
+	return lines, nil
 }
