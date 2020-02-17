@@ -5,6 +5,9 @@ on:
       - '*'
     tags-ignore:
       - v*
+    paths:
+      - 'bins/**'
+      - '.github/workflows/bins-extra-development'
 
 jobs:
   containerd:
