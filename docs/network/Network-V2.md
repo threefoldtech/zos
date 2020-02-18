@@ -117,11 +117,31 @@ So you'll need a list of mac addresses
 While we did our uttermost best to keep IPv4 address needs to a strict minimum, at least one Node will need an IPv4 address for handling everything that is Overlay Networks.
 For Containers to reach the Internet, any type of connectivity will do, be it NAT or though an Internal DMZ that has a routable IPv4 address.
 
-Internally, a lot of things are being set-up to nave a node porperly participate in the grid, as well to be prepared to partake in the User's Overlay Networks.
+Internally, a lot of things are being set-up to nave a node properly participate in the grid, as well to be prepared to partake in the User's Overlay Networks.
+
+A node connects itself to 'the Internet' depending on a few states.
+
+1. It lives in a fully private network (like it would be connected directly to a port on a home router)
+
+```
+
+```
+
+1. It lives in a fully public network (like it is connected directly to an uplink and has a public ipv4 address)
+
+```
+
+```
+
+1. It lives in a datacentre, where a farmer manages the Network.
+
+```
+
+```
 
 A little Drawing :
 
-For now, we have a typical Node in a farm to behave thusly:
+
 
 ```text
 
