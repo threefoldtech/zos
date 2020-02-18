@@ -2,6 +2,7 @@ package ndmz
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -135,12 +136,37 @@ func Create(nodeID pkg.Identifier) error {
 			return errors.Wrapf(err, "ndmz: failed to enable enable_defrtr=1 in ndmz namespace")
 		}
 		// run DHCP to interface public in ndmz
-		received, err := dhcp.Probe(types.PublicIface, netlink.FAMILY_V4)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		probe := dhcp.NewPrope(ctx)
+
+		defer func() {
+			cancel()
+			probe.Stop()
+		}()
+
+		if err := probe.Start(types.PublicIface); err != nil {
+			return err
+		}
+
+		link, err := netlink.LinkByName(types.PublicIface)
 		if err != nil {
 			return err
 		}
-		if !received {
-			return errors.Errorf("public interface in ndmz did not receive an IPV4 address. make sure dhcp is working")
+
+		for stay := true; stay; {
+			select {
+			case <-ctx.Done():
+				return errors.Errorf("public interface in ndmz did not received an IP. make sure DHCP is working")
+			default:
+				hasGW, _, err := ifaceutil.HasDefaultGW(link, netlink.FAMILY_V4)
+				if err != nil {
+					return err
+				}
+				stay = !hasGW
+				if !hasGW {
+					time.Sleep(time.Second)
+				}
+			}
 		}
 
 		var routes []netlink.Route
