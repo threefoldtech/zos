@@ -126,7 +126,7 @@ func Create(nodeID pkg.Identifier) error {
 		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "0"); err != nil {
 			return errors.Wrapf(err, "ndmz: failed to disable ipv6 forwarding in ndmz namespace")
 		}
-		// also, set kernel paramter that public always accepts an ra even when forwarding
+		// also, set kernel parameter that public always accepts an ra even when forwarding
 		if _, err := sysctl.Sysctl("net.ipv6.conf.public.accept_ra", "2"); err != nil {
 			return errors.Wrapf(err, "ndmz: failed to accept_ra=2 in ndmz namespace")
 		}
