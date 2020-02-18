@@ -127,11 +127,11 @@ func Create(nodeID pkg.Identifier) error {
 			return errors.Wrapf(err, "ndmz: failed to disable ipv6 forwarding in ndmz namespace")
 		}
 		// also, set kernel paramter that public always accepts an ra even when forwarding
-		if _, err := sysctl.Sysctl("net.ipv6.conf.public.enable_ra", "2"); err != nil {
-			return errors.Wrapf(err, "ndmz: failed to enable_ra=2 in ndmz namespace")
+		if _, err := sysctl.Sysctl("net.ipv6.conf.public.accept_ra", "2"); err != nil {
+			return errors.Wrapf(err, "ndmz: failed to accept_ra=2 in ndmz namespace")
 		}
 		// the more, also accept defaultrouter (if isp doesn't have fe80::1 on his deft gw)
-		if _, err := sysctl.Sysctl("net.ipv6.conf.public.accept_ra_defrtr", "0"); err != nil {
+		if _, err := sysctl.Sysctl("net.ipv6.conf.public.accept_ra_defrtr", "1"); err != nil {
 			return errors.Wrapf(err, "ndmz: failed to enable enable_defrtr=1 in ndmz namespace")
 		}
 		// run DHCP to interface public in ndmz
@@ -165,21 +165,6 @@ func Create(nodeID pkg.Identifier) error {
 			if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
 				return errors.Wrapf(err, "ndmz: failed to enable ipv6 forwarding in ndmz namespace")
 			}
-			// pubiface, err := netlink.LinkByName(types.PublicIface)
-			// if err != nil {
-			// 	return errors.Wrapf(err, "ndmz:couldn't find public iface")
-			// }
-			// deftgw := &netlink.Route{
-			// 	Dst: &net.IPNet{
-			// 		IP:   net.ParseIP("::"),
-			// 		Mask: net.CIDRMask(0, 128),
-			// 	},
-			// 	Gw:        routes[0].Gw,
-			// 	LinkIndex: pubiface.Attrs().Index,
-			// }
-			// if err = netlink.RouteAdd(deftgw); err != nil {
-			// 	return errors.Wrapf(err, "could not reapply the default route")
-			// }
 		}
 		return nil
 
