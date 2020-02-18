@@ -156,7 +156,7 @@ func Create(nodeID pkg.Identifier) error {
 		}
 
 		bo := backoff.NewExponentialBackOff()
-		bo.MaxElapsedTime = 60 * time.Second // default RA from router is every 60 secs
+		bo.MaxElapsedTime = 122 * time.Second // default RA from router is every 60 secs
 		if err := backoff.Retry(getRoutes, bo); err != nil {
 			return err
 		}
