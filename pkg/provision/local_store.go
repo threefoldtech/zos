@@ -24,6 +24,9 @@ type Counter interface {
 	Decrement() int64
 	// Current returns the current value
 	Current() int64
+
+	Add(v int64) int64
+	Remove(v int64) int64
 }
 
 type counterNop struct{}
@@ -40,12 +43,27 @@ func (c *counterNop) Current() int64 {
 	return 0
 }
 
+func (c *counterNop) Add(v int64) int64 {
+	return 0
+}
+func (c *counterNop) Remove(v int64) int64 {
+	return 0
+}
+
 // counterImpl value for safe increment/decrement
 type counterImpl int64
 
 // Increment counter atomically by one
 func (c *counterImpl) Increment() int64 {
 	return atomic.AddInt64((*int64)(c), 1)
+}
+
+func (c *counterImpl) Add(a int64) int64 {
+	return atomic.AddInt64((*int64)(c), a)
+}
+
+func (c *counterImpl) Remove(a int64) int64 {
+	return atomic.AddInt64((*int64)(c), -a)
 }
 
 // Decrement counter atomically by one
@@ -71,6 +89,11 @@ type FSStore struct {
 		zdb        counterImpl
 		vm         counterImpl
 		debug      counterImpl
+
+		sru counterImpl
+		hru counterImpl
+		mru counterImpl
+		cru counterImpl
 	}
 }
 
@@ -81,21 +104,48 @@ func NewFSStore(root string) (*FSStore, error) {
 		if err := os.RemoveAll(root); err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(root, 0770); err != nil {
-			return nil, err
-		}
 
 		if err := app.MarkBooted("provisiond"); err != nil {
 			return nil, errors.Wrap(err, "fail to mark provisiond as booted")
 		}
-
-	} else {
-		log.Info().Msg("restart detected, keep reservation cache intact")
 	}
 
-	return &FSStore{
+	if err := os.MkdirAll(root, 0770); err != nil {
+		return nil, err
+	}
+
+	log.Info().Msg("restart detected, keep reservation cache intact")
+
+	store := &FSStore{
 		root: root,
-	}, nil
+	}
+
+	return store, store.sync()
+}
+
+func (s *FSStore) sync() error {
+	s.RLock()
+	defer s.RUnlock()
+
+	infos, err := ioutil.ReadDir(s.root)
+	if err != nil {
+		return err
+	}
+
+	for _, info := range infos {
+		if info.IsDir() {
+			continue
+		}
+
+		r, err := s.get(info.Name())
+		if err != nil {
+			return err
+		}
+
+		s.counterFor(r.Type).Increment()
+	}
+
+	return nil
 }
 
 // Counters returns stats about the cashed reservations
@@ -158,6 +208,7 @@ func (s *FSStore) Add(r *Reservation) error {
 	}
 
 	s.counterFor(r.Type).Increment()
+	s.processResourceUnits(r, true)
 
 	return nil
 }
@@ -182,6 +233,85 @@ func (s *FSStore) Remove(id string) error {
 	}
 
 	s.counterFor(r.Type).Decrement()
+	s.processResourceUnits(r, false)
+
+	return nil
+}
+
+func (s *FSStore) processResourceUnits(r *Reservation, addOrRemoveBool bool) error {
+	switch r.Type {
+	case VolumeReservation:
+		return s.processVolume(r, addOrRemoveBool)
+	case ContainerReservation:
+		return s.processContainer(r, addOrRemoveBool)
+	case ZDBReservation:
+		return s.processZdb(r, addOrRemoveBool)
+	}
+
+	return nil
+}
+
+func (s *FSStore) processVolume(r *Reservation, inc bool) error {
+	var volume Volume
+	if err := json.Unmarshal(r.Data, &volume); err != nil {
+		return err
+	}
+	var c Counter
+	switch volume.Type {
+	case SSDDiskType:
+		// volume.size in MB, but sru is in GB
+		c = &s.counters.sru
+	case HDDDiskType:
+		c = &s.counters.hru
+	}
+
+	if inc {
+		c.Add(int64(volume.Size))
+
+	} else {
+		c.Remove(int64(volume.Size))
+	}
+
+	return nil
+}
+
+func (s *FSStore) processContainer(r *Reservation, inc bool) error {
+	var contCap ContainerCapacity
+	if err := json.Unmarshal(r.Data, &contCap); err != nil {
+		return err
+	}
+	var cpuCounter Counter = &s.counters.cru
+	var memoryCounter Counter = &s.counters.mru
+
+	if inc {
+		cpuCounter.Add(int64(contCap.CPU))
+		memoryCounter.Add(int64(contCap.Memory))
+	} else {
+		cpuCounter.Remove(int64(contCap.CPU))
+		memoryCounter.Remove(int64(contCap.Memory))
+	}
+
+	return nil
+}
+
+func (s *FSStore) processZdb(r *Reservation, inc bool) error {
+	var zdbVolume ZDB
+	if err := json.Unmarshal(r.Data, &zdbVolume); err != nil {
+		return err
+	}
+	var volumeCounter Counter
+	switch zdbVolume.DiskType {
+	case "SSD":
+		volumeCounter = &s.counters.sru
+	case "HDD":
+		volumeCounter = &s.counters.hru
+	}
+
+	if inc {
+		volumeCounter.Add(int64(zdbVolume.Size))
+	} else {
+		volumeCounter.Remove(int64(zdbVolume.Size))
+	}
 
 	return nil
 }
@@ -203,7 +333,7 @@ func (s *FSStore) GetExpired() ([]*Reservation, error) {
 			continue
 		}
 
-		r, err := s.Get(info.Name())
+		r, err := s.get(info.Name())
 		if err != nil {
 			return nil, err
 		}
