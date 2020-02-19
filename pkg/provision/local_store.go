@@ -323,27 +323,27 @@ func (s *FSStore) processKubernetes(r *Reservation, inc bool) error {
 	if err := json.Unmarshal(r.Data, &k8s); err != nil {
 		return err
 	}
-	var k8sCpuCounter Counter = &s.counters.cru
+	var k8sCPUCounter Counter = &s.counters.cru
 	var k8sMemoryCounter Counter = &s.counters.mru
 	var k8sSSDCounter Counter = &s.counters.sru
 	switch k8s.Size {
 	case 1:
 		if inc {
-			k8sCpuCounter.Add(1)
+			k8sCPUCounter.Add(1)
 			k8sMemoryCounter.Add(2048)
 			k8sSSDCounter.Add(50)
 		} else {
-			k8sCpuCounter.Remove(1)
+			k8sCPUCounter.Remove(1)
 			k8sMemoryCounter.Remove(2048)
 			k8sSSDCounter.Remove(50)
 		}
 	case 2:
 		if inc {
-			k8sCpuCounter.Add(2)
+			k8sCPUCounter.Add(2)
 			k8sMemoryCounter.Add(4096)
 			k8sSSDCounter.Add(100)
 		} else {
-			k8sCpuCounter.Remove(2)
+			k8sCPUCounter.Remove(2)
 			k8sMemoryCounter.Remove(4096)
 			k8sSSDCounter.Remove(100)
 		}
