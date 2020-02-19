@@ -1,7 +1,6 @@
 package dhcp
 
 import (
-	"context"
 	"os/exec"
 
 	"github.com/rs/zerolog/log"
@@ -9,15 +8,12 @@ import (
 
 // Probe is used to do some DHCP request on a interface
 type Probe struct {
-	ctx context.Context
 	cmd *exec.Cmd
 }
 
 // NewPrope returns a Probe
-func NewPrope(ctx context.Context) *Probe {
-	return &Probe{
-		ctx: ctx,
-	}
+func NewPrope() *Probe {
+	return &Probe{}
 }
 
 // Start starts the DHCP client process

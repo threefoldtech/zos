@@ -141,6 +141,12 @@ func configureZOS() error {
 			log.Error().Err(err).Msg("fail to start monitoring dhcp-zos zinit service")
 			return err
 		}
+
+		if err := z.Start("dhcp-zos"); err != nil {
+			log.Error().Err(err).Msg("fail to start dhcp-zos zinit service")
+			return err
+		}
+
 		return nil
 	}
 

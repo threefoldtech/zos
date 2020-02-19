@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net"
 	"sort"
@@ -118,10 +117,7 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 
 		log.Info().Str("interface", name).Msg("start DHCP probe")
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*122)
-		defer cancel()
-
-		probe := dhcp.NewPrope(ctx)
+		probe := dhcp.NewPrope()
 		if err := probe.Start(name); err != nil {
 			return errors.Wrap(err, "error duging DHCP probe")
 		}
@@ -133,9 +129,11 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 
 		var addrs4 = newAddrSet()
 		var addrs6 = newAddrSet()
+		cTimeout := time.After(time.Second * 122)
+
 		for stay := true; stay; {
 			select {
-			case <-ctx.Done():
+			case <-cTimeout:
 				// exit for loop
 				stay = false
 				break
@@ -226,7 +224,7 @@ func SelectZOS(cfgs []IfaceConfig) (string, error) {
 	}
 
 	if len(selected4) < 1 {
-		return "", fmt.Errorf("not route with default gateway found")
+		return "", fmt.Errorf("no route with default gateway found")
 	}
 
 	sort.Sort(byIP4(selected4))
