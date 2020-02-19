@@ -71,7 +71,7 @@ func InspectIfaces() ([]IfaceConfig, error) {
 		go func(cAddrs chan IfaceConfig, link netlink.Link) {
 			defer wg.Done()
 			if err := analyseLink(cAddrs, link); err != nil {
-				log.Info().Str("interface", link.Attrs().Name).Msg("error analysing interface")
+				log.Error().Err(err).Str("interface", link.Attrs().Name).Msg("error analysing interface")
 			}
 		}(cCfg, link)
 	}

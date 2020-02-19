@@ -22,12 +22,13 @@ func (d *Probe) Start(inf string) error {
 	d.cmd = exec.Command("udhcpc",
 		"-f", //foreground
 		"-i", inf,
-		"-t", "3", //try 3 times before giving up
-		"-A", "3", //wait 3 seconds between each trial
+		"-t", "5", //try 5 times before giving up
+		"-A", "20", //wait 20 seconds between each trial
 		"-s", "/usr/share/udhcp/simple.script",
 		"--now", // exit if lease is not obtained
 	)
 
+	log.Debug().Msgf("start udhcp: %v", d.cmd.String())
 	if err := d.cmd.Start(); err != nil {
 		return err
 	}
