@@ -148,7 +148,8 @@ func Create(nodeID pkg.Identifier) error {
 		}
 
 		cTimeout := time.After(time.Second * 30)
-		for stay := true; stay; {
+	Loop:
+		for {
 			select {
 			case <-cTimeout:
 				return errors.Errorf("public interface in ndmz did not received an IP. make sure DHCP is working")
@@ -157,10 +158,11 @@ func Create(nodeID pkg.Identifier) error {
 				if err != nil {
 					return err
 				}
-				stay = !hasGW
 				if !hasGW {
 					time.Sleep(time.Second)
+					continue
 				}
+				break Loop
 			}
 		}
 

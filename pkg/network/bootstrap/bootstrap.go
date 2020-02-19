@@ -131,13 +131,11 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 		var addrs6 = newAddrSet()
 		cTimeout := time.After(time.Second * 122)
 
-		for stay := true; stay; {
+	Loop:
+		for {
 			select {
 			case <-cTimeout:
-				// exit for loop
-				stay = false
-				break
-
+				break Loop
 			default:
 				addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 				if err != nil {
@@ -152,8 +150,7 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 				addrs6.AddSlice(addrs)
 
 				if addrs6.Len() > 0 && addrs4.Len() > 0 {
-					stay = false
-					break
+					break Loop
 				}
 				time.Sleep(time.Second)
 			}
