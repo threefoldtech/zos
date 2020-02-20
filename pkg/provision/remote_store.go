@@ -188,3 +188,31 @@ func (s *HTTPStore) Delete(id string) error {
 	}
 	return nil
 }
+
+func (s *HTTPStore) UpdateUsedResources(nodeID string, c *Counters) error {
+	url := fmt.Sprintf("%s/nodes/%s/used_resources", s.baseURL, nodeID)
+
+	buf := &bytes.Buffer{}
+
+	if err := json.NewEncoder(buf).Encode(c); err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", url, buf)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("wrong response status code %s", resp.Status)
+	}
+	return nil
+
+}

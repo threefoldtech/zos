@@ -78,11 +78,14 @@ func (c *counterImpl) Current() int64 {
 
 // FSStore is a in reservation store
 // using the filesystem as backend
-type FSStore struct {
-	sync.RWMutex
-	root string
+type (
+	FSStore struct {
+		sync.RWMutex
+		root string
+		Counters
+	}
 
-	counters struct {
+	Counters struct {
 		containers counterImpl
 		volumes    counterImpl
 		networks   counterImpl
@@ -90,12 +93,12 @@ type FSStore struct {
 		vm         counterImpl
 		debug      counterImpl
 
-		sru counterImpl
-		hru counterImpl
-		mru counterImpl
-		cru counterImpl
+		SRU counterImpl
+		HRU counterImpl
+		MRU counterImpl
+		CRU counterImpl
 	}
-}
+)
 
 // NewFSStore creates a in memory reservation store
 func NewFSStore(root string) (*FSStore, error) {
@@ -148,32 +151,37 @@ func (s *FSStore) sync() error {
 	return nil
 }
 
-// Counters returns stats about the cashed reservations
-func (s *FSStore) Counters() pkg.ProvisionCounters {
+// GetCounters returns stats about the cashed reservations
+func (s *FSStore) GetCounters() pkg.ProvisionCounters {
 	return pkg.ProvisionCounters{
-		Container: s.counters.containers.Current(),
-		Volume:    s.counters.volumes.Current(),
-		Network:   s.counters.networks.Current(),
-		ZDB:       s.counters.zdb.Current(),
-		VM:        s.counters.vm.Current(),
-		Debug:     s.counters.debug.Current(),
+		Container: s.Counters.containers.Current(),
+		Volume:    s.Counters.volumes.Current(),
+		Network:   s.Counters.networks.Current(),
+		ZDB:       s.Counters.zdb.Current(),
+		VM:        s.Counters.vm.Current(),
+		Debug:     s.Counters.debug.Current(),
+
+		//CRU: s.counters.cru.Current(),
+		//MRU: s.counters.mru.Current(),
+		//HRU: s.counters.hru.Current(),
+		//SRU: s.counters.sru.Current(),
 	}
 }
 
 func (s *FSStore) counterFor(typ ReservationType) Counter {
 	switch typ {
 	case ContainerReservation:
-		return &s.counters.containers
+		return &s.Counters.containers
 	case VolumeReservation:
-		return &s.counters.volumes
+		return &s.Counters.volumes
 	case NetworkReservation:
-		return &s.counters.networks
+		return &s.Counters.networks
 	case ZDBReservation:
-		return &s.counters.zdb
+		return &s.Counters.zdb
 	case DebugReservation:
-		return &s.counters.debug
+		return &s.Counters.debug
 	case KubernetesReservation:
-		return &s.counters.vm
+		return &s.Counters.vm
 	default:
 		// this will avoid nil pointer
 		return &counterNop{}
@@ -233,7 +241,9 @@ func (s *FSStore) Remove(id string) error {
 	}
 
 	s.counterFor(r.Type).Decrement()
-	s.processResourceUnits(r, false)
+	if err := s.processResourceUnits(r, false); err != nil {
+		return nil
+	}
 
 	return nil
 }

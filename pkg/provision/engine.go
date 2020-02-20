@@ -20,7 +20,9 @@ type ReservationCache interface {
 	Get(id string) (*Reservation, error)
 	Remove(id string) error
 	Exists(id string) (bool, error)
-	Counters() pkg.ProvisionCounters
+	GetCounters() pkg.ProvisionCounters
+	processResourceUnits(r *Reservation, addOrRemoveBool bool) error
+	GetUsedResourceCounters() *Counters
 }
 
 // Feedbacker defines the method that needs to be implemented
@@ -28,9 +30,11 @@ type ReservationCache interface {
 type Feedbacker interface {
 	Feedback(id string, r *Result) error
 	Deleted(id string) error
+	UpdateUsedResources(nodeID string, c *Counters) error
 }
 
 type defaultEngine struct {
+	nodeID string
 	source ReservationSource
 	store  ReservationCache
 	fb     Feedbacker
@@ -42,8 +46,9 @@ type defaultEngine struct {
 // the default implementation is a single threaded worker. so it process
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
-func New(source ReservationSource, rw ReservationCache, fb Feedbacker) Engine {
+func New(nodeID string, source ReservationSource, rw ReservationCache, fb Feedbacker) Engine {
 	return &defaultEngine{
+		nodeID: nodeID,
 		source: source,
 		store:  rw,
 		fb:     fb,
@@ -84,12 +89,23 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 					log.Error().Err(err).Msgf("failed to decommission reservation %s", reservation.ID)
 					continue
 				}
+				slog.Info().Msg("start Resource Unit processing (decommision)")
+				if err := e.store.processResourceUnits(reservation, false); err != nil {
+					log.Error().Err(err).Msg("failed to process Resource Units")
+				}
 			} else {
 				slog.Info().Msg("start provisioning reservation")
 				if err := e.provision(ctx, reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to provision reservation %s", reservation.ID)
 					continue
 				}
+				slog.Info().Msg("start Resource Unit processing (provision)")
+				if err := e.store.processResourceUnits(reservation, false); err != nil {
+					log.Error().Err(err).Msg("failed to process Resource Units")
+				}
+			}
+			if err := e.fb.UpdateUsedResources(e.nodeID, e.store.GetUsedResourceCounters()); err != nil {
+				log.Error().Err(err).Msg("failed to updated the used resources")
 			}
 		}
 	}
@@ -219,7 +235,7 @@ func (e *defaultEngine) Counters(ctx context.Context) <-chan pkg.ProvisionCounte
 
 			select {
 			case <-ctx.Done():
-			case ch <- e.store.Counters():
+			case ch <- e.store.GetCounters():
 			}
 		}
 	}()

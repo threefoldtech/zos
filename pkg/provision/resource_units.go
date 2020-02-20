@@ -27,17 +27,17 @@ func (s *FSStore) processVolume(r *Reservation, inc bool) error {
 	var c Counter
 	switch volume.Type {
 	case SSDDiskType:
-		// volume.size in MB, but sru is in GB
-		c = &s.counters.sru
+		// volume.size in MB, but SRU is in GB
+		c = &s.Counters.SRU
 	case HDDDiskType:
-		c = &s.counters.hru
+		c = &s.Counters.HRU
 	}
 
 	if inc {
-		c.Add(int64(volume.Size))
+		c.Add(int64(volume.Size / 1000))
 
 	} else {
-		c.Remove(int64(volume.Size))
+		c.Remove(int64(volume.Size / 1000))
 	}
 
 	return nil
@@ -48,8 +48,8 @@ func (s *FSStore) processContainer(r *Reservation, inc bool) error {
 	if err := json.Unmarshal(r.Data, &contCap); err != nil {
 		return err
 	}
-	var cpuCounter Counter = &s.counters.cru
-	var memoryCounter Counter = &s.counters.mru
+	var cpuCounter Counter = &s.Counters.CRU
+	var memoryCounter Counter = &s.Counters.MRU
 
 	if inc {
 		cpuCounter.Add(int64(contCap.CPU))
@@ -70,9 +70,9 @@ func (s *FSStore) processZdb(r *Reservation, inc bool) error {
 	var volumeCounter Counter
 	switch zdbVolume.DiskType {
 	case "SSD":
-		volumeCounter = &s.counters.sru
+		volumeCounter = &s.Counters.SRU
 	case "HDD":
-		volumeCounter = &s.counters.hru
+		volumeCounter = &s.Counters.HRU
 	}
 
 	if inc {
@@ -89,9 +89,9 @@ func (s *FSStore) processKubernetes(r *Reservation, inc bool) error {
 	if err := json.Unmarshal(r.Data, &k8s); err != nil {
 		return err
 	}
-	var k8sCPUCounter Counter = &s.counters.cru
-	var k8sMemoryCounter Counter = &s.counters.mru
-	var k8sSSDCounter Counter = &s.counters.sru
+	var k8sCPUCounter Counter = &s.Counters.CRU
+	var k8sMemoryCounter Counter = &s.Counters.MRU
+	var k8sSSDCounter Counter = &s.Counters.SRU
 	switch k8s.Size {
 	case 1:
 		if inc {
@@ -116,4 +116,8 @@ func (s *FSStore) processKubernetes(r *Reservation, inc bool) error {
 	}
 
 	return nil
+}
+
+func (s *FSStore) GetUsedResourceCounters() *Counters {
+	return &s.Counters
 }

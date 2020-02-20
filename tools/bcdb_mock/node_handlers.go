@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/provision"
 
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
 	"github.com/threefoldtech/zos/pkg/network/types"
@@ -247,6 +248,31 @@ func (s *nodeStore) updateUptimeHandler(w http.ResponseWriter, r *http.Request) 
 	fmt.Printf("node uptime received %s %d\n", nodeID, input.Uptime)
 
 	if err := s.updateUptime(nodeID, int64(input.Uptime)); err != nil {
+		httpError(w, err, http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *nodeStore) updateUsedResources(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	input := provision.Counters{}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		httpError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	nodeID := mux.Vars(r)["node_id"]
+
+	usedRescources := directory.TfgridNodeResourceAmount1{
+		Cru: int64(input.CRU),
+		Sru: int64(input.SRU),
+		Hru: int64(input.HRU),
+		Mru: int64(input.MRU),
+	}
+
+	if err := s.updateCapacity(nodeID, "used", usedRescources); err != nil {
 		httpError(w, err, http.StatusNotFound)
 		return
 	}
