@@ -185,7 +185,7 @@ func (g *goGenerator) object(j *jen.File, obj *Object) error {
 				}
 			}
 
-			group.Id(name).Add(typ).Tag(map[string]string{"json": prop.Name})
+			group.Id(name).Add(typ).Tag(map[string]string{"json": prop.Name, "bson": prop.Name})
 		}
 	})
 
