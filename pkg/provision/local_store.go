@@ -11,31 +11,27 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
 // Counter interface
 type Counter interface {
-	// Increment counter atomically by one
-	Increment() int64
-	// Decrement counter atomically by one
-	Decrement() int64
+	// Increment counter atomically by v
+	Increment(v int64) int64
+	// Decrement counter atomically by v
+	Decrement(v int64) int64
 	// Current returns the current value
 	Current() int64
-
-	Add(v int64) int64
-	Remove(v int64) int64
 }
 
 type counterNop struct{}
 
-func (c *counterNop) Increment() int64 {
+func (c *counterNop) Increment(v int64) int64 {
 	return 0
 }
 
-func (c *counterNop) Decrement() int64 {
+func (c *counterNop) Decrement(v int64) int64 {
 	return 0
 }
 
@@ -43,32 +39,17 @@ func (c *counterNop) Current() int64 {
 	return 0
 }
 
-func (c *counterNop) Add(v int64) int64 {
-	return 0
-}
-func (c *counterNop) Remove(v int64) int64 {
-	return 0
-}
-
 // counterImpl value for safe increment/decrement
 type counterImpl int64
 
 // Increment counter atomically by one
-func (c *counterImpl) Increment() int64 {
-	return atomic.AddInt64((*int64)(c), 1)
-}
-
-func (c *counterImpl) Add(a int64) int64 {
-	return atomic.AddInt64((*int64)(c), a)
-}
-
-func (c *counterImpl) Remove(a int64) int64 {
-	return atomic.AddInt64((*int64)(c), -a)
+func (c *counterImpl) Increment(v int64) int64 {
+	return atomic.AddInt64((*int64)(c), v)
 }
 
 // Decrement counter atomically by one
-func (c *counterImpl) Decrement() int64 {
-	return atomic.AddInt64((*int64)(c), -1)
+func (c *counterImpl) Decrement(v int64) int64 {
+	return atomic.AddInt64((*int64)(c), -v)
 }
 
 // Current returns the current value
@@ -76,22 +57,22 @@ func (c *counterImpl) Current() int64 {
 	return atomic.LoadInt64((*int64)(c))
 }
 
-// FSStore is a in reservation store
-// using the filesystem as backend
 type (
+	// FSStore is a in reservation store
+	// using the filesystem as backend
 	FSStore struct {
 		sync.RWMutex
-		root string
-		Counters
+		root     string
+		counters Counters
 	}
 
 	Counters struct {
 		containers counterImpl
 		volumes    counterImpl
 		networks   counterImpl
-		zdb        counterImpl
-		vm         counterImpl
-		debug      counterImpl
+		zdbs       counterImpl
+		vms        counterImpl
+		debugs     counterImpl
 
 		SRU counterImpl
 		HRU counterImpl
@@ -145,43 +126,32 @@ func (s *FSStore) sync() error {
 			return err
 		}
 
-		s.counterFor(r.Type).Increment()
+		s.counterFor(r.Type).Increment(1)
+		s.processResourceUnits(r, true)
 	}
 
 	return nil
 }
 
-// GetCounters returns stats about the cashed reservations
-func (s *FSStore) GetCounters() pkg.ProvisionCounters {
-	return pkg.ProvisionCounters{
-		Container: s.Counters.containers.Current(),
-		Volume:    s.Counters.volumes.Current(),
-		Network:   s.Counters.networks.Current(),
-		ZDB:       s.Counters.zdb.Current(),
-		VM:        s.Counters.vm.Current(),
-		Debug:     s.Counters.debug.Current(),
-
-		//CRU: s.counters.cru.Current(),
-		//MRU: s.counters.mru.Current(),
-		//HRU: s.counters.hru.Current(),
-		//SRU: s.counters.sru.Current(),
-	}
+// Counters returns stats about the cashed reservations
+func (s *FSStore) Counters() Counters {
+	return s.counters
 }
 
 func (s *FSStore) counterFor(typ ReservationType) Counter {
 	switch typ {
 	case ContainerReservation:
-		return &s.Counters.containers
+		return &s.counters.containers
 	case VolumeReservation:
-		return &s.Counters.volumes
+		return &s.counters.volumes
 	case NetworkReservation:
-		return &s.Counters.networks
+		return &s.counters.networks
 	case ZDBReservation:
-		return &s.Counters.zdb
+		return &s.counters.zdbs
 	case DebugReservation:
-		return &s.Counters.debug
+		return &s.counters.debugs
 	case KubernetesReservation:
-		return &s.Counters.vm
+		return &s.counters.vms
 	default:
 		// this will avoid nil pointer
 		return &counterNop{}
@@ -215,8 +185,10 @@ func (s *FSStore) Add(r *Reservation) error {
 		return err
 	}
 
-	s.counterFor(r.Type).Increment()
-	s.processResourceUnits(r, true)
+	s.counterFor(r.Type).Increment(1)
+	if err := s.processResourceUnits(r, true); err != nil {
+		return errors.Wrapf(err, "could not compute the amount of resource used by reservation %s", r.ID)
+	}
 
 	return nil
 }
@@ -240,9 +212,9 @@ func (s *FSStore) Remove(id string) error {
 		return err
 	}
 
-	s.counterFor(r.Type).Decrement()
+	s.counterFor(r.Type).Decrement(1)
 	if err := s.processResourceUnits(r, false); err != nil {
-		return nil
+		return errors.Wrapf(err, "could not compute the amount of resource used by reservation %s", r.ID)
 	}
 
 	return nil

@@ -191,6 +191,11 @@ func (g *Gedis) Delete(id string) error {
 	return err
 }
 
+func (g *Gedis) UpdateUsedResources(nodeID string, c provision.Counters) error {
+	// TODO
+	return nil
+}
+
 func reservationFromSchema(w types.TfgridReservationWorkload1) (*provision.Reservation, error) {
 	reservation := &provision.Reservation{
 		ID:        w.WorkloadID,

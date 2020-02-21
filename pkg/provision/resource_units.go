@@ -2,122 +2,117 @@ package provision
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 func (s *FSStore) processResourceUnits(r *Reservation, addOrRemoveBool bool) error {
+
+	var (
+		u   resourceUnits
+		err error
+	)
+
 	switch r.Type {
 	case VolumeReservation:
-		return s.processVolume(r, addOrRemoveBool)
+		u, err = processVolume(r)
 	case ContainerReservation:
-		return s.processContainer(r, addOrRemoveBool)
+		u, err = processContainer(r)
 	case ZDBReservation:
-		return s.processZdb(r, addOrRemoveBool)
+		u, err = processZdb(r)
 	case KubernetesReservation:
-		return s.processKubernetes(r, addOrRemoveBool)
+		u, err = processKubernetes(r)
+	}
+	if err != nil {
+		return err
+	}
+
+	if addOrRemoveBool {
+		s.counters.CRU.Increment(u.CRU)
+		s.counters.MRU.Increment(u.MRU)
+		s.counters.SRU.Increment(u.SRU)
+		s.counters.HRU.Increment(u.HRU)
+	} else {
+		s.counters.CRU.Decrement(u.CRU)
+		s.counters.MRU.Decrement(u.MRU)
+		s.counters.SRU.Decrement(u.SRU)
+		s.counters.HRU.Decrement(u.HRU)
 	}
 
 	return nil
 }
 
-func (s *FSStore) processVolume(r *Reservation, inc bool) error {
+type resourceUnits struct {
+	SRU int64 `json:"sru,omitempty"`
+	HRU int64 `json:"hru,omitempty"`
+	MRU int64 `json:"mru,omitempty"`
+	CRU int64 `json:"cru,omitempty"`
+}
+
+func processVolume(r *Reservation) (u resourceUnits, err error) {
 	var volume Volume
-	if err := json.Unmarshal(r.Data, &volume); err != nil {
-		return err
+	if err = json.Unmarshal(r.Data, &volume); err != nil {
+		return u, err
 	}
-	var c Counter
+
+	// volume.size in MiB, but SRU is in GiB
 	switch volume.Type {
 	case SSDDiskType:
-		// volume.size in MB, but SRU is in GB
-		c = &s.Counters.SRU
+		u.SRU = int64(volume.Size / 1024)
 	case HDDDiskType:
-		c = &s.Counters.HRU
+		u.HRU = int64(volume.Size / 1024)
 	}
 
-	if inc {
-		c.Add(int64(volume.Size / 1000))
-
-	} else {
-		c.Remove(int64(volume.Size / 1000))
-	}
-
-	return nil
+	return u, nil
 }
 
-func (s *FSStore) processContainer(r *Reservation, inc bool) error {
+func processContainer(r *Reservation) (u resourceUnits, err error) {
 	var contCap ContainerCapacity
-	if err := json.Unmarshal(r.Data, &contCap); err != nil {
-		return err
+	if err = json.Unmarshal(r.Data, &contCap); err != nil {
+		return u, err
 	}
-	var cpuCounter Counter = &s.Counters.CRU
-	var memoryCounter Counter = &s.Counters.MRU
+	u.CRU = int64(contCap.CPU)
+	// volume.size in MiB, but MRU is in GiB
+	u.MRU = int64(contCap.Memory / 1024)
 
-	if inc {
-		cpuCounter.Add(int64(contCap.CPU))
-		memoryCounter.Add(int64(contCap.Memory))
-	} else {
-		cpuCounter.Remove(int64(contCap.CPU))
-		memoryCounter.Remove(int64(contCap.Memory))
-	}
-
-	return nil
+	return u, nil
 }
 
-func (s *FSStore) processZdb(r *Reservation, inc bool) error {
+func processZdb(r *Reservation) (u resourceUnits, err error) {
+	if r.Type != ZDBReservation {
+		return u, fmt.Errorf("wrong type or reservation %s, excepted %s", r.Type, ZDBReservation)
+	}
 	var zdbVolume ZDB
 	if err := json.Unmarshal(r.Data, &zdbVolume); err != nil {
-		return err
+		return u, err
 	}
-	var volumeCounter Counter
+
 	switch zdbVolume.DiskType {
 	case "SSD":
-		volumeCounter = &s.Counters.SRU
+		u.SRU = int64(zdbVolume.Size)
 	case "HDD":
-		volumeCounter = &s.Counters.HRU
+		u.HRU = int64(zdbVolume.Size)
 	}
 
-	if inc {
-		volumeCounter.Add(int64(zdbVolume.Size))
-	} else {
-		volumeCounter.Remove(int64(zdbVolume.Size))
-	}
-
-	return nil
+	return u, nil
 }
 
-func (s *FSStore) processKubernetes(r *Reservation, inc bool) error {
+func processKubernetes(r *Reservation) (u resourceUnits, err error) {
 	var k8s Kubernetes
-	if err := json.Unmarshal(r.Data, &k8s); err != nil {
-		return err
+	if err = json.Unmarshal(r.Data, &k8s); err != nil {
+		return u, err
 	}
-	var k8sCPUCounter Counter = &s.Counters.CRU
-	var k8sMemoryCounter Counter = &s.Counters.MRU
-	var k8sSSDCounter Counter = &s.Counters.SRU
+
+	// size are defined at https://github.com/threefoldtech/zos/blob/master/pkg/provision/kubernetes.go#L311
 	switch k8s.Size {
 	case 1:
-		if inc {
-			k8sCPUCounter.Add(1)
-			k8sMemoryCounter.Add(2048)
-			k8sSSDCounter.Add(50)
-		} else {
-			k8sCPUCounter.Remove(1)
-			k8sMemoryCounter.Remove(2048)
-			k8sSSDCounter.Remove(50)
-		}
+		u.CRU = 1
+		u.MRU = 2
+		u.SRU = 50
 	case 2:
-		if inc {
-			k8sCPUCounter.Add(2)
-			k8sMemoryCounter.Add(4096)
-			k8sSSDCounter.Add(100)
-		} else {
-			k8sCPUCounter.Remove(2)
-			k8sMemoryCounter.Remove(4096)
-			k8sSSDCounter.Remove(100)
-		}
+		u.CRU = 2
+		u.MRU = 4
+		u.SRU = 100
 	}
 
-	return nil
-}
-
-func (s *FSStore) GetUsedResourceCounters() *Counters {
-	return &s.Counters
+	return u, nil
 }

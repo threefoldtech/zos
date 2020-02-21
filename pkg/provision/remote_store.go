@@ -189,12 +189,18 @@ func (s *HTTPStore) Delete(id string) error {
 	return nil
 }
 
-func (s *HTTPStore) UpdateUsedResources(nodeID string, c *Counters) error {
+func (s *HTTPStore) UpdateUsedResources(nodeID string, c Counters) error {
 	url := fmt.Sprintf("%s/nodes/%s/used_resources", s.baseURL, nodeID)
 
-	buf := &bytes.Buffer{}
+	u := resourceUnits{
+		CRU: int64(c.CRU),
+		MRU: int64(c.MRU),
+		SRU: int64(c.SRU),
+		HRU: int64(c.HRU),
+	}
 
-	if err := json.NewEncoder(buf).Encode(c); err != nil {
+	buf := &bytes.Buffer{}
+	if err := json.NewEncoder(buf).Encode(u); err != nil {
 		return err
 	}
 
