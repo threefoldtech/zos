@@ -3,30 +3,23 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/threefoldtech/zos/pkg/schema"
 )
 
-func handle(file, pkg, dir string) error {
-	fd, err := os.Open(file)
+func handle(in io.Reader, pkg, dir string) error {
+	sch, err := schema.New(in)
 	if err != nil {
 		return err
 	}
 
-	defer fd.Close()
-
-	sch, err := schema.New(fd)
-	if err != nil {
-		return err
-	}
-	out := strings.TrimSuffix(path.Base(fd.Name()), path.Ext(fd.Name()))
-	w, err := os.Create(path.Join(dir, fmt.Sprintf("%s.go", out)))
+	w, err := os.Create(filepath.Join(dir, fmt.Sprintf("%s.go", pkg)))
 	if err != nil {
 		return err
 	}
@@ -64,9 +57,18 @@ func main() {
 		}
 	}
 
-	for _, input := range files {
-		if err := handle(input, pkg, dir); err != nil {
-			log.Fatalf("error while generating schema: %s", err)
+	var readers []io.Reader
+
+	for _, name := range files {
+		fd, err := os.Open(name)
+		if err != nil {
+			log.Fatalf("failed to open file (%s) for reading; %s", name, err)
 		}
+
+		readers = append(readers, fd)
+	}
+
+	if err := handle(io.MultiReader(readers...), pkg, dir); err != nil {
+		log.Fatalf("error while generating schema: %s", err)
 	}
 }

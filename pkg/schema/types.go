@@ -203,3 +203,6 @@ func (i IPRange) MarshalJSON() ([]byte, error) {
 func (i IPRange) String() string {
 	return i.IPNet.String()
 }
+
+// ID object id
+type ID int64

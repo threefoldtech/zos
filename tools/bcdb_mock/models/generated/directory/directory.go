@@ -6,7 +6,64 @@ import (
 	"net"
 )
 
+type TfgridDirectoryFarm1 struct {
+	ID              schema.ID                           `bson:"_id" json:"id"`
+	ThreebotId      int64                               `bson:"threebot_id" json:"threebot_id"`
+	IyoOrganization string                              `bson:"iyo_organization" json:"iyo_organization"`
+	Name            string                              `bson:"name" json:"name"`
+	WalletAddresses []string                            `bson:"wallet_addresses" json:"wallet_addresses"`
+	Location        TfgridDirectoryLocation1            `bson:"location" json:"location"`
+	Email           string                              `bson:"email" json:"email"`
+	ResourcePrices  []TfgridDirectoryNodeResourcePrice1 `bson:"resource_prices" json:"resource_prices"`
+	PrefixZero      schema.IPRange                      `bson:"prefix_zero" json:"prefix_zero"`
+}
+
+func NewTfgridDirectoryFarm1() (TfgridDirectoryFarm1, error) {
+	const value = "{}"
+	var object TfgridDirectoryFarm1
+	if err := json.Unmarshal([]byte(value), &object); err != nil {
+		return object, err
+	}
+	return object, nil
+}
+
+type TfgridDirectoryNodeResourcePrice1 struct {
+	Currency TfgridDirectoryNodeResourcePrice1CurrencyEnum `bson:"currency" json:"currency"`
+	Cru      float64                                       `bson:"cru" json:"cru"`
+	Mru      float64                                       `bson:"mru" json:"mru"`
+	Hru      float64                                       `bson:"hru" json:"hru"`
+	Sru      float64                                       `bson:"sru" json:"sru"`
+	Nru      float64                                       `bson:"nru" json:"nru"`
+}
+
+func NewTfgridDirectoryNodeResourcePrice1() (TfgridDirectoryNodeResourcePrice1, error) {
+	const value = "{}"
+	var object TfgridDirectoryNodeResourcePrice1
+	if err := json.Unmarshal([]byte(value), &object); err != nil {
+		return object, err
+	}
+	return object, nil
+}
+
+type TfgridDirectoryLocation1 struct {
+	City      string  `bson:"city" json:"city"`
+	Country   string  `bson:"country" json:"country"`
+	Continent string  `bson:"continent" json:"continent"`
+	Latitude  float64 `bson:"latitude" json:"latitude"`
+	Longitude float64 `bson:"longitude" json:"longitude"`
+}
+
+func NewTfgridDirectoryLocation1() (TfgridDirectoryLocation1, error) {
+	const value = "{}"
+	var object TfgridDirectoryLocation1
+	if err := json.Unmarshal([]byte(value), &object); err != nil {
+		return object, err
+	}
+	return object, nil
+}
+
 type TfgridDirectoryNode2 struct {
+	ID                schema.ID                          `bson:"_id" json:"id"`
 	NodeId            string                             `bson:"node_id" json:"node_id"`
 	NodeIdV1          string                             `bson:"node_id_v1" json:"node_id_v1"`
 	FarmId            int64                              `bson:"farm_id" json:"farm_id"`
@@ -102,6 +159,32 @@ func NewTfgridDirectoryNodeProof1() (TfgridDirectoryNodeProof1, error) {
 		return object, err
 	}
 	return object, nil
+}
+
+type TfgridDirectoryNodeResourcePrice1CurrencyEnum uint8
+
+const (
+	TfgridDirectoryNodeResourcePrice1CurrencyEUR TfgridDirectoryNodeResourcePrice1CurrencyEnum = iota
+	TfgridDirectoryNodeResourcePrice1CurrencyUSD
+	TfgridDirectoryNodeResourcePrice1CurrencyTFT
+	TfgridDirectoryNodeResourcePrice1CurrencyAED
+	TfgridDirectoryNodeResourcePrice1CurrencyGBP
+)
+
+func (e TfgridDirectoryNodeResourcePrice1CurrencyEnum) String() string {
+	switch e {
+	case TfgridDirectoryNodeResourcePrice1CurrencyEUR:
+		return "EUR"
+	case TfgridDirectoryNodeResourcePrice1CurrencyUSD:
+		return "USD"
+	case TfgridDirectoryNodeResourcePrice1CurrencyTFT:
+		return "TFT"
+	case TfgridDirectoryNodeResourcePrice1CurrencyAED:
+		return "AED"
+	case TfgridDirectoryNodeResourcePrice1CurrencyGBP:
+		return "GBP"
+	}
+	return "UNKNOWN"
 }
 
 type TfgridDirectoryNodePublicIface1TypeEnum uint8
