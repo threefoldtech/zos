@@ -222,7 +222,7 @@ func createPubIface6(name string, netNS ns.NetNS, nodeID pkg.Identifier) error {
 			// get the name of the public interface in the public namespace
 			if err := pubNS.Do(func(_ ns.NetNS) error {
 				// get the name of the interface connected to the public segment
-				public, err := netlink.LinkByName(name)
+				public, err := netlink.LinkByName(types.PublicIface)
 				if err != nil {
 					return errors.Wrap(err, "failed to get public link")
 				}
