@@ -136,7 +136,6 @@ func Create(nodeID pkg.Identifier) error {
 		}
 		// ipv4InterfaceArpProxySysctlTemple sets proxy_arp by default, not sure if that's a good idea
 		// but we disable only here because the rest works.
-		// TODO: test whether it can be removed in macvlan.go
 		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv4.conf.%s.proxy_arp", DMZPub6), "0"); err != nil {
 			return errors.Wrapf(err, "ndmz: couldn't disable proxy-arp on %s in ndmz namespace", DMZPub6)
 		}
