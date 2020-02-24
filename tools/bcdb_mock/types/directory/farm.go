@@ -35,7 +35,7 @@ func (f *Farm) Validate() error {
 	}
 
 	if len(f.WalletAddresses) == 0 {
-		return fmt.Errorf("invalid wallet addresses, is required")
+		return fmt.Errorf("invalid wallet_addresses, is required")
 	}
 
 	return nil
@@ -82,6 +82,10 @@ func (f FarmFilter) Get(ctx context.Context, db *mongo.Database) (farm Farm, err
 
 // FarmCreate creates a new farm
 func FarmCreate(ctx context.Context, db *mongo.Database, farm Farm) (schema.ID, error) {
+	if err := farm.Validate(); err != nil {
+		return 0, err
+	}
+
 	col := db.Collection(farmCollection)
 	id, err := models.NextID(ctx, db, farmCollection)
 	if err != nil {

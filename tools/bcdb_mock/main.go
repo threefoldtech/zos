@@ -63,9 +63,9 @@ func main() {
 	router := mux.NewRouter()
 
 	router.Use(db.Middleware)
-	router.HandleFunc("/farms", farmAPI.registerFarm).Methods("POST")
-	router.HandleFunc("/farms", farmAPI.listFarm).Methods("GET")
-	router.HandleFunc("/farms/{farm_id}", farmAPI.getFarm).Methods("GET")
+	router.HandleFunc("/farms", AsHandlerFunc(farmAPI.registerFarm)).Methods("POST")
+	router.HandleFunc("/farms", AsHandlerFunc(farmAPI.listFarm)).Methods("GET")
+	router.HandleFunc("/farms/{farm_id}", AsHandlerFunc(farmAPI.getFarm)).Methods("GET")
 
 	router.HandleFunc("/nodes", nodeStore.registerNode).Methods("POST")
 

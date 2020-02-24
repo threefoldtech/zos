@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/types/directory"
@@ -14,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func (s *FarmAPI) registerFarm(w http.ResponseWriter, r *http.Request) {
+func (s *FarmAPI) registerFarm(r *http.Request) (interface{}, Response) {
 	log.Println("farm register request received")
 
 	db := mw.Database(r)
@@ -22,34 +21,33 @@ func (s *FarmAPI) registerFarm(w http.ResponseWriter, r *http.Request) {
 
 	var info directory.Farm
 	if err := json.NewDecoder(r.Body).Decode(&info); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, BadRequest(err)
+	}
+
+	if err := info.Validate(); err != nil {
+		return nil, BadRequest(err)
 	}
 
 	id, err := s.Add(r.Context(), db, info)
 	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
+		return nil, Error(err)
 	}
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(struct {
+
+	return struct {
 		ID schema.ID `json:"id"`
 	}{
 		id,
-	})
+	}, Created()
 }
 
-func (s *FarmAPI) listFarm(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+func (s *FarmAPI) listFarm(r *http.Request) (interface{}, Response) {
 	db := mw.Database(r)
 	farms, err := s.List(r.Context(), db)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, Error(err)
 	}
 
-	_ = json.NewEncoder(w).Encode(farms)
+	return farms, nil
 }
 
 func (s *FarmAPI) cockpitListFarm(w http.ResponseWriter, r *http.Request) {
@@ -64,24 +62,20 @@ func (s *FarmAPI) cockpitListFarm(w http.ResponseWriter, r *http.Request) {
 	// _ = json.NewEncoder(w).Encode(x)
 }
 
-func (s *FarmAPI) getFarm(w http.ResponseWriter, r *http.Request) {
+func (s *FarmAPI) getFarm(r *http.Request) (interface{}, Response) {
 	sid := mux.Vars(r)["farm_id"]
 
 	id, err := strconv.ParseInt(sid, 10, 64)
 	if err != nil {
-		httpError(w, errors.Wrap(err, "id should be an integer"), http.StatusBadRequest)
-		return
+		return nil, BadRequest(err)
 	}
 
 	db := mw.Database(r)
 
 	farm, err := s.GetByID(r.Context(), db, id)
 	if err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
+		return nil, NotFound(err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(farm)
+	return farm, nil
 }
