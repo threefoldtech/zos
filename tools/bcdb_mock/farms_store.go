@@ -1,99 +1,53 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"sync"
+	"context"
 
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/types/directory"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type farmStore struct {
-	Farms []*directory.TfgridFarm1 `json:"farms"`
-	m     sync.RWMutex
-}
+// FarmAPI holds farm releated handlers
+type FarmAPI struct{}
 
-func loadfarmStore() (*farmStore, error) {
-	store := &farmStore{
-		Farms: []*directory.TfgridFarm1{},
-	}
-	f, err := os.OpenFile("farms.json", os.O_RDONLY, 0660)
+// List farms
+// TODO: add paging arguments
+func (s *FarmAPI) List(ctx context.Context, db *mongo.Database) ([]directory.Farm, error) {
+	var filter directory.FarmFilter
+	//options.Find().
+	cur, err := filter.Find(ctx, db, models.Page(0))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return store, nil
-		}
-		return store, err
+		return nil, errors.Wrap(err, "failed to list farms")
 	}
-	defer f.Close()
-	if err := json.NewDecoder(f).Decode(&store); err != nil {
-		return store, err
+	var out []directory.Farm
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, errors.Wrap(err, "failed to load farm list")
 	}
-	return store, nil
+
+	return out, nil
 }
 
-func (s *farmStore) Save() error {
-	s.m.RLock()
-	defer s.m.RUnlock()
+// GetByName gets a farm by name
+func (s *FarmAPI) GetByName(ctx context.Context, db *mongo.Database, name string) (directory.Farm, error) {
+	var filter directory.FarmFilter
+	filter = filter.WithName(name)
 
-	f, err := os.OpenFile("farms.json", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0660)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if err := json.NewEncoder(f).Encode(s); err != nil {
-		return err
-	}
-	return nil
+	return filter.Get(ctx, db)
 }
 
-func (s *farmStore) List() []*directory.TfgridFarm1 {
-	s.m.RLock()
-	defer s.m.RUnlock()
+// GetByID gets a farm by ID
+func (s *FarmAPI) GetByID(ctx context.Context, db *mongo.Database, id int64) (directory.Farm, error) {
+	var filter directory.FarmFilter
+	filter = filter.WithID(schema.ID(id))
 
-	out := make([]*directory.TfgridFarm1, len(s.Farms))
-	copy(out, s.Farms)
-	return out
+	return filter.Get(ctx, db)
 }
 
-func (s *farmStore) GetByName(name string) (*directory.TfgridFarm1, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-
-	for _, f := range s.Farms {
-		if f.Name == name {
-			return f, nil
-		}
-	}
-	return nil, fmt.Errorf("farm %s not found", name)
-}
-
-func (s *farmStore) GetByID(id int) (*directory.TfgridFarm1, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-
-	if id <= 0 || id > len(s.Farms) {
-		return nil, fmt.Errorf("farm with id %d not found", id)
-	}
-	return s.Farms[id-1], nil
-}
-
-func (s *farmStore) Add(farm directory.TfgridFarm1) (pkg.FarmID, error) {
-	s.m.Lock()
-	defer s.m.Unlock()
-
-	for _, f := range s.Farms {
-		if f.Name == farm.Name {
-			f.WalletAddresses = farm.WalletAddresses
-			f.Location = farm.Location
-			f.Email = farm.Email
-			f.ResourcePrices = farm.ResourcePrices
-			return pkg.FarmID(f.ID), nil
-		}
-	}
-
-	farm.ID = uint64(len(s.Farms) + 1) // ids starts at 1
-	s.Farms = append(s.Farms, &farm)
-	return pkg.FarmID(farm.ID), nil
+// Add add farm to store
+// TODO: support update farm information ?
+func (s *FarmAPI) Add(ctx context.Context, db *mongo.Database, farm directory.Farm) (schema.ID, error) {
+	return directory.FarmCreate(ctx, db, farm)
 }

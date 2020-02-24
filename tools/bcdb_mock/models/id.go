@@ -22,9 +22,9 @@ var (
 )
 
 // NextID for a collection
-func NextID(db *mongo.Database, collection string) (schema.ID, error) {
+func NextID(ctx context.Context, db *mongo.Database, collection string) (schema.ID, error) {
 	result := db.Collection(Counters).FindOneAndUpdate(
-		context.TODO(),
+		ctx,
 		bson.M{"_id": collection},
 		bson.M{"$inc": bson.M{"sequence": 1}},
 		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After),
@@ -41,8 +41,8 @@ func NextID(db *mongo.Database, collection string) (schema.ID, error) {
 }
 
 //MustID must get next available ID, or panic with an error that has error.Is(err, ErrFailedToGetID) == true
-func MustID(db *mongo.Database, collection string) schema.ID {
-	id, err := NextID(db, collection)
+func MustID(ctx context.Context, db *mongo.Database, collection string) schema.ID {
+	id, err := NextID(ctx, db, collection)
 	if err != nil {
 		panic(fmt.Errorf("%w: %s", ErrFailedToGetID, err.Error()))
 	}

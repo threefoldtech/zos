@@ -3,49 +3,69 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
+
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/types"
 )
 
 var listen string
 
 func main() {
+	app.Initialize()
+
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
 
 	flag.Parse()
 
 	nodeStore, err := loadNodeStore()
 	if err != nil {
-		log.Fatalf("error loading node store: %v\n", err)
+		log.Fatal().Err(err).Msg("error loading node store")
 	}
-	farmStore, err := loadfarmStore()
-	if err != nil {
-		log.Fatalf("error loading farm store: %v\n", err)
-	}
+	var farmAPI FarmAPI
+
 	resStore, err := loadProvisionStore()
 	if err != nil {
-		log.Fatalf("error loading provision store: %v\n", err)
+		log.Fatal().Err(err).Msg("error loading provision store")
 	}
 
-	defer func() {
-		if err := nodeStore.Save(); err != nil {
-			log.Printf("failed to save data: %v\n", err)
-		}
-		if err := farmStore.Save(); err != nil {
-			log.Printf("failed to save data: %v\n", err)
-		}
-		if err := resStore.Save(); err != nil {
-			log.Printf("failed to save reservations: %v\n", err)
-		}
-	}()
+	// defer func() {
+	// 	if err := nodeStore.Save(); err != nil {
+	// 		log.Error().Err(err).Msg("failed to save data")
+	// 	}
+	// 	if err := farmStore.Save(); err != nil {
+	// 		log.Printf("failed to save data: %v\n", err)
+	// 	}
+	// 	if err := resStore.Save(); err != nil {
+	// 		log.Printf("failed to save reservations: %v\n", err)
+	// 	}
+	// }()
+
+	db, err := mw.NewDatabaseMiddleware("testing", "mongodb://localhost:27017")
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to database")
+	}
+
+	// Setup all the models
+	log.Info().Msg("setting up index")
+	types.Setup(context.TODO(), db.Database())
+	log.Info().Msg("setting up index completed")
 
 	router := mux.NewRouter()
+
+	router.Use(db.Middleware)
+	router.HandleFunc("/farms", farmAPI.registerFarm).Methods("POST")
+	router.HandleFunc("/farms", farmAPI.listFarm).Methods("GET")
+	router.HandleFunc("/farms/{farm_id}", farmAPI.getFarm).Methods("GET")
 
 	router.HandleFunc("/nodes", nodeStore.registerNode).Methods("POST")
 
@@ -58,13 +78,9 @@ func main() {
 	router.HandleFunc("/nodes", nodeStore.listNodes).Methods("GET")
 	router.HandleFunc("/nodes/{node_id}/used_resources", nodeStore.updateUsedResources).Methods("PUT")
 
-	router.HandleFunc("/farms", farmStore.registerFarm).Methods("POST")
-	router.HandleFunc("/farms", farmStore.listFarm).Methods("GET")
-	router.HandleFunc("/farms/{farm_id}", farmStore.getFarm).Methods("GET")
-
 	// compatibility with gedis_http
 	router.HandleFunc("/nodes/list", nodeStore.cockpitListNodes).Methods("POST")
-	router.HandleFunc("/farms/list", farmStore.cockpitListFarm).Methods("POST")
+	router.HandleFunc("/farms/list", farmAPI.cockpitListFarm).Methods("POST")
 
 	router.HandleFunc("/reservations/{node_id}", nodeStore.Requires("node_id", resStore.reserve)).Methods("POST")
 	router.HandleFunc("/reservations/{node_id}/poll", nodeStore.Requires("node_id", resStore.poll)).Methods("GET")
