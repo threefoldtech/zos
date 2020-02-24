@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	// SchemaQual path to schema package
 	SchemaQual = "github.com/threefoldtech/zos/pkg/schema"
 )
 
@@ -22,7 +23,6 @@ var (
 	// and then mapped here to support it.
 	goKindMap = map[Kind][2]string{
 		StringKind:    {"", "string"},
-		EmailKind:     {"", "string"},
 		IntegerKind:   {"", "int64"},
 		FloatKind:     {"", "float64"},
 		BoolKind:      {"", "bool"},
@@ -32,6 +32,7 @@ var (
 		NumericKind:   {SchemaQual, "Numeric"},
 		IPAddressKind: {"net", "IP"},
 		IPRangeKind:   {SchemaQual, "IPRange"},
+		EmailKind:     {SchemaQual, "Email"},
 		//TODO add other types here (for example, Email, Phone, etc..)
 	}
 )

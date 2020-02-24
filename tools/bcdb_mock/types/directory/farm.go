@@ -2,6 +2,8 @@ package directory
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
@@ -11,12 +13,33 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+var (
+	farmNamePattern = regexp.MustCompile("^[a-zA-Z0-9-_]+$")
+)
+
 const (
 	farmCollection = "farm"
 )
 
 //Farm mongo db wrapper for generated TfgridDirectoryFarm
 type Farm generated.TfgridDirectoryFarm1
+
+// Validate validates farm object
+func (f *Farm) Validate() error {
+	if !farmNamePattern.MatchString(f.Name) {
+		return fmt.Errorf("invalid farm name. name can only contain alphanumeric characters dash (-) or underscore (_)")
+	}
+
+	if f.ThreebotId == 0 {
+		return fmt.Errorf("threebot_id is required")
+	}
+
+	if len(f.WalletAddresses) == 0 {
+		return fmt.Errorf("invalid wallet addresses, is required")
+	}
+
+	return nil
+}
 
 // FarmFilter type
 type FarmFilter bson.D

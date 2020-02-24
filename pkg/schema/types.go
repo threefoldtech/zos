@@ -204,5 +204,28 @@ func (i IPRange) String() string {
 	return i.IPNet.String()
 }
 
+// Email type
+type Email string
+
+var (
+	emailP = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+)
+
+// UnmarshalText loads IPRange from string
+func (e *Email) UnmarshalText(text []byte) error {
+	v := string(text)
+	if v == "" {
+		return nil
+	}
+
+	if !emailP.MatchString(v) {
+		return fmt.Errorf("invalid email address: %s", v)
+	}
+
+	fmt.Println("setting email to:", v)
+	*e = Email(v)
+	return nil
+}
+
 // ID object id
 type ID int64

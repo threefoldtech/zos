@@ -13,7 +13,7 @@ type TfgridDirectoryFarm1 struct {
 	Name            string                              `bson:"name" json:"name"`
 	WalletAddresses []string                            `bson:"wallet_addresses" json:"wallet_addresses"`
 	Location        TfgridDirectoryLocation1            `bson:"location" json:"location"`
-	Email           string                              `bson:"email" json:"email"`
+	Email           schema.Email                        `bson:"email" json:"email"`
 	ResourcePrices  []TfgridDirectoryNodeResourcePrice1 `bson:"resource_prices" json:"resource_prices"`
 	PrefixZero      schema.IPRange                      `bson:"prefix_zero" json:"prefix_zero"`
 }
