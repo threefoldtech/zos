@@ -2,8 +2,9 @@ package directory
 
 import (
 	"encoding/json"
-	schema "github.com/threefoldtech/zos/pkg/schema"
 	"net"
+
+	schema "github.com/threefoldtech/zos/pkg/schema"
 )
 
 type TfgridDirectoryFarm1 struct {
@@ -78,11 +79,13 @@ type TfgridDirectoryNode2 struct {
 	ReservedResources TfgridDirectoryNodeResourceAmount1 `bson:"reserved_resources" json:"reserved_resources"`
 	Proofs            []TfgridDirectoryNodeProof1        `bson:"proofs" json:"proofs"`
 	Ifaces            []TfgridDirectoryNodeIface1        `bson:"ifaces" json:"ifaces"`
-	PublicConfig      TfgridDirectoryNodePublicIface1    `bson:"public_config" json:"public_config"`
-	ExitNode          bool                               `bson:"exit_node" json:"exit_node"`
-	Approved          bool                               `bson:"approved" json:"approved"`
-	PublicKeyHex      string                             `bson:"public_key_hex" json:"public_key_hex"`
-	WgPorts           []int64                            `bson:"wg_ports" json:"wg_ports"`
+	// PublicConfig is manually changed to be a pointer because jsx schema does not support
+	// nil values
+	PublicConfig *TfgridDirectoryNodePublicIface1 `bson:"public_config" json:"public_config"`
+	ExitNode     bool                             `bson:"exit_node" json:"exit_node"`
+	Approved     bool                             `bson:"approved" json:"approved"`
+	PublicKeyHex string                           `bson:"public_key_hex" json:"public_key_hex"`
+	WgPorts      []int64                          `bson:"wg_ports" json:"wg_ports"`
 }
 
 func NewTfgridDirectoryNode2() (TfgridDirectoryNode2, error) {

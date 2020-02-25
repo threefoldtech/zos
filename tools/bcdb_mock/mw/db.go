@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var (
+type (
 	dbMiddlewareKey struct{}
 )
 
@@ -35,7 +35,7 @@ func NewDatabaseMiddleware(name, url string) (*DatabaseMiddleware, error) {
 // Middleware is the middleware function
 func (d *DatabaseMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), dbMiddlewareKey, d.client.Database(d.name))
+		ctx := context.WithValue(r.Context(), dbMiddlewareKey{}, d.client.Database(d.name))
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -48,7 +48,7 @@ func (d *DatabaseMiddleware) Database() *mongo.Database {
 
 // Database gets the database configured on the request
 func Database(r *http.Request) *mongo.Database {
-	v := r.Context().Value(dbMiddlewareKey)
+	v := r.Context().Value(dbMiddlewareKey{})
 	if v == nil {
 		panic("DatabaseMiddleware is not configured")
 	}

@@ -96,17 +96,3 @@ func FarmCreate(ctx context.Context, db *mongo.Database, farm Farm) (schema.ID, 
 	_, err = col.InsertOne(ctx, farm)
 	return id, err
 }
-
-// Setup sets up indexes for types, must be called at least
-// Onetime during the life time of the object
-func Setup(ctx context.Context, db *mongo.Database) error {
-	farm := db.Collection(farmCollection)
-	_, err := farm.Indexes().CreateMany(ctx, []mongo.IndexModel{
-		{
-			Keys:    bson.M{"name": 1},
-			Options: options.Index().SetUnique(true),
-		},
-	})
-
-	return err
-}

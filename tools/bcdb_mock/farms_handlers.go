@@ -50,16 +50,19 @@ func (s *FarmAPI) listFarm(r *http.Request) (interface{}, Response) {
 	return farms, nil
 }
 
-func (s *FarmAPI) cockpitListFarm(w http.ResponseWriter, r *http.Request) {
+func (s *FarmAPI) cockpitListFarm(r *http.Request) (interface{}, Response) {
 	// TODO: do we need this ?
+	db := mw.Database(r)
+	farms, err := s.List(r.Context(), db)
+	if err != nil {
+		return nil, Error(err)
+	}
 
-	// x := struct {
-	// 	Farms []*directory.TfgridFarm1 `json:"farms"`
-	// }{s.List()}
+	x := struct {
+		Farms []directory.Farm `json:"farms"`
+	}{farms}
 
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusOK)
-	// _ = json.NewEncoder(w).Encode(x)
+	return x, nil
 }
 
 func (s *FarmAPI) getFarm(r *http.Request) (interface{}, Response) {

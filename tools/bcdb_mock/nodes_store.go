@@ -1,240 +1,168 @@
 package main
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sort"
-	"sync"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 	"github.com/threefoldtech/zos/pkg/schema"
-
-	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
+	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/types/directory"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type nodeStore struct {
-	Nodes []*directory.TfgridNode2 `json:"nodes"`
-	m     sync.RWMutex
-}
+// NodeAPI holds api for nodes
+type NodeAPI struct{}
 
-func loadNodeStore() (*nodeStore, error) {
-	store := &nodeStore{
-		Nodes: []*directory.TfgridNode2{},
+// List farms
+// TODO: add paging arguments
+func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, farm schema.ID) ([]directory.Node, error) {
+	var filter directory.NodeFilter
+	if farm > 0 {
+		filter = filter.WithFarmID(farm)
 	}
-	f, err := os.OpenFile("nodes.json", os.O_RDONLY, 0660)
+
+	cur, err := filter.Find(ctx, db, models.Page(0))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return store, nil
-		}
-		return store, err
+		return nil, errors.Wrap(err, "failed to list nodes")
 	}
-	defer f.Close()
-	if err := json.NewDecoder(f).Decode(&store); err != nil {
-		return store, err
+	defer cur.Close(ctx)
+	var out []directory.Node
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, errors.Wrap(err, "failed to load node list")
 	}
-	return store, nil
+
+	return out, nil
 }
 
-func (s *nodeStore) Save() error {
-	s.m.RLock()
-	defer s.m.RUnlock()
+// Get a single node
+func (s *NodeAPI) Get(ctx context.Context, db *mongo.Database, nodeID string) (directory.Node, error) {
+	var filter directory.NodeFilter
+	filter = filter.WithNodeID(nodeID)
+	return filter.Get(ctx, db)
+}
 
-	f, err := os.OpenFile("nodes.json", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0660)
+// Exists tests if node exists
+func (s *NodeAPI) Exists(ctx context.Context, db *mongo.Database, nodeID string) (bool, error) {
+	var filter directory.NodeFilter
+	filter = filter.WithNodeID(nodeID)
+
+	count, err := filter.Count(ctx, db)
 	if err != nil {
-		return err
+		return false, err
 	}
-	defer f.Close()
-	if err := json.NewEncoder(f).Encode(s); err != nil {
-		return err
-	}
-	return nil
+
+	return count > 0, nil
 }
 
-func (s *nodeStore) List() []*directory.TfgridNode2 {
-	s.m.RLock()
-	defer s.m.RUnlock()
-	out := make([]*directory.TfgridNode2, len(s.Nodes))
-
-	copy(out, s.Nodes)
-	return out
+func (s *NodeAPI) Add(ctx context.Context, db *mongo.Database, node directory.Node) (schema.ID, error) {
+	return directory.NodeCreate(ctx, db, node)
 }
 
-func (s *nodeStore) Get(nodeID string) (*directory.TfgridNode2, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-
-	for _, n := range s.Nodes {
-		if n.NodeID == nodeID {
-			return n, nil
-		}
-	}
-	return nil, fmt.Errorf("node %s not found", nodeID)
+func (s *NodeAPI) updateTotalCapacity(ctx context.Context, db *mongo.Database, nodeID string, capacity generated.TfgridDirectoryNodeResourceAmount1) error {
+	return directory.NodeUpdateTotalResources(ctx, db, nodeID, capacity)
 }
 
-func (s *nodeStore) Add(node directory.TfgridNode2) error {
-	s.m.Lock()
-	defer s.m.Unlock()
-
-	for i, n := range s.Nodes {
-		if n.NodeID == node.NodeID {
-			s.Nodes[i].FarmID = node.FarmID
-			s.Nodes[i].OsVersion = node.OsVersion
-			s.Nodes[i].Location = node.Location
-			s.Nodes[i].Updated = schema.Date{Time: time.Now()}
-			return nil
-		}
-	}
-
-	node.Created = schema.Date{Time: time.Now()}
-	node.Updated = schema.Date{Time: time.Now()}
-	s.Nodes = append(s.Nodes, &node)
-	return nil
+func (s *NodeAPI) updateUptime(ctx context.Context, db *mongo.Database, nodeID string, uptime int64) error {
+	return directory.NodeUpdateUptime(ctx, db, nodeID, uptime)
 }
 
-func (s *nodeStore) updateTotalCapacity(nodeID string, cap directory.TfgridNodeResourceAmount1) error {
-	return s.updateCapacity(nodeID, "total", cap)
+func (s *NodeAPI) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor []string) error {
+	return fmt.Errorf("not implemented")
+	// node, err := s.Get(nodeID)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// proof := directory.TfgridNodeProof1{
+	// 	Created:    schema.Date{Time: time.Now()},
+	// 	Hypervisor: hypervisor,
+	// }
+
+	// proof.Hardware = map[string]interface{}{
+	// 	"sections": dmi.Sections,
+	// 	"tooling":  dmi.Tooling,
+	// }
+	// proof.HardwareHash, err = hashProof(proof.Hardware)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// proof.Disks = map[string]interface{}{
+	// 	"aggregator":  disks.Aggregator,
+	// 	"environment": disks.Environment,
+	// 	"devices":     disks.Devices,
+	// 	"tool":        disks.Tool,
+	// }
+	// proof.DiskHash, err = hashProof(proof.Disks)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// // don't save the proof if we already have one with the same
+	// // hash/content
+	// for i := range node.Proofs {
+	// 	if proof.Equal(node.Proofs[i]) {
+	// 		// update hypervisor content
+	// 		node.Proofs[i].Hypervisor = hypervisor
+	// 		return nil
+	// 	}
+	// }
+
+	// node.Proofs = append(node.Proofs, proof)
+	// return nil
 }
 
-func (s *nodeStore) updateReservedCapacity(nodeID string, cap directory.TfgridNodeResourceAmount1) error {
-	return s.updateCapacity(nodeID, "reserved", cap)
+func (s *NodeAPI) SetInterfaces(ctx context.Context, db *mongo.Database, nodeID string, ifaces []generated.TfgridDirectoryNodeIface1) error {
+	return directory.NodeSetInterfaces(ctx, db, nodeID, ifaces)
 }
 
-func (s *nodeStore) updateCapacity(nodeID string, t string, cap directory.TfgridNodeResourceAmount1) error {
-	node, err := s.Get(nodeID)
-	if err != nil {
-		return err
-	}
-
-	switch t {
-	case "total":
-		node.TotalResources = cap
-	case "reserved":
-		node.ReservedResources = cap
-	case "used":
-		node.UsedResources = cap
-	default:
-		return fmt.Errorf("unsupported capacity type: %v", t)
-	}
-
-	return nil
-}
-
-func (s *nodeStore) updateUptime(nodeID string, uptime int64) error {
-	node, err := s.Get(nodeID)
-	if err != nil {
-		return err
-	}
-
-	node.Uptime = uptime
-	node.Updated = schema.Date{Time: time.Now()}
-
-	return nil
-}
-
-func (s *nodeStore) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor []string) error {
-	node, err := s.Get(nodeID)
-	if err != nil {
-		return err
-	}
-
-	proof := directory.TfgridNodeProof1{
-		Created:    schema.Date{Time: time.Now()},
-		Hypervisor: hypervisor,
-	}
-
-	proof.Hardware = map[string]interface{}{
-		"sections": dmi.Sections,
-		"tooling":  dmi.Tooling,
-	}
-	proof.HardwareHash, err = hashProof(proof.Hardware)
-	if err != nil {
-		return err
-	}
-
-	proof.Disks = map[string]interface{}{
-		"aggregator":  disks.Aggregator,
-		"environment": disks.Environment,
-		"devices":     disks.Devices,
-		"tool":        disks.Tool,
-	}
-	proof.DiskHash, err = hashProof(proof.Disks)
-	if err != nil {
-		return err
-	}
-
-	// don't save the proof if we already have one with the same
-	// hash/content
-	for i := range node.Proofs {
-		if proof.Equal(node.Proofs[i]) {
-			// update hypervisor content
-			node.Proofs[i].Hypervisor = hypervisor
-			return nil
-		}
-	}
-
-	node.Proofs = append(node.Proofs, proof)
-	return nil
-}
-
-func (s *nodeStore) SetInterfaces(nodeID string, ifaces []directory.TfgridNodeIface1) error {
-	node, err := s.Get(nodeID)
-	if err != nil {
-		return err
-	}
-
-	node.Ifaces = ifaces
-	return nil
-}
-
-func (s *nodeStore) SetPublicConfig(nodeID string, cfg directory.TfgridNodePublicIface1) error {
-	node, err := s.Get(nodeID)
+func (s *NodeAPI) SetPublicConfig(ctx context.Context, db *mongo.Database, nodeID string, cfg generated.TfgridDirectoryNodePublicIface1) error {
+	node, err := s.Get(ctx, db, nodeID)
 	if err != nil {
 		return err
 	}
 
 	if node.PublicConfig == nil {
-		cfg.Version = 0
+		cfg.Version = 1
 	} else {
 		cfg.Version = node.PublicConfig.Version + 1
 	}
 
-	node.PublicConfig = &cfg
-	return nil
+	return directory.NodeSetPublicConfig(ctx, db, nodeID, cfg)
 }
 
-func (s *nodeStore) SetWGPorts(nodeID string, ports []uint) error {
-	node, err := s.Get(nodeID)
-	if err != nil {
-		return err
-	}
-
-	node.WGPorts = ports
-	return nil
+func (s *NodeAPI) SetWGPorts(ctx context.Context, db *mongo.Database, nodeID string, ports []uint) error {
+	return directory.NodeSetWGPorts(ctx, db, nodeID, ports)
 }
 
-func (s *nodeStore) Requires(key string, handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *NodeAPI) Requires(key string, handler Action) Action {
+	return func(r *http.Request) (interface{}, Response) {
 		nodeID, ok := mux.Vars(r)[key]
 		if !ok {
 			// programming error, we should panic in this case
 			panic("invalid node-id key")
 		}
 
-		_, err := s.Get(nodeID)
+		db := mw.Database(r)
+
+		exists, err := s.Exists(r.Context(), db, nodeID)
 		if err != nil {
-			// node not found
-			httpError(w, errors.Wrapf(err, "node not found: %s", nodeID), http.StatusNotFound)
-			return
+			return nil, Error(err)
+		} else if !exists {
+			return nil, NotFound(fmt.Errorf("node '%s' not found", nodeID))
 		}
 
-		handler(w, r)
+		return handler(r)
 	}
 }
 

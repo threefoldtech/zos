@@ -2,57 +2,56 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
-	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 
-	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
+	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/schema"
+	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/types/directory"
 
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 )
 
-func (s *nodeStore) registerNode(w http.ResponseWriter, r *http.Request) {
-	log.Println("node register request received")
+func (s *NodeAPI) registerNode(r *http.Request) (interface{}, Response) {
+	log.Info().Msg("node register request received")
 
 	defer r.Body.Close()
 
-	n := directory.TfgridNode2{}
+	var n directory.Node
 	if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
-		httpError(w, err, http.StatusBadRequest)
-		return
+		return nil, BadRequest(err)
 	}
 
-	if err := s.Add(n); err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
+	db := mw.Database(r)
+	if _, err := s.Add(r.Context(), db, n); err != nil {
+		return nil, Error(err)
 	}
-	log.Printf("node registered: %+v\n", n)
 
-	w.WriteHeader(http.StatusCreated)
+	log.Info().Msgf("node registered: %+v\n", n)
+
+	return nil, Created()
 }
 
-func (s *nodeStore) nodeDetail(w http.ResponseWriter, r *http.Request) {
+func (s *NodeAPI) nodeDetail(r *http.Request) (interface{}, Response) {
 	nodeID := mux.Vars(r)["node_id"]
-	node, err := s.Get(nodeID)
+	db := mw.Database(r)
+
+	node, err := s.Get(r.Context(), db, nodeID)
 	if err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
+		return nil, NotFound(err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(&node); err != nil {
-		log.Printf("error writing node: %v", err)
-	}
+	return node, nil
 }
 
-func (s *nodeStore) listNodes(w http.ResponseWriter, r *http.Request) {
-	nodes := s.List()
+func (s *NodeAPI) listNodes(r *http.Request) (interface{}, Response) {
 	sFarm := r.URL.Query().Get("farm")
 
 	var (
@@ -63,30 +62,21 @@ func (s *nodeStore) listNodes(w http.ResponseWriter, r *http.Request) {
 	if sFarm != "" {
 		farm, err = strconv.ParseUint(sFarm, 10, 64)
 		if err != nil {
-			httpError(w, err, http.StatusBadRequest)
-			return
+			return nil, BadRequest(errors.Wrap(err, "invalid farm id"))
 		}
 	}
 
-	for i, node := range nodes {
-		if node == nil {
-			nodes = append(nodes[:i], nodes[i+1:]...)
-			continue
-		}
+	db := mw.Database(r)
 
-		if farm != 0 && uint64(node.FarmID) != farm {
-			nodes = append(nodes[:i], nodes[i+1:]...)
-			continue
-		}
+	nodes, err := s.List(r.Context(), db, schema.ID(farm))
+	if err != nil {
+		return nil, Error(err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(nodes)
+	return nodes, nil
 }
 
-func (s *nodeStore) cockpitListNodes(w http.ResponseWriter, r *http.Request) {
-	nodes := s.List()
+func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, Response) {
 	sFarm := r.URL.Query().Get("farm")
 
 	var (
@@ -97,119 +87,100 @@ func (s *nodeStore) cockpitListNodes(w http.ResponseWriter, r *http.Request) {
 	if sFarm != "" {
 		farm, err = strconv.ParseUint(sFarm, 10, 64)
 		if err != nil {
-			httpError(w, err, http.StatusBadRequest)
-			return
+			return nil, BadRequest(errors.Wrap(err, "invalid farm id"))
 		}
 	}
 
-	for i, node := range nodes {
-		if node == nil {
-			nodes = append(nodes[:i], nodes[i+1:]...)
-			continue
-		}
+	db := mw.Database(r)
 
-		if farm != 0 && uint64(node.FarmID) != farm {
-			nodes = append(nodes[:i], nodes[i+1:]...)
-			continue
-		}
+	nodes, err := s.List(r.Context(), db, schema.ID(farm))
+	if err != nil {
+		return nil, Error(err)
 	}
 
 	x := struct {
-		Node []*directory.TfgridNode2 `json:"nodes"`
+		Node []directory.Node `json:"nodes"`
 	}{nodes}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(x)
+	return x, nil
 }
 
-func (s *nodeStore) registerCapacity(w http.ResponseWriter, r *http.Request) {
+func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, Response) {
 	x := struct {
-		Capacity   directory.TfgridNodeResourceAmount1 `json:"capacity,omitempty"`
-		DMI        dmi.DMI                             `json:"dmi,omitempty"`
-		Disks      capacity.Disks                      `json:"disks,omitempty"`
-		Hypervisor []string                            `json:"hypervisor,omitempty"`
+		Capacity   generated.TfgridDirectoryNodeResourceAmount1 `json:"capacity,omitempty"`
+		DMI        dmi.DMI                                      `json:"dmi,omitempty"`
+		Disks      capacity.Disks                               `json:"disks,omitempty"`
+		Hypervisor []string                                     `json:"hypervisor,omitempty"`
 	}{}
-
-	if err := json.NewDecoder(r.Body).Decode(&x); err != nil {
-		httpError(w, err, http.StatusBadRequest)
-		return
-	}
-
-	nodeID := mux.Vars(r)["node_id"]
-	if err := s.updateTotalCapacity(nodeID, x.Capacity); err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
-	}
-
-	if err := s.StoreProof(nodeID, x.DMI, x.Disks, x.Hypervisor); err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-}
-
-func (s *nodeStore) registerIfaces(w http.ResponseWriter, r *http.Request) {
-	log.Println("network interfaces register request received")
 
 	defer r.Body.Close()
 
-	input := []*types.IfaceInfo{}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		log.Print(err.Error())
-		httpError(w, err, http.StatusBadRequest)
-		return
-	}
-
-	log.Println("network interfaces received", input)
-	ifaces := make([]directory.TfgridNodeIface1, len(input))
-	for i, iface := range input {
-		ifaces[i].Gateway = iface.Gateway
-		ifaces[i].Name = iface.Name
-		for _, r := range iface.Addrs {
-			ifaces[i].Addrs = append(ifaces[i].Addrs, r.ToSchema())
-		}
+	if err := json.NewDecoder(r.Body).Decode(&x); err != nil {
+		return nil, BadRequest(err)
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
-	if err := s.SetInterfaces(nodeID, ifaces); err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
+	db := mw.Database(r)
+
+	if err := s.updateTotalCapacity(r.Context(), db, nodeID, x.Capacity); err != nil {
+		return nil, NotFound(err)
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	// TODO: fix store proof
+	// if err := s.StoreProof(nodeID, x.DMI, x.Disks, x.Hypervisor); err != nil {
+	// 	httpError(w, err, http.StatusNotFound)
+	// 	return
+	// }
+
+	return nil, nil
 }
 
-func (s *nodeStore) configurePublic(w http.ResponseWriter, r *http.Request) {
-	iface := types.PubIface{}
+func (s *NodeAPI) registerIfaces(r *http.Request) (interface{}, Response) {
+	log.Debug().Msg("network interfaces register request received")
+
+	defer r.Body.Close()
+
+	var input []generated.TfgridDirectoryNodeIface1
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		return nil, BadRequest(err)
+	}
+
+	nodeID := mux.Vars(r)["node_id"]
+	db := mw.Database(r)
+	if err := s.SetInterfaces(r.Context(), db, nodeID, input); err != nil {
+		return nil, Error(err)
+	}
+
+	return nil, Created()
+}
+
+func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, Response) {
+	var iface types.PubIface
 
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&iface); err != nil {
-		httpError(w, err, http.StatusBadRequest)
-		return
+		return nil, BadRequest(err)
 	}
 
-	cfg := directory.TfgridNodePublicIface1{
+	cfg := generated.TfgridDirectoryNodePublicIface1{
 		Gw4:    iface.GW4,
 		Gw6:    iface.GW6,
 		Ipv4:   iface.IPv4.ToSchema(),
 		Ipv6:   iface.IPv6.ToSchema(),
 		Master: iface.Master,
-		Type:   directory.TfgridNodePublicIface1TypeMacvlan,
+		Type:   generated.TfgridDirectoryNodePublicIface1TypeMacvlan,
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
-	if err := s.SetPublicConfig(nodeID, cfg); err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
+	db := mw.Database(r)
+	if err := s.SetPublicConfig(r.Context(), db, nodeID, cfg); err != nil {
+		return nil, Error(err)
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	return nil, Created()
 }
 
-func (s *nodeStore) registerPorts(w http.ResponseWriter, r *http.Request) {
+func (s *NodeAPI) registerPorts(r *http.Request) (interface{}, Response) {
 
 	defer r.Body.Close()
 
@@ -217,40 +188,39 @@ func (s *nodeStore) registerPorts(w http.ResponseWriter, r *http.Request) {
 		Ports []uint `json:"ports"`
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httpError(w, err, http.StatusBadRequest)
-		return
+		return nil, BadRequest(err)
 	}
 
-	fmt.Println("wireguard ports received", input.Ports)
+	log.Debug().Uints("ports", input.Ports).Msg("wireguard ports received")
 
 	nodeID := mux.Vars(r)["node_id"]
-	if err := s.SetWGPorts(nodeID, input.Ports); err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
+	db := mw.Database(r)
+	if err := s.SetWGPorts(r.Context(), db, nodeID, input.Ports); err != nil {
+		return nil, NotFound(err)
 	}
-	w.WriteHeader(http.StatusOK)
+
+	return nil, nil
 }
 
-func (s *nodeStore) updateUptimeHandler(w http.ResponseWriter, r *http.Request) {
-
+func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, Response) {
 	defer r.Body.Close()
 
 	input := struct {
 		Uptime uint64
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httpError(w, err, http.StatusBadRequest)
-		return
+		return nil, BadRequest(err)
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
-	fmt.Printf("node uptime received %s %d\n", nodeID, input.Uptime)
+	db := mw.Database(r)
+	log.Debug().Str("node", nodeID).Uint64("uptime", input.Uptime).Msg("node uptime received")
 
-	if err := s.updateUptime(nodeID, int64(input.Uptime)); err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
+	if err := s.updateUptime(r.Context(), db, nodeID, int64(input.Uptime)); err != nil {
+		return nil, NotFound(err)
 	}
-	w.WriteHeader(http.StatusOK)
+
+	return nil, nil
 }
 
 func (s *nodeStore) updateUsedResources(w http.ResponseWriter, r *http.Request) {

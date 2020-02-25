@@ -22,6 +22,7 @@ func (s *FarmAPI) List(ctx context.Context, db *mongo.Database) ([]directory.Far
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list farms")
 	}
+	defer cur.Close(ctx)
 	var out []directory.Farm
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, errors.Wrap(err, "failed to load farm list")

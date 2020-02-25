@@ -27,6 +27,7 @@ func AsHandlerFunc(a Action) http.HandlerFunc {
 		} else {
 			w.WriteHeader(result.Status())
 			if err := result.Err(); err != nil {
+				log.Error().Msgf("%s", err.Error())
 				object = struct {
 					Error string `json:"error"`
 				}{
