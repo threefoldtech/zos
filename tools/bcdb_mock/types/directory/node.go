@@ -142,6 +142,10 @@ func NodeCreate(ctx context.Context, db *mongo.Database, node Node) (schema.ID, 
 	}
 
 	node.ID = id
+	if node.Proofs == nil {
+		node.Proofs = make([]generated.TfgridDirectoryNodeProof1, 0)
+	}
+
 	node.Updated = schema.Date{Time: time.Now()}
 	col := db.Collection(nodeCollection)
 	result := col.FindOneAndUpdate(ctx, filter, bson.M{"$set": node}, options.FindOneAndUpdate().SetUpsert(true))
@@ -205,4 +209,22 @@ func NodeSetWGPorts(ctx context.Context, db *mongo.Database, nodeID string, port
 	return nodeUpdate(ctx, db, nodeID, bson.M{
 		"wg_ports": ports,
 	})
+}
+
+// NodePushProof push proof to node
+func NodePushProof(ctx context.Context, db *mongo.Database, nodeID string, proof generated.TfgridDirectoryNodeProof1) error {
+	if nodeID == "" {
+		return fmt.Errorf("invalid node id")
+	}
+
+	col := db.Collection(nodeCollection)
+	var filter NodeFilter
+	filter = filter.WithNodeID(nodeID)
+	_, err := col.UpdateOne(ctx, filter, bson.M{
+		"$addToSet": bson.M{
+			"proofs": proof,
+		},
+	})
+
+	return err
 }

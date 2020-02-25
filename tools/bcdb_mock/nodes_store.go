@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -76,50 +77,34 @@ func (s *NodeAPI) updateUptime(ctx context.Context, db *mongo.Database, nodeID s
 	return directory.NodeUpdateUptime(ctx, db, nodeID, uptime)
 }
 
-func (s *NodeAPI) StoreProof(nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor []string) error {
-	return fmt.Errorf("not implemented")
-	// node, err := s.Get(nodeID)
-	// if err != nil {
-	// 	return err
-	// }
+func (s *NodeAPI) StoreProof(ctx context.Context, db *mongo.Database, nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor []string) error {
+	var err error
+	proof := generated.TfgridDirectoryNodeProof1{
+		Created:    schema.Date{Time: time.Now()},
+		Hypervisor: hypervisor,
+	}
 
-	// proof := directory.TfgridNodeProof1{
-	// 	Created:    schema.Date{Time: time.Now()},
-	// 	Hypervisor: hypervisor,
-	// }
+	proof.Hardware = map[string]interface{}{
+		"sections": dmi.Sections,
+		"tooling":  dmi.Tooling,
+	}
+	proof.HardwareHash, err = hashProof(proof.Hardware)
+	if err != nil {
+		return err
+	}
 
-	// proof.Hardware = map[string]interface{}{
-	// 	"sections": dmi.Sections,
-	// 	"tooling":  dmi.Tooling,
-	// }
-	// proof.HardwareHash, err = hashProof(proof.Hardware)
-	// if err != nil {
-	// 	return err
-	// }
+	proof.Disks = map[string]interface{}{
+		"aggregator":  disks.Aggregator,
+		"environment": disks.Environment,
+		"devices":     disks.Devices,
+		"tool":        disks.Tool,
+	}
+	proof.DiskHash, err = hashProof(proof.Disks)
+	if err != nil {
+		return err
+	}
 
-	// proof.Disks = map[string]interface{}{
-	// 	"aggregator":  disks.Aggregator,
-	// 	"environment": disks.Environment,
-	// 	"devices":     disks.Devices,
-	// 	"tool":        disks.Tool,
-	// }
-	// proof.DiskHash, err = hashProof(proof.Disks)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// // don't save the proof if we already have one with the same
-	// // hash/content
-	// for i := range node.Proofs {
-	// 	if proof.Equal(node.Proofs[i]) {
-	// 		// update hypervisor content
-	// 		node.Proofs[i].Hypervisor = hypervisor
-	// 		return nil
-	// 	}
-	// }
-
-	// node.Proofs = append(node.Proofs, proof)
-	// return nil
+	return directory.NodePushProof(ctx, db, nodeID, proof)
 }
 
 func (s *NodeAPI) SetInterfaces(ctx context.Context, db *mongo.Database, nodeID string, ifaces []generated.TfgridDirectoryNodeIface1) error {

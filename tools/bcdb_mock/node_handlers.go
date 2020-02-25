@@ -126,11 +126,9 @@ func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, Response) {
 		return nil, NotFound(err)
 	}
 
-	// TODO: fix store proof
-	// if err := s.StoreProof(nodeID, x.DMI, x.Disks, x.Hypervisor); err != nil {
-	// 	httpError(w, err, http.StatusNotFound)
-	// 	return
-	// }
+	if err := s.StoreProof(r.Context(), db, nodeID, x.DMI, x.Disks, x.Hypervisor); err != nil {
+		return nil, Error(err)
+	}
 
 	return nil, nil
 }

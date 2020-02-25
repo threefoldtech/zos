@@ -79,13 +79,11 @@ type TfgridDirectoryNode2 struct {
 	ReservedResources TfgridDirectoryNodeResourceAmount1 `bson:"reserved_resources" json:"reserved_resources"`
 	Proofs            []TfgridDirectoryNodeProof1        `bson:"proofs" json:"proofs"`
 	Ifaces            []TfgridDirectoryNodeIface1        `bson:"ifaces" json:"ifaces"`
-	// PublicConfig is manually changed to be a pointer because jsx schema does not support
-	// nil values
-	PublicConfig *TfgridDirectoryNodePublicIface1 `bson:"public_config" json:"public_config"`
-	ExitNode     bool                             `bson:"exit_node" json:"exit_node"`
-	Approved     bool                             `bson:"approved" json:"approved"`
-	PublicKeyHex string                           `bson:"public_key_hex" json:"public_key_hex"`
-	WgPorts      []int64                          `bson:"wg_ports" json:"wg_ports"`
+	PublicConfig      *TfgridDirectoryNodePublicIface1   `bson:"public_config" json:"public_config"`
+	ExitNode          bool                               `bson:"exit_node" json:"exit_node"`
+	Approved          bool                               `bson:"approved" json:"approved"`
+	PublicKeyHex      string                             `bson:"public_key_hex" json:"public_key_hex"`
+	WgPorts           []int64                            `bson:"wg_ports" json:"wg_ports"`
 }
 
 func NewTfgridDirectoryNode2() (TfgridDirectoryNode2, error) {
@@ -153,6 +151,7 @@ type TfgridDirectoryNodeProof1 struct {
 	DiskHash     string                 `bson:"disk_hash" json:"disk_hash"`
 	Hardware     map[string]interface{} `bson:"hardware" json:"hardware"`
 	Disks        map[string]interface{} `bson:"disks" json:"disks"`
+	Hypervisor   []string               `bson:"hypervisor" json:"hypervisor"`
 }
 
 func NewTfgridDirectoryNodeProof1() (TfgridDirectoryNodeProof1, error) {
@@ -162,6 +161,23 @@ func NewTfgridDirectoryNodeProof1() (TfgridDirectoryNodeProof1, error) {
 		return object, err
 	}
 	return object, nil
+}
+
+type TfgridDirectoryNodePublicIface1TypeEnum uint8
+
+const (
+	TfgridDirectoryNodePublicIface1TypeMacvlan TfgridDirectoryNodePublicIface1TypeEnum = iota
+	TfgridDirectoryNodePublicIface1TypeVlan
+)
+
+func (e TfgridDirectoryNodePublicIface1TypeEnum) String() string {
+	switch e {
+	case TfgridDirectoryNodePublicIface1TypeMacvlan:
+		return "macvlan"
+	case TfgridDirectoryNodePublicIface1TypeVlan:
+		return "vlan"
+	}
+	return "UNKNOWN"
 }
 
 type TfgridDirectoryNodeResourcePrice1CurrencyEnum uint8
@@ -186,23 +202,6 @@ func (e TfgridDirectoryNodeResourcePrice1CurrencyEnum) String() string {
 		return "AED"
 	case TfgridDirectoryNodeResourcePrice1CurrencyGBP:
 		return "GBP"
-	}
-	return "UNKNOWN"
-}
-
-type TfgridDirectoryNodePublicIface1TypeEnum uint8
-
-const (
-	TfgridDirectoryNodePublicIface1TypeMacvlan TfgridDirectoryNodePublicIface1TypeEnum = iota
-	TfgridDirectoryNodePublicIface1TypeVlan
-)
-
-func (e TfgridDirectoryNodePublicIface1TypeEnum) String() string {
-	switch e {
-	case TfgridDirectoryNodePublicIface1TypeMacvlan:
-		return "macvlan"
-	case TfgridDirectoryNodePublicIface1TypeVlan:
-		return "vlan"
 	}
 	return "UNKNOWN"
 }

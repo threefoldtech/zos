@@ -300,6 +300,23 @@ func NewTfgridWorkloadsReservationZdb1() (TfgridWorkloadsReservationZdb1, error)
 	return object, nil
 }
 
+type TfgridWorkloadsReservationZdb1DiskTypeEnum uint8
+
+const (
+	TfgridWorkloadsReservationZdb1DiskTypeHdd TfgridWorkloadsReservationZdb1DiskTypeEnum = iota
+	TfgridWorkloadsReservationZdb1DiskTypeSsd
+)
+
+func (e TfgridWorkloadsReservationZdb1DiskTypeEnum) String() string {
+	switch e {
+	case TfgridWorkloadsReservationZdb1DiskTypeHdd:
+		return "hdd"
+	case TfgridWorkloadsReservationZdb1DiskTypeSsd:
+		return "ssd"
+	}
+	return "UNKNOWN"
+}
+
 type TfgridWorkloadsReservation1NextActionEnum uint8
 
 const (
@@ -431,23 +448,6 @@ func (e TfgridWorkloadsReservationZdb1ModeEnum) String() string {
 		return "seq"
 	case TfgridWorkloadsReservationZdb1ModeUser:
 		return "user"
-	}
-	return "UNKNOWN"
-}
-
-type TfgridWorkloadsReservationZdb1DiskTypeEnum uint8
-
-const (
-	TfgridWorkloadsReservationZdb1DiskTypeHdd TfgridWorkloadsReservationZdb1DiskTypeEnum = iota
-	TfgridWorkloadsReservationZdb1DiskTypeSsd
-)
-
-func (e TfgridWorkloadsReservationZdb1DiskTypeEnum) String() string {
-	switch e {
-	case TfgridWorkloadsReservationZdb1DiskTypeHdd:
-		return "hdd"
-	case TfgridWorkloadsReservationZdb1DiskTypeSsd:
-		return "ssd"
 	}
 	return "UNKNOWN"
 }
