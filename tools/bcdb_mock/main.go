@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/types"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
 )
 
 var listen string
@@ -26,9 +26,6 @@ func main() {
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
 
 	flag.Parse()
-
-	var nodeAPI NodeAPI
-	var farmAPI FarmAPI
 
 	// resStore, err := loadProvisionStore()
 	// if err != nil {
@@ -52,30 +49,10 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
 
-	// Setup all the models
-	log.Info().Msg("setting up index")
-	types.Setup(context.TODO(), db.Database())
-	log.Info().Msg("setting up index completed")
-
 	router := mux.NewRouter()
 
 	router.Use(db.Middleware)
-	router.HandleFunc("/farms", AsHandlerFunc(farmAPI.registerFarm)).Methods("POST")
-	router.HandleFunc("/farms", AsHandlerFunc(farmAPI.listFarm)).Methods("GET")
-	router.HandleFunc("/farms/{farm_id}", AsHandlerFunc(farmAPI.getFarm)).Methods("GET")
-
-	router.HandleFunc("/nodes", AsHandlerFunc(nodeAPI.registerNode)).Methods("POST")
-	router.HandleFunc("/nodes/{node_id}", AsHandlerFunc(nodeAPI.nodeDetail)).Methods("GET")
-	router.HandleFunc("/nodes/{node_id}/interfaces", AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerIfaces))).Methods("POST")
-	router.HandleFunc("/nodes/{node_id}/ports", AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerPorts))).Methods("POST")
-	router.HandleFunc("/nodes/{node_id}/configure_public", AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.configurePublic))).Methods("POST")
-	router.HandleFunc("/nodes/{node_id}/capacity", AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerCapacity))).Methods("POST")
-	router.HandleFunc("/nodes/{node_id}/uptime", AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.updateUptimeHandler))).Methods("POST")
-	router.HandleFunc("/nodes", AsHandlerFunc(nodeAPI.listNodes)).Methods("GET")
-
-	// compatibility with gedis_http
-	router.HandleFunc("/nodes/list", AsHandlerFunc(nodeAPI.cockpitListNodes)).Methods("POST")
-	router.HandleFunc("/farms/list", AsHandlerFunc(farmAPI.cockpitListFarm)).Methods("POST")
+	directory.Setup(router, db.Database())
 
 	// router.HandleFunc("/reservations/{node_id}", nodeAPI.Requires("node_id", resStore.reserve)).Methods("POST")
 	// router.HandleFunc("/reservations/{node_id}/poll", nodeAPI.Requires("node_id", resStore.poll)).Methods("GET")

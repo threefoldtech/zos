@@ -1,4 +1,4 @@
-package main
+package directory
 
 import (
 	"encoding/json"
@@ -13,45 +13,45 @@ import (
 	"github.com/threefoldtech/zos/pkg/schema"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/types/directory"
+	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 )
 
-func (s *NodeAPI) registerNode(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) registerNode(r *http.Request) (interface{}, mw.Response) {
 	log.Info().Msg("node register request received")
 
 	defer r.Body.Close()
 
 	var n directory.Node
 	if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
-		return nil, BadRequest(err)
+		return nil, mw.BadRequest(err)
 	}
 
 	db := mw.Database(r)
 	if _, err := s.Add(r.Context(), db, n); err != nil {
-		return nil, Error(err)
+		return nil, mw.Error(err)
 	}
 
 	log.Info().Msgf("node registered: %+v\n", n)
 
-	return nil, Created()
+	return nil, mw.Created()
 }
 
-func (s *NodeAPI) nodeDetail(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) nodeDetail(r *http.Request) (interface{}, mw.Response) {
 	nodeID := mux.Vars(r)["node_id"]
 	db := mw.Database(r)
 
 	node, err := s.Get(r.Context(), db, nodeID)
 	if err != nil {
-		return nil, NotFound(err)
+		return nil, mw.NotFound(err)
 	}
 
 	return node, nil
 }
 
-func (s *NodeAPI) listNodes(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
 	sFarm := r.URL.Query().Get("farm")
 
 	var (
@@ -62,7 +62,7 @@ func (s *NodeAPI) listNodes(r *http.Request) (interface{}, Response) {
 	if sFarm != "" {
 		farm, err = strconv.ParseUint(sFarm, 10, 64)
 		if err != nil {
-			return nil, BadRequest(errors.Wrap(err, "invalid farm id"))
+			return nil, mw.BadRequest(errors.Wrap(err, "invalid farm id"))
 		}
 	}
 
@@ -70,13 +70,13 @@ func (s *NodeAPI) listNodes(r *http.Request) (interface{}, Response) {
 
 	nodes, err := s.List(r.Context(), db, schema.ID(farm))
 	if err != nil {
-		return nil, Error(err)
+		return nil, mw.Error(err)
 	}
 
 	return nodes, nil
 }
 
-func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, mw.Response) {
 	sFarm := r.URL.Query().Get("farm")
 
 	var (
@@ -87,7 +87,7 @@ func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, Response) {
 	if sFarm != "" {
 		farm, err = strconv.ParseUint(sFarm, 10, 64)
 		if err != nil {
-			return nil, BadRequest(errors.Wrap(err, "invalid farm id"))
+			return nil, mw.BadRequest(errors.Wrap(err, "invalid farm id"))
 		}
 	}
 
@@ -95,7 +95,7 @@ func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, Response) {
 
 	nodes, err := s.List(r.Context(), db, schema.ID(farm))
 	if err != nil {
-		return nil, Error(err)
+		return nil, mw.Error(err)
 	}
 
 	x := struct {
@@ -105,7 +105,7 @@ func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, Response) {
 	return x, nil
 }
 
-func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, mw.Response) {
 	x := struct {
 		Capacity   generated.TfgridDirectoryNodeResourceAmount1 `json:"capacity,omitempty"`
 		DMI        dmi.DMI                                      `json:"dmi,omitempty"`
@@ -116,48 +116,48 @@ func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, Response) {
 	defer r.Body.Close()
 
 	if err := json.NewDecoder(r.Body).Decode(&x); err != nil {
-		return nil, BadRequest(err)
+		return nil, mw.BadRequest(err)
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
 	db := mw.Database(r)
 
 	if err := s.updateTotalCapacity(r.Context(), db, nodeID, x.Capacity); err != nil {
-		return nil, NotFound(err)
+		return nil, mw.NotFound(err)
 	}
 
 	if err := s.StoreProof(r.Context(), db, nodeID, x.DMI, x.Disks, x.Hypervisor); err != nil {
-		return nil, Error(err)
+		return nil, mw.Error(err)
 	}
 
 	return nil, nil
 }
 
-func (s *NodeAPI) registerIfaces(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) registerIfaces(r *http.Request) (interface{}, mw.Response) {
 	log.Debug().Msg("network interfaces register request received")
 
 	defer r.Body.Close()
 
 	var input []generated.TfgridDirectoryNodeIface1
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		return nil, BadRequest(err)
+		return nil, mw.BadRequest(err)
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
 	db := mw.Database(r)
 	if err := s.SetInterfaces(r.Context(), db, nodeID, input); err != nil {
-		return nil, Error(err)
+		return nil, mw.Error(err)
 	}
 
-	return nil, Created()
+	return nil, mw.Created()
 }
 
-func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, mw.Response) {
 	var iface types.PubIface
 
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&iface); err != nil {
-		return nil, BadRequest(err)
+		return nil, mw.BadRequest(err)
 	}
 
 	cfg := generated.TfgridDirectoryNodePublicIface1{
@@ -172,13 +172,13 @@ func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, Response) {
 	nodeID := mux.Vars(r)["node_id"]
 	db := mw.Database(r)
 	if err := s.SetPublicConfig(r.Context(), db, nodeID, cfg); err != nil {
-		return nil, Error(err)
+		return nil, mw.Error(err)
 	}
 
-	return nil, Created()
+	return nil, mw.Created()
 }
 
-func (s *NodeAPI) registerPorts(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) registerPorts(r *http.Request) (interface{}, mw.Response) {
 
 	defer r.Body.Close()
 
@@ -186,7 +186,7 @@ func (s *NodeAPI) registerPorts(r *http.Request) (interface{}, Response) {
 		Ports []uint `json:"ports"`
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		return nil, BadRequest(err)
+		return nil, mw.BadRequest(err)
 	}
 
 	log.Debug().Uints("ports", input.Ports).Msg("wireguard ports received")
@@ -194,20 +194,20 @@ func (s *NodeAPI) registerPorts(r *http.Request) (interface{}, Response) {
 	nodeID := mux.Vars(r)["node_id"]
 	db := mw.Database(r)
 	if err := s.SetWGPorts(r.Context(), db, nodeID, input.Ports); err != nil {
-		return nil, NotFound(err)
+		return nil, mw.NotFound(err)
 	}
 
 	return nil, nil
 }
 
-func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, mw.Response) {
 	defer r.Body.Close()
 
 	input := struct {
 		Uptime uint64
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		return nil, BadRequest(err)
+		return nil, mw.BadRequest(err)
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
@@ -215,7 +215,7 @@ func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, Response) {
 	log.Debug().Str("node", nodeID).Uint64("uptime", input.Uptime).Msg("node uptime received")
 
 	if err := s.updateUptime(r.Context(), db, nodeID, int64(input.Uptime)); err != nil {
-		return nil, NotFound(err)
+		return nil, mw.NotFound(err)
 	}
 
 	return nil, nil

@@ -1,4 +1,4 @@
-package main
+package directory
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/types/directory"
+	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -130,8 +130,8 @@ func (s *NodeAPI) SetWGPorts(ctx context.Context, db *mongo.Database, nodeID str
 	return directory.NodeSetWGPorts(ctx, db, nodeID, ports)
 }
 
-func (s *NodeAPI) Requires(key string, handler Action) Action {
-	return func(r *http.Request) (interface{}, Response) {
+func (s *NodeAPI) Requires(key string, handler mw.Action) mw.Action {
+	return func(r *http.Request) (interface{}, mw.Response) {
 		nodeID, ok := mux.Vars(r)[key]
 		if !ok {
 			// programming error, we should panic in this case
@@ -142,9 +142,9 @@ func (s *NodeAPI) Requires(key string, handler Action) Action {
 
 		exists, err := s.Exists(r.Context(), db, nodeID)
 		if err != nil {
-			return nil, Error(err)
+			return nil, mw.Error(err)
 		} else if !exists {
-			return nil, NotFound(fmt.Errorf("node '%s' not found", nodeID))
+			return nil, mw.NotFound(fmt.Errorf("node '%s' not found", nodeID))
 		}
 
 		return handler(r)

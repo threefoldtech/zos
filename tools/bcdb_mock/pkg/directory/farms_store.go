@@ -1,4 +1,4 @@
-package main
+package directory
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/types/directory"
+	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
