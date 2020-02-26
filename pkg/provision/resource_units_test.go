@@ -2,11 +2,12 @@ package provision
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_processZDB(t *testing.T) {
@@ -14,13 +15,61 @@ func Test_processZDB(t *testing.T) {
 		r *Reservation
 	}
 
-	zdb := ZDB{
-		Size:     1,
-		DiskType: pkg.SSDDevice,
+	tests := []struct {
+		name    string
+		args    args
+		want    resourceUnits
+		wantErr bool
+	}{
+		{
+			name: "zdbSSD",
+			args: args{
+				r: &Reservation{
+					Type: ZDBReservation,
+					Data: mustMarshalJson(t, ZDB{
+						Size:     1,
+						DiskType: pkg.SSDDevice,
+					}),
+				},
+			},
+			want: resourceUnits{
+				SRU: 1,
+			},
+			wantErr: false,
+		},
+		{
+			name: "zdbHDD",
+			args: args{
+				r: &Reservation{
+					Type: ZDBReservation,
+					Data: mustMarshalJson(t, ZDB{
+						Size:     1,
+						DiskType: pkg.HDDDevice,
+					}),
+				},
+			},
+			want: resourceUnits{
+				HRU: 1,
+			},
+			wantErr: false,
+		},
 	}
-	zdbEncoded, err := json.Marshal(zdb)
-	require.NoError(t, err)
-	t.Logf("%s", string(zdbEncoded))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := processZdb(tt.args.r)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func Test_processVolume(t *testing.T) {
+	type args struct {
+		r *Reservation
+	}
 
 	tests := []struct {
 		name    string
@@ -29,29 +78,166 @@ func Test_processZDB(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test1",
+			name: "volumeSSD",
 			args: args{
 				r: &Reservation{
-					Type: ZDBReservation,
-					Data: zdbEncoded,
+					Type: VolumeReservation,
+					Data: mustMarshalJson(t, Volume{
+						Size: 1,
+						Type: SSDDiskType,
+					}),
 				},
 			},
 			wantU: resourceUnits{
 				SRU: 1,
 			},
-			wantErr: false,
+		},
+		{
+			name: "volumeHDD",
+			args: args{
+				r: &Reservation{
+					Type: VolumeReservation,
+					Data: mustMarshalJson(t, Volume{
+						Size: 1,
+						Type: HDDDiskType,
+					}),
+				},
+			},
+			wantU: resourceUnits{
+				HRU: 1,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotU, err := processZdb(tt.args.r)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("processZdb() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(gotU, tt.wantU) {
-				t.Errorf("processZdb() = %v, want %v", gotU, tt.wantU)
+			gotU, err := processVolume(tt.args.r)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, tt.wantU, gotU)
 			}
 		})
 	}
+}
+
+func Test_processContainer(t *testing.T) {
+	type args struct {
+		r *Reservation
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		wantU   resourceUnits
+		wantErr bool
+	}{
+		{
+			name: "container",
+			args: args{
+				r: &Reservation{
+					Type: VolumeReservation,
+					Data: mustMarshalJson(t, Container{
+						Capacity: ContainerCapacity{
+							CPU:    2,
+							Memory: 1024,
+						},
+					}),
+				},
+			},
+			wantU: resourceUnits{
+				CRU: 2,
+				MRU: 1,
+			},
+		},
+		{
+			name: "container",
+			args: args{
+				r: &Reservation{
+					Type: VolumeReservation,
+					Data: mustMarshalJson(t, Container{
+						Capacity: ContainerCapacity{
+							CPU:    2,
+							Memory: 2000,
+						},
+					}),
+				},
+			},
+			wantU: resourceUnits{
+				CRU: 2,
+				MRU: 2,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotU, err := processContainer(tt.args.r)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, tt.wantU, gotU)
+			}
+		})
+	}
+}
+
+func Test_processKubernetes(t *testing.T) {
+	type args struct {
+		r *Reservation
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		wantU   resourceUnits
+		wantErr bool
+	}{
+		{
+			name: "k8sSize1",
+			args: args{
+				r: &Reservation{
+					Type: KubernetesReservation,
+					Data: mustMarshalJson(t, Kubernetes{
+						Size: 1,
+					}),
+				},
+			},
+			wantU: resourceUnits{
+				CRU: 1,
+				MRU: 2,
+				SRU: 50,
+			},
+		},
+		{
+			name: "k8sSize2",
+			args: args{
+				r: &Reservation{
+					Type: KubernetesReservation,
+					Data: mustMarshalJson(t, Kubernetes{
+						Size: 2,
+					}),
+				},
+			},
+			wantU: resourceUnits{
+				CRU: 2,
+				MRU: 4,
+				SRU: 100,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotU, err := processKubernetes(tt.args.r)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, tt.wantU, gotU)
+			}
+		})
+	}
+}
+
+func mustMarshalJson(t *testing.T, v interface{}) []byte {
+	b, err := json.Marshal(v)
+	require.NoError(t, err)
+	return b
 }

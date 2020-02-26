@@ -3,6 +3,7 @@ package provision
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 )
 
 func (s *FSStore) processResourceUnits(r *Reservation, addOrRemoveBool bool) error {
@@ -54,25 +55,25 @@ func processVolume(r *Reservation) (u resourceUnits, err error) {
 		return u, err
 	}
 
-	// volume.size in MiB, but SRU is in GiB
+	// volume.size and SRU is in GiB, not conversion needed
 	switch volume.Type {
 	case SSDDiskType:
-		u.SRU = int64(volume.Size / 1024)
+		u.SRU = int64(volume.Size)
 	case HDDDiskType:
-		u.HRU = int64(volume.Size / 1024)
+		u.HRU = int64(volume.Size)
 	}
 
 	return u, nil
 }
 
 func processContainer(r *Reservation) (u resourceUnits, err error) {
-	var contCap ContainerCapacity
-	if err = json.Unmarshal(r.Data, &contCap); err != nil {
+	var cont Container
+	if err = json.Unmarshal(r.Data, &cont); err != nil {
 		return u, err
 	}
-	u.CRU = int64(contCap.CPU)
-	// volume.size in MiB, but MRU is in GiB
-	u.MRU = int64(contCap.Memory / 1024)
+	u.CRU = int64(cont.Capacity.CPU)
+	// memory is in MiB, but MRU is in GiB
+	u.MRU = int64(math.Ceil(float64(cont.Capacity.Memory) / 1024.0))
 
 	return u, nil
 }
