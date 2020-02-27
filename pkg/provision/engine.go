@@ -28,7 +28,7 @@ type ReservationCache interface {
 type Feedbacker interface {
 	Feedback(id string, r *Result) error
 	Deleted(id string) error
-	UpdateUsedResources(nodeID string, c Counters) error
+	UpdateReservedResources(nodeID string, c Counters) error
 }
 
 type defaultEngine struct {
@@ -94,7 +94,7 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 					continue
 				}
 			}
-			if err := e.fb.UpdateUsedResources(e.nodeID, e.store.Counters()); err != nil {
+			if err := e.fb.UpdateReservedResources(e.nodeID, e.store.Counters()); err != nil {
 				log.Error().Err(err).Msg("failed to updated the used resources")
 			}
 		}
