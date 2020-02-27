@@ -83,3 +83,8 @@ func BadRequest(err error) Response {
 func NotFound(err error) Response {
 	return Error(err, http.StatusNotFound)
 }
+
+// Conflict response
+func Conflict(err error) Response {
+	return Error(err, http.StatusConflict)
+}
