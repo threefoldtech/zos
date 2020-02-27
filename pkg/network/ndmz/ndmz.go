@@ -39,10 +39,16 @@ const (
 	//NetNSNDMZ name of the dmz namespace
 	NetNSNDMZ = "ndmz"
 
-	ndmzNsMACDerivationSuffix = "-ndmz"
+	ndmzNsMACDerivationSuffix6 = "-ndmz6"
+	ndmzNsMACDerivationSuffix4 = "-ndmz4"
 
-	// PublicIfaceName interface name of dmz
-	PublicIfaceName = "public"
+	// DMZPub4 ipv4 public interface
+	DMZPub4 = "npub4"
+	// DMZPub6 ipv6 public interface
+	DMZPub6 = "npub6"
+
+	//nrPubIface is the name of the public interface in a network resource
+	nrPubIface = "public"
 )
 
 var ipamPath = "/var/cache/modules/networkd/lease"
@@ -96,22 +102,16 @@ func Create(nodeID pkg.Identifier) error {
 
 	defer netNS.Close()
 
-	if err := createRoutingBridge(netNS); err != nil {
+	if err := createRoutingBridge(BridgeNDMZ, netNS); err != nil {
 		return errors.Wrapf(err, "ndmz: createRoutingBride error")
 	}
 
-	if err := createPublicIface(netNS); err != nil {
-		return errors.Wrapf(err, "ndmz: createPublicIface error")
+	if err := createPubIface6(DMZPub6, netNS, nodeID); err != nil {
+		return errors.Wrapf(err, "ndmz: could not node create pub iface 6")
 	}
 
-	// set mac address to something static to make sure we receive the same IP from a DHCP server
-	mac := ifaceutil.HardwareAddrFromInputBytes([]byte(nodeID.Identity() + ndmzNsMACDerivationSuffix))
-	log.Debug().
-		Str("mac", mac.String()).
-		Msg("set mac on public iface")
-
-	if err = ifaceutil.SetMAC(types.PublicIface, mac, netNS); err != nil {
-		return err
+	if err := createPubIface4(DMZPub4, netNS, nodeID); err != nil {
+		return errors.Wrapf(err, "ndmz: could not create pub iface 4")
 	}
 
 	if err = applyFirewall(); err != nil {
@@ -119,17 +119,56 @@ func Create(nodeID pkg.Identifier) error {
 	}
 
 	return netNS.Do(func(_ ns.NetNS) error {
+		if err := ifaceutil.SetLoUp(); err != nil {
+			return errors.Wrapf(err, "ndmz: couldn't bring lo up in ndmz namespace")
+		}
 		// first, disable forwarding, so we can get an IPv6 deft route on public from an RA
 		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "0"); err != nil {
 			return errors.Wrapf(err, "ndmz: failed to disable ipv6 forwarding in ndmz namespace")
 		}
+		// also, set kernel parameter that public always accepts an ra even when forwarding
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.accept_ra", DMZPub6), "2"); err != nil {
+			return errors.Wrapf(err, "ndmz: failed to accept_ra=2 in ndmz namespace")
+		}
+		// the more, also accept defaultrouter (if isp doesn't have fe80::1 on his deft gw)
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.accept_ra_defrtr", DMZPub6), "1"); err != nil {
+			return errors.Wrapf(err, "ndmz: failed to enable enable_defrtr=1 in ndmz namespace")
+		}
+		// ipv4InterfaceArpProxySysctlTemple sets proxy_arp by default, not sure if that's a good idea
+		// but we disable only here because the rest works.
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv4.conf.%s.proxy_arp", DMZPub6), "0"); err != nil {
+			return errors.Wrapf(err, "ndmz: couldn't disable proxy-arp on %s in ndmz namespace", DMZPub6)
+		}
 		// run DHCP to interface public in ndmz
-		received, err := dhcp.Probe(types.PublicIface, netlink.FAMILY_V4)
+		probe := dhcp.NewProbe()
+
+		if err := probe.Start(DMZPub4); err != nil {
+			return err
+		}
+		defer probe.Stop()
+
+		link, err := netlink.LinkByName(DMZPub4)
 		if err != nil {
 			return err
 		}
-		if !received {
-			return errors.Errorf("public interface in ndmz did not received an IP. make sure dhcp is working")
+
+		cTimeout := time.After(time.Second * 30)
+	Loop:
+		for {
+			select {
+			case <-cTimeout:
+				return errors.Errorf("public interface in ndmz did not received an IP. make sure DHCP is working")
+			default:
+				hasGW, _, err := ifaceutil.HasDefaultGW(link, netlink.FAMILY_V4)
+				if err != nil {
+					return err
+				}
+				if !hasGW {
+					time.Sleep(time.Second)
+					continue
+				}
+				break Loop
+			}
 		}
 
 		var routes []netlink.Route
@@ -145,7 +184,7 @@ func Create(nodeID pkg.Identifier) error {
 		}
 
 		bo := backoff.NewExponentialBackOff()
-		bo.MaxElapsedTime = 15 * time.Second
+		bo.MaxElapsedTime = 122 * time.Second // default RA from router is every 60 secs
 		if err := backoff.Retry(getRoutes, bo); err != nil {
 			return err
 		}
@@ -154,24 +193,9 @@ func Create(nodeID pkg.Identifier) error {
 			if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
 				return errors.Wrapf(err, "ndmz: failed to enable ipv6 forwarding in ndmz namespace")
 			}
-			pubiface, err := netlink.LinkByName(types.PublicIface)
-			if err != nil {
-				return errors.Wrapf(err, "ndmz:couldn't find public iface")
-			}
-			deftgw := &netlink.Route{
-				Dst: &net.IPNet{
-					IP:   net.ParseIP("::"),
-					Mask: net.CIDRMask(0, 128),
-				},
-				Gw:        routes[0].Gw,
-				LinkIndex: pubiface.Attrs().Index,
-			}
-			if err = netlink.RouteAdd(deftgw); err != nil {
-				return errors.Wrapf(err, "could not reapply the default route")
-			}
 		}
+		return nil
 
-		return ifaceutil.SetLoUp()
 	})
 }
 
@@ -187,9 +211,9 @@ func Delete() error {
 	return nil
 }
 
-func createPublicIface(netNS ns.NetNS) error {
+func createPubIface6(name string, netNS ns.NetNS, nodeID pkg.Identifier) error {
 	var pubIface string
-	if !ifaceutil.Exists(types.PublicIface, netNS) {
+	if !ifaceutil.Exists(name, netNS) {
 
 		// find which interface to use as master for the macvlan
 		if namespace.Exists(types.PublicNamespace) {
@@ -227,30 +251,70 @@ func createPublicIface(netNS ns.NetNS) error {
 			pubIface = found
 		}
 
-		_, err := macvlan.Create(types.PublicIface, pubIface, netNS)
-		return err
+		if _, err := macvlan.Create(name, pubIface, netNS); err != nil {
+			return err
+		}
 	}
 
-	return nil
+	return netNS.Do(func(_ ns.NetNS) error {
+		// set mac address to something static to make sure we receive the same IP from a DHCP server
+		mac := ifaceutil.HardwareAddrFromInputBytes([]byte(nodeID.Identity() + ndmzNsMACDerivationSuffix6))
+		log.Debug().
+			Str("mac", mac.String()).
+			Str("interface", name).
+			Msg("set mac on ipv6 ndmz public iface")
+
+		if err := ifaceutil.SetMAC(name, mac, nil); err != nil {
+			return err
+		}
+
+		link, err := netlink.LinkByName(name)
+		if err != nil {
+			return err
+		}
+		return netlink.LinkSetUp(link)
+	})
 }
 
-func createRoutingBridge(netNS ns.NetNS) error {
-	if !bridge.Exists(BridgeNDMZ) {
-		if _, err := bridge.New(BridgeNDMZ); err != nil {
-			return errors.Wrapf(err, "couldn't create bridge %s", BridgeNDMZ)
+func createPubIface4(name string, netNS ns.NetNS, nodeID pkg.Identifier) error {
+	if !ifaceutil.Exists(name, netNS) {
+		if _, err := macvlan.Create(name, types.DefaultBridge, netNS); err != nil {
+			return err
+		}
+	}
+
+	return netNS.Do(func(_ ns.NetNS) error {
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "1"); err != nil {
+			return errors.Wrapf(err, "failed to disable ip6 on %s", name)
+		}
+		// set mac address to something static to make sure we receive the same IP from a DHCP server
+		mac := ifaceutil.HardwareAddrFromInputBytes([]byte(nodeID.Identity() + ndmzNsMACDerivationSuffix4))
+		log.Debug().
+			Str("mac", mac.String()).
+			Str("interface", name).
+			Msg("set mac on ipv4 ndmz public iface")
+
+		return ifaceutil.SetMAC(name, mac, nil)
+	})
+}
+
+func createRoutingBridge(name string, netNS ns.NetNS) error {
+	if !bridge.Exists(name) {
+		if _, err := bridge.New(name); err != nil {
+			return errors.Wrapf(err, "couldn't create bridge %s", name)
 		}
 	}
 
 	const tonrsIface = "tonrs"
 
 	if !ifaceutil.Exists(tonrsIface, netNS) {
-		if _, err := macvlan.Create(tonrsIface, BridgeNDMZ, netNS); err != nil {
+		if _, err := macvlan.Create(tonrsIface, name, netNS); err != nil {
 			return errors.Wrapf(err, "ndmz: couldn't create %s", tonrsIface)
 		}
 	}
 
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", BridgeNDMZ), "1"); err != nil {
-		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", BridgeNDMZ)
+	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "1"); err != nil {
+		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", name)
 	}
 
 	return netNS.Do(func(_ ns.NetNS) error {
@@ -321,8 +385,8 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 		return err
 	}
 
-	if !ifaceutil.Exists(PublicIfaceName, nrNS) {
-		if _, err = macvlan.Create(PublicIfaceName, BridgeNDMZ, nrNS); err != nil {
+	if !ifaceutil.Exists(nrPubIface, nrNS) {
+		if _, err = macvlan.Create(nrPubIface, BridgeNDMZ, nrNS); err != nil {
 			return err
 		}
 	}
@@ -333,7 +397,7 @@ func AttachNR(networkID string, nr *nr.NetResource) error {
 			return errors.Wrap(err, "ip allocation for network resource")
 		}
 
-		pubIface, err := netlink.LinkByName(PublicIfaceName)
+		pubIface, err := netlink.LinkByName(nrPubIface)
 		if err != nil {
 			return err
 		}
