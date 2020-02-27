@@ -1,6 +1,9 @@
 package models
 
 import (
+	"net/http"
+	"strconv"
+
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -20,4 +23,29 @@ func Page(p int64, size ...int64) Pager {
 	}
 	skip := p * ps
 	return options.Find().SetLimit(ps).SetSkip(skip)
+}
+
+// PageFromRequest return page information from the page & size url params
+func PageFromRequest(r *http.Request) Pager {
+	var (
+		p = r.FormValue("page")
+		s = r.FormValue("size")
+
+		page int64 = 0
+		size int64 = DefaultPageSize
+	)
+
+	if len(p) != 0 {
+		page, _ = strconv.ParseInt(p, 10, 64)
+	}
+	if len(s) != 0 {
+		size, _ = strconv.ParseInt(s, 10, 64)
+	}
+
+	// make sure user doesn't kill the server by returning too much data
+	if size > 1000 {
+		size = 1000
+	}
+
+	return Page(page, size)
 }

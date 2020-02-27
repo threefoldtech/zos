@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
 )
@@ -38,6 +39,14 @@ func (u *UserAPI) create(r *http.Request) (interface{}, mw.Response) {
 	return user, nil
 }
 
+/*
+register
+As implemented in threebot. It works as a USER update function. To update
+any fields, you need to make sure your payload has an extra "sender_signature_hex"
+field that is the signature of the payload using the user private key.
+
+This signature is done on a message that is built as defined by the User.Encode() method
+*/
 func (u *UserAPI) register(r *http.Request) (interface{}, mw.Response) {
 	userID := mux.Vars(r)["user_id"]
 	id, err := strconv.ParseInt(userID, 10, 64)
@@ -71,4 +80,32 @@ func (u *UserAPI) register(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	return nil, nil
+}
+
+func (u *UserAPI) list(r *http.Request) (interface{}, mw.Response) {
+	var (
+		name  = r.FormValue("name")
+		email = r.FormValue("email")
+	)
+
+	var filter types.UserFilter
+	if len(name) != 0 {
+		filter = filter.WithName(name)
+	}
+	if len(email) != 0 {
+		filter = filter.WithEmail(email)
+	}
+
+	db := mw.Database(r)
+	cur, err := filter.Find(r.Context(), db, models.PageFromRequest(r))
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	users := []types.User{}
+	if err := cur.All(r.Context(), &users); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return users, nil
 }
