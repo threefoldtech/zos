@@ -26,7 +26,7 @@ func Test_processZDB(t *testing.T) {
 			args: args{
 				r: &Reservation{
 					Type: ZDBReservation,
-					Data: mustMarshalJson(t, ZDB{
+					Data: mustMarshalJSON(t, ZDB{
 						Size:     1,
 						DiskType: pkg.SSDDevice,
 					}),
@@ -42,7 +42,7 @@ func Test_processZDB(t *testing.T) {
 			args: args{
 				r: &Reservation{
 					Type: ZDBReservation,
-					Data: mustMarshalJson(t, ZDB{
+					Data: mustMarshalJSON(t, ZDB{
 						Size:     1,
 						DiskType: pkg.HDDDevice,
 					}),
@@ -82,7 +82,7 @@ func Test_processVolume(t *testing.T) {
 			args: args{
 				r: &Reservation{
 					Type: VolumeReservation,
-					Data: mustMarshalJson(t, Volume{
+					Data: mustMarshalJSON(t, Volume{
 						Size: 1,
 						Type: SSDDiskType,
 					}),
@@ -97,7 +97,7 @@ func Test_processVolume(t *testing.T) {
 			args: args{
 				r: &Reservation{
 					Type: VolumeReservation,
-					Data: mustMarshalJson(t, Volume{
+					Data: mustMarshalJSON(t, Volume{
 						Size: 1,
 						Type: HDDDiskType,
 					}),
@@ -136,7 +136,7 @@ func Test_processContainer(t *testing.T) {
 			args: args{
 				r: &Reservation{
 					Type: VolumeReservation,
-					Data: mustMarshalJson(t, Container{
+					Data: mustMarshalJSON(t, Container{
 						Capacity: ContainerCapacity{
 							CPU:    2,
 							Memory: 1024,
@@ -154,7 +154,7 @@ func Test_processContainer(t *testing.T) {
 			args: args{
 				r: &Reservation{
 					Type: VolumeReservation,
-					Data: mustMarshalJson(t, Container{
+					Data: mustMarshalJSON(t, Container{
 						Capacity: ContainerCapacity{
 							CPU:    2,
 							Memory: 2000,
@@ -196,7 +196,7 @@ func Test_processKubernetes(t *testing.T) {
 			args: args{
 				r: &Reservation{
 					Type: KubernetesReservation,
-					Data: mustMarshalJson(t, Kubernetes{
+					Data: mustMarshalJSON(t, Kubernetes{
 						Size: 1,
 					}),
 				},
@@ -212,7 +212,7 @@ func Test_processKubernetes(t *testing.T) {
 			args: args{
 				r: &Reservation{
 					Type: KubernetesReservation,
-					Data: mustMarshalJson(t, Kubernetes{
+					Data: mustMarshalJSON(t, Kubernetes{
 						Size: 2,
 					}),
 				},
@@ -236,7 +236,7 @@ func Test_processKubernetes(t *testing.T) {
 	}
 }
 
-func mustMarshalJson(t *testing.T, v interface{}) []byte {
+func mustMarshalJSON(t *testing.T, v interface{}) []byte {
 	b, err := json.Marshal(v)
 	require.NoError(t, err)
 	return b

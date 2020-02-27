@@ -66,6 +66,8 @@ type (
 		counters Counters
 	}
 
+	// Counters tracks the amount of primitives workload deployed and
+	// the amount of resource unit used
 	Counters struct {
 		containers counterImpl
 		volumes    counterImpl

@@ -189,7 +189,8 @@ func (s *HTTPStore) Delete(id string) error {
 	return nil
 }
 
-func (s *HTTPStore) UpdateUsedResources(nodeID string, c Counters) error {
+// UpdateReservedResources send the amount of resource units reserved to BCDB
+func (s *HTTPStore) UpdateReservedResources(nodeID string, c Counters) error {
 	url := fmt.Sprintf("%s/nodes/%s/used_resources", s.baseURL, nodeID)
 
 	u := resourceUnits{
