@@ -126,20 +126,7 @@ func UserCreate(ctx context.Context, db *mongo.Database, name, email, pubkey str
 
 // UserUpdate update user info
 func UserUpdate(ctx context.Context, db *mongo.Database, id schema.ID, signature []byte, update User) error {
-	key, err := crypto.KeyFromHex(update.Pubkey)
-	if err != nil {
-		return err
-	}
-
 	update.ID = id
-	// NOTE: verification here is done over the update request
-	// date. We make sure that the signature is indeed done
-	// with the priv key part of the enclosed public key
-	encoded := update.Encode()
-	log.Debug().Str("encoded", string(encoded)).Msg("encoded message")
-	if err := crypto.Verify(key, encoded, signature); err != nil {
-		return errors.Wrap(err, "payload verification failed")
-	}
 
 	// then we find the user that matches this given ID
 	var filter UserFilter
@@ -150,10 +137,31 @@ func UserUpdate(ctx context.Context, db *mongo.Database, id schema.ID, signature
 		return ErrUserNotFound
 	}
 
-	// if the public key does not match the one
-	// we have, then we reject the update
-	if current.Pubkey != update.Pubkey {
-		return fmt.Errorf("invalid public key")
+	// user need to always sign with current stored public key
+	// even to update new key
+	key, err := crypto.KeyFromHex(current.Pubkey)
+	if err != nil {
+		return err
+	}
+
+	// NOTE: verification here is done over the update request
+	// data. We make sure that the signature is indeed done
+	// with the priv key part of the user
+	encoded := update.Encode()
+	log.Debug().Str("encoded", string(encoded)).Msg("encoded message")
+	if err := crypto.Verify(key, encoded, signature); err != nil {
+		return errors.Wrap(err, "payload verification failed")
+	}
+
+	// if public key update is required, we make sure
+	// that is valid key.
+	if len(update.Pubkey) != 0 {
+		_, err := crypto.KeyFromHex(update.Pubkey)
+		if err != nil {
+			return fmt.Errorf("invalid public key")
+		}
+
+		current.Pubkey = update.Pubkey
 	}
 
 	// sanity check make sure user is not trying to update his name

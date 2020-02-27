@@ -21,13 +21,9 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 
 	users.HandleFunc("", mw.AsHandlerFunc(userAPI.create)).Methods(http.MethodPost)
 	users.HandleFunc("", mw.AsHandlerFunc(userAPI.list)).Methods(http.MethodGet)
-	// .Queries(
-	// 	"page", `{page:\d+}`,
-	// 	"size", `{size:\d+}`,
-	// 	"name", "",
-	// )
-
 	users.HandleFunc("/{user_id}", mw.AsHandlerFunc(userAPI.register)).Methods(http.MethodPut)
+	users.HandleFunc("/{user_id}", mw.AsHandlerFunc(userAPI.get)).Methods(http.MethodGet)
+	users.HandleFunc("/{user_id}/validate", mw.AsHandlerFunc(userAPI.validate)).Methods(http.MethodPost)
 
 	return nil
 }
