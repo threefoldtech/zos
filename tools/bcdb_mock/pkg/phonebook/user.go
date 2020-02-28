@@ -50,8 +50,7 @@ field that is the signature of the payload using the user private key.
 This signature is done on a message that is built as defined by the User.Encode() method
 */
 func (u *UserAPI) register(r *http.Request) (interface{}, mw.Response) {
-	userID := mux.Vars(r)["user_id"]
-	id, err := strconv.ParseInt(userID, 10, 64)
+	id, err := u.parseID(mux.Vars(r)["user_id"])
 	if err != nil {
 		return nil, mw.BadRequest(errors.Wrap(err, "invalid user id"))
 	}

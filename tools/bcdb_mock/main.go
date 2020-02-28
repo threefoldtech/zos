@@ -18,6 +18,7 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
 )
 
 type Pkg func(*mux.Router, *mongo.Database) error
@@ -40,7 +41,13 @@ func main() {
 
 	router.Use(db.Middleware)
 
-	for _, pkg := range []Pkg{directory.Setup, phonebook.Setup} {
+	pkgs := []Pkg{
+		phonebook.Setup,
+		directory.Setup,
+		workloads.Setup,
+	}
+
+	for _, pkg := range pkgs {
 		if err := pkg(router, db.Database()); err != nil {
 			log.Error().Err(err).Msg("failed to register package")
 		}
