@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -153,7 +154,7 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 	data := &reservation.DataReservation
 	var workloads []types.Workload
 	for _, r := range data.Containers {
-		if r.NodeId != nodeID {
+		if len(nodeID) > 0 && r.NodeId != nodeID {
 			continue
 		}
 		workload := types.Workload{
@@ -170,7 +171,7 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 	}
 
 	for _, r := range data.Volumes {
-		if r.NodeId != nodeID {
+		if len(nodeID) > 0 && r.NodeId != nodeID {
 			continue
 		}
 		workload := types.Workload{
@@ -187,7 +188,7 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 	}
 
 	for _, r := range data.Zdbs {
-		if r.NodeId != nodeID {
+		if len(nodeID) > 0 && r.NodeId != nodeID {
 			continue
 		}
 		workload := types.Workload{
@@ -204,7 +205,7 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 	}
 
 	for _, r := range data.Kubernetes {
-		if r.NodeId != nodeID {
+		if len(nodeID) > 0 && r.NodeId != nodeID {
 			continue
 		}
 		workload := types.Workload{
@@ -222,11 +223,16 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 
 	for _, r := range data.Networks {
 		found := false
-		for _, nr := range r.NetworkResources {
-			if nr.NodeId == nodeID {
-				found = true
-				break
+		if len(nodeID) > 0 {
+			for _, nr := range r.NetworkResources {
+				if nr.NodeId == nodeID {
+					found = true
+					break
+				}
 			}
+		} else {
+			// if node id is not set, we list all workloads
+			found = true
 		}
 
 		if !found {
@@ -310,4 +316,32 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 	a.updateMany(db, needUpdate)
 
 	return workloads, nil
+}
+
+func (a *API) workloadGet(r *http.Request) (interface{}, mw.Response) {
+	gwid := mux.Vars(r)["gwid"]
+
+	rid, err := a.parseID(strings.Split(gwid, "-")[0])
+	if err != nil {
+		return nil, mw.BadRequest(errors.Wrap(err, "invalid reservation id part"))
+	}
+
+	var filter types.ReservationFilter
+	filter = filter.WithID(rid)
+
+	db := mw.Database(r)
+	reservation, err := filter.Get(r.Context(), db)
+	if err != nil {
+		return nil, mw.NotFound(err)
+	}
+	// we use an empty node-id in listing to return all workloads in this reservation
+	workloads := a.workloadsFromReserveration("", &reservation)
+
+	for _, wl := range workloads {
+		if wl.WorkloadId == gwid {
+			return wl, nil
+		}
+	}
+
+	return nil, mw.NotFound(fmt.Errorf("workload not found"))
 }
