@@ -20,11 +20,16 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 	reservations := parent.PathPrefix("/reservations").Subrouter()
 
 	reservations.HandleFunc("", mw.AsHandlerFunc(api.create)).Methods(http.MethodPost)
-	reservations.HandleFunc("/{res_id}", mw.AsHandlerFunc(api.get)).Methods(http.MethodGet)
-	// users.HandleFunc("", mw.AsHandlerFunc(api.list)).Methods(http.MethodGet)
-	// users.HandleFunc("/{user_id}", mw.AsHandlerFunc(userAPI.register)).Methods(http.MethodPut)
-	// users.HandleFunc("/{user_id}", mw.AsHandlerFunc(userAPI.get)).Methods(http.MethodGet)
-	// users.HandleFunc("/{user_id}/validate", mw.AsHandlerFunc(userAPI.validate)).Methods(http.MethodPost)
+	reservations.HandleFunc("", mw.AsHandlerFunc(api.list)).Methods(http.MethodGet)
+	reservations.HandleFunc("/{res_id:\\d+}", mw.AsHandlerFunc(api.get)).Methods(http.MethodGet)
+
+	reservations.HandleFunc("/workloads/{node_id}", mw.AsHandlerFunc(api.workloads)).Queries("from", "{from:\\d+}").Methods(http.MethodGet)
+
+	// router.HandleFunc("/reservations/{node_id}/poll", nodeStore.Requires("node_id", resStore.poll)).Methods("GET")
+	// router.HandleFunc("/reservations/{id}", resStore.get).Methods("GET")
+	// router.HandleFunc("/reservations/{id}", resStore.putResult).Methods("PUT")
+	// router.HandleFunc("/reservations/{id}/deleted", resStore.putDeleted).Methods("PUT")
+	// router.HandleFunc("/reservations/{id}", resStore.delete).Methods("DELETE")
 
 	return nil
 }

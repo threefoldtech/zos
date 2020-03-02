@@ -39,6 +39,30 @@ func (f ReservationFilter) WithID(id schema.ID) ReservationFilter {
 	return append(f, bson.E{Key: "_id", Value: id})
 }
 
+// WithIdGE return find reservations with
+func (f ReservationFilter) WithIdGE(id schema.ID) ReservationFilter {
+	return append(f, bson.E{
+		Key: "_id", Value: bson.M{"$gte": id},
+	})
+}
+
+// WithNodeID searsch reservations with NodeID
+func (f ReservationFilter) WithNodeID(id string) ReservationFilter {
+	//data_reservation.{containers, volumes, zdbs, networks, kubernetes}.node_id
+	// we need to search ALL types for any reservation that has the node ID
+	or := []bson.M{}
+	for _, typ := range []string{"containers", "volumes", "zdbs", "kubernetes"} {
+		key := fmt.Sprintf("data_reservation.%s.node_id", typ)
+		or = append(or, bson.M{key: id})
+	}
+
+	// network workload is special because node id is set on the network_resources.
+	or = append(or, bson.M{"data_reservation.networks.network_resources.node_id": id})
+
+	// we find any reservation that has this node ID set.
+	return append(f, bson.E{Key: "$or", Value: or})
+}
+
 // Get gets single reservation that matches the filter
 func (f ReservationFilter) Get(ctx context.Context, db *mongo.Database) (reservation Reservation, err error) {
 	if f == nil {
@@ -83,6 +107,44 @@ func (r *Reservation) validate() error {
 
 	if !reflect.DeepEqual(r.DataReservation, data) {
 		return fmt.Errorf("json data does not match the reservation data")
+	}
+
+	ids := make(map[int64]struct{})
+
+	// yes, it's ugly. live with it.
+	for _, w := range r.DataReservation.Containers {
+		if _, ok := ids[w.WorkloadId]; ok {
+			return fmt.Errorf("conflicting workload ID '%d'", w.WorkloadId)
+		}
+		ids[w.WorkloadId] = struct{}{}
+	}
+
+	for _, w := range r.DataReservation.Networks {
+		if _, ok := ids[w.WorkloadId]; ok {
+			return fmt.Errorf("conflicting workload ID '%d'", w.WorkloadId)
+		}
+		ids[w.WorkloadId] = struct{}{}
+	}
+
+	for _, w := range r.DataReservation.Zdbs {
+		if _, ok := ids[w.WorkloadId]; ok {
+			return fmt.Errorf("conflicting workload ID '%d'", w.WorkloadId)
+		}
+		ids[w.WorkloadId] = struct{}{}
+	}
+
+	for _, w := range r.DataReservation.Volumes {
+		if _, ok := ids[w.WorkloadId]; ok {
+			return fmt.Errorf("conflicting workload ID '%d'", w.WorkloadId)
+		}
+		ids[w.WorkloadId] = struct{}{}
+	}
+
+	for _, w := range r.DataReservation.Kubernetes {
+		if _, ok := ids[w.WorkloadId]; ok {
+			return fmt.Errorf("conflicting workload ID '%d'", w.WorkloadId)
+		}
+		ids[w.WorkloadId] = struct{}{}
 	}
 
 	return nil
@@ -134,3 +196,6 @@ func ReservationCreate(ctx context.Context, db *mongo.Database, r Reservation) (
 
 	return id, nil
 }
+
+// Workload is a wrapper around generated TfgridWorkloadsReservationWorkload1 type
+type Workload generated.TfgridWorkloadsReservationWorkload1

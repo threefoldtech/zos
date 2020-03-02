@@ -2,8 +2,9 @@ package workloads
 
 import (
 	"encoding/json"
-	schema "github.com/threefoldtech/zos/pkg/schema"
 	"net"
+
+	schema "github.com/threefoldtech/zos/pkg/schema"
 )
 
 type TfgridWorkloadsReservation1 struct {
@@ -258,12 +259,13 @@ func NewTfgridWorkloadsReservationVolume1() (TfgridWorkloadsReservationVolume1, 
 	return object, nil
 }
 
+// NOTE: this type has some manual changes
+// that need to be preserved between regenerations.
 type TfgridWorkloadsReservationWorkload1 struct {
-	ID         schema.ID                                   `bson:"_id" json:"id"`
 	WorkloadId string                                      `bson:"workload_id" json:"workload_id"`
 	User       string                                      `bson:"user" json:"user"`
 	Type       TfgridWorkloadsReservationWorkload1TypeEnum `bson:"type" json:"type"`
-	Content    map[string]interface{}                      `bson:"content" json:"content"`
+	Content    interface{}                                 `bson:"content" json:"content"`
 	Created    schema.Date                                 `bson:"created" json:"created"`
 	Duration   int64                                       `bson:"duration" json:"duration"`
 	Signature  string                                      `bson:"signature" json:"signature"`

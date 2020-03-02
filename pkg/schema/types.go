@@ -59,10 +59,10 @@ func (d *Date) UnmarshalJSON(bytes []byte) error {
 	var in string
 	switch v := inI.(type) {
 	case int64:
-		d.Time = time.Unix(v, 0)
+		d.Time = time.Unix(v, 0).UTC()
 		return nil
 	case float64:
-		d.Time = time.Unix(int64(v), 0)
+		d.Time = time.Unix(int64(v), 0).UTC()
 		return nil
 	case string:
 		in = v
