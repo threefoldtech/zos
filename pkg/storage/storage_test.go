@@ -122,6 +122,10 @@ func (p *testPool) RemoveVolume(name string) error {
 	return args.Error(1)
 }
 
+func (p *testPool) Devices() []*filesystem.Device {
+	return []*filesystem.Device{}
+}
+
 func TestCreateSubvol(t *testing.T) {
 	require := require.New(t)
 
