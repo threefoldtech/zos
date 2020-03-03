@@ -35,10 +35,13 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.BadRequest(fmt.Errorf("creating for a reservation that expires in the past"))
 	}
 
-	// we can't start with any of the signatures
-	reservation.SignaturesProvision = nil
-	reservation.SignaturesDelete = nil
-	reservation.SignaturesFarmer = nil
+	// we make sure those arrays are initialized correctly
+	// this will make updating the document in place much easier
+	// in later stages
+	reservation.SignaturesProvision = make([]generated.TfgridWorkloadsReservationSigningSignature1, 0)
+	reservation.SignaturesDelete = make([]generated.TfgridWorkloadsReservationSigningSignature1, 0)
+	reservation.SignaturesFarmer = make([]generated.TfgridWorkloadsReservationSigningSignature1, 0)
+	reservation.Results = make([]generated.TfgridWorkloadsReservationResult1, 0)
 
 	pipeline, err := types.NewPipeline(reservation)
 	if err != nil {
@@ -158,13 +161,16 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 			continue
 		}
 		workload := types.Workload{
-			WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-			User:       fmt.Sprint(reservation.CustomerTid),
-			Type:       generated.TfgridWorkloadsReservationWorkload1TypeContainer,
-			Content:    r,
-			Created:    reservation.Epoch,
-			Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-			ToDelete:   reservation.NextAction == types.Delete,
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
+				User:       fmt.Sprint(reservation.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeContainer,
+				Content:    r,
+				Created:    reservation.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
+				ToDelete:   reservation.NextAction == types.Delete,
+			},
+			NodeID: r.NodeId,
 		}
 
 		workloads = append(workloads, workload)
@@ -175,13 +181,16 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 			continue
 		}
 		workload := types.Workload{
-			WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-			User:       fmt.Sprint(reservation.CustomerTid),
-			Type:       generated.TfgridWorkloadsReservationWorkload1TypeVolume,
-			Content:    r,
-			Created:    reservation.Epoch,
-			Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-			ToDelete:   reservation.NextAction == types.Delete,
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
+				User:       fmt.Sprint(reservation.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeVolume,
+				Content:    r,
+				Created:    reservation.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
+				ToDelete:   reservation.NextAction == types.Delete,
+			},
+			NodeID: r.NodeId,
 		}
 
 		workloads = append(workloads, workload)
@@ -192,13 +201,16 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 			continue
 		}
 		workload := types.Workload{
-			WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-			User:       fmt.Sprint(reservation.CustomerTid),
-			Type:       generated.TfgridWorkloadsReservationWorkload1TypeZdb,
-			Content:    r,
-			Created:    reservation.Epoch,
-			Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-			ToDelete:   reservation.NextAction == types.Delete,
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
+				User:       fmt.Sprint(reservation.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeZdb,
+				Content:    r,
+				Created:    reservation.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
+				ToDelete:   reservation.NextAction == types.Delete,
+			},
+			NodeID: r.NodeId,
 		}
 
 		workloads = append(workloads, workload)
@@ -209,13 +221,16 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 			continue
 		}
 		workload := types.Workload{
-			WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-			User:       fmt.Sprint(reservation.CustomerTid),
-			Type:       generated.TfgridWorkloadsReservationWorkload1TypeKubernetes,
-			Content:    r,
-			Created:    reservation.Epoch,
-			Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-			ToDelete:   reservation.NextAction == types.Delete,
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
+				User:       fmt.Sprint(reservation.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeKubernetes,
+				Content:    r,
+				Created:    reservation.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
+				ToDelete:   reservation.NextAction == types.Delete,
+			},
+			NodeID: r.NodeId,
 		}
 
 		workloads = append(workloads, workload)
@@ -240,13 +255,16 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 		}
 
 		workload := types.Workload{
-			WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-			User:       fmt.Sprint(reservation.CustomerTid),
-			Type:       generated.TfgridWorkloadsReservationWorkload1TypeNetwork,
-			Content:    r,
-			Created:    reservation.Epoch,
-			Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-			ToDelete:   reservation.NextAction == types.Delete,
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
+				User:       fmt.Sprint(reservation.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeNetwork,
+				Content:    r,
+				Created:    reservation.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
+				ToDelete:   reservation.NextAction == types.Delete,
+			},
+			NodeID: nodeID,
 		}
 
 		workloads = append(workloads, workload)
@@ -337,11 +355,76 @@ func (a *API) workloadGet(r *http.Request) (interface{}, mw.Response) {
 	// we use an empty node-id in listing to return all workloads in this reservation
 	workloads := a.workloadsFromReserveration("", &reservation)
 
+	var workload *types.Workload
 	for _, wl := range workloads {
 		if wl.WorkloadId == gwid {
-			return wl, nil
+			workload = &wl
+			break
 		}
 	}
 
-	return nil, mw.NotFound(fmt.Errorf("workload not found"))
+	if workload == nil {
+		return nil, mw.NotFound(fmt.Errorf("workload not found"))
+	}
+	var result struct {
+		types.Workload
+		Result *types.Result `json:"result"`
+	}
+	result.Workload = *workload
+	for _, rs := range reservation.Results {
+		if rs.WorkloadId == workload.WorkloadId {
+			t := types.Result(rs)
+			result.Result = &t
+			break
+		}
+	}
+
+	return result, nil
+}
+
+func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
+	defer r.Body.Close()
+
+	nodeID := mux.Vars(r)["node_id"]
+	gwid := mux.Vars(r)["gwid"]
+
+	rid, err := a.parseID(strings.Split(gwid, "-")[0])
+	if err != nil {
+		return nil, mw.BadRequest(errors.Wrap(err, "invalid reservation id part"))
+	}
+
+	var result types.Result
+	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
+		return nil, mw.BadRequest(err)
+	}
+
+	var filter types.ReservationFilter
+	filter = filter.WithID(rid)
+
+	db := mw.Database(r)
+	reservation, err := filter.Get(r.Context(), db)
+	if err != nil {
+		return nil, mw.NotFound(err)
+	}
+	// we use an empty node-id in listing to return all workloads in this reservation
+	workloads := a.workloadsFromReserveration(nodeID, &reservation)
+	var workload *types.Workload
+	for _, wl := range workloads {
+		if wl.WorkloadId == gwid {
+			workload = &wl
+			break
+		}
+	}
+
+	if workload == nil {
+		return nil, mw.NotFound(errors.New("workload not found"))
+	}
+
+	result.WorkloadId = gwid
+
+	if err := types.PushResult(r.Context(), db, rid, result); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return nil, mw.Created()
 }

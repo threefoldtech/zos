@@ -198,4 +198,39 @@ func ReservationCreate(ctx context.Context, db *mongo.Database, r Reservation) (
 }
 
 // Workload is a wrapper around generated TfgridWorkloadsReservationWorkload1 type
-type Workload generated.TfgridWorkloadsReservationWorkload1
+type Workload struct {
+	generated.TfgridWorkloadsReservationWorkload1
+	NodeID string `json:"-" bson:"-"`
+}
+
+// Result is a wrapper around TfgridWorkloadsReservationResult1 type
+type Result generated.TfgridWorkloadsReservationResult1
+
+// PushResult pushes result to a reservation result array.
+// NOTE: this is just a crud operation, no validation is done here
+func PushResult(ctx context.Context, db *mongo.Database, id schema.ID, result Result) error {
+	col := db.Collection(reservationCollection)
+	var filter ReservationFilter
+	filter = filter.WithID(id)
+
+	// we don't care if we couldn't delete old result.
+	// in case it never existed, or the array is nil.
+	col.UpdateOne(ctx, filter, bson.M{
+		"$pull": bson.M{
+			"results": bson.M{
+				"workload_id": result.WorkloadId,
+			},
+		},
+	})
+
+	_, err := col.UpdateOne(ctx, filter, bson.D{
+		{
+			Key: "$push",
+			Value: bson.M{
+				"results": result,
+			},
+		},
+	})
+
+	return err
+}
