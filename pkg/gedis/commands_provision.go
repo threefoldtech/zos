@@ -155,20 +155,12 @@ func (g *Gedis) Feedback(id string, r *provision.Result) error {
 		rType = ptypes.TfgridReservationResult1CategoryNetwork
 	}
 
-	var rState ptypes.TfgridReservationResult1StateEnum
-	switch r.State {
-	case "ok":
-		rState = ptypes.TfgridReservationResult1StateOk
-	case "error":
-		rState = ptypes.TfgridReservationResult1StateError
-	}
-
-	result := ptypes.TfgridReservationResult1{
+	result := types.TfgridReservationResult1{
 		Category:   rType,
 		WorkloadID: id,
 		DataJSON:   string(r.Data),
 		Signature:  r.Signature,
-		State:      rState,
+		State:      ptypes.TfgridReservationResult1StateEnum(r.State),
 		Message:    r.Error,
 		Epoch:      schema.Date{r.Created},
 	}

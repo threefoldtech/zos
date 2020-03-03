@@ -131,7 +131,7 @@ func TestProvisionFeedback(t *testing.T) {
 		Type:      provision.ContainerReservation,
 		ID:        id,
 		Created:   time.Now(),
-		State:     "ok",
+		State:     provision.StateOk,
 		Data:      json.RawMessage("returned data"),
 		Signature: []byte("signature"),
 	}

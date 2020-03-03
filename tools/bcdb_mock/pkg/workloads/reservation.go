@@ -422,6 +422,10 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 
 	result.WorkloadId = gwid
 
+	if err := result.Verify(nodeID); err != nil {
+		return nil, mw.UnAuthorized(errors.Wrap(err, "invalid result signature"))
+	}
+
 	if err := types.PushResult(r.Context(), db, rid, result); err != nil {
 		return nil, mw.Error(err)
 	}

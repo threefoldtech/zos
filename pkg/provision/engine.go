@@ -189,12 +189,12 @@ func (e *defaultEngine) reply(ctx context.Context, r *Reservation, rErr error, i
 			Str("id", r.ID).
 			Msgf("failed to apply provision")
 		result.Error = rErr.Error()
-		result.State = "error" //TODO: create enum
+		result.State = StateError
 	} else {
 		log.Info().
 			Str("result", fmt.Sprintf("%v", info)).
 			Msgf("workload deployed")
-		result.State = "ok"
+		result.State = StateOk
 	}
 
 	br, err := json.Marshal(info)

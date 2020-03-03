@@ -88,3 +88,8 @@ func NotFound(err error) Response {
 func Conflict(err error) Response {
 	return Error(err, http.StatusConflict)
 }
+
+// UnAuthorized response
+func UnAuthorized(err error) Response {
+	return Error(err, http.StatusUnauthorized)
+}

@@ -1,7 +1,9 @@
 package types
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -205,6 +207,41 @@ type Workload struct {
 
 // Result is a wrapper around TfgridWorkloadsReservationResult1 type
 type Result generated.TfgridWorkloadsReservationResult1
+
+func (r *Result) encode() ([]byte, error) {
+	buf := &bytes.Buffer{}
+	if err := buf.WriteByte(byte(r.State)); err != nil {
+		return nil, err
+	}
+	if _, err := buf.WriteString(r.Message); err != nil {
+		return nil, err
+	}
+	if _, err := buf.WriteString(r.DataJson); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Verify that the signature matches the result data
+func (r *Result) Verify(pk string) error {
+	sig, err := hex.DecodeString(string(r.Signature))
+	if err != nil {
+		return errors.Wrap(err, "invalid signature expecting hex encoded")
+	}
+
+	key, err := crypto.KeyFromHex(pk)
+	if err != nil {
+		return errors.Wrap(err, "invalid verification key")
+	}
+
+	bytes, err := r.encode()
+	if err != nil {
+		return err
+	}
+
+	return crypto.Verify(key, bytes, sig)
+}
 
 // PushResult pushes result to a reservation result array.
 // NOTE: this is just a crud operation, no validation is done here
