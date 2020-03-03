@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg"
@@ -273,4 +274,16 @@ func TestCreateSubvolNoSpaceLeft(t *testing.T) {
 	_, err := mod.createSubvol(20000, "sub", pkg.SSDDevice)
 
 	require.EqualError(err, "Not enough space left in pools of this type SSD")
+}
+
+// TestCheckIfIsCheckWorks tests if the Is-function works as expected
+func TestCheckIfIsCheckWorks(t *testing.T) {
+	require := require.New(t)
+
+	err := pkg.ErrNotEnoughSpace{DeviceType: pkg.SSDDevice}
+
+	if errors.Is(err, pkg.ErrNotEnoughSpace{}) {
+		require.EqualError(err, "Is-function error")
+	}
+
 }
