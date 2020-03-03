@@ -116,11 +116,12 @@ func (s *storageModule) BrokenDevices() []pkg.BrokenDevice {
 
 func (s *storageModule) Dump() {
 	log.Debug().Int("volumes", len(s.volumes)).Msg("dumping volumes")
+
 	for i := range s.volumes {
-		// _, _ = s.volumes[i].Usage()
 		devices := s.volumes[i].Devices()
 		for id := range devices {
-			fmt.Println(devices[id])
+			d := devices[id]
+			log.Debug().Str("path", d.Path).Str("labem", d.Label).Str("type", string(d.DiskType)).Msg("dump")
 		}
 	}
 
@@ -181,12 +182,9 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		return err
 	}
 
-	s.Dump()
-
-	// collect free disks, sort by read time so faster disks are first
+	// collect free disks, without sorting 'disks', this break s.volumes list
 	// sort.Sort(filesystem.ByReadTime(disks))
 	freeDisks := filesystem.DeviceCache{}
-	s.Dump()
 
 	for idx := range disks {
 		if !disks[idx].Used() {
@@ -194,6 +192,12 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 			freeDisks = append(freeDisks, disks[idx])
 		}
 	}
+
+	// sort by read time so faster disks are first
+	sort.Sort(filesystem.ByReadTime(freeDisks))
+
+	// dumping current s.volumes list
+	s.Dump()
 
 	log.Info().Msgf("Creating new volumes using policy: %s", policy.Raid)
 
