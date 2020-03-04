@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
@@ -216,7 +217,7 @@ func (r *Result) encode() ([]byte, error) {
 	if _, err := buf.WriteString(r.Message); err != nil {
 		return nil, err
 	}
-	if _, err := buf.WriteString(r.DataJson); err != nil {
+	if _, err := buf.Write(r.DataJson); err != nil {
 		return nil, err
 	}
 
@@ -225,12 +226,12 @@ func (r *Result) encode() ([]byte, error) {
 
 // Verify that the signature matches the result data
 func (r *Result) Verify(pk string) error {
-	sig, err := hex.DecodeString(string(r.Signature))
+	sig, err := hex.DecodeString(r.Signature)
 	if err != nil {
 		return errors.Wrap(err, "invalid signature expecting hex encoded")
 	}
 
-	key, err := crypto.KeyFromHex(pk)
+	key, err := crypto.KeyFromID(pkg.StrIdentifier(pk))
 	if err != nil {
 		return errors.Wrap(err, "invalid verification key")
 	}

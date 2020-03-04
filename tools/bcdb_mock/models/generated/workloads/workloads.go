@@ -210,8 +210,8 @@ func NewTfgridWorkloadsWireguardPeer1() (TfgridWorkloadsWireguardPeer1, error) {
 type TfgridWorkloadsReservationResult1 struct {
 	Category   TfgridWorkloadsReservationResult1CategoryEnum `bson:"category" json:"category"`
 	WorkloadId string                                        `bson:"workload_id" json:"workload_id"`
-	DataJson   string                                        `bson:"data_json" json:"data_json"`
-	Signature  []byte                                        `bson:"signature" json:"signature"`
+	DataJson   json.RawMessage                               `bson:"data_json" json:"data_json"`
+	Signature  string                                        `bson:"signature" json:"signature"`
 	State      TfgridWorkloadsReservationResult1StateEnum    `bson:"state" json:"state"`
 	Message    string                                        `bson:"message" json:"message"`
 	Epoch      schema.Date                                   `bson:"epoch" json:"epoch"`

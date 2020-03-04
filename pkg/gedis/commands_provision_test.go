@@ -133,7 +133,7 @@ func TestProvisionFeedback(t *testing.T) {
 		Created:   time.Now(),
 		State:     provision.StateOk,
 		Data:      json.RawMessage("returned data"),
-		Signature: []byte("signature"),
+		Signature: "signature",
 	}
 
 	args := Args{

@@ -126,8 +126,8 @@ func (s *HTTPStore) Get(id string) (*Reservation, error) {
 }
 
 // Feedback sends back the result of a provisioning to BCDB
-func (s *HTTPStore) Feedback(id string, r *Result) error {
-	url := fmt.Sprintf("%s/reservations/workloads/%s", s.baseURL, id)
+func (s *HTTPStore) Feedback(nodeID string, r *Result) error {
+	url := fmt.Sprintf("%s/reservations/workloads/%s/%s", s.baseURL, r.ID, nodeID)
 
 	buf := &bytes.Buffer{}
 

@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -212,9 +213,9 @@ func (e *defaultEngine) reply(ctx context.Context, r *Reservation, rErr error, i
 	if err != nil {
 		return errors.Wrap(err, "failed to signed the result")
 	}
-	result.Signature = sig
+	result.Signature = hex.EncodeToString(sig)
 
-	return e.fb.Feedback(r.ID, result)
+	return e.fb.Feedback(r.NodeID, result)
 }
 
 func (e *defaultEngine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {

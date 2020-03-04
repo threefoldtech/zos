@@ -139,7 +139,7 @@ func (g *Gedis) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservati
 }
 
 // Feedback implements provision.Feedbacker
-func (g *Gedis) Feedback(id string, r *provision.Result) error {
+func (g *Gedis) Feedback(nodeID string, r *provision.Result) error {
 
 	var rType ptypes.TfgridReservationResult1CategoryEnum
 	switch r.Type {
@@ -155,7 +155,7 @@ func (g *Gedis) Feedback(id string, r *provision.Result) error {
 
 	result := types.TfgridReservationResult1{
 		Category:   rType,
-		WorkloadID: id,
+		WorkloadID: r.ID,
 		DataJSON:   string(r.Data),
 		Signature:  r.Signature,
 		State:      ptypes.TfgridReservationResult1StateEnum(r.State),
@@ -164,7 +164,7 @@ func (g *Gedis) Feedback(id string, r *provision.Result) error {
 	}
 
 	_, err := g.Send("tfgrid.workloads.workload_manager", "set_workload_result", Args{
-		"global_workload_id": id,
+		"global_workload_id": r.ID,
 		"result":             result,
 	})
 	return err
