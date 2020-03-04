@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -372,11 +373,11 @@ func (s *storageModule) ensureCache() error {
 			log.Debug().Msgf("Trying to create new cache on HDD")
 			fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
 			if err != nil {
-				return err
+				return s.MountTmpfs()
 			}
 		}
 		if err != nil {
-			return err
+			return s.MountTmpfs()
 		}
 		cacheFs = fs
 	}
@@ -521,4 +522,15 @@ func (s *storageModule) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 	}()
 
 	return ch
+}
+
+// MountTmpfs is used when the /var/cache cannot be mounted on a SSD or HDD,
+// it will mount the cache disk on a temporary file system in memory.
+func (s *storageModule) MountTmpfs() error {
+	log.Debug().Msgf("Trying to create Tempfs for cache")
+	if err := syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M"); err != nil {
+		log.Error().Err(err).Str("error! Failed to create tempfs for cache", "fail")
+		return err
+	}
+	return nil
 }
