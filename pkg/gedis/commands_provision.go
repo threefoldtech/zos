@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"sort"
-	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
@@ -95,7 +94,7 @@ func (g *Gedis) Get(id string) (*provision.Reservation, error) {
 		return nil, err
 	}
 
-	return reservationFromSchema(workload)
+	return provision.WorkloadToProvisionType(workload)
 }
 
 // Poll retrieves reservations from BCDB. from acts like a cursor, first call should use
@@ -121,14 +120,13 @@ func (g *Gedis) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservati
 		return nil, err
 	}
 
-	reservations := make([]*provision.Reservation, 0, len(out.Workloads))
-	for _, w := range out.Workloads {
-		r, err := reservationFromSchema(w)
+	reservations := make([]*provision.Reservation, len(out.Workloads))
+	for i, w := range out.Workloads {
+		r, err := provision.WorkloadToProvisionType(w)
 		if err != nil {
-			log.Warn().Err(err).Msgf("workload %s has bad format skipping", w.WorkloadID)
-			continue
+			return nil, err
 		}
-		reservations = append(reservations, r)
+		reservations[i] = r
 	}
 
 	// sorts the primitive in the oder they need to be processed by provisiond
@@ -186,6 +184,7 @@ func (g *Gedis) Delete(id string) error {
 	return err
 }
 
+
 // UpdateReservedResources send the amount of resource units reserved to BCDB
 func (g *Gedis) UpdateReservedResources(nodeID string, c provision.Counters) error {
 	_, err := g.Send("tfgrid.directory.nodes", "update_reserved_capacity", Args{
@@ -198,91 +197,6 @@ func (g *Gedis) UpdateReservedResources(nodeID string, c provision.Counters) err
 		},
 	})
 	return err
-}
-
-func reservationFromSchema(w ptypes.TfgridReservationWorkload1) (*provision.Reservation, error) {
-	reservation := &provision.Reservation{
-		ID:        w.WorkloadID,
-		User:      w.User,
-		Type:      provision.ReservationType(w.Type.String()),
-		Created:   time.Unix(w.Created, 0),
-		Duration:  time.Duration(w.Duration) * time.Second,
-		Signature: []byte(w.Signature),
-		Data:      w.Workload,
-		Tag:       provision.Tag{"source": "BCDB"},
-		ToDelete:  w.ToDelete,
-	}
-
-	var (
-		data interface{}
-		err  error
-	)
-
-	// convert the workload description from jsx schema to zos types
-	switch reservation.Type {
-	case provision.ZDBReservation:
-		tmp := ptypes.TfgridReservationZdb1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
-		data, reservation.NodeID, err = tmp.ToProvisionType()
-		if err != nil {
-			return nil, err
-		}
-
-	case provision.VolumeReservation:
-		tmp := ptypes.TfgridReservationVolume1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
-		data, reservation.NodeID, err = tmp.ToProvisionType()
-		if err != nil {
-			return nil, err
-		}
-
-	case provision.NetworkReservation:
-		tmp := ptypes.TfgridReservationNetwork1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
-		data, err = tmp.ToProvisionType()
-		if err != nil {
-			return nil, err
-		}
-
-	case provision.ContainerReservation:
-		tmp := ptypes.TfgridReservationContainer1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
-		data, reservation.NodeID, err = tmp.ToProvisionType()
-		if err != nil {
-			return nil, err
-		}
-
-	case provision.KubernetesReservation:
-		tmp := ptypes.TfgridWorkloadsReservationK8S1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
-		data, reservation.NodeID, err = tmp.ToProvisionType()
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	reservation.Data, err = json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return reservation, nil
 }
 
 func workloadFromRaw(s json.RawMessage, t provision.ReservationType) (interface{}, error) {

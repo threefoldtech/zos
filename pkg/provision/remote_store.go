@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
+	generated "github.com/threefoldtech/zos/pkg/gedis/types/provision"
 )
 
 // HTTPStore is a reservation store
@@ -58,7 +60,7 @@ func (s *HTTPStore) Reserve(r *Reservation) (string, error) {
 // Note that from is a reservation ID not a workload ID. so user the Reservation.SplitID() method
 // to get the reservation part.
 func (s *HTTPStore) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/reservations/%s/poll", s.baseURL, nodeID.Identity()))
+	u, err := url.Parse(fmt.Sprintf("%s/reservations/workloads/%s", s.baseURL, nodeID.Identity()))
 	if err != nil {
 		return nil, err
 	}
@@ -84,19 +86,25 @@ func (s *HTTPStore) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, er
 		return nil, NewErrTemporary(err)
 	}
 
-	reservations := []*Reservation{}
-	if err := json.NewDecoder(resp.Body).Decode(&reservations); err != nil {
+	workloads := []generated.TfgridReservationWorkload1{}
+	if err := json.NewDecoder(resp.Body).Decode(&workloads); err != nil {
 		return nil, err
 	}
-	for _, r := range reservations {
+	reservations := make([]*Reservation, 0, len(workloads))
+	for _, wl := range workloads {
+		r, err := WorkloadToProvisionType(wl)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to load workload type")
+		}
 		r.Tag = Tag{"source": "HTTPStore"}
+		reservations = append(reservations, r)
 	}
 	return reservations, nil
 }
 
 // Get retrieves a single reservation using its ID
 func (s *HTTPStore) Get(id string) (*Reservation, error) {
-	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, id)
+	url := fmt.Sprintf("%s/reservations/workloads/%s", s.baseURL, id)
 
 	r := &Reservation{}
 	resp, err := http.Get(url)
@@ -119,7 +127,7 @@ func (s *HTTPStore) Get(id string) (*Reservation, error) {
 
 // Feedback sends back the result of a provisioning to BCDB
 func (s *HTTPStore) Feedback(id string, r *Result) error {
-	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, id)
+	url := fmt.Sprintf("%s/reservations/workloads/%s", s.baseURL, id)
 
 	buf := &bytes.Buffer{}
 
