@@ -147,7 +147,7 @@ func (s *HTTPStore) Feedback(nodeID string, r *Result) error {
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("wrong response status code %s", resp.Status)
 	}
 	return nil

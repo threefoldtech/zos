@@ -49,6 +49,13 @@ func (f ReservationFilter) WithIdGE(id schema.ID) ReservationFilter {
 	})
 }
 
+// WithNextAction filter reservations with next action
+func (f ReservationFilter) WithNextAction(action generated.TfgridWorkloadsReservation1NextActionEnum) ReservationFilter {
+	return append(f, bson.E{
+		Key: "next_action", Value: action,
+	})
+}
+
 // WithNodeID searsch reservations with NodeID
 func (f ReservationFilter) WithNodeID(id string) ReservationFilter {
 	//data_reservation.{containers, volumes, zdbs, networks, kubernetes}.node_id
@@ -198,6 +205,29 @@ func ReservationCreate(ctx context.Context, db *mongo.Database, r Reservation) (
 	}
 
 	return id, nil
+}
+
+// ReservationSetNextAction update the reservation next action in db
+func ReservationSetNextAction(ctx context.Context, db *mongo.Database, id schema.ID, action generated.TfgridWorkloadsReservation1NextActionEnum) error {
+	var filter ReservationFilter
+	filter = filter.WithID(id)
+
+	col := db.Collection(reservationCollection)
+	result, err := col.UpdateOne(ctx, filter, bson.M{
+		"$set": bson.M{
+			"next_action": action,
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if result.ModifiedCount == 0 {
+		return fmt.Errorf("no reservation found")
+	}
+
+	return nil
 }
 
 // Workload is a wrapper around generated TfgridWorkloadsReservationWorkload1 type

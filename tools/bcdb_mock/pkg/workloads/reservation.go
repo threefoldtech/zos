@@ -1,6 +1,7 @@
 package workloads
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -153,6 +154,42 @@ func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 	return reservations, nil
 }
 
+func (a *API) markDelete(r *http.Request) (interface{}, mw.Response) {
+	// WARNING: #TODO
+	// This method does not validate the signature of the caller
+	// because there is no payload in a delete call.
+	// may be a simple body that has "reservation id" and "signature"
+	// can be used, we use the reservation id to avoid using the same
+	// request body to delete other reservations
+
+	// HTTP Delete should not have a body though, so may be this should be
+	// changed to a PUT operation.
+
+	id, err := a.parseID(mux.Vars(r)["res_id"])
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	var filter types.ReservationFilter
+	filter = filter.WithID(id)
+	db := mw.Database(r)
+	reservation, err := filter.Get(r.Context(), db)
+	if err != nil {
+		return nil, mw.NotFound(err)
+	}
+
+	if reservation.NextAction == generated.TfgridWorkloadsReservation1NextActionDeleted ||
+		reservation.NextAction == generated.TfgridWorkloadsReservation1NextActionDelete {
+		return nil, mw.BadRequest(fmt.Errorf("resource already deleted"))
+	}
+
+	if err = types.ReservationSetNextAction(r.Context(), db, id, generated.TfgridWorkloadsReservation1NextActionDelete); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return nil, nil
+}
+
 func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reservation) []types.Workload {
 	data := &reservation.DataReservation
 	var workloads []types.Workload
@@ -254,6 +291,16 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 			continue
 		}
 
+		/*
+			QUESTION: we will have identical workloads (one per each network resource)
+					  but for different IDs. this means that multiple node will report
+					  result with the same Gloabal Workload ID. but we only store the
+					  last stored result. Hence we lose the status for other network resources
+					  deployments.
+					  I think the network workload needs to have different workload ids per
+					  network resource.
+					  Thoughts?
+		*/
 		workload := types.Workload{
 			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
 				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
@@ -275,7 +322,7 @@ func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reser
 
 func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 	const (
-		maxPageSize = 100
+		maxPageSize = 50
 	)
 
 	var (
@@ -287,52 +334,65 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.BadRequest(err)
 	}
 
-	var filter types.ReservationFilter
-	filter = filter.WithNodeID(nodeID).WithIdGE(from)
-	log.Debug().Msgf("filter: %+v", filter)
-	db := mw.Database(r)
-	cur, err := filter.Find(r.Context(), db)
-	if err != nil {
-		return nil, mw.Error(err)
-	}
-
-	defer cur.Close(r.Context())
-
-	workloads := []types.Workload{}
-	var needUpdate []types.Reservation
-
-	for cur.Next(r.Context()) {
-		var reservation types.Reservation
-		if err := cur.Decode(&reservation); err != nil {
-			return nil, mw.Error(err)
-		}
-		pl, err := types.NewPipeline(reservation)
+	find := func(ctx context.Context, db *mongo.Database, filter types.ReservationFilter) ([]types.Workload, error) {
+		cur, err := filter.Find(r.Context(), db)
 		if err != nil {
-			log.Error().Err(err).Int64("id", int64(reservation.ID)).Msg("failed to process reservation")
-			continue
+			return nil, err
 		}
 
-		reservation, update := pl.Next()
+		defer cur.Close(r.Context())
 
-		if update {
-			needUpdate = append(needUpdate, reservation)
+		workloads := []types.Workload{}
+
+		for cur.Next(r.Context()) {
+			var reservation types.Reservation
+			if err := cur.Decode(&reservation); err != nil {
+				return nil, err
+			}
+			pl, err := types.NewPipeline(reservation)
+			if err != nil {
+				log.Error().Err(err).Int64("id", int64(reservation.ID)).Msg("failed to process reservation")
+				continue
+			}
+
+			reservation, _ = pl.Next()
+
+			// only reservations that is in right
+			if reservation.IsAny(types.Deploy, types.Delete) {
+				workloads = append(
+					workloads,
+					a.workloadsFromReserveration(nodeID, &reservation)...,
+				)
+			}
+
+			if len(workloads) >= maxPageSize {
+				break
+			}
 		}
 
-		// only reservations that is in right
-		if reservation.IsAny(types.Deploy, types.Delete) {
-			workloads = append(
-				workloads,
-				a.workloadsFromReserveration(nodeID, &reservation)...,
-			)
-		}
-
-		if len(workloads) >= maxPageSize {
-			break
-		}
+		return workloads, nil
 	}
 
-	a.updateMany(db, needUpdate)
+	db := mw.Database(r)
 
+	// first we find ALL reservations that has the Delete flag set
+	var filter types.ReservationFilter
+	filter = filter.WithNodeID(nodeID).WithNextAction(generated.TfgridWorkloadsReservation1NextActionDelete)
+
+	workloads, err := find(r.Context(), db, filter)
+	if err != nil {
+		return nil, mw.Error(errors.Wrap(err, "failed to list reservations to delete"))
+	}
+
+	filter = types.ReservationFilter{}
+	filter = filter.WithNodeID(nodeID).WithIdGE(from)
+
+	toCreate, err := find(r.Context(), db, filter)
+	if err != nil {
+		return nil, mw.Error(errors.Wrap(err, "failed to list new reservations"))
+	}
+	// TODO: unify the query so we don't have duplicates
+	workloads = append(workloads, toCreate...)
 	return workloads, nil
 }
 
@@ -421,6 +481,7 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	result.WorkloadId = gwid
+	result.Epoch = schema.Date{Time: time.Now()}
 
 	if err := result.Verify(nodeID); err != nil {
 		return nil, mw.UnAuthorized(errors.Wrap(err, "invalid result signature"))
