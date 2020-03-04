@@ -121,7 +121,7 @@ func (s *storageModule) Dump() {
 		devices := s.volumes[i].Devices()
 		for id := range devices {
 			d := devices[id]
-			log.Debug().Str("path", d.Path).Str("labem", d.Label).Str("type", string(d.DiskType)).Msg("dump")
+			log.Debug().Str("path", d.Path).Str("label", d.Label).Str("type", string(d.DiskType)).Send()
 		}
 	}
 
@@ -182,8 +182,6 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		return err
 	}
 
-	// collect free disks, without sorting 'disks', this break s.volumes list
-	// sort.Sort(filesystem.ByReadTime(disks))
 	freeDisks := filesystem.DeviceCache{}
 
 	for idx := range disks {
