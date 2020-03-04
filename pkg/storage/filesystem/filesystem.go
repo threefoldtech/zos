@@ -59,6 +59,8 @@ type Pool interface {
 	AddVolume(name string) (Volume, error)
 	// RemoveVolume removes a subvolume with the given name
 	RemoveVolume(name string) error
+	// Devices list attached devices
+	Devices() []*Device
 }
 
 // Filter closure for Filesystem list
