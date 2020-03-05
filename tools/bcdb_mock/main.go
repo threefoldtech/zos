@@ -21,18 +21,24 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
 )
 
+// Pkg is a shorthand type for func
 type Pkg func(*mux.Router, *mongo.Database) error
-
-var listen string
 
 func main() {
 	app.Initialize()
 
-	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
+	var (
+		listen string
+		dbConf string
+		name   string
+	)
 
+	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
+	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
+	flag.StringVar(&name, "name", "explorer", "database name")
 	flag.Parse()
 
-	db, err := mw.NewDatabaseMiddleware("testing", "mongodb://localhost:27017")
+	db, err := mw.NewDatabaseMiddleware(name, dbConf)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}

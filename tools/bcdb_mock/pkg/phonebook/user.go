@@ -38,7 +38,7 @@ func (u *UserAPI) create(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	return user, nil
+	return user, mw.Created()
 }
 
 /*

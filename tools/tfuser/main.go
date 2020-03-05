@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 
-	"github.com/threefoldtech/zos/pkg/gedis"
+	"github.com/pkg/errors"
 
 	"github.com/threefoldtech/zos/pkg/provision"
 
@@ -65,6 +68,21 @@ func main() {
 					Name:  "output,o",
 					Usage: "output path of the identity seed",
 					Value: "user.seed",
+				},
+				cli.StringFlag{
+					Name:     "name,n",
+					Usage:    "user name",
+					Required: true,
+				},
+				cli.StringFlag{
+					Name:     "email",
+					Usage:    "user email address",
+					Required: true,
+				},
+				cli.StringFlag{
+					Name:     "description",
+					Usage:    "user description",
+					Required: true,
 				},
 			},
 			Action: cmdsGenerateID,
@@ -398,13 +416,56 @@ type reserveDeleter interface {
 type clientIface interface {
 	network.TNoDB
 	reserveDeleter
+	CreateUser(name, email, pubkey, description string) (int64, error)
+}
+
+type clientImpl struct {
+	network.TNoDB
+	reserveDeleter
+	baseURL string
+}
+
+func (p clientImpl) CreateUser(name, email, pubkey, description string) (int64, error) {
+	var buf bytes.Buffer
+	type U map[string]interface{}
+	err := json.NewEncoder(&buf).Encode(U{
+		"name":        name,
+		"email":       email,
+		"pubkey":      pubkey,
+		"description": description,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	response, err := http.Post(
+		fmt.Sprintf("%s/users", p.baseURL),
+		"application/json",
+		&buf,
+	)
+
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to create user")
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusCreated {
+		return 0, fmt.Errorf("wrong status for user create: %s", response.Status)
+	}
+
+	var result struct {
+		ID int64 `json:"id"`
+	}
+
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+		return 0, errors.Wrap(err, "failed to load user response")
+	}
+
+	return result.ID, nil
 }
 
 func getClient(addr string) (clientIface, error) {
-	type client struct {
-		network.TNoDB
-		reserveDeleter
-	}
 
 	u, err := url.Parse(addr)
 	if err != nil {
@@ -413,16 +474,17 @@ func getClient(addr string) (clientIface, error) {
 
 	switch u.Scheme {
 	case "http", "https":
-		return client{
-			tnodb.NewHTTPTNoDB(addr),
-			provision.NewHTTPStore(addr),
+		return clientImpl{
+			TNoDB:          tnodb.NewHTTPTNoDB(addr),
+			reserveDeleter: provision.NewHTTPStore(addr),
+			baseURL:        addr,
 		}, nil
-	case "tcp":
-		c, err := gedis.New(addr, "")
-		return client{
-			c,
-			c,
-		}, err
+	// case "tcp":
+	// 	c, err := gedis.New(addr, "")
+	// 	return client{
+	// 		c,
+	// 		c,
+	// 	}, err
 	default:
 		return nil, fmt.Errorf("unsupported address scheme for BCDB: %s", u.Scheme)
 	}

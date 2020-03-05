@@ -155,6 +155,10 @@ const (
 	StateDeleted = ResultState(generated.TfgridReservationResult1StateDeleted)
 )
 
+func (s ResultState) String() string {
+	return generated.TfgridReservationResult1StateEnum(s).String()
+}
+
 // Result is the struct filled by the node
 // after a reservation object has been processed
 type Result struct {
