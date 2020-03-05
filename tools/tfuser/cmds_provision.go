@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
+	"github.com/threefoldtech/zos/pkg/gedis"
 	"github.com/threefoldtech/zos/pkg/identity"
 	"github.com/threefoldtech/zos/pkg/provision"
 
@@ -92,6 +93,7 @@ func cmdsProvision(c *cli.Context) error {
 		nodeIDs  = c.StringSlice("node")
 		seedPath = c.String("seed")
 		d        = c.String("duration")
+		userID   = c.Int64("id")
 		duration time.Duration
 		err      error
 	)
@@ -131,7 +133,7 @@ func cmdsProvision(c *cli.Context) error {
 	reservation.Duration = duration
 	reservation.Created = time.Now()
 	// set the user ID into the reservation schema
-	reservation.User = keypair.Identity()
+	//reservation.User = keypair.Identity()
 
 	for _, nodeID := range nodeIDs {
 		r := reservation //make a copy
@@ -144,17 +146,25 @@ func cmdsProvision(c *cli.Context) error {
 			}
 		}
 
-		if err := r.Sign(keypair.PrivateKey); err != nil {
+		jsx, err := gedis.ReservationToSchemaType(&r)
+		if err != nil {
+			return errors.Wrap(err, "failed to convert reservation to schema type")
+		}
+		jsx.CustomerTid = userID
+		signature, err := crypto.Sign(keypair.PrivateKey, []byte(jsx.JSON))
+		if err != nil {
 			return errors.Wrap(err, "failed to sign the reservation")
 		}
 
-		id, err := client.Reserve(&r)
+		jsx.CustomerSignature = hex.EncodeToString(signature)
+
+		id, err := client.ReserveJSX(jsx)
 		if err != nil {
 			return errors.Wrap(err, "failed to send reservation")
 		}
 
 		fmt.Printf("Reservation for %v send to node %s\n", duration, r.NodeID)
-		fmt.Printf("Resource: %v\n", id)
+		fmt.Printf("Resource: /reservations/%v\n", id)
 	}
 
 	return nil

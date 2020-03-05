@@ -227,7 +227,7 @@ func TestProvisionDeleted(t *testing.T) {
 	conn.On("Do", "tfgrid.workloads.workload_manager.workload_deleted", mustMarshal(t, args)).
 		Return(nil, nil)
 
-	err := gedis.Deleted(id)
+	err := gedis.Deleted("", id)
 
 	require.NoError(err)
 	conn.AssertCalled(t, "Close")

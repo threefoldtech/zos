@@ -16,6 +16,7 @@ import (
 
 	"os"
 
+	types "github.com/threefoldtech/zos/pkg/gedis/types/provision"
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/network/tnodb"
 	"github.com/urfave/cli"
@@ -358,6 +359,12 @@ func main() {
 					Usage:  "path to the file container the seed of the user private key",
 					EnvVar: "SEED_PATH",
 				},
+				cli.Int64Flag{
+					Name:     "id",
+					Usage:    "user id associated with the seed",
+					EnvVar:   "TF_USER_ID",
+					Required: true,
+				},
 			},
 			Action: cmdsProvision,
 		},
@@ -417,12 +424,46 @@ type clientIface interface {
 	network.TNoDB
 	reserveDeleter
 	CreateUser(name, email, pubkey, description string) (int64, error)
+	ReserveJSX(res types.TfgridReservation1) (int64, error)
 }
 
 type clientImpl struct {
 	network.TNoDB
 	reserveDeleter
 	baseURL string
+}
+
+func (p clientImpl) ReserveJSX(res types.TfgridReservation1) (int64, error) {
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(res)
+	if err != nil {
+		return 0, err
+	}
+
+	response, err := http.Post(
+		fmt.Sprintf("%s/reservations", p.baseURL),
+		"application/json",
+		&buf,
+	)
+
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to create reservation")
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusCreated {
+		return 0, fmt.Errorf("wrong status for reservation create: %s", response.Status)
+	}
+
+	var id int64
+
+	if err := json.NewDecoder(response.Body).Decode(&id); err != nil {
+		return 0, errors.Wrap(err, "failed to load user response")
+	}
+
+	return id, nil
+
 }
 
 func (p clientImpl) CreateUser(name, email, pubkey, description string) (int64, error) {
