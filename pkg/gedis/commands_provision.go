@@ -171,7 +171,7 @@ func (g *Gedis) Feedback(nodeID string, r *provision.Result) error {
 }
 
 // Deleted implements provision.Feedbacker
-func (g *Gedis) Deleted(id string) error {
+func (g *Gedis) Deleted(nodeID, id string) error {
 	_, err := g.Send("tfgrid.workloads.workload_manager", "workload_deleted", Args{"workload_id": id})
 	return err
 }

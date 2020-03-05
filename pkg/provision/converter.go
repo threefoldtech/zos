@@ -170,7 +170,7 @@ func WorkloadToProvisionType(w generated.TfgridReservationWorkload1) (*Reservati
 		Duration:  time.Duration(w.Duration) * time.Second,
 		Signature: []byte(w.Signature),
 		Data:      w.Workload,
-		Tag:       Tag{"source": "BCDB"},
+		ToDelete:  w.ToDelete,
 	}
 
 	var (

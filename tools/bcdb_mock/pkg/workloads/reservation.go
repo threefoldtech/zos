@@ -44,16 +44,12 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	reservation.SignaturesFarmer = make([]generated.TfgridWorkloadsReservationSigningSignature1, 0)
 	reservation.Results = make([]generated.TfgridWorkloadsReservationResult1, 0)
 
-	pipeline, err := types.NewPipeline(reservation)
+	reservation, err := a.pipeline(reservation, nil)
 	if err != nil {
 		// if failed to create pipeline, then
 		// this reservation has failed initial validation
 		return nil, mw.BadRequest(err)
 	}
-
-	// we need to save it anyway, so no need to check
-	// if reservation status has changed
-	reservation, _ = pipeline.Next()
 
 	if reservation.IsAny(types.Invalid, types.Delete) {
 		return nil, mw.BadRequest(fmt.Errorf("invalid request wrong status '%s'", reservation.NextAction.String()))
@@ -91,6 +87,19 @@ func (a *API) parseID(id string) (schema.ID, error) {
 	return schema.ID(v), nil
 }
 
+func (a *API) pipeline(r types.Reservation, err error) (types.Reservation, error) {
+	if err != nil {
+		return r, err
+	}
+	pl, err := types.NewPipeline(r)
+	if err != nil {
+		return r, errors.Wrap(err, "failed to process reservation state pipeline")
+	}
+
+	r, _ = pl.Next()
+	return r, nil
+}
+
 func (a *API) get(r *http.Request) (interface{}, mw.Response) {
 	id, err := a.parseID(mux.Vars(r)["res_id"])
 	if err != nil {
@@ -101,7 +110,7 @@ func (a *API) get(r *http.Request) (interface{}, mw.Response) {
 	filter = filter.WithID(id)
 
 	db := mw.Database(r)
-	reservation, err := filter.Get(r.Context(), db)
+	reservation, err := a.pipeline(filter.Get(r.Context(), db))
 	if err != nil {
 		return nil, mw.NotFound(err)
 	}
@@ -128,28 +137,20 @@ func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 
 	reservations := []types.Reservation{}
 
-	var needUpdate []types.Reservation
 	for cur.Next(r.Context()) {
 		var reservation types.Reservation
 		if err := cur.Decode(&reservation); err != nil {
 			return nil, mw.Error(err)
 		}
 
-		pl, err := types.NewPipeline(reservation)
+		reservation, err := a.pipeline(reservation, nil)
 		if err != nil {
 			log.Error().Err(err).Int64("id", int64(reservation.ID)).Msg("failed to process reservation")
 			continue
 		}
 
-		reservation, update := pl.Next()
-		if update {
-			needUpdate = append(needUpdate, reservation)
-		}
-
 		reservations = append(reservations, reservation)
 	}
-
-	a.updateMany(db, needUpdate)
 
 	return reservations, nil
 }
@@ -173,7 +174,7 @@ func (a *API) markDelete(r *http.Request) (interface{}, mw.Response) {
 	var filter types.ReservationFilter
 	filter = filter.WithID(id)
 	db := mw.Database(r)
-	reservation, err := filter.Get(r.Context(), db)
+	reservation, err := a.pipeline(filter.Get(r.Context(), db))
 	if err != nil {
 		return nil, mw.NotFound(err)
 	}
@@ -190,139 +191,9 @@ func (a *API) markDelete(r *http.Request) (interface{}, mw.Response) {
 	return nil, nil
 }
 
-func (a *API) workloadsFromReserveration(nodeID string, reservation *types.Reservation) []types.Workload {
-	data := &reservation.DataReservation
-	var workloads []types.Workload
-	for _, r := range data.Containers {
-		if len(nodeID) > 0 && r.NodeId != nodeID {
-			continue
-		}
-		workload := types.Workload{
-			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
-				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-				User:       fmt.Sprint(reservation.CustomerTid),
-				Type:       generated.TfgridWorkloadsReservationWorkload1TypeContainer,
-				Content:    r,
-				Created:    reservation.Epoch,
-				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-				ToDelete:   reservation.NextAction == types.Delete,
-			},
-			NodeID: r.NodeId,
-		}
-
-		workloads = append(workloads, workload)
-	}
-
-	for _, r := range data.Volumes {
-		if len(nodeID) > 0 && r.NodeId != nodeID {
-			continue
-		}
-		workload := types.Workload{
-			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
-				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-				User:       fmt.Sprint(reservation.CustomerTid),
-				Type:       generated.TfgridWorkloadsReservationWorkload1TypeVolume,
-				Content:    r,
-				Created:    reservation.Epoch,
-				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-				ToDelete:   reservation.NextAction == types.Delete,
-			},
-			NodeID: r.NodeId,
-		}
-
-		workloads = append(workloads, workload)
-	}
-
-	for _, r := range data.Zdbs {
-		if len(nodeID) > 0 && r.NodeId != nodeID {
-			continue
-		}
-		workload := types.Workload{
-			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
-				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-				User:       fmt.Sprint(reservation.CustomerTid),
-				Type:       generated.TfgridWorkloadsReservationWorkload1TypeZdb,
-				Content:    r,
-				Created:    reservation.Epoch,
-				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-				ToDelete:   reservation.NextAction == types.Delete,
-			},
-			NodeID: r.NodeId,
-		}
-
-		workloads = append(workloads, workload)
-	}
-
-	for _, r := range data.Kubernetes {
-		if len(nodeID) > 0 && r.NodeId != nodeID {
-			continue
-		}
-		workload := types.Workload{
-			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
-				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-				User:       fmt.Sprint(reservation.CustomerTid),
-				Type:       generated.TfgridWorkloadsReservationWorkload1TypeKubernetes,
-				Content:    r,
-				Created:    reservation.Epoch,
-				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-				ToDelete:   reservation.NextAction == types.Delete,
-			},
-			NodeID: r.NodeId,
-		}
-
-		workloads = append(workloads, workload)
-	}
-
-	for _, r := range data.Networks {
-		found := false
-		if len(nodeID) > 0 {
-			for _, nr := range r.NetworkResources {
-				if nr.NodeId == nodeID {
-					found = true
-					break
-				}
-			}
-		} else {
-			// if node id is not set, we list all workloads
-			found = true
-		}
-
-		if !found {
-			continue
-		}
-
-		/*
-			QUESTION: we will have identical workloads (one per each network resource)
-					  but for different IDs. this means that multiple node will report
-					  result with the same Gloabal Workload ID. but we only store the
-					  last stored result. Hence we lose the status for other network resources
-					  deployments.
-					  I think the network workload needs to have different workload ids per
-					  network resource.
-					  Thoughts?
-		*/
-		workload := types.Workload{
-			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
-				WorkloadId: fmt.Sprintf("%d-%d", reservation.ID, r.WorkloadId),
-				User:       fmt.Sprint(reservation.CustomerTid),
-				Type:       generated.TfgridWorkloadsReservationWorkload1TypeNetwork,
-				Content:    r,
-				Created:    reservation.Epoch,
-				Duration:   int64(data.ExpirationReservation.Sub(reservation.Epoch.Time).Seconds()),
-				ToDelete:   reservation.NextAction == types.Delete,
-			},
-			NodeID: nodeID,
-		}
-
-		workloads = append(workloads, workload)
-	}
-
-	return workloads
-}
-
 func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 	const (
-		maxPageSize = 50
+		maxPageSize = 200
 	)
 
 	var (
@@ -349,20 +220,32 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 			if err := cur.Decode(&reservation); err != nil {
 				return nil, err
 			}
-			pl, err := types.NewPipeline(reservation)
+
+			reservation, err = a.pipeline(reservation, nil)
 			if err != nil {
 				log.Error().Err(err).Int64("id", int64(reservation.ID)).Msg("failed to process reservation")
 				continue
 			}
 
-			reservation, _ = pl.Next()
+			// only reservations that is in right status
+			if !reservation.IsAny(types.Deploy, types.Delete) {
+				continue
+			}
 
-			// only reservations that is in right
-			if reservation.IsAny(types.Deploy, types.Delete) {
-				workloads = append(
-					workloads,
-					a.workloadsFromReserveration(nodeID, &reservation)...,
-				)
+			resLoads := reservation.Workloads(nodeID)
+			if reservation.NextAction == types.Deploy {
+				workloads = append(workloads, resLoads...)
+			} else {
+				for _, wl := range resLoads {
+					result := reservation.ResultOf(wl.WorkloadId)
+					if result != nil && result.State == generated.TfgridWorkloadsReservationResult1StateDeleted {
+						// so this workload has been already deleted by the node.
+						// hence we don't need to serve it again
+						continue
+					}
+
+					workloads = append(workloads, wl)
+				}
 			}
 
 			if len(workloads) >= maxPageSize {
@@ -373,26 +256,18 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 		return workloads, nil
 	}
 
+	filter := types.ReservationFilter{}.WithIdGE(from).Or(types.ReservationFilter{}.WithNextAction(generated.TfgridWorkloadsReservation1NextActionDelete))
+	filter = filter.WithNodeID(nodeID)
+
 	db := mw.Database(r)
-
-	// first we find ALL reservations that has the Delete flag set
-	var filter types.ReservationFilter
-	filter = filter.WithNodeID(nodeID).WithNextAction(generated.TfgridWorkloadsReservation1NextActionDelete)
-
+	//NOTE: the filter will find old reservations that has explicitly set to delete
+	//not the ones that expired. The node should take care of the ones that expires
+	//naturally.
 	workloads, err := find(r.Context(), db, filter)
 	if err != nil {
 		return nil, mw.Error(errors.Wrap(err, "failed to list reservations to delete"))
 	}
 
-	filter = types.ReservationFilter{}
-	filter = filter.WithNodeID(nodeID).WithIdGE(from)
-
-	toCreate, err := find(r.Context(), db, filter)
-	if err != nil {
-		return nil, mw.Error(errors.Wrap(err, "failed to list new reservations"))
-	}
-	// TODO: unify the query so we don't have duplicates
-	workloads = append(workloads, toCreate...)
 	return workloads, nil
 }
 
@@ -408,12 +283,12 @@ func (a *API) workloadGet(r *http.Request) (interface{}, mw.Response) {
 	filter = filter.WithID(rid)
 
 	db := mw.Database(r)
-	reservation, err := filter.Get(r.Context(), db)
+	reservation, err := a.pipeline(filter.Get(r.Context(), db))
 	if err != nil {
 		return nil, mw.NotFound(err)
 	}
 	// we use an empty node-id in listing to return all workloads in this reservation
-	workloads := a.workloadsFromReserveration("", &reservation)
+	workloads := reservation.Workloads("")
 
 	var workload *types.Workload
 	for _, wl := range workloads {
@@ -426,6 +301,7 @@ func (a *API) workloadGet(r *http.Request) (interface{}, mw.Response) {
 	if workload == nil {
 		return nil, mw.NotFound(fmt.Errorf("workload not found"))
 	}
+
 	var result struct {
 		types.Workload
 		Result *types.Result `json:"result"`
@@ -462,12 +338,12 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 	filter = filter.WithID(rid)
 
 	db := mw.Database(r)
-	reservation, err := filter.Get(r.Context(), db)
+	reservation, err := a.pipeline(filter.Get(r.Context(), db))
 	if err != nil {
 		return nil, mw.NotFound(err)
 	}
 	// we use an empty node-id in listing to return all workloads in this reservation
-	workloads := a.workloadsFromReserveration(nodeID, &reservation)
+	workloads := reservation.Workloads(nodeID)
 	var workload *types.Workload
 	for _, wl := range workloads {
 		if wl.WorkloadId == gwid {
@@ -492,4 +368,79 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	return nil, mw.Created()
+}
+
+func (a *API) workloadPutDeleted(r *http.Request) (interface{}, mw.Response) {
+	// WARNING: #TODO
+	// This method does not validate the signature of the caller
+	// because there is no payload in a delete call.
+	// may be a simple body that has "reservation id" and "signature"
+	// can be used, we use the reservation id to avoid using the same
+	// request body to delete other reservations
+
+	// HTTP Delete should not have a body though, so may be this should be
+	// changed to a PUT operation.
+
+	nodeID := mux.Vars(r)["node_id"]
+	gwid := mux.Vars(r)["gwid"]
+
+	rid, err := a.parseID(strings.Split(gwid, "-")[0])
+	if err != nil {
+		return nil, mw.BadRequest(errors.Wrap(err, "invalid reservation id part"))
+	}
+
+	var filter types.ReservationFilter
+	filter = filter.WithID(rid)
+
+	db := mw.Database(r)
+	reservation, err := a.pipeline(filter.Get(r.Context(), db))
+	if err != nil {
+		return nil, mw.NotFound(err)
+	}
+
+	// we use an empty node-id in listing to return all workloads in this reservation
+	workloads := reservation.Workloads(nodeID)
+	var workload *types.Workload
+	for _, wl := range workloads {
+		if wl.WorkloadId == gwid {
+			workload = &wl
+			break
+		}
+	}
+
+	if workload == nil {
+		return nil, mw.NotFound(errors.New("workload not found"))
+	}
+
+	result := reservation.ResultOf(gwid)
+	if result == nil {
+		// no result for this work load
+		// QUESTION: should we still mark the result as deleted?
+		result = &types.Result{
+			WorkloadId: gwid,
+			Epoch:      schema.Date{Time: time.Now()},
+		}
+	}
+
+	result.State = generated.TfgridWorkloadsReservationResult1StateDeleted
+
+	if err := types.PushResult(r.Context(), db, rid, *result); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	// get it from store again (make sure we are up to date)
+	reservation, err = a.pipeline(filter.Get(r.Context(), db))
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	if !reservation.AllDeleted() {
+		return nil, nil
+	}
+
+	if err := types.ReservationSetNextAction(r.Context(), db, reservation.ID, generated.TfgridWorkloadsReservation1NextActionDeleted); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return nil, nil
 }

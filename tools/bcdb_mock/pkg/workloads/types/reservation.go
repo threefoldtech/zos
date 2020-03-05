@@ -73,6 +73,16 @@ func (f ReservationFilter) WithNodeID(id string) ReservationFilter {
 	return append(f, bson.E{Key: "$or", Value: or})
 }
 
+// Or returns filter that reads as (f or o)
+func (f ReservationFilter) Or(o ReservationFilter) ReservationFilter {
+	return ReservationFilter{
+		bson.E{
+			Key:   "$or",
+			Value: bson.A{f, o},
+		},
+	}
+}
+
 // Get gets single reservation that matches the filter
 func (f ReservationFilter) Get(ctx context.Context, db *mongo.Database) (reservation Reservation, err error) {
 	if f == nil {
@@ -190,6 +200,164 @@ func (r *Reservation) IsAny(status ...generated.TfgridWorkloadsReservation1NextA
 	}
 
 	return false
+}
+
+//ResultOf return result of a workload ID
+func (r *Reservation) ResultOf(id string) *Result {
+	for _, result := range r.Results {
+		if result.WorkloadId == id {
+			r := Result(result)
+			return &r
+		}
+	}
+
+	return nil
+}
+
+// AllDeleted checks of all workloads has been marked
+func (r *Reservation) AllDeleted() bool {
+	// check if all workloads have been deleted.
+	for _, wl := range r.Workloads("") {
+		result := r.ResultOf(wl.WorkloadId)
+		if result == nil ||
+			result.State != generated.TfgridWorkloadsReservationResult1StateDeleted {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Workloads returns all reservation workloads (filter by nodeID)
+// if nodeID is empty, return all workloads
+func (r *Reservation) Workloads(nodeID string) []Workload {
+	data := &r.DataReservation
+	var workloads []Workload
+	for _, wl := range data.Containers {
+		if len(nodeID) > 0 && wl.NodeId != nodeID {
+			continue
+		}
+		workload := Workload{
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", r.ID, wl.WorkloadId),
+				User:       fmt.Sprint(r.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeContainer,
+				Content:    wl,
+				Created:    r.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
+				ToDelete:   r.NextAction == Delete,
+			},
+			NodeID: wl.NodeId,
+		}
+
+		workloads = append(workloads, workload)
+	}
+
+	for _, wl := range data.Volumes {
+		if len(nodeID) > 0 && wl.NodeId != nodeID {
+			continue
+		}
+		workload := Workload{
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", r.ID, wl.WorkloadId),
+				User:       fmt.Sprint(r.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeVolume,
+				Content:    wl,
+				Created:    r.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
+				ToDelete:   r.NextAction == Delete,
+			},
+			NodeID: wl.NodeId,
+		}
+
+		workloads = append(workloads, workload)
+	}
+
+	for _, wl := range data.Zdbs {
+		if len(nodeID) > 0 && wl.NodeId != nodeID {
+			continue
+		}
+		workload := Workload{
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", r.ID, wl.WorkloadId),
+				User:       fmt.Sprint(r.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeZdb,
+				Content:    wl,
+				Created:    r.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
+				ToDelete:   r.NextAction == Delete,
+			},
+			NodeID: wl.NodeId,
+		}
+
+		workloads = append(workloads, workload)
+	}
+
+	for _, wl := range data.Kubernetes {
+		if len(nodeID) > 0 && wl.NodeId != nodeID {
+			continue
+		}
+		workload := Workload{
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", r.ID, wl.WorkloadId),
+				User:       fmt.Sprint(r.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeKubernetes,
+				Content:    wl,
+				Created:    r.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
+				ToDelete:   r.NextAction == Delete,
+			},
+			NodeID: wl.NodeId,
+		}
+
+		workloads = append(workloads, workload)
+	}
+
+	for _, wl := range data.Networks {
+		found := false
+		if len(nodeID) > 0 {
+			for _, nr := range wl.NetworkResources {
+				if nr.NodeId == nodeID {
+					found = true
+					break
+				}
+			}
+		} else {
+			// if node id is not set, we list all workloads
+			found = true
+		}
+
+		if !found {
+			continue
+		}
+
+		/*
+			QUESTION: we will have identical workloads (one per each network resource)
+					  but for different  node IDs. this means that multiple node will report
+					  result with the same Global Workload ID. but we only store the
+					  last stored result. Hence we lose the status for other network resources
+					  deployments.
+					  I think the network workload needs to have different workload ids per
+					  network resource.
+					  Thoughts?
+		*/
+		workload := Workload{
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: fmt.Sprintf("%d-%d", r.ID, wl.WorkloadId),
+				User:       fmt.Sprint(r.CustomerTid),
+				Type:       generated.TfgridWorkloadsReservationWorkload1TypeNetwork,
+				Content:    wl,
+				Created:    r.Epoch,
+				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
+				ToDelete:   r.NextAction == Delete,
+			},
+			NodeID: nodeID,
+		}
+
+		workloads = append(workloads, workload)
+	}
+
+	return workloads
 }
 
 // ReservationCreate save new reservation to database.

@@ -154,10 +154,10 @@ func (s *HTTPStore) Feedback(nodeID string, r *Result) error {
 }
 
 // Deleted marks a reservation as deleted
-func (s *HTTPStore) Deleted(id string) error {
-	url := fmt.Sprintf("%s/reservations/%s/deleted", s.baseURL, id)
+func (s *HTTPStore) Deleted(nodeID, id string) error {
+	url := fmt.Sprintf("%s/reservations/workloads/%s/%s", s.baseURL, id, nodeID)
 
-	req, err := http.NewRequest("PUT", url, nil)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return err
 	}

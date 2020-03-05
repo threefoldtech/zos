@@ -61,7 +61,8 @@ func (p *Pipeline) checkSignatures() bool {
 
 // Next gets new modified reservation, and true if the reservation has changed from the input
 func (p *Pipeline) Next() (Reservation, bool) {
-	if p.r.NextAction == generated.TfgridWorkloadsReservation1NextActionDelete {
+	if p.r.NextAction == generated.TfgridWorkloadsReservation1NextActionDelete ||
+		p.r.NextAction == generated.TfgridWorkloadsReservation1NextActionDeleted {
 		return p.r, false
 	}
 
