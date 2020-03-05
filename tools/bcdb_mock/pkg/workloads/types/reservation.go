@@ -245,7 +245,7 @@ func (r *Reservation) Workloads(nodeID string) []Workload {
 				Content:    wl,
 				Created:    r.Epoch,
 				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
-				ToDelete:   r.NextAction == Delete,
+				ToDelete:   r.NextAction == Delete || r.NextAction == Deleted,
 			},
 			NodeID: wl.NodeId,
 		}
@@ -265,7 +265,7 @@ func (r *Reservation) Workloads(nodeID string) []Workload {
 				Content:    wl,
 				Created:    r.Epoch,
 				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
-				ToDelete:   r.NextAction == Delete,
+				ToDelete:   r.NextAction == Delete || r.NextAction == Deleted,
 			},
 			NodeID: wl.NodeId,
 		}
@@ -285,7 +285,7 @@ func (r *Reservation) Workloads(nodeID string) []Workload {
 				Content:    wl,
 				Created:    r.Epoch,
 				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
-				ToDelete:   r.NextAction == Delete,
+				ToDelete:   r.NextAction == Delete || r.NextAction == Deleted,
 			},
 			NodeID: wl.NodeId,
 		}
@@ -305,7 +305,7 @@ func (r *Reservation) Workloads(nodeID string) []Workload {
 				Content:    wl,
 				Created:    r.Epoch,
 				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
-				ToDelete:   r.NextAction == Delete,
+				ToDelete:   r.NextAction == Delete || r.NextAction == Deleted,
 			},
 			NodeID: wl.NodeId,
 		}
@@ -349,7 +349,7 @@ func (r *Reservation) Workloads(nodeID string) []Workload {
 				Content:    wl,
 				Created:    r.Epoch,
 				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
-				ToDelete:   r.NextAction == Delete,
+				ToDelete:   r.NextAction == Delete || r.NextAction == Deleted,
 			},
 			NodeID: nodeID,
 		}
