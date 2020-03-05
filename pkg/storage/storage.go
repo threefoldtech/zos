@@ -373,9 +373,11 @@ func (s *storageModule) ensureCache() error {
 			log.Debug().Msgf("Trying to create new cache on HDD")
 			fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
 			if err != nil {
+				// when everything failed, mount the Tmpfs
 				return s.MountTmpfs()
 			}
 		}
+		// when everything failed, mount the Tmpfs
 		if err != nil {
 			return s.MountTmpfs()
 		}
@@ -528,6 +530,16 @@ func (s *storageModule) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 // it will mount the cache disk on a temporary file system in memory.
 func (s *storageModule) MountTmpfs() error {
 	log.Debug().Msgf("Trying to create Tempfs for cache")
+
+	// creating a file that will be used as a flag
+	// the flag can 'warn' other deamons that the /var/cache is not on HDD or SDD
+	f, err := os.Create("limited_cache")
+	if err != nil {
+		fmt.Println(err)
+		f.Close()
+		return nil
+	}
+
 	if err := syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M"); err != nil {
 		log.Error().Err(err).Str("error! Failed to create tempfs for cache", "fail")
 		return err
