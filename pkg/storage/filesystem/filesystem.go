@@ -89,7 +89,7 @@ func Partprobe(ctx context.Context) error {
 	if _, err := run(ctx, "partprobe"); err != nil {
 		return errors.Wrap(err, "partprobe failed")
 	}
-	if _, err := run(Ctx, "udevadm", "settle"); err != nil {
+	if _, err := run(ctx, "udevadm", "settle"); err != nil {
 		return errors.Wrap(err, "failed to wait for udev settle")
 	}
 	return nil
