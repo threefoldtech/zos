@@ -27,8 +27,8 @@ type ReservationCache interface {
 // Feedbacker defines the method that needs to be implemented
 // to send the provision result to BCDB
 type Feedbacker interface {
-	Feedback(id string, r *Result) error
-	Deleted(id string) error
+	Feedback(nodeID string, r *Result) error
+	Deleted(nodeID, id string) error
 	UpdateReservedResources(nodeID string, c Counters) error
 }
 

@@ -124,7 +124,7 @@ func (g *Gedis) Feedback(nodeID string, r *provision.Result) error {
 		rType = ptypes.TfgridReservationResult1CategoryNetwork
 	}
 
-	result := types.TfgridReservationResult1{
+	result := ptypes.TfgridReservationResult1{
 		Category:   rType,
 		WorkloadID: r.ID,
 		DataJSON:   string(r.Data),
@@ -137,6 +137,20 @@ func (g *Gedis) Feedback(nodeID string, r *provision.Result) error {
 	_, err := g.Send("tfgrid.workloads.workload_manager", "set_workload_result", Args{
 		"global_workload_id": r.ID,
 		"result":             result,
+	})
+	return err
+}
+
+func (g *Gedis) UpdateReservedResources(nodeID string, c provision.Counters) error {
+	r := dtypes.TfgridNodeResourceAmount1{
+		Cru: c.CRU.Current(),
+		Mru: c.MRU.Current(),
+		Hru: c.HRU.Current(),
+		Sru: c.SRU.Current(),
+	}
+	_, err := g.Send("tfgrid.directory.nodes", "update_reserved_capacity", Args{
+		"node_id":   nodeID,
+		"resources": r,
 	})
 	return err
 }

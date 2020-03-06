@@ -34,6 +34,7 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 	nodes.HandleFunc("/{node_id}/configure_public", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.configurePublic))).Methods("POST")
 	nodes.HandleFunc("/{node_id}/capacity", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerCapacity))).Methods("POST")
 	nodes.HandleFunc("/{node_id}/uptime", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.updateUptimeHandler))).Methods("POST")
+	nodes.HandleFunc("/{node_id}/used_resources", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.updateUsedResources))).Methods("POST")
 
 	// compatibility with gedis_http
 	nodes.HandleFunc("/list", mw.AsHandlerFunc(nodeAPI.cockpitListNodes)).Methods("POST")

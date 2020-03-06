@@ -221,32 +221,22 @@ func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, mw.Response
 	return nil, nil
 }
 
-func (s *nodeStore) updateUsedResources(w http.ResponseWriter, r *http.Request) {
+func (s *NodeAPI) updateUsedResources(r *http.Request) (interface{}, mw.Response) {
+	//return nil, mw.Error(fmt.Errorf("not implemented"))
 	defer r.Body.Close()
 
-	u := struct {
-		SRU int64 `json:"sru,omitempty"`
-		HRU int64 `json:"hru,omitempty"`
-		MRU int64 `json:"mru,omitempty"`
-		CRU int64 `json:"cru,omitempty"`
-	}{}
-	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
-		httpError(w, err, http.StatusBadRequest)
-		return
+	var resources generated.TfgridDirectoryNodeResourceAmount1
+
+	if err := json.NewDecoder(r.Body).Decode(&resources); err != nil {
+		return nil, mw.BadRequest(err)
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
 
-	usedRescources := directory.TfgridNodeResourceAmount1{
-		Cru: int64(u.CRU),
-		Sru: int64(u.SRU),
-		Hru: int64(u.HRU),
-		Mru: int64(u.MRU),
+	db := mw.Database(r)
+	if err := s.updateUsedCapacity(r.Context(), db, nodeID, resources); err != nil {
+		return nil, mw.NotFound(err)
 	}
 
-	if err := s.updateReservedCapacity(nodeID, usedRescources); err != nil {
-		httpError(w, err, http.StatusNotFound)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
+	return nil, nil
 }
