@@ -3,6 +3,7 @@ package filesystem
 import (
 	"context"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -81,4 +82,15 @@ type Filesystem interface {
 	Create(ctx context.Context, name string, profile pkg.RaidProfile, devices ...*Device) (Pool, error)
 	// List all existing filesystems on the node
 	List(ctx context.Context, filter Filter) ([]Pool, error)
+}
+
+// Partprobe runs partprobe
+func Partprobe(ctx context.Context) error {
+	if _, err := run(ctx, "partprobe"); err != nil {
+		return errors.Wrap(err, "partprobe failed")
+	}
+	if _, err := run(ctx, "udevadm", "settle"); err != nil {
+		return errors.Wrap(err, "failed to wait for udev settle")
+	}
+	return nil
 }
