@@ -150,8 +150,11 @@ func (r *Reservation) validate() error {
 type ResultState generated.TfgridReservationResult1StateEnum
 
 const (
-	StateError   = ResultState(generated.TfgridReservationResult1StateError)
-	StateOk      = ResultState(generated.TfgridReservationResult1StateOk)
+	// StateError constant
+	StateError = ResultState(generated.TfgridReservationResult1StateError)
+	// StateOk constant
+	StateOk = ResultState(generated.TfgridReservationResult1StateOk)
+	//StateDeleted constant
 	StateDeleted = ResultState(generated.TfgridReservationResult1StateDeleted)
 )
 

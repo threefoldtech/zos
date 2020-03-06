@@ -83,7 +83,7 @@ func ZDBToProvisionType(z generated.TfgridReservationZdb1) (ZDB, string, error) 
 	return zdb, z.NodeID, nil
 }
 
-// ToProvisionType converts type to internal provision type
+// K8SToProvisionType converts type to internal provision type
 func K8SToProvisionType(k generated.TfgridWorkloadsReservationK8S1) (Kubernetes, string, error) {
 	k8s := Kubernetes{
 		Size:          k.Size,
@@ -100,7 +100,7 @@ func K8SToProvisionType(k generated.TfgridWorkloadsReservationK8S1) (Kubernetes,
 	return k8s, k.NodeID, nil
 }
 
-// ToProvisionType convert TfgridReservationNetwork1 to pkg.Network
+// NetworkToProvisionType convert TfgridReservationNetwork1 to pkg.Network
 func NetworkToProvisionType(n generated.TfgridReservationNetwork1) (pkg.Network, error) {
 	network := pkg.Network{
 		Name:         n.Name,
@@ -160,7 +160,7 @@ func NetResourceToProvisionType(r generated.TfgridNetworkNetResource1) (pkg.NetR
 	return nr, nil
 }
 
-// WorkloadToProvisionType
+// WorkloadToProvisionType TfgridReservationWorkload1 to provision.Reservation
 func WorkloadToProvisionType(w generated.TfgridReservationWorkload1) (*Reservation, error) {
 	reservation := &Reservation{
 		ID:        w.WorkloadID,

@@ -141,6 +141,7 @@ func (g *Gedis) Feedback(nodeID string, r *provision.Result) error {
 	return err
 }
 
+//UpdateReservedResources sends current reserved resources
 func (g *Gedis) UpdateReservedResources(nodeID string, c provision.Counters) error {
 	r := dtypes.TfgridNodeResourceAmount1{
 		Cru: c.CRU.Current(),
