@@ -164,11 +164,12 @@ func TestProvisionReserve(t *testing.T) {
 		pool: pool,
 	}
 
+	now := time.Now()
 	reservation := provision.Reservation{
 		NodeID:  "101",
 		Type:    provision.ContainerReservation,
 		ID:      "10",
-		Created: time.Now(),
+		Created: now,
 		Data: json.RawMessage(mustMarshal(t, provision.Container{
 			FList:      "http://hub.grid.tf/test/test.flist",
 			Entrypoint: "/bin/app",
@@ -177,24 +178,35 @@ func TestProvisionReserve(t *testing.T) {
 				IPs:       []net.IP{net.ParseIP("192.168.1.1")},
 			},
 		})),
+		Duration:  10 * time.Minute,
 		Signature: []byte("signature"),
 	}
 
-	args := Args{
-		"reservation": types.TfgridReservation1{
-			DataReservation: types.TfgridReservationData1{
-				Containers: []types.TfgridReservationContainer1{
-					{
-						Flist:      "http://hub.grid.tf/test/test.flist",
-						Entrypoint: "/bin/app",
-						NetworkConnection: []types.TfgridReservationNetworkConnection1{
-							{NetworkID: "123", Ipaddress: net.ParseIP("192.168.1.1")},
-						},
-						Volumes: []types.TfgridReservationContainerMount1{},
+	sent := types.TfgridReservation1{
+		Epoch: schema.Date{Time: now},
+		DataReservation: types.TfgridReservationData1{
+			ExpirationReservation:  schema.Date{Time: now.Add(reservation.Duration)},
+			ExpirationProvisioning: schema.Date{Time: now.Add(2 * time.Minute)},
+			Containers: []types.TfgridReservationContainer1{
+				{
+					WorkloadID: 1,
+					NodeID:     "101",
+					Flist:      "http://hub.grid.tf/test/test.flist",
+					Entrypoint: "/bin/app",
+					NetworkConnection: []types.TfgridReservationNetworkConnection1{
+						{NetworkID: "123", Ipaddress: net.ParseIP("192.168.1.1")},
 					},
+					Volumes: []types.TfgridReservationContainerMount1{},
 				},
 			},
 		},
+	}
+
+	bytes, _ := json.Marshal(sent.DataReservation)
+	sent.JSON = string(bytes)
+
+	args := Args{
+		"reservation": sent,
 	}
 
 	conn.On("Do", "tfgrid.workloads.workload_manager.reservation_register", mock.MatchedBy(func(in []byte) bool {
