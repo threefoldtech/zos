@@ -224,6 +224,7 @@ func (a *API) queued(ctx context.Context, db *mongo.Database, nodeID string, lim
 	if err != nil {
 		return nil, err
 	}
+	defer cur.Close(ctx)
 	for cur.Next(ctx) {
 		// why we have intermediate struct you say? I will tell you
 		// Content in the workload structure is definition as of type interface{}
