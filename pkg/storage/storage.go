@@ -431,12 +431,30 @@ func (s *storageModule) ensureCache() error {
 				// No space on SSD (probably no SSD in the node at all), try HDD
 				log.Debug().Msgf("Trying to create new cache on HDD")
 				fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
+
+				// set the limited-cache flag
+				f, err := os.Create("limited_cache")
+				if err != nil {
+					fmt.Println(err)
+					f.Close()
+					return nil
+				}
+
 				if err != nil {
 					// when everything failed, mount the Tmpfs
 					return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
 					// set the limited-cache flag
 				}
 			}
+
+			// set the limited-cache flag
+			f, err := os.Create("limited_cache")
+			if err != nil {
+				fmt.Println(err)
+				f.Close()
+				return nil
+			}
+
 			// when everything failed, mount the Tmpfs
 			if err != nil {
 				return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
