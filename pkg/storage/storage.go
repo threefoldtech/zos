@@ -448,6 +448,7 @@ func (s *storageModule) ensureCache() error {
 		return filesystem.BindMount(cacheFs, cacheTarget)
 	}
 	log.Debug().Msgf("Cache partition already mounted in %s", cacheTarget)
+	return nil
 }
 
 // createSubvol creates a subvolume with the given name and limits it to the given size
