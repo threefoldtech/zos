@@ -73,7 +73,7 @@ func (s *NodeAPI) updateTotalCapacity(ctx context.Context, db *mongo.Database, n
 	return directory.NodeUpdateTotalResources(ctx, db, nodeID, capacity)
 }
 
-func (s *NodeAPI) updateUsedCapacity(ctx context.Context, db *mongo.Database, nodeID string, capacity generated.TfgridDirectoryNodeResourceAmount1) error {
+func (s *NodeAPI) updateReservedCapacity(ctx context.Context, db *mongo.Database, nodeID string, capacity generated.TfgridDirectoryNodeResourceAmount1) error {
 	return directory.NodeUpdateUsedResources(ctx, db, nodeID, capacity)
 }
 

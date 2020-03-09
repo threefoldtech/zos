@@ -221,7 +221,7 @@ func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, mw.Response
 	return nil, nil
 }
 
-func (s *NodeAPI) updateUsedResources(r *http.Request) (interface{}, mw.Response) {
+func (s *NodeAPI) updateReservedResources(r *http.Request) (interface{}, mw.Response) {
 	//return nil, mw.Error(fmt.Errorf("not implemented"))
 	defer r.Body.Close()
 
@@ -234,7 +234,7 @@ func (s *NodeAPI) updateUsedResources(r *http.Request) (interface{}, mw.Response
 	nodeID := mux.Vars(r)["node_id"]
 
 	db := mw.Database(r)
-	if err := s.updateUsedCapacity(r.Context(), db, nodeID, resources); err != nil {
+	if err := s.updateReservedCapacity(r.Context(), db, nodeID, resources); err != nil {
 		return nil, mw.NotFound(err)
 	}
 
