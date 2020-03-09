@@ -366,10 +366,7 @@ func (s *storageModule) ensureCache() error {
 			log.Debug().Msgf("No cache found, try to create new cache")
 
 			log.Debug().Msgf("Trying to create new cache on SSD")
-			//fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
-
-			var err error = pkg.ErrNotEnoughSpace{}
-			var fs filesystem.Volume
+			fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
 
 			if errors.Is(err, pkg.ErrNotEnoughSpace{}) {
 				// No space on SSD (probably no SSD in the node at all), try HDD
