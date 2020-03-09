@@ -47,6 +47,12 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
+	// keep checking if limited-cache flag is set
+	for flag := true; flag; flag = app.CheckFlag("limited-cache") {
+		// make provision disabled
+		// sleep for 30 seconds
+	}
+
 	if debug {
 		log.Logger.Level(zerolog.DebugLevel)
 	}

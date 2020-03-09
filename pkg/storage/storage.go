@@ -335,61 +335,119 @@ func (s *storageModule) Path(name string) (string, error) {
 
 // ensureCache creates a "cache" subvolume and mounts it in /var
 func (s *storageModule) ensureCache() error {
+	/* 	log.Info().Msgf("Setting up cache")
+
+	   	log.Debug().Msgf("Checking pools for existing cache")
+
+	   	var cacheFs filesystem.Volume
+
+	   	// check if we already have a cache
+	   	for idx := range s.volumes {
+	   		filesystems, err := s.volumes[idx].Volumes()
+	   		if err != nil {
+	   			return err
+	   		}
+	   		for jdx := range filesystems {
+	   			if filesystems[jdx].Name() == cacheLabel {
+	   				log.Debug().Msgf("Found existing cache at %v", filesystems[jdx].Path())
+	   				cacheFs = filesystems[jdx]
+	   				break
+	   			}
+	   		}
+	   		if cacheFs != nil {
+	   			break
+	   		}
+	   	}
+
+	   	if cacheFs == nil {
+	   		log.Debug().Msgf("No cache found, try to create new cache")
+
+	   		log.Debug().Msgf("Trying to create new cache on SSD")
+	   		//fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
+
+	   		var err error = pkg.ErrNotEnoughSpace{}
+	   		var fs filesystem.Volume
+
+	   		if errors.Is(err, pkg.ErrNotEnoughSpace{}) {
+	   			// No space on SSD (probably no SSD in the node at all), try HDD
+	   			log.Debug().Msgf("Trying to create new cache on HDD")
+	   			fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
+	   			if err != nil {
+	   				// when everything failed, mount the Tmpfs
+	   				return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
+	   				// set the limited-cache flag
+	   			}
+	   		}
+	   		// when everything failed, mount the Tmpfs
+	   		if err != nil {
+	   			return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
+	   		}
+	   		cacheFs = fs
+	   	}
+
+	   	if !filesystem.IsMountPoint(cacheTarget) {
+	   		log.Debug().Msgf("Mounting cache partition in %s", cacheTarget)
+	   		return filesystem.BindMount(cacheFs, cacheTarget)
+	   	}
+	   	log.Debug().Msgf("Cache partition already mounted in %s", cacheTarget)
+	   	return nil */
+
 	log.Info().Msgf("Setting up cache")
 
 	log.Debug().Msgf("Checking pools for existing cache")
 
 	var cacheFs filesystem.Volume
 
-	// check if we already have a cache
-	for idx := range s.volumes {
-		filesystems, err := s.volumes[idx].Volumes()
-		if err != nil {
-			return err
-		}
-		for jdx := range filesystems {
-			if filesystems[jdx].Name() == cacheLabel {
-				log.Debug().Msgf("Found existing cache at %v", filesystems[jdx].Path())
-				cacheFs = filesystems[jdx]
+	// check if mounted
+	if !filesystem.IsMountPoint(cacheTarget) {
+		// check if cache volume available
+		for idx := range s.volumes {
+			filesystems, err := s.volumes[idx].Volumes()
+			if err != nil {
+				return err
+			}
+			for jdx := range filesystems {
+				if filesystems[jdx].Name() == cacheLabel {
+					log.Debug().Msgf("Found existing cache at %v", filesystems[jdx].Path())
+					cacheFs = filesystems[jdx]
+					break
+				}
+			}
+			if cacheFs != nil {
 				break
 			}
 		}
-		if cacheFs != nil {
-			break
-		}
-	}
 
-	if cacheFs == nil {
-		log.Debug().Msgf("No cache found, try to create new cache")
+		if cacheFs == nil {
+			log.Debug().Msgf("No cache found, try to create new cache")
 
-		log.Debug().Msgf("Trying to create new cache on SSD")
-		//fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
+			log.Debug().Msgf("Trying to create new cache on SSD")
+			//fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
 
-		var err error = pkg.ErrNotEnoughSpace{}
-		var fs filesystem.Volume
+			var err error = pkg.ErrNotEnoughSpace{}
+			var fs filesystem.Volume
 
-		if errors.Is(err, pkg.ErrNotEnoughSpace{}) {
-			// No space on SSD (probably no SSD in the node at all), try HDD
-			log.Debug().Msgf("Trying to create new cache on HDD")
-			fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
-			if err != nil {
-				// when everything failed, mount the Tmpfs
-				return s.MountTmpfsCache()
+			if errors.Is(err, pkg.ErrNotEnoughSpace{}) {
+				// No space on SSD (probably no SSD in the node at all), try HDD
+				log.Debug().Msgf("Trying to create new cache on HDD")
+				fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
+				if err != nil {
+					// when everything failed, mount the Tmpfs
+					return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
+					// set the limited-cache flag
+				}
 			}
+			// when everything failed, mount the Tmpfs
+			if err != nil {
+				return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
+			}
+			cacheFs = fs
 		}
-		// when everything failed, mount the Tmpfs
-		if err != nil {
-			return s.MountTmpfsCache()
-		}
-		cacheFs = fs
-	}
 
-	if !filesystem.IsMountPoint(cacheTarget) {
 		log.Debug().Msgf("Mounting cache partition in %s", cacheTarget)
 		return filesystem.BindMount(cacheFs, cacheTarget)
 	}
 	log.Debug().Msgf("Cache partition already mounted in %s", cacheTarget)
-	return nil
 }
 
 // createSubvol creates a subvolume with the given name and limits it to the given size
@@ -524,11 +582,4 @@ func (s *storageModule) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 	}()
 
 	return ch
-}
-
-func (s *storageModule) MountTmpfsCache() error {
-	//make sure /var/cache is not already mounted
-
-	//mount the cache
-	return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
 }
