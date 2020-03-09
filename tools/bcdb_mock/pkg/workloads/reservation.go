@@ -19,7 +19,9 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	phonebook "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads/types"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // API struct
@@ -188,7 +190,68 @@ func (a *API) markDelete(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
+	reservation, err = a.pipeline(filter.Get(r.Context(), db))
+	if err != nil {
+		return nil, mw.NotFound(err)
+	}
+
+	if err := types.WorkloadPush(r.Context(), db, reservation.Workloads("")...); err != nil {
+		log.Error().Err(err).Msg("failed to push workload to wokloads queue")
+	}
+
 	return nil, nil
+}
+func (a *API) queued(ctx context.Context, db *mongo.Database, nodeID string, limit int64) ([]types.Workload, error) {
+
+	type intermediate struct {
+		WorkloadId string                                                `bson:"workload_id" json:"workload_id"`
+		User       string                                                `bson:"user" json:"user"`
+		Type       generated.TfgridWorkloadsReservationWorkload1TypeEnum `bson:"type" json:"type"`
+		Content    bson.M                                                `bson:"content" json:"content"`
+		Created    schema.Date                                           `bson:"created" json:"created"`
+		Duration   int64                                                 `bson:"duration" json:"duration"`
+		Signature  string                                                `bson:"signature" json:"signature"`
+		ToDelete   bool                                                  `bson:"to_delete" json:"to_delete"`
+		NodeID     string                                                `json:"node_id" bson:"node_id"`
+	}
+
+	workloads := make([]types.Workload, 0)
+
+	var queue types.QueueFilter
+	queue = queue.WithNodeID(nodeID)
+
+	cur, err := queue.Find(ctx, db, options.Find().SetLimit(limit))
+	if err != nil {
+		return nil, err
+	}
+	for cur.Next(ctx) {
+		// why we have intermediate struct you say? I will tell you
+		// Content in the workload structure is definition as of type interface{}
+		// bson if found a nil interface, it initialize it with bson.D (list of elements)
+		// so data in Content will be something like [{key: k1, value: v1}, {key: k2, value: v2}]
+		// which is not the same structure expected in the node
+		// hence we use bson.M to force it to load data in a map like {k1: v1, k2: v2}
+		var wl intermediate
+
+		if err := cur.Decode(&wl); err != nil {
+			return workloads, err
+		}
+		workloads = append(workloads, types.Workload{
+			NodeID: wl.NodeID,
+			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+				WorkloadId: wl.WorkloadId,
+				User:       wl.User,
+				Type:       wl.Type,
+				Content:    wl.Content,
+				Created:    wl.Created,
+				Duration:   wl.Duration,
+				Signature:  wl.Signature,
+				ToDelete:   wl.ToDelete,
+			},
+		})
+	}
+
+	return workloads, nil
 }
 
 func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
@@ -200,72 +263,54 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 		nodeID = mux.Vars(r)["node_id"]
 	)
 
+	db := mw.Database(r)
+	workloads, err := a.queued(r.Context(), db, nodeID, maxPageSize)
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return workloads, nil
+	if len(workloads) > maxPageSize {
+		return workloads, nil
+	}
+
 	from, err := a.parseID(r.FormValue("from"))
 	if err != nil {
 		return nil, mw.BadRequest(err)
 	}
 
-	find := func(ctx context.Context, db *mongo.Database, filter types.ReservationFilter) ([]types.Workload, error) {
-		cur, err := filter.Find(r.Context(), db)
-		if err != nil {
-			return nil, err
-		}
-
-		defer cur.Close(r.Context())
-
-		workloads := []types.Workload{}
-
-		for cur.Next(r.Context()) {
-			var reservation types.Reservation
-			if err := cur.Decode(&reservation); err != nil {
-				return nil, err
-			}
-
-			reservation, err = a.pipeline(reservation, nil)
-			if err != nil {
-				log.Error().Err(err).Int64("id", int64(reservation.ID)).Msg("failed to process reservation")
-				continue
-			}
-
-			// only reservations that is in right status
-			if !reservation.IsAny(types.Deploy, types.Delete) {
-				continue
-			}
-
-			resLoads := reservation.Workloads(nodeID)
-			if reservation.NextAction == types.Deploy {
-				workloads = append(workloads, resLoads...)
-			} else {
-				for _, wl := range resLoads {
-					result := reservation.ResultOf(wl.WorkloadId)
-					if result != nil && result.State == generated.TfgridWorkloadsReservationResult1StateDeleted {
-						// so this workload has been already deleted by the node.
-						// hence we don't need to serve it again
-						continue
-					}
-
-					workloads = append(workloads, wl)
-				}
-			}
-
-			if len(workloads) >= maxPageSize {
-				break
-			}
-		}
-
-		return workloads, nil
-	}
-
-	filter := types.ReservationFilter{}.WithIdGE(from).Or(types.ReservationFilter{}.WithNextAction(generated.TfgridWorkloadsReservation1NextActionDelete))
+	filter := types.ReservationFilter{}.WithIdGE(from)
 	filter = filter.WithNodeID(nodeID)
 
-	db := mw.Database(r)
-	//NOTE: the filter will find old reservations that has explicitly set to delete
-	//not the ones that expired. The node should take care of the ones that expires
-	//naturally.
-	workloads, err := find(r.Context(), db, filter)
+	cur, err := filter.Find(r.Context(), db)
 	if err != nil {
-		return nil, mw.Error(errors.Wrap(err, "failed to list reservations to delete"))
+		return nil, mw.Error(err)
+	}
+
+	defer cur.Close(r.Context())
+
+	for cur.Next(r.Context()) {
+		var reservation types.Reservation
+		if err := cur.Decode(&reservation); err != nil {
+			return nil, mw.Error(err)
+		}
+
+		reservation, err = a.pipeline(reservation, nil)
+		if err != nil {
+			log.Error().Err(err).Int64("id", int64(reservation.ID)).Msg("failed to process reservation")
+			continue
+		}
+
+		// only reservations that is in right status
+		if !reservation.IsAny(types.Deploy) {
+			continue
+		}
+
+		workloads = append(workloads, reservation.Workloads(nodeID)...)
+
+		if len(workloads) >= maxPageSize {
+			break
+		}
 	}
 
 	return workloads, nil
@@ -363,7 +408,11 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.UnAuthorized(errors.Wrap(err, "invalid result signature"))
 	}
 
-	if err := types.PushResult(r.Context(), db, rid, result); err != nil {
+	if err := types.ResultPush(r.Context(), db, rid, result); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	if err := types.WorkloadPop(r.Context(), db, gwid); err != nil {
 		return nil, mw.Error(err)
 	}
 
@@ -424,7 +473,11 @@ func (a *API) workloadPutDeleted(r *http.Request) (interface{}, mw.Response) {
 
 	result.State = generated.TfgridWorkloadsReservationResult1StateDeleted
 
-	if err := types.PushResult(r.Context(), db, rid, *result); err != nil {
+	if err := types.ResultPush(r.Context(), db, rid, *result); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	if err := types.WorkloadPop(r.Context(), db, gwid); err != nil {
 		return nil, mw.Error(err)
 	}
 
@@ -467,9 +520,13 @@ func (a *API) sign(r *http.Request) (interface{}, mw.Response) {
 	filter = filter.WithID(id)
 
 	db := mw.Database(r)
-	reservation, err := filter.Get(r.Context(), db)
+	reservation, err := a.pipeline(filter.Get(r.Context(), db))
 	if err != nil {
 		return nil, mw.NotFound(err)
+	}
+
+	if reservation.NextAction != generated.TfgridWorkloadsReservation1NextActionSign {
+		return nil, mw.UnAuthorized(fmt.Errorf("reservation not expecting signatures"))
 	}
 
 	in := func(i int64, l []int64) bool {
@@ -497,6 +554,15 @@ func (a *API) sign(r *http.Request) (interface{}, mw.Response) {
 	signature.Epoch = schema.Date{Time: time.Now()}
 	if err := types.ReservationPushSignature(r.Context(), db, id, signature); err != nil {
 		return nil, mw.Error(err)
+	}
+
+	reservation, err = a.pipeline(filter.Get(r.Context(), db))
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	if reservation.NextAction == generated.TfgridWorkloadsReservation1NextActionDeploy {
+		types.WorkloadPush(r.Context(), db, reservation.Workloads("")...)
 	}
 
 	return nil, mw.Created()

@@ -22,6 +22,7 @@ import (
 
 const (
 	reservationCollection = "reservation"
+	queueCollection       = "workqueue"
 )
 
 const (
@@ -314,47 +315,31 @@ func (r *Reservation) Workloads(nodeID string) []Workload {
 	}
 
 	for _, wl := range data.Networks {
-		found := false
-		if len(nodeID) > 0 {
-			for _, nr := range wl.NetworkResources {
-				if nr.NodeId == nodeID {
-					found = true
-					break
-				}
+		for _, nr := range wl.NetworkResources {
+
+			if len(nodeID) > 0 && nr.NodeId != nodeID {
+				continue
 			}
-		} else {
-			// if node id is not set, we list all workloads
-			found = true
-		}
+			// QUESTION: the problem here is that we have multiple workloads that
+			// has the same global workload-id, hence it's gonna be a problem
+			// when the node report their results. because it means only last
+			// result is what is gonna be visible. We need to (may be) change
+			// the workload id to have the network resource index
+			workload := Workload{
+				TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
+					WorkloadId: fmt.Sprintf("%d-%d", r.ID, wl.WorkloadId),
+					User:       fmt.Sprint(r.CustomerTid),
+					Type:       generated.TfgridWorkloadsReservationWorkload1TypeNetwork,
+					Content:    wl,
+					Created:    r.Epoch,
+					Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
+					ToDelete:   r.NextAction == Delete || r.NextAction == Deleted,
+				},
+				NodeID: nr.NodeId,
+			}
 
-		if !found {
-			continue
+			workloads = append(workloads, workload)
 		}
-
-		/*
-			QUESTION: we will have identical workloads (one per each network resource)
-					  but for different  node IDs. this means that multiple node will report
-					  result with the same Global Workload ID. but we only store the
-					  last stored result. Hence we lose the status for other network resources
-					  deployments.
-					  I think the network workload needs to have different workload ids per
-					  network resource.
-					  Thoughts?
-		*/
-		workload := Workload{
-			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
-				WorkloadId: fmt.Sprintf("%d-%d", r.ID, wl.WorkloadId),
-				User:       fmt.Sprint(r.CustomerTid),
-				Type:       generated.TfgridWorkloadsReservationWorkload1TypeNetwork,
-				Content:    wl,
-				Created:    r.Epoch,
-				Duration:   int64(data.ExpirationReservation.Sub(r.Epoch.Time).Seconds()),
-				ToDelete:   r.NextAction == Delete || r.NextAction == Deleted,
-			},
-			NodeID: nodeID,
-		}
-
-		workloads = append(workloads, workload)
 	}
 
 	return workloads
@@ -431,8 +416,38 @@ func ReservationPushSignature(ctx context.Context, db *mongo.Database, id schema
 
 // Workload is a wrapper around generated TfgridWorkloadsReservationWorkload1 type
 type Workload struct {
-	generated.TfgridWorkloadsReservationWorkload1
-	NodeID string `json:"-" bson:"-"`
+	generated.TfgridWorkloadsReservationWorkload1 `bson:",inline"`
+	NodeID                                        string `json:"node_id" bson:"node_id"`
+}
+
+type QueueFilter bson.D
+
+func (f QueueFilter) WithNodeID(nodeID string) QueueFilter {
+	return append(f, bson.E{Key: "node_id", Value: nodeID})
+}
+
+func (f QueueFilter) Find(ctx context.Context, db *mongo.Database, opts ...*options.FindOptions) (*mongo.Cursor, error) {
+	col := db.Collection(queueCollection)
+	return col.Find(ctx, f, opts...)
+}
+
+// WorkloadPush
+func WorkloadPush(ctx context.Context, db *mongo.Database, w ...Workload) error {
+	col := db.Collection(queueCollection)
+	docs := make([]interface{}, 0, len(w))
+	for _, wl := range w {
+		docs = append(docs, wl)
+	}
+	_, err := col.InsertMany(ctx, docs)
+
+	return err
+}
+
+func WorkloadPop(ctx context.Context, db *mongo.Database, id string) error {
+	col := db.Collection(queueCollection)
+	_, err := col.DeleteOne(ctx, bson.M{"workload_id": id})
+
+	return err
 }
 
 // Result is a wrapper around TfgridWorkloadsReservationResult1 type
@@ -475,7 +490,7 @@ func (r *Result) Verify(pk string) error {
 
 // PushResult pushes result to a reservation result array.
 // NOTE: this is just a crud operation, no validation is done here
-func PushResult(ctx context.Context, db *mongo.Database, id schema.ID, result Result) error {
+func ResultPush(ctx context.Context, db *mongo.Database, id schema.ID, result Result) error {
 	col := db.Collection(reservationCollection)
 	var filter ReservationFilter
 	filter = filter.WithID(id)

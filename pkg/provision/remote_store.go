@@ -135,7 +135,7 @@ func (s *HTTPStore) Feedback(nodeID string, r *Result) error {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", url, buf)
+	req, err := http.NewRequest(http.MethodPut, url, buf)
 	if err != nil {
 		return err
 	}
