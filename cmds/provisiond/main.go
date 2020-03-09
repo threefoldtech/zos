@@ -52,6 +52,15 @@ func main() {
 		log.Logger.Level(zerolog.DebugLevel)
 	}
 
+	// keep checking if limited-cache flag is set
+	for app.CheckFlag("limited-cache") {
+		// report the limited-cache flag
+		log.Info().Msg("failed cache reservation! Waiting 30 sec and retrying...")
+		// make provision not happening by sleeping 30 sec
+		time.Sleep(time.Second * 30)
+		log.Info().Msg("retrying cache reservation")
+	}
+
 	flag.Parse()
 
 	if err := os.MkdirAll(storageDir, 0770); err != nil {
@@ -107,15 +116,6 @@ func main() {
 	)
 
 	engine := provision.New(nodeID.Identity(), source, localStore, remoteStore)
-
-	// keep checking if limited-cache flag is set
-	for flag := true; flag; flag = app.CheckFlag("limited-cache") {
-		// report the limited-cache flag
-		log.Info().Msg("failed cache reservation! Waiting 30 sec and retrying...")
-		// make provision not happening by sleeping 30 sec
-		time.Sleep(time.Millisecond * 30000)
-		log.Info().Msg("retrying cache reservation")
-	}
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.ProvisionMonitor(engine))
 

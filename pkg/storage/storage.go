@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
 )
 
@@ -335,63 +336,6 @@ func (s *storageModule) Path(name string) (string, error) {
 
 // ensureCache creates a "cache" subvolume and mounts it in /var
 func (s *storageModule) ensureCache() error {
-	/* 	log.Info().Msgf("Setting up cache")
-
-	   	log.Debug().Msgf("Checking pools for existing cache")
-
-	   	var cacheFs filesystem.Volume
-
-	   	// check if we already have a cache
-	   	for idx := range s.volumes {
-	   		filesystems, err := s.volumes[idx].Volumes()
-	   		if err != nil {
-	   			return err
-	   		}
-	   		for jdx := range filesystems {
-	   			if filesystems[jdx].Name() == cacheLabel {
-	   				log.Debug().Msgf("Found existing cache at %v", filesystems[jdx].Path())
-	   				cacheFs = filesystems[jdx]
-	   				break
-	   			}
-	   		}
-	   		if cacheFs != nil {
-	   			break
-	   		}
-	   	}
-
-	   	if cacheFs == nil {
-	   		log.Debug().Msgf("No cache found, try to create new cache")
-
-	   		log.Debug().Msgf("Trying to create new cache on SSD")
-	   		//fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
-
-	   		var err error = pkg.ErrNotEnoughSpace{}
-	   		var fs filesystem.Volume
-
-	   		if errors.Is(err, pkg.ErrNotEnoughSpace{}) {
-	   			// No space on SSD (probably no SSD in the node at all), try HDD
-	   			log.Debug().Msgf("Trying to create new cache on HDD")
-	   			fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
-	   			if err != nil {
-	   				// when everything failed, mount the Tmpfs
-	   				return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
-	   				// set the limited-cache flag
-	   			}
-	   		}
-	   		// when everything failed, mount the Tmpfs
-	   		if err != nil {
-	   			return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
-	   		}
-	   		cacheFs = fs
-	   	}
-
-	   	if !filesystem.IsMountPoint(cacheTarget) {
-	   		log.Debug().Msgf("Mounting cache partition in %s", cacheTarget)
-	   		return filesystem.BindMount(cacheFs, cacheTarget)
-	   	}
-	   	log.Debug().Msgf("Cache partition already mounted in %s", cacheTarget)
-	   	return nil */
-
 	log.Info().Msgf("Setting up cache")
 
 	log.Debug().Msgf("Checking pools for existing cache")
@@ -432,27 +376,19 @@ func (s *storageModule) ensureCache() error {
 				log.Debug().Msgf("Trying to create new cache on HDD")
 				fs, err = s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
 
-				// set the limited-cache flag
-				f, err := os.Create("limited_cache")
 				if err != nil {
-					fmt.Println(err)
-					f.Close()
-					return nil
-				}
-
-				if err != nil {
+					// set limited cache flag
+					if err := app.SetFlag("limited-cache"); err != nil {
+						return err
+					}
 					// when everything failed, mount the Tmpfs
 					return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
-					// set the limited-cache flag
 				}
 			}
 
-			// set the limited-cache flag
-			f, err := os.Create("limited_cache")
-			if err != nil {
-				fmt.Println(err)
-				f.Close()
-				return nil
+			// set limited cache flag
+			if err := app.SetFlag("limited-cache"); err != nil {
+				return err
 			}
 
 			// when everything failed, mount the Tmpfs
