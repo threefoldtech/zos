@@ -9,7 +9,7 @@ import (
 
 const (
 	flagsDir     = "/tmp/flags"
-	LimitedCache = "limited-cache"
+	limitedCache = "limited-cache"
 )
 
 // SetFlag is used when the /var/cache cannot be mounted on a SSD or HDD,
