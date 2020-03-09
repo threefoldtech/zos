@@ -270,7 +270,6 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	return workloads, nil
 	if len(workloads) > maxPageSize {
 		return workloads, nil
 	}
