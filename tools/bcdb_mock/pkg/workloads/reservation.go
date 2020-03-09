@@ -444,3 +444,60 @@ func (a *API) workloadPutDeleted(r *http.Request) (interface{}, mw.Response) {
 
 	return nil, nil
 }
+
+func (a *API) sign(r *http.Request) (interface{}, mw.Response) {
+	defer r.Body.Close()
+	var signature generated.TfgridWorkloadsReservationSigningSignature1
+
+	if err := json.NewDecoder(r.Body).Decode(&signature); err != nil {
+		return nil, mw.BadRequest(err)
+	}
+
+	sig, err := hex.DecodeString(signature.Signature)
+	if err != nil {
+		return nil, mw.BadRequest(errors.Wrap(err, "invalid signature expecting hex encoded string"))
+	}
+
+	id, err := a.parseID(mux.Vars(r)["res_id"])
+	if err != nil {
+		return nil, mw.BadRequest(fmt.Errorf("invalid reservation id"))
+	}
+
+	var filter types.ReservationFilter
+	filter = filter.WithID(id)
+
+	db := mw.Database(r)
+	reservation, err := filter.Get(r.Context(), db)
+	if err != nil {
+		return nil, mw.NotFound(err)
+	}
+
+	in := func(i int64, l []int64) bool {
+		for _, x := range l {
+			if x == i {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !in(signature.Tid, reservation.DataReservation.SigningRequestProvision.Signers) {
+		return nil, mw.UnAuthorized(fmt.Errorf("signature not required for '%d'", signature.Tid))
+	}
+
+	user, err := phonebook.UserFilter{}.WithID(schema.ID(signature.Tid)).Get(r.Context(), db)
+	if err != nil {
+		return nil, mw.NotFound(errors.Wrap(err, "customer id not found"))
+	}
+
+	if err := reservation.Verify(user.Pubkey, sig); err != nil {
+		return nil, mw.UnAuthorized(errors.Wrap(err, "failed to verify signature"))
+	}
+
+	signature.Epoch = schema.Date{Time: time.Now()}
+	if err := types.ReservationPushSignature(r.Context(), db, id, signature); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return nil, mw.Created()
+}

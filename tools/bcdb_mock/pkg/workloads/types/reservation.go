@@ -398,6 +398,37 @@ func ReservationSetNextAction(ctx context.Context, db *mongo.Database, id schema
 	return nil
 }
 
+//ReservationPushSignature push signature to reservation
+func ReservationPushSignature(ctx context.Context, db *mongo.Database, id schema.ID, signature generated.TfgridWorkloadsReservationSigningSignature1) error {
+
+	var filter ReservationFilter
+	filter = filter.WithID(id)
+	col := db.Collection(reservationCollection)
+	// NOTE: this should be a transaction not a bulk write
+	// but i had so many issues with transaction, and i couldn't
+	// get it to work. so I used bulk write in place instead
+	// until we figure this issue out.
+	// Note, the reason we don't just use addToSet is the signature
+	// object always have the current 'time' which means it's a different
+	// value than the one in the document even if it has same user id.
+	_, err := col.BulkWrite(ctx, []mongo.WriteModel{
+		mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(
+			bson.M{
+				"$pull": bson.M{
+					"signatures_provision": bson.M{"tid": signature.Tid},
+				},
+			}),
+		mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(
+			bson.M{
+				"$addToSet": bson.M{
+					"signatures_provision": signature,
+				},
+			}),
+	}, options.BulkWrite().SetOrdered(true))
+
+	return err
+}
+
 // Workload is a wrapper around generated TfgridWorkloadsReservationWorkload1 type
 type Workload struct {
 	generated.TfgridWorkloadsReservationWorkload1
