@@ -157,50 +157,6 @@ func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 	return reservations, nil
 }
 
-func (a *API) markDelete(r *http.Request) (interface{}, mw.Response) {
-	// WARNING: #TODO
-	// This method does not validate the signature of the caller
-	// because there is no payload in a delete call.
-	// may be a simple body that has "reservation id" and "signature"
-	// can be used, we use the reservation id to avoid using the same
-	// request body to delete other reservations
-
-	// HTTP Delete should not have a body though, so may be this should be
-	// changed to a PUT operation.
-
-	id, err := a.parseID(mux.Vars(r)["res_id"])
-	if err != nil {
-		return nil, mw.Error(err)
-	}
-
-	var filter types.ReservationFilter
-	filter = filter.WithID(id)
-	db := mw.Database(r)
-	reservation, err := a.pipeline(filter.Get(r.Context(), db))
-	if err != nil {
-		return nil, mw.NotFound(err)
-	}
-
-	if reservation.NextAction == generated.TfgridWorkloadsReservation1NextActionDeleted ||
-		reservation.NextAction == generated.TfgridWorkloadsReservation1NextActionDelete {
-		return nil, mw.BadRequest(fmt.Errorf("resource already deleted"))
-	}
-
-	if err = types.ReservationSetNextAction(r.Context(), db, id, generated.TfgridWorkloadsReservation1NextActionDelete); err != nil {
-		return nil, mw.Error(err)
-	}
-
-	reservation, err = a.pipeline(filter.Get(r.Context(), db))
-	if err != nil {
-		return nil, mw.NotFound(err)
-	}
-
-	if err := types.WorkloadPush(r.Context(), db, reservation.Workloads("")...); err != nil {
-		log.Error().Err(err).Msg("failed to push workload to wokloads queue")
-	}
-
-	return nil, nil
-}
 func (a *API) queued(ctx context.Context, db *mongo.Database, nodeID string, limit int64) ([]types.Workload, error) {
 
 	type intermediate struct {
@@ -498,7 +454,7 @@ func (a *API) workloadPutDeleted(r *http.Request) (interface{}, mw.Response) {
 	return nil, nil
 }
 
-func (a *API) sign(r *http.Request) (interface{}, mw.Response) {
+func (a *API) signProvision(r *http.Request) (interface{}, mw.Response) {
 	defer r.Body.Close()
 	var signature generated.TfgridWorkloadsReservationSigningSignature1
 
@@ -552,7 +508,7 @@ func (a *API) sign(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	signature.Epoch = schema.Date{Time: time.Now()}
-	if err := types.ReservationPushSignature(r.Context(), db, id, signature); err != nil {
+	if err := types.ReservationPushSignature(r.Context(), db, id, types.SignatureProvision, signature); err != nil {
 		return nil, mw.Error(err)
 	}
 
@@ -563,6 +519,80 @@ func (a *API) sign(r *http.Request) (interface{}, mw.Response) {
 
 	if reservation.NextAction == generated.TfgridWorkloadsReservation1NextActionDeploy {
 		types.WorkloadPush(r.Context(), db, reservation.Workloads("")...)
+	}
+
+	return nil, mw.Created()
+}
+
+func (a *API) signDelete(r *http.Request) (interface{}, mw.Response) {
+	defer r.Body.Close()
+	var signature generated.TfgridWorkloadsReservationSigningSignature1
+
+	if err := json.NewDecoder(r.Body).Decode(&signature); err != nil {
+		return nil, mw.BadRequest(err)
+	}
+
+	sig, err := hex.DecodeString(signature.Signature)
+	if err != nil {
+		return nil, mw.BadRequest(errors.Wrap(err, "invalid signature expecting hex encoded string"))
+	}
+
+	id, err := a.parseID(mux.Vars(r)["res_id"])
+	if err != nil {
+		return nil, mw.BadRequest(fmt.Errorf("invalid reservation id"))
+	}
+
+	var filter types.ReservationFilter
+	filter = filter.WithID(id)
+
+	db := mw.Database(r)
+	reservation, err := a.pipeline(filter.Get(r.Context(), db))
+	if err != nil {
+		return nil, mw.NotFound(err)
+	}
+
+	in := func(i int64, l []int64) bool {
+		for _, x := range l {
+			if x == i {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !in(signature.Tid, reservation.DataReservation.SigningRequestDelete.Signers) {
+		return nil, mw.UnAuthorized(fmt.Errorf("signature not required for '%d'", signature.Tid))
+	}
+
+	user, err := phonebook.UserFilter{}.WithID(schema.ID(signature.Tid)).Get(r.Context(), db)
+	if err != nil {
+		return nil, mw.NotFound(errors.Wrap(err, "customer id not found"))
+	}
+
+	if err := reservation.Verify(user.Pubkey, sig); err != nil {
+		return nil, mw.UnAuthorized(errors.Wrap(err, "failed to verify signature"))
+	}
+
+	signature.Epoch = schema.Date{Time: time.Now()}
+	if err := types.ReservationPushSignature(r.Context(), db, id, types.SignatureDelete, signature); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	reservation, err = a.pipeline(filter.Get(r.Context(), db))
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	if reservation.NextAction != generated.TfgridWorkloadsReservation1NextActionDelete {
+		return nil, mw.Created()
+	}
+
+	if err := types.ReservationSetNextAction(r.Context(), db, reservation.ID, generated.TfgridWorkloadsReservation1NextActionDelete); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	if err := types.WorkloadPush(r.Context(), db, reservation.Workloads("")...); err != nil {
+		return nil, mw.Error(err)
 	}
 
 	return nil, mw.Created()

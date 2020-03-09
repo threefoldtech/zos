@@ -24,7 +24,7 @@ func NewPipeline(R Reservation) (*Pipeline, error) {
 	return &Pipeline{R}, nil
 }
 
-func (p *Pipeline) checkSignatures() bool {
+func (p *Pipeline) checkProvisionSignatures() bool {
 
 	// Note: signatures validatation already done in the
 	// signature add operation. Here we just make sure the
@@ -59,6 +59,42 @@ func (p *Pipeline) checkSignatures() bool {
 	return false
 }
 
+func (p *Pipeline) checkDeleteSignatures() bool {
+
+	// Note: signatures validatation already done in the
+	// signature add operation. Here we just make sure the
+	// required quorum has been reached
+	request := p.r.DataReservation.SigningRequestDelete
+	if request.QuorumMin == 0 {
+		// if min quorum is zero, then there is no way
+		// you can trigger deleting of this reservation
+		return false
+	}
+
+	in := func(i int64, l []int64) bool {
+		for _, x := range l {
+			if x == i {
+				return true
+			}
+		}
+		return false
+	}
+
+	signatures := p.r.SignaturesDelete
+	var count int64 = 0
+	for _, signature := range signatures {
+		if !in(signature.Tid, request.Signers) {
+			continue
+		}
+		count++
+	}
+	if count >= request.QuorumMin {
+		return true
+	}
+
+	return false
+}
+
 // Next gets new modified reservation, and true if the reservation has changed from the input
 func (p *Pipeline) Next() (Reservation, bool) {
 	if p.r.NextAction == generated.TfgridWorkloadsReservation1NextActionDelete ||
@@ -68,7 +104,7 @@ func (p *Pipeline) Next() (Reservation, bool) {
 
 	// reseration expiration time must be checked, once expiration time is exceeded
 	// the reservation must be deleted
-	if p.r.Expired() {
+	if p.r.Expired() || p.checkDeleteSignatures() {
 		// reservation has expired
 		// set its status (next action) to delete
 		p.r.NextAction = generated.TfgridWorkloadsReservation1NextActionDelete
@@ -91,7 +127,7 @@ func (p *Pipeline) Next() (Reservation, bool) {
 			}
 		case generated.TfgridWorkloadsReservation1NextActionSign:
 			// this stage will not change unless all
-			if p.checkSignatures() {
+			if p.checkProvisionSignatures() {
 				p.r.NextAction = generated.TfgridWorkloadsReservation1NextActionPay
 			}
 		case generated.TfgridWorkloadsReservation1NextActionPay:

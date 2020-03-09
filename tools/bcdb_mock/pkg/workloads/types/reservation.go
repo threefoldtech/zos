@@ -383,8 +383,18 @@ func ReservationSetNextAction(ctx context.Context, db *mongo.Database, id schema
 	return nil
 }
 
+// SignatureMode type
+type SignatureMode string
+
+const (
+	// SignatureProvision mode
+	SignatureProvision SignatureMode = "signatures_provision"
+	// SignatureDelete mode
+	SignatureDelete SignatureMode = "signatures_delete"
+)
+
 //ReservationPushSignature push signature to reservation
-func ReservationPushSignature(ctx context.Context, db *mongo.Database, id schema.ID, signature generated.TfgridWorkloadsReservationSigningSignature1) error {
+func ReservationPushSignature(ctx context.Context, db *mongo.Database, id schema.ID, mode SignatureMode, signature generated.TfgridWorkloadsReservationSigningSignature1) error {
 
 	var filter ReservationFilter
 	filter = filter.WithID(id)
@@ -400,13 +410,13 @@ func ReservationPushSignature(ctx context.Context, db *mongo.Database, id schema
 		mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(
 			bson.M{
 				"$pull": bson.M{
-					"signatures_provision": bson.M{"tid": signature.Tid},
+					string(mode): bson.M{"tid": signature.Tid},
 				},
 			}),
 		mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(
 			bson.M{
 				"$addToSet": bson.M{
-					"signatures_provision": signature,
+					string(mode): signature,
 				},
 			}),
 	}, options.BulkWrite().SetOrdered(true))
