@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -151,6 +152,16 @@ func cmdsProvision(c *cli.Context) error {
 			return errors.Wrap(err, "failed to convert reservation to schema type")
 		}
 		jsx.CustomerTid = userID
+		// we always allow user to delete his own reservations
+		jsx.DataReservation.SigningRequestDelete.QuorumMin = 1
+		jsx.DataReservation.SigningRequestDelete.Signers = []int64{userID}
+
+		bytes, err := json.Marshal(jsx.DataReservation)
+		if err != nil {
+			return err
+		}
+
+		jsx.JSON = string(bytes)
 		signature, err := crypto.Sign(keypair.PrivateKey, []byte(jsx.JSON))
 		if err != nil {
 			return errors.Wrap(err, "failed to sign the reservation")
@@ -185,11 +196,36 @@ func embed(schema interface{}, t provision.ReservationType) (*provision.Reservat
 }
 
 func cmdsDeleteReservation(c *cli.Context) error {
-	id := c.String("id")
+	var (
+		resID    = c.Int64("reservation")
+		userID   = c.Int64("id")
+		seedPath = c.String("seed")
+	)
 
-	if err := client.Delete(id); err != nil {
-		return errors.Wrapf(err, "failed to mark reservation %s to be deleted", id)
+	reservation, err := client.GetJSX(resID)
+
+	keypair, err := identity.LoadKeyPair(seedPath)
+	if err != nil {
+		return errors.Wrapf(err, "could not find seed file at %s", seedPath)
 	}
-	fmt.Printf("Reservation %v marked as to be deleted\n", id)
+
+	var buf bytes.Buffer
+	if _, err := buf.WriteString(fmt.Sprint(resID)); err != nil {
+		return err
+	}
+	if _, err := buf.WriteString(reservation.JSON); err != nil {
+		return err
+	}
+
+	signature, err := crypto.Sign(keypair.PrivateKey, buf.Bytes())
+	if err != nil {
+		return errors.Wrap(err, "failed to sign the reservation")
+	}
+
+	if err := client.Delete(userID, resID, signature); err != nil {
+		return errors.Wrapf(err, "failed to sign deletion of reservation: %d", resID)
+	}
+
+	fmt.Printf("Reservation %v marked as to be deleted\n", resID)
 	return nil
 }

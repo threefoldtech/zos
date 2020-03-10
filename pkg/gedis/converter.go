@@ -48,13 +48,6 @@ func ReservationToSchemaType(r *provision.Reservation) (types.TfgridReservation1
 	res.DataReservation.ExpirationReservation = schema.Date{Time: r.Created.Add(r.Duration)}
 	res.DataReservation.ExpirationProvisioning = schema.Date{Time: r.Created.Add(2 * time.Minute)}
 
-	bytes, err := json.Marshal(res.DataReservation)
-	if err != nil {
-		return res, err
-	}
-
-	res.JSON = string(bytes)
-
 	return res, nil
 }
 

@@ -183,6 +183,26 @@ func (r *Reservation) Verify(pk string, sig []byte) error {
 	return crypto.Verify(key, []byte(r.Json), sig)
 }
 
+// SignatureVerify is similar to Verify but the verification is done
+// against `str(Reservation.ID) + Reservation.JSON`
+func (r *Reservation) SignatureVerify(pk string, sig []byte) error {
+	key, err := crypto.KeyFromHex(pk)
+	if err != nil {
+		return errors.Wrap(err, "invalid verification key")
+	}
+
+	var buf bytes.Buffer
+	if _, err := buf.WriteString(fmt.Sprint(int64(r.ID))); err != nil {
+		return errors.Wrap(err, "failed to write id to buffer")
+	}
+
+	if _, err := buf.WriteString(r.Json); err != nil {
+		return errors.Wrap(err, "failed to write json to buffer")
+	}
+
+	return crypto.Verify(key, buf.Bytes(), sig)
+}
+
 // Expired checks if this reservation has expired
 func (r *Reservation) Expired() bool {
 	if time.Until(r.DataReservation.ExpirationReservation.Time) <= 0 {
@@ -366,7 +386,7 @@ func ReservationSetNextAction(ctx context.Context, db *mongo.Database, id schema
 	filter = filter.WithID(id)
 
 	col := db.Collection(reservationCollection)
-	result, err := col.UpdateOne(ctx, filter, bson.M{
+	_, err := col.UpdateOne(ctx, filter, bson.M{
 		"$set": bson.M{
 			"next_action": action,
 		},
@@ -374,10 +394,6 @@ func ReservationSetNextAction(ctx context.Context, db *mongo.Database, id schema
 
 	if err != nil {
 		return err
-	}
-
-	if result.ModifiedCount == 0 {
-		return fmt.Errorf("no reservation found")
 	}
 
 	return nil

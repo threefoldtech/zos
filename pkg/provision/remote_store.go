@@ -2,6 +2,7 @@ package provision
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -175,11 +176,22 @@ func (s *HTTPStore) Deleted(nodeID, id string) error {
 	return nil
 }
 
-// Delete marks a reservation as to be deleted
-func (s *HTTPStore) Delete(id string) error {
-	url := fmt.Sprintf("%s/reservations/%s", s.baseURL, id)
+// Delete marks a reservation as to be deleted, signature
+// is of the `str(reservation.id) + reservation.json`
+func (s *HTTPStore) Delete(userID, resID int64, sig []byte) error {
+	url := fmt.Sprintf("%s/reservations/%d/sign/delete", s.baseURL, resID)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	signature := generated.TfgridReservationSigningSignature1{
+		Tid:       userID,
+		Signature: hex.EncodeToString(sig),
+	}
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(signature); err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, &buf)
 	if err != nil {
 		return err
 	}
@@ -191,9 +203,10 @@ func (s *HTTPStore) Delete(id string) error {
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("wrong response status code %s", resp.Status)
 	}
+
 	return nil
 }
 

@@ -503,7 +503,7 @@ func (a *API) signProvision(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.NotFound(errors.Wrap(err, "customer id not found"))
 	}
 
-	if err := reservation.Verify(user.Pubkey, sig); err != nil {
+	if err := reservation.SignatureVerify(user.Pubkey, sig); err != nil {
 		return nil, mw.UnAuthorized(errors.Wrap(err, "failed to verify signature"))
 	}
 
@@ -569,7 +569,7 @@ func (a *API) signDelete(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.NotFound(errors.Wrap(err, "customer id not found"))
 	}
 
-	if err := reservation.Verify(user.Pubkey, sig); err != nil {
+	if err := reservation.SignatureVerify(user.Pubkey, sig); err != nil {
 		return nil, mw.UnAuthorized(errors.Wrap(err, "failed to verify signature"))
 	}
 
