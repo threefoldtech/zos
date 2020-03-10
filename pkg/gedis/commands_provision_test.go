@@ -202,9 +202,6 @@ func TestProvisionReserve(t *testing.T) {
 		},
 	}
 
-	bytes, _ := json.Marshal(sent.DataReservation)
-	sent.JSON = string(bytes)
-
 	args := Args{
 		"reservation": sent,
 	}
