@@ -215,6 +215,7 @@ type TfgridWorkloadsReservationResult1 struct {
 	State      TfgridWorkloadsReservationResult1StateEnum    `bson:"state" json:"state"`
 	Message    string                                        `bson:"message" json:"message"`
 	Epoch      schema.Date                                   `bson:"epoch" json:"epoch"`
+	NodeId     string                                        `bson:"node_id" json:"node_id"`
 }
 
 func NewTfgridWorkloadsReservationResult1() (TfgridWorkloadsReservationResult1, error) {

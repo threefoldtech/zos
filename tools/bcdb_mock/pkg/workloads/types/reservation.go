@@ -469,6 +469,7 @@ func WorkloadPush(ctx context.Context, db *mongo.Database, w ...Workload) error 
 	return err
 }
 
+// WorkloadPop removes workload from queue
 func WorkloadPop(ctx context.Context, db *mongo.Database, id string) error {
 	col := db.Collection(queueCollection)
 	_, err := col.DeleteOne(ctx, bson.M{"workload_id": id})
@@ -514,7 +515,7 @@ func (r *Result) Verify(pk string) error {
 	return crypto.Verify(key, bytes, sig)
 }
 
-// PushResult pushes result to a reservation result array.
+// ResultPush pushes result to a reservation result array.
 // NOTE: this is just a crud operation, no validation is done here
 func ResultPush(ctx context.Context, db *mongo.Database, id schema.ID, result Result) error {
 	col := db.Collection(reservationCollection)
@@ -527,6 +528,7 @@ func ResultPush(ctx context.Context, db *mongo.Database, id schema.ID, result Re
 		"$pull": bson.M{
 			"results": bson.M{
 				"workload_id": result.WorkloadId,
+				"node_id":     result.NodeId,
 			},
 		},
 	})

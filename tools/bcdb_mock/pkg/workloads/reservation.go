@@ -305,13 +305,13 @@ func (a *API) workloadGet(r *http.Request) (interface{}, mw.Response) {
 
 	var result struct {
 		types.Workload
-		Result *types.Result `json:"result"`
+		Result []types.Result `json:"result"`
 	}
 	result.Workload = *workload
 	for _, rs := range reservation.Results {
 		if rs.WorkloadId == workload.WorkloadId {
 			t := types.Result(rs)
-			result.Result = &t
+			result.Result = append(result.Result, t)
 			break
 		}
 	}
@@ -357,6 +357,7 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.NotFound(errors.New("workload not found"))
 	}
 
+	result.NodeId = nodeID
 	result.WorkloadId = gwid
 	result.Epoch = schema.Date{Time: time.Now()}
 
