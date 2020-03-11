@@ -65,7 +65,11 @@ func main() {
 	}
 
 	identity := stubs.NewIdentityManagerStub(client)
-	networker := network.NewNetworker(identity, db, root)
+	networker, err := network.NewNetworker(identity, db, root)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating network manager")
+	}
+
 	nodeID := identity.NodeID()
 
 	ctx, cancel := context.WithCancel(context.Background())

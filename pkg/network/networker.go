@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
 
@@ -35,7 +36,8 @@ import (
 
 const (
 	// ZDBIface is the name of the interface used in the 0-db network namespace
-	ZDBIface = "zdb0"
+	ZDBIface  = "zdb0"
+	wgPortDir = "wireguard_ports"
 )
 
 type networker struct {
@@ -46,15 +48,33 @@ type networker struct {
 }
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity pkg.IdentityManager, tnodb TNoDB, storageDir string) pkg.Networker {
+func NewNetworker(identity pkg.IdentityManager, tnodb TNoDB, storageDir string) (pkg.Networker, error) {
+
+	wgDir := filepath.Join(storageDir, wgPortDir)
+
+	if app.IsFirstBoot("networkd") {
+		log.Info().Msg("first boot, empty wireguard ports cache")
+		if err := os.RemoveAll(wgDir); err != nil {
+			return nil, err
+		}
+
+		if err := app.MarkBooted("networkd"); err != nil {
+			return nil, errors.Wrap(err, "fail to mark networkd as booted")
+		}
+	}
+
+	if err := os.MkdirAll(wgDir, 0770); err != nil {
+		return nil, err
+	}
+
 	nw := &networker{
 		identity:   identity,
 		storageDir: storageDir,
 		tnodb:      tnodb,
-		portSet:    set.NewUint(),
+		portSet:    set.NewUint(storageDir),
 	}
 
-	return nw
+	return nw, nil
 }
 
 var _ pkg.Networker = (*networker)(nil)
@@ -387,6 +407,12 @@ func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 
 // CreateNR implements pkg.Networker interface
 func (n *networker) CreateNR(network pkg.Network) (string, error) {
+	defer func() {
+		if err := n.publishWGPorts(); err != nil {
+			log.Warn().Err(err).Msg("failed to publish wireguard port to BCDB")
+		}
+	}()
+
 	var err error
 	var nodeID = n.identity.NodeID().Identity()
 
@@ -530,6 +556,12 @@ func (n *networker) networkOf(id string) (*pkg.Network, error) {
 
 // DeleteNR implements pkg.Networker interface
 func (n *networker) DeleteNR(network pkg.Network) error {
+	defer func() {
+		if err := n.publishWGPorts(); err != nil {
+			log.Warn().Msg("failed to publish wireguard port to BCDB")
+		}
+	}()
+
 	netNR, err := ResourceByNodeID(n.identity.NodeID().Identity(), network.NetResources)
 	if err != nil {
 		return err
@@ -575,28 +607,32 @@ func (n *networker) extractPrivateKey(hexKey string) (string, error) {
 }
 
 func (n *networker) reservePort(port uint16) error {
+	log.Debug().Uint16("port", port).Msg("reserve wireguard port")
 	err := n.portSet.Add(uint(port))
 	if err != nil {
 		return errors.Wrap(err, "wireguard listen port already in use, pick another one")
-	}
-
-	if err := n.tnodb.PublishWGPort(n.identity.NodeID(), n.portSet.List()); err != nil {
-		n.portSet.Remove(uint(port))
-		return errors.Wrap(err, "fail to publish wireguard port to bcdb")
 	}
 
 	return nil
 }
 
 func (n *networker) releasePort(port uint16) error {
+	log.Debug().Uint16("port", port).Msg("release wireguard port")
 	n.portSet.Remove(uint(port))
+	return nil
+}
 
-	if err := n.tnodb.PublishWGPort(n.identity.NodeID(), n.portSet.List()); err != nil {
+func (n *networker) publishWGPorts() error {
+	ports, err := n.portSet.List()
+	if err != nil {
+		return err
+	}
+
+	if err := n.tnodb.PublishWGPort(n.identity.NodeID(), ports); err != nil {
 		// maybe retry a couple of times ?
 		// having bdb and the node out of sync is pretty bad
 		return errors.Wrap(err, "fail to publish wireguard port to bcdb")
 	}
-
 	return nil
 }
 
