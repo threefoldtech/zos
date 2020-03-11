@@ -196,15 +196,14 @@ func (g *Gedis) Delete(id string) error {
 
 // UpdateReservedResources send the amount of resource units reserved to BCDB
 func (g *Gedis) UpdateReservedResources(nodeID string, c provision.Counters) error {
-	r := dtypes.TfgridNodeResourceAmount1{
-		Cru: c.CRU.Current(),
-		Mru: c.MRU.Current(),
-		Hru: c.HRU.Current(),
-		Sru: c.SRU.Current(),
-	}
 	_, err := g.Send("tfgrid.directory.nodes", "update_reserved_capacity", Args{
-		"node_id":   nodeID,
-		"resources": r,
+		"node_id": nodeID,
+		"resource": dtypes.TfgridNodeResourceAmount1{
+			Cru: c.CRU.Current(),
+			Mru: c.MRU.Current(),
+			Hru: c.HRU.Current(),
+			Sru: c.SRU.Current(),
+		},
 	})
 	return err
 }
