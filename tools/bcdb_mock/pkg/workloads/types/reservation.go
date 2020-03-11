@@ -26,12 +26,19 @@ const (
 )
 
 const (
-	Create  = generated.TfgridWorkloadsReservation1NextActionCreate
-	Sign    = generated.TfgridWorkloadsReservation1NextActionSign
-	Pay     = generated.TfgridWorkloadsReservation1NextActionPay
-	Deploy  = generated.TfgridWorkloadsReservation1NextActionDeploy
-	Delete  = generated.TfgridWorkloadsReservation1NextActionDelete
+	// Create action
+	Create = generated.TfgridWorkloadsReservation1NextActionCreate
+	// Sign action
+	Sign = generated.TfgridWorkloadsReservation1NextActionSign
+	// Pay action
+	Pay = generated.TfgridWorkloadsReservation1NextActionPay
+	// Deploy action
+	Deploy = generated.TfgridWorkloadsReservation1NextActionDeploy
+	// Delete action
+	Delete = generated.TfgridWorkloadsReservation1NextActionDelete
+	// Invalid action
 	Invalid = generated.TfgridWorkloadsReservation1NextActionInvalid
+	// Deleted action
 	Deleted = generated.TfgridWorkloadsReservation1NextActionDeleted
 )
 
@@ -43,8 +50,8 @@ func (f ReservationFilter) WithID(id schema.ID) ReservationFilter {
 	return append(f, bson.E{Key: "_id", Value: id})
 }
 
-// WithIdGE return find reservations with
-func (f ReservationFilter) WithIdGE(id schema.ID) ReservationFilter {
+// WithIDGE return find reservations with
+func (f ReservationFilter) WithIDGE(id schema.ID) ReservationFilter {
 	return append(f, bson.E{
 		Key: "_id", Value: bson.M{"$gte": id},
 	})
@@ -446,18 +453,21 @@ type Workload struct {
 	NodeID                                        string `json:"node_id" bson:"node_id"`
 }
 
+// QueueFilter for workloads in temporary queue
 type QueueFilter bson.D
 
+// WithNodeID search queue with node-id
 func (f QueueFilter) WithNodeID(nodeID string) QueueFilter {
 	return append(f, bson.E{Key: "node_id", Value: nodeID})
 }
 
+// Find runs the filter, and return a cursor
 func (f QueueFilter) Find(ctx context.Context, db *mongo.Database, opts ...*options.FindOptions) (*mongo.Cursor, error) {
 	col := db.Collection(queueCollection)
 	return col.Find(ctx, f, opts...)
 }
 
-// WorkloadPush
+// WorkloadPush pushes a workload to the queue
 func WorkloadPush(ctx context.Context, db *mongo.Database, w ...Workload) error {
 	col := db.Collection(queueCollection)
 	docs := make([]interface{}, 0, len(w))

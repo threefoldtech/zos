@@ -31,8 +31,8 @@ func PageFromRequest(r *http.Request) Pager {
 		p = r.FormValue("page")
 		s = r.FormValue("size")
 
-		page int64 = 0
-		size int64 = DefaultPageSize
+		page int64
+		size = DefaultPageSize
 	)
 
 	if len(p) != 0 {

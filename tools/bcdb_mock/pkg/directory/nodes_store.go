@@ -65,6 +65,7 @@ func (s *NodeAPI) Exists(ctx context.Context, db *mongo.Database, nodeID string)
 	return count > 0, nil
 }
 
+// Add a node to the store
 func (s *NodeAPI) Add(ctx context.Context, db *mongo.Database, node directory.Node) (schema.ID, error) {
 	return directory.NodeCreate(ctx, db, node)
 }
@@ -81,6 +82,7 @@ func (s *NodeAPI) updateUptime(ctx context.Context, db *mongo.Database, nodeID s
 	return directory.NodeUpdateUptime(ctx, db, nodeID, uptime)
 }
 
+// StoreProof stores node hardware proof
 func (s *NodeAPI) StoreProof(ctx context.Context, db *mongo.Database, nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor []string) error {
 	var err error
 	proof := generated.TfgridDirectoryNodeProof1{
@@ -111,10 +113,12 @@ func (s *NodeAPI) StoreProof(ctx context.Context, db *mongo.Database, nodeID str
 	return directory.NodePushProof(ctx, db, nodeID, proof)
 }
 
+// SetInterfaces updates node interfaces
 func (s *NodeAPI) SetInterfaces(ctx context.Context, db *mongo.Database, nodeID string, ifaces []generated.TfgridDirectoryNodeIface1) error {
 	return directory.NodeSetInterfaces(ctx, db, nodeID, ifaces)
 }
 
+// SetPublicConfig sets node public config
 func (s *NodeAPI) SetPublicConfig(ctx context.Context, db *mongo.Database, nodeID string, cfg generated.TfgridDirectoryNodePublicIface1) error {
 	node, err := s.Get(ctx, db, nodeID)
 	if err != nil {
@@ -130,10 +134,13 @@ func (s *NodeAPI) SetPublicConfig(ctx context.Context, db *mongo.Database, nodeI
 	return directory.NodeSetPublicConfig(ctx, db, nodeID, cfg)
 }
 
+// SetWGPorts sets node gateway ports
 func (s *NodeAPI) SetWGPorts(ctx context.Context, db *mongo.Database, nodeID string, ports []uint) error {
 	return directory.NodeSetWGPorts(ctx, db, nodeID, ports)
 }
 
+// Requires is a wrapper that makes sure node with that case exists before
+// running the handler
 func (s *NodeAPI) Requires(key string, handler mw.Action) mw.Action {
 	return func(r *http.Request) (interface{}, mw.Response) {
 		nodeID, ok := mux.Vars(r)[key]

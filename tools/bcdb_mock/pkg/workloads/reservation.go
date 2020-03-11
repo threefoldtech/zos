@@ -160,7 +160,7 @@ func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 func (a *API) queued(ctx context.Context, db *mongo.Database, nodeID string, limit int64) ([]types.Workload, error) {
 
 	type intermediate struct {
-		WorkloadId string                                                `bson:"workload_id" json:"workload_id"`
+		WorkloadID string                                                `bson:"workload_id" json:"workload_id"`
 		User       string                                                `bson:"user" json:"user"`
 		Type       generated.TfgridWorkloadsReservationWorkload1TypeEnum `bson:"type" json:"type"`
 		Content    bson.M                                                `bson:"content" json:"content"`
@@ -196,7 +196,7 @@ func (a *API) queued(ctx context.Context, db *mongo.Database, nodeID string, lim
 		workloads = append(workloads, types.Workload{
 			NodeID: wl.NodeID,
 			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
-				WorkloadId: wl.WorkloadId,
+				WorkloadId: wl.WorkloadID,
 				User:       wl.User,
 				Type:       wl.Type,
 				Content:    wl.Content,
@@ -235,7 +235,7 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.BadRequest(err)
 	}
 
-	filter := types.ReservationFilter{}.WithIdGE(from)
+	filter := types.ReservationFilter{}.WithIDGE(from)
 	filter = filter.WithNodeID(nodeID)
 
 	cur, err := filter.Find(r.Context(), db)

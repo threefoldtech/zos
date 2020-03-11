@@ -22,8 +22,11 @@ const (
 )
 
 var (
-	ErrUserExists    = errors.New("user with same name exists")
-	ErrUserNotFound  = errors.New("user not found")
+	// ErrUserExists returned if user with same name exists
+	ErrUserExists = errors.New("user with same name exists")
+	// ErrUserNotFound is returned if user is not found
+	ErrUserNotFound = errors.New("user not found")
+	// ErrAuthorization returned if user is not allowed to do an operation
 	ErrAuthorization = errors.New("operation not allowed")
 )
 
