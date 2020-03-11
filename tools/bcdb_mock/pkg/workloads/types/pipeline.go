@@ -45,7 +45,7 @@ func (p *Pipeline) checkProvisionSignatures() bool {
 	}
 
 	signatures := p.r.SignaturesProvision
-	var count int64 = 0
+	var count int64
 	for _, signature := range signatures {
 		if !in(signature.Tid, request.Signers) {
 			continue
@@ -81,7 +81,7 @@ func (p *Pipeline) checkDeleteSignatures() bool {
 	}
 
 	signatures := p.r.SignaturesDelete
-	var count int64 = 0
+	var count int64
 	for _, signature := range signatures {
 		if !in(signature.Tid, request.Signers) {
 			continue
