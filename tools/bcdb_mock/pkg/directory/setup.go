@@ -21,7 +21,7 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 	farms.HandleFunc("", mw.AsHandlerFunc(farmAPI.registerFarm)).Methods("POST")
 	farms.HandleFunc("", mw.AsHandlerFunc(farmAPI.listFarm)).Methods("GET")
 	farms.HandleFunc("/{farm_id}", mw.AsHandlerFunc(farmAPI.getFarm)).Methods("GET")
-	// compatability with gedis_http
+	// compatibility with gedis_http
 	farms.HandleFunc("/list", mw.AsHandlerFunc(farmAPI.cockpitListFarm)).Methods("POST")
 
 	var nodeAPI NodeAPI

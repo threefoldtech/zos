@@ -66,6 +66,10 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	signature, err := hex.DecodeString(reservation.CustomerSignature)
+	if err != nil {
+		return nil, mw.BadRequest(errors.Wrap(err, "invalid signature format, expecting hex encoded string"))
+	}
+
 	if err := reservation.Verify(user.Pubkey, signature); err != nil {
 		return nil, mw.BadRequest(errors.Wrap(err, "failed to verify customer signature"))
 	}
@@ -118,12 +122,6 @@ func (a *API) get(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	return reservation, nil
-}
-
-func (a *API) updateMany(db *mongo.Database, rs []types.Reservation) {
-	if len(rs) == 0 {
-		return
-	}
 }
 
 func (a *API) list(r *http.Request) (interface{}, mw.Response) {

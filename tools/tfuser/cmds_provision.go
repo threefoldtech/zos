@@ -203,6 +203,9 @@ func cmdsDeleteReservation(c *cli.Context) error {
 	)
 
 	reservation, err := client.GetJSX(resID)
+	if err != nil {
+		return errors.Wrap(err, "failed to get reservation info")
+	}
 
 	keypair, err := identity.LoadKeyPair(seedPath)
 	if err != nil {

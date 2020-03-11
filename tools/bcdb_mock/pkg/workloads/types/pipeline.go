@@ -52,11 +52,8 @@ func (p *Pipeline) checkProvisionSignatures() bool {
 		}
 		count++
 	}
-	if count >= request.QuorumMin {
-		return true
-	}
 
-	return false
+	return count >= request.QuorumMin
 }
 
 func (p *Pipeline) checkDeleteSignatures() bool {
@@ -88,11 +85,8 @@ func (p *Pipeline) checkDeleteSignatures() bool {
 		}
 		count++
 	}
-	if count >= request.QuorumMin {
-		return true
-	}
 
-	return false
+	return count >= request.QuorumMin
 }
 
 // Next gets new modified reservation, and true if the reservation has changed from the input

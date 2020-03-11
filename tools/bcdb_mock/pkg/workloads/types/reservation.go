@@ -212,11 +212,7 @@ func (r *Reservation) SignatureVerify(pk string, sig []byte) error {
 
 // Expired checks if this reservation has expired
 func (r *Reservation) Expired() bool {
-	if time.Until(r.DataReservation.ExpirationReservation.Time) <= 0 {
-		return true
-	}
-
-	return false
+	return time.Until(r.DataReservation.ExpirationReservation.Time) <= 0
 }
 
 // IsAny checks if the reservation status is any of the given status
