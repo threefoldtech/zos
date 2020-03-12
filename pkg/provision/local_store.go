@@ -85,9 +85,12 @@ type (
 
 // NewFSStore creates a in memory reservation store
 func NewFSStore(root string) (*FSStore, error) {
+	store := &FSStore{
+		root: root,
+	}
 	if app.IsFirstBoot("provisiond") {
 		log.Info().Msg("first boot, empty reservation cache")
-		if err := os.RemoveAll(root); err != nil {
+		if err := store.removeAllButPersistent(root); err != nil {
 			return nil, err
 		}
 
@@ -102,11 +105,29 @@ func NewFSStore(root string) (*FSStore, error) {
 
 	log.Info().Msg("restart detected, keep reservation cache intact")
 
-	store := &FSStore{
-		root: root,
-	}
-
 	return store, store.sync()
+}
+
+func (s *FSStore) removeAllButPersistent(rootPath string) error {
+	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		reservation, err := s.Get(filepath.Base(path))
+		if err != nil {
+			return err
+		}
+		if reservation.Type != VolumeReservation && reservation.Type != ZDBReservation {
+			log.Info().Msgf("Removing %s from cache", path)
+			return os.Remove(path)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Debug().Msgf("error walking the path %q: %v\n", rootPath, err)
+		return err
+	}
+	return nil
 }
 
 func (s *FSStore) sync() error {
