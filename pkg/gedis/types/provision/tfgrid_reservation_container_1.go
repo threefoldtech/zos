@@ -37,6 +37,7 @@ func (c TfgridReservationContainer1) ToProvisionType() (provision.Container, str
 		container.Network = provision.Network{
 			IPs:       []net.IP{c.NetworkConnection[0].Ipaddress},
 			NetworkID: pkg.NetID(c.NetworkConnection[0].NetworkID),
+			PublicIP6: c.NetworkConnection[0].PublicIP6,
 		}
 	}
 
