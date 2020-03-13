@@ -110,7 +110,7 @@ func (g *Gedis) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservati
 	}))
 
 	if err != nil {
-		return nil, provision.ErrTemporary
+		return nil, provision.NewErrTemporary(err)
 	}
 
 	var out struct {
@@ -218,6 +218,7 @@ func reservationFromSchema(w ptypes.TfgridReservationWorkload1) (*provision.Rese
 		Signature: []byte(w.Signature),
 		Data:      w.Workload,
 		Tag:       provision.Tag{"source": "BCDB"},
+		ToDelete:  w.ToDelete,
 	}
 
 	var (
