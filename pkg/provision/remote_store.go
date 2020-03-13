@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -65,6 +66,8 @@ func (s *HTTPStore) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, er
 	q.Add("from", fmt.Sprintf("%d", from))
 
 	u.RawQuery = q.Encode()
+
+	log.Debug().Str("url", u.String()).Msg("fetching")
 
 	resp, err := http.Get(u.String())
 	if err != nil {
