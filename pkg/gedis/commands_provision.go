@@ -218,6 +218,7 @@ func reservationFromSchema(w ptypes.TfgridReservationWorkload1) (*provision.Rese
 		Signature: []byte(w.Signature),
 		Data:      w.Workload,
 		Tag:       provision.Tag{"source": "BCDB"},
+		ToDelete:  w.ToDelete,
 	}
 
 	var (

@@ -74,14 +74,17 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 				return nil
 			}
 
+			expired := reservation.Expired()
 			slog := log.With().
 				Str("id", string(reservation.ID)).
 				Str("type", string(reservation.Type)).
 				Str("duration", fmt.Sprintf("%v", reservation.Duration)).
 				Str("tag", reservation.Tag.String()).
+				Bool("to delete", reservation.ToDelete).
+				Bool("expired", expired).
 				Logger()
 
-			if reservation.Expired() || reservation.ToDelete {
+			if expired || reservation.ToDelete {
 				slog.Info().Msg("start decommissioning reservation")
 				if err := e.decommission(ctx, reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to decommission reservation %s", reservation.ID)
