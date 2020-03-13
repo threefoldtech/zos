@@ -68,7 +68,13 @@ func NewErrTemporary(err error) error {
 
 // Error implements the errors.Error interface
 func (e ErrTemporary) Error() string {
-	return e.Error()
+	return e.err.Error()
+}
+
+// Is implements errors.Is interface
+func (e ErrTemporary) Is(target error) bool {
+	_, ok := target.(ErrTemporary)
+	return ok
 }
 
 // Unwrap implements errors.Unwrap interface
