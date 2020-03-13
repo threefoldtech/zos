@@ -110,7 +110,7 @@ func (g *Gedis) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservati
 	}))
 
 	if err != nil {
-		return nil, provision.ErrTemporary
+		return nil, provision.NewErrTemporary(err)
 	}
 
 	var out struct {
