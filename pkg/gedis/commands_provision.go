@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
 
 	dtypes "github.com/threefoldtech/zos/pkg/gedis/types/directory"
