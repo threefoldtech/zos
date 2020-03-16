@@ -116,7 +116,7 @@ func (s *FSStore) removeAllButPersistent(rootPath string) error {
 		if info.IsDir() {
 			return nil
 		}
-		reservationType, err := s.GetType(filepath.Base(path))
+		reservationType, err := s.getType(filepath.Base(path))
 		if err != nil {
 			return err
 		}
@@ -286,9 +286,9 @@ func (s *FSStore) Get(id string) (*Reservation, error) {
 	return s.get(id)
 }
 
-// GetType retrieves a specific reservation's type using its ID
+// getType retrieves a specific reservation's type using its ID
 // if returns a non nil error if the reservation is not present in the store
-func (s *FSStore) GetType(id string) (ReservationType, error) {
+func (s *FSStore) getType(id string) (ReservationType, error) {
 	res := struct {
 		Type ReservationType `json:"type"`
 	}{}
