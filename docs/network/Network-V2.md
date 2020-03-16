@@ -223,3 +223,34 @@ A little Drawing :
 ## Exposing services that get deployed
 
 ## Kuberwhat ? (or VM's in short)
+
+
+## yeayea, but really ... what now ?
+
+Ok, what are the constraints?
+
+A little foreword:
+ZosV2 uses IPv6 as it's base for networking, where the oldie IPv4 is merely an afterthought. So for it to work properly in it's actual incantation (we are working to get it to do IPv4-only too), for now, we need the node to live in a space that provides IPv6 __too__ .  
+IPV4 and IPv6 are very different beasts, so any machine connected to the Internet wil do both on the same network. So basically your computer talks 2 different languages, when it comes to communicating. That is the same for ZOS, where right now, it's mother tongue is IPv6.
+
+So your zos for V2 can start in different settings
+1) you are a farmer, your ISP can provide you with IPv6
+Ok, you're all set, aside from a public IPv4 DHCP, you need to run a Stateless-Only SLAAC Router Advertiser (ZOS does NOT do DHCP6).
+
+1) you are a farmer, your ISP asks you what the hell IPv6 is
+That is problematic right now, wait for the next release of ZosV2
+
+1) you are a farmer, with only one node , at home, and on your PC https://ipv6.net tells you you have IPv6 on your PC.
+That means your home router received an IPV6 allocation from the ISP, 
+Your'e all set, your node will boot, and register to the grid. If you know what you're doing, you can configure your router to allow all ipv6 traffic in forwarding mode to the specifice mac address of your node. (we'll explain later)
+1) you are a farmer, with a few nodes somewhere that are registered on the grid in V1, but you have no clue if IPv6 is supported where these nodes live 
+1) you have a ThreefoldToken node at home, and still do not have a clue
+
+Basically it boils down also in a few other cases
+
+1) the physical network where a node lives has: IPv6 and Private space IPv4 
+1) the physical network where a node lives has: IPv6 and Public IPv4
+1) the physical network where a node lives has: only IPv4
+
+
+
