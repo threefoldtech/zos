@@ -38,11 +38,6 @@ func CheckFlag(key string) bool {
 
 // DeleteFlag deletes (unsets) a given flag based on a key
 func DeleteFlag(key string) error {
-	d, err := os.Open(flagsDir)
-	if err != nil {
-		return err
-	}
-	defer d.Close()
 	if err := os.RemoveAll(filepath.Join(flagsDir, key)); err != nil {
 		errors.Wrap(err, "failed to remove the flag file")
 		return err

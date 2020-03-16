@@ -55,7 +55,7 @@ func main() {
 	// keep checking if limited-cache flag is set
 	if app.CheckFlag(app.LimitedCache) {
 		log.Error().Msg("failed cache reservation! Retrying every 30 seconds...")
-		for app.CheckFlag("limited-cache") {
+		for app.CheckFlag(app.LimitedCache) {
 			time.Sleep(time.Second * 30)
 		}
 	}
