@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -38,6 +39,12 @@ func CheckFlag(key string) bool {
 
 // DeleteFlag deletes (unsets) a given flag based on a key
 func DeleteFlag(key string) error {
+	// to avoid "path injection"
+	path := filepath.Join(flagsDir, key)
+	if filepath.Dir(path) != flagsDir {
+		return fmt.Errorf("trying to delete a directory outside of the flags boundaries")
+	}
+
 	if err := os.RemoveAll(filepath.Join(flagsDir, key)); err != nil {
 		errors.Wrap(err, "failed to remove the flag file")
 		return err
