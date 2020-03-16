@@ -120,7 +120,7 @@ func (s *FSStore) removeAllButPersistent(rootPath string) error {
 		if err != nil {
 			return err
 		}
-		if *reservationType != VolumeReservation && *reservationType != ZDBReservation {
+		if reservationType != VolumeReservation && reservationType != ZDBReservation {
 			log.Info().Msgf("Removing %s from cache", path)
 			return os.Remove(path)
 		}
@@ -288,23 +288,23 @@ func (s *FSStore) Get(id string) (*Reservation, error) {
 
 // GetType retrieves a specific reservation's type using its ID
 // if returns a non nil error if the reservation is not present in the store
-func (s *FSStore) GetType(id string) (*ReservationType, error) {
+func (s *FSStore) GetType(id string) (ReservationType, error) {
 	res := struct {
 		Type ReservationType `json:"type"`
 	}{}
 	path := filepath.Join(s.root, id)
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
-		return nil, errors.Wrapf(err, "reservation %s not found", id)
+		return "", errors.Wrapf(err, "reservation %s not found", id)
 	} else if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	defer f.Close()
 	reader, err := versioned.NewReader(f)
 	if versioned.IsNotVersioned(err) {
 		if _, err := f.Seek(0, 0); err != nil { // make sure to read from start
-			return nil, err
+			return "", err
 		}
 		reader = versioned.NewVersionedReader(versioned.MustParse("0.0.0"), f)
 	}
@@ -313,12 +313,12 @@ func (s *FSStore) GetType(id string) (*ReservationType, error) {
 
 	if validV1(reader.Version()) {
 		if err := json.NewDecoder(reader).Decode(&res); err != nil {
-			return nil, err
+			return "nil", err
 		}
 	} else {
-		return nil, fmt.Errorf("unknown reservation object version (%s)", reader.Version())
+		return "", fmt.Errorf("unknown reservation object version (%s)", reader.Version())
 	}
-	return &res.Type, nil
+	return res.Type, nil
 }
 
 // Exists checks if the reservation ID is in the store
