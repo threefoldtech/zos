@@ -19,12 +19,12 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/runtime/restart"
 	"github.com/google/shlex"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/logger"
 )
 
 const (
@@ -173,7 +173,25 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		return id, err
 	}
 
-	task, err := container.NewTask(ctx, cio.LogFile(path.Join(logs, fmt.Sprintf("%s.log", container.ID()))))
+	// inifialize multi-loggers
+	loggers, err := logger.NewContainerLoggers(ctx)
+	if err != nil {
+		return id, err
+	}
+
+	// hardcode local logfile
+	filepath := path.Join(logs, fmt.Sprintf("%s.log", container.ID()))
+	filelog, err := logger.NewContainerLoggerFile(filepath)
+	if err != nil {
+		return id, err
+	}
+
+	loggers.Add(filelog)
+
+	// set user defined endpoint logging
+	// TODO
+
+	task, err := container.NewTask(ctx, loggers.Log)
 	if err != nil {
 		return id, err
 	}
