@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	flagsDir     = "/tmp/flags"
+	flagsDir = "/tmp/flags"
+	// LimitedCache represent the flag cache couldn't mount on ssd or hdd
 	LimitedCache = "limited-cache"
 )
 
