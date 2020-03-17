@@ -189,7 +189,9 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 	loggers.Add(filelog)
 
 	// set user defined endpoint logging
-	// TODO
+	for _, l := range data.Logs {
+		loggers.Add(l)
+	}
 
 	task, err := container.NewTask(ctx, loggers.Log)
 	if err != nil {
