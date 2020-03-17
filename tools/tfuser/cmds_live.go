@@ -35,7 +35,6 @@ func cmdsLive(c *cli.Context) error {
 		expired:  expired,
 		deleted:  deleted,
 	}
-
 	cResults := s.Scrap(userID)
 	for result := range cResults {
 		printResult(result)
@@ -56,9 +55,12 @@ func printResult(r generated.TfgridReservation1) {
 
 	resultPerID := make(map[int64]generated.TfgridReservationResult1, len(r.Results))
 	for _, r := range r.Results {
-		rid, wid := int64(0), int64(0)
-		fmt.Sscanf(r.WorkloadID, "%d-%d", rid, wid)
-		resultPerID[rid] = r
+		var (
+			rid int64
+			wid int64
+		)
+		fmt.Sscanf(r.WorkloadID, "%d-%d", &rid, &wid)
+		resultPerID[wid] = r
 	}
 
 	for _, n := range r.DataReservation.Networks {
@@ -67,7 +69,7 @@ func printResult(r generated.TfgridReservation1) {
 	for _, c := range r.DataReservation.Containers {
 		result := resultPerID[c.WorkloadID]
 		data := provision.Container{}
-		if err := json.Unmarshal([]byte(result.DataJSON), &data); err != nil {
+		if err := json.Unmarshal(result.DataJSON, &data); err != nil {
 			panic(err)
 		}
 		fmt.Printf("\tflist: %s", data.FList)
@@ -79,7 +81,7 @@ func printResult(r generated.TfgridReservation1) {
 	for _, v := range r.DataReservation.Volumes {
 		result := resultPerID[v.WorkloadID]
 		data := provision.VolumeResult{}
-		if err := json.Unmarshal([]byte(result.DataJSON), &data); err != nil {
+		if err := json.Unmarshal(result.DataJSON, &data); err != nil {
 			panic(err)
 		}
 		fmt.Printf("\tVolume ID: %s Size: %d Type: %s\n", data.ID, v.Size, v.Type)
@@ -87,7 +89,7 @@ func printResult(r generated.TfgridReservation1) {
 	for _, z := range r.DataReservation.Zdbs {
 		result := resultPerID[z.WorkloadID]
 		data := provision.ZDBResult{}
-		if err := json.Unmarshal([]byte(result.DataJSON), &data); err != nil {
+		if err := json.Unmarshal(result.DataJSON, &data); err != nil {
 			panic(err)
 		}
 		fmt.Printf("\tAddr %s:%d Namespace %s\n", data.IP, data.Port, data.Namespace)
@@ -95,7 +97,7 @@ func printResult(r generated.TfgridReservation1) {
 	for _, k := range r.DataReservation.Kubernetes {
 		result := resultPerID[k.WorkloadID]
 		data := provision.Kubernetes{}
-		if err := json.Unmarshal([]byte(result.DataJSON), &data); err != nil {
+		if err := json.Unmarshal(result.DataJSON, &data); err != nil {
 			panic(err)
 		}
 

@@ -424,10 +424,10 @@ func main() {
 			Name:  "live",
 			Usage: "show you all the reservations that are still alive",
 			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:   "seed",
-					Usage:  "path to the file container the seed of the user private key",
-					EnvVar: "SEED_PATH",
+				cli.Int64Flag{
+					Name:     "id",
+					Usage:    "User id",
+					Required: true,
 				},
 				cli.IntFlag{
 					Name:  "start",
