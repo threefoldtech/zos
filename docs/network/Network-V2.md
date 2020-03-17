@@ -252,5 +252,38 @@ Basically it boils down also in a few other cases
 1) the physical network where a node lives has: IPv6 and Public IPv4
 1) the physical network where a node lives has: only IPv4
 
+But it bloils down to : call your ISP, ask for IPv6. It's the future, for yout ISP, it's time. There is no way to circumvent it. No way.
 
+
+OK, then, now what.
+
+1) you're a farmer with a bunch of nodes somewhere in a DC
+
+  - your nodes are connected once (with one NIC) to a switch/router  
+  Then your router will have :
+    - a segment that carries IPv4 __and__ IPv6:
+
+    - for IPv4, there are 2 possibilities:
+      - it's RFC1918 (Private space) -> you NAT that subnet (e.g. 192.168.1.0/24) towards the Public Internet 
+      
+        - you __will__ have difficulty to designate a IPv4 public entrypoint into your farm
+        - your workloads will be only reachable through the overlay
+        - your storage will not be reachable
+        
+      - you received a (small, because of the scarceness of IPv4 addresses, your ISP will give you only limited and pricy IPv4 adresses) IPv4 range you can utilise
+
+        - things are better, the nodes can live in public ipv4 space, where they can be used as entrypoint
+        - standard configuration that works
+
+    - for IPv6, your router is a Routing advertiser that provides SLAAC (Stateless, unmanaged) for that segment, working witha /64 prefix
+
+      - the nodes will reachable over IPv6
+      - storage backend will be available for the full grid
+      - everything will just work
+      
+      Best solution for single NIC: 
+        - an ipv6 prefx
+        - an ipv4 subnet (however small)
+
+  - your nodes have 2 connections, and you wnat to differ management from user traffic
 
