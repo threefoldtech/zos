@@ -198,8 +198,9 @@ func main() {
 							Required: true,
 						},
 						cli.StringFlag{
-							Name:  "flist",
-							Usage: "URL to the flist",
+							Name:     "flist",
+							Usage:    "URL to the flist",
+							Required: true,
 						},
 						cli.StringFlag{
 							Name:  "storage",
@@ -214,8 +215,9 @@ func main() {
 							Usage: "enable coreX",
 						},
 						cli.StringFlag{
-							Name:  "network",
-							Usage: "network ID the container needs to be part of",
+							Name:     "network",
+							Usage:    "network ID the container needs to be part of",
+							Required: true,
 						},
 						cli.StringSliceFlag{
 							Name:  "mounts",
@@ -226,8 +228,9 @@ func main() {
 							Usage: "environment variable to set into the container",
 						},
 						cli.StringFlag{
-							Name:  "ip",
-							Usage: "ip address to assign to the container",
+							Name:     "ip",
+							Usage:    "ip address to assign to the container",
+							Required: true,
 						},
 						cli.UintFlag{
 							Name:  "cpu",
