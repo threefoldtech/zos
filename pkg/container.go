@@ -51,7 +51,7 @@ type Container struct {
 	// Memory limit in bytes
 	Memory uint64
 	// Logs backends
-	Logs []logger.ContainerLogger
+	Logs []logger.Logs
 }
 
 // ContainerModule defines rpc interface to containerd

@@ -14,3 +14,13 @@ type ContainerLogger interface {
 	// Close stderr handler
 	CloseStderr()
 }
+
+type Logs struct {
+	Type string    `json:"type"`
+	Data LogsRedis `json:"data"`
+}
+
+type LogsRedis struct {
+	Endpoint string `json:"endpoint"`
+	Channel  string `json:"channel"`
+}

@@ -30,16 +30,6 @@ type Mount struct {
 	Mountpoint string `json:"mountpoint"`
 }
 
-type Logs struct {
-	Type string    `json:"type"`
-	Data LogsRedis `json:"data"`
-}
-
-type LogsRedis struct {
-	Endpoint string `json:"endpoint"`
-	Channel  string `json:"channel"`
-}
-
 //Container creation info
 type Container struct {
 	// URL of the flist
@@ -63,7 +53,7 @@ type Container struct {
 	// ContainerCapacity is the amount of resource to allocate to the container
 	Capacity ContainerCapacity `json:"capacity"`
 	// Logs contains a list of endpoint where to send containerlogs
-	Logs []Logs `json:"logs,omitempty"`
+	Logs []logger.Logs `json:"logs,omitempty"`
 }
 
 // ContainerResult is the information return to the BCDB
@@ -199,32 +189,15 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 		}
 	}()
 
-	var logs []logger.ContainerLogger
-	nlogs := []Logs{
+	// FIXME: needs to come from reservation
+	nlogs := []logger.Logs{
 		{
 			Type: "redis",
-			Data: LogsRedis{
+			Data: logger.LogsRedis{
 				Endpoint: "redis://10.241.0.232:6379",
 				Channel:  "debug",
 			},
 		},
-	}
-
-	// for _, l := range config.Logs {
-	for _, l := range nlogs {
-		if l.Type == "redis" {
-			lg, err := logger.NewContainerLoggerRedis(l.Data.Endpoint, l.Data.Channel)
-
-			if err != nil {
-				log.Error().Err(err).Msg("redis logger")
-				continue
-			}
-
-			logs = append(logs, lg)
-			continue
-		}
-
-		log.Error().Str("type", l.Type).Msg("invalid logging type requested")
 	}
 
 	log.Info().
@@ -247,7 +220,7 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 			Interactive: config.Interactive,
 			CPU:         config.Capacity.CPU,
 			Memory:      config.Capacity.Memory * 1024 * 1024,
-			Logs:        logs,
+			Logs:        nlogs, // FIXME
 		},
 	)
 	if err != nil {

@@ -190,7 +190,19 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 
 	// set user defined endpoint logging
 	for _, l := range data.Logs {
-		loggers.Add(l)
+		if l.Type == "redis" {
+			lg, err := logger.NewContainerLoggerRedis(l.Data.Endpoint, l.Data.Channel)
+
+			if err != nil {
+				log.Error().Err(err).Msg("redis logger")
+				continue
+			}
+
+			loggers.Add(lg)
+			continue
+		}
+
+		log.Error().Str("type", l.Type).Msg("invalid logging type requested")
 	}
 
 	task, err := container.NewTask(ctx, loggers.Log)
