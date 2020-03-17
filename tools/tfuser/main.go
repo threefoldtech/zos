@@ -426,11 +426,6 @@ func main() {
 			Flags: []cli.Flag{
 				cli.Int64Flag{
 					Name:     "id",
-					Usage:    "User id",
-					Required: true,
-				},
-				cli.Int64Flag{
-					Name:     "id",
 					Usage:    "user id associated with the seed",
 					EnvVar:   "TF_USER_ID",
 					Required: true,
