@@ -393,6 +393,10 @@ func main() {
 					EnvVar:   "TF_USER_ID",
 					Required: true,
 				},
+				cli.BoolFlag{
+					Name:  "dry-run",
+					Usage: "dry run, prints the reservation instead of registering it",
+				},
 			},
 			Action: cmdsProvision,
 		},

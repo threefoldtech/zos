@@ -166,6 +166,12 @@ func cmdsProvision(c *cli.Context) error {
 
 	jsx.CustomerSignature = hex.EncodeToString(signature)
 
+	if c.Bool("dry-run") {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(jsx)
+	}
+
 	id, err := client.ReserveJSX(jsx)
 	if err != nil {
 		return errors.Wrap(err, "failed to send reservation")
