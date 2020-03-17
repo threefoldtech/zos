@@ -120,14 +120,15 @@ func networkReservation(i interface{}) types.TfgridReservationNetwork1 {
 func containerReservation(i interface{}, nodeID string) types.TfgridReservationContainer1 {
 	c := i.(provision.Container)
 	container := types.TfgridReservationContainer1{
-		NodeID:      nodeID,
-		WorkloadID:  1,
-		Flist:       c.FList,
-		HubURL:      c.FlistStorage,
-		Environment: c.Env,
-		Entrypoint:  c.Entrypoint,
-		Interactive: c.Interactive,
-		Volumes:     make([]types.TfgridReservationContainerMount1, len(c.Mounts)),
+		NodeID:            nodeID,
+		WorkloadID:        1,
+		Flist:             c.FList,
+		HubURL:            c.FlistStorage,
+		Environment:       c.Env,
+		SecretEnvironment: c.SecretEnv,
+		Entrypoint:        c.Entrypoint,
+		Interactive:       c.Interactive,
+		Volumes:           make([]types.TfgridReservationContainerMount1, len(c.Mounts)),
 		NetworkConnection: []types.TfgridReservationNetworkConnection1{
 			{
 				NetworkID: string(c.Network.NetworkID),
