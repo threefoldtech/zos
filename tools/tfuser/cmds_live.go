@@ -142,10 +142,6 @@ type job struct {
 	expired bool
 	deleted bool
 }
-type res struct {
-	provision.Reservation
-	Result *provision.Result `json:"result"`
-}
 
 func (s *scraper) Scrap(user int64) chan generated.TfgridReservation1 {
 
