@@ -200,7 +200,18 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 	}()
 
 	var logs []logger.ContainerLogger
-	for _, l := range config.Logs {
+	nlogs := []Logs{
+		{
+			Type: "redis",
+			Data: LogsRedis{
+				Endpoint: "redis://10.241.0.232:6379",
+				Channel:  "debug",
+			},
+		},
+	}
+
+	// for _, l := range config.Logs {
+	for _, l := range nlogs {
 		if l.Type == "redis" {
 			lg, err := logger.NewContainerLoggerRedis(l.Data.Endpoint, l.Data.Channel)
 
