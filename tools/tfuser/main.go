@@ -429,6 +429,12 @@ func main() {
 					Usage:  "path to the file container the seed of the user private key",
 					EnvVar: "SEED_PATH",
 				},
+				cli.Int64Flag{
+					Name:     "id",
+					Usage:    "user id associated with the seed",
+					EnvVar:   "TF_USER_ID",
+					Required: true,
+				},
 				cli.IntFlag{
 					Name:  "start",
 					Usage: "start scrapping at that reservation ID",
