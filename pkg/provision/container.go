@@ -63,7 +63,7 @@ type Container struct {
 	// ContainerCapacity is the amount of resource to allocate to the container
 	Capacity ContainerCapacity `json:"capacity"`
 	// Logs contains a list of endpoint where to send containerlogs
-	Logs []Logs `json:"logs,omitempty`
+	Logs []Logs `json:"logs,omitempty"`
 }
 
 // ContainerResult is the information return to the BCDB

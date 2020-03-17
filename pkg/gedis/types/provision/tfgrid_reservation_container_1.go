@@ -17,6 +17,7 @@ type TfgridReservationContainer1 struct {
 	Volumes           []TfgridReservationContainerMount1    `json:"volumes"`
 	NetworkConnection []TfgridReservationNetworkConnection1 `json:"network_connection"`
 	StatsAggregator   []TfgridReservationStatsaggregator1   `json:"stats_aggregator"`
+	Logs              []TfgridReservationLogs1              `json:"logs"`
 }
 
 //TfgridReservationContainerMount1 jsx schema
@@ -30,4 +31,14 @@ type TfgridReservationNetworkConnection1 struct {
 	NetworkID string `json:"network_id"`
 	Ipaddress net.IP `json:"ipaddress"`
 	PublicIP6 bool   `json:"public_ip6"`
+}
+
+type TfgridReservationLogs1 struct {
+	Type string                      `json:"type"`
+	Data TfgridReservationLogsRedis1 `json:"data"`
+}
+
+type TfgridReservationLogsRedis1 struct {
+	Endpoint string `json:"endpoint"`
+	Channel  string `json:"channel"`
 }
