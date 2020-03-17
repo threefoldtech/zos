@@ -286,4 +286,11 @@ OK, then, now what.
         - an ipv4 subnet (however small)
 
   - your nodes have 2 connections, and you wnat to differ management from user traffic
+  
+    - same applies as above, where the best outcome will be obtained with a real IPv6 prefix allocation ans a small public subnet that is routable.
+      - the second NIC (typically 10GBit) will then carry everything public, and the first nic will just be there for managent, living in Private space for IPv4, mostly without IPv6 
+      - your switch needs to be configured to provide port-based vlans, so the segments are properly separated, and your router needs to reflect that vlan config so that separation is handeled by the firewall in the router (iptables, pf, acl, ...)
+
+  
+
 
