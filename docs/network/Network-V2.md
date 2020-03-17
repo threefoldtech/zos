@@ -140,13 +140,11 @@ boots.
 
 ## What happens under the hood (farmer)
 
-While we did our uttermost best to keep IPv4 address needs to a strict minimum, at least one Node will need an IPv4 
-address for handling everything that is Overlay Networks.
+While we did our uttermost best to keep IPv4 address needs to a strict minimum, at least one Node will need an IPv4 address for handling everything that is Overlay Networks.  
 For Containers to reach the Internet, any type of connectivity will do, be it NAT or though an Internal DMZ that has a 
 routable IPv4 address.
 
-Internally, a lot of things are being set-up to nave a node properly participate in the grid, as well to be prepared to 
-partake in the User's Overlay Networks.
+Internally, a lot of things are being set-up to have a node properly participate in the grid, as well to be prepared to partake in the User's Overlay Networks.
 
 A node connects itself to 'the Internet' depending on a few states.
 
@@ -208,21 +206,41 @@ The node is fully reachable
 
 1. It lives in a datacentre, where a farmer manages the Network.
 
-```
-
-```
-
 A little Drawing :
 
-
-
 ```text
++----------------------------------------------------+
+|  switch                                            |
+|                                                    |
+|                                                    |
++----------+-------------------------------------+---+
+           |                                     |
+  access   |                                     |
+  mgmt     |                     +---------------+
+  vlan     |                     | access
+           |                     | public
+           |                     | vlan
+           |                     |
+   +-------+---------------------+------+
+   |                                    |
+   |     nic1                  nic2     |
+   |                                    |
+   |                                    |
+   |                                    |
+   |   NODE                             |
+   |                                    |
+   |                                    |
+   |                                    |
+   +------------------------------------+
 
 ```
 
-## Exposing services that get deployed
+Or the more elaborate drawing on top that should be sufficient for a sysadmin to comprehend.
 
-## Kuberwhat ? (or VM's in short)
+Although:
+
+- we don't (yet) support nic bonding (next release)
+- we don't (yet) support vlans, so your ports on switch/router need to be access ports to vlans to your router/firewall
 
 
 ## yeayea, but really ... what now ?
@@ -287,9 +305,10 @@ OK, then, now what.
 
   - your nodes have 2 connections, and you wnat to differ management from user traffic
   
-    - same applies as above, where the best outcome will be obtained with a real IPv6 prefix allocation ans a small public subnet that is routable.
+    - same applies as above, where the best outcome will be obtained with a real IPv6 prefix allocation and a small public subnet that is routable.
       - the second NIC (typically 10GBit) will then carry everything public, and the first nic will just be there for managent, living in Private space for IPv4, mostly without IPv6 
       - your switch needs to be configured to provide port-based vlans, so the segments are properly separated, and your router needs to reflect that vlan config so that separation is handeled by the firewall in the router (iptables, pf, acl, ...)
+
 
   
 
