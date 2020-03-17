@@ -68,6 +68,11 @@ func printResult(r generated.TfgridReservation1) {
 	}
 	for _, c := range r.DataReservation.Containers {
 		result := resultPerID[c.WorkloadID]
+		if result.State == generated.TfgridReservationResult1StateError {
+			fmt.Printf("\terror: %s\n", result.Message)
+			continue
+		}
+
 		data := provision.Container{}
 		if err := json.Unmarshal(result.DataJSON, &data); err != nil {
 			panic(err)
@@ -80,6 +85,11 @@ func printResult(r generated.TfgridReservation1) {
 	}
 	for _, v := range r.DataReservation.Volumes {
 		result := resultPerID[v.WorkloadID]
+		if result.State == generated.TfgridReservationResult1StateError {
+			fmt.Printf("\terror: %s\n", result.Message)
+			continue
+		}
+
 		data := provision.VolumeResult{}
 		if err := json.Unmarshal(result.DataJSON, &data); err != nil {
 			panic(err)
@@ -88,6 +98,11 @@ func printResult(r generated.TfgridReservation1) {
 	}
 	for _, z := range r.DataReservation.Zdbs {
 		result := resultPerID[z.WorkloadID]
+		if result.State == generated.TfgridReservationResult1StateError {
+			fmt.Printf("\terror: %s\n", result.Message)
+			continue
+		}
+
 		data := provision.ZDBResult{}
 		if err := json.Unmarshal(result.DataJSON, &data); err != nil {
 			panic(err)
@@ -96,6 +111,11 @@ func printResult(r generated.TfgridReservation1) {
 	}
 	for _, k := range r.DataReservation.Kubernetes {
 		result := resultPerID[k.WorkloadID]
+		if result.State == generated.TfgridReservationResult1StateError {
+			fmt.Printf("\terror: %s\n", result.Message)
+			continue
+		}
+
 		data := provision.Kubernetes{}
 		if err := json.Unmarshal(result.DataJSON, &data); err != nil {
 			panic(err)
@@ -108,56 +128,6 @@ func printResult(r generated.TfgridReservation1) {
 			fmt.Printf("\n")
 		}
 	}
-
-	// switch r.Type {
-	// case provision.VolumeReservation:
-	// 	rData := provision.VolumeResult{}
-	// 	data := provision.Volume{}
-	// 	if err := json.Unmarshal(r.Data, &data); err != nil {
-	// 		panic(err)
-	// 	}
-	// 	if err := json.Unmarshal(r.Result.Data, &rData); err != nil {
-	// 		panic(err)
-	// 	}
-	// 	fmt.Printf("\tVolume ID: %s Size: %d Type: %s\n", rData.ID, data.Size, data.Type)
-	// case provision.ZDBReservation:
-	// 	data := provision.ZDBResult{}
-	// 	if err := json.Unmarshal(r.Result.Data, &data); err != nil {
-	// 		panic(err)
-	// 	}
-	// 	fmt.Printf("\tAddr %s:%d Namespace %s\n", data.IP, data.Port, data.Namespace)
-
-	// case provision.ContainerReservation:
-	// 	data := provision.Container{}
-	// 	if err := json.Unmarshal(r.Data, &data); err != nil {
-	// 		panic(err)
-	// 	}
-	// 	fmt.Printf("\tflist: %s", data.FList)
-	// 	for _, ip := range data.Network.IPs {
-	// 		fmt.Printf("\tIP: %s", ip)
-	// 	}
-	// 	fmt.Printf("\n")
-	// case provision.NetworkReservation:
-	// 	data := pkg.Network{}
-	// 	if err := json.Unmarshal(r.Data, &data); err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	fmt.Printf("\tnetwork ID: %s\n", data.Name)
-
-	// case provision.KubernetesReservation:
-	// 	data := provision.Kubernetes{}
-	// 	if err := json.Unmarshal(r.Data, &data); err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	fmt.Printf("\tip: %v", data.IP)
-	// 	if data.MasterIPs == nil || len(data.MasterIPs) == 0 {
-	// 		fmt.Print(" master\n")
-	// 	} else {
-	// 		fmt.Printf("\n")
-	// 	}
-	// }
 }
 
 type scraper struct {
@@ -173,10 +143,6 @@ type job struct {
 	user    int64
 	expired bool
 	deleted bool
-}
-type res struct {
-	provision.Reservation
-	Result *provision.Result `json:"result"`
 }
 
 func (s *scraper) Scrap(user int64) chan generated.TfgridReservation1 {
@@ -220,13 +186,8 @@ func worker(wg *sync.WaitGroup, cIn <-chan job, cOut chan<- generated.TfgridRese
 	now := time.Now()
 
 	for job := range cIn {
-		// fmt.Printf("%+v", job)
 		res, err := getResult(job.id)
-		if os.IsNotExist(err) {
-			continue
-		}
 		if err != nil {
-			fmt.Println(err)
 			continue
 		}
 

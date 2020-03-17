@@ -429,6 +429,12 @@ func main() {
 					Usage:    "User id",
 					Required: true,
 				},
+				cli.Int64Flag{
+					Name:     "id",
+					Usage:    "user id associated with the seed",
+					EnvVar:   "TF_USER_ID",
+					Required: true,
+				},
 				cli.IntFlag{
 					Name:  "start",
 					Usage: "start scrapping at that reservation ID",
