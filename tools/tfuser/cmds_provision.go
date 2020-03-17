@@ -136,7 +136,9 @@ func cmdsProvision(c *cli.Context) error {
 	//reservation.User = keypair.Identity()
 
 	custom, ok := provCustomModifiers[reservation.Type]
+	fmt.Println("customization: ", ok)
 	if ok {
+		fmt.Println("running customization function", reservation.NodeID)
 		if err := custom(&reservation); err != nil {
 			return err
 		}
