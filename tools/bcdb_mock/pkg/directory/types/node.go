@@ -66,10 +66,26 @@ func (f NodeFilter) WithFarmID(id schema.ID) NodeFilter {
 // WithTotalCap filter with total cap only units that > 0 are used
 // in the query
 func (f NodeFilter) WithTotalCap(cru, mru, hru, sru int64) NodeFilter {
-	for k, v := range map[string]int64{"cru": cru, "mru": mru, "hru": hru, "sru": sru} {
+	for k, v := range map[string]int64{
+		"total_resources.cru": cru,
+		"total_resources.mru": mru,
+		"total_resources.hru": hru,
+		"total_resources.sru": sru} {
 		if v > 0 {
-			f = append(f, bson.E{Key: "$gt", Value: bson.M{k: v}})
+			f = append(f, bson.E{Key: k, Value: bson.M{"$gt": v}})
 		}
+	}
+
+	return f
+}
+
+// WithLocation search the nodes that are located in country and or city
+func (f NodeFilter) WithLocation(country, city string) NodeFilter {
+	if country != "" {
+		f = append(f, bson.E{Key: "location.country", Value: country})
+	}
+	if city != "" {
+		f = append(f, bson.E{Key: "location.city", Value: city})
 	}
 
 	return f
@@ -86,13 +102,22 @@ func (f NodeFilter) Find(ctx context.Context, db *mongo.Database, opts ...*optio
 }
 
 // Get one farm that matches the filter
-func (f NodeFilter) Get(ctx context.Context, db *mongo.Database) (node Node, err error) {
+func (f NodeFilter) Get(ctx context.Context, db *mongo.Database, includeproofs bool) (node Node, err error) {
 	if f == nil {
 		f = NodeFilter{}
 	}
 
 	col := db.Collection(NodeCollection)
-	result := col.FindOne(ctx, f, options.FindOne())
+
+	var projection bson.D
+	if !includeproofs {
+		projection = bson.D{
+			{Key: "proofs", Value: 0},
+		}
+	} else {
+		projection = bson.D{}
+	}
+	result := col.FindOne(ctx, f, options.FindOne().SetProjection(projection))
 
 	err = result.Err()
 	if err != nil {
@@ -129,7 +154,7 @@ func NodeCreate(ctx context.Context, db *mongo.Database, node Node) (schema.ID, 
 	var filter NodeFilter
 	filter = filter.WithNodeID(node.NodeId)
 	var id schema.ID
-	current, err := filter.Get(ctx, db)
+	current, err := filter.Get(ctx, db, false)
 	if err != nil {
 		//TODO: check that this is a NOT FOUND error
 		id, err = models.NextID(ctx, db, NodeCollection)
