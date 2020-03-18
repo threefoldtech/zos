@@ -461,7 +461,7 @@ func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, stor
 
 	_, err := store.RegisterNode(nodeID, farmID, version, loc)
 	if err != nil {
-		log.Error().Err(err).Send()
+		log.Error().Msgf("%v, farmID: %d is not valid", err, farmID)
 		return err
 	}
 	return nil
