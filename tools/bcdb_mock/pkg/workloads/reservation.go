@@ -161,7 +161,7 @@ func (a *API) queued(ctx context.Context, db *mongo.Database, nodeID string, lim
 		WorkloadID string                                                `bson:"workload_id" json:"workload_id"`
 		User       string                                                `bson:"user" json:"user"`
 		Type       generated.TfgridWorkloadsReservationWorkload1TypeEnum `bson:"type" json:"type"`
-		Content    bson.M                                                `bson:"content" json:"content"`
+		Content    bson.Raw                                              `bson:"content" json:"content"`
 		Created    schema.Date                                           `bson:"created" json:"created"`
 		Duration   int64                                                 `bson:"duration" json:"duration"`
 		Signature  string                                                `bson:"signature" json:"signature"`
@@ -191,18 +191,57 @@ func (a *API) queued(ctx context.Context, db *mongo.Database, nodeID string, lim
 		if err := cur.Decode(&wl); err != nil {
 			return workloads, err
 		}
+
+		obj := generated.TfgridWorkloadsReservationWorkload1{
+			WorkloadId: wl.WorkloadID,
+			User:       wl.User,
+			Type:       wl.Type,
+			// Content:    wl.Content,
+			Created:   wl.Created,
+			Duration:  wl.Duration,
+			Signature: wl.Signature,
+			ToDelete:  wl.ToDelete,
+		}
+		switch wl.Type {
+		case generated.TfgridWorkloadsReservationWorkload1TypeContainer:
+			var data generated.TfgridWorkloadsReservationContainer1
+			if err := bson.Unmarshal(wl.Content, &data); err != nil {
+				return nil, err
+			}
+			obj.Content = data
+
+		case generated.TfgridWorkloadsReservationWorkload1TypeVolume:
+			var data generated.TfgridWorkloadsReservationVolume1
+			if err := bson.Unmarshal(wl.Content, &data); err != nil {
+				return nil, err
+			}
+			obj.Content = data
+
+		case generated.TfgridWorkloadsReservationWorkload1TypeZdb:
+			var data generated.TfgridWorkloadsReservationZdb1
+			if err := bson.Unmarshal(wl.Content, &data); err != nil {
+				return nil, err
+			}
+			obj.Content = data
+
+		case generated.TfgridWorkloadsReservationWorkload1TypeNetwork:
+			var data generated.TfgridWorkloadsReservationNetwork1
+			if err := bson.Unmarshal(wl.Content, &data); err != nil {
+				return nil, err
+			}
+			obj.Content = data
+
+		case generated.TfgridWorkloadsReservationWorkload1TypeKubernetes:
+			var data generated.TfgridWorkloadsReservationK8S1
+			if err := bson.Unmarshal(wl.Content, &data); err != nil {
+				return nil, err
+			}
+			obj.Content = data
+		}
+
 		workloads = append(workloads, types.Workload{
-			NodeID: wl.NodeID,
-			TfgridWorkloadsReservationWorkload1: generated.TfgridWorkloadsReservationWorkload1{
-				WorkloadId: wl.WorkloadID,
-				User:       wl.User,
-				Type:       wl.Type,
-				Content:    wl.Content,
-				Created:    wl.Created,
-				Duration:   wl.Duration,
-				Signature:  wl.Signature,
-				ToDelete:   wl.ToDelete,
-			},
+			NodeID:                              wl.NodeID,
+			TfgridWorkloadsReservationWorkload1: obj,
 		})
 	}
 
