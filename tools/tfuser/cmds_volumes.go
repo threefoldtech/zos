@@ -27,7 +27,7 @@ func generateVolume(c *cli.Context) error {
 		Type: provision.DiskType(t),
 	}
 
-	p, err := embed(v, provision.VolumeReservation)
+	p, err := embed(v, provision.VolumeReservation, c.String("node"))
 	if err != nil {
 		return err
 	}
