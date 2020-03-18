@@ -72,7 +72,7 @@ func (f NodeFilter) WithTotalCap(cru, mru, hru, sru int64) NodeFilter {
 		"total_resources.hru": hru,
 		"total_resources.sru": sru} {
 		if v > 0 {
-			f = append(f, bson.E{Key: k, Value: bson.M{"$gt": v}})
+			f = append(f, bson.E{Key: k, Value: bson.M{"$gte": v}})
 		}
 	}
 
