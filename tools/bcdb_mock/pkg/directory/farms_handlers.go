@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 
@@ -42,7 +43,7 @@ func (s *FarmAPI) registerFarm(r *http.Request) (interface{}, mw.Response) {
 
 func (s *FarmAPI) listFarm(r *http.Request) (interface{}, mw.Response) {
 	db := mw.Database(r)
-	farms, err := s.List(r.Context(), db)
+	farms, err := s.List(r.Context(), db, models.PageFromRequest(r))
 	if err != nil {
 		return nil, mw.Error(err)
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
@@ -70,7 +71,7 @@ func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
 
 	db := mw.Database(r)
 
-	nodes, err := s.List(r.Context(), db, schema.ID(farm))
+	nodes, err := s.List(r.Context(), db, schema.ID(farm), models.PageFromRequest(r))
 	if err != nil {
 		return nil, mw.Error(err)
 	}
