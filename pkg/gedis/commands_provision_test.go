@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg"
 	types "github.com/threefoldtech/zos/pkg/gedis/types/provision"
+	"github.com/threefoldtech/zos/pkg/logger"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/schema"
 )
@@ -177,6 +178,7 @@ func TestProvisionReserve(t *testing.T) {
 				NetworkID: "123",
 				IPs:       []net.IP{net.ParseIP("192.168.1.1")},
 			},
+			Logs: []logger.Logs{},
 		})),
 		Duration:  10 * time.Minute,
 		Signature: []byte("signature"),
@@ -197,6 +199,7 @@ func TestProvisionReserve(t *testing.T) {
 						{NetworkID: "123", Ipaddress: net.ParseIP("192.168.1.1")},
 					},
 					Volumes: []types.TfgridReservationContainerMount1{},
+					Logs:    []types.TfgridReservationLogs1{},
 				},
 			},
 		},
