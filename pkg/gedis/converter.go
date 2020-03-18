@@ -128,6 +128,7 @@ func containerReservation(i interface{}, nodeID string) types.TfgridReservationC
 		Entrypoint:  c.Entrypoint,
 		Interactive: c.Interactive,
 		Volumes:     make([]types.TfgridReservationContainerMount1, len(c.Mounts)),
+		Logs:        make([]types.TfgridReservationLogs1, len(c.Logs)),
 		NetworkConnection: []types.TfgridReservationNetworkConnection1{
 			{
 				NetworkID: string(c.Network.NetworkID),
@@ -145,6 +146,27 @@ func containerReservation(i interface{}, nodeID string) types.TfgridReservationC
 			Mountpoint: v.Mountpoint,
 		}
 	}
+
+	for i, v := range c.Logs {
+		// Only allow redis for now
+		if v.Type != "redis" {
+			container.Logs[i] = types.TfgridReservationLogs1{
+				Type: "invalid",
+				Data: types.TfgridReservationLogsRedis1{},
+			}
+
+			continue
+		}
+
+		container.Logs[i] = types.TfgridReservationLogs1{
+			Type: v.Type,
+			Data: types.TfgridReservationLogsRedis1{
+				Endpoint: v.Data.Endpoint,
+				Channel:  v.Data.Channel,
+			},
+		}
+	}
+
 	return container
 }
 

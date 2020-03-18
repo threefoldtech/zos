@@ -189,17 +189,6 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 		}
 	}()
 
-	// FIXME: needs to come from reservation
-	nlogs := []logger.Logs{
-		{
-			Type: "redis",
-			Data: logger.LogsRedis{
-				Endpoint: "redis://10.241.0.232:6379",
-				Channel:  "debug",
-			},
-		},
-	}
-
 	log.Info().
 		Str("ipv6", join.IPv6.String()).
 		Str("ipv4", join.IPv4.String()).
@@ -220,7 +209,7 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 			Interactive: config.Interactive,
 			CPU:         config.Capacity.CPU,
 			Memory:      config.Capacity.Memory * 1024 * 1024,
-			Logs:        nlogs, // FIXME
+			Logs:        config.Logs,
 		},
 	)
 	if err != nil {
