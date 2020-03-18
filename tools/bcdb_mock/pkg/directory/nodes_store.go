@@ -37,7 +37,7 @@ func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, farm schema.ID, 
 		return nil, errors.Wrap(err, "failed to list nodes")
 	}
 	defer cur.Close(ctx)
-	var out []directory.Node
+	out := []directory.Node{}
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, errors.Wrap(err, "failed to load node list")
 	}

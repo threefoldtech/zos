@@ -54,6 +54,11 @@ func (f FarmFilter) WithName(name string) FarmFilter {
 	return append(f, bson.E{Key: "name", Value: name})
 }
 
+// WithOwner filter farm by owner ID
+func (f FarmFilter) WithOwner(tid int64) FarmFilter {
+	return append(f, bson.E{Key: "threebot_id", Value: tid})
+}
+
 // Find run the filter and return a cursor result
 func (f FarmFilter) Find(ctx context.Context, db *mongo.Database, opts ...*options.FindOptions) (*mongo.Cursor, error) {
 	col := db.Collection(FarmCollection)
