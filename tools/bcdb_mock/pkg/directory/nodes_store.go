@@ -14,11 +14,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // NodeAPI holds api for nodes
@@ -26,13 +26,13 @@ type NodeAPI struct{}
 
 // List farms
 // TODO: add paging arguments
-func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, farm schema.ID) ([]directory.Node, error) {
+func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, farm schema.ID, opts ...*options.FindOptions) ([]directory.Node, error) {
 	var filter directory.NodeFilter
 	if farm > 0 {
 		filter = filter.WithFarmID(farm)
 	}
 
-	cur, err := filter.Find(ctx, db, models.Page(0))
+	cur, err := filter.Find(ctx, db, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list nodes")
 	}
