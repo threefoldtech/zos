@@ -203,7 +203,7 @@ func (r *Reservation) SignatureVerify(pk string, sig []byte) error {
 		return errors.Wrap(err, "failed to write id to buffer")
 	}
 
-	if _, err := buf.Write(r.Json); err != nil {
+	if _, err := buf.WriteString(r.Json); err != nil {
 		return errors.Wrap(err, "failed to write json to buffer")
 	}
 
