@@ -8,6 +8,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/environment"
 )
 
 const (
@@ -66,4 +67,16 @@ func Initialize() {
 		FormatLevel: formatLevel,
 	})
 
+	env, err := environment.Get()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to parse node environment")
+	}
+
+	// Default level for this example is info, unless debug flag is present
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	// If running dev, enable debug mode
+	if env.RunningMode == environment.RunningDev {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
 }

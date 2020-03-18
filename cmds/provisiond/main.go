@@ -15,7 +15,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
@@ -33,24 +32,16 @@ func main() {
 	var (
 		msgBrokerCon string
 		storageDir   string
-		debug        bool
 		ver          bool
 	)
 
 	flag.StringVar(&storageDir, "root", "/var/cache/modules/provisiond", "root path of the module")
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.BoolVar(&debug, "debug", false, "enable debug logging")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
 	flag.Parse()
 	if ver {
 		version.ShowAndExit(false)
-	}
-
-	// Default level for this example is info, unless debug flag is present
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
 	flag.Parse()
