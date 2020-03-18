@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	nodeCollection = "node"
+	NodeCollection = "node"
 )
 
 // Node model
@@ -77,7 +77,7 @@ func (f NodeFilter) WithTotalCap(cru, mru, hru, sru int64) NodeFilter {
 
 // Find run the filter and return a cursor result
 func (f NodeFilter) Find(ctx context.Context, db *mongo.Database, opts ...*options.FindOptions) (*mongo.Cursor, error) {
-	col := db.Collection(nodeCollection)
+	col := db.Collection(NodeCollection)
 	if f == nil {
 		f = NodeFilter{}
 	}
@@ -91,7 +91,7 @@ func (f NodeFilter) Get(ctx context.Context, db *mongo.Database) (node Node, err
 		f = NodeFilter{}
 	}
 
-	col := db.Collection(nodeCollection)
+	col := db.Collection(NodeCollection)
 	result := col.FindOne(ctx, f, options.FindOne())
 
 	err = result.Err()
@@ -105,7 +105,7 @@ func (f NodeFilter) Get(ctx context.Context, db *mongo.Database) (node Node, err
 
 // Count number of documents matching
 func (f NodeFilter) Count(ctx context.Context, db *mongo.Database) (int64, error) {
-	col := db.Collection(nodeCollection)
+	col := db.Collection(NodeCollection)
 	if f == nil {
 		f = NodeFilter{}
 	}
@@ -132,7 +132,7 @@ func NodeCreate(ctx context.Context, db *mongo.Database, node Node) (schema.ID, 
 	current, err := filter.Get(ctx, db)
 	if err != nil {
 		//TODO: check that this is a NOT FOUND error
-		id, err = models.NextID(ctx, db, nodeCollection)
+		id, err = models.NextID(ctx, db, NodeCollection)
 		if err != nil {
 			return id, err
 		}
@@ -147,7 +147,7 @@ func NodeCreate(ctx context.Context, db *mongo.Database, node Node) (schema.ID, 
 	}
 
 	node.Updated = schema.Date{Time: time.Now()}
-	col := db.Collection(nodeCollection)
+	col := db.Collection(NodeCollection)
 	result := col.FindOneAndUpdate(ctx, filter, bson.M{"$set": node}, options.FindOneAndUpdate().SetUpsert(true))
 	return id, result.Err()
 }
@@ -157,7 +157,7 @@ func nodeUpdate(ctx context.Context, db *mongo.Database, nodeID string, value in
 		return fmt.Errorf("invalid node id")
 	}
 
-	col := db.Collection(nodeCollection)
+	col := db.Collection(NodeCollection)
 	var filter NodeFilter
 	filter = filter.WithNodeID(nodeID)
 	_, err := col.UpdateOne(ctx, filter, bson.M{
@@ -217,7 +217,7 @@ func NodePushProof(ctx context.Context, db *mongo.Database, nodeID string, proof
 		return fmt.Errorf("invalid node id")
 	}
 
-	col := db.Collection(nodeCollection)
+	col := db.Collection(NodeCollection)
 	var filter NodeFilter
 	filter = filter.WithNodeID(nodeID)
 	_, err := col.UpdateOne(ctx, filter, bson.M{
