@@ -86,13 +86,21 @@ func (f NodeFilter) Find(ctx context.Context, db *mongo.Database, opts ...*optio
 }
 
 // Get one farm that matches the filter
-func (f NodeFilter) Get(ctx context.Context, db *mongo.Database) (node Node, err error) {
+func (f NodeFilter) Get(ctx context.Context, db *mongo.Database, includeproofs bool) (node Node, err error) {
 	if f == nil {
 		f = NodeFilter{}
 	}
 
 	col := db.Collection(NodeCollection)
-	result := col.FindOne(ctx, f, options.FindOne())
+	var projection bson.D
+	if !includeproofs {
+		projection = bson.D{
+			{Key: "proofs", Value: 0},
+		}
+	} else {
+		projection = bson.D{}
+	}
+	result := col.FindOne(ctx, f, options.FindOne().SetProjection(projection))
 
 	err = result.Err()
 	if err != nil {
@@ -129,7 +137,7 @@ func NodeCreate(ctx context.Context, db *mongo.Database, node Node) (schema.ID, 
 	var filter NodeFilter
 	filter = filter.WithNodeID(node.NodeId)
 	var id schema.ID
-	current, err := filter.Get(ctx, db)
+	current, err := filter.Get(ctx, db, false)
 	if err != nil {
 		//TODO: check that this is a NOT FOUND error
 		id, err = models.NextID(ctx, db, NodeCollection)

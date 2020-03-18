@@ -17,6 +17,7 @@ import (
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -26,10 +27,17 @@ type NodeAPI struct{}
 
 // List farms
 // TODO: add paging arguments
-func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, farm schema.ID, opts ...*options.FindOptions) ([]directory.Node, error) {
+func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, farm schema.ID, includeproofs bool, opts ...*options.FindOptions) ([]directory.Node, error) {
 	var filter directory.NodeFilter
 	if farm > 0 {
 		filter = filter.WithFarmID(farm)
+	}
+
+	if !includeproofs {
+		projection := bson.D{
+			{Key: "proofs", Value: 0},
+		}
+		opts = append(opts, options.Find().SetProjection(projection))
 	}
 
 	cur, err := filter.Find(ctx, db, opts...)
@@ -46,10 +54,10 @@ func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, farm schema.ID, 
 }
 
 // Get a single node
-func (s *NodeAPI) Get(ctx context.Context, db *mongo.Database, nodeID string) (directory.Node, error) {
+func (s *NodeAPI) Get(ctx context.Context, db *mongo.Database, nodeID string, includeproofs bool) (directory.Node, error) {
 	var filter directory.NodeFilter
 	filter = filter.WithNodeID(nodeID)
-	return filter.Get(ctx, db)
+	return filter.Get(ctx, db, includeproofs)
 }
 
 // Exists tests if node exists
@@ -120,7 +128,7 @@ func (s *NodeAPI) SetInterfaces(ctx context.Context, db *mongo.Database, nodeID 
 
 // SetPublicConfig sets node public config
 func (s *NodeAPI) SetPublicConfig(ctx context.Context, db *mongo.Database, nodeID string, cfg generated.TfgridDirectoryNodePublicIface1) error {
-	node, err := s.Get(ctx, db, nodeID)
+	node, err := s.Get(ctx, db, nodeID, false)
 	if err != nil {
 		return err
 	}

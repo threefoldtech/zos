@@ -43,10 +43,12 @@ func (s *NodeAPI) registerNode(r *http.Request) (interface{}, mw.Response) {
 }
 
 func (s *NodeAPI) nodeDetail(r *http.Request) (interface{}, mw.Response) {
+	includeproofs := r.URL.Query().Get("proofs") == "true"
+
 	nodeID := mux.Vars(r)["node_id"]
 	db := mw.Database(r)
 
-	node, err := s.Get(r.Context(), db, nodeID)
+	node, err := s.Get(r.Context(), db, nodeID, includeproofs)
 	if err != nil {
 		return nil, mw.NotFound(err)
 	}
@@ -56,6 +58,7 @@ func (s *NodeAPI) nodeDetail(r *http.Request) (interface{}, mw.Response) {
 
 func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
 	sFarm := r.URL.Query().Get("farm")
+	includeproofs := r.URL.Query().Get("proofs") == "true"
 
 	var (
 		farm uint64
@@ -71,7 +74,7 @@ func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
 
 	db := mw.Database(r)
 
-	nodes, err := s.List(r.Context(), db, schema.ID(farm), models.PageFromRequest(r))
+	nodes, err := s.List(r.Context(), db, schema.ID(farm), includeproofs, models.PageFromRequest(r))
 	if err != nil {
 		return nil, mw.Error(err)
 	}
@@ -81,6 +84,7 @@ func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
 
 func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, mw.Response) {
 	sFarm := r.URL.Query().Get("farm")
+	includeproofs := r.URL.Query().Get("proofs") == "true"
 
 	var (
 		farm uint64
@@ -96,7 +100,7 @@ func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, mw.Response) {
 
 	db := mw.Database(r)
 
-	nodes, err := s.List(r.Context(), db, schema.ID(farm))
+	nodes, err := s.List(r.Context(), db, schema.ID(farm), includeproofs)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
