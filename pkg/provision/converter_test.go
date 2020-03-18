@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	generated "github.com/threefoldtech/zos/pkg/gedis/types/provision"
+	"github.com/threefoldtech/zos/pkg/logger"
 	"github.com/threefoldtech/zos/pkg/provision"
 	schema "github.com/threefoldtech/zos/pkg/schema"
 	"gotest.tools/assert"
@@ -72,6 +73,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				Interactive:  false,
 				Mounts:       []provision.Mount{},
 				Network:      provision.Network{},
+				Logs:         []logger.Logs{},
 			},
 			wantErr: false,
 		},
@@ -123,6 +125,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 					NetworkID: "net1",
 					IPs:       []net.IP{net.ParseIP("10.0.0.1")},
 				},
+				Logs: []logger.Logs{},
 			},
 			wantErr: false,
 		},
