@@ -19,6 +19,7 @@ import (
 
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	phonebook "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
+	workloads "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads/types"
 )
 
 func foreach(root string, f func(p string, r io.Reader) error) error {
@@ -60,16 +61,12 @@ func migrateFarms(root string, db *mongo.Database) error {
 	return foreach(root, func(p string, r io.Reader) error {
 		var farm directory.Farm
 		if err := json.NewDecoder(r).Decode(&farm); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to load file '%s'", p)
 		}
-
-		// if err := farm.Validate(); err != nil {
-		// 	return errors.Wrapf(err, "file '%s'", p)
-		// }
 
 		_, err := col.InsertOne(context.TODO(), farm)
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to insert option '%s'", p)
+			log.Error().Err(err).Msgf("failed to insert farm '%s'", p)
 		}
 
 		return nil
@@ -81,7 +78,7 @@ func migrateNodes(root string, db *mongo.Database) error {
 	return foreach(root, func(p string, r io.Reader) error {
 		var node directory.Node
 		if err := json.NewDecoder(r).Decode(&node); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to load file '%s'", p)
 		}
 
 		if err := node.Validate(); err != nil {
@@ -90,7 +87,7 @@ func migrateNodes(root string, db *mongo.Database) error {
 
 		_, err := col.InsertOne(context.TODO(), node)
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to insert option '%s'", p)
+			log.Error().Err(err).Msgf("failed to insert node '%s'", p)
 		}
 
 		return nil
@@ -102,12 +99,29 @@ func migrateUsers(root string, db *mongo.Database) error {
 	return foreach(root, func(p string, r io.Reader) error {
 		var user phonebook.User
 		if err := json.NewDecoder(r).Decode(&user); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to load file '%s'", p)
 		}
 
 		_, err := col.InsertOne(context.TODO(), user)
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to insert option '%s'", p)
+			log.Error().Err(err).Msgf("failed to insert user '%s'", p)
+		}
+
+		return nil
+	})
+}
+
+func migrateReservations(root string, db *mongo.Database) error {
+	col := db.Collection(workloads.ReservationCollection)
+	return foreach(root, func(p string, r io.Reader) error {
+		var reservation workloads.Reservation
+		if err := json.NewDecoder(r).Decode(&reservation); err != nil {
+			return errors.Wrapf(err, "failed to load file '%s'", p)
+		}
+
+		_, err := col.InsertOne(context.TODO(), reservation)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to insert reservation '%s'", p)
 		}
 
 		return nil
@@ -142,9 +156,10 @@ func main() {
 	}
 
 	types := map[string]Migrator{
-		"tfgrid_directory/tfgrid.directory.farm.1/yaml": migrateFarms,
-		"tfgrid_directory/tfgrid.directory.node.2/yaml": migrateNodes,
-		"phonebook/tfgrid.phonebook.user.1/yaml":        migrateUsers,
+		"tfgrid_directory/tfgrid.directory.farm.1/yaml":        migrateFarms,
+		"tfgrid_directory/tfgrid.directory.node.2/yaml":        migrateNodes,
+		"phonebook/tfgrid.phonebook.user.1/yaml":               migrateUsers,
+		"tfgrid_workloads/tfgrid.workloads.reservation.1/yaml": migrateReservations,
 	}
 
 	for typ, migrator := range types {
