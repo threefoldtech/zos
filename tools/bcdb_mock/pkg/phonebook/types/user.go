@@ -57,16 +57,25 @@ type UserFilter bson.D
 
 // WithID filters user with ID
 func (f UserFilter) WithID(id schema.ID) UserFilter {
+	if id == 0 {
+		return f
+	}
 	return append(f, bson.E{Key: "_id", Value: id})
 }
 
 // WithName filters user with name
 func (f UserFilter) WithName(name string) UserFilter {
+	if name == "" {
+		return f
+	}
 	return append(f, bson.E{Key: "name", Value: name})
 }
 
 // WithEmail filters user with email
 func (f UserFilter) WithEmail(email string) UserFilter {
+	if email == "" {
+		return f
+	}
 	return append(f, bson.E{Key: "email", Value: email})
 }
 
