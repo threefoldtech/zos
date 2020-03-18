@@ -5,6 +5,8 @@ import (
 	"os"
 )
 
+// ContainerLoggerFile write stdout/stderr to
+// a defined file
 type ContainerLoggerFile struct {
 	ContainerLogger
 
@@ -12,6 +14,7 @@ type ContainerLoggerFile struct {
 	fd       *os.File
 }
 
+// NewContainerLoggerFile open file and prepare logs writing
 func NewContainerLoggerFile(filepath string) (*ContainerLoggerFile, error) {
 	log.Debug().Str("filepath", filepath).Msg("initializing localfile logging")
 
@@ -26,6 +29,7 @@ func NewContainerLoggerFile(filepath string) (*ContainerLoggerFile, error) {
 	}, nil
 }
 
+// Stdout handle a stdout single line
 func (c *ContainerLoggerFile) Stdout(line string) error {
 	_, err := c.fd.WriteString(line + "\n")
 	if err != nil {
@@ -35,6 +39,7 @@ func (c *ContainerLoggerFile) Stdout(line string) error {
 	return nil
 }
 
+// Stderr handle a stderr single line
 func (c *ContainerLoggerFile) Stderr(line string) error {
 	_, err := c.fd.WriteString(line + "\n")
 	if err != nil {
@@ -44,10 +49,12 @@ func (c *ContainerLoggerFile) Stderr(line string) error {
 	return nil
 }
 
+// CloseStdout closes stdout handler
 func (c *ContainerLoggerFile) CloseStdout() {
 	c.fd.Close()
 }
 
+// CloseStderr closes stderr handler
 func (c *ContainerLoggerFile) CloseStderr() {
 	c.fd.Close()
 }

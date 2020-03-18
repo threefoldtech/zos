@@ -33,11 +33,13 @@ type TfgridReservationNetworkConnection1 struct {
 	PublicIP6 bool   `json:"public_ip6"`
 }
 
+//TfgridReservationLogs1 user defined log description
 type TfgridReservationLogs1 struct {
 	Type string                      `json:"type"`
 	Data TfgridReservationLogsRedis1 `json:"data"`
 }
 
+//TfgridReservationLogsRedis1 redis log backend
 type TfgridReservationLogsRedis1 struct {
 	Endpoint string `json:"endpoint"`
 	Channel  string `json:"channel"`

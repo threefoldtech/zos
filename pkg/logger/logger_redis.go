@@ -5,6 +5,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ContainerLoggerRedis send stdout/stderr to a
+// Redis PubSub channel
 type ContainerLoggerRedis struct {
 	ContainerLogger
 
@@ -15,6 +17,7 @@ type ContainerLoggerRedis struct {
 	conn redis.Conn
 }
 
+// NewContainerLoggerRedis create new redis backend and initialize connection
 func NewContainerLoggerRedis(endpoint string, channel string) (*ContainerLoggerRedis, error) {
 	log.Debug().Str("endpoint", endpoint).Str("channel", channel).Msg("initializing redis logging")
 
@@ -31,6 +34,7 @@ func NewContainerLoggerRedis(endpoint string, channel string) (*ContainerLoggerR
 	}, nil
 }
 
+// Stdout handle a stdout single line
 func (c *ContainerLoggerRedis) Stdout(line string) error {
 	_, err := c.conn.Do("PUBLISH", c.ChannelStdout, line)
 	if err != nil {
@@ -40,6 +44,7 @@ func (c *ContainerLoggerRedis) Stdout(line string) error {
 	return nil
 }
 
+// Stdout handle a stderr single line
 func (c *ContainerLoggerRedis) Stderr(line string) error {
 	_, err := c.conn.Do("PUBLISH", c.ChannelStderr, line)
 	if err != nil {
@@ -49,10 +54,12 @@ func (c *ContainerLoggerRedis) Stderr(line string) error {
 	return nil
 }
 
+// CloseStdout closes stdout handler
 func (c *ContainerLoggerRedis) CloseStdout() {
 	c.conn.Close()
 }
 
+// CloseStderr closes stderr handler
 func (c *ContainerLoggerRedis) CloseStderr() {
 	c.conn.Close()
 }
