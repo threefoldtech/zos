@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"io"
 	"io/ioutil"
@@ -9,14 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	"gopkg.in/yaml.v2"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
+	phonebook "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
 )
 
 func foreach(root string, f func(p string, r io.Reader) error) error {
@@ -30,8 +32,7 @@ func foreach(root string, f func(p string, r io.Reader) error) error {
 			continue
 		}
 
-		if filepath.Ext(file.Name()) != ".yaml" {
-			log.Debug().Str("file", file.Name()).Msgf("skipping file")
+		if filepath.Ext(file.Name()) != ".json" {
 			continue
 		}
 
@@ -58,7 +59,7 @@ func migrateFarms(root string, db *mongo.Database) error {
 	col := db.Collection(directory.FarmCollection)
 	return foreach(root, func(p string, r io.Reader) error {
 		var farm directory.Farm
-		if err := yaml.NewDecoder(r).Decode(&farm); err != nil {
+		if err := json.NewDecoder(r).Decode(&farm); err != nil {
 			return err
 		}
 
@@ -76,18 +77,35 @@ func migrateFarms(root string, db *mongo.Database) error {
 }
 
 func migrateNodes(root string, db *mongo.Database) error {
-	col := db.Collection(directory.FarmCollection)
+	col := db.Collection(directory.NodeCollection)
 	return foreach(root, func(p string, r io.Reader) error {
-		var farm directory.Farm
-		if err := yaml.NewDecoder(r).Decode(&farm); err != nil {
+		var node directory.Node
+		if err := json.NewDecoder(r).Decode(&node); err != nil {
 			return err
 		}
 
-		// if err := farm.Validate(); err != nil {
-		// 	return errors.Wrapf(err, "file '%s'", p)
-		// }
+		if err := node.Validate(); err != nil {
+			return errors.Wrapf(err, "file '%s'", p)
+		}
 
-		_, err := col.InsertOne(context.TODO(), farm)
+		_, err := col.InsertOne(context.TODO(), node)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to insert option '%s'", p)
+		}
+
+		return nil
+	})
+}
+
+func migrateUsers(root string, db *mongo.Database) error {
+	col := db.Collection(phonebook.UserCollection)
+	return foreach(root, func(p string, r io.Reader) error {
+		var user phonebook.User
+		if err := json.NewDecoder(r).Decode(&user); err != nil {
+			return err
+		}
+
+		_, err := col.InsertOne(context.TODO(), user)
 		if err != nil {
 			log.Error().Err(err).Msgf("failed to insert option '%s'", p)
 		}
@@ -125,6 +143,8 @@ func main() {
 
 	types := map[string]Migrator{
 		"tfgrid_directory/tfgrid.directory.farm.1/yaml": migrateFarms,
+		"tfgrid_directory/tfgrid.directory.node.2/yaml": migrateNodes,
+		"phonebook/tfgrid.phonebook.user.1/yaml":        migrateUsers,
 	}
 
 	for typ, migrator := range types {
