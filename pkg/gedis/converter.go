@@ -103,7 +103,7 @@ func networkReservation(i interface{}) types.TfgridReservationNetwork1 {
 
 		for y, peer := range nr.Peers {
 			network.NetworkResources[i].Peers[y] = types.WireguardPeer1{
-				IPRange:    nr.Subnet.ToSchema(),
+				IPRange:    peer.Subnet.ToSchema(),
 				Endpoint:   peer.Endpoint,
 				PublicKey:  peer.WGPublicKey,
 				AllowedIPs: make([]string, len(peer.AllowedIPs)),
