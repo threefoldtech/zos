@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ContainerLoggers support containerd custom logs redirection
 type ContainerLoggers struct {
 	// Internal containerd logger link
 	direct *cio.DirectIO
@@ -18,6 +19,7 @@ type ContainerLoggers struct {
 	loggers []ContainerLogger
 }
 
+// NewContainerLoggers initialize struct for containerd support
 func NewContainerLoggers(ctx context.Context) (*ContainerLoggers, error) {
 	fifos, err := cio.NewFIFOSetInDir("", "", false)
 	if err != nil {
@@ -35,10 +37,12 @@ func NewContainerLoggers(ctx context.Context) (*ContainerLoggers, error) {
 	}, nil
 }
 
+// Add adds a defined backend on the list
 func (c *ContainerLoggers) Add(backend ContainerLogger) {
 	c.loggers = append(c.loggers, backend)
 }
 
+// Wait waits for logs to be closed to clean handlers
 func (c *ContainerLoggers) Wait() {
 	c.wg.Wait()
 
@@ -52,6 +56,7 @@ func (c *ContainerLoggers) Wait() {
 	c.direct.Close()
 }
 
+// Log is the function to be passed to container to handle logs redirection
 func (c *ContainerLoggers) Log(id string) (cio.IO, error) {
 	c.wg.Add(2)
 

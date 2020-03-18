@@ -44,7 +44,7 @@ func (c *ContainerLoggerRedis) Stdout(line string) error {
 	return nil
 }
 
-// Stdout handle a stderr single line
+// Stderr handle a stderr single line
 func (c *ContainerLoggerRedis) Stderr(line string) error {
 	_, err := c.conn.Do("PUBLISH", c.ChannelStderr, line)
 	if err != nil {
