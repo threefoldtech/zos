@@ -121,8 +121,9 @@ func getLocalInterfaces() ([]types.IfaceInfo, error) {
 		}
 
 		info := types.IfaceInfo{
-			Name:  link.Attrs().Name,
-			Addrs: make([]types.IPNet, len(addrs)),
+			Name:       link.Attrs().Name,
+			Addrs:      make([]types.IPNet, len(addrs)),
+			MacAddress: link.Attrs().HardwareAddr,
 		}
 		for i, addr := range addrs {
 			info.Addrs[i] = types.NewIPNet(addr.IPNet)
