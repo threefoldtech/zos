@@ -99,7 +99,7 @@ type TfgridDirectoryNodeIface1 struct {
 	Name       string           `bson:"name" json:"name"`
 	Addrs      []schema.IPRange `bson:"addrs" json:"addrs"`
 	Gateway    []net.IP         `bson:"gateway" json:"gateway"`
-	MacAddress net.HardwareAddr `json:"macaddress"`
+	MacAddress net.HardwareAddr `bson:"macaddress" json:"macaddress"`
 }
 
 func NewTfgridDirectoryNodeIface1() (TfgridDirectoryNodeIface1, error) {
