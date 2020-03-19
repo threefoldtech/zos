@@ -23,7 +23,7 @@ const (
 
 var (
 	// ErrUserExists returned if user with same name exists
-	ErrUserExists = errors.New("user with same name exists")
+	ErrUserExists = errors.New("user with same name or email exists")
 	// ErrUserNotFound is returned if user is not found
 	ErrUserNotFound = errors.New("user not found")
 	// ErrAuthorization returned if user is not allowed to do an operation
@@ -133,6 +133,15 @@ func UserCreate(ctx context.Context, db *mongo.Database, name, email, pubkey str
 
 	col := db.Collection(UserCollection)
 	_, err = col.InsertOne(ctx, user)
+	if err != nil {
+		if merr, ok := err.(mongo.WriteException); ok {
+			errCode := merr.WriteErrors[0].Code
+			if errCode == 11000 {
+				return user, ErrUserExists
+			}
+		}
+		return user, err
+	}
 	return
 }
 
