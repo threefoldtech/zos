@@ -17,6 +17,10 @@ Prerequisite:
 - [kubectl](https://kubernetes.io/fr/docs/tasks/tools/install-kubectl/)
 - [wireguard](https://www.wireguard.com/install/)
 
+Optionally (if you want to deploy the charts);
+
+- helm (v3) ([install instructions](https://helm.sh/docs/intro/install))
+
 the script arguments are `startup.sh {GITHUB_ACCOUNT_OR_SSH_PUB_KEY} {CIDR/16} {DURATION} {NUMBER_OF_NODES} {VM_SIZE}`
 
 ```
@@ -243,6 +247,10 @@ Execute this command on your local machine not in a remote shell
 
 ```
 $ scp rancher@173.30.1.2:/etc/rancher/k3s/k3s.yaml ./k3s.yaml
+
+> IMPORTANT: Do not forget to update the server IP in the copied yaml file.
+> By default, it will be pointing to localhost, this must be changed into the
+> IP you used to connect to the VM.
 ```
 
 If you already have a kube config file usually located in `~/.kube/config`
@@ -354,8 +362,8 @@ K3s comes with helm support built-in. Let's try to deploy prometheus and grafana
 
 ```
 $ kubectl create namespace mon
-$ helm install --namespace mon --skip-crds  my-release stable/prometheus-operator
-$ helm list
+$ helm install --namespace mon my-release stable/prometheus-operator
+$ helm -n mon list
 NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                      APP VERSION
 my-release      mon             1               2020-02-04 16:08:41.70990744 +0100 CET  deployed        prometheus-operator-8.5.11 0.34.0
 $ kubectl config set-context --current --namespace=mon
