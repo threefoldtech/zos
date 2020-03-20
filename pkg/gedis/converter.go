@@ -103,7 +103,7 @@ func networkReservation(i interface{}) types.TfgridReservationNetwork1 {
 
 		for y, peer := range nr.Peers {
 			network.NetworkResources[i].Peers[y] = types.WireguardPeer1{
-				IPRange:    nr.Subnet.ToSchema(),
+				IPRange:    peer.Subnet.ToSchema(),
 				Endpoint:   peer.Endpoint,
 				PublicKey:  peer.WGPublicKey,
 				AllowedIPs: make([]string, len(peer.AllowedIPs)),
@@ -120,15 +120,16 @@ func networkReservation(i interface{}) types.TfgridReservationNetwork1 {
 func containerReservation(i interface{}, nodeID string) types.TfgridReservationContainer1 {
 	c := i.(provision.Container)
 	container := types.TfgridReservationContainer1{
-		NodeID:      nodeID,
-		WorkloadID:  1,
-		Flist:       c.FList,
-		HubURL:      c.FlistStorage,
-		Environment: c.Env,
-		Entrypoint:  c.Entrypoint,
-		Interactive: c.Interactive,
-		Volumes:     make([]types.TfgridReservationContainerMount1, len(c.Mounts)),
-		Logs:        make([]types.TfgridReservationLogs1, len(c.Logs)),
+		NodeID:            nodeID,
+		WorkloadID:        1,
+		Flist:             c.FList,
+		HubURL:            c.FlistStorage,
+		Environment:       c.Env,
+		SecretEnvironment: c.SecretEnv,
+		Entrypoint:        c.Entrypoint,
+		Interactive:       c.Interactive,
+		Volumes:           make([]types.TfgridReservationContainerMount1, len(c.Mounts)),
+		Logs:              make([]types.TfgridReservationLogs1, len(c.Logs)),
 		NetworkConnection: []types.TfgridReservationNetworkConnection1{
 			{
 				NetworkID: string(c.Network.NetworkID),
@@ -225,8 +226,8 @@ func k8sReservation(i interface{}, nodeID string) types.TfgridWorkloadsReservati
 		NetworkID:     string(k.NetworkID),
 		Ipaddress:     k.IP,
 		ClusterSecret: k.ClusterSecret,
-		MasterIps:     make([]net.IP, 0, len(k.MasterIPs)),
-		SSHKeys:       make([]string, 0, len(k.SSHKeys)),
+		MasterIps:     make([]net.IP, len(k.MasterIPs)),
+		SSHKeys:       make([]string, len(k.SSHKeys)),
 	}
 
 	copy(k8s.MasterIps, k.MasterIPs)

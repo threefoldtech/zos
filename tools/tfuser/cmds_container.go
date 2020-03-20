@@ -69,7 +69,7 @@ func generateContainer(c *cli.Context) error {
 		return err
 	}
 
-	p, err := embed(container, provision.ContainerReservation)
+	p, err := embed(container, provision.ContainerReservation, c.String("node"))
 	if err != nil {
 		return err
 	}
