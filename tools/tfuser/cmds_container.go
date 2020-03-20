@@ -32,8 +32,8 @@ func generateContainer(c *cli.Context) error {
 	var logs []logger.Logs
 	lv := c.String("logs")
 	if lv != "" {
-		if strings.HasPrefix(lv, "redis://") == false {
-			return fmt.Errorf("Log prefix should be like: redis://host:port")
+		if !strings.HasPrefix(lv, "redis://") {
+			return fmt.Errorf("log prefix should be like: redis://host:port")
 		}
 
 		lg := logger.Logs{
