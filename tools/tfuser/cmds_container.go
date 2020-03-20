@@ -7,6 +7,7 @@ import (
 
 	"github.com/threefoldtech/zos/pkg"
 
+	"github.com/threefoldtech/zos/pkg/logger"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/urfave/cli"
 )
@@ -28,6 +29,24 @@ func generateContainer(c *cli.Context) error {
 		Memory: c.Uint64("memory"),
 	}
 
+	var logs []logger.Logs
+	lv := c.String("logs")
+	if lv != "" {
+		if strings.HasPrefix(lv, "redis://") == false {
+			return fmt.Errorf("Log prefix should be like: redis://host:port")
+		}
+
+		lg := logger.Logs{
+			Type: "redis",
+			Data: logger.LogsRedis{
+				Endpoint: lv,
+				Channel:  c.String("channel"),
+			},
+		}
+
+		logs = append(logs, lg)
+	}
+
 	container := provision.Container{
 		FList:        c.String("flist"),
 		FlistStorage: c.String("storage"),
@@ -43,6 +62,7 @@ func generateContainer(c *cli.Context) error {
 			PublicIP6: c.Bool("public6"),
 		},
 		Capacity: cap,
+		Logs:     logs,
 	}
 
 	if err := validateContainer(container); err != nil {

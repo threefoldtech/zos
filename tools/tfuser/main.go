@@ -232,6 +232,15 @@ func main() {
 							Name:  "public6",
 							Usage: "when enabled, the container will have a public IPv6 interface",
 						},
+						cli.StringFlag{
+							Name:  "logs",
+							Usage: "custom redis endpoint to send process logs (eg: redis://example.tld:1234)",
+						},
+						cli.StringFlag{
+							Name:  "channel",
+							Usage: "redis logs target channel (default: debug)",
+							Value: "debug",
+						},
 					},
 					Action: generateContainer,
 				},
