@@ -18,6 +18,7 @@ var (
 )
 
 const (
+	// FarmCollection db collection name
 	FarmCollection = "farm"
 )
 

@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	// UserCollection db collection name
 	UserCollection = "user"
 )
 
