@@ -54,6 +54,7 @@ func foreach(root string, f func(p string, r io.Reader) error) error {
 	return nil
 }
 
+// Migrator callback
 type Migrator func(root string, db *mongo.Database) error
 
 func migrateFarms(root string, db *mongo.Database) error {

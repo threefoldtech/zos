@@ -15,6 +15,7 @@ import (
 )
 
 const (
+	// NodeCollection db collection name
 	NodeCollection = "node"
 )
 
