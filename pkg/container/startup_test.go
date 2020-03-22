@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/shlex"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/BurntSushi/toml"
@@ -19,6 +20,10 @@ name = "core.system"
 [startup.entry.args]
 name = "/start"
 dir = "/data"
+args = [
+	"extra",
+	"argument with spaces"
+]
 
 [startup.entry.args.env]
 DIFFICULTY = "easy"
@@ -37,6 +42,8 @@ func TestParseStartup(t *testing.T) {
 	assert.Equal(t, "core.system", entry.Name)
 	assert.Equal(t, "/start", entry.Args.Name)
 	assert.Equal(t, "/data", entry.Args.Dir)
+	assert.Equal(t, []string{"extra", "argument with spaces"}, entry.Args.Args)
+
 	assert.Equal(t, map[string]string{
 		"DIFFICULTY":  "easy",
 		"LEVEL":       "world",
@@ -52,7 +59,12 @@ func TestStartupEntrypoint(t *testing.T) {
 
 	entry, ok := e.Entries["entry"]
 	require.True(t, ok)
-	assert.Equal(t, entry.Entrypoint(), "/start")
+	assert.Equal(t, entry.Entrypoint(), `/start "extra" "argument with spaces"`)
+
+	parts, err := shlex.Split(entry.Entrypoint())
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"/start", "extra", "argument with spaces"}, parts)
 }
 
 func TestStartupEnvs(t *testing.T) {
