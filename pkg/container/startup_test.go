@@ -22,7 +22,8 @@ name = "/start"
 dir = "/data"
 args = [
 	"extra",
-	"argument with spaces"
+	"argument with spaces",
+	"with \"skip\"",
 ]
 
 [startup.entry.args.env]
@@ -42,7 +43,7 @@ func TestParseStartup(t *testing.T) {
 	assert.Equal(t, "core.system", entry.Name)
 	assert.Equal(t, "/start", entry.Args.Name)
 	assert.Equal(t, "/data", entry.Args.Dir)
-	assert.Equal(t, []string{"extra", "argument with spaces"}, entry.Args.Args)
+	assert.Equal(t, []string{"extra", "argument with spaces", "with \"skip\""}, entry.Args.Args)
 
 	assert.Equal(t, map[string]string{
 		"DIFFICULTY":  "easy",
@@ -59,12 +60,12 @@ func TestStartupEntrypoint(t *testing.T) {
 
 	entry, ok := e.Entries["entry"]
 	require.True(t, ok)
-	assert.Equal(t, entry.Entrypoint(), `/start "extra" "argument with spaces"`)
+	assert.Equal(t, entry.Entrypoint(), `/start "extra" "argument with spaces" "with \"skip\""`)
 
 	parts, err := shlex.Split(entry.Entrypoint())
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"/start", "extra", "argument with spaces"}, parts)
+	assert.Equal(t, []string{"/start", "extra", "argument with spaces", "with \"skip\""}, parts)
 }
 
 func TestStartupEnvs(t *testing.T) {
