@@ -68,7 +68,7 @@ func generateKubernetes(c *cli.Context) error {
 		SSHKeys:       sshKeys,
 	}
 
-	p, err := embed(kube, provision.KubernetesReservation)
+	p, err := embed(kube, provision.KubernetesReservation, c.String("node"))
 	if err != nil {
 		return errors.Wrap(err, "could not generate reservation schema")
 	}

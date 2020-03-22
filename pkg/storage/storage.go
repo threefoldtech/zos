@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	cacheTarget = "/var/cache"
+	// CacheTarget is the path where the cache disk is mounted
+	CacheTarget = "/var/cache"
 	cacheLabel  = "zos-cache"
 	cacheSize   = 20 * 1024 * 1024 * 1024 // 20GB
 )
@@ -366,8 +367,8 @@ func (s *storageModule) ensureCache() error {
 
 	var cacheFs filesystem.Volume
 
-	if filesystem.IsMountPoint(cacheTarget) {
-		log.Debug().Msgf("Cache partition already mounted in %s", cacheTarget)
+	if filesystem.IsMountPoint(CacheTarget) {
+		log.Debug().Msgf("Cache partition already mounted in %s", CacheTarget)
 		return nil
 	}
 
@@ -425,8 +426,8 @@ func (s *storageModule) ensureCache() error {
 		return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
 	}
 
-	log.Debug().Msgf("Mounting cache partition in %s", cacheTarget)
-	return filesystem.BindMount(cacheFs, cacheTarget)
+	log.Debug().Msgf("Mounting cache partition in %s", CacheTarget)
+	return filesystem.BindMount(cacheFs, CacheTarget)
 }
 
 // createSubvol creates a subvolume with the given name and limits it to the given size

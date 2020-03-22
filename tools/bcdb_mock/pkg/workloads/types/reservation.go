@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	reservationCollection = "reservation"
+	// ReservationCollection db collection name
+	ReservationCollection = "reservation"
 	queueCollection       = "workqueue"
 )
 
@@ -97,7 +98,7 @@ func (f ReservationFilter) Get(ctx context.Context, db *mongo.Database) (reserva
 		f = ReservationFilter{}
 	}
 
-	result := db.Collection(reservationCollection).FindOne(ctx, f)
+	result := db.Collection(ReservationCollection).FindOne(ctx, f)
 	if err = result.Err(); err != nil {
 		return
 	}
@@ -111,7 +112,7 @@ func (f ReservationFilter) Find(ctx context.Context, db *mongo.Database, opts ..
 	if f == nil {
 		f = ReservationFilter{}
 	}
-	return db.Collection(reservationCollection).Find(ctx, f, opts...)
+	return db.Collection(ReservationCollection).Find(ctx, f, opts...)
 }
 
 // Reservation is a wrapper around generated type
@@ -372,10 +373,10 @@ func (r *Reservation) Workloads(nodeID string) []Workload {
 // NOTE: use reservations only that are returned from calling Pipeline.Next()
 // no validation is done here, this is just a CRUD operation
 func ReservationCreate(ctx context.Context, db *mongo.Database, r Reservation) (schema.ID, error) {
-	id := models.MustID(ctx, db, reservationCollection)
+	id := models.MustID(ctx, db, ReservationCollection)
 	r.ID = id
 
-	_, err := db.Collection(reservationCollection).InsertOne(ctx, r)
+	_, err := db.Collection(ReservationCollection).InsertOne(ctx, r)
 	if err != nil {
 		return 0, err
 	}
@@ -388,7 +389,7 @@ func ReservationSetNextAction(ctx context.Context, db *mongo.Database, id schema
 	var filter ReservationFilter
 	filter = filter.WithID(id)
 
-	col := db.Collection(reservationCollection)
+	col := db.Collection(ReservationCollection)
 	_, err := col.UpdateOne(ctx, filter, bson.M{
 		"$set": bson.M{
 			"next_action": action,
@@ -417,7 +418,7 @@ func ReservationPushSignature(ctx context.Context, db *mongo.Database, id schema
 
 	var filter ReservationFilter
 	filter = filter.WithID(id)
-	col := db.Collection(reservationCollection)
+	col := db.Collection(ReservationCollection)
 	// NOTE: this should be a transaction not a bulk write
 	// but i had so many issues with transaction, and i couldn't
 	// get it to work. so I used bulk write in place instead
@@ -524,7 +525,7 @@ func (r *Result) Verify(pk string) error {
 // ResultPush pushes result to a reservation result array.
 // NOTE: this is just a crud operation, no validation is done here
 func ResultPush(ctx context.Context, db *mongo.Database, id schema.ID, result Result) error {
-	col := db.Collection(reservationCollection)
+	col := db.Collection(ReservationCollection)
 	var filter ReservationFilter
 	filter = filter.WithID(id)
 

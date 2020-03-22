@@ -14,7 +14,6 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/gedis"
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
@@ -55,17 +54,12 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to zbus broker")
 	}
 
-	if err := os.MkdirAll(root, 0750); err != nil {
-		log.Fatal().Err(err).Msgf("fail to create module root")
-	}
-
 	db, err := bcdbClient()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to BCDB")
 	}
 
 	identity := stubs.NewIdentityManagerStub(client)
-	networker := network.NewNetworker(identity, db, root)
 	nodeID := identity.NodeID()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -133,6 +127,15 @@ func main() {
 	go startAddrWatch(ctx, nodeID, db, ifaces)
 
 	log.Info().Msg("start zbus server")
+	if err := os.MkdirAll(root, 0750); err != nil {
+		log.Fatal().Err(err).Msgf("fail to create module root")
+	}
+
+	networker, err := network.NewNetworker(identity, db, root)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating network manager")
+	}
+
 	if err := startServer(ctx, broker, networker); err != nil {
 		log.Fatal().Err(err).Msg("unexpected error")
 	}
@@ -189,15 +192,5 @@ func bcdbClient() (network.TNoDB, error) {
 		return nil, errors.Wrap(err, "failed to parse node environment")
 	}
 
-	// use the bcdb mock for dev and test
-	if env.RunningMode == environment.RunningDev {
-		return tnodb.NewHTTPTNoDB(env.BcdbURL), nil
-	}
-
-	// use gedis for production bcdb
-	store, err := gedis.New(env.BcdbURL, env.BcdbPassword)
-	if err != nil {
-		return nil, errors.Wrap(err, "fail to connect to BCDB")
-	}
-	return store, nil
+	return tnodb.NewHTTPTNoDB(env.BcdbURL), nil
 }
