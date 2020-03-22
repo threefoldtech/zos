@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -30,17 +31,65 @@ func main() {
 	var (
 		listen string
 		dbConf string
-		name   string
+		dbName string
 	)
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
 	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
-	flag.StringVar(&name, "name", "explorer", "database name")
+	flag.StringVar(&dbName, "name", "explorer", "database name")
 	flag.Parse()
 
-	db, err := mw.NewDatabaseMiddleware(name, dbConf)
+	ctx := context.Background()
+	client, err := connectDB(ctx, dbConf)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to database")
+		log.Fatal().Err(err).Msg("fail to connect to database")
+	}
+
+	s, err := createServer(listen, dbName, client)
+	if err != nil {
+		log.Fatal().Err(err).Msg("fail to create HTTP server")
+	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	go s.ListenAndServe()
+
+	<-c
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	if err := s.Shutdown(ctx); err != nil {
+		log.Printf("error during server shutdown: %v\n", err)
+	}
+}
+
+func connectDB(ctx context.Context, connectionURI string) (*mongo.Client, error) {
+	client, err := mongo.NewClient(options.Client().ApplyURI(connectionURI))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := client.Connect(ctx); err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+type mwfunc struct {
+	mw http.Handler
+}
+
+func (m mwfunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	m.mw.ServeHTTP(w, r)
+}
+
+func createServer(listen, dbName string, client *mongo.Client) (*http.Server, error) {
+	db, err := mw.NewDatabaseMiddleware(dbName, client)
+	if err != nil {
+		return nil, err
 	}
 
 	router := mux.NewRouter()
@@ -62,23 +111,10 @@ func main() {
 	log.Printf("start on %s\n", listen)
 	r := handlers.LoggingHandler(os.Stderr, router)
 	r = handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(r)
+	// r = mw.AuthMiddleware(client.Database(dbName), r)
 
-	s := &http.Server{
+	return &http.Server{
 		Addr:    listen,
 		Handler: r,
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
-	go s.ListenAndServe()
-
-	<-c
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	if err := s.Shutdown(ctx); err != nil {
-		log.Printf("error during server shutdown: %v\n", err)
-	}
+	}, nil
 }

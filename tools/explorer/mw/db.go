@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type (
@@ -19,17 +18,9 @@ type DatabaseMiddleware struct {
 }
 
 // NewDatabaseMiddleware creates a new database middleware
-func NewDatabaseMiddleware(name, url string) (*DatabaseMiddleware, error) {
-	client, err := mongo.NewClient(options.Client().ApplyURI(url))
-	if err != nil {
-		return nil, err
-	}
+func NewDatabaseMiddleware(dbName string, client *mongo.Client) (*DatabaseMiddleware, error) {
 
-	if err := client.Connect(context.TODO()); err != nil {
-		return nil, err
-	}
-
-	return &DatabaseMiddleware{name: name, client: client}, nil
+	return &DatabaseMiddleware{name: dbName, client: client}, nil
 }
 
 // Middleware is the middleware function
