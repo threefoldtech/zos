@@ -86,6 +86,36 @@ func TestDumpIPNet(t *testing.T) {
 	}
 }
 
+func TestDumpMacaddress(t *testing.T) {
+	mustParse := func(in string) MacAddress {
+		mac, err := net.ParseMAC(in)
+		if err != nil {
+			panic(err)
+		}
+		return MacAddress{mac}
+	}
+
+	cases := []struct {
+		Input  MacAddress
+		Output string
+	}{
+		{mustParse("54:45:46:f6:02:61"), `"54:45:46:f6:02:61"`},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Output, func(t *testing.T) {
+			out, err := json.Marshal(c.Input)
+			if ok := assert.NoError(t, err); !ok {
+				t.Fatal()
+			}
+
+			if ok := assert.Equal(t, c.Output, string(out)); !ok {
+				t.Error()
+			}
+		})
+	}
+}
+
 func TestNewNodeFromSchema(t *testing.T) {
 	type args struct {
 		node directory.TfgridNode2

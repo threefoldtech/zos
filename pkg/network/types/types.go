@@ -22,10 +22,10 @@ const (
 // that the node will publish publicly
 // this is used to be able to configure public side of a node
 type IfaceInfo struct {
-	Name       string           `json:"name"`
-	Addrs      []IPNet          `json:"addrs"`
-	Gateway    []net.IP         `json:"gateway"`
-	MacAddress net.HardwareAddr `json:"macaddress"`
+	Name       string            `json:"name"`
+	Addrs      []IPNet           `json:"addrs"`
+	Gateway    []net.IP          `json:"gateway"`
+	MacAddress schema.MacAddress `json:"macaddress"`
 }
 
 // DefaultIP return the IP address of the interface that has a default gateway configured
