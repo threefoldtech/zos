@@ -16,7 +16,7 @@ type FarmAPI struct{}
 
 // List farms
 // TODO: add paging arguments
-func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, tid int64, opts ...*options.FindOptions) ([]directory.Farm, error) {
+func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, tid int64, opts ...*options.FindOptions) ([]directory.Farm, int64, error) {
 	var filter directory.FarmFilter
 
 	if tid != 0 {
@@ -26,15 +26,20 @@ func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, tid int64, opts 
 
 	cur, err := filter.Find(ctx, db, opts...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list farms")
+		return nil, 0, errors.Wrap(err, "failed to list farms")
 	}
 	defer cur.Close(ctx)
 	out := []directory.Farm{}
 	if err := cur.All(ctx, &out); err != nil {
-		return nil, errors.Wrap(err, "failed to load farm list")
+		return nil, 0, errors.Wrap(err, "failed to load farm list")
 	}
 
-	return out, nil
+	count, err := filter.Count(ctx, db)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to count entries in farms collection")
+	}
+
+	return out, count, nil
 }
 
 // GetByName gets a farm by name
