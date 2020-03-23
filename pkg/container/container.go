@@ -173,40 +173,36 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		return id, err
 	}
 
-	// inifialize multi-loggers
-	loggers, err := logger.NewContainerLoggers(ctx)
-	if err != nil {
-		return id, err
-	}
+	loggers := logger.NewContainerLoggers()
 
 	// hardcode local logfile
 	filepath := path.Join(logs, fmt.Sprintf("%s.log", container.ID()))
-	filelog, err := logger.NewContainerLoggerFile(filepath)
+	fileout, fileerr, err := logger.NewContainerLoggerFile(filepath, filepath)
 	if err != nil {
 		return id, err
 	}
 
-	loggers.Add(filelog)
+	loggers.Add(fileout, fileerr)
 
 	// set user defined endpoint logging
 	for _, l := range data.Logs {
 		switch l.Type {
 		case logger.LoggerRedis:
-			lg, err := logger.NewContainerLoggerRedis(l.Data.Endpoint, l.Data.Channel)
+			lo, le, err := logger.NewContainerLoggerRedis(l.Data.Endpoint, l.Data.Channel, l.Data.Channel)
 
 			if err != nil {
 				log.Error().Err(err).Msg("redis logger")
 				continue
 			}
 
-			loggers.Add(lg)
+			loggers.Add(lo, le)
 
 		default:
 			log.Error().Str("type", l.Type).Msg("invalid logging type requested")
 		}
 	}
 
-	task, err := container.NewTask(ctx, loggers.Log)
+	task, err := container.NewTask(ctx, loggers.Log())
 	if err != nil {
 		return id, err
 	}

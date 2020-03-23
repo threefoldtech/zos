@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"fmt"
+	"io"
 	"os"
 
 	"github.com/rs/zerolog/log"
@@ -10,54 +10,42 @@ import (
 // LoggerFile defines file logger type name
 const LoggerFile = "file"
 
-// ContainerLoggerFile write stdout/stderr to
-// a defined file
+// ContainerLoggerFile write stdout/stderr to files
 type ContainerLoggerFile struct {
-	filepath string
-	fd       *os.File
+	target *os.File
 }
 
 // NewContainerLoggerFile open file and prepare logs writing
-func NewContainerLoggerFile(filepath string) (*ContainerLoggerFile, error) {
-	log.Debug().Str("filepath", filepath).Msg("initializing localfile logging")
+func NewContainerLoggerFile(stdout string, stderr string) (io.Writer, io.Writer, error) {
+	log.Debug().Str("stdout", stdout).Str("stderr", stderr).Msg("initializing localfile logging")
 
-	f, err := os.Create(filepath)
+	fo, err := os.Create(stdout)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &ContainerLoggerFile{
-		filepath: filepath,
-		fd:       f,
-	}, nil
-}
+	// If stdout and stderr are the same, only one file is open
+	fe := fo
 
-// Stdout handle a stdout single line
-func (c *ContainerLoggerFile) Stdout(line string) error {
-	_, err := fmt.Fprintf(c.fd, "%s\n", line)
-	if err != nil {
-		return err
+	if stdout != stderr {
+		fe, err = os.Create(stderr)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
-	return nil
-}
-
-// Stderr handle a stderr single line
-func (c *ContainerLoggerFile) Stderr(line string) error {
-	_, err := fmt.Fprintf(c.fd, "%s\n", line)
-	if err != nil {
-		return err
+	fstdout := &ContainerLoggerFile{
+		target: fo,
 	}
 
-	return nil
+	fstderr := &ContainerLoggerFile{
+		target: fe,
+	}
+
+	return fstdout, fstderr, nil
 }
 
-// CloseStdout closes stdout handler
-func (c *ContainerLoggerFile) CloseStdout() {
-	c.fd.Close()
-}
-
-// CloseStderr closes stderr handler
-func (c *ContainerLoggerFile) CloseStderr() {
-	c.fd.Close()
+// Write forwards write to underlaying layer
+func (c *ContainerLoggerFile) Write(data []byte) (n int, err error) {
+	return c.target.Write(data)
 }
