@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
 	"github.com/threefoldtech/zos/pkg/schema"
 )
@@ -90,7 +91,7 @@ func TestDumpMacaddress(t *testing.T) {
 	mustParse := func(in string) schema.MacAddress {
 		mac, err := net.ParseMAC(in)
 		if err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 		return schema.MacAddress{mac}
 	}
