@@ -2,6 +2,7 @@ package directory
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/rs/zerolog/log"
@@ -62,32 +63,14 @@ func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	db := mw.Database(r)
-	nodes, err := s.List(r.Context(), db, q, models.PageFromRequest(r))
+	pager := models.PageFromRequest(r)
+	nodes, total, err := s.List(r.Context(), db, q, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
 
-	return nodes, nil
-}
-
-func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, mw.Response) {
-	q := nodeQuery{}
-	if err := q.Parse(r); err != nil {
-		return nil, err
-	}
-
-	db := mw.Database(r)
-
-	nodes, err := s.List(r.Context(), db, q, models.PageFromRequest(r))
-	if err != nil {
-		return nil, mw.Error(err)
-	}
-
-	x := struct {
-		Node []directory.Node `json:"nodes"`
-	}{nodes}
-
-	return x, nil
+	pages := fmt.Sprintf("%d", models.NrPages(total, *pager.Limit))
+	return nodes, mw.Ok().WithHeader("Pages", pages)
 }
 
 func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, mw.Response) {
