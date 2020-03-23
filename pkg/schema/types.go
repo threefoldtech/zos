@@ -233,10 +233,12 @@ type ID int64
 // MacAddress type
 type MacAddress struct{ net.HardwareAddr }
 
+// MarshalText marshals MacAddress type to a string
 func (mac MacAddress) MarshalText() ([]byte, error) {
 	return []byte(mac.HardwareAddr.String()), nil
 }
 
+// UnmarshalText loads a macaddress from a string
 func (mac *MacAddress) UnmarshalText(addr []byte) error {
 	addr, err := net.ParseMAC(string(addr))
 	if err != nil {
