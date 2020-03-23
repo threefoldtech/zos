@@ -111,8 +111,10 @@ func NewFSStore(root string) (*FSStore, error) {
 func (s *FSStore) removeAllButPersistent(rootPath string) error {
 	// if rootPath is not present on the filesystem, return
 	_, err := os.Stat(rootPath)
-	if err != nil {
+	if os.IsNotExist(err) {
 		return nil
+	} else if err != nil {
+		return err
 	}
 
 	err = filepath.Walk(rootPath, func(path string, info os.FileInfo, r error) error {
