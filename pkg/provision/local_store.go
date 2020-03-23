@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -120,6 +121,14 @@ func (s *FSStore) removeAllButPersistent(rootPath string) error {
 	err = filepath.Walk(rootPath, func(path string, info os.FileInfo, r error) error {
 		if r != nil {
 			return r
+		}
+		// if a file with size 0 is present we can assume its empty and remove it
+		if info.Size() == 0 {
+			err := os.Remove(path)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 		if info.IsDir() {
 			return nil
@@ -269,6 +278,15 @@ func (s *FSStore) GetExpired() ([]*Reservation, error) {
 	for _, info := range infos {
 		if info.IsDir() {
 			continue
+		}
+
+		// if the file is empty, remove it and return.
+		if info.Size() == 0 {
+			err := os.Remove(path.Join(s.root, info.Name()))
+			if err != nil {
+				return nil, err
+			}
+			return nil, err
 		}
 
 		r, err := s.get(info.Name())
