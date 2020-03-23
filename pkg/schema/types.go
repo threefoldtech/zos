@@ -230,6 +230,7 @@ func (e *Email) UnmarshalText(text []byte) error {
 // ID object id
 type ID int64
 
+// MacAddress type
 type MacAddress struct{ net.HardwareAddr }
 
 func (mac MacAddress) MarshalText() ([]byte, error) {
