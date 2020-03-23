@@ -6,11 +6,12 @@ import (
 	"os"
 )
 
+// LoggerConsole defines console logger type name
+const LoggerConsole = "console"
+
 // ContainerLoggerConsole does nothing else that print
 // logs on console stdout/stderr, there are no config
-type ContainerLoggerConsole struct {
-	ContainerLogger
-}
+type ContainerLoggerConsole struct{}
 
 // NewContainerLoggerConsole does nothing, it's here for consistancy
 func NewContainerLoggerConsole() *ContainerLoggerConsole {

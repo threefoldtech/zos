@@ -42,20 +42,6 @@ func (c *ContainerLoggers) Add(backend ContainerLogger) {
 	c.loggers = append(c.loggers, backend)
 }
 
-// Wait waits for logs to be closed to clean handlers
-func (c *ContainerLoggers) Wait() {
-	c.wg.Wait()
-
-	// closing backends
-	for _, logger := range c.loggers {
-		logger.CloseStdout()
-		logger.CloseStderr()
-	}
-
-	// closing containerd logs
-	c.direct.Close()
-}
-
 // Log is the function to be passed to container to handle logs redirection
 func (c *ContainerLoggers) Log(id string) (cio.IO, error) {
 	c.wg.Add(2)
@@ -95,7 +81,16 @@ func (c *ContainerLoggers) Log(id string) (cio.IO, error) {
 	go func() {
 		// wait for logs to ends
 		// then cleanup
-		c.Wait()
+		c.wg.Wait()
+
+		// closing backends
+		for _, logger := range c.loggers {
+			logger.CloseStdout()
+			logger.CloseStderr()
+		}
+
+		// closing containerd logs
+		c.direct.Close()
 	}()
 
 	return c.direct, nil

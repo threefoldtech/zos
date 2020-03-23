@@ -5,16 +5,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// LoggerRedis defines redis logger type name
+const LoggerRedis = "redis"
+
 // ContainerLoggerRedis send stdout/stderr to a
 // Redis PubSub channel
 type ContainerLoggerRedis struct {
-	ContainerLogger
-
-	Endpoint      string
-	ChannelStdout string
-	ChannelStderr string
-
-	conn redis.Conn
+	endpoint      string
+	channelStdout string
+	channelStderr string
+	conn          redis.Conn
 }
 
 // NewContainerLoggerRedis create new redis backend and initialize connection
@@ -23,20 +23,20 @@ func NewContainerLoggerRedis(endpoint string, channel string) (*ContainerLoggerR
 
 	c, err := redis.DialURL(endpoint)
 	if err != nil {
-		return &ContainerLoggerRedis{}, err
+		return nil, err
 	}
 
 	return &ContainerLoggerRedis{
-		Endpoint:      endpoint,
-		ChannelStdout: channel,
-		ChannelStderr: channel,
+		endpoint:      endpoint,
+		channelStdout: channel,
+		channelStderr: channel,
 		conn:          c,
 	}, nil
 }
 
 // Stdout handle a stdout single line
 func (c *ContainerLoggerRedis) Stdout(line string) error {
-	_, err := c.conn.Do("PUBLISH", c.ChannelStdout, line)
+	_, err := c.conn.Do("PUBLISH", c.channelStdout, line)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (c *ContainerLoggerRedis) Stdout(line string) error {
 
 // Stderr handle a stderr single line
 func (c *ContainerLoggerRedis) Stderr(line string) error {
-	_, err := c.conn.Do("PUBLISH", c.ChannelStderr, line)
+	_, err := c.conn.Do("PUBLISH", c.channelStderr, line)
 	if err != nil {
 		return err
 	}

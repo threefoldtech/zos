@@ -1,16 +1,19 @@
 package logger
 
 import (
-	"github.com/rs/zerolog/log"
+	"fmt"
 	"os"
+
+	"github.com/rs/zerolog/log"
 )
+
+// LoggerFile defines file logger type name
+const LoggerFile = "file"
 
 // ContainerLoggerFile write stdout/stderr to
 // a defined file
 type ContainerLoggerFile struct {
-	ContainerLogger
-
-	Filepath string
+	filepath string
 	fd       *os.File
 }
 
@@ -20,18 +23,18 @@ func NewContainerLoggerFile(filepath string) (*ContainerLoggerFile, error) {
 
 	f, err := os.Create(filepath)
 	if err != nil {
-		return &ContainerLoggerFile{}, err
+		return nil, err
 	}
 
 	return &ContainerLoggerFile{
-		Filepath: filepath,
+		filepath: filepath,
 		fd:       f,
 	}, nil
 }
 
 // Stdout handle a stdout single line
 func (c *ContainerLoggerFile) Stdout(line string) error {
-	_, err := c.fd.WriteString(line + "\n")
+	_, err := fmt.Fprintf(c.fd, "%s\n", line)
 	if err != nil {
 		return err
 	}
@@ -41,7 +44,7 @@ func (c *ContainerLoggerFile) Stdout(line string) error {
 
 // Stderr handle a stderr single line
 func (c *ContainerLoggerFile) Stderr(line string) error {
-	_, err := c.fd.WriteString(line + "\n")
+	_, err := fmt.Fprintf(c.fd, "%s\n", line)
 	if err != nil {
 		return err
 	}
