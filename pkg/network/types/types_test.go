@@ -87,16 +87,16 @@ func TestDumpIPNet(t *testing.T) {
 }
 
 func TestDumpMacaddress(t *testing.T) {
-	mustParse := func(in string) MacAddress {
+	mustParse := func(in string) schema.MacAddress {
 		mac, err := net.ParseMAC(in)
 		if err != nil {
 			panic(err)
 		}
-		return MacAddress{mac}
+		return schema.MacAddress{mac}
 	}
 
 	cases := []struct {
-		Input  MacAddress
+		Input  schema.MacAddress
 		Output string
 	}{
 		{mustParse("54:45:46:f6:02:61"), `"54:45:46:f6:02:61"`},
