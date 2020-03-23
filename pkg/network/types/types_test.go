@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
 	"github.com/threefoldtech/zos/pkg/schema"
 )
@@ -71,36 +70,6 @@ func TestDumpIPNet(t *testing.T) {
 		{IPNet{}, `""`},
 		{mustParse("192.168.1.0/24"), `"192.168.1.0/24"`},
 		{mustParse("2001:db8::/32"), `"2001:db8::/32"`},
-	}
-
-	for _, c := range cases {
-		t.Run(c.Output, func(t *testing.T) {
-			out, err := json.Marshal(c.Input)
-			if ok := assert.NoError(t, err); !ok {
-				t.Fatal()
-			}
-
-			if ok := assert.Equal(t, c.Output, string(out)); !ok {
-				t.Error()
-			}
-		})
-	}
-}
-
-func TestDumpMacaddress(t *testing.T) {
-	mustParse := func(in string) schema.MacAddress {
-		mac, err := net.ParseMAC(in)
-		if err != nil {
-			require.NoError(t, err)
-		}
-		return schema.MacAddress{mac}
-	}
-
-	cases := []struct {
-		Input  schema.MacAddress
-		Output string
-	}{
-		{mustParse("54:45:46:f6:02:61"), `"54:45:46:f6:02:61"`},
 	}
 
 	for _, c := range cases {
