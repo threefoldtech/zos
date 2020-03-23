@@ -17,7 +17,9 @@ import (
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/tfchain"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
 )
 
@@ -32,6 +34,9 @@ func main() {
 		dbConf string
 		name   string
 	)
+
+	_ = escrow.Escrow{}
+	_ = tfchain.Wallet{}
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
 	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
