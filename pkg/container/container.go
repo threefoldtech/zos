@@ -24,7 +24,7 @@ import (
 	"github.com/containerd/containerd/runtime/restart"
 	"github.com/google/shlex"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/logger"
+	"github.com/threefoldtech/zos/pkg/container/logger"
 )
 
 const (
@@ -173,11 +173,11 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		return id, err
 	}
 
-	loggers := logger.NewContainerLoggers()
+	loggers := logger.NewLoggers()
 
 	// hardcode local logfile
 	filepath := path.Join(logs, fmt.Sprintf("%s.log", container.ID()))
-	fileout, fileerr, err := logger.NewContainerLoggerFile(filepath, filepath)
+	fileout, fileerr, err := logger.NewFile(filepath, filepath)
 	if err != nil {
 		return id, err
 	}
@@ -187,8 +187,8 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 	// set user defined endpoint logging
 	for _, l := range data.Logs {
 		switch l.Type {
-		case logger.LoggerRedis:
-			lo, le, err := logger.NewContainerLoggerRedis(l.Data.Endpoint, l.Data.Channel, l.Data.Channel)
+		case logger.RedisType:
+			lo, le, err := logger.NewRedis(l.Data.Stdout, l.Data.Stderr)
 
 			if err != nil {
 				log.Error().Err(err).Msg("redis logger")

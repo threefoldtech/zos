@@ -9,24 +9,24 @@ import (
 )
 
 // LoggerConsole defines console logger type name
-const LoggerConsole = "console"
+const ConsoleType = "console"
 
 // ContainerLoggerConsole does nothing else that print
 // logs on console stdout/stderr, there are no config
-type ContainerLoggerConsole struct {
+type Console struct {
 	prefix string
 	target *os.File
 }
 
 // NewContainerLoggerConsole does nothing, it's here for consistancy
-func NewContainerLoggerConsole() (io.Writer, io.Writer, error) {
+func NewConsole() (io.Writer, io.Writer, error) {
 	log.Debug().Msg("initializing console logging")
-	stdout := &ContainerLoggerConsole{
+	stdout := &Console{
 		prefix: "O: ",
 		target: os.Stdout,
 	}
 
-	stderr := &ContainerLoggerConsole{
+	stderr := &Console{
 		prefix: "E: ",
 		target: os.Stderr,
 	}
@@ -34,7 +34,7 @@ func NewContainerLoggerConsole() (io.Writer, io.Writer, error) {
 	return stdout, stderr, nil
 }
 
-func (c *ContainerLoggerConsole) Write(data []byte) (n int, err error) {
+func (c *Console) Write(data []byte) (n int, err error) {
 	fmt.Fprintf(c.target, "%s", c.prefix)
 
 	// note: cannot use Fprintf("%s%s", c.prefix, data)

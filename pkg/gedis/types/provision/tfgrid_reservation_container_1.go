@@ -41,6 +41,6 @@ type TfgridReservationLogs1 struct {
 
 //TfgridReservationLogsRedis1 redis log backend
 type TfgridReservationLogsRedis1 struct {
-	Endpoint string `json:"endpoint"`
-	Channel  string `json:"channel"`
+	Stdout string `json:"stdout"`
+	Stderr string `json:"stderr"`
 }

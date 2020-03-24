@@ -103,8 +103,8 @@ type TfgridWorkloadsReservationLogs1 struct {
 }
 
 type TfgridWorkloadsReservationLogsRedis1 struct {
-	Endpoint string `bson:"endpoint" json:"endpoint"`
-	Channel  string `bson:"channel" json:"channel"`
+	Stdout string `bson:"stdout" json:"stdout"`
+	Stderr string `bson:"stderr" json:"stderr"`
 }
 
 func NewTfgridWorkloadsReservationContainer1() (TfgridWorkloadsReservationContainer1, error) {

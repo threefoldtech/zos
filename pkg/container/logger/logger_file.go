@@ -8,15 +8,15 @@ import (
 )
 
 // LoggerFile defines file logger type name
-const LoggerFile = "file"
+const FileType = "file"
 
 // ContainerLoggerFile write stdout/stderr to files
-type ContainerLoggerFile struct {
+type File struct {
 	target *os.File
 }
 
 // NewContainerLoggerFile open file and prepare logs writing
-func NewContainerLoggerFile(stdout string, stderr string) (io.Writer, io.Writer, error) {
+func NewFile(stdout string, stderr string) (io.Writer, io.Writer, error) {
 	log.Debug().Str("stdout", stdout).Str("stderr", stderr).Msg("initializing localfile logging")
 
 	fo, err := os.Create(stdout)
@@ -34,11 +34,11 @@ func NewContainerLoggerFile(stdout string, stderr string) (io.Writer, io.Writer,
 		}
 	}
 
-	fstdout := &ContainerLoggerFile{
+	fstdout := &File{
 		target: fo,
 	}
 
-	fstderr := &ContainerLoggerFile{
+	fstderr := &File{
 		target: fe,
 	}
 
@@ -46,6 +46,6 @@ func NewContainerLoggerFile(stdout string, stderr string) (io.Writer, io.Writer,
 }
 
 // Write forwards write to underlaying layer
-func (c *ContainerLoggerFile) Write(data []byte) (n int, err error) {
+func (c *File) Write(data []byte) (n int, err error) {
 	return c.target.Write(data)
 }

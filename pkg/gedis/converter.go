@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/container/logger"
 	types "github.com/threefoldtech/zos/pkg/gedis/types/provision"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/schema"
@@ -150,7 +151,7 @@ func containerReservation(i interface{}, nodeID string) types.TfgridReservationC
 
 	for i, v := range c.Logs {
 		// Only allow redis for now
-		if v.Type != "redis" {
+		if v.Type != logger.RedisType {
 			container.Logs[i] = types.TfgridReservationLogs1{
 				Type: "invalid",
 				Data: types.TfgridReservationLogsRedis1{},
@@ -162,8 +163,8 @@ func containerReservation(i interface{}, nodeID string) types.TfgridReservationC
 		container.Logs[i] = types.TfgridReservationLogs1{
 			Type: v.Type,
 			Data: types.TfgridReservationLogsRedis1{
-				Endpoint: v.Data.Endpoint,
-				Channel:  v.Data.Channel,
+				Stdout: v.Data.Stdout,
+				Stderr: v.Data.Stderr,
 			},
 		}
 	}

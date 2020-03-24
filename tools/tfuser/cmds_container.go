@@ -7,7 +7,7 @@ import (
 
 	"github.com/threefoldtech/zos/pkg"
 
-	"github.com/threefoldtech/zos/pkg/logger"
+	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/urfave/cli"
 )
@@ -30,17 +30,32 @@ func generateContainer(c *cli.Context) error {
 	}
 
 	var logs []logger.Logs
-	lv := c.String("logs")
-	if lv != "" {
-		if !strings.HasPrefix(lv, "redis://") {
-			return fmt.Errorf("log prefix should be like: redis://host:port")
+	if lo := c.String("stdout"); lo != "" {
+		// validating stdout argument
+		_, _, err := logger.RedisParseUrl(lo)
+		if err != nil {
+			return err
+		}
+
+		// copy stdout to stderr
+		lr := lo
+
+		// check if stderr is specified
+		if nlr := c.String("stderr"); nlr != "" {
+			// validating stderr argument
+			_, _, err := logger.RedisParseUrl(nlr)
+			if err != nil {
+				return nil
+			}
+
+			lr = nlr
 		}
 
 		lg := logger.Logs{
 			Type: "redis",
 			Data: logger.LogsRedis{
-				Endpoint: lv,
-				Channel:  c.String("channel"),
+				Stdout: lo,
+				Stderr: lr,
 			},
 		}
 

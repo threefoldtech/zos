@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/logger"
+	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -106,6 +106,8 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 	if err := validateContainerConfig(config); err != nil {
 		return ContainerResult{}, errors.Wrap(err, "container provision schema not valid")
 	}
+
+	fmt.Println(config.Logs)
 
 	log.Debug().Str("flist", config.FList).Msg("mounting flist")
 	mnt, err := flistClient.Mount(config.FList, config.FlistStorage, pkg.DefaultMountOptions)

@@ -10,8 +10,8 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg/container/logger"
 	generated "github.com/threefoldtech/zos/pkg/gedis/types/provision"
-	"github.com/threefoldtech/zos/pkg/logger"
 	"github.com/threefoldtech/zos/pkg/provision"
 	schema "github.com/threefoldtech/zos/pkg/schema"
 	"gotest.tools/assert"

@@ -8,6 +8,9 @@ type Logs struct {
 
 // LogsRedis defines how to connect a redis logs backend
 type LogsRedis struct {
-	Endpoint string `json:"endpoint"`
-	Channel  string `json:"channel"`
+	// Stdout is the redis url for stdout (redis://host/channel)
+	Stdout string `json:"stdout"`
+
+	// Stderr is the redis url for stderr (redis://host/channel)
+	Stderr string `json:"stderr"`
 }
