@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -84,21 +85,13 @@ func (u *UserAPI) register(r *http.Request) (interface{}, mw.Response) {
 }
 
 func (u *UserAPI) list(r *http.Request) (interface{}, mw.Response) {
-	var (
-		name  = r.FormValue("name")
-		email = r.FormValue("email")
-	)
-
 	var filter types.UserFilter
-	if len(name) != 0 {
-		filter = filter.WithName(name)
-	}
-	if len(email) != 0 {
-		filter = filter.WithEmail(email)
-	}
+	filter = filter.WithName(r.FormValue("name"))
+	filter = filter.WithEmail(r.FormValue("email"))
 
 	db := mw.Database(r)
-	cur, err := filter.Find(r.Context(), db, models.PageFromRequest(r))
+	pager := models.PageFromRequest(r)
+	cur, err := filter.Find(r.Context(), db, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
@@ -108,7 +101,15 @@ func (u *UserAPI) list(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	return users, nil
+	total, err := filter.Count(r.Context(), db)
+	if err != nil {
+		return nil, mw.Error(err, http.StatusInternalServerError)
+	}
+
+	nrPages := math.Ceil(float64(total) / float64(*pager.Limit))
+	pages := fmt.Sprintf("%d", int64(nrPages))
+
+	return users, mw.Ok().WithHeader("Pages", pages)
 }
 
 func (u *UserAPI) parseID(id string) (schema.ID, error) {
@@ -126,7 +127,6 @@ func (u *UserAPI) get(r *http.Request) (interface{}, mw.Response) {
 	if err != nil {
 		return nil, mw.BadRequest(err)
 	}
-
 	var filter types.UserFilter
 	filter = filter.WithID(userID)
 

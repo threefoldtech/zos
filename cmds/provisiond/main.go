@@ -5,12 +5,12 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/gedis"
 
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -51,6 +51,14 @@ func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if debug {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	// keep checking if limited-cache flag is set
+	if app.CheckFlag(app.LimitedCache) {
+		log.Error().Msg("failed cache reservation! Retrying every 30 seconds...")
+		for app.CheckFlag(app.LimitedCache) {
+			time.Sleep(time.Second * 30)
+		}
 	}
 
 	flag.Parse()
@@ -108,6 +116,7 @@ func main() {
 	)
 
 	engine := provision.New(nodeID.Identity(), source, localStore, remoteStore)
+
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.ProvisionMonitor(engine))
 
 	log.Info().
@@ -145,15 +154,5 @@ func bcdbClient() (store, error) {
 		return nil, errors.Wrap(err, "failed to parse node environment")
 	}
 
-	// use the bcdb mock for dev and test
-	if env.RunningMode == environment.RunningDev {
-		return provision.NewHTTPStore(env.BcdbURL), nil
-	}
-
-	// use gedis for production bcdb
-	store, err := gedis.New(env.BcdbURL, env.BcdbPassword)
-	if err != nil {
-		return nil, errors.Wrap(err, "fail to connect to BCDB")
-	}
-	return store, nil
+	return provision.NewHTTPStore(env.BcdbURL), nil
 }

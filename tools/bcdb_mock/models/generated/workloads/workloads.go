@@ -9,7 +9,7 @@ import (
 
 type TfgridWorkloadsReservation1 struct {
 	ID                  schema.ID                                     `bson:"_id" json:"id"`
-	Json                json.RawMessage                               `bson:"json" json:"json"`
+	Json                string                                        `bson:"json" json:"json"`
 	DataReservation     TfgridWorkloadsReservationData1               `bson:"data_reservation" json:"data_reservation"`
 	CustomerTid         int64                                         `bson:"customer_tid" json:"customer_tid"`
 	CustomerSignature   string                                        `bson:"customer_signature" json:"customer_signature"`
@@ -93,7 +93,18 @@ type TfgridWorkloadsReservationContainer1 struct {
 	Volumes           []TfgridWorkloadsReservationContainerMount1    `bson:"volumes" json:"volumes"`
 	NetworkConnection []TfgridWorkloadsReservationNetworkConnection1 `bson:"network_connection" json:"network_connection"`
 	StatsAggregator   []TfgridWorkloadsReservationStatsaggregator1   `bson:"stats_aggregator" json:"stats_aggregator"`
+	Logs              []TfgridWorkloadsReservationLogs1              `bson:"logs" json:"logs"`
 	FarmerTid         int64                                          `bson:"farmer_tid" json:"farmer_tid"`
+}
+
+type TfgridWorkloadsReservationLogs1 struct {
+	Type string                               `bson:"type" json:"type"`
+	Data TfgridWorkloadsReservationLogsRedis1 `bson:"data" json:"data"`
+}
+
+type TfgridWorkloadsReservationLogsRedis1 struct {
+	Stdout string `bson:"stdout" json:"stdout"`
+	Stderr string `bson:"stderr" json:"stderr"`
 }
 
 func NewTfgridWorkloadsReservationContainer1() (TfgridWorkloadsReservationContainer1, error) {

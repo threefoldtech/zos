@@ -2,15 +2,14 @@ package directory
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/network/types"
-	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
@@ -43,9 +42,13 @@ func (s *NodeAPI) registerNode(r *http.Request) (interface{}, mw.Response) {
 
 func (s *NodeAPI) nodeDetail(r *http.Request) (interface{}, mw.Response) {
 	nodeID := mux.Vars(r)["node_id"]
+	q := nodeQuery{}
+	if err := q.Parse(r); err != nil {
+		return nil, err
+	}
 	db := mw.Database(r)
 
-	node, err := s.Get(r.Context(), db, nodeID)
+	node, err := s.Get(r.Context(), db, nodeID, q.Proofs)
 	if err != nil {
 		return nil, mw.NotFound(err)
 	}
@@ -54,57 +57,20 @@ func (s *NodeAPI) nodeDetail(r *http.Request) (interface{}, mw.Response) {
 }
 
 func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
-	sFarm := r.URL.Query().Get("farm")
-
-	var (
-		farm uint64
-		err  error
-	)
-
-	if sFarm != "" {
-		farm, err = strconv.ParseUint(sFarm, 10, 64)
-		if err != nil {
-			return nil, mw.BadRequest(errors.Wrap(err, "invalid farm id"))
-		}
+	q := nodeQuery{}
+	if err := q.Parse(r); err != nil {
+		return nil, err
 	}
 
 	db := mw.Database(r)
-
-	nodes, err := s.List(r.Context(), db, schema.ID(farm))
+	pager := models.PageFromRequest(r)
+	nodes, total, err := s.List(r.Context(), db, q, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
 
-	return nodes, nil
-}
-
-func (s *NodeAPI) cockpitListNodes(r *http.Request) (interface{}, mw.Response) {
-	sFarm := r.URL.Query().Get("farm")
-
-	var (
-		farm uint64
-		err  error
-	)
-
-	if sFarm != "" {
-		farm, err = strconv.ParseUint(sFarm, 10, 64)
-		if err != nil {
-			return nil, mw.BadRequest(errors.Wrap(err, "invalid farm id"))
-		}
-	}
-
-	db := mw.Database(r)
-
-	nodes, err := s.List(r.Context(), db, schema.ID(farm))
-	if err != nil {
-		return nil, mw.Error(err)
-	}
-
-	x := struct {
-		Node []directory.Node `json:"nodes"`
-	}{nodes}
-
-	return x, nil
+	pages := fmt.Sprintf("%d", models.NrPages(total, *pager.Limit))
+	return nodes, mw.Ok().WithHeader("Pages", pages)
 }
 
 func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, mw.Response) {

@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // FarmAPI holds farm releated handlers
@@ -15,20 +16,30 @@ type FarmAPI struct{}
 
 // List farms
 // TODO: add paging arguments
-func (s *FarmAPI) List(ctx context.Context, db *mongo.Database) ([]directory.Farm, error) {
+func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, tid int64, opts ...*options.FindOptions) ([]directory.Farm, int64, error) {
 	var filter directory.FarmFilter
-	//options.Find().
-	cur, err := filter.Find(ctx, db, models.Page(0))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list farms")
-	}
-	defer cur.Close(ctx)
-	var out []directory.Farm
-	if err := cur.All(ctx, &out); err != nil {
-		return nil, errors.Wrap(err, "failed to load farm list")
+
+	if tid != 0 {
+		log.Info().Msgf("with owner id %d", tid)
+		filter = filter.WithOwner(tid)
 	}
 
-	return out, nil
+	cur, err := filter.Find(ctx, db, opts...)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to list farms")
+	}
+	defer cur.Close(ctx)
+	out := []directory.Farm{}
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, 0, errors.Wrap(err, "failed to load farm list")
+	}
+
+	count, err := filter.Count(ctx, db)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to count entries in farms collection")
+	}
+
+	return out, count, nil
 }
 
 // GetByName gets a farm by name
