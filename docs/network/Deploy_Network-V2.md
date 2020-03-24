@@ -68,5 +68,7 @@ As a farmer you are in charge of selecting and creating the appropriate network 
 
 The above setup will allows your node(s) to appear in explorer on the TF Grid and will allowd you to earn farming tokens.  At stated in the introduction ThreeFold is creating next generation internet capacity and therefore has IPv6 as it's base building block.  Connecting to the current (dominant) IPv4 network happens for IT workloads through so called webgateways.  As the word sais these are gateways that provide connectivity between the currenct leading IPv4 adressing scheme and IPv6. 
 
+We have started a forum where people share their experiences and configurations.  This will be work in progress and forever growing.
+
 **IMPORTANT**:  You as a farmer do  not need access to IPV4 to be able to rent capacity for IT workloads that need to be visible on IPV4, this is something that can happen elswhere on the TF Grid.
  
