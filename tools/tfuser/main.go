@@ -244,6 +244,14 @@ func main() {
 							Name:  "public6",
 							Usage: "when enabled, the container will have a public IPv6 interface",
 						},
+						cli.StringFlag{
+							Name:  "stdout",
+							Usage: "custom redis url to send process stdout (eg: redis://example.tld:1234/channel)",
+						},
+						cli.StringFlag{
+							Name:  "stderr",
+							Usage: "like stdout but for stderr, if only stdout is set, stderr will use the same",
+						},
 					},
 					Action: generateContainer,
 				},

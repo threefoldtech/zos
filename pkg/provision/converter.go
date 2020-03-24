@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/container/logger"
 	generated "github.com/threefoldtech/zos/pkg/gedis/types/provision"
 	"github.com/threefoldtech/zos/pkg/network/types"
 )
@@ -21,7 +22,9 @@ func ContainerToProvisionType(c generated.TfgridReservationContainer1) (Containe
 		Entrypoint:   c.Entrypoint,
 		Interactive:  c.Interactive,
 		Mounts:       make([]Mount, len(c.Volumes)),
+		Logs:         make([]logger.Logs, len(c.Logs)),
 	}
+
 	if len(c.NetworkConnection) > 0 {
 		container.Network = Network{
 			IPs:       []net.IP{c.NetworkConnection[0].Ipaddress},
@@ -33,6 +36,27 @@ func ContainerToProvisionType(c generated.TfgridReservationContainer1) (Containe
 		container.Mounts[i] = Mount{
 			VolumeID:   mount.VolumeID,
 			Mountpoint: mount.Mountpoint,
+		}
+	}
+
+	for i, lg := range c.Logs {
+		// Only support redis for now
+		if lg.Type != logger.RedisType {
+			container.Logs[i] = logger.Logs{
+				Type: "unknown",
+				Data: logger.LogsRedis{
+					Stdout: "",
+					Stderr: "",
+				},
+			}
+		}
+
+		container.Logs[i] = logger.Logs{
+			Type: lg.Type,
+			Data: logger.LogsRedis{
+				Stdout: lg.Data.Stdout,
+				Stderr: lg.Data.Stderr,
+			},
 		}
 	}
 

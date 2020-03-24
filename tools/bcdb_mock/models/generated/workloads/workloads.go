@@ -93,7 +93,18 @@ type TfgridWorkloadsReservationContainer1 struct {
 	Volumes           []TfgridWorkloadsReservationContainerMount1    `bson:"volumes" json:"volumes"`
 	NetworkConnection []TfgridWorkloadsReservationNetworkConnection1 `bson:"network_connection" json:"network_connection"`
 	StatsAggregator   []TfgridWorkloadsReservationStatsaggregator1   `bson:"stats_aggregator" json:"stats_aggregator"`
+	Logs              []TfgridWorkloadsReservationLogs1              `bson:"logs" json:"logs"`
 	FarmerTid         int64                                          `bson:"farmer_tid" json:"farmer_tid"`
+}
+
+type TfgridWorkloadsReservationLogs1 struct {
+	Type string                               `bson:"type" json:"type"`
+	Data TfgridWorkloadsReservationLogsRedis1 `bson:"data" json:"data"`
+}
+
+type TfgridWorkloadsReservationLogsRedis1 struct {
+	Stdout string `bson:"stdout" json:"stdout"`
+	Stderr string `bson:"stderr" json:"stderr"`
 }
 
 func NewTfgridWorkloadsReservationContainer1() (TfgridWorkloadsReservationContainer1, error) {
