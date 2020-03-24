@@ -124,12 +124,10 @@ func (s *FSStore) removeAllButPersistent(rootPath string) error {
 		}
 		// if a file with size 0 is present we can assume its empty and remove it
 		if info.Size() == 0 {
-			err := os.Remove(path)
-			if err != nil {
-				return err
-			}
-			return nil
+			log.Warn().Str("filename", info.Name()).Msg("cached reservation %d found, but file is empty, removing.")
+			return os.Remove(path)
 		}
+
 		if info.IsDir() {
 			return nil
 		}
@@ -282,11 +280,10 @@ func (s *FSStore) GetExpired() ([]*Reservation, error) {
 
 		// if the file is empty, remove it and return.
 		if info.Size() == 0 {
-			err := os.Remove(path.Join(s.root, info.Name()))
-			if err != nil {
-				return nil, err
+			if info.Size() == 0 {
+				log.Warn().Str("filename", info.Name()).Msg("cached reservation %d found, but file is empty, removing.")
+				return nil, os.Remove(path.Join(s.root, info.Name()))
 			}
-			return nil, err
 		}
 
 		r, err := s.get(info.Name())
