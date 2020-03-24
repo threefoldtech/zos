@@ -17,7 +17,8 @@ type Redis struct {
 	conn    redis.Conn
 }
 
-func RedisParseUrl(address string) (host string, channel string, err error) {
+// RedisParseURL parse an url and returns interresting part after validation
+func RedisParseURL(address string) (host string, channel string, err error) {
 	u, err := url.Parse(address)
 	if err != nil {
 		return "", "", err
@@ -48,12 +49,12 @@ func RedisParseUrl(address string) (host string, channel string, err error) {
 func NewRedis(stdout string, stderr string) (io.WriteCloser, io.WriteCloser, error) {
 	log.Debug().Msg("initializing redis logging")
 
-	ohost, ochannel, err := RedisParseUrl(stdout)
+	ohost, ochannel, err := RedisParseURL(stdout)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	rhost, rchannel, err := RedisParseUrl(stderr)
+	rhost, rchannel, err := RedisParseURL(stderr)
 	if err != nil {
 		return nil, nil, err
 	}

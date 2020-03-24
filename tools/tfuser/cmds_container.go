@@ -32,7 +32,7 @@ func generateContainer(c *cli.Context) error {
 	var logs []logger.Logs
 	if lo := c.String("stdout"); lo != "" {
 		// validating stdout argument
-		_, _, err := logger.RedisParseUrl(lo)
+		_, _, err := logger.RedisParseURL(lo)
 		if err != nil {
 			return err
 		}
@@ -43,7 +43,7 @@ func generateContainer(c *cli.Context) error {
 		// check if stderr is specified
 		if nlr := c.String("stderr"); nlr != "" {
 			// validating stderr argument
-			_, _, err := logger.RedisParseUrl(nlr)
+			_, _, err := logger.RedisParseURL(nlr)
 			if err != nil {
 				return nil
 			}

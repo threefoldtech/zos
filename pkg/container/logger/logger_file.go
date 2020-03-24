@@ -15,7 +15,7 @@ type File struct {
 	target *os.File
 }
 
-// NewContainerLoggerFile open file and prepare logs writing
+// NewFile open file and prepare logs writing
 func NewFile(stdout string, stderr string) (io.Writer, io.Writer, error) {
 	log.Debug().Str("stdout", stdout).Str("stderr", stderr).Msg("initializing localfile logging")
 
