@@ -15,6 +15,7 @@ import (
 )
 
 type (
+	// Escrow service manages a dedicate wallet for payments for reservations.
 	Escrow struct {
 		wallet             tfchain.Wallet
 		db                 *mongo.Database
@@ -39,25 +40,20 @@ type (
 	}
 )
 
-func RegisterReservation(reservation *workloads.TfgridWorkloadsReservation1) (map[string]string, error) {
-	return nil, nil
+// Run the escrow until the context is done
+func (e *Escrow) Run(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case job := <-e.reservationChannel:
+			processReservation(job.reservation.DataReservation)
+		}
+	}
 }
 
-func processReservation(resData workloads.TfgridWorkloadsReservationData1) rsuPerFarmer {
-	rsuPerFarmerMap := make(rsuPerFarmer)
-	for _, cont := range resData.Containers {
-		rsuPerFarmerMap[cont.FarmerTid] = rsuPerFarmerMap[cont.FarmerTid].add(processContainer(cont))
-	}
-	for _, vol := range resData.Volumes {
-		rsuPerFarmerMap[vol.FarmerTid] = rsuPerFarmerMap[vol.FarmerTid].add(processVolume(vol))
-	}
-	for _, zdb := range resData.Zdbs {
-		rsuPerFarmerMap[zdb.FarmerTid] = rsuPerFarmerMap[zdb.FarmerTid].add(processZbd(zdb))
-	}
-	for _, k8s := range resData.Kubernetes {
-		rsuPerFarmerMap[k8s.FarmerTid] = rsuPerFarmerMap[k8s.FarmerTid].add(processKubernetes(k8s))
-	}
-	return rsuPerFarmerMap
+func RegisterReservation(reservation *workloads.TfgridWorkloadsReservation1) (map[string]string, error) {
+	return nil, nil
 }
 
 func (e *Escrow) calculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int64]rivtypes.Currency, error) {
@@ -101,16 +97,4 @@ func (e *Escrow) calculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 		costPerFarmerMap[id] = cost
 	}
 	return costPerFarmerMap, nil
-}
-
-// Run the escrow until the context is done
-func (e *Escrow) Run(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case job := <-e.reservationChannel:
-			processReservation(job.reservation.DataReservation)
-		}
-	}
 }

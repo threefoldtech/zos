@@ -13,6 +13,23 @@ type (
 	}
 )
 
+func processReservation(resData workloads.TfgridWorkloadsReservationData1) rsuPerFarmer {
+	rsuPerFarmerMap := make(rsuPerFarmer)
+	for _, cont := range resData.Containers {
+		rsuPerFarmerMap[cont.FarmerTid] = rsuPerFarmerMap[cont.FarmerTid].add(processContainer(cont))
+	}
+	for _, vol := range resData.Volumes {
+		rsuPerFarmerMap[vol.FarmerTid] = rsuPerFarmerMap[vol.FarmerTid].add(processVolume(vol))
+	}
+	for _, zdb := range resData.Zdbs {
+		rsuPerFarmerMap[zdb.FarmerTid] = rsuPerFarmerMap[zdb.FarmerTid].add(processZdb(zdb))
+	}
+	for _, k8s := range resData.Kubernetes {
+		rsuPerFarmerMap[k8s.FarmerTid] = rsuPerFarmerMap[k8s.FarmerTid].add(processKubernetes(k8s))
+	}
+	return rsuPerFarmerMap
+}
+
 func processContainer(cont workloads.TfgridWorkloadsReservationContainer1) rsu {
 	// TODO implement after capcity field is added on TfgridWorkloadsReservationContainer1
 	return rsu{}
@@ -32,7 +49,7 @@ func processVolume(vol workloads.TfgridWorkloadsReservationVolume1) rsu {
 	return rsu{}
 }
 
-func processZbd(zdb workloads.TfgridWorkloadsReservationZdb1) rsu {
+func processZdb(zdb workloads.TfgridWorkloadsReservationZdb1) rsu {
 	switch zdb.DiskType {
 	case workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd:
 		return rsu{
