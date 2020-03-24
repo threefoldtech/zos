@@ -42,8 +42,19 @@ func (d *httpDirectory) NodeRegister(node directory.TfgridDirectoryNode2) error 
 	return d.post(d.url("nodes"), node, nil, http.StatusCreated)
 }
 
-func (d *httpDirectory) NodeList() {}
-func (d *httpDirectory) NodeGet()  {}
+func (d *httpDirectory) NodeList(filter NodeFilter) (nodes []directory.TfgridDirectoryNode2, err error) {
+	query := url.Values{}
+	filter.Apply(query)
+	err = d.get(d.url("nodes"), query, &nodes, http.StatusOK)
+	return
+}
+
+func (d *httpDirectory) NodeGet(id string, proofs bool) (node directory.TfgridDirectoryNode2, err error) {
+	query := url.Values{}
+	query.Set("proofs", fmt.Sprint(proofs))
+	err = d.get(d.url("nodes", id), query, &node, http.StatusOK)
+	return
+}
 
 func (d *httpDirectory) NodeSetInterfaces() {}
 func (d *httpDirectory) NodeSetPorts()      {}

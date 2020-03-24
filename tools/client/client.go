@@ -23,8 +23,8 @@ type Directory interface {
 	FarmGet(id schema.ID) (farm directory.TfgridDirectoryFarm1, err error)
 
 	NodeRegister(node directory.TfgridDirectoryNode2) error
-	NodeList()
-	NodeGet()
+	NodeList(filter NodeFilter) (nodes []directory.TfgridDirectoryNode2, err error)
+	NodeGet(id string, proofs bool) (node directory.TfgridDirectoryNode2, err error)
 
 	NodeSetInterfaces()
 	NodeSetPorts()

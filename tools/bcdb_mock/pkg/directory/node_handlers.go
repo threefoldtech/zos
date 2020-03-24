@@ -69,7 +69,7 @@ func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	pages := fmt.Sprintf("%d", models.NrPages(total, *pager.Limit))
+	pages := fmt.Sprintf("%d", models.Pages(pager, total))
 	return nodes, mw.Ok().WithHeader("Pages", pages)
 }
 
