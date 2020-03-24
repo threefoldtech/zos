@@ -76,7 +76,7 @@ func queryInt(r *http.Request, q string) (int64, error) {
 
 // List farms
 // TODO: add paging arguments
-func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, q nodeQuery, opts ...*options.FindOptions) ([]directory.Node, error) {
+func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, q nodeQuery, opts ...*options.FindOptions) ([]directory.Node, int64, error) {
 	var filter directory.NodeFilter
 	if q.FarmID > 0 {
 		filter = filter.WithFarmID(schema.ID(q.FarmID))
@@ -93,15 +93,21 @@ func (s *NodeAPI) List(ctx context.Context, db *mongo.Database, q nodeQuery, opt
 
 	cur, err := filter.Find(ctx, db, opts...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list nodes")
+		return nil, 0, errors.Wrap(err, "failed to list nodes")
 	}
+
 	defer cur.Close(ctx)
 	out := []directory.Node{}
 	if err := cur.All(ctx, &out); err != nil {
-		return nil, errors.Wrap(err, "failed to load node list")
+		return nil, 0, errors.Wrap(err, "failed to load node list")
 	}
 
-	return out, nil
+	count, err := filter.Count(ctx, db)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to count entries in nodes collection")
+	}
+
+	return out, count, nil
 }
 
 // Get a single node
@@ -122,6 +128,11 @@ func (s *NodeAPI) Exists(ctx context.Context, db *mongo.Database, nodeID string)
 	}
 
 	return count > 0, nil
+}
+
+// Count counts the number of document in the collection
+func (s *NodeAPI) Count(ctx context.Context, db *mongo.Database, filter directory.NodeFilter) (int64, error) {
+	return filter.Count(ctx, db)
 }
 
 // Add a node to the store

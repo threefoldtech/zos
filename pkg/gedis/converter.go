@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/container/logger"
 	types "github.com/threefoldtech/zos/pkg/gedis/types/provision"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/schema"
@@ -129,6 +130,7 @@ func containerReservation(i interface{}, nodeID string) types.TfgridReservationC
 		Entrypoint:        c.Entrypoint,
 		Interactive:       c.Interactive,
 		Volumes:           make([]types.TfgridReservationContainerMount1, len(c.Mounts)),
+		Logs:              make([]types.TfgridReservationLogs1, len(c.Logs)),
 		NetworkConnection: []types.TfgridReservationNetworkConnection1{
 			{
 				NetworkID: string(c.Network.NetworkID),
@@ -146,6 +148,27 @@ func containerReservation(i interface{}, nodeID string) types.TfgridReservationC
 			Mountpoint: v.Mountpoint,
 		}
 	}
+
+	for i, v := range c.Logs {
+		// Only allow redis for now
+		if v.Type != logger.RedisType {
+			container.Logs[i] = types.TfgridReservationLogs1{
+				Type: "invalid",
+				Data: types.TfgridReservationLogsRedis1{},
+			}
+
+			continue
+		}
+
+		container.Logs[i] = types.TfgridReservationLogs1{
+			Type: v.Type,
+			Data: types.TfgridReservationLogsRedis1{
+				Stdout: v.Data.Stdout,
+				Stderr: v.Data.Stderr,
+			},
+		}
+	}
+
 	return container
 }
 

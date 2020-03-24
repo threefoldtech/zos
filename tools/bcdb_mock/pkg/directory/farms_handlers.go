@@ -51,12 +51,14 @@ func (s *FarmAPI) listFarm(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err, http.StatusBadRequest)
 	}
 
-	farms, err := s.List(r.Context(), db, tid, models.PageFromRequest(r))
+	pager := models.PageFromRequest(r)
+	farms, total, err := s.List(r.Context(), db, tid)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
 
-	return farms, nil
+	pages := fmt.Sprintf("%d", models.NrPages(total, *pager.Limit))
+	return farms, mw.Ok().WithHeader("Pages", pages)
 }
 
 func parseOwnerID(r *http.Request) (tid int64, err error) {
@@ -69,21 +71,6 @@ func parseOwnerID(r *http.Request) (tid int64, err error) {
 	}
 	log.Info().Msgf("owner id %d", tid)
 	return tid, err
-}
-
-func (s *FarmAPI) cockpitListFarm(r *http.Request) (interface{}, mw.Response) {
-	// TODO: do we need this ?
-	db := mw.Database(r)
-	farms, err := s.List(r.Context(), db, 0)
-	if err != nil {
-		return nil, mw.Error(err)
-	}
-
-	x := struct {
-		Farms []directory.Farm `json:"farms"`
-	}{farms}
-
-	return x, nil
 }
 
 func (s *FarmAPI) getFarm(r *http.Request) (interface{}, mw.Response) {

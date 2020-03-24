@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -89,7 +90,8 @@ func (u *UserAPI) list(r *http.Request) (interface{}, mw.Response) {
 	filter = filter.WithEmail(r.FormValue("email"))
 
 	db := mw.Database(r)
-	cur, err := filter.Find(r.Context(), db, models.PageFromRequest(r))
+	pager := models.PageFromRequest(r)
+	cur, err := filter.Find(r.Context(), db, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
@@ -99,7 +101,15 @@ func (u *UserAPI) list(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	return users, nil
+	total, err := filter.Count(r.Context(), db)
+	if err != nil {
+		return nil, mw.Error(err, http.StatusInternalServerError)
+	}
+
+	nrPages := math.Ceil(float64(total) / float64(*pager.Limit))
+	pages := fmt.Sprintf("%d", int64(nrPages))
+
+	return users, mw.Ok().WithHeader("Pages", pages)
 }
 
 func (u *UserAPI) parseID(id string) (schema.ID, error) {
