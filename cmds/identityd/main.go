@@ -15,6 +15,8 @@ import (
 	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/upgrade"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
+	"github.com/threefoldtech/zos/tools/client"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/threefoldtech/zos/pkg"
@@ -436,22 +438,40 @@ func identityMgr(root string) (pkg.IdentityManager, error) {
 }
 
 // instantiate the proper client based on the running mode
-func bcdbClient() (identity.IDStore, error) {
+func bcdbClient() (client.Directory, error) {
 	env, err := environment.Get()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse node environment")
 	}
 
-	return identity.NewHTTPIDStore(env.BcdbURL), nil
+	cl, err := client.NewClient(env.BcdbURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return cl.Directory, nil
 }
 
-func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store identity.IDStore, loc geoip.Location) error {
+func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location) error {
 	log.Info().Str("version", version).Msg("start registration of the node")
 
-	_, err := store.RegisterNode(nodeID, farmID, version, loc)
+	err := store.NodeRegister(directory.TfgridDirectoryNode2{
+		NodeId:    nodeID.Identity(),
+		FarmId:    int64(farmID),
+		OsVersion: version,
+		Location: directory.TfgridDirectoryLocation1{
+			Continent: loc.Continent,
+			Country:   loc.Country,
+			City:      loc.City,
+			Longitude: loc.Longitute,
+			Latitude:  loc.Latitude,
+		},
+	})
+
 	if err != nil {
 		log.Error().Err(err).Send()
 		return err
 	}
+
 	return nil
 }

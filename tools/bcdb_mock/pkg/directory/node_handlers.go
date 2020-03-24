@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg/capacity"
-	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
@@ -121,25 +120,16 @@ func (s *NodeAPI) registerIfaces(r *http.Request) (interface{}, mw.Response) {
 }
 
 func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, mw.Response) {
-	var iface types.PubIface
+	var iface generated.TfgridDirectoryNodePublicIface1
 
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&iface); err != nil {
 		return nil, mw.BadRequest(err)
 	}
 
-	cfg := generated.TfgridDirectoryNodePublicIface1{
-		Gw4:    iface.GW4,
-		Gw6:    iface.GW6,
-		Ipv4:   iface.IPv4.ToSchema(),
-		Ipv6:   iface.IPv6.ToSchema(),
-		Master: iface.Master,
-		Type:   generated.TfgridDirectoryNodePublicIface1TypeMacvlan,
-	}
-
 	nodeID := mux.Vars(r)["node_id"]
 	db := mw.Database(r)
-	if err := s.SetPublicConfig(r.Context(), db, nodeID, cfg); err != nil {
+	if err := s.SetPublicConfig(r.Context(), db, nodeID, iface); err != nil {
 		return nil, mw.Error(err)
 	}
 
@@ -172,7 +162,7 @@ func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, mw.Response
 	defer r.Body.Close()
 
 	input := struct {
-		Uptime uint64
+		Uptime uint64 `json:"uptime"`
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		return nil, mw.BadRequest(err)

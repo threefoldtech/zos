@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 )
@@ -56,10 +58,55 @@ func (d *httpDirectory) NodeGet(id string, proofs bool) (node directory.TfgridDi
 	return
 }
 
-func (d *httpDirectory) NodeSetInterfaces() {}
-func (d *httpDirectory) NodeSetPorts()      {}
-func (d *httpDirectory) NodeSetPublic()     {}
-func (d *httpDirectory) NodeSetCapacity()   {}
+func (d *httpDirectory) NodeSetInterfaces(id string, ifaces []directory.TfgridDirectoryNodeIface1) error {
+	return d.post(d.url("nodes", id, "interfaces"), ifaces, nil, http.StatusCreated)
+}
 
-func (d *httpDirectory) NodeUpdateUptime()  {}
-func (d *httpDirectory) NodeUpdatedUptime() {}
+func (d *httpDirectory) NodeSetPorts(id string, ports []uint) error {
+	var input struct {
+		P []uint `json:"ports"`
+	}
+	input.P = ports
+
+	return d.post(d.url("nodes", id, "ports"), input, nil, http.StatusOK)
+}
+
+func (d *httpDirectory) NodeSetPublic(id string, pub directory.TfgridDirectoryNodePublicIface1) error {
+	return d.post(d.url("nodes", id, "configure_public"), pub, nil, http.StatusCreated)
+}
+
+func (d *httpDirectory) NodeSetCapacity(
+	id string,
+	resources directory.TfgridDirectoryNodeResourceAmount1,
+	dmiInfo dmi.DMI,
+	disksInfo capacity.Disks,
+	hypervisor []string) error {
+
+	payload := struct {
+		Capacity   directory.TfgridDirectoryNodeResourceAmount1 `json:"capacity"`
+		DMI        dmi.DMI                                      `json:"dmi"`
+		Disks      capacity.Disks                               `json:"disks"`
+		Hypervisor []string                                     `json:"hypervisor"`
+	}{
+		Capacity:   resources,
+		DMI:        dmiInfo,
+		Disks:      disksInfo,
+		Hypervisor: hypervisor,
+	}
+
+	return d.post(d.url("nodes", id, "capacity"), payload, nil, http.StatusOK)
+}
+
+func (d *httpDirectory) NodeUpdateUptime(id string, uptime uint64) error {
+	input := struct {
+		U uint64 `json:"uptime"`
+	}{
+		U: uptime,
+	}
+
+	return d.post(d.url("nodes", id, "uptime"), input, nil, http.StatusOK)
+}
+
+func (d *httpDirectory) NodeUpdateUsedResources(id string, amount directory.TfgridDirectoryNodeResourceAmount1) error {
+	return d.post(d.url("nodes", id, "used_resources"), amount, nil, http.StatusOK)
+}

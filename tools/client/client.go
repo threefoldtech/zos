@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/phonebook"
@@ -26,13 +28,22 @@ type Directory interface {
 	NodeList(filter NodeFilter) (nodes []directory.TfgridDirectoryNode2, err error)
 	NodeGet(id string, proofs bool) (node directory.TfgridDirectoryNode2, err error)
 
-	NodeSetInterfaces()
-	NodeSetPorts()
-	NodeSetPublic()
-	NodeSetCapacity()
+	NodeSetInterfaces(id string, ifaces []directory.TfgridDirectoryNodeIface1) error
+	NodeSetPorts(id string, ports []uint) error
+	NodeSetPublic(id string, pub directory.TfgridDirectoryNodePublicIface1) error
 
-	NodeUpdateUptime()
-	NodeUpdatedUptime()
+	//TODO: this method call uses types from zos that is not generated
+	//from the schema. Which is wrong imho.
+	NodeSetCapacity(
+		id string,
+		resources directory.TfgridDirectoryNodeResourceAmount1,
+		dmiInfo dmi.DMI,
+		disksInfo capacity.Disks,
+		hypervisor []string,
+	) error
+
+	NodeUpdateUptime(id string, uptime uint64) error
+	NodeUpdateUsedResources(id string, amount directory.TfgridDirectoryNodeResourceAmount1) error
 }
 
 // Phonebook interface
