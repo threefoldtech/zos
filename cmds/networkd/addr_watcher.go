@@ -13,6 +13,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/vishvananda/netlink"
 )
 
@@ -121,8 +122,9 @@ func getLocalInterfaces() ([]types.IfaceInfo, error) {
 		}
 
 		info := types.IfaceInfo{
-			Name:  link.Attrs().Name,
-			Addrs: make([]types.IPNet, len(addrs)),
+			Name:       link.Attrs().Name,
+			Addrs:      make([]types.IPNet, len(addrs)),
+			MacAddress: schema.MacAddress{link.Attrs().HardwareAddr},
 		}
 		for i, addr := range addrs {
 			info.Addrs[i] = types.NewIPNet(addr.IPNet)

@@ -22,9 +22,10 @@ const (
 // that the node will publish publicly
 // this is used to be able to configure public side of a node
 type IfaceInfo struct {
-	Name    string   `json:"name"`
-	Addrs   []IPNet  `json:"addrs"`
-	Gateway []net.IP `json:"gateway"`
+	Name       string            `json:"name"`
+	Addrs      []IPNet           `json:"addrs"`
+	Gateway    []net.IP          `json:"gateway"`
+	MacAddress schema.MacAddress `json:"macaddress"`
 }
 
 // DefaultIP return the IP address of the interface that has a default gateway configured
@@ -94,9 +95,10 @@ func NewNodeFromSchema(node directory.TfgridNode2) *Node {
 	if node.Ifaces != nil {
 		for i, iface := range node.Ifaces {
 			n.Ifaces[i] = &IfaceInfo{
-				Name:    iface.Name,
-				Addrs:   make([]IPNet, len(iface.Addrs)),
-				Gateway: iface.Gateway,
+				Name:       iface.Name,
+				Addrs:      make([]IPNet, len(iface.Addrs)),
+				Gateway:    iface.Gateway,
+				MacAddress: iface.MacAddress,
 			}
 
 			for y, addr := range iface.Addrs {

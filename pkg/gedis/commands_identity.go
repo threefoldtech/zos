@@ -149,6 +149,7 @@ func infFromSchema(inf directory.TfgridNodeIface1) types.IfaceInfo {
 			}
 			return r
 		}(),
+		MacAddress: inf.MacAddress,
 	}
 }
 

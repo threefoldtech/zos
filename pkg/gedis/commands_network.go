@@ -21,7 +21,8 @@ func (g *Gedis) getLocalInterfaces(ifaces []types.IfaceInfo) []directory.TfgridN
 					}
 					return o
 				}(),
-				Gateway: iface.Gateway,
+				Gateway:    iface.Gateway,
+				MacAddress: iface.MacAddress,
 			},
 		)
 	}

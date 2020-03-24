@@ -30,9 +30,10 @@ type TfgridNode2 struct {
 
 // TfgridNodeIface1 jsx schema
 type TfgridNodeIface1 struct {
-	Name    string           `json:"name"`
-	Addrs   []schema.IPRange `json:"addrs"`
-	Gateway []net.IP         `json:"gateway"`
+	Name       string            `json:"name"`
+	Addrs      []schema.IPRange  `json:"addrs"`
+	Gateway    []net.IP          `json:"gateway"`
+	MacAddress schema.MacAddress `json:"macaddress"`
 }
 
 // TfgridNodePublicIface1 jsx schema

@@ -96,9 +96,10 @@ func NewTfgridDirectoryNode2() (TfgridDirectoryNode2, error) {
 }
 
 type TfgridDirectoryNodeIface1 struct {
-	Name    string           `bson:"name" json:"name"`
-	Addrs   []schema.IPRange `bson:"addrs" json:"addrs"`
-	Gateway []net.IP         `bson:"gateway" json:"gateway"`
+	Name       string            `bson:"name" json:"name"`
+	Addrs      []schema.IPRange  `bson:"addrs" json:"addrs"`
+	Gateway    []net.IP          `bson:"gateway" json:"gateway"`
+	MacAddress schema.MacAddress `bson:"macaddress" json:"macaddress"`
 }
 
 func NewTfgridDirectoryNodeIface1() (TfgridDirectoryNodeIface1, error) {
