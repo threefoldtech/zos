@@ -7,10 +7,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// LoggerFile defines file logger type name
+// FileType defines file logger type name
 const FileType = "file"
 
-// ContainerLoggerFile write stdout/stderr to files
+// File write stdout/stderr to files
 type File struct {
 	target *os.File
 }

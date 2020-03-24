@@ -8,17 +8,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// LoggerConsole defines console logger type name
+// ConsoleType defines console logger type name
 const ConsoleType = "console"
 
-// ContainerLoggerConsole does nothing else that print
+// Console does nothing else that print
 // logs on console stdout/stderr, there are no config
 type Console struct {
 	prefix string
 	target *os.File
 }
 
-// NewContainerLoggerConsole does nothing, it's here for consistancy
+// NewConsole does nothing, it's here for consistancy
 func NewConsole() (io.Writer, io.Writer, error) {
 	log.Debug().Msg("initializing console logging")
 	stdout := &Console{

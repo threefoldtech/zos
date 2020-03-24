@@ -6,13 +6,13 @@ import (
 	"github.com/containerd/containerd/cio"
 )
 
-// ContainerLoggers keeps stdout and stderr backend list
+// Loggers keeps stdout and stderr backend list
 type Loggers struct {
 	stdouts []io.Writer
 	stderrs []io.Writer
 }
 
-// NewContainerLoggers initialize empty lists
+// NewLoggers initialize empty lists
 func NewLoggers() *Loggers {
 	return &Loggers{
 		stdouts: []io.Writer{},

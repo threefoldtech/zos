@@ -8,11 +8,10 @@ import (
 	"net/url"
 )
 
-// LoggerRedis defines redis logger type name
+// RedisType defines redis logger type name
 const RedisType = "redis"
 
-// ContainerLoggerRedis send stdout/stderr to a
-// Redis PubSub channel
+// Redis send stdout/stderr to a Redis PubSub channel
 type Redis struct {
 	channel string
 	conn    redis.Conn
@@ -45,7 +44,7 @@ func RedisParseUrl(address string) (host string, channel string, err error) {
 	return host, channel, err
 }
 
-// NewContainerLoggerRedis create new redis backend and initialize connection
+// NewRedis create new redis backend and initialize connection
 func NewRedis(stdout string, stderr string) (io.WriteCloser, io.WriteCloser, error) {
 	log.Debug().Msg("initializing redis logging")
 
