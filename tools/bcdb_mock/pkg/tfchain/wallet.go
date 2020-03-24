@@ -5,6 +5,7 @@ import (
 	"github.com/threefoldtech/rivine/crypto"
 	"github.com/threefoldtech/rivine/modules"
 	"github.com/threefoldtech/rivine/types"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/tfchain/explorer"
 )
 
 const (
@@ -45,6 +46,50 @@ type (
 	// SpendableOutputs maps CoinOutputID's to their corresponding actual output
 	SpendableOutputs map[types.CoinOutputID]types.CoinOutput
 )
+
+// NewWalletFromMnemonic creates a new wallet from a given mnemonic
+func NewWalletFromMnemonic(mnemonic string, keysToLoad uint64, backendName string) (*Wallet, error) {
+	seed, err := modules.InitialSeedFromMnemonic(mnemonic)
+	if err != nil {
+		return nil, err
+	}
+	return NewWalletFromSeed(seed, keysToLoad, backendName)
+}
+
+// NewWalletFromSeed creates a new wallet with a given seed
+func NewWalletFromSeed(seed modules.Seed, keysToLoad uint64, backendName string) (*Wallet, error) {
+	backend := loadBackend(backendName)
+
+	w := &Wallet{
+		seed:    seed,
+		backend: backend,
+	}
+
+	key, err := generateSpendableKey(seed, keysToLoad)
+	if err != nil {
+		return nil, err
+	}
+	uh, err := key.UnlockHash()
+	if err != nil {
+		return nil, err
+	}
+	w.keys[uh] = key
+
+	return w, nil
+}
+
+// LoadBackend loads a backend with the given name
+func loadBackend(name string) Backend {
+	switch name {
+	case "standard":
+		return explorer.NewMainnetGroupedExplorer()
+	case "testnet":
+		return explorer.NewTestnetGroupedExplorer()
+	default:
+		// for now anything else will also default to devnet
+		return explorer.NewTestnetGroupedExplorer()
+	}
+}
 
 func generateSpendableKey(seed modules.Seed, index uint64) (spendableKey, error) {
 	// Generate the keys and unlock conditions.

@@ -33,14 +33,13 @@ func main() {
 		listen string
 		dbConf string
 		name   string
+		seed   string
 	)
-
-	_ = escrow.Escrow{}
-	_ = tfchain.Wallet{}
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
 	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
 	flag.StringVar(&name, "name", "explorer", "database name")
+	flag.StringVar(&seed, "seed", "", "wallet seed")
 	flag.Parse()
 
 	db, err := mw.NewDatabaseMiddleware(name, dbConf)
@@ -79,6 +78,12 @@ func main() {
 	go s.ListenAndServe()
 
 	<-c
+
+	_, err = tfchain.NewWalletFromMnemonic(seed, 1, "testnet")
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to import wallet")
+	}
+	_ = escrow.Escrow{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
