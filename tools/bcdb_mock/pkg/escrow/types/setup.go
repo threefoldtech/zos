@@ -38,13 +38,13 @@ func AddTestReservation(ctx context.Context, db *mongo.Database) error {
 		return err
 	}
 	info := ReservationPaymentInformation{
-		reservationID: 1,
-		expiration:    schema.Date{time.Now().Add(time.Hour * 6)},
-		paid:          false,
-		infos: []info{{
-			farmerID:      schema.ID(5),
-			escrowAddress: uh,
-			totalAmount:   rivtypes.NewCurrency64(500004),
+		ReservationID: 1,
+		Expiration:    schema.Date{time.Now().Add(time.Hour * 6)},
+		Paid:          false,
+		Infos: []info{{
+			FarmerID:      schema.ID(5),
+			EscrowAddress: uh,
+			TotalAmount:   rivtypes.NewCurrency64(500004),
 		}},
 	}
 	err = ReservationPaymentInfoCreate(ctx, db, info)

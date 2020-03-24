@@ -18,38 +18,26 @@ const (
 )
 
 var (
-	// ErrEscrowExists returned if escrow with same name exists
-	ErrEscrowExists = errors.New("escrow with same name or email exists")
-	// ErrEscrowNotFound is returned if escrow is not found
-	ErrEscrowNotFound = errors.New("escrow not found")
-	// ErrAuthorization returned if escrow is not allowed to do an operation
-	ErrAuthorization = errors.New("operation not allowed")
+	// ErrEscrowExists is returned when trying to save escrow information for a
+	// reservation that already has escrow information
+	ErrEscrowExists = errors.New("escrow(s) for reservation already exists")
+	// ErrEscrowNotFound is returned if escrow information is not found
+	ErrEscrowNotFound = errors.New("escrow information not found")
 )
 
 type (
 	ReservationPaymentInformation struct {
-		reservationID schema.ID   `bson:"_id"`
-		expiration    schema.Date `bson:"expiration"`
-		infos         []info      `bson:"infos"`
-		paid          bool        `bson:"paid"`
+		ReservationID schema.ID   `bson:"_id"`
+		Expiration    schema.Date `bson:"expiration"`
+		Infos         []info      `bson:"infos"`
+		Paid          bool        `bson:"paid"`
 	}
 	info struct {
-		farmerID      schema.ID           `bson:"farmer_id"`
-		totalAmount   rivtypes.Currency   `bson:"total_amount"`
-		escrowAddress rivtypes.UnlockHash `bson:"escrow_address"`
+		FarmerID      schema.ID           `bson:"farmer_id"`
+		TotalAmount   rivtypes.Currency   `bson:"total_amount"`
+		EscrowAddress rivtypes.UnlockHash `bson:"escrow_address"`
 	}
 )
-
-// ReservationFilter type
-type ReservationFilter bson.D
-
-// WithID filters reservation payment information with ID
-func (f ReservationFilter) WithID(id schema.ID) ReservationFilter {
-	if id == 0 {
-		return f
-	}
-	return append(f, bson.E{Key: "_id", Value: id})
-}
 
 // ReservationPaymentInfoCreate creates the reservation payment information
 func ReservationPaymentInfoCreate(ctx context.Context, db *mongo.Database, reservationPaymentInfo ReservationPaymentInformation) error {
@@ -69,7 +57,7 @@ func ReservationPaymentInfoCreate(ctx context.Context, db *mongo.Database, reser
 
 // ReservationPaymentInfoUpdate update reservation payment info
 func ReservationPaymentInfoUpdate(ctx context.Context, db *mongo.Database, update ReservationPaymentInformation) error {
-	filter := bson.M{"_id": update.reservationID}
+	filter := bson.M{"_id": update.ReservationID}
 	// actually update the user with final data
 	if _, err := db.Collection(EscrowCollection).UpdateOne(ctx, filter, bson.M{"$set": update}); err != nil {
 		return err
@@ -83,18 +71,20 @@ func GetAllActiveReservationPaymentInfos(ctx context.Context, db *mongo.Database
 	filter := bson.M{"paid": false, "expiration": bson.M{"$lt": time.Now()}}
 	cursor, err := db.Collection(EscrowCollection).Find(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get cursor over active payment infos")
 	}
-	defer cursor.Close(ctx)
 	paymentInfos := make([]ReservationPaymentInformation, 0)
 	err = cursor.All(ctx, &paymentInfos)
+	if err != nil {
+		err = errors.Wrap(err, "Failed to decode active payment information")
+	}
 	return paymentInfos, err
 }
 
 func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]rivtypes.UnlockHash, error) {
-	cursor, err := db.Collection(EscrowCollection).Find(ctx, nil)
+	cursor, err := db.Collection(EscrowCollection).Find(ctx, bson.M{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to create cursor over payment infos")
 	}
 	defer cursor.Close(ctx)
 	unlockhashes := make([]rivtypes.UnlockHash, 0)
@@ -102,10 +92,10 @@ func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]rivtypes.Unlock
 	for cursor.Next(ctx) {
 		err = cursor.Decode(&reservationPaymentInfo)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed to decode reservation payment info")
 		}
-		for _, paymentInfo := range reservationPaymentInfo.infos {
-			unlockhashes = append(unlockhashes, paymentInfo.escrowAddress)
+		for _, paymentInfo := range reservationPaymentInfo.Infos {
+			unlockhashes = append(unlockhashes, paymentInfo.EscrowAddress)
 		}
 	}
 	return unlockhashes, nil
