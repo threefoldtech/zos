@@ -17,6 +17,7 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow"
 	phonebook "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads/types"
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,7 +26,9 @@ import (
 )
 
 // API struct
-type API struct{}
+type API struct {
+	escrow escrow.Escrow
+}
 
 func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	defer r.Body.Close()
