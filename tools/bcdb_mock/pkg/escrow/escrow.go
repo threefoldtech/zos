@@ -10,6 +10,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/tfchain"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -39,6 +40,23 @@ type (
 		responseChan chan map[string]string
 	}
 )
+
+func New(wallet tfchain.Wallet, db *mongo.Database) (*Escrow, error) {
+	jobChannel := make(chan reservationRegisterJob)
+	addresses, err := types.GetAllAddresses(context.Background(), db)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to scan for addresses")
+	}
+	err = wallet.LoadAddresses(addresses)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to load addresses")
+	}
+	return &Escrow{
+		wallet,
+		db,
+		jobChannel,
+	}, nil
+}
 
 // Run the escrow until the context is done
 func (e *Escrow) Run(ctx context.Context) error {

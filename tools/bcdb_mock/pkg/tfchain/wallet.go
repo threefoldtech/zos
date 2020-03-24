@@ -1,6 +1,8 @@
 package tfchain
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/rivine/crypto"
 	"github.com/threefoldtech/rivine/modules"
@@ -58,37 +60,62 @@ func NewWalletFromMnemonic(mnemonic string, keysToLoad uint64, backendName strin
 
 // NewWalletFromSeed creates a new wallet with a given seed
 func NewWalletFromSeed(seed modules.Seed, keysToLoad uint64, backendName string) (*Wallet, error) {
-	backend := loadBackend(backendName)
+	backend, err := loadBackend(backendName)
+	if err != nil {
+		return nil, err
+	}
 
 	w := &Wallet{
 		seed:    seed,
 		backend: backend,
 	}
 
-	key, err := generateSpendableKey(seed, keysToLoad)
-	if err != nil {
-		return nil, err
-	}
-	uh, err := key.UnlockHash()
-	if err != nil {
-		return nil, err
-	}
-	w.keys[uh] = key
-
 	return w, nil
 }
 
 // LoadBackend loads a backend with the given name
-func loadBackend(name string) Backend {
+func loadBackend(name string) (Backend, error) {
 	switch name {
 	case "standard":
-		return explorer.NewMainnetGroupedExplorer()
+		return explorer.NewMainnetGroupedExplorer(), nil
 	case "testnet":
-		return explorer.NewTestnetGroupedExplorer()
+		return explorer.NewTestnetGroupedExplorer(), nil
 	default:
-		// for now anything else will also default to devnet
-		return explorer.NewTestnetGroupedExplorer()
+		return nil, fmt.Errorf("No such network '%s'", name)
 	}
+}
+
+// LoadAddresses loads addresses into wallet
+// TODO IMPROVE! =]
+func (w *Wallet) LoadAddresses(addresses []types.UnlockHash) error {
+	missingAddresses := 0
+	keyLength := len(addresses)
+	startingIndex := w.index
+	spendableKeys := make([]spendableKey, 0)
+	for i := 0; i < keyLength; i++ {
+		key, err := generateSpendableKey(w.seed, startingIndex+uint64(i))
+		if err != nil {
+			return err
+		}
+		spendableKeys = append(spendableKeys, key)
+	}
+	for _, key := range spendableKeys {
+		uh, err := key.UnlockHash()
+		if err != nil {
+			return err
+		}
+		w.keys[uh] = key
+		w.index += 1
+	}
+	for _, address := range addresses {
+		if _, exists := w.keys[address]; !exists {
+			missingAddresses += 1
+		}
+	}
+	if missingAddresses != 0 {
+		return errors.New("There are some missing addresses")
+	}
+	return nil
 }
 
 func generateSpendableKey(seed modules.Seed, index uint64) (spendableKey, error) {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/tfchain"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
@@ -30,16 +32,18 @@ func main() {
 	app.Initialize()
 
 	var (
-		listen string
-		dbConf string
-		name   string
-		seed   string
+		listen  string
+		dbConf  string
+		name    string
+		seed    string
+		network string
 	)
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
 	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
 	flag.StringVar(&name, "name", "explorer", "database name")
 	flag.StringVar(&seed, "seed", "", "wallet seed")
+	flag.StringVar(&network, "network", "testnet", "tfchain network")
 	flag.Parse()
 
 	db, err := mw.NewDatabaseMiddleware(name, dbConf)
@@ -79,11 +83,27 @@ func main() {
 
 	<-c
 
-	_, err = tfchain.NewWalletFromMnemonic(seed, 1, "testnet")
+	if err := types.AddTestReservation(context.Background(), db.Database()); err != nil {
+		log.Fatal().Err(err).Msg("failed to insert testreservation")
+	}
+
+	res, err := types.GetAllActiveReservationPaymentInfos(context.Background(), db.Database())
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to get active reservations")
+	}
+	fmt.Printf("%+v", res)
+
+	wallet, err := tfchain.NewWalletFromMnemonic(seed, 0, network)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to import wallet")
 	}
-	_ = escrow.Escrow{}
+
+	escrow, err := escrow.New(*wallet, db.Database())
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create escrow")
+	}
+
+	go escrow.Run(context.Background())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
