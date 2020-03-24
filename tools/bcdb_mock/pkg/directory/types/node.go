@@ -174,8 +174,8 @@ func NodeCreate(ctx context.Context, db *mongo.Database, node Node) (schema.ID, 
 
 	node.Updated = schema.Date{Time: time.Now()}
 	col := db.Collection(NodeCollection)
-	result := col.FindOneAndUpdate(ctx, filter, bson.M{"$set": node}, options.FindOneAndUpdate().SetUpsert(true))
-	return id, result.Err()
+	_, err = col.UpdateOne(ctx, filter, bson.M{"$set": node}, options.Update().SetUpsert(true))
+	return id, err
 }
 
 func nodeUpdate(ctx context.Context, db *mongo.Database, nodeID string, value interface{}) error {

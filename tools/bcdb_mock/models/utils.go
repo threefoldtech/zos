@@ -57,6 +57,11 @@ func PageFromRequest(r *http.Request) Pager {
 	return Page(page, size)
 }
 
+// Pages return number of pages based on the total number
+func Pages(p Pager, total int64) int64 {
+	return int64(math.Ceil(float64(total) / float64(*p.Limit)))
+}
+
 // NrPages compute the number of page of a collection
 func NrPages(total, pageSize int64) int64 {
 	return int64(math.Ceil(float64(total) / float64(pageSize)))

@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/phonebook"
 )
 
@@ -17,11 +18,11 @@ type Client struct {
 
 // Directory API interface
 type Directory interface {
-	FarmRegister()
-	FarmList()
-	FarmGet()
+	FarmRegister(farm directory.TfgridDirectoryFarm1) (schema.ID, error)
+	FarmList(tid schema.ID, page *Pager) (farms []directory.TfgridDirectoryFarm1, err error)
+	FarmGet(id schema.ID) (farm directory.TfgridDirectoryFarm1, err error)
 
-	NodeRegister()
+	NodeRegister(node directory.TfgridDirectoryNode2) error
 	NodeList()
 	NodeGet()
 
@@ -39,7 +40,7 @@ type Phonebook interface {
 	Create(user phonebook.TfgridPhonebookUser1) (schema.ID, error)
 	List(name, email string, page *Pager) (output []phonebook.TfgridPhonebookUser1, err error)
 	Get(id schema.ID) (phonebook.TfgridPhonebookUser1, error)
-	// Update()
+	// Update() #TODO
 	Validate(id schema.ID, message, signature string) (bool, error)
 }
 
@@ -71,6 +72,7 @@ func Page(page, size int) *Pager {
 	return &Pager{p: page, s: size}
 }
 
+// NewClient creates a new client
 func NewClient(u string) (*Client, error) {
 	h, err := newHTTPClient(u)
 	if err != nil {
@@ -78,6 +80,7 @@ func NewClient(u string) (*Client, error) {
 	}
 	cl := &Client{
 		Phonebook: &httpPhonebook{h},
+		Directory: &httpDirectory{h},
 	}
 
 	return cl, nil
