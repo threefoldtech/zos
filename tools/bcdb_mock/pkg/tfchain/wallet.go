@@ -15,13 +15,14 @@ const (
 	maturityDelay = 720
 	// arbitraryDataMaxSize is the maximum size of the arbitrary data field on a transaction
 	arbitraryDataMaxSize = 83
+	// lookAheadAddresses are the amount of addresses to load in the wallet if
+	// there were none found on the last run
+	lookAheadAddresses = 10
+	// maxFailures is the maximum amount of failed runs without finding a new address before giving up
+	maxFailures = 500 // TODO: Reduce
 )
 
 var (
-	// ErrWalletExists indicates that a wallet with that name allready exists when trying to create a new wallet
-	ErrWalletExists = errors.New("A wallet with that name already exists")
-	// ErrNoSuchWallet indicates that there is no wallet for a given name when trying to load a wallet
-	ErrNoSuchWallet = errors.New("A wallet with that name does not exist")
 	// ErrTooMuchData indicates that the there is too much data to add to the transction
 	ErrTooMuchData = errors.New("Too much data is being supplied to the transaction")
 	// ErrInsufficientWalletFunds indicates that the wallet does not have sufficient funds to fund the transaction
@@ -68,6 +69,7 @@ func NewWalletFromSeed(seed modules.Seed, keysToLoad uint64, backendName string)
 	w := &Wallet{
 		seed:    seed,
 		backend: backend,
+		keys:    make(map[types.UnlockHash]spendableKey),
 	}
 
 	return w, nil
@@ -86,35 +88,52 @@ func loadBackend(name string) (Backend, error) {
 }
 
 // LoadAddresses loads addresses into wallet
-// TODO IMPROVE! =]
 func (w *Wallet) LoadAddresses(addresses []types.UnlockHash) error {
-	missingAddresses := 0
-	keyLength := len(addresses)
-	startingIndex := w.index
-	spendableKeys := make([]spendableKey, 0)
-	for i := 0; i < keyLength; i++ {
-		key, err := generateSpendableKey(w.seed, startingIndex+uint64(i))
-		if err != nil {
-			return err
+	missingAddressCount := len(addresses)
+	var addressesToGenerate int
+	previousMissingAddresses := 0
+	// keep track of amount of times we tried generating addresses without success
+	failedGenerates := 0
+
+	for missingAddressCount != 0 {
+		// Filter out addresses we don't know yet
+		missingAddresses := []types.UnlockHash{}
+		for _, address := range addresses {
+			if _, exists := w.keys[address]; !exists {
+				missingAddresses = append(missingAddresses, address)
+			}
 		}
-		spendableKeys = append(spendableKeys, key)
-	}
-	for _, key := range spendableKeys {
-		uh, err := key.UnlockHash()
-		if err != nil {
-			return err
+
+		addressesToGenerate = len(missingAddresses)
+		previousMissingAddresses = missingAddressCount
+		missingAddressCount = len(missingAddresses)
+		if previousMissingAddresses == missingAddressCount {
+			// no new addresses found
+			addressesToGenerate = lookAheadAddresses
+			failedGenerates++
+			if failedGenerates > maxFailures {
+				// indicate we could not load all addresses
+				return errors.New("Failed to load all used addresses")
+			}
+		} else {
+			failedGenerates = 0
 		}
-		w.keys[uh] = key
-		w.index += 1
-	}
-	for _, address := range addresses {
-		if _, exists := w.keys[address]; !exists {
-			missingAddresses += 1
+
+		// generate `missingAddressCount` addresses
+		for i := 0; i < addressesToGenerate; i++ {
+			key, err := generateSpendableKey(w.seed, w.index)
+			if err != nil {
+				return errors.Wrap(err, "Could not generate spendable key")
+			}
+			uh, err := key.UnlockHash()
+			if err != nil {
+				return errors.Wrap(err, "Could not derive unlockhash from key")
+			}
+			w.keys[uh] = key
+			w.index++
 		}
 	}
-	if missingAddresses != 0 {
-		return errors.New("There are some missing addresses")
-	}
+
 	return nil
 }
 

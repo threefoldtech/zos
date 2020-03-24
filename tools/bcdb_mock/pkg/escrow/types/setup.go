@@ -2,7 +2,6 @@ package types
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -17,7 +16,6 @@ import (
 // Onetime during the life time of the object
 func Setup(ctx context.Context, db *mongo.Database) error {
 	escrow := db.Collection(EscrowCollection)
-	fmt.Println(escrow)
 	_, err := escrow.Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{
 			Keys:    bson.M{"_id": 1},
@@ -33,7 +31,7 @@ func Setup(ctx context.Context, db *mongo.Database) error {
 
 func AddTestReservation(ctx context.Context, db *mongo.Database) error {
 	uh := rivtypes.UnlockHash{}
-	err := uh.LoadString("01b20e5cfd38dd4f3fe85d04b43a04d603e8edb2c3978d6645c9fa94399c7e9603e5bf076b90e0")
+	err := uh.LoadString("018a65b9dc7b3e769a3fee8c06d04bbee6d77c94b29bd735e4eb5d81813886bb885fd9c9fa23e4")
 	if err != nil {
 		return err
 	}
