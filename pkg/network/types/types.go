@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
+
 	"github.com/threefoldtech/zos/pkg/schema"
 )
 
@@ -28,6 +29,20 @@ type IfaceInfo struct {
 	MacAddress schema.MacAddress `json:"macaddress"`
 }
 
+func NewIfaceInfoFromSchema(iface directory.TfgridDirectoryNodeIface1) IfaceInfo {
+	return IfaceInfo{
+		Name: iface.Name,
+		Addrs: func() []IPNet {
+			var l []IPNet
+			for _, a := range iface.Addrs {
+				l = append(l, IPNet{a.IPNet})
+			}
+			return l
+		}(),
+		Gateway: iface.Gateway,
+	}
+}
+
 // DefaultIP return the IP address of the interface that has a default gateway configured
 // this function currently only check IPv6 addresses
 func (i *IfaceInfo) DefaultIP() (net.IP, error) {
@@ -47,6 +62,20 @@ func (i *IfaceInfo) DefaultIP() (net.IP, error) {
 		}
 	}
 	return nil, fmt.Errorf("no ipv6 address with default gateway")
+}
+
+func (i *IfaceInfo) ToSchema() directory.TfgridDirectoryNodeIface1 {
+	return directory.TfgridDirectoryNodeIface1{
+		Name: i.Name,
+		Addrs: func() []schema.IPRange {
+			var l []schema.IPRange
+			for _, a := range i.Addrs {
+				l = append(l, schema.IPRange{IPNet: a.IPNet})
+			}
+			return l
+		}(),
+		Gateway: i.Gateway,
+	}
 }
 
 // PubIface is the configuration of the interface
@@ -81,16 +110,22 @@ type Node struct {
 }
 
 // NewNodeFromSchema converts a TfgridNode2 into Node
-func NewNodeFromSchema(node directory.TfgridNode2) *Node {
+func NewNodeFromSchema(node directory.TfgridDirectoryNode2) *Node {
 	n := &Node{
-		NodeID: node.NodeID,
-		FarmID: node.FarmID,
+		NodeID: node.NodeId,
+		FarmID: uint64(node.FarmId),
 
 		Ifaces: make([]*IfaceInfo, len(node.Ifaces)),
 
 		PublicConfig: nil,
 		ExitNode:     0,
-		WGPorts:      node.WGPorts,
+		WGPorts: func() []uint {
+			var p []uint
+			for _, i := range node.WgPorts {
+				p = append(p, uint(i))
+			}
+			return p
+		}(),
 	}
 	if node.Ifaces != nil {
 		for i, iface := range node.Ifaces {

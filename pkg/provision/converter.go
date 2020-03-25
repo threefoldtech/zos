@@ -10,15 +10,23 @@ import (
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	generated "github.com/threefoldtech/zos/pkg/gedis/types/provision"
 	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 )
 
 // ContainerToProvisionType converts TfgridReservationContainer1 to Container
-func ContainerToProvisionType(c generated.TfgridReservationContainer1) (Container, string, error) {
+func ContainerToProvisionType(c workloads.TfgridWorkloadsReservationContainer1) (Container, string, error) {
+	env := func(m map[string]interface{}) map[string]string {
+		o := make(map[string]string)
+		for k, v := range m {
+			o[k] = fmt.Sprint(v)
+		}
+		return o
+	}
 	container := Container{
 		FList:        c.Flist,
-		FlistStorage: c.HubURL,
-		Env:          c.Environment,
-		SecretEnv:    c.SecretEnvironment,
+		FlistStorage: c.HubUrl,
+		Env:          env(c.Environment),
+		SecretEnv:    env(c.SecretEnvironment),
 		Entrypoint:   c.Entrypoint,
 		Interactive:  c.Interactive,
 		Mounts:       make([]Mount, len(c.Volumes)),
@@ -28,13 +36,13 @@ func ContainerToProvisionType(c generated.TfgridReservationContainer1) (Containe
 	if len(c.NetworkConnection) > 0 {
 		container.Network = Network{
 			IPs:       []net.IP{c.NetworkConnection[0].Ipaddress},
-			NetworkID: pkg.NetID(c.NetworkConnection[0].NetworkID),
+			NetworkID: pkg.NetID(c.NetworkConnection[0].NetworkId),
 		}
 	}
 
 	for i, mount := range c.Volumes {
 		container.Mounts[i] = Mount{
-			VolumeID:   mount.VolumeID,
+			VolumeID:   mount.VolumeId,
 			Mountpoint: mount.Mountpoint,
 		}
 	}
@@ -64,7 +72,7 @@ func ContainerToProvisionType(c generated.TfgridReservationContainer1) (Containe
 }
 
 // VolumeToProvisionType converts TfgridReservationVolume1 to Volume
-func VolumeToProvisionType(v generated.TfgridReservationVolume1) (Volume, string, error) {
+func VolumeToProvisionType(v workloads.TfgridWorkloadsReservationVolume1) (Volume, string, error) {
 	volume := Volume{
 		Size: uint64(v.Size),
 	}
@@ -74,13 +82,13 @@ func VolumeToProvisionType(v generated.TfgridReservationVolume1) (Volume, string
 	case "SSD":
 		volume.Type = SSDDiskType
 	default:
-		return volume, v.NodeID, fmt.Errorf("disk type %s not supported", v.Type.String())
+		return volume, v.NodeId, fmt.Errorf("disk type %s not supported", v.Type.String())
 	}
-	return volume, v.NodeID, nil
+	return volume, v.NodeId, nil
 }
 
 //ZDBToProvisionType converts TfgridReservationZdb1 to ZDB
-func ZDBToProvisionType(z generated.TfgridReservationZdb1) (ZDB, string, error) {
+func ZDBToProvisionType(z workloads.TfgridWorkloadsReservationZdb1) (ZDB, string, error) {
 	zdb := ZDB{
 		Size:     uint64(z.Size),
 		Password: z.Password,
@@ -92,7 +100,7 @@ func ZDBToProvisionType(z generated.TfgridReservationZdb1) (ZDB, string, error) 
 	case "ssd":
 		zdb.DiskType = pkg.SSDDevice
 	default:
-		return zdb, z.NodeID, fmt.Errorf("device type %s not supported", z.DiskType.String())
+		return zdb, z.NodeId, fmt.Errorf("device type %s not supported", z.DiskType.String())
 	}
 
 	switch z.Mode.String() {
@@ -101,31 +109,28 @@ func ZDBToProvisionType(z generated.TfgridReservationZdb1) (ZDB, string, error) 
 	case "user":
 		zdb.Mode = pkg.ZDBModeUser
 	default:
-		return zdb, z.NodeID, fmt.Errorf("0-db mode %s not supported", z.Mode.String())
+		return zdb, z.NodeId, fmt.Errorf("0-db mode %s not supported", z.Mode.String())
 	}
 
-	return zdb, z.NodeID, nil
+	return zdb, z.NodeId, nil
 }
 
 // K8SToProvisionType converts type to internal provision type
-func K8SToProvisionType(k generated.TfgridWorkloadsReservationK8S1) (Kubernetes, string, error) {
+func K8SToProvisionType(k workloads.TfgridWorkloadsReservationK8S1) (Kubernetes, string, error) {
 	k8s := Kubernetes{
-		Size:          k.Size,
-		NetworkID:     pkg.NetID(k.NetworkID),
+		Size:          uint8(k.Size),
+		NetworkID:     pkg.NetID(k.NetworkId),
 		IP:            k.Ipaddress,
 		ClusterSecret: k.ClusterSecret,
-		MasterIPs:     make([]net.IP, len(k.MasterIps)),
-		SSHKeys:       make([]string, len(k.SSHKeys)),
+		MasterIPs:     k.MasterIps,
+		SSHKeys:       k.SshKeys,
 	}
 
-	copy(k8s.MasterIPs, k.MasterIps)
-	copy(k8s.SSHKeys, k.SSHKeys)
-
-	return k8s, k.NodeID, nil
+	return k8s, k.NodeId, nil
 }
 
 // NetworkToProvisionType convert TfgridReservationNetwork1 to pkg.Network
-func NetworkToProvisionType(n generated.TfgridReservationNetwork1) (pkg.Network, error) {
+func NetworkToProvisionType(n workloads.TfgridWorkloadsReservationNetwork1) (pkg.Network, error) {
 	network := pkg.Network{
 		Name:         n.Name,
 		NetID:        pkg.NetID(n.Name),
@@ -144,29 +149,25 @@ func NetworkToProvisionType(n generated.TfgridReservationNetwork1) (pkg.Network,
 }
 
 //WireguardToProvisionType converts WireguardPeer1 to pkg.Peer
-func WireguardToProvisionType(p generated.WireguardPeer1) (pkg.Peer, error) {
+func WireguardToProvisionType(p workloads.TfgridWorkloadsWireguardPeer1) (pkg.Peer, error) {
 	peer := pkg.Peer{
 		WGPublicKey: p.PublicKey,
 		Endpoint:    p.Endpoint,
-		AllowedIPs:  make([]types.IPNet, len(p.AllowedIPs)),
-		Subnet:      types.NewIPNetFromSchema(p.IPRange),
+		AllowedIPs:  make([]types.IPNet, len(p.AllowedIprange)),
+		Subnet:      types.NewIPNetFromSchema(p.Iprange),
 	}
 
-	var err error
-	for i, ip := range p.AllowedIPs {
-		peer.AllowedIPs[i], err = types.ParseIPNet(ip)
-		if err != nil {
-			return peer, err
-		}
+	for i, ip := range p.AllowedIprange {
+		peer.AllowedIPs[i] = types.IPNet{ip.IPNet}
 	}
 	return peer, nil
 }
 
 //NetResourceToProvisionType converts TfgridNetworkNetResource1 to pkg.NetResource
-func NetResourceToProvisionType(r generated.TfgridNetworkNetResource1) (pkg.NetResource, error) {
+func NetResourceToProvisionType(r workloads.TfgridWorkloadsNetworkNetResource1) (pkg.NetResource, error) {
 	nr := pkg.NetResource{
-		NodeID:       r.NodeID,
-		Subnet:       types.NewIPNetFromSchema(r.IPRange),
+		NodeID:       r.NodeId,
+		Subnet:       types.NewIPNetFromSchema(r.Iprange),
 		WGPrivateKey: r.WireguardPrivateKeyEncrypted,
 		WGPublicKey:  r.WireguardPublicKey,
 		WGListenPort: uint16(r.WireguardListenPort),
@@ -185,16 +186,16 @@ func NetResourceToProvisionType(r generated.TfgridNetworkNetResource1) (pkg.NetR
 }
 
 // WorkloadToProvisionType TfgridReservationWorkload1 to provision.Reservation
-func WorkloadToProvisionType(w generated.TfgridReservationWorkload1) (*Reservation, error) {
+func WorkloadToProvisionType(w workloads.TfgridWorkloadsReservationWorkload1) (*Reservation, error) {
 	reservation := &Reservation{
-		ID:        w.WorkloadID,
+		ID:        w.WorkloadId,
 		User:      w.User,
 		Type:      ReservationType(w.Type.String()),
 		Created:   w.Created.Time,
 		Duration:  time.Duration(w.Duration) * time.Second,
 		Signature: []byte(w.Signature),
-		Data:      w.Workload,
-		ToDelete:  w.ToDelete,
+		// Data:      w.Content,
+		ToDelete: w.ToDelete,
 	}
 
 	var (
@@ -205,7 +206,7 @@ func WorkloadToProvisionType(w generated.TfgridReservationWorkload1) (*Reservati
 	// convert the workload description from jsx schema to zos types
 	switch reservation.Type {
 	case ZDBReservation:
-		tmp := generated.TfgridReservationZdb1{}
+		tmp := workloads.TfgridWorkloadsReservationZdb1{}
 		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
 			return nil, err
 		}
@@ -216,7 +217,7 @@ func WorkloadToProvisionType(w generated.TfgridReservationWorkload1) (*Reservati
 		}
 
 	case VolumeReservation:
-		tmp := generated.TfgridReservationVolume1{}
+		tmp := workloads.TfgridWorkloadsReservationVolume1{}
 		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
 			return nil, err
 		}
@@ -227,7 +228,7 @@ func WorkloadToProvisionType(w generated.TfgridReservationWorkload1) (*Reservati
 		}
 
 	case NetworkReservation:
-		tmp := generated.TfgridReservationNetwork1{}
+		tmp := workloads.TfgridWorkloadsReservationNetwork1{}
 		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
 			return nil, err
 		}
@@ -238,7 +239,7 @@ func WorkloadToProvisionType(w generated.TfgridReservationWorkload1) (*Reservati
 		}
 
 	case ContainerReservation:
-		tmp := generated.TfgridReservationContainer1{}
+		tmp := workloads.TfgridWorkloadsReservationContainer1{}
 		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
 			return nil, err
 		}
@@ -249,7 +250,7 @@ func WorkloadToProvisionType(w generated.TfgridReservationWorkload1) (*Reservati
 		}
 
 	case KubernetesReservation:
-		tmp := generated.TfgridWorkloadsReservationK8S1{}
+		tmp := workloads.TfgridWorkloadsReservationK8S1{}
 		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
 			return nil, err
 		}

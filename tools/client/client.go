@@ -13,9 +13,9 @@ import (
 
 // Client structure
 type Client struct {
-	Phonebook Phonebook
-	Directory Directory
-	// Reservations Reservation
+	Phonebook    Phonebook
+	Directory    Directory
+	Reservations Workloads
 }
 
 // Directory API interface
@@ -53,6 +53,13 @@ type Phonebook interface {
 	Get(id schema.ID) (phonebook.TfgridPhonebookUser1, error)
 	// Update() #TODO
 	Validate(id schema.ID, message, signature string) (bool, error)
+}
+
+// Workloads interface
+type Workloads interface {
+	Create()
+	List()
+	Get()
 }
 
 // Pager for listing
