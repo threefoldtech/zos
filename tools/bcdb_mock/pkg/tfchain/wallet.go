@@ -156,10 +156,10 @@ func (sk spendableKey) UnlockHash() (types.UnlockHash, error) {
 	return types.NewEd25519PubKeyUnlockHash(sk.PublicKey)
 }
 
-func (w *Wallet) checkAddress(address types.UnlockHash, currentChainHeight types.BlockHeight) (SpendableOutputs, error) {
+func (w *Wallet) checkAddress(address types.UnlockHash, currentChainHeight types.BlockHeight) (SpendableOutputs, []types.UnlockHash, error) {
 	blocks, transactions, err := w.backend.CheckAddress(address)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	tempMap := make(SpendableOutputs)
 
@@ -198,7 +198,19 @@ func (w *Wallet) checkAddress(address types.UnlockHash, currentChainHeight types
 		}
 	}
 
-	return tempMap, nil
+	// also collect all addresses who contributed
+	funders := make(map[types.UnlockHash]struct{})
+	for _, txn := range transactions {
+		for _, ci := range txn.CoinInputOutputs {
+			funders[ci.UnlockHash] = struct{}{}
+		}
+	}
+	funderSlice := make([]types.UnlockHash, 0, len(funders))
+	for funder := range funders {
+		funderSlice = append(funderSlice, funder)
+	}
+
+	return tempMap, funderSlice, nil
 }
 
 // getBalance of an address
@@ -211,23 +223,23 @@ func (w *Wallet) getBalance(outputs SpendableOutputs) (types.Currency, error) {
 	return balance, nil
 }
 
-// GetBalance of an address
-func (w *Wallet) GetBalance(address types.UnlockHash) (types.Currency, error) {
+// GetBalance of an address and a list of addresses which funded this address
+func (w *Wallet) GetBalance(address types.UnlockHash) (types.Currency, []types.UnlockHash, error) {
 	height, err := w.backend.CurrentHeight()
 	if err != nil {
-		return types.Currency{}, errors.Wrap(err, "failed to get current height")
+		return types.Currency{}, nil, errors.Wrap(err, "failed to get current height")
 	}
 
-	outputs, err := w.checkAddress(address, height)
+	outputs, funders, err := w.checkAddress(address, height)
 	if err != nil {
-		return types.Currency{}, errors.Wrap(err, "failed to check address")
+		return types.Currency{}, nil, errors.Wrap(err, "failed to check address")
 	}
 
 	balance := types.NewCurrency64(0)
 	for _, uco := range outputs {
 		balance = balance.Add(uco.Value)
 	}
-	return balance, nil
+	return balance, funders, nil
 }
 
 // GenerateAddress generates an address
@@ -265,12 +277,12 @@ func (w *Wallet) TransferCoins(amount types.Currency, from types.UnlockHash, to 
 		return types.TransactionID{}, false, errors.Wrap(err, "failed to get current height")
 	}
 
-	outputs, err := w.checkAddress(from, height)
+	outputs, _, err := w.checkAddress(from, height)
 	if err != nil {
 		return types.TransactionID{}, false, errors.Wrapf(err, "failed to check address: %s", from.String())
 	}
 
-	walletBalance, err := w.GetBalance(from)
+	walletBalance, err := w.getBalance(outputs)
 	if err != nil {
 		return types.TransactionID{}, false, errors.Wrapf(err, "failed to get balance: %s", from.String())
 	}
