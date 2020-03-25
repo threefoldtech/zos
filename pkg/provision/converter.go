@@ -203,63 +203,34 @@ func WorkloadToProvisionType(w workloads.TfgridWorkloadsReservationWorkload1) (*
 		err  error
 	)
 
-	// convert the workload description from jsx schema to zos types
-	switch reservation.Type {
-	case ZDBReservation:
-		tmp := workloads.TfgridWorkloadsReservationZdb1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
+	switch tmp := w.Content.(type) {
+	case workloads.TfgridWorkloadsReservationZdb1:
 		data, reservation.NodeID, err = ZDBToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-
-	case VolumeReservation:
-		tmp := workloads.TfgridWorkloadsReservationVolume1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
+	case workloads.TfgridWorkloadsReservationVolume1:
 		data, reservation.NodeID, err = VolumeToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-
-	case NetworkReservation:
-		tmp := workloads.TfgridWorkloadsReservationNetwork1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
+	case workloads.TfgridWorkloadsReservationNetwork1:
 		data, err = NetworkToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-
-	case ContainerReservation:
-		tmp := workloads.TfgridWorkloadsReservationContainer1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
+	case workloads.TfgridWorkloadsReservationContainer1:
 		data, reservation.NodeID, err = ContainerToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-
-	case KubernetesReservation:
-		tmp := workloads.TfgridWorkloadsReservationK8S1{}
-		if err := json.Unmarshal(reservation.Data, &tmp); err != nil {
-			return nil, err
-		}
-
+	case workloads.TfgridWorkloadsReservationK8S1:
 		data, reservation.NodeID, err = K8SToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-
+	default:
+		return nil, fmt.Errorf("unknown workload type (%s) (%T)", w.Type.String(), tmp)
 	}
 
 	reservation.Data, err = json.Marshal(data)

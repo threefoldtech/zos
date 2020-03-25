@@ -127,3 +127,19 @@ func (c *httpClient) get(u string, query url.Values, output interface{}, expect 
 
 	return c.process(response, output, expect...)
 }
+
+func (c *httpClient) delete(u string, query url.Values, output interface{}, expect ...int) error {
+	if len(query) > 0 {
+		u = fmt.Sprintf("%s?%s", u, query.Encode())
+	}
+	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to build request")
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "failed to send request")
+	}
+
+	return c.process(response, output, expect...)
+}

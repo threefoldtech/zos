@@ -9,13 +9,14 @@ import (
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/phonebook"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 )
 
 // Client structure
 type Client struct {
-	Phonebook    Phonebook
-	Directory    Directory
-	Reservations Workloads
+	Phonebook Phonebook
+	Directory Directory
+	Workloads Workloads
 }
 
 // Directory API interface
@@ -57,9 +58,17 @@ type Phonebook interface {
 
 // Workloads interface
 type Workloads interface {
-	Create()
-	List()
-	Get()
+	Create(reservation workloads.TfgridWorkloadsReservation1) (id schema.ID, err error)
+	List(page *Pager) (reservation []workloads.TfgridWorkloadsReservation1, err error)
+	Get(id schema.ID) (reservation workloads.TfgridWorkloadsReservation1, err error)
+
+	SignProvision(id schema.ID, user schema.ID, signature string) error
+	SignDelete(id schema.ID, user schema.ID, signature string) error
+
+	Workloads(nodeID string, from uint64) ([]workloads.TfgridWorkloadsReservationWorkload1, error)
+	WorkloadGet(gwid string) (result workloads.TfgridWorkloadsReservationWorkload1, err error)
+	WorkloadPutResult(nodeID, gwid string, result workloads.TfgridWorkloadsReservationResult1) error
+	WorkloadPutDeleted(nodeID, gwid string) error
 }
 
 // Pager for listing
@@ -99,6 +108,7 @@ func NewClient(u string) (*Client, error) {
 	cl := &Client{
 		Phonebook: &httpPhonebook{h},
 		Directory: &httpDirectory{h},
+		Workloads: &httpWorkloads{h},
 	}
 
 	return cl, nil

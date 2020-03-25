@@ -8,6 +8,7 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/identity"
+	"github.com/threefoldtech/zos/pkg/schema"
 )
 
 // Signer is a utility to easily sign payloads
@@ -62,6 +63,8 @@ func (s *Signer) Sign(o ...interface{}) ([]byte, []byte, error) {
 		case byte:
 			buf.WriteString(fmt.Sprint(x))
 		// all int types
+		case schema.ID:
+			buf.WriteString(fmt.Sprint(x))
 		case int:
 			buf.WriteString(fmt.Sprint(x))
 		case int8:
