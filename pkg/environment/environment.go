@@ -56,7 +56,7 @@ const (
 var (
 	envDev = Environment{
 		RunningMode: RunningDev,
-		BcdbURL:     "https://explorer.devnet.grid.tf",
+		BcdbURL:     "https://explorer.devnet.grid.tf/explorer",
 		// ProvisionTimeout:  60,
 		// ProvisionInterval: 10,
 	}
