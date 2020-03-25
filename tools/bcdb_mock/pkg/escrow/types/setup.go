@@ -29,6 +29,7 @@ func Setup(ctx context.Context, db *mongo.Database) error {
 	return err
 }
 
+// AddTestReservation helper method to inser a reservation for testing purposes
 func AddTestReservation(ctx context.Context, db *mongo.Database) error {
 	uh := rivtypes.UnlockHash{}
 	err := uh.LoadString("018a65b9dc7b3e769a3fee8c06d04bbee6d77c94b29bd735e4eb5d81813886bb885fd9c9fa23e4")
@@ -37,7 +38,7 @@ func AddTestReservation(ctx context.Context, db *mongo.Database) error {
 	}
 	info := ReservationPaymentInformation{
 		ReservationID: 1,
-		Expiration:    schema.Date{time.Now().Add(time.Hour * 6)},
+		Expiration:    schema.Date{Time: time.Now().Add(time.Hour * 6)},
 		Paid:          false,
 		Infos: []info{{
 			FarmerID:      schema.ID(5),

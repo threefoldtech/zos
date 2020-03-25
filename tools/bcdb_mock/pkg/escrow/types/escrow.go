@@ -28,6 +28,7 @@ var (
 )
 
 type (
+	// ReservationPaymentInformation stores the reservation payment information
 	ReservationPaymentInformation struct {
 		ReservationID schema.ID   `bson:"_id"`
 		Expiration    schema.Date `bson:"expiration"`
@@ -81,7 +82,7 @@ func ReservationPaymentInfoUpdate(ctx context.Context, db *mongo.Database, updat
 
 // GetAllActiveReservationPaymentInfos get all active reservation payment information
 func GetAllActiveReservationPaymentInfos(ctx context.Context, db *mongo.Database) ([]ReservationPaymentInformation, error) {
-	filter := bson.M{"paid": false, "expiration": bson.M{"$gt": schema.Date{time.Now()}}}
+	filter := bson.M{"paid": false, "expiration": bson.M{"$gt": schema.Date{Time: time.Now()}}}
 	cursor, err := db.Collection(EscrowCollection).Find(ctx, filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get cursor over active payment infos")
@@ -94,6 +95,7 @@ func GetAllActiveReservationPaymentInfos(ctx context.Context, db *mongo.Database
 	return paymentInfos, err
 }
 
+// GetAllAddresses gets all in use addresses from the escrowcollections
 func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]Address, error) {
 	cursor, err := db.Collection(EscrowCollection).Find(ctx, bson.M{})
 	if err != nil {

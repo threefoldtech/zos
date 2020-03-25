@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	rivclient "github.com/threefoldtech/rivine/pkg/client"
 	rivtypes "github.com/threefoldtech/rivine/types"
-	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
 	directorytypes "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
@@ -23,23 +22,12 @@ type (
 		wallet             tfchain.Wallet
 		db                 *mongo.Database
 		reservationChannel chan reservationRegisterJob
-		farmApi            FarmApi
+		farmAPI            FarmAPI
 	}
 
-	FarmApi interface {
+	// FarmAPI interface
+	FarmAPI interface {
 		GetByID(ctx context.Context, db *mongo.Database, id int64) (directorytypes.Farm, error)
-	}
-
-	info struct {
-		totalAmount   rivtypes.Currency
-		escrowAddress rivtypes.UnlockHash
-	}
-
-	ReservationPaymentInformation struct {
-		reservationID schema.ID
-		infos         map[string]struct {
-			info
-		}
 	}
 
 	reservationRegisterJob struct {
@@ -48,6 +36,7 @@ type (
 	}
 )
 
+// New creates a new escrow object and fetches all addresses for the escrow wallet
 func New(wallet tfchain.Wallet, db *mongo.Database) (*Escrow, error) {
 	jobChannel := make(chan reservationRegisterJob)
 	addresses, err := types.GetAllAddresses(context.Background(), db)
@@ -66,7 +55,7 @@ func New(wallet tfchain.Wallet, db *mongo.Database) (*Escrow, error) {
 	return &Escrow{
 		wallet:             wallet,
 		db:                 db,
-		farmApi:            &directory.FarmAPI{},
+		farmAPI:            &directory.FarmAPI{},
 		reservationChannel: jobChannel,
 	}, nil
 }
@@ -83,14 +72,16 @@ func (e *Escrow) Run(ctx context.Context) error {
 	}
 }
 
+// RegisterReservation registers a workload reservation
 func RegisterReservation(reservation *workloads.TfgridWorkloadsReservation1) (map[string]string, error) {
 	return nil, nil
 }
 
+// CalculateReservationCost calculates the cost of reservation based on a resource per farmer map
 func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int64]rivtypes.Currency, error) {
 	costPerFarmerMap := make(map[int64]rivtypes.Currency)
 	for id, rsu := range rsuPerFarmerMap {
-		farm, err := e.farmApi.GetByID(context.Background(), e.db, id)
+		farm, err := e.farmAPI.GetByID(context.Background(), e.db, id)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to get farm with id: %d", id)
 		}

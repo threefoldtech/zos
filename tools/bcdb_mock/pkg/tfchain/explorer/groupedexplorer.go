@@ -72,6 +72,7 @@ func (e *GroupedExplorer) GetChainConstants() (modules.DaemonConstants, error) {
 	return modules.DaemonConstants{}, ErrNoHealthyExplorers
 }
 
+// Get an endpoint
 func (e *GroupedExplorer) Get(endpoint string) error {
 	var (
 		nerr net.Error
@@ -88,6 +89,7 @@ func (e *GroupedExplorer) Get(endpoint string) error {
 	return ErrNoHealthyExplorers
 }
 
+// GetWithResponse get an endpoint with response
 func (e *GroupedExplorer) GetWithResponse(endpoint string, responseBody interface{}) error {
 	var (
 		nerr net.Error
@@ -104,6 +106,7 @@ func (e *GroupedExplorer) GetWithResponse(endpoint string, responseBody interfac
 	return ErrNoHealthyExplorers
 }
 
+// Post to an endpoint
 func (e *GroupedExplorer) Post(endpoint, data string) error {
 	var (
 		nerr net.Error
@@ -120,6 +123,7 @@ func (e *GroupedExplorer) Post(endpoint, data string) error {
 	return ErrNoHealthyExplorers
 }
 
+// PostWithResponse to an endpoint with response
 func (e *GroupedExplorer) PostWithResponse(endpoint, data string, responseBody interface{}) error {
 	var (
 		nerr net.Error

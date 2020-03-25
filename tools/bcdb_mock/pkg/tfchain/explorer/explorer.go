@@ -65,21 +65,25 @@ func (e *Explorer) GetChainConstants() (modules.DaemonConstants, error) {
 	return body, err
 }
 
+// Get gets an endpoint
 func (e *Explorer) Get(endpoint string) error {
 	_, err := e.get(endpoint, nil)
 	return err
 }
 
+// GetWithResponse gets an endpoint with response
 func (e *Explorer) GetWithResponse(endpoint string, responseBody interface{}) error {
 	_, err := e.get(endpoint, responseBody)
 	return err
 }
 
+// Post to and endpoint
 func (e *Explorer) Post(endpoint, data string) error {
 	_, err := e.post(endpoint, data, nil)
 	return err
 }
 
+// PostWithResponse to and endpoint with response
 func (e *Explorer) PostWithResponse(endpoint, data string, responseBody interface{}) error {
 	_, err := e.post(endpoint, data, responseBody)
 	return err

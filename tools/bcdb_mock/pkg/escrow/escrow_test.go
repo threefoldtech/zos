@@ -16,13 +16,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type farmApiMock struct{}
+type farmAPIMock struct{}
 
 const precision = 1e9
 
 // GetByID mock method for testing purposes.
 // Creates a farm and assigns some values which in some cases might be falsy in order to test the logic
-func (api farmApiMock) GetByID(ctx context.Context, db *mongo.Database, id int64) (directorytypes.Farm, error) {
+func (api farmAPIMock) GetByID(ctx context.Context, db *mongo.Database, id int64) (directorytypes.Farm, error) {
 	farm := directorytypes.Farm{}
 	rsuPrices := []directory.TfgridDirectoryNodeResourcePrice1{{
 		Cru:      5,
@@ -171,7 +171,7 @@ func TestCalculateReservationCost(t *testing.T) {
 		wallet:             tfchain.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmApi:            farmApiMock{},
+		farmAPI:            farmAPIMock{},
 	}
 
 	res, err := escrow.CalculateReservationCost(farmRsu)
@@ -193,7 +193,7 @@ func TestCalculateReservationCostForUnknownFarmer(t *testing.T) {
 		wallet:             tfchain.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmApi:            farmApiMock{},
+		farmAPI:            farmAPIMock{},
 	}
 
 	_, err := escrow.CalculateReservationCost(farmRsu)
@@ -211,7 +211,7 @@ func TestCalculateReservationCostForFarmerWithoutPrices(t *testing.T) {
 		wallet:             tfchain.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmApi:            farmApiMock{},
+		farmAPI:            farmAPIMock{},
 	}
 
 	_, err := escrow.CalculateReservationCost(farmRsu)
@@ -229,7 +229,7 @@ func TestCalculateReservationCostForFarmerWithFalsyCruPrice(t *testing.T) {
 		wallet:             tfchain.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmApi:            farmApiMock{},
+		farmAPI:            farmAPIMock{},
 	}
 
 	_, err := escrow.CalculateReservationCost(farmRsu)
@@ -247,7 +247,7 @@ func TestCalculateReservationCostForFarmerWithFalsySruPrice(t *testing.T) {
 		wallet:             tfchain.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmApi:            farmApiMock{},
+		farmAPI:            farmAPIMock{},
 	}
 
 	_, err := escrow.CalculateReservationCost(farmRsu)
@@ -265,7 +265,7 @@ func TestCalculateReservationCostForFarmerWithFalsyHruPrice(t *testing.T) {
 		wallet:             tfchain.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmApi:            farmApiMock{},
+		farmAPI:            farmAPIMock{},
 	}
 
 	_, err := escrow.CalculateReservationCost(farmRsu)
@@ -283,7 +283,7 @@ func TestCalculateReservationCostForFarmerWithFalsyMruPrice(t *testing.T) {
 		wallet:             tfchain.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmApi:            farmApiMock{},
+		farmAPI:            farmAPIMock{},
 	}
 
 	_, err := escrow.CalculateReservationCost(farmRsu)
