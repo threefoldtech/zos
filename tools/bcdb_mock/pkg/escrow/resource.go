@@ -1,9 +1,18 @@
 package escrow
 
-import "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
+import (
+	"context"
+
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
+	"go.mongodb.org/mongo-driver/mongo"
+)
 
 type (
 	rsuPerFarmer map[int64]rsu
+
+	rsuPerNode map[string]rsu
 
 	rsu struct {
 		cru int64
@@ -11,23 +20,45 @@ type (
 		hru int64
 		mru int64
 	}
+
+	nodeSource interface {
+		getNode(nodeID string) (types.Node, error)
+	}
+
+	dbNodeSource struct {
+		ctx context.Context
+		db  *mongo.Database
+	}
 )
 
-func processReservation(resData workloads.TfgridWorkloadsReservationData1) rsuPerFarmer {
-	rsuPerFarmerMap := make(rsuPerFarmer)
+func (db *dbNodeSource) getNode(nodeID string) (types.Node, error) {
+	return types.NodeFilter{}.WithNodeID(nodeID).Get(db.ctx, db.db, false)
+}
+
+func processReservation(resData workloads.TfgridWorkloadsReservationData1, ns nodeSource) (rsuPerFarmer, error) {
+	rsuPerNodeMap := make(rsuPerNode)
 	for _, cont := range resData.Containers {
-		rsuPerFarmerMap[cont.FarmerTid] = rsuPerFarmerMap[cont.FarmerTid].add(processContainer(cont))
+		rsuPerNodeMap[cont.NodeId] = rsuPerNodeMap[cont.NodeId].add(processContainer(cont))
 	}
 	for _, vol := range resData.Volumes {
-		rsuPerFarmerMap[vol.FarmerTid] = rsuPerFarmerMap[vol.FarmerTid].add(processVolume(vol))
+		rsuPerNodeMap[vol.NodeId] = rsuPerNodeMap[vol.NodeId].add(processVolume(vol))
 	}
 	for _, zdb := range resData.Zdbs {
-		rsuPerFarmerMap[zdb.FarmerTid] = rsuPerFarmerMap[zdb.FarmerTid].add(processZdb(zdb))
+		rsuPerNodeMap[zdb.NodeId] = rsuPerNodeMap[zdb.NodeId].add(processZdb(zdb))
 	}
 	for _, k8s := range resData.Kubernetes {
-		rsuPerFarmerMap[k8s.FarmerTid] = rsuPerFarmerMap[k8s.FarmerTid].add(processKubernetes(k8s))
+		rsuPerNodeMap[k8s.NodeId] = rsuPerNodeMap[k8s.NodeId].add(processKubernetes(k8s))
 	}
-	return rsuPerFarmerMap
+	rsuPerFarmerMap := make(rsuPerFarmer)
+	// TODO
+	for node, rsu := range rsuPerNodeMap {
+		node, err := ns.getNode(node)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get node")
+		}
+		rsuPerFarmerMap[node.FarmId] = rsuPerFarmerMap[node.FarmId].add(rsu)
+	}
+	return rsuPerFarmerMap, nil
 }
 
 func processContainer(cont workloads.TfgridWorkloadsReservationContainer1) rsu {

@@ -10,103 +10,106 @@ func TestProcessReservation(t *testing.T) {
 	data := workloads.TfgridWorkloadsReservationData1{
 		Containers: []workloads.TfgridWorkloadsReservationContainer1{
 			{
-				FarmerTid: 1,
+				NodeId: "1",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 1,
+				NodeId: "1",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 2,
+				NodeId: "2",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 2,
+				NodeId: "2",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 3,
+				NodeId: "3",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 3,
+				NodeId: "3",
 				// TODO when capacity field is added
 			},
 		},
 		Volumes: []workloads.TfgridWorkloadsReservationVolume1{
 			{
-				FarmerTid: 1,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      500,
+				NodeId: "1",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   500,
 			},
 			{
-				FarmerTid: 1,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      500,
+				NodeId: "1",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   500,
 			},
 			{
-				FarmerTid: 2,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeSSD,
-				Size:      100,
+				NodeId: "2",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeSSD,
+				Size:   100,
 			},
 			{
-				FarmerTid: 2,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      2500,
+				NodeId: "2",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   2500,
 			},
 			{
-				FarmerTid: 3,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      1000,
+				NodeId: "3",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   1000,
 			},
 		},
 		Zdbs: []workloads.TfgridWorkloadsReservationZdb1{
 			{
-				FarmerTid: 1,
-				DiskType:  workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
-				Size:      750,
+				NodeId:   "1",
+				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				Size:     750,
 			},
 			{
-				FarmerTid: 3,
-				DiskType:  workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
-				Size:      250,
+				NodeId:   "3",
+				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				Size:     250,
 			},
 			{
-				FarmerTid: 3,
-				DiskType:  workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
-				Size:      500,
+				NodeId:   "3",
+				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
+				Size:     500,
 			},
 		},
 		Kubernetes: []workloads.TfgridWorkloadsReservationK8S1{
 			{
-				FarmerTid: 1,
-				Size:      1,
+				NodeId: "1",
+				Size:   1,
 			},
 			{
-				FarmerTid: 1,
-				Size:      2,
+				NodeId: "1",
+				Size:   2,
 			},
 			{
-				FarmerTid: 1,
-				Size:      2,
+				NodeId: "1",
+				Size:   2,
 			},
 			{
-				FarmerTid: 2,
-				Size:      2,
+				NodeId: "2",
+				Size:   2,
 			},
 			{
-				FarmerTid: 2,
-				Size:      2,
+				NodeId: "2",
+				Size:   2,
 			},
 			{
-				FarmerTid: 3,
-				Size:      2,
+				NodeId: "3",
+				Size:   2,
 			},
 		},
 	}
 
-	farmRsu := processReservation(data)
+	farmRsu, err := processReservation(data, &mockNodeSource{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(farmRsu) != 3 {
 		t.Errorf("Found %d farmers, expected to find 3", len(farmRsu))

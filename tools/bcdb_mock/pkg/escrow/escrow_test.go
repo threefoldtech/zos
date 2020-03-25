@@ -2,7 +2,9 @@ package escrow
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,12 +13,29 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	directorytypes "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/tfchain"
 
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type farmAPIMock struct{}
+type (
+	farmAPIMock struct{}
+
+	mockNodeSource struct{}
+)
+
+func (mns *mockNodeSource) getNode(nodeID string) (directorytypes.Node, error) {
+	idInt, err := strconv.Atoi(nodeID)
+	if err != nil {
+		return directorytypes.Node{}, errors.New("node not found")
+	}
+	return directorytypes.Node{
+		ID:     schema.ID(idInt),
+		NodeId: nodeID,
+		FarmId: int64(idInt),
+	}, nil
+}
 
 const precision = 1e9
 
@@ -69,103 +88,104 @@ func TestCalculateReservationCost(t *testing.T) {
 	data := workloads.TfgridWorkloadsReservationData1{
 		Containers: []workloads.TfgridWorkloadsReservationContainer1{
 			{
-				FarmerTid: 1,
+				NodeId: "1",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 1,
+				NodeId: "1",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 3,
+				NodeId: "3",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 3,
+				NodeId: "3",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 3,
+				NodeId: "3",
 				// TODO when capacity field is added
 			},
 			{
-				FarmerTid: 3,
+				NodeId: "3",
 				// TODO when capacity field is added
 			},
 		},
 		Volumes: []workloads.TfgridWorkloadsReservationVolume1{
 			{
-				FarmerTid: 1,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      500,
+				NodeId: "1",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   500,
 			},
 			{
-				FarmerTid: 1,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      500,
+				NodeId: "1",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   500,
 			},
 			{
-				FarmerTid: 3,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeSSD,
-				Size:      100,
+				NodeId: "3",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeSSD,
+				Size:   100,
 			},
 			{
-				FarmerTid: 3,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      2500,
+				NodeId: "3",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   2500,
 			},
 			{
-				FarmerTid: 3,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      1000,
+				NodeId: "3",
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   1000,
 			},
 		},
 		Zdbs: []workloads.TfgridWorkloadsReservationZdb1{
 			{
-				FarmerTid: 1,
-				DiskType:  workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
-				Size:      750,
+				NodeId:   "1",
+				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				Size:     750,
 			},
 			{
-				FarmerTid: 3,
-				DiskType:  workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
-				Size:      250,
+				NodeId:   "3",
+				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				Size:     250,
 			},
 			{
-				FarmerTid: 3,
-				DiskType:  workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
-				Size:      500,
+				NodeId:   "3",
+				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
+				Size:     500,
 			},
 		},
 		Kubernetes: []workloads.TfgridWorkloadsReservationK8S1{
 			{
-				FarmerTid: 1,
-				Size:      1,
+				NodeId: "1",
+				Size:   1,
 			},
 			{
-				FarmerTid: 1,
-				Size:      2,
+				NodeId: "1",
+				Size:   2,
 			},
 			{
-				FarmerTid: 1,
-				Size:      2,
+				NodeId: "1",
+				Size:   2,
 			},
 			{
-				FarmerTid: 3,
-				Size:      2,
+				NodeId: "3",
+				Size:   2,
 			},
 			{
-				FarmerTid: 3,
-				Size:      2,
+				NodeId: "3",
+				Size:   2,
 			},
 			{
-				FarmerTid: 3,
-				Size:      2,
+				NodeId: "3",
+				Size:   2,
 			},
 		},
 	}
 
-	farmRsu := processReservation(data)
+	farmRsu, err := processReservation(data, &mockNodeSource{})
+	assert.NoError(t, err)
 
 	escrow := Escrow{
 		wallet:             tfchain.Wallet{},
@@ -180,14 +200,15 @@ func TestCalculateReservationCost(t *testing.T) {
 	}
 
 	assert.True(t, len(res) == 2)
-	assert.Equal(t, rivtypes.NewCurrency64(15125*precision), res[1])
-	assert.Equal(t, rivtypes.NewCurrency64(26650*precision), res[3])
+	assert.Equal(t, types.Currency{rivtypes.NewCurrency64(15125 * precision)}, res[1])
+	assert.Equal(t, types.Currency{rivtypes.NewCurrency64(26650 * precision)}, res[3])
 }
 
 func TestCalculateReservationCostForUnknownFarmer(t *testing.T) {
-	data := makeMockReservationData(15)
+	data := makeMockReservationData("15")
 
-	farmRsu := processReservation(data)
+	farmRsu, err := processReservation(data, &mockNodeSource{})
+	assert.NoError(t, err)
 
 	escrow := Escrow{
 		wallet:             tfchain.Wallet{},
@@ -196,16 +217,17 @@ func TestCalculateReservationCostForUnknownFarmer(t *testing.T) {
 		farmAPI:            farmAPIMock{},
 	}
 
-	_, err := escrow.CalculateReservationCost(farmRsu)
+	_, err = escrow.CalculateReservationCost(farmRsu)
 	if ok := assert.Error(t, err); !ok {
 		t.Fatal()
 	}
 }
 
 func TestCalculateReservationCostForFarmerWithoutPrices(t *testing.T) {
-	data := makeMockReservationData(2)
+	data := makeMockReservationData("2")
 
-	farmRsu := processReservation(data)
+	farmRsu, err := processReservation(data, &mockNodeSource{})
+	assert.NoError(t, err)
 
 	escrow := Escrow{
 		wallet:             tfchain.Wallet{},
@@ -214,16 +236,17 @@ func TestCalculateReservationCostForFarmerWithoutPrices(t *testing.T) {
 		farmAPI:            farmAPIMock{},
 	}
 
-	_, err := escrow.CalculateReservationCost(farmRsu)
+	_, err = escrow.CalculateReservationCost(farmRsu)
 	if ok := assert.Error(t, err); !ok {
 		t.Fatal()
 	}
 }
 
 func TestCalculateReservationCostForFarmerWithFalsyCruPrice(t *testing.T) {
-	data := makeMockReservationData(4)
+	data := makeMockReservationData("4")
 
-	farmRsu := processReservation(data)
+	farmRsu, err := processReservation(data, &mockNodeSource{})
+	assert.NoError(t, err)
 
 	escrow := Escrow{
 		wallet:             tfchain.Wallet{},
@@ -232,16 +255,17 @@ func TestCalculateReservationCostForFarmerWithFalsyCruPrice(t *testing.T) {
 		farmAPI:            farmAPIMock{},
 	}
 
-	_, err := escrow.CalculateReservationCost(farmRsu)
+	_, err = escrow.CalculateReservationCost(farmRsu)
 	if ok := assert.Error(t, err); !ok {
 		t.Fatal()
 	}
 }
 
 func TestCalculateReservationCostForFarmerWithFalsySruPrice(t *testing.T) {
-	data := makeMockReservationData(5)
+	data := makeMockReservationData("5")
 
-	farmRsu := processReservation(data)
+	farmRsu, err := processReservation(data, &mockNodeSource{})
+	assert.NoError(t, err)
 
 	escrow := Escrow{
 		wallet:             tfchain.Wallet{},
@@ -250,16 +274,17 @@ func TestCalculateReservationCostForFarmerWithFalsySruPrice(t *testing.T) {
 		farmAPI:            farmAPIMock{},
 	}
 
-	_, err := escrow.CalculateReservationCost(farmRsu)
+	_, err = escrow.CalculateReservationCost(farmRsu)
 	if ok := assert.Error(t, err); !ok {
 		t.Fatal()
 	}
 }
 
 func TestCalculateReservationCostForFarmerWithFalsyHruPrice(t *testing.T) {
-	data := makeMockReservationData(6)
+	data := makeMockReservationData("6")
 
-	farmRsu := processReservation(data)
+	farmRsu, err := processReservation(data, &mockNodeSource{})
+	assert.NoError(t, err)
 
 	escrow := Escrow{
 		wallet:             tfchain.Wallet{},
@@ -268,16 +293,17 @@ func TestCalculateReservationCostForFarmerWithFalsyHruPrice(t *testing.T) {
 		farmAPI:            farmAPIMock{},
 	}
 
-	_, err := escrow.CalculateReservationCost(farmRsu)
+	_, err = escrow.CalculateReservationCost(farmRsu)
 	if ok := assert.Error(t, err); !ok {
 		t.Fatal()
 	}
 }
 
 func TestCalculateReservationCostForFarmerWithFalsyMruPrice(t *testing.T) {
-	data := makeMockReservationData(7)
+	data := makeMockReservationData("7")
 
-	farmRsu := processReservation(data)
+	farmRsu, err := processReservation(data, &mockNodeSource{})
+	assert.NoError(t, err)
 
 	escrow := Escrow{
 		wallet:             tfchain.Wallet{},
@@ -286,38 +312,38 @@ func TestCalculateReservationCostForFarmerWithFalsyMruPrice(t *testing.T) {
 		farmAPI:            farmAPIMock{},
 	}
 
-	_, err := escrow.CalculateReservationCost(farmRsu)
+	_, err = escrow.CalculateReservationCost(farmRsu)
 	if ok := assert.Error(t, err); !ok {
 		t.Fatal()
 	}
 }
 
-func makeMockReservationData(id int64) workloads.TfgridWorkloadsReservationData1 {
+func makeMockReservationData(id string) workloads.TfgridWorkloadsReservationData1 {
 	return workloads.TfgridWorkloadsReservationData1{
 		Containers: []workloads.TfgridWorkloadsReservationContainer1{
 			{
-				FarmerTid: id,
+				NodeId: id,
 				// TODO when capacity field is added
 			},
 		},
 		Volumes: []workloads.TfgridWorkloadsReservationVolume1{
 			{
-				FarmerTid: id,
-				Type:      workloads.TfgridWorkloadsReservationVolume1TypeHDD,
-				Size:      500,
+				NodeId: id,
+				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Size:   500,
 			},
 		},
 		Zdbs: []workloads.TfgridWorkloadsReservationZdb1{
 			{
-				FarmerTid: id,
-				DiskType:  workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
-				Size:      750,
+				NodeId:   id,
+				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				Size:     750,
 			},
 		},
 		Kubernetes: []workloads.TfgridWorkloadsReservationK8S1{
 			{
-				FarmerTid: id,
-				Size:      1,
+				NodeId: id,
+				Size:   1,
 			},
 		},
 	}

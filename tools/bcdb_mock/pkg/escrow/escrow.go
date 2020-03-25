@@ -73,7 +73,14 @@ func (e *Escrow) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case job := <-e.reservationChannel:
-			rsuPerFarmer := processReservation(job.reservation.DataReservation)
+			rsuPerFarmer, err := processReservation(job.reservation.DataReservation, &dbNodeSource{ctx: ctx, db: e.db})
+			if err != nil {
+				job.responseChan <- reservationRegisterJobResponse{
+					err: err,
+				}
+				close(job.responseChan)
+				continue
+			}
 			res, err := e.CalculateReservationCost(rsuPerFarmer)
 			if err != nil {
 				job.responseChan <- reservationRegisterJobResponse{
