@@ -10,7 +10,9 @@ import (
 
 	"github.com/pkg/errors"
 	generated "github.com/threefoldtech/zos/pkg/gedis/types/provision"
+	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/pkg/versioned"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 )
 
 // ReservationType type
@@ -147,15 +149,15 @@ func (r *Reservation) validate() error {
 }
 
 // ResultState type
-type ResultState generated.TfgridReservationResult1StateEnum
+type ResultState workloads.TfgridWorkloadsReservationResult1StateEnum
 
 const (
 	// StateError constant
-	StateError = ResultState(generated.TfgridReservationResult1StateError)
+	StateError = ResultState(workloads.TfgridWorkloadsReservationResult1StateError)
 	// StateOk constant
-	StateOk = ResultState(generated.TfgridReservationResult1StateOk)
+	StateOk = ResultState(workloads.TfgridWorkloadsReservationResult1StateOk)
 	//StateDeleted constant
-	StateDeleted = ResultState(generated.TfgridReservationResult1StateDeleted)
+	StateDeleted = ResultState(workloads.TfgridWorkloadsReservationResult1StateDeleted)
 )
 
 func (s ResultState) String() string {
@@ -199,4 +201,33 @@ func (r *Result) Bytes() ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// ToSchemaType converts result to schema type
+func (r *Result) ToSchemaType() workloads.TfgridWorkloadsReservationResult1 {
+	var rType workloads.TfgridWorkloadsReservationResult1CategoryEnum
+	switch r.Type {
+	case VolumeReservation:
+		rType = workloads.TfgridWorkloadsReservationResult1CategoryVolume
+	case ContainerReservation:
+		rType = workloads.TfgridWorkloadsReservationResult1CategoryContainer
+	case ZDBReservation:
+		rType = workloads.TfgridWorkloadsReservationResult1CategoryZdb
+	case NetworkReservation:
+		rType = workloads.TfgridWorkloadsReservationResult1CategoryNetwork
+	default:
+		panic(fmt.Errorf("unknown reservation type: %s", r.Type))
+	}
+
+	result := workloads.TfgridWorkloadsReservationResult1{
+		Category:   rType,
+		WorkloadId: r.ID,
+		DataJson:   r.Data,
+		Signature:  r.Signature,
+		State:      workloads.TfgridWorkloadsReservationResult1StateEnum(r.State),
+		Message:    r.Error,
+		Epoch:      schema.Date{Time: r.Created},
+	}
+
+	return result
 }
