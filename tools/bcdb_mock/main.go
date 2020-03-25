@@ -91,7 +91,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to get active reservations")
 	}
-	fmt.Printf("%+v", res)
+	fmt.Printf("%+v\n", res)
 
 	wallet, err := tfchain.NewWalletFromMnemonic(seed, 0, network)
 	if err != nil {

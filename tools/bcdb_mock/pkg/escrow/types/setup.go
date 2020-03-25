@@ -41,8 +41,8 @@ func AddTestReservation(ctx context.Context, db *mongo.Database) error {
 		Paid:          false,
 		Infos: []info{{
 			FarmerID:      schema.ID(5),
-			EscrowAddress: uh,
-			TotalAmount:   rivtypes.NewCurrency64(500004),
+			EscrowAddress: Address{uh},
+			TotalAmount:   Currency{rivtypes.NewCurrency64(500004)},
 		}},
 	}
 	err = ReservationPaymentInfoCreate(ctx, db, info)

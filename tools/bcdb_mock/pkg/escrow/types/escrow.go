@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -9,6 +10,7 @@ import (
 	rivtypes "github.com/threefoldtech/rivine/types"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/bsontype"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -32,10 +34,21 @@ type (
 		Infos         []info      `bson:"infos"`
 		Paid          bool        `bson:"paid"`
 	}
+
 	info struct {
-		FarmerID      schema.ID           `bson:"farmer_id"`
-		TotalAmount   rivtypes.Currency   `bson:"total_amount"`
-		EscrowAddress rivtypes.UnlockHash `bson:"escrow_address"`
+		FarmerID      schema.ID `bson:"farmer_id"`
+		TotalAmount   Currency  `bson:"total_amount"`
+		EscrowAddress Address   `bson:"escrow_address"`
+	}
+
+	// Currency is an amount of tokens
+	Currency struct {
+		rivtypes.Currency
+	}
+
+	// Address is an on chain address
+	Address struct {
+		rivtypes.UnlockHash
 	}
 )
 
@@ -81,13 +94,13 @@ func GetAllActiveReservationPaymentInfos(ctx context.Context, db *mongo.Database
 	return paymentInfos, err
 }
 
-func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]rivtypes.UnlockHash, error) {
+func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]Address, error) {
 	cursor, err := db.Collection(EscrowCollection).Find(ctx, bson.M{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create cursor over payment infos")
 	}
 	defer cursor.Close(ctx)
-	unlockhashes := make([]rivtypes.UnlockHash, 0)
+	unlockhashes := make([]Address, 0)
 	var reservationPaymentInfo ReservationPaymentInformation
 	for cursor.Next(ctx) {
 		err = cursor.Decode(&reservationPaymentInfo)
@@ -99,4 +112,37 @@ func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]rivtypes.Unlock
 		}
 	}
 	return unlockhashes, nil
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler interface
+func (c *Currency) MarshalBSONValue() (bsontype.Type, []byte, error) {
+	return bson.MarshalValue(c.String())
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler interface
+func (c *Currency) UnmarshalBSONValue(t bsontype.Type, raw []byte) error {
+	if t != bsontype.String {
+		return errors.New("expected currency to be saved in bson as a string")
+	}
+
+	rv := bson.RawValue{Type: t, Value: raw}
+	text := rv.StringValue()
+	_, err := fmt.Sscan(text, c)
+	return err
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler interface
+func (a *Address) MarshalBSONValue() (bsontype.Type, []byte, error) {
+	return bson.MarshalValue(a.String())
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler interface
+func (a *Address) UnmarshalBSONValue(t bsontype.Type, raw []byte) error {
+	if t != bsontype.String {
+		return errors.New("expected address to be saved in bson as a string")
+	}
+
+	rv := bson.RawValue{Type: t, Value: raw}
+	text := rv.StringValue()
+	return a.LoadString(text)
 }

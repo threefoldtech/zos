@@ -105,6 +105,7 @@ func (w *Wallet) LoadAddresses(addresses []types.UnlockHash) error {
 		}
 
 		addressesToGenerate = len(missingAddresses)
+
 		previousMissingAddresses = missingAddressCount
 		missingAddressCount = len(missingAddresses)
 		if previousMissingAddresses == missingAddressCount {

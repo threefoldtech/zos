@@ -54,7 +54,12 @@ func New(wallet tfchain.Wallet, db *mongo.Database) (*Escrow, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to scan for addresses")
 	}
-	err = wallet.LoadAddresses(addresses)
+	// use inner type actually used by wallet
+	addressesToScan := make([]rivtypes.UnlockHash, len(addresses))
+	for i := range addresses {
+		addressesToScan[i] = addresses[i].UnlockHash
+	}
+	err = wallet.LoadAddresses(addressesToScan)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to load addresses")
 	}
