@@ -31,6 +31,11 @@ type API struct {
 	escrow *escrow.Escrow
 }
 
+type ReservationCreateResponse struct {
+	ID                schema.ID                  `json:"id"`
+	EscrowInformation []escrowtypes.EscrowDetail `json:"escrow_information"`
+}
+
 func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	defer r.Body.Close()
 	var reservation types.Reservation
@@ -95,10 +100,7 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	return struct {
-		ID                schema.ID                  `json:"id"`
-		EscrowInformation []escrowtypes.EscrowDetail `json:"escrow_information"`
-	}{
+	return ReservationCreateResponse{
 		ID:                reservation.ID,
 		EscrowInformation: escrowDetails,
 	}, mw.Created()

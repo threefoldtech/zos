@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	rivclient "github.com/threefoldtech/rivine/pkg/client"
+	rivtypes "github.com/threefoldtech/rivine/types"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -171,13 +173,21 @@ func cmdsProvision(c *cli.Context) error {
 		return enc.Encode(jsx)
 	}
 
-	id, err := bcdb.Workloads.Create(jsx)
+	response, err := bcdb.Workloads.Create(jsx)
 	if err != nil {
 		return errors.Wrap(err, "failed to send reservation")
 	}
 
 	fmt.Printf("Reservation for %v send to node bcdb\n", duration)
-	fmt.Printf("Resource: /reservations/%v\n", id)
+	fmt.Printf("Resource: /reservations/%v\n", response.ID)
+	fmt.Println()
+	cc := rivclient.NewCurrencyConvertor(rivtypes.DefaultCurrencyUnits(), "TFT")
+
+	for _, detail := range response.EscrowInformation {
+		fmt.Printf("FarmerID: %v\n", detail.FarmerID)
+		fmt.Printf("Escrow address: %s\n", detail.EscrowAddress.String())
+		fmt.Printf("Amount: %s\n", cc.ToCoinStringWithUnit(detail.TotalAmount.Currency))
+	}
 
 	return nil
 }
