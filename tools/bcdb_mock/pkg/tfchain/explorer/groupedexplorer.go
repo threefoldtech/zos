@@ -11,7 +11,7 @@ import (
 
 var (
 	// ErrNoHealthyExplorers is returned if all explorers in the group fail to respond in time
-	ErrNoHealthyExplorers = errors.New("No explorer could statisfy the request")
+	ErrNoHealthyExplorers = errors.New("no explorer could statisfy the request")
 )
 
 // GroupedExplorer is a Backend which can call multiple explorers, calling another explorer if one is down

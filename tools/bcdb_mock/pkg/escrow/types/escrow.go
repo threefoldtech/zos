@@ -85,12 +85,12 @@ func GetAllActiveReservationPaymentInfos(ctx context.Context, db *mongo.Database
 	filter := bson.M{"paid": false, "expiration": bson.M{"$gt": schema.Date{Time: time.Now()}}}
 	cursor, err := db.Collection(EscrowCollection).Find(ctx, filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get cursor over active payment infos")
+		return nil, errors.Wrap(err, "failed to get cursor over active payment infos")
 	}
 	paymentInfos := make([]ReservationPaymentInformation, 0)
 	err = cursor.All(ctx, &paymentInfos)
 	if err != nil {
-		err = errors.Wrap(err, "Failed to decode active payment information")
+		err = errors.Wrap(err, "failed to decode active payment information")
 	}
 	return paymentInfos, err
 }
@@ -99,7 +99,7 @@ func GetAllActiveReservationPaymentInfos(ctx context.Context, db *mongo.Database
 func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]Address, error) {
 	cursor, err := db.Collection(EscrowCollection).Find(ctx, bson.M{})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cursor over payment infos")
+		return nil, errors.Wrap(err, "failed to create cursor over payment infos")
 	}
 	defer cursor.Close(ctx)
 	unlockhashes := make([]Address, 0)
@@ -107,7 +107,7 @@ func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]Address, error)
 	for cursor.Next(ctx) {
 		err = cursor.Decode(&reservationPaymentInfo)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to decode reservation payment info")
+			return nil, errors.Wrap(err, "failed to decode reservation payment info")
 		}
 		for _, paymentInfo := range reservationPaymentInfo.Infos {
 			unlockhashes = append(unlockhashes, paymentInfo.EscrowAddress)

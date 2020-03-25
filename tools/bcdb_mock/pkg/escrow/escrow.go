@@ -41,7 +41,7 @@ func New(wallet tfchain.Wallet, db *mongo.Database) (*Escrow, error) {
 	jobChannel := make(chan reservationRegisterJob)
 	addresses, err := types.GetAllAddresses(context.Background(), db)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to scan for addresses")
+		return nil, errors.Wrap(err, "failed to scan for addresses")
 	}
 	// use inner type actually used by wallet
 	addressesToScan := make([]rivtypes.UnlockHash, len(addresses))
@@ -50,7 +50,7 @@ func New(wallet tfchain.Wallet, db *mongo.Database) (*Escrow, error) {
 	}
 	err = wallet.LoadAddresses(addressesToScan)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to load addresses")
+		return nil, errors.Wrap(err, "failed to load addresses")
 	}
 	return &Escrow{
 		wallet:             wallet,
@@ -83,7 +83,7 @@ func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 	for id, rsu := range rsuPerFarmerMap {
 		farm, err := e.farmAPI.GetByID(context.Background(), e.db, id)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get farm with id: %d", id)
+			return nil, errors.Wrapf(err, "failed to get farm with id: %d", id)
 		}
 		// why is this a list ?!
 		if len(farm.ResourcePrices) == 0 {
@@ -95,19 +95,19 @@ func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 		cc := rivclient.NewCurrencyConvertor(rivtypes.DefaultCurrencyUnits(), "TFT")
 		cruPriceCoin, err := cc.ParseCoinString(strconv.FormatFloat(price.Cru, 'f', 9, 64))
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to parse cru price")
+			return nil, errors.Wrap(err, "failed to parse cru price")
 		}
 		sruPriceCoin, err := cc.ParseCoinString(strconv.FormatFloat(price.Sru, 'f', 9, 64))
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to parse sru price")
+			return nil, errors.Wrap(err, "failed to parse sru price")
 		}
 		hruPriceCoin, err := cc.ParseCoinString(strconv.FormatFloat(price.Hru, 'f', 9, 64))
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to parse hru price")
+			return nil, errors.Wrap(err, "failed to parse hru price")
 		}
 		mruPriceCoin, err := cc.ParseCoinString(strconv.FormatFloat(price.Mru, 'f', 9, 64))
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to parse mru price")
+			return nil, errors.Wrap(err, "failed to parse mru price")
 		}
 
 		cost = cost.Add(cruPriceCoin.Mul64(uint64(rsu.cru)))

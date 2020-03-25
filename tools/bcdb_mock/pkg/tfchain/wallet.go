@@ -24,9 +24,9 @@ const (
 
 var (
 	// ErrTooMuchData indicates that the there is too much data to add to the transction
-	ErrTooMuchData = errors.New("Too much data is being supplied to the transaction")
+	ErrTooMuchData = errors.New("too much data is being supplied to the transaction")
 	// ErrInsufficientWalletFunds indicates that the wallet does not have sufficient funds to fund the transaction
-	ErrInsufficientWalletFunds = errors.New("Insufficient funds to create this transaction")
+	ErrInsufficientWalletFunds = errors.New("insufficient funds to create this transaction")
 )
 
 type (
@@ -83,7 +83,7 @@ func loadBackend(name string) (Backend, error) {
 	case "testnet":
 		return explorer.NewTestnetGroupedExplorer(), nil
 	default:
-		return nil, fmt.Errorf("No such network '%s'", name)
+		return nil, fmt.Errorf("no such network '%s'", name)
 	}
 }
 
@@ -114,7 +114,7 @@ func (w *Wallet) LoadAddresses(addresses []types.UnlockHash) error {
 			failedGenerates++
 			if failedGenerates > maxFailures {
 				// indicate we could not load all addresses
-				return errors.New("Failed to load all used addresses")
+				return errors.New("failed to load all used addresses")
 			}
 		} else {
 			failedGenerates = 0
@@ -124,11 +124,11 @@ func (w *Wallet) LoadAddresses(addresses []types.UnlockHash) error {
 		for i := 0; i < addressesToGenerate; i++ {
 			key, err := generateSpendableKey(w.seed, w.index)
 			if err != nil {
-				return errors.Wrap(err, "Could not generate spendable key")
+				return errors.Wrap(err, "could not generate spendable key")
 			}
 			uh, err := key.UnlockHash()
 			if err != nil {
-				return errors.Wrap(err, "Could not derive unlockhash from key")
+				return errors.Wrap(err, "could not derive unlockhash from key")
 			}
 			w.keys[uh] = key
 			w.index++
@@ -215,12 +215,12 @@ func (w *Wallet) getBalance(outputs SpendableOutputs) (types.Currency, error) {
 func (w *Wallet) GetBalance(address types.UnlockHash) (types.Currency, error) {
 	height, err := w.backend.CurrentHeight()
 	if err != nil {
-		return types.Currency{}, errors.Wrap(err, "Failed to get current height")
+		return types.Currency{}, errors.Wrap(err, "failed to get current height")
 	}
 
 	outputs, err := w.checkAddress(address, height)
 	if err != nil {
-		return types.Currency{}, errors.Wrap(err, "Failed to check address")
+		return types.Currency{}, errors.Wrap(err, "failed to check address")
 	}
 
 	balance := types.NewCurrency64(0)
@@ -257,22 +257,22 @@ func (w *Wallet) TransferCoins(amount types.Currency, from types.UnlockHash, to 
 
 	chainCts, err := w.backend.GetChainConstants()
 	if err != nil {
-		return types.TransactionID{}, false, errors.Wrap(err, "Failed to get chainconstants")
+		return types.TransactionID{}, false, errors.Wrap(err, "failed to get chainconstants")
 	}
 
 	height, err := w.backend.CurrentHeight()
 	if err != nil {
-		return types.TransactionID{}, false, errors.Wrap(err, "Failed to get current height")
+		return types.TransactionID{}, false, errors.Wrap(err, "failed to get current height")
 	}
 
 	outputs, err := w.checkAddress(from, height)
 	if err != nil {
-		return types.TransactionID{}, false, errors.Wrapf(err, "Failed to check address: %s", from.String())
+		return types.TransactionID{}, false, errors.Wrapf(err, "failed to check address: %s", from.String())
 	}
 
 	walletBalance, err := w.GetBalance(from)
 	if err != nil {
-		return types.TransactionID{}, false, errors.Wrapf(err, "Failed to get balance: %s", from.String())
+		return types.TransactionID{}, false, errors.Wrapf(err, "failed to get balance: %s", from.String())
 	}
 
 	// we give only the minimum fee
@@ -319,7 +319,7 @@ func (w *Wallet) TransferCoins(amount types.Currency, from types.UnlockHash, to 
 	// sanity checking
 	for _, inp := range inputs {
 		if _, exists := w.keys[outputs[inp.ParentID].Condition.UnlockHash()]; !exists {
-			return types.TransactionID{}, false, errors.New("Trying to spend unexisting output")
+			return types.TransactionID{}, false, errors.New("trying to spend unexisting output")
 		}
 	}
 

@@ -62,7 +62,7 @@ func (api farmAPIMock) GetByID(ctx context.Context, db *mongo.Database, id int64
 		return farm, nil
 	}
 
-	return directorytypes.Farm{}, fmt.Errorf("Failed to get farm with id: %d", id)
+	return directorytypes.Farm{}, fmt.Errorf("failed to get farm with id: %d", id)
 }
 
 func TestCalculateReservationCost(t *testing.T) {
