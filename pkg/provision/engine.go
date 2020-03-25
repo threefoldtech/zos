@@ -10,7 +10,6 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/client"
 
 	"github.com/pkg/errors"
@@ -225,7 +224,7 @@ func (e *defaultEngine) reply(ctx context.Context, r *Reservation, rErr error, i
 	}
 	result.Signature = hex.EncodeToString(sig)
 
-	return e.cl.Workloads.WorkloadPutResult(e.nodeID, r.ID, workloads.TfgridWorkloadsReservationResult1{})
+	return e.cl.Workloads.WorkloadPutResult(e.nodeID, r.ID, result.ToSchemaType())
 }
 
 func (e *defaultEngine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {

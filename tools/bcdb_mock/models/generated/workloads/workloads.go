@@ -133,6 +133,7 @@ func NewTfgridWorkloadsReservationContainerMount1() (TfgridWorkloadsReservationC
 type TfgridWorkloadsReservationNetworkConnection1 struct {
 	NetworkId string `bson:"network_id" json:"network_id"`
 	Ipaddress net.IP `bson:"ipaddress" json:"ipaddress"`
+	PublicIp6 bool   `bson:"public_ip6" json:"public_ip6"`
 }
 
 func NewTfgridWorkloadsReservationNetworkConnection1() (TfgridWorkloadsReservationNetworkConnection1, error) {

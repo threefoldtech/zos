@@ -97,6 +97,26 @@ type PubIface struct {
 	Version int `json:"version"`
 }
 
+func (p *PubIface) ToSchema() directory.TfgridDirectoryNodePublicIface1 {
+	var typ directory.TfgridDirectoryNodePublicIface1TypeEnum
+	switch p.Type {
+	case VlanIface:
+		typ = directory.TfgridDirectoryNodePublicIface1TypeVlan
+	case MacVlanIface:
+		typ = directory.TfgridDirectoryNodePublicIface1TypeMacvlan
+	}
+
+	return directory.TfgridDirectoryNodePublicIface1{
+		Master:  p.Master,
+		Type:    typ,
+		Ipv4:    p.IPv4.ToSchema(),
+		Ipv6:    p.IPv4.ToSchema(),
+		Gw4:     p.GW4,
+		Gw6:     p.GW6,
+		Version: int64(p.Version),
+	}
+}
+
 // Node is the public information about a node
 type Node struct {
 	NodeID string `json:"node_id"`

@@ -33,6 +33,7 @@ mountpoint = (S)
 @url = tfgrid.workloads.reservation.network.connection.1
 network_id = (S)
 ipaddress = (ipaddress)
+public_ip6 = (B)
 
 @url = tfgrid.workloads.reservation.container.logs.1
 type = (S)

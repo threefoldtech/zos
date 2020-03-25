@@ -124,7 +124,7 @@ func (w *httpWorkloads) Workloads(nodeID string, from uint64) ([]workloads.Tfgri
 		}
 		results = append(results, wl)
 	}
-	return nil, err
+	return results, err
 }
 
 func (w *httpWorkloads) WorkloadGet(gwid string) (result workloads.TfgridWorkloadsReservationWorkload1, err error) {
