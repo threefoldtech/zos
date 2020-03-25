@@ -2,7 +2,6 @@ package escrow
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -88,10 +87,9 @@ func RegisterReservation(reservation *workloads.TfgridWorkloadsReservation1) (ma
 }
 
 func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int64]rivtypes.Currency, error) {
-	farmApi := directory.FarmAPI{}
 	costPerFarmerMap := make(map[int64]rivtypes.Currency)
 	for id, rsu := range rsuPerFarmerMap {
-		farm, err := farmApi.GetByID(context.Background(), e.db, id)
+		farm, err := e.farmApi.GetByID(context.Background(), e.db, id)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to get farm with id: %d", id)
 		}
@@ -124,37 +122,6 @@ func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 		cost = cost.Add(sruPriceCoin.Mul64(uint64(rsu.sru)))
 		cost = cost.Add(hruPriceCoin.Mul64(uint64(rsu.hru)))
 		cost = cost.Add(mruPriceCoin.Mul64(uint64(rsu.mru)))
-
-		costPerFarmerMap[id] = cost
-	}
-	return costPerFarmerMap, nil
-}
-
-func (e *Escrow) CalculateReservationCostFloats(rsuPerFarmerMap rsuPerFarmer) (map[int64]float64, error) {
-	costPerFarmerMap := make(map[int64]float64)
-	for id, rsu := range rsuPerFarmerMap {
-		farm, err := e.farmApi.GetByID(context.Background(), e.db, id)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get farm with id: %d", id)
-		}
-		// why is this a list ?!
-		if len(farm.ResourcePrices) == 0 {
-			return nil, fmt.Errorf("Farm with id: %d does not have price setup", id)
-		}
-		price := farm.ResourcePrices[0]
-		var cost float64
-
-		totalSru := (price.Sru * float64(rsu.sru))
-		cost += totalSru
-
-		totalHru := (price.Hru * float64(rsu.hru))
-		cost += totalHru
-
-		totalCru := (price.Cru * float64(rsu.cru))
-		cost += totalCru
-
-		totalMru := (price.Mru * float64(rsu.mru))
-		cost += totalMru
 
 		costPerFarmerMap[id] = cost
 	}

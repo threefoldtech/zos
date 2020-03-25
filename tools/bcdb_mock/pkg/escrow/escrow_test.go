@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	rivtypes "github.com/threefoldtech/rivine/types"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
@@ -15,6 +16,8 @@ import (
 )
 
 type farmApiMock struct{}
+
+const precision = 1e9
 
 func (api farmApiMock) GetByID(ctx context.Context, db *mongo.Database, id int64) (directorytypes.Farm, error) {
 	farm1 := directorytypes.Farm{}
@@ -140,12 +143,12 @@ func TestCalculateReservationCost(t *testing.T) {
 		farmApi:            farmApiMock{},
 	}
 
-	res, err := escrow.CalculateReservationCostFloats(farmRsu)
+	res, err := escrow.CalculateReservationCost(farmRsu)
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
 
 	assert.True(t, len(res) == 2)
-	assert.Equal(t, float64(15125), res[1])
-	assert.Equal(t, float64(26650), res[3])
+	assert.Equal(t, rivtypes.NewCurrency64(15125*precision), res[1])
+	assert.Equal(t, rivtypes.NewCurrency64(26650*precision), res[3])
 }
