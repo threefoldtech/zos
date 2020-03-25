@@ -40,7 +40,7 @@ func AddTestReservation(ctx context.Context, db *mongo.Database) error {
 		ReservationID: 1,
 		Expiration:    schema.Date{Time: time.Now().Add(time.Hour * 6)},
 		Paid:          false,
-		Infos: []info{{
+		Infos: []EscrowDetail{{
 			FarmerID:      schema.ID(5),
 			EscrowAddress: Address{uh},
 			TotalAmount:   Currency{rivtypes.NewCurrency64(500004)},

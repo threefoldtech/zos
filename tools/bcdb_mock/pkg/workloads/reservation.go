@@ -18,6 +18,7 @@ import (
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow"
+	escrowtypes "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow/types"
 	phonebook "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads/types"
 	"go.mongodb.org/mongo-driver/bson"
@@ -27,7 +28,7 @@ import (
 
 // API struct
 type API struct {
-	escrow escrow.Escrow
+	escrow *escrow.Escrow
 }
 
 func (a *API) create(r *http.Request) (interface{}, mw.Response) {
@@ -84,7 +85,23 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	return id, mw.Created()
+	reservation, err = types.ReservationGetByID(r.Context(), db, id)
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	escrowDetails, err := a.escrow.RegisterReservation(generated.TfgridWorkloadsReservation1(reservation))
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return struct {
+		ID                schema.ID                  `json:"id"`
+		EscrowInformation []escrowtypes.EscrowDetail `json:"escrow_information"`
+	}{
+		ID:                reservation.ID,
+		EscrowInformation: escrowDetails,
+	}, mw.Created()
 }
 
 func (a *API) parseID(id string) (schema.ID, error) {

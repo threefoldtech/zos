@@ -30,16 +30,17 @@ var (
 type (
 	// ReservationPaymentInformation stores the reservation payment information
 	ReservationPaymentInformation struct {
-		ReservationID schema.ID   `bson:"_id"`
-		Expiration    schema.Date `bson:"expiration"`
-		Infos         []info      `bson:"infos"`
-		Paid          bool        `bson:"paid"`
+		ReservationID schema.ID      `bson:"_id" json:"_id"`
+		Expiration    schema.Date    `bson:"expiration" json:"expiration"`
+		Infos         []EscrowDetail `bson:"infos" json:"infos"`
+		Paid          bool           `bson:"paid" json:"paid"`
 	}
 
-	info struct {
-		FarmerID      schema.ID `bson:"farmer_id"`
-		TotalAmount   Currency  `bson:"total_amount"`
-		EscrowAddress Address   `bson:"escrow_address"`
+	// EscrowDetail hold the details of an escrow address
+	EscrowDetail struct {
+		FarmerID      schema.ID `bson:"farmer_id" json:"farmer_id"`
+		TotalAmount   Currency  `bson:"total_amount" json:"total_amount"`
+		EscrowAddress Address   `bson:"escrow_address" json:"escrow_address"`
 	}
 
 	// Currency is an amount of tokens
