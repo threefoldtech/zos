@@ -10,7 +10,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
-	generated "github.com/threefoldtech/zos/pkg/gedis/types/provision"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/pkg/versioned"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
@@ -370,7 +369,7 @@ const (
 )
 
 func (s ResultState) String() string {
-	return generated.TfgridReservationResult1StateEnum(s).String()
+	return workloads.TfgridWorkloadsReservationResult1StateEnum(s).String()
 }
 
 // Result is the struct filled by the node
