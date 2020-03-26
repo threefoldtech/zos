@@ -43,13 +43,13 @@ func cmdsLive(c *cli.Context) error {
 	return nil
 }
 
-type O map[string]interface{}
+type m map[string]interface{}
 
 const timeLayout = "02-Jan-2006 15:04:05"
 
 func printResult(r workloads.Reservation) {
 	expire := r.DataReservation.ExpirationReservation
-	output := O{}
+	output := m{}
 	fmt.Printf("ID: %d Expires: %s\n", r.ID, expire.Format(timeLayout))
 
 	resultPerID := make(map[int64][]workloads.Result, len(r.Results))
@@ -65,16 +65,16 @@ func printResult(r workloads.Reservation) {
 		resultPerID[wid] = results
 	}
 
-	resultData := func(in json.RawMessage) O {
-		var o O
+	resultData := func(in json.RawMessage) m {
+		var o m
 		if err := json.Unmarshal(in, &o); err != nil {
 			panic("invalid json")
 		}
 		return o
 	}
 
-	allResults := func(in []workloads.Result) []O {
-		var o []O
+	allResults := func(in []workloads.Result) []m {
+		var o []m
 		for _, i := range in {
 			r := resultData(i.DataJson)
 			r["node"] = i.NodeId
@@ -85,7 +85,7 @@ func printResult(r workloads.Reservation) {
 	}
 
 	for _, n := range r.DataReservation.Networks {
-		d := O{
+		d := m{
 			"kind":    "network",
 			"name":    n.Name,
 			"results": allResults(resultPerID[n.WorkloadId]),
@@ -100,7 +100,7 @@ func printResult(r workloads.Reservation) {
 			ips = append(ips, ip.Ipaddress.String())
 		}
 
-		d := O{
+		d := m{
 			"kind":    "container",
 			"flist":   c.Flist,
 			"ip":      ips,
@@ -111,7 +111,7 @@ func printResult(r workloads.Reservation) {
 	}
 
 	for _, v := range r.DataReservation.Volumes {
-		d := O{
+		d := m{
 			"kind":    "volume",
 			"size":    v.Size,
 			"type":    v.Type.String(),
@@ -123,7 +123,7 @@ func printResult(r workloads.Reservation) {
 	}
 
 	for _, z := range r.DataReservation.Zdbs {
-		d := O{
+		d := m{
 			"kind":    "zdb",
 			"size":    z.Size,
 			"mode":    z.Mode.String(),
@@ -134,7 +134,7 @@ func printResult(r workloads.Reservation) {
 	}
 
 	for _, k := range r.DataReservation.Kubernetes {
-		d := O{
+		d := m{
 			"kind":    "kubernetes",
 			"size":    k.Size,
 			"network": k.NetworkId,
