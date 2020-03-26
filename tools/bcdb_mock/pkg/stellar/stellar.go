@@ -1,14 +1,19 @@
 package stellar
 
 import (
-	"log"
+	"strconv"
 
+	"github.com/rs/zerolog/log"
+	"github.com/stellar/go/amount"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/network"
+	horizoneffects "github.com/stellar/go/protocols/horizon/effects"
 	"github.com/stellar/go/support/errors"
 	"github.com/stellar/go/txnbuild"
+	"github.com/stellar/go/xdr"
+	"github.com/threefoldtech/zos/pkg/schema"
 )
 
 const (
@@ -38,15 +43,18 @@ func New(seed string, network string) (*Wallet, error) {
 
 // CreateAccount and activates
 func (w *Wallet) CreateAccount() (string, error) {
-	client := horizonclient.DefaultTestNetClient
+	client, err := w.getHorizonClient()
+	if err != nil {
+		return "", err
+	}
 	newKp, err := keypair.Random()
 	if err != nil {
 		return "", err
 	}
 
-	sourceAccount, err := getAccountDetails(w.keypair.Address())
+	sourceAccount, err := w.getAccountDetails(w.keypair.Address())
 	if err != nil {
-		log.Fatal(err)
+		return "", errors.Wrap(err, "failed to get source account")
 	}
 	createAccountOp := txnbuild.CreateAccount{
 		Destination: newKp.Address(),
@@ -56,11 +64,10 @@ func (w *Wallet) CreateAccount() (string, error) {
 		SourceAccount: &sourceAccount,
 		Operations:    []txnbuild.Operation{&createAccountOp},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
+		Network:       w.getNetworkPassPhrase(),
 	}
 
 	txeBase64, err := tx.BuildSignEncode(w.keypair)
-	log.Println("Transaction base64: ", txeBase64)
 
 	// Submit the transaction
 	_, err = client.SubmitTransactionXDR(txeBase64)
@@ -70,12 +77,12 @@ func (w *Wallet) CreateAccount() (string, error) {
 	}
 
 	// Set the trustline
-	sourceAccount, err = getAccountDetails(newKp.Address())
+	sourceAccount, err = w.getAccountDetails(newKp.Address())
 	changeTrustOp := txnbuild.ChangeTrust{
 		SourceAccount: &sourceAccount,
 		Line: txnbuild.CreditAsset{
 			Code:   assetCode,
-			Issuer: assetIssuerTestnet,
+			Issuer: w.getIssuer(),
 		},
 		Limit: "10000",
 	}
@@ -83,7 +90,7 @@ func (w *Wallet) CreateAccount() (string, error) {
 		SourceAccount: &sourceAccount,
 		Operations:    []txnbuild.Operation{&changeTrustOp},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
+		Network:       w.getNetworkPassPhrase(),
 	}
 
 	txeBase64, err = trustTx.BuildSignEncode(newKp)
@@ -97,9 +104,86 @@ func (w *Wallet) CreateAccount() (string, error) {
 	return newKp.Address(), nil
 }
 
-func getAccountDetails(address string) (account horizon.Account, err error) {
-	client := horizonclient.DefaultTestNetClient
+// GetBalance gets balance
+func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, error) {
+	var total xdr.Int64
+	horizonClient, err := w.getHorizonClient()
+	if err != nil {
+		return 0, err
+	}
+
+	txReq := horizonclient.TransactionRequest{
+		ForAccount: address,
+	}
+	txes, err := horizonClient.Transactions(txReq)
+	for _, tx := range txes.Embedded.Records {
+		if tx.Memo == strconv.FormatInt(int64(id), 10) {
+			effectsReq := horizonclient.EffectRequest{
+				ForTransaction: tx.Hash,
+			}
+			effects, err := horizonClient.Effects(effectsReq)
+			if err != nil {
+				log.Debug().Msgf("failed to get transaction effects: %v", err)
+				continue
+			}
+			for _, effect := range effects.Embedded.Records {
+				if effect.GetAccount() != address {
+					continue
+				}
+				if effect.GetType() == "account_credited" {
+					// TODO also parse debits and payment to farmer
+					creditedEffect := effect.(horizoneffects.AccountCredited)
+					parsedAmount, err := amount.Parse(creditedEffect.Amount)
+					if err != nil {
+						continue
+					}
+					total += parsedAmount
+				}
+			}
+		}
+	}
+	return total, nil
+}
+
+func (w *Wallet) getAccountDetails(address string) (account horizon.Account, err error) {
+	client, err := w.getHorizonClient()
+	if err != nil {
+		return horizon.Account{}, err
+	}
 	ar := horizonclient.AccountRequest{AccountID: address}
 	account, err = client.AccountDetail(ar)
 	return
+}
+
+func (w *Wallet) getHorizonClient() (*horizonclient.Client, error) {
+	switch w.network {
+	case "testnet":
+		return horizonclient.DefaultTestNetClient, nil
+	case "production":
+		return horizonclient.DefaultPublicNetClient, nil
+	default:
+		return nil, errors.New("network is not supported")
+	}
+}
+
+func (w *Wallet) getIssuer() string {
+	switch w.network {
+	case "testnet":
+		return assetIssuerTestnet
+	case "production":
+		return assetIssuerProd
+	default:
+		return assetIssuerTestnet
+	}
+}
+
+func (w *Wallet) getNetworkPassPhrase() string {
+	switch w.network {
+	case "testnet":
+		return network.TestNetworkPassphrase
+	case "production":
+		return network.PublicNetworkPassphrase
+	default:
+		return network.TestNetworkPassphrase
+	}
 }
