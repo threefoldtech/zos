@@ -69,6 +69,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				FList:        "https://hub.grid.tf/tf-official-apps/ubuntu-bionic-build.flist",
 				FlistStorage: "zdb://hub.grid.tf:9900",
 				Env:          map[string]string{"FOO": "BAR"},
+				SecretEnv:    map[string]string{},
 				Entrypoint:   "/sbin/my_init",
 				Interactive:  false,
 				Mounts:       []provision.Mount{},
@@ -109,6 +110,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				FList:        "https://hub.grid.tf/tf-official-apps/ubuntu-bionic-build.flist",
 				FlistStorage: "zdb://hub.grid.tf:9900",
 				Env:          map[string]string{"FOO": "BAR"},
+				SecretEnv:    map[string]string{},
 				Entrypoint:   "/sbin/my_init",
 				Interactive:  false,
 				Mounts: []provision.Mount{
