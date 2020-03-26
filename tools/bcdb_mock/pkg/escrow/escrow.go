@@ -166,17 +166,32 @@ func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse cru price")
 		}
+		if cruPriceCoin < 0 {
+			return nil, errors.New("cru price is invalid")
+		}
+
 		sruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Sru, 'f', 7, 64))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse sru price")
 		}
+		if sruPriceCoin < 0 {
+			return nil, errors.New("sru price is invalid")
+		}
+
 		hruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Hru, 'f', 7, 64))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse hru price")
 		}
+		if hruPriceCoin < 0 {
+			return nil, errors.New("hru price is invalid")
+		}
+
 		mruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Mru, 'f', 7, 64))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse mru price")
+		}
+		if mruPriceCoin < 0 {
+			return nil, errors.New("mru price is invalid")
 		}
 
 		cost += cruPriceCoin * (xdr.Int64(rsu.cru))
