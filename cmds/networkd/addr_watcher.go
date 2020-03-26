@@ -144,7 +144,7 @@ func getLocalInterfaces() ([]types.IfaceInfo, error) {
 func publishIfaces(ifaces []types.IfaceInfo, id pkg.Identifier, db client.Directory) error {
 	f := func() error {
 		log.Info().Msg("try to publish interfaces to TNoDB")
-		var input []directory.TfgridDirectoryNodeIface1
+		var input []directory.Iface
 		for _, inf := range ifaces {
 			input = append(input, inf.ToSchema())
 		}

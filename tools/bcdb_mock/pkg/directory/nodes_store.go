@@ -140,11 +140,11 @@ func (s *NodeAPI) Add(ctx context.Context, db *mongo.Database, node directory.No
 	return directory.NodeCreate(ctx, db, node)
 }
 
-func (s *NodeAPI) updateTotalCapacity(ctx context.Context, db *mongo.Database, nodeID string, capacity generated.TfgridDirectoryNodeResourceAmount1) error {
+func (s *NodeAPI) updateTotalCapacity(ctx context.Context, db *mongo.Database, nodeID string, capacity generated.ResourceAmount) error {
 	return directory.NodeUpdateTotalResources(ctx, db, nodeID, capacity)
 }
 
-func (s *NodeAPI) updateReservedCapacity(ctx context.Context, db *mongo.Database, nodeID string, capacity generated.TfgridDirectoryNodeResourceAmount1) error {
+func (s *NodeAPI) updateReservedCapacity(ctx context.Context, db *mongo.Database, nodeID string, capacity generated.ResourceAmount) error {
 	return directory.NodeUpdateUsedResources(ctx, db, nodeID, capacity)
 }
 
@@ -155,7 +155,7 @@ func (s *NodeAPI) updateUptime(ctx context.Context, db *mongo.Database, nodeID s
 // StoreProof stores node hardware proof
 func (s *NodeAPI) StoreProof(ctx context.Context, db *mongo.Database, nodeID string, dmi dmi.DMI, disks capacity.Disks, hypervisor []string) error {
 	var err error
-	proof := generated.TfgridDirectoryNodeProof1{
+	proof := generated.Proof{
 		Created:    schema.Date{Time: time.Now()},
 		Hypervisor: hypervisor,
 	}
@@ -184,12 +184,12 @@ func (s *NodeAPI) StoreProof(ctx context.Context, db *mongo.Database, nodeID str
 }
 
 // SetInterfaces updates node interfaces
-func (s *NodeAPI) SetInterfaces(ctx context.Context, db *mongo.Database, nodeID string, ifaces []generated.TfgridDirectoryNodeIface1) error {
+func (s *NodeAPI) SetInterfaces(ctx context.Context, db *mongo.Database, nodeID string, ifaces []generated.Iface) error {
 	return directory.NodeSetInterfaces(ctx, db, nodeID, ifaces)
 }
 
 // SetPublicConfig sets node public config
-func (s *NodeAPI) SetPublicConfig(ctx context.Context, db *mongo.Database, nodeID string, cfg generated.TfgridDirectoryNodePublicIface1) error {
+func (s *NodeAPI) SetPublicConfig(ctx context.Context, db *mongo.Database, nodeID string, cfg generated.PublicIface) error {
 	node, err := s.Get(ctx, db, nodeID, false)
 	if err != nil {
 		return err

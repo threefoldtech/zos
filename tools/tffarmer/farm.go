@@ -16,7 +16,7 @@ func registerFarm(c *cli.Context) error {
 
 	tid := c.Uint64("tid")
 
-	farmID, err := db.FarmRegister(directory.TfgridDirectoryFarm1{
+	farmID, err := db.FarmRegister(directory.Farm{
 		Name:            name,
 		ThreebotId:      int64(tid),
 		WalletAddresses: []string{"fake"},

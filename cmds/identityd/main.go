@@ -455,11 +455,11 @@ func bcdbClient() (client.Directory, error) {
 func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location) error {
 	log.Info().Str("version", version).Msg("start registration of the node")
 
-	err := store.NodeRegister(directory.TfgridDirectoryNode2{
+	err := store.NodeRegister(directory.Node{
 		NodeId:    nodeID.Identity(),
 		FarmId:    int64(farmID),
 		OsVersion: version,
-		Location: directory.TfgridDirectoryLocation1{
+		Location: directory.Location{
 			Continent: loc.Continent,
 			Country:   loc.Country,
 			City:      loc.City,

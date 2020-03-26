@@ -101,7 +101,7 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 				}
 			}
 			counters := e.store.Counters()
-			amount := directory.TfgridDirectoryNodeResourceAmount1{
+			amount := directory.ResourceAmount{
 				Sru: counters.SRU.Current(),
 				Hru: counters.MRU.Current(),
 				Cru: counters.CRU.Current(),

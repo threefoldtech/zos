@@ -65,7 +65,7 @@ func cap(ctx context.Context, client zbus.Client) {
 
 	log.Info().Msg("sends capacity detail to BCDB")
 
-	if err := cl.NodeSetCapacity(identity.NodeID().Identity(), directory.TfgridDirectoryNodeResourceAmount1{
+	if err := cl.NodeSetCapacity(identity.NodeID().Identity(), directory.ResourceAmount{
 		Cru: int64(resources.CRU),
 		Mru: int64(resources.MRU),
 		Hru: int64(resources.HRU),

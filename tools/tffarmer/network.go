@@ -63,7 +63,7 @@ func configPublic(c *cli.Context) error {
 	}
 
 	node := c.Args().First()
-	pubIface := directory.TfgridDirectoryNodePublicIface1{
+	pubIface := directory.PublicIface{
 		Master: iface,
 		Gw4:    gw4,
 		Gw6:    gw6,

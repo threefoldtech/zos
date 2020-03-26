@@ -13,8 +13,8 @@ type httpPhonebook struct {
 	*httpClient
 }
 
-func (p *httpPhonebook) Create(user phonebook.TfgridPhonebookUser1) (schema.ID, error) {
-	var out phonebook.TfgridPhonebookUser1
+func (p *httpPhonebook) Create(user phonebook.User) (schema.ID, error) {
+	var out phonebook.User
 	if err := p.post(p.url("users"), user, &out); err != nil {
 		return 0, err
 	}
@@ -22,7 +22,7 @@ func (p *httpPhonebook) Create(user phonebook.TfgridPhonebookUser1) (schema.ID, 
 	return out.ID, nil
 }
 
-func (p *httpPhonebook) List(name, email string, page *Pager) (output []phonebook.TfgridPhonebookUser1, err error) {
+func (p *httpPhonebook) List(name, email string, page *Pager) (output []phonebook.User, err error) {
 	query := url.Values{}
 	page.apply(query)
 	if len(name) != 0 {
@@ -37,7 +37,7 @@ func (p *httpPhonebook) List(name, email string, page *Pager) (output []phoneboo
 	return
 }
 
-func (p *httpPhonebook) Get(id schema.ID) (user phonebook.TfgridPhonebookUser1, err error) {
+func (p *httpPhonebook) Get(id schema.ID) (user phonebook.User, err error) {
 	err = p.get(p.url("users", fmt.Sprint(id)), nil, &user, http.StatusOK)
 	return
 }

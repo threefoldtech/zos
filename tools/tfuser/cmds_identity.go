@@ -29,7 +29,7 @@ func cmdsGenerateID(c *cli.Context) error {
 		return err
 	}
 
-	user := phonebook.TfgridPhonebookUser1{
+	user := phonebook.User{
 		Name:        name,
 		Email:       email,
 		Signature:   hex.EncodeToString(k.PublicKey),

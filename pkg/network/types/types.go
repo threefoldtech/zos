@@ -30,7 +30,7 @@ type IfaceInfo struct {
 }
 
 // NewIfaceInfoFromSchema creates an IfaceInfo from schema type
-func NewIfaceInfoFromSchema(iface directory.TfgridDirectoryNodeIface1) IfaceInfo {
+func NewIfaceInfoFromSchema(iface directory.Iface) IfaceInfo {
 	return IfaceInfo{
 		Name: iface.Name,
 		Addrs: func() []IPNet {
@@ -66,8 +66,8 @@ func (i *IfaceInfo) DefaultIP() (net.IP, error) {
 }
 
 // ToSchema converts IfaceInfo to a schema type
-func (i *IfaceInfo) ToSchema() directory.TfgridDirectoryNodeIface1 {
-	return directory.TfgridDirectoryNodeIface1{
+func (i *IfaceInfo) ToSchema() directory.Iface {
+	return directory.Iface{
 		Name: i.Name,
 		Addrs: func() []schema.IPRange {
 			var l []schema.IPRange
@@ -100,16 +100,16 @@ type PubIface struct {
 }
 
 // ToSchema converts PubIface to schema type
-func (p *PubIface) ToSchema() directory.TfgridDirectoryNodePublicIface1 {
-	var typ directory.TfgridDirectoryNodePublicIface1TypeEnum
+func (p *PubIface) ToSchema() directory.PublicIface {
+	var typ directory.IfaceTypeEnum
 	switch p.Type {
 	case VlanIface:
-		typ = directory.TfgridDirectoryNodePublicIface1TypeVlan
+		typ = directory.IfaceTypeVlan
 	case MacVlanIface:
-		typ = directory.TfgridDirectoryNodePublicIface1TypeMacvlan
+		typ = directory.IfaceTypeMacvlan
 	}
 
-	return directory.TfgridDirectoryNodePublicIface1{
+	return directory.PublicIface{
 		Master:  p.Master,
 		Type:    typ,
 		Ipv4:    p.IPv4.ToSchema(),
@@ -133,7 +133,7 @@ type Node struct {
 }
 
 // NewNodeFromSchema converts a TfgridNode2 into Node
-func NewNodeFromSchema(node directory.TfgridDirectoryNode2) *Node {
+func NewNodeFromSchema(node directory.Node) *Node {
 	n := &Node{
 		NodeID: node.NodeId,
 		FarmID: uint64(node.FarmId),

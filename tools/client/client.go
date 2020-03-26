@@ -21,37 +21,37 @@ type Client struct {
 
 // Directory API interface
 type Directory interface {
-	FarmRegister(farm directory.TfgridDirectoryFarm1) (schema.ID, error)
-	FarmList(tid schema.ID, page *Pager) (farms []directory.TfgridDirectoryFarm1, err error)
-	FarmGet(id schema.ID) (farm directory.TfgridDirectoryFarm1, err error)
+	FarmRegister(farm directory.Farm) (schema.ID, error)
+	FarmList(tid schema.ID, page *Pager) (farms []directory.Farm, err error)
+	FarmGet(id schema.ID) (farm directory.Farm, err error)
 
-	NodeRegister(node directory.TfgridDirectoryNode2) error
-	NodeList(filter NodeFilter) (nodes []directory.TfgridDirectoryNode2, err error)
-	NodeGet(id string, proofs bool) (node directory.TfgridDirectoryNode2, err error)
+	NodeRegister(node directory.Node) error
+	NodeList(filter NodeFilter) (nodes []directory.Node, err error)
+	NodeGet(id string, proofs bool) (node directory.Node, err error)
 
-	NodeSetInterfaces(id string, ifaces []directory.TfgridDirectoryNodeIface1) error
+	NodeSetInterfaces(id string, ifaces []directory.Iface) error
 	NodeSetPorts(id string, ports []uint) error
-	NodeSetPublic(id string, pub directory.TfgridDirectoryNodePublicIface1) error
+	NodeSetPublic(id string, pub directory.PublicIface) error
 
 	//TODO: this method call uses types from zos that is not generated
 	//from the schema. Which is wrong imho.
 	NodeSetCapacity(
 		id string,
-		resources directory.TfgridDirectoryNodeResourceAmount1,
+		resources directory.ResourceAmount,
 		dmiInfo dmi.DMI,
 		disksInfo capacity.Disks,
 		hypervisor []string,
 	) error
 
 	NodeUpdateUptime(id string, uptime uint64) error
-	NodeUpdateUsedResources(id string, amount directory.TfgridDirectoryNodeResourceAmount1) error
+	NodeUpdateUsedResources(id string, amount directory.ResourceAmount) error
 }
 
 // Phonebook interface
 type Phonebook interface {
-	Create(user phonebook.TfgridPhonebookUser1) (schema.ID, error)
-	List(name, email string, page *Pager) (output []phonebook.TfgridPhonebookUser1, err error)
-	Get(id schema.ID) (phonebook.TfgridPhonebookUser1, error)
+	Create(user phonebook.User) (schema.ID, error)
+	List(name, email string, page *Pager) (output []phonebook.User, err error)
+	Get(id schema.ID) (phonebook.User, error)
 	// Update() #TODO
 	Validate(id schema.ID, message, signature string) (bool, error)
 }

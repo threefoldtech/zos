@@ -88,7 +88,7 @@ func TestDumpIPNet(t *testing.T) {
 
 func TestNewNodeFromSchema(t *testing.T) {
 	type args struct {
-		node directory.TfgridDirectoryNode2
+		node directory.Node
 	}
 	tests := []struct {
 		name string
@@ -98,10 +98,10 @@ func TestNewNodeFromSchema(t *testing.T) {
 		{
 			name: "full",
 			args: args{
-				node: directory.TfgridDirectoryNode2{
+				node: directory.Node{
 					NodeId: "node_id",
 					FarmId: 1,
-					Ifaces: []directory.TfgridDirectoryNodeIface1{
+					Ifaces: []directory.Iface{
 						{
 							Name: "eth0",
 							Addrs: []schema.IPRange{
@@ -112,9 +112,9 @@ func TestNewNodeFromSchema(t *testing.T) {
 							},
 						},
 					},
-					PublicConfig: &directory.TfgridDirectoryNodePublicIface1{
+					PublicConfig: &directory.PublicIface{
 						Master: "eth1",
-						Type:   directory.TfgridDirectoryNodePublicIface1TypeMacvlan,
+						Type:   directory.IfaceTypeMacvlan,
 						Ipv4:   schema.MustParseIPRange("185.69.166.245/24"),
 						Gw4:    net.ParseIP("185.69.166.1"),
 						Ipv6:   schema.MustParseIPRange("2a02:1802:5e:0:1000:0:ff:1/64"),
@@ -156,10 +156,10 @@ func TestNewNodeFromSchema(t *testing.T) {
 		{
 			name: "no-public",
 			args: args{
-				node: directory.TfgridDirectoryNode2{
+				node: directory.Node{
 					NodeId: "node_id",
 					FarmId: 1,
-					Ifaces: []directory.TfgridDirectoryNodeIface1{
+					Ifaces: []directory.Iface{
 						{
 							Name: "eth0",
 							Addrs: []schema.IPRange{
@@ -200,13 +200,13 @@ func TestNewNodeFromSchema(t *testing.T) {
 		{
 			name: "empty-ifaces",
 			args: args{
-				node: directory.TfgridDirectoryNode2{
+				node: directory.Node{
 					NodeId: "node_id",
 					FarmId: 1,
-					Ifaces: []directory.TfgridDirectoryNodeIface1{},
-					PublicConfig: &directory.TfgridDirectoryNodePublicIface1{
+					Ifaces: []directory.Iface{},
+					PublicConfig: &directory.PublicIface{
 						Master: "eth1",
-						Type:   directory.TfgridDirectoryNodePublicIface1TypeVlan,
+						Type:   directory.IfaceTypeVlan,
 						Ipv4:   schema.MustParseIPRange("185.69.166.245/24"),
 						Gw4:    net.ParseIP("185.69.166.1"),
 						Ipv6:   schema.MustParseIPRange("2a02:1802:5e:0:1000:0:ff:1/64"),
