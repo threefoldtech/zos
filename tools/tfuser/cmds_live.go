@@ -47,12 +47,12 @@ type O map[string]interface{}
 
 const timeLayout = "02-Jan-2006 15:04:05"
 
-func printResult(r workloads.TfgridWorkloadsReservation1) {
+func printResult(r workloads.Reservation) {
 	expire := r.DataReservation.ExpirationReservation
 	output := O{}
 	fmt.Printf("ID: %d Expires: %s\n", r.ID, expire.Format(timeLayout))
 
-	resultPerID := make(map[int64][]workloads.TfgridWorkloadsReservationResult1, len(r.Results))
+	resultPerID := make(map[int64][]workloads.Result, len(r.Results))
 	for _, r := range r.Results {
 		var (
 			rid int64
@@ -73,7 +73,7 @@ func printResult(r workloads.TfgridWorkloadsReservation1) {
 		return o
 	}
 
-	allResults := func(in []workloads.TfgridWorkloadsReservationResult1) []O {
+	allResults := func(in []workloads.Result) []O {
 		var o []O
 		for _, i := range in {
 			r := resultData(i.DataJson)
@@ -167,11 +167,11 @@ type job struct {
 	deleted bool
 }
 
-func (s *scraper) Scrap(user int64) chan workloads.TfgridWorkloadsReservation1 {
+func (s *scraper) Scrap(user int64) chan workloads.Reservation {
 
 	var (
 		cIn  = make(chan job)
-		cOut = make(chan workloads.TfgridWorkloadsReservation1)
+		cOut = make(chan workloads.Reservation)
 	)
 
 	s.wg.Add(s.poolSize)
@@ -200,7 +200,7 @@ func (s *scraper) Scrap(user int64) chan workloads.TfgridWorkloadsReservation1 {
 	return cOut
 }
 
-func worker(wg *sync.WaitGroup, cIn <-chan job, cOut chan<- workloads.TfgridWorkloadsReservation1) {
+func worker(wg *sync.WaitGroup, cIn <-chan job, cOut chan<- workloads.Reservation) {
 	defer func() {
 		wg.Done()
 	}()
@@ -219,7 +219,7 @@ func worker(wg *sync.WaitGroup, cIn <-chan job, cOut chan<- workloads.TfgridWork
 			continue
 		}
 		// FIXME: beurk
-		if !job.deleted && len(res.Results) > 0 && res.Results[0].State == workloads.TfgridWorkloadsReservationResult1StateDeleted {
+		if !job.deleted && len(res.Results) > 0 && res.Results[0].State == workloads.ResultStateDeleted {
 			continue
 		}
 		if res.CustomerTid != job.user {
@@ -229,6 +229,6 @@ func worker(wg *sync.WaitGroup, cIn <-chan job, cOut chan<- workloads.TfgridWork
 	}
 }
 
-func getResult(id int) (res workloads.TfgridWorkloadsReservation1, err error) {
+func getResult(id int) (res workloads.Reservation, err error) {
 	return bcdb.Workloads.Get(schema.ID(id))
 }

@@ -13,7 +13,7 @@ import (
 )
 
 // ContainerToProvisionType converts TfgridReservationContainer1 to Container
-func ContainerToProvisionType(c workloads.TfgridWorkloadsReservationContainer1) (Container, string, error) {
+func ContainerToProvisionType(c workloads.Container) (Container, string, error) {
 
 	container := Container{
 		FList:        c.Flist,
@@ -65,7 +65,7 @@ func ContainerToProvisionType(c workloads.TfgridWorkloadsReservationContainer1) 
 }
 
 // VolumeToProvisionType converts TfgridReservationVolume1 to Volume
-func VolumeToProvisionType(v workloads.TfgridWorkloadsReservationVolume1) (Volume, string, error) {
+func VolumeToProvisionType(v workloads.Volume) (Volume, string, error) {
 	volume := Volume{
 		Size: uint64(v.Size),
 	}
@@ -81,7 +81,7 @@ func VolumeToProvisionType(v workloads.TfgridWorkloadsReservationVolume1) (Volum
 }
 
 //ZDBToProvisionType converts TfgridReservationZdb1 to ZDB
-func ZDBToProvisionType(z workloads.TfgridWorkloadsReservationZdb1) (ZDB, string, error) {
+func ZDBToProvisionType(z workloads.ZDB) (ZDB, string, error) {
 	zdb := ZDB{
 		Size:     uint64(z.Size),
 		Password: z.Password,
@@ -109,7 +109,7 @@ func ZDBToProvisionType(z workloads.TfgridWorkloadsReservationZdb1) (ZDB, string
 }
 
 // K8SToProvisionType converts type to internal provision type
-func K8SToProvisionType(k workloads.TfgridWorkloadsReservationK8S1) (Kubernetes, string, error) {
+func K8SToProvisionType(k workloads.K8S) (Kubernetes, string, error) {
 	k8s := Kubernetes{
 		Size:          uint8(k.Size),
 		NetworkID:     pkg.NetID(k.NetworkId),
@@ -123,7 +123,7 @@ func K8SToProvisionType(k workloads.TfgridWorkloadsReservationK8S1) (Kubernetes,
 }
 
 // NetworkToProvisionType convert TfgridReservationNetwork1 to pkg.Network
-func NetworkToProvisionType(n workloads.TfgridWorkloadsReservationNetwork1) (pkg.Network, error) {
+func NetworkToProvisionType(n workloads.Network) (pkg.Network, error) {
 	network := pkg.Network{
 		Name:         n.Name,
 		NetID:        pkg.NetID(n.Name),
@@ -142,7 +142,7 @@ func NetworkToProvisionType(n workloads.TfgridWorkloadsReservationNetwork1) (pkg
 }
 
 //WireguardToProvisionType converts WireguardPeer1 to pkg.Peer
-func WireguardToProvisionType(p workloads.TfgridWorkloadsWireguardPeer1) (pkg.Peer, error) {
+func WireguardToProvisionType(p workloads.WireguardPeer) (pkg.Peer, error) {
 	peer := pkg.Peer{
 		WGPublicKey: p.PublicKey,
 		Endpoint:    p.Endpoint,
@@ -157,7 +157,7 @@ func WireguardToProvisionType(p workloads.TfgridWorkloadsWireguardPeer1) (pkg.Pe
 }
 
 //NetResourceToProvisionType converts TfgridNetworkNetResource1 to pkg.NetResource
-func NetResourceToProvisionType(r workloads.TfgridWorkloadsNetworkNetResource1) (pkg.NetResource, error) {
+func NetResourceToProvisionType(r workloads.NetworkNetResource) (pkg.NetResource, error) {
 	nr := pkg.NetResource{
 		NodeID:       r.NodeId,
 		Subnet:       types.NewIPNetFromSchema(r.Iprange),
@@ -179,7 +179,7 @@ func NetResourceToProvisionType(r workloads.TfgridWorkloadsNetworkNetResource1) 
 }
 
 // WorkloadToProvisionType TfgridReservationWorkload1 to provision.Reservation
-func WorkloadToProvisionType(w workloads.TfgridWorkloadsReservationWorkload1) (*Reservation, error) {
+func WorkloadToProvisionType(w workloads.ReservationWorkload) (*Reservation, error) {
 	reservation := &Reservation{
 		ID:        w.WorkloadId,
 		User:      w.User,
@@ -197,27 +197,27 @@ func WorkloadToProvisionType(w workloads.TfgridWorkloadsReservationWorkload1) (*
 	)
 
 	switch tmp := w.Content.(type) {
-	case workloads.TfgridWorkloadsReservationZdb1:
+	case workloads.ZDB:
 		data, reservation.NodeID, err = ZDBToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-	case workloads.TfgridWorkloadsReservationVolume1:
+	case workloads.Volume:
 		data, reservation.NodeID, err = VolumeToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-	case workloads.TfgridWorkloadsReservationNetwork1:
+	case workloads.Network:
 		data, err = NetworkToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-	case workloads.TfgridWorkloadsReservationContainer1:
+	case workloads.Container:
 		data, reservation.NodeID, err = ContainerToProvisionType(tmp)
 		if err != nil {
 			return nil, err
 		}
-	case workloads.TfgridWorkloadsReservationK8S1:
+	case workloads.K8S:
 		data, reservation.NodeID, err = K8SToProvisionType(tmp)
 		if err != nil {
 			return nil, err

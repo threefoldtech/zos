@@ -14,12 +14,12 @@ type httpWorkloads struct {
 	*httpClient
 }
 
-func (w *httpWorkloads) Create(reservation workloads.TfgridWorkloadsReservation1) (id schema.ID, err error) {
+func (w *httpWorkloads) Create(reservation workloads.Reservation) (id schema.ID, err error) {
 	err = w.post(w.url("reservations"), reservation, &id, http.StatusCreated)
 	return
 }
 
-func (w *httpWorkloads) List(page *Pager) (reservation []workloads.TfgridWorkloadsReservation1, err error) {
+func (w *httpWorkloads) List(page *Pager) (reservation []workloads.Reservation, err error) {
 	query := url.Values{}
 	page.apply(query)
 
@@ -27,7 +27,7 @@ func (w *httpWorkloads) List(page *Pager) (reservation []workloads.TfgridWorkloa
 	return
 }
 
-func (w *httpWorkloads) Get(id schema.ID) (reservation workloads.TfgridWorkloadsReservation1, err error) {
+func (w *httpWorkloads) Get(id schema.ID) (reservation workloads.Reservation, err error) {
 	err = w.get(w.url("reservations", fmt.Sprint(id)), nil, &reservation, http.StatusOK)
 	return
 }
@@ -35,7 +35,7 @@ func (w *httpWorkloads) Get(id schema.ID) (reservation workloads.TfgridWorkloads
 func (w *httpWorkloads) SignProvision(id schema.ID, user schema.ID, signature string) error {
 	return w.post(
 		w.url("reservations", fmt.Sprint(id), "sign", "provision"),
-		workloads.TfgridWorkloadsReservationSigningSignature1{
+		workloads.SigningSignature{
 			Tid:       int64(user),
 			Signature: signature,
 		},
@@ -47,7 +47,7 @@ func (w *httpWorkloads) SignProvision(id schema.ID, user schema.ID, signature st
 func (w *httpWorkloads) SignDelete(id schema.ID, user schema.ID, signature string) error {
 	return w.post(
 		w.url("reservations", fmt.Sprint(id), "sign", "delete"),
-		workloads.TfgridWorkloadsReservationSigningSignature1{
+		workloads.SigningSignature{
 			Tid:       int64(user),
 			Signature: signature,
 		},
@@ -57,39 +57,39 @@ func (w *httpWorkloads) SignDelete(id schema.ID, user schema.ID, signature strin
 }
 
 type intermediateWL struct {
-	workloads.TfgridWorkloadsReservationWorkload1
+	workloads.ReservationWorkload
 	Content json.RawMessage `json:"content"`
 }
 
-func (wl *intermediateWL) Workload() (result workloads.TfgridWorkloadsReservationWorkload1, err error) {
-	result = wl.TfgridWorkloadsReservationWorkload1
+func (wl *intermediateWL) Workload() (result workloads.ReservationWorkload, err error) {
+	result = wl.ReservationWorkload
 	switch wl.Type {
-	case workloads.TfgridWorkloadsReservationWorkload1TypeContainer:
-		var o workloads.TfgridWorkloadsReservationContainer1
+	case workloads.WorkloadTypeContainer:
+		var o workloads.Container
 		if err := json.Unmarshal(wl.Content, &o); err != nil {
 			return result, err
 		}
 		result.Content = o
-	case workloads.TfgridWorkloadsReservationWorkload1TypeKubernetes:
-		var o workloads.TfgridWorkloadsReservationK8S1
+	case workloads.WorkloadTypeKubernetes:
+		var o workloads.K8S
 		if err := json.Unmarshal(wl.Content, &o); err != nil {
 			return result, err
 		}
 		result.Content = o
-	case workloads.TfgridWorkloadsReservationWorkload1TypeNetwork:
-		var o workloads.TfgridWorkloadsReservationNetwork1
+	case workloads.WorkloadTypeNetwork:
+		var o workloads.Network
 		if err := json.Unmarshal(wl.Content, &o); err != nil {
 			return result, err
 		}
 		result.Content = o
-	case workloads.TfgridWorkloadsReservationWorkload1TypeVolume:
-		var o workloads.TfgridWorkloadsReservationVolume1
+	case workloads.WorkloadTypeVolume:
+		var o workloads.Volume
 		if err := json.Unmarshal(wl.Content, &o); err != nil {
 			return result, err
 		}
 		result.Content = o
-	case workloads.TfgridWorkloadsReservationWorkload1TypeZdb:
-		var o workloads.TfgridWorkloadsReservationZdb1
+	case workloads.WorkloadTypeZDB:
+		var o workloads.ZDB
 		if err := json.Unmarshal(wl.Content, &o); err != nil {
 			return result, err
 		}
@@ -101,7 +101,7 @@ func (wl *intermediateWL) Workload() (result workloads.TfgridWorkloadsReservatio
 	return
 }
 
-func (w *httpWorkloads) Workloads(nodeID string, from uint64) ([]workloads.TfgridWorkloadsReservationWorkload1, error) {
+func (w *httpWorkloads) Workloads(nodeID string, from uint64) ([]workloads.ReservationWorkload, error) {
 	query := url.Values{}
 	query.Set("from", fmt.Sprint(from))
 
@@ -116,7 +116,7 @@ func (w *httpWorkloads) Workloads(nodeID string, from uint64) ([]workloads.Tfgri
 	if err != nil {
 		return nil, err
 	}
-	results := make([]workloads.TfgridWorkloadsReservationWorkload1, 0, len(list))
+	results := make([]workloads.ReservationWorkload, 0, len(list))
 	for _, i := range list {
 		wl, err := i.Workload()
 		if err != nil {
@@ -127,7 +127,7 @@ func (w *httpWorkloads) Workloads(nodeID string, from uint64) ([]workloads.Tfgri
 	return results, err
 }
 
-func (w *httpWorkloads) WorkloadGet(gwid string) (result workloads.TfgridWorkloadsReservationWorkload1, err error) {
+func (w *httpWorkloads) WorkloadGet(gwid string) (result workloads.ReservationWorkload, err error) {
 	var output intermediateWL
 	err = w.get(w.url("reservations", "workloads", gwid), nil, &output, http.StatusOK)
 	if err != nil {
@@ -137,7 +137,7 @@ func (w *httpWorkloads) WorkloadGet(gwid string) (result workloads.TfgridWorkloa
 	return output.Workload()
 }
 
-func (w *httpWorkloads) WorkloadPutResult(nodeID, gwid string, result workloads.TfgridWorkloadsReservationResult1) error {
+func (w *httpWorkloads) WorkloadPutResult(nodeID, gwid string, result workloads.Result) error {
 	return w.put(w.url("reservations", "workloads", gwid, nodeID), result, nil, http.StatusCreated)
 }
 

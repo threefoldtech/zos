@@ -58,16 +58,16 @@ type Phonebook interface {
 
 // Workloads interface
 type Workloads interface {
-	Create(reservation workloads.TfgridWorkloadsReservation1) (id schema.ID, err error)
-	List(page *Pager) (reservation []workloads.TfgridWorkloadsReservation1, err error)
-	Get(id schema.ID) (reservation workloads.TfgridWorkloadsReservation1, err error)
+	Create(reservation workloads.Reservation) (id schema.ID, err error)
+	List(page *Pager) (reservation []workloads.Reservation, err error)
+	Get(id schema.ID) (reservation workloads.Reservation, err error)
 
 	SignProvision(id schema.ID, user schema.ID, signature string) error
 	SignDelete(id schema.ID, user schema.ID, signature string) error
 
-	Workloads(nodeID string, from uint64) ([]workloads.TfgridWorkloadsReservationWorkload1, error)
-	WorkloadGet(gwid string) (result workloads.TfgridWorkloadsReservationWorkload1, err error)
-	WorkloadPutResult(nodeID, gwid string, result workloads.TfgridWorkloadsReservationResult1) error
+	Workloads(nodeID string, from uint64) ([]workloads.ReservationWorkload, error)
+	WorkloadGet(gwid string) (result workloads.ReservationWorkload, err error)
+	WorkloadPutResult(nodeID, gwid string, result workloads.Result) error
 	WorkloadPutDeleted(nodeID, gwid string) error
 }
 

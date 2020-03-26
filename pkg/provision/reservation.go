@@ -149,7 +149,7 @@ func (r *Reservation) validate() error {
 }
 
 // ToSchemaType creates a TfgridReservation1 from zos provision types
-func (r *Reservation) ToSchemaType() (res workloads.TfgridWorkloadsReservation1, err error) {
+func (r *Reservation) ToSchemaType() (res workloads.Reservation, err error) {
 
 	w, err := workloadFromRaw(r.Data, r.Type)
 	if err != nil {
@@ -158,23 +158,23 @@ func (r *Reservation) ToSchemaType() (res workloads.TfgridWorkloadsReservation1,
 
 	switch r.Type {
 	case ContainerReservation:
-		res.DataReservation.Containers = []workloads.TfgridWorkloadsReservationContainer1{
+		res.DataReservation.Containers = []workloads.Container{
 			containerReservation(w, r.NodeID),
 		}
 	case VolumeReservation:
-		res.DataReservation.Volumes = []workloads.TfgridWorkloadsReservationVolume1{
+		res.DataReservation.Volumes = []workloads.Volume{
 			volumeReservation(w, r.NodeID),
 		}
 	case ZDBReservation:
-		res.DataReservation.Zdbs = []workloads.TfgridWorkloadsReservationZdb1{
+		res.DataReservation.Zdbs = []workloads.ZDB{
 			zdbReservation(w, r.NodeID),
 		}
 	case NetworkReservation:
-		res.DataReservation.Networks = []workloads.TfgridWorkloadsReservationNetwork1{
+		res.DataReservation.Networks = []workloads.Network{
 			networkReservation(w),
 		}
 	case KubernetesReservation:
-		res.DataReservation.Kubernetes = []workloads.TfgridWorkloadsReservationK8S1{
+		res.DataReservation.Kubernetes = []workloads.K8S{
 			k8sReservation(w, r.NodeID),
 		}
 	}
@@ -217,27 +217,27 @@ func workloadFromRaw(s json.RawMessage, t ReservationType) (interface{}, error) 
 	return nil, fmt.Errorf("unsupported reservation type %v", t)
 }
 
-func networkReservation(i interface{}) workloads.TfgridWorkloadsReservationNetwork1 {
+func networkReservation(i interface{}) workloads.Network {
 	n := i.(pkg.Network)
-	network := workloads.TfgridWorkloadsReservationNetwork1{
+	network := workloads.Network{
 		Name:             n.Name,
 		Iprange:          n.IPRange.ToSchema(),
 		WorkloadId:       1,
-		NetworkResources: make([]workloads.TfgridWorkloadsNetworkNetResource1, len(n.NetResources)),
+		NetworkResources: make([]workloads.NetworkNetResource, len(n.NetResources)),
 	}
 
 	for i, nr := range n.NetResources {
-		network.NetworkResources[i] = workloads.TfgridWorkloadsNetworkNetResource1{
+		network.NetworkResources[i] = workloads.NetworkNetResource{
 			NodeId:                       nr.NodeID,
 			Iprange:                      nr.Subnet.ToSchema(),
 			WireguardPrivateKeyEncrypted: nr.WGPrivateKey,
 			WireguardPublicKey:           nr.WGPublicKey,
 			WireguardListenPort:          int64(nr.WGListenPort),
-			Peers:                        make([]workloads.TfgridWorkloadsWireguardPeer1, len(nr.Peers)),
+			Peers:                        make([]workloads.WireguardPeer, len(nr.Peers)),
 		}
 
 		for y, peer := range nr.Peers {
-			network.NetworkResources[i].Peers[y] = workloads.TfgridWorkloadsWireguardPeer1{
+			network.NetworkResources[i].Peers[y] = workloads.WireguardPeer{
 				Iprange:        peer.Subnet.ToSchema(),
 				Endpoint:       peer.Endpoint,
 				PublicKey:      peer.WGPublicKey,
@@ -252,10 +252,10 @@ func networkReservation(i interface{}) workloads.TfgridWorkloadsReservationNetwo
 	return network
 }
 
-func containerReservation(i interface{}, nodeID string) workloads.TfgridWorkloadsReservationContainer1 {
+func containerReservation(i interface{}, nodeID string) workloads.Container {
 
 	c := i.(Container)
-	container := workloads.TfgridWorkloadsReservationContainer1{
+	container := workloads.Container{
 		NodeId:            nodeID,
 		WorkloadId:        1,
 		Flist:             c.FList,
@@ -264,8 +264,8 @@ func containerReservation(i interface{}, nodeID string) workloads.TfgridWorkload
 		SecretEnvironment: c.SecretEnv,
 		Entrypoint:        c.Entrypoint,
 		Interactive:       c.Interactive,
-		Volumes:           make([]workloads.TfgridWorkloadsReservationContainerMount1, len(c.Mounts)),
-		NetworkConnection: []workloads.TfgridWorkloadsReservationNetworkConnection1{
+		Volumes:           make([]workloads.ContainerMount, len(c.Mounts)),
+		NetworkConnection: []workloads.NetworkConnection{
 			{
 				NetworkId: string(c.Network.NetworkID),
 				Ipaddress: c.Network.IPs[0],
@@ -277,7 +277,7 @@ func containerReservation(i interface{}, nodeID string) workloads.TfgridWorkload
 	}
 
 	for i, v := range c.Mounts {
-		container.Volumes[i] = workloads.TfgridWorkloadsReservationContainerMount1{
+		container.Volumes[i] = workloads.ContainerMount{
 			VolumeId:   v.VolumeID,
 			Mountpoint: v.Mountpoint,
 		}
@@ -285,28 +285,28 @@ func containerReservation(i interface{}, nodeID string) workloads.TfgridWorkload
 	return container
 }
 
-func volumeReservation(i interface{}, nodeID string) workloads.TfgridWorkloadsReservationVolume1 {
+func volumeReservation(i interface{}, nodeID string) workloads.Volume {
 	v := i.(Volume)
 
-	volume := workloads.TfgridWorkloadsReservationVolume1{
+	volume := workloads.Volume{
 		NodeId:     nodeID,
 		WorkloadId: 1,
 		Size:       int64(v.Size),
 	}
 
 	if v.Type == HDDDiskType {
-		volume.Type = workloads.TfgridWorkloadsReservationVolume1TypeHDD
+		volume.Type = workloads.VolumeTypeHDD
 	} else if v.Type == SSDDiskType {
-		volume.Type = workloads.TfgridWorkloadsReservationVolume1TypeSSD
+		volume.Type = workloads.VolumeTypeSSD
 	}
 
 	return volume
 }
 
-func zdbReservation(i interface{}, nodeID string) workloads.TfgridWorkloadsReservationZdb1 {
+func zdbReservation(i interface{}, nodeID string) workloads.ZDB {
 	z := i.(ZDB)
 
-	zdb := workloads.TfgridWorkloadsReservationZdb1{
+	zdb := workloads.ZDB{
 		WorkloadId: 1,
 		NodeId:     nodeID,
 		// ReservationID:
@@ -317,24 +317,24 @@ func zdbReservation(i interface{}, nodeID string) workloads.TfgridWorkloadsReser
 		// FarmerTid:
 	}
 	if z.DiskType == pkg.SSDDevice {
-		zdb.DiskType = workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd
+		zdb.DiskType = workloads.DiskTypeHDD
 	} else if z.DiskType == pkg.HDDDevice {
-		zdb.DiskType = workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd
+		zdb.DiskType = workloads.DiskTypeSSD
 	}
 
 	if z.Mode == pkg.ZDBModeUser {
-		zdb.Mode = workloads.TfgridWorkloadsReservationZdb1ModeUser
+		zdb.Mode = workloads.ZDBModeUser
 	} else if z.Mode == pkg.ZDBModeSeq {
-		zdb.Mode = workloads.TfgridWorkloadsReservationZdb1ModeSeq
+		zdb.Mode = workloads.ZDBModeSeq
 	}
 
 	return zdb
 }
 
-func k8sReservation(i interface{}, nodeID string) workloads.TfgridWorkloadsReservationK8S1 {
+func k8sReservation(i interface{}, nodeID string) workloads.K8S {
 	k := i.(Kubernetes)
 
-	k8s := workloads.TfgridWorkloadsReservationK8S1{
+	k8s := workloads.K8S{
 		WorkloadId:    1,
 		NodeId:        nodeID,
 		Size:          int64(k.Size),
@@ -349,19 +349,19 @@ func k8sReservation(i interface{}, nodeID string) workloads.TfgridWorkloadsReser
 }
 
 // ResultState type
-type ResultState workloads.TfgridWorkloadsReservationResult1StateEnum
+type ResultState workloads.ResultStateEnum
 
 const (
 	// StateError constant
-	StateError = ResultState(workloads.TfgridWorkloadsReservationResult1StateError)
+	StateError = ResultState(workloads.ResultStateError)
 	// StateOk constant
-	StateOk = ResultState(workloads.TfgridWorkloadsReservationResult1StateOk)
+	StateOk = ResultState(workloads.ResultStateOK)
 	//StateDeleted constant
-	StateDeleted = ResultState(workloads.TfgridWorkloadsReservationResult1StateDeleted)
+	StateDeleted = ResultState(workloads.ResultStateDeleted)
 )
 
 func (s ResultState) String() string {
-	return workloads.TfgridWorkloadsReservationResult1StateEnum(s).String()
+	return workloads.ResultStateEnum(s).String()
 }
 
 // Result is the struct filled by the node
@@ -404,27 +404,27 @@ func (r *Result) Bytes() ([]byte, error) {
 }
 
 // ToSchemaType converts result to schema type
-func (r *Result) ToSchemaType() workloads.TfgridWorkloadsReservationResult1 {
-	var rType workloads.TfgridWorkloadsReservationResult1CategoryEnum
+func (r *Result) ToSchemaType() workloads.Result {
+	var rType workloads.ResultCategoryEnum
 	switch r.Type {
 	case VolumeReservation:
-		rType = workloads.TfgridWorkloadsReservationResult1CategoryVolume
+		rType = workloads.ResultCategoryVolume
 	case ContainerReservation:
-		rType = workloads.TfgridWorkloadsReservationResult1CategoryContainer
+		rType = workloads.ResultCategoryContainer
 	case ZDBReservation:
-		rType = workloads.TfgridWorkloadsReservationResult1CategoryZdb
+		rType = workloads.ResultCategoryZDB
 	case NetworkReservation:
-		rType = workloads.TfgridWorkloadsReservationResult1CategoryNetwork
+		rType = workloads.ResultCategoryNetwork
 	default:
 		panic(fmt.Errorf("unknown reservation type: %s", r.Type))
 	}
 
-	result := workloads.TfgridWorkloadsReservationResult1{
+	result := workloads.Result{
 		Category:   rType,
 		WorkloadId: r.ID,
 		DataJson:   r.Data,
 		Signature:  r.Signature,
-		State:      workloads.TfgridWorkloadsReservationResult1StateEnum(r.State),
+		State:      workloads.ResultStateEnum(r.State),
 		Message:    r.Error,
 		Epoch:      schema.Date{Time: r.Created},
 	}

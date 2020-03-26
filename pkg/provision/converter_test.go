@@ -18,14 +18,14 @@ import (
 )
 
 func TestEnum(t *testing.T) {
-	r := workloads.TfgridWorkloadsReservationWorkload1{
-		Type: workloads.TfgridWorkloadsReservationWorkload1TypeContainer,
+	r := workloads.ReservationWorkload{
+		Type: workloads.WorkloadTypeContainer,
 	}
 
 	bytes, err := json.Marshal(r)
 	require.NoError(t, err)
 
-	var o workloads.TfgridWorkloadsReservationWorkload1
+	var o workloads.ReservationWorkload
 
 	require.NoError(t, json.Unmarshal(bytes, &o))
 
@@ -41,9 +41,9 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 		Environment       map[string]string
 		Entrypoint        string
 		Interactive       bool
-		Volumes           []workloads.TfgridWorkloadsReservationContainerMount1
-		NetworkConnection []workloads.TfgridWorkloadsReservationNetworkConnection1
-		StatsAggregator   []workloads.TfgridWorkloadsReservationStatsaggregator1
+		Volumes           []workloads.ContainerMount
+		NetworkConnection []workloads.NetworkConnection
+		StatsAggregator   []workloads.StatsAggregator
 	}
 	tests := []struct {
 		name    string
@@ -88,7 +88,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				Environment: map[string]string{"FOO": "BAR"},
 				Entrypoint:  "/sbin/my_init",
 				Interactive: false,
-				Volumes: []workloads.TfgridWorkloadsReservationContainerMount1{
+				Volumes: []workloads.ContainerMount{
 					{
 						VolumeId:   "volume1",
 						Mountpoint: "/mnt",
@@ -98,7 +98,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 						Mountpoint: "/data",
 					},
 				},
-				NetworkConnection: []workloads.TfgridWorkloadsReservationNetworkConnection1{
+				NetworkConnection: []workloads.NetworkConnection{
 					{
 						NetworkId: "net1",
 						Ipaddress: net.ParseIP("10.0.0.1"),
@@ -135,7 +135,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := workloads.TfgridWorkloadsReservationContainer1{
+			c := workloads.Container{
 				WorkloadId:        tt.fields.WorkloadID,
 				NodeId:            tt.fields.NodeID,
 				Flist:             tt.fields.Flist,
@@ -164,8 +164,8 @@ func TestTfgridReservationVolume1_ToProvisionType(t *testing.T) {
 		NodeID          string
 		ReservationID   int64
 		Size            int64
-		Type            workloads.TfgridWorkloadsReservationVolume1TypeEnum
-		StatsAggregator []workloads.TfgridWorkloadsReservationStatsaggregator1
+		Type            workloads.VolumeTypeEnum
+		StatsAggregator []workloads.StatsAggregator
 	}
 	tests := []struct {
 		name    string
@@ -179,7 +179,7 @@ func TestTfgridReservationVolume1_ToProvisionType(t *testing.T) {
 				WorkloadID:      1,
 				NodeID:          "node1",
 				Size:            10,
-				Type:            workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:            workloads.VolumeTypeHDD,
 				StatsAggregator: nil,
 			},
 			want: provision.Volume{
@@ -193,7 +193,7 @@ func TestTfgridReservationVolume1_ToProvisionType(t *testing.T) {
 				WorkloadID:      1,
 				NodeID:          "node1",
 				Size:            10,
-				Type:            workloads.TfgridWorkloadsReservationVolume1TypeSSD,
+				Type:            workloads.VolumeTypeSSD,
 				StatsAggregator: nil,
 			},
 			want: provision.Volume{
@@ -204,7 +204,7 @@ func TestTfgridReservationVolume1_ToProvisionType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := workloads.TfgridWorkloadsReservationVolume1{
+			v := workloads.Volume{
 				WorkloadId:      tt.fields.WorkloadID,
 				NodeId:          tt.fields.NodeID,
 				Size:            tt.fields.Size,
@@ -228,9 +228,9 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 		NodeID        string
 		ReservationID int64
 		Size          int64
-		Mode          workloads.TfgridWorkloadsReservationZdb1ModeEnum
+		Mode          workloads.ZDBModeEnum
 		Password      string
-		DiskType      workloads.TfgridWorkloadsReservationZdb1DiskTypeEnum
+		DiskType      workloads.DiskTypeEnum
 		Public        bool
 	}
 	tests := []struct {
@@ -246,9 +246,9 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 				NodeID:     "node1",
 				// ReservationID:,
 				Size:     10,
-				Mode:     workloads.TfgridWorkloadsReservationZdb1ModeSeq,
+				Mode:     workloads.ZDBModeSeq,
 				Password: "supersecret",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
+				DiskType: workloads.DiskTypeHDD,
 				Public:   true,
 			},
 			want: provision.ZDB{
@@ -267,9 +267,9 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 				NodeID:     "node1",
 				// ReservationID:,
 				Size:     10,
-				Mode:     workloads.TfgridWorkloadsReservationZdb1ModeUser,
+				Mode:     workloads.ZDBModeUser,
 				Password: "supersecret",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
+				DiskType: workloads.DiskTypeHDD,
 				Public:   true,
 			},
 			want: provision.ZDB{
@@ -288,9 +288,9 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 				NodeID:     "node1",
 				// ReservationID:,
 				Size:     10,
-				Mode:     workloads.TfgridWorkloadsReservationZdb1ModeUser,
+				Mode:     workloads.ZDBModeUser,
 				Password: "supersecret",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				DiskType: workloads.DiskTypeSSD,
 				Public:   true,
 			},
 			want: provision.ZDB{
@@ -305,7 +305,7 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			z := workloads.TfgridWorkloadsReservationZdb1{
+			z := workloads.ZDB{
 				WorkloadId: tt.fields.WorkloadID,
 				NodeId:     tt.fields.NodeID,
 				//ReservationID: tt.fields.ReservationID,
@@ -331,8 +331,8 @@ func TestTfgridReservationNetwork1_ToProvisionType(t *testing.T) {
 		Name             string
 		WorkloadID       int64
 		Iprange          schema.IPRange
-		StatsAggregator  []workloads.TfgridWorkloadsReservationStatsaggregator1
-		NetworkResources []workloads.TfgridWorkloadsNetworkNetResource1
+		StatsAggregator  []workloads.StatsAggregator
+		NetworkResources []workloads.NetworkNetResource
 	}
 	tests := []struct {
 		name    string
@@ -358,7 +358,7 @@ func TestTfgridReservationNetwork1_ToProvisionType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			n := workloads.TfgridWorkloadsReservationNetwork1{
+			n := workloads.Network{
 				Name:             tt.fields.Name,
 				WorkloadId:       tt.fields.WorkloadID,
 				Iprange:          tt.fields.Iprange,
@@ -383,7 +383,7 @@ func TestTfgridNetworkNetResource1_ToProvisionType(t *testing.T) {
 		WireguardPrivateKeyEncrypted string
 		WireguardPublicKey           string
 		WireguardListenPort          int64
-		Peers                        []workloads.TfgridWorkloadsWireguardPeer1
+		Peers                        []workloads.WireguardPeer
 	}
 	tests := []struct {
 		name    string
@@ -412,7 +412,7 @@ func TestTfgridNetworkNetResource1_ToProvisionType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := workloads.TfgridWorkloadsNetworkNetResource1{
+			r := workloads.NetworkNetResource{
 				NodeId:                       tt.fields.NodeID,
 				Iprange:                      tt.fields.IPRange,
 				WireguardPrivateKeyEncrypted: tt.fields.WireguardPrivateKeyEncrypted,
@@ -484,7 +484,7 @@ func TestWireguardPeer1_ToProvisionType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := workloads.TfgridWorkloadsWireguardPeer1{
+			p := workloads.WireguardPeer{
 				PublicKey:      tt.fields.PublicKey,
 				Endpoint:       tt.fields.Endpoint,
 				AllowedIprange: tt.fields.AllowedIPs,
