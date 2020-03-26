@@ -6,21 +6,21 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	rivclient "github.com/threefoldtech/rivine/pkg/client"
-	rivtypes "github.com/threefoldtech/rivine/types"
+	"github.com/stellar/go/amount"
+	"github.com/stellar/go/xdr"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
 	directorytypes "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow/types"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/tfchain"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/stellar"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type (
 	// Escrow service manages a dedicate wallet for payments for reservations.
 	Escrow struct {
-		wallet             tfchain.Wallet
+		wallet             *stellar.Wallet
 		db                 *mongo.Database
 		reservationChannel chan reservationRegisterJob
 		farmAPI            FarmAPI
@@ -43,21 +43,8 @@ type (
 )
 
 // New creates a new escrow object and fetches all addresses for the escrow wallet
-func New(wallet tfchain.Wallet, db *mongo.Database) (*Escrow, error) {
+func New(wallet *stellar.Wallet, db *mongo.Database) (*Escrow, error) {
 	jobChannel := make(chan reservationRegisterJob)
-	addresses, err := types.GetAllAddresses(context.Background(), db)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to scan for addresses")
-	}
-	// use inner type actually used by wallet
-	addressesToScan := make([]rivtypes.UnlockHash, len(addresses))
-	for i := range addresses {
-		addressesToScan[i] = addresses[i].UnlockHash
-	}
-	err = wallet.LoadAddresses(addressesToScan)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load addresses")
-	}
 	return &Escrow{
 		wallet:             wallet,
 		db:                 db,
@@ -91,8 +78,7 @@ func (e *Escrow) Run(ctx context.Context) error {
 			}
 			details := make([]types.EscrowDetail, 0, len(res))
 			for farmer, value := range res {
-				var uh rivtypes.UnlockHash
-				uh, err = e.wallet.GenerateAddress()
+				address, err := e.CreateOrLoadAccount(farmer, job.reservation.CustomerTid)
 				if err != nil {
 					job.responseChan <- reservationRegisterJobResponse{
 						err: err,
@@ -102,7 +88,7 @@ func (e *Escrow) Run(ctx context.Context) error {
 				}
 				details = append(details, types.EscrowDetail{
 					FarmerID:      schema.ID(farmer),
-					EscrowAddress: types.Address{UnlockHash: uh},
+					EscrowAddress: address,
 					TotalAmount:   value,
 				})
 			}
@@ -124,6 +110,30 @@ func (e *Escrow) Run(ctx context.Context) error {
 	}
 }
 
+// CreateOrLoadAccount creates or loads account based on farmer - customer id
+func (e *Escrow) CreateOrLoadAccount(farmerID int64, customerTID int64) (string, error) {
+	res, err := types.Get(context.Background(), e.db, farmerID, customerTID)
+	if err != nil {
+		if err == types.ErrAddressNotFound {
+			addr, err := e.wallet.CreateAccount()
+			if err != nil {
+				return "", errors.Wrap(err, "failed to create a new address for farmer - customer")
+			}
+			err = types.FarmerCustomerAddressCreate(context.Background(), e.db, types.FarmerCustomerAddress{
+				CustomerTID: customerTID,
+				Address:     addr,
+				FarmerID:    farmerID,
+			})
+			if err != nil {
+				return "", errors.Wrap(err, "failed to save a new address for farmer - customer")
+			}
+			return addr, nil
+		}
+		return "", errors.Wrap(err, "failed to get farmer - customer address")
+	}
+	return res.Address, nil
+}
+
 // RegisterReservation registers a workload reservation
 func (e *Escrow) RegisterReservation(reservation workloads.TfgridWorkloadsReservation1) ([]types.EscrowDetail, error) {
 	job := reservationRegisterJob{
@@ -138,8 +148,8 @@ func (e *Escrow) RegisterReservation(reservation workloads.TfgridWorkloadsReserv
 }
 
 // CalculateReservationCost calculates the cost of reservation based on a resource per farmer map
-func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int64]types.Currency, error) {
-	costPerFarmerMap := make(map[int64]types.Currency)
+func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int64]xdr.Int64, error) {
+	costPerFarmerMap := make(map[int64]xdr.Int64)
 	for id, rsu := range rsuPerFarmerMap {
 		farm, err := e.farmAPI.GetByID(context.Background(), e.db, id)
 		if err != nil {
@@ -150,30 +160,30 @@ func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 			return nil, fmt.Errorf("farm with id: %d does not have price setup", id)
 		}
 		price := farm.ResourcePrices[0]
-		cost := types.Currency{}
+		var cost xdr.Int64
 
-		cc := rivclient.NewCurrencyConvertor(rivtypes.DefaultCurrencyUnits(), "TFT")
-		cruPriceCoin, err := cc.ParseCoinString(strconv.FormatFloat(price.Cru, 'f', 9, 64))
+		cruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Cru, 'f', 7, 64))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse cru price")
 		}
-		sruPriceCoin, err := cc.ParseCoinString(strconv.FormatFloat(price.Sru, 'f', 9, 64))
+
+		sruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Sru, 'f', 7, 64))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse sru price")
 		}
-		hruPriceCoin, err := cc.ParseCoinString(strconv.FormatFloat(price.Hru, 'f', 9, 64))
+		hruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Hru, 'f', 7, 64))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse hru price")
 		}
-		mruPriceCoin, err := cc.ParseCoinString(strconv.FormatFloat(price.Mru, 'f', 9, 64))
+		mruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Mru, 'f', 7, 64))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse mru price")
 		}
 
-		cost = types.Currency{Currency: cost.Add(cruPriceCoin.Mul64(uint64(rsu.cru)))}
-		cost = types.Currency{Currency: cost.Add(sruPriceCoin.Mul64(uint64(rsu.sru)))}
-		cost = types.Currency{Currency: cost.Add(hruPriceCoin.Mul64(uint64(rsu.hru)))}
-		cost = types.Currency{Currency: cost.Add(mruPriceCoin.Mul64(uint64(rsu.mru)))}
+		cost += cost + (cruPriceCoin * (xdr.Int64(rsu.cru)))
+		cost += cost + (sruPriceCoin * (xdr.Int64(rsu.sru)))
+		cost += cost + (hruPriceCoin * (xdr.Int64(rsu.hru)))
+		cost += cost + (mruPriceCoin * (xdr.Int64(rsu.mru)))
 
 		costPerFarmerMap[id] = cost
 	}

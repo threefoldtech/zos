@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	rivtypes "github.com/threefoldtech/rivine/types"
+	"github.com/stellar/go/xdr"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,22 +31,17 @@ func Setup(ctx context.Context, db *mongo.Database) error {
 
 // AddTestReservation helper method to inser a reservation for testing purposes
 func AddTestReservation(ctx context.Context, db *mongo.Database) error {
-	uh := rivtypes.UnlockHash{}
-	err := uh.LoadString("018a65b9dc7b3e769a3fee8c06d04bbee6d77c94b29bd735e4eb5d81813886bb885fd9c9fa23e4")
-	if err != nil {
-		return err
-	}
 	info := ReservationPaymentInformation{
 		ReservationID: 1,
 		Expiration:    schema.Date{Time: time.Now().Add(time.Hour * 6)},
 		Paid:          false,
 		Infos: []EscrowDetail{{
 			FarmerID:      schema.ID(5),
-			EscrowAddress: Address{uh},
-			TotalAmount:   Currency{rivtypes.NewCurrency64(500004)},
+			EscrowAddress: "GC27XOVPTZO4QB2VKKHQEMBDWHFSQT3JM4GH4LTQCIXAPK3IYXVCFOFI",
+			TotalAmount:   xdr.Int64(500004),
 		}},
 	}
-	err = ReservationPaymentInfoCreate(ctx, db, info)
+	err := ReservationPaymentInfoCreate(ctx, db, info)
 	if err != nil {
 		return err
 	}

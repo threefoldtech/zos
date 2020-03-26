@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	rivclient "github.com/threefoldtech/rivine/pkg/client"
-	rivtypes "github.com/threefoldtech/rivine/types"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -181,12 +179,11 @@ func cmdsProvision(c *cli.Context) error {
 	fmt.Printf("Reservation for %v send to node bcdb\n", duration)
 	fmt.Printf("Resource: /reservations/%v\n", response.ID)
 	fmt.Println()
-	cc := rivclient.NewCurrencyConvertor(rivtypes.DefaultCurrencyUnits(), "TFT")
 
 	for _, detail := range response.EscrowInformation {
 		fmt.Printf("FarmerID: %v\n", detail.FarmerID)
-		fmt.Printf("Escrow address: %s\n", detail.EscrowAddress.String())
-		fmt.Printf("Amount: %s\n", cc.ToCoinStringWithUnit(detail.TotalAmount.Currency))
+		fmt.Printf("Escrow address: %s\n", detail.EscrowAddress)
+		fmt.Printf("Amount: %d\n", detail.TotalAmount)
 	}
 
 	return nil

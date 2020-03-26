@@ -19,7 +19,7 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/tfchain"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/stellar"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
 )
 
@@ -53,12 +53,12 @@ func main() {
 
 	router.Use(db.Middleware)
 
-	wallet, err := tfchain.NewWalletFromMnemonic(seed, 0, network)
+	wallet, err := stellar.New(seed, network)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to import wallet")
+		log.Fatal().Err(err).Msg("failed to create stellar wallet")
 	}
 
-	escrow, err := escrow.New(*wallet, db.Database())
+	escrow, err := escrow.New(wallet, db.Database())
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create escrow")
 	}
