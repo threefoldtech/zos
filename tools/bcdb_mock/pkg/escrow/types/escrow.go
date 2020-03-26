@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stellar/go/xdr"
 
-	rivtypes "github.com/threefoldtech/rivine/types"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -40,16 +39,6 @@ type (
 		FarmerID      schema.ID `bson:"farmer_id" json:"farmer_id"`
 		TotalAmount   xdr.Int64 `bson:"total_amount" json:"total_amount"`
 		EscrowAddress string    `bson:"escrow_address" json:"escrow_address"`
-	}
-
-	// Currency is an amount of tokens
-	Currency struct {
-		rivtypes.Currency
-	}
-
-	// Address is an on chain address
-	Address struct {
-		rivtypes.UnlockHash
 	}
 )
 
