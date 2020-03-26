@@ -13,6 +13,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/flist"
 	"github.com/threefoldtech/zos/pkg/geoip"
+	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/upgrade"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
@@ -455,8 +456,11 @@ func bcdbClient() (client.Directory, error) {
 func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location) error {
 	log.Info().Str("version", version).Msg("start registration of the node")
 
+	v1ID, _ := network.NodeIDv1()
+
 	err := store.NodeRegister(directory.Node{
 		NodeId:    nodeID.Identity(),
+		NodeIdV1:  v1ID,
 		FarmId:    int64(farmID),
 		OsVersion: version,
 		Location: directory.Location{
