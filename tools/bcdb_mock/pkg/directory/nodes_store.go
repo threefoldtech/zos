@@ -145,7 +145,7 @@ func (s *NodeAPI) updateTotalCapacity(ctx context.Context, db *mongo.Database, n
 }
 
 func (s *NodeAPI) updateReservedCapacity(ctx context.Context, db *mongo.Database, nodeID string, capacity generated.ResourceAmount) error {
-	return directory.NodeUpdateUsedResources(ctx, db, nodeID, capacity)
+	return directory.NodeUpdateReservedResources(ctx, db, nodeID, capacity)
 }
 
 func (s *NodeAPI) updateUptime(ctx context.Context, db *mongo.Database, nodeID string, uptime int64) error {
