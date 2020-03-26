@@ -42,7 +42,7 @@ require (
 	github.com/go-redis/redis v6.15.5+incompatible
 	github.com/gogo/googleapis v1.3.0 // indirect
 	github.com/golang/protobuf v1.3.3 // indirect
-	github.com/gomodule/redigo v1.7.0
+	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
@@ -60,7 +60,8 @@ require (
 	github.com/rs/zerolog v1.18.0
 	github.com/shirou/gopsutil v2.19.11+incompatible
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stellar/go v0.0.0-20200325172527-9cabbc6b9388
+	github.com/stretchr/testify v1.5.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
 	github.com/threefoldfoundation/tfchain v1.2.1
