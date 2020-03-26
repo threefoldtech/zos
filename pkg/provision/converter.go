@@ -157,7 +157,7 @@ func WireguardToProvisionType(p workloads.TfgridWorkloadsWireguardPeer1) (pkg.Pe
 	}
 
 	for i, ip := range p.AllowedIprange {
-		peer.AllowedIPs[i] = types.IPNet{ip.IPNet}
+		peer.AllowedIPs[i] = types.IPNet{IPNet: ip.IPNet}
 	}
 	return peer, nil
 }
