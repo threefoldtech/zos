@@ -14,7 +14,6 @@ import (
 
 // ContainerToProvisionType converts TfgridReservationContainer1 to Container
 func ContainerToProvisionType(c workloads.Container) (Container, string, error) {
-
 	container := Container{
 		FList:        c.Flist,
 		FlistStorage: c.HubUrl,
@@ -24,6 +23,10 @@ func ContainerToProvisionType(c workloads.Container) (Container, string, error) 
 		Interactive:  c.Interactive,
 		Mounts:       make([]Mount, len(c.Volumes)),
 		Logs:         make([]logger.Logs, len(c.Logs)),
+		Capacity: ContainerCapacity{
+			CPU:    uint(c.Capacity.Cpu),
+			Memory: uint64(c.Capacity.Memory),
+		},
 	}
 
 	if len(c.NetworkConnection) > 0 {

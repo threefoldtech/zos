@@ -24,6 +24,7 @@ stats_aggregator = (LO) !tfgrid.workloads.reservation.statsaggregator.1
 #id of threebot who is the farmer
 farmer_tid = (I)
 logs = (LO) !tfgrid.workloads.reservation.container.logs.1
+capacity = (O) !tfgrid.workloads.reservation.container.capacity.1
 
 
 @url = tfgrid.workloads.reservation.container.mount.1
@@ -42,3 +43,9 @@ data = (LO) !tfgrid.workloads.reservation.container.logsredis.1
 @url = tfgrid.workloads.reservation.container.logsredis.1
 stdout = (S)
 stderr = (S)
+
+@url = tfgrid.workloads.reservation.container.capacity.1
+# Number of vCPU
+cpu = (I)
+# memory in MiB
+memory = (I)

@@ -95,6 +95,12 @@ type Container struct {
 	StatsAggregator   []StatsAggregator   `bson:"stats_aggregator" json:"stats_aggregator"`
 	Logs              []Logs              `bson:"logs" json:"logs"`
 	FarmerTid         int64               `bson:"farmer_tid" json:"farmer_tid"`
+	Capacity          ContainerCapacity   `bson:"capcity" json:"capacity"`
+}
+
+type ContainerCapacity struct {
+	Cpu    int64 `bson:"cpu" json:"cpu"`
+	Memory int64 `bson:"memory" json:"memory"`
 }
 
 type Logs struct {
