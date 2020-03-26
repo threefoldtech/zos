@@ -44,6 +44,7 @@ func (s *FarmAPI) registerFarm(r *http.Request) (interface{}, mw.Response) {
 }
 
 func (s *FarmAPI) listFarm(r *http.Request) (interface{}, mw.Response) {
+	name := r.URL.Query().Get("name")
 	db := mw.Database(r)
 
 	tid, err := parseOwnerID(r)
@@ -52,7 +53,7 @@ func (s *FarmAPI) listFarm(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	pager := models.PageFromRequest(r)
-	farms, total, err := s.List(r.Context(), db, tid, pager)
+	farms, total, err := s.List(r.Context(), db, tid, name, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}

@@ -16,12 +16,16 @@ type FarmAPI struct{}
 
 // List farms
 // TODO: add paging arguments
-func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, tid int64, opts ...*options.FindOptions) ([]directory.Farm, int64, error) {
+func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, tid int64, name string, opts ...*options.FindOptions) ([]directory.Farm, int64, error) {
 	var filter directory.FarmFilter
 
 	if tid != 0 {
 		log.Info().Msgf("with owner id %d", tid)
 		filter = filter.WithOwner(tid)
+	}
+	if len(name) != 0 {
+		log.Info().Msgf("with name %s", name)
+		filter = filter.WithName(name)
 	}
 
 	cur, err := filter.Find(ctx, db, opts...)

@@ -65,6 +65,14 @@ func (f ReservationFilter) WithNextAction(action generated.NextActionEnum) Reser
 	})
 }
 
+// WithCustomerTid filter reservation on customer
+func (f ReservationFilter) WithCustomerTid(customerTid int) ReservationFilter {
+	return append(f, bson.E{
+		Key: "customer_tid", Value: customerTid,
+	})
+
+}
+
 // WithNodeID searsch reservations with NodeID
 func (f ReservationFilter) WithNodeID(id string) ReservationFilter {
 	//data_reservation.{containers, volumes, zdbs, networks, kubernetes}.node_id

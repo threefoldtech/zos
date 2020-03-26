@@ -126,6 +126,16 @@ func (a *API) get(r *http.Request) (interface{}, mw.Response) {
 
 func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 	var filter types.ReservationFilter
+	sCustomerTid := r.URL.Query().Get("customer_tid")
+	sNextAction := r.URL.Query().Get("next_action")
+	custeromTid, err := strconv.Atoi(sCustomerTid)
+	if err == nil {
+		filter = filter.WithCustomerTid(custeromTid)
+	}
+	nextAction, err := strconv.Atoi(sNextAction)
+	if err == nil {
+		filter = filter.WithNextAction(generated.TfgridWorkloadsReservation1NextActionEnum(nextAction))
+	}
 
 	db := mw.Database(r)
 	pager := models.PageFromRequest(r)
