@@ -52,12 +52,12 @@ func (s *FarmAPI) listFarm(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	pager := models.PageFromRequest(r)
-	farms, total, err := s.List(r.Context(), db, tid)
+	farms, total, err := s.List(r.Context(), db, tid, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
 
-	pages := fmt.Sprintf("%d", models.NrPages(total, *pager.Limit))
+	pages := fmt.Sprintf("%d", models.Pages(pager, total))
 	return farms, mw.Ok().WithHeader("Pages", pages)
 }
 
@@ -69,7 +69,7 @@ func parseOwnerID(r *http.Request) (tid int64, err error) {
 			return tid, fmt.Errorf("owner should be a integer")
 		}
 	}
-	log.Info().Msgf("owner id %d", tid)
+	log.Debug().Msgf("owner id %d", tid)
 	return tid, err
 }
 
