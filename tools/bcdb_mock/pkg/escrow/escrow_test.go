@@ -200,8 +200,8 @@ func TestCalculateReservationCost(t *testing.T) {
 	}
 
 	assert.True(t, len(res) == 2)
-	assert.Equal(t, types.Currency{rivtypes.NewCurrency64(15125 * precision)}, res[1])
-	assert.Equal(t, types.Currency{rivtypes.NewCurrency64(26650 * precision)}, res[3])
+	assert.Equal(t, types.Currency{Currency: rivtypes.NewCurrency64(15125 * precision)}, res[1])
+	assert.Equal(t, types.Currency{Currency: rivtypes.NewCurrency64(26650 * precision)}, res[3])
 }
 
 func TestCalculateReservationCostForUnknownFarmer(t *testing.T) {

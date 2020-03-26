@@ -31,6 +31,7 @@ type API struct {
 	escrow *escrow.Escrow
 }
 
+// ReservationCreateResponse wraps reservation create response
 type ReservationCreateResponse struct {
 	ID                schema.ID                  `json:"id"`
 	EscrowInformation []escrowtypes.EscrowDetail `json:"escrow_information"`
