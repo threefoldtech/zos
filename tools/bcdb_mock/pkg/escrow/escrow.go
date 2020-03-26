@@ -147,7 +147,7 @@ func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 		}
 		// why is this a list ?!
 		if len(farm.ResourcePrices) == 0 {
-			return nil, fmt.Errorf("Farm with id: %d does not have price setup", id)
+			return nil, fmt.Errorf("farm with id: %d does not have price setup", id)
 		}
 		price := farm.ResourcePrices[0]
 		cost := types.Currency{}
