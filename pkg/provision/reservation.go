@@ -272,8 +272,10 @@ func containerReservation(i interface{}, nodeID string) workloads.Container {
 				PublicIp6: c.Network.PublicIP6,
 			},
 		},
-		// StatsAggregator:   c.StatsAggregator,
-		// FarmerTid:         c.FarmerTid,
+		Capacity: workloads.ContainerCapacity{
+			Cpu:    int64(c.Capacity.CPU),
+			Memory: int64(c.Capacity.Memory),
+		},
 	}
 
 	for i, v := range c.Mounts {
