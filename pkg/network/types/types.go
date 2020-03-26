@@ -29,6 +29,7 @@ type IfaceInfo struct {
 	MacAddress schema.MacAddress `json:"macaddress"`
 }
 
+// NewIfaceInfoFromSchema creates an IfaceInfo from schema type
 func NewIfaceInfoFromSchema(iface directory.TfgridDirectoryNodeIface1) IfaceInfo {
 	return IfaceInfo{
 		Name: iface.Name,
@@ -64,6 +65,7 @@ func (i *IfaceInfo) DefaultIP() (net.IP, error) {
 	return nil, fmt.Errorf("no ipv6 address with default gateway")
 }
 
+// ToSchema converts IfaceInfo to a schema type
 func (i *IfaceInfo) ToSchema() directory.TfgridDirectoryNodeIface1 {
 	return directory.TfgridDirectoryNodeIface1{
 		Name: i.Name,
@@ -97,6 +99,7 @@ type PubIface struct {
 	Version int `json:"version"`
 }
 
+// ToSchema converts PubIface to schema type
 func (p *PubIface) ToSchema() directory.TfgridDirectoryNodePublicIface1 {
 	var typ directory.TfgridDirectoryNodePublicIface1TypeEnum
 	switch p.Type {

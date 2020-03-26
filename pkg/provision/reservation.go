@@ -148,7 +148,7 @@ func (r *Reservation) validate() error {
 	return nil
 }
 
-// ReservationToSchemaType creates a TfgridReservation1 from zos provision types
+// ToSchemaType creates a TfgridReservation1 from zos provision types
 func (r *Reservation) ToSchemaType() (res workloads.TfgridWorkloadsReservation1, err error) {
 
 	w, err := workloadFromRaw(r.Data, r.Type)
