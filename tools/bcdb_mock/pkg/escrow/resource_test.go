@@ -7,8 +7,8 @@ import (
 )
 
 func TestProcessReservation(t *testing.T) {
-	data := workloads.TfgridWorkloadsReservationData1{
-		Containers: []workloads.TfgridWorkloadsReservationContainer1{
+	data := workloads.ReservationData{
+		Containers: []workloads.Container{
 			{
 				NodeId: "1",
 				// TODO when capacity field is added
@@ -34,51 +34,51 @@ func TestProcessReservation(t *testing.T) {
 				// TODO when capacity field is added
 			},
 		},
-		Volumes: []workloads.TfgridWorkloadsReservationVolume1{
+		Volumes: []workloads.Volume{
 			{
 				NodeId: "1",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   500,
 			},
 			{
 				NodeId: "1",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   500,
 			},
 			{
 				NodeId: "2",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeSSD,
+				Type:   workloads.VolumeTypeSSD,
 				Size:   100,
 			},
 			{
 				NodeId: "2",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   2500,
 			},
 			{
 				NodeId: "3",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   1000,
 			},
 		},
-		Zdbs: []workloads.TfgridWorkloadsReservationZdb1{
+		Zdbs: []workloads.ZDB{
 			{
 				NodeId:   "1",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				DiskType: workloads.DiskTypeSSD,
 				Size:     750,
 			},
 			{
 				NodeId:   "3",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				DiskType: workloads.DiskTypeSSD,
 				Size:     250,
 			},
 			{
 				NodeId:   "3",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
+				DiskType: workloads.DiskTypeHDD,
 				Size:     500,
 			},
 		},
-		Kubernetes: []workloads.TfgridWorkloadsReservationK8S1{
+		Kubernetes: []workloads.K8S{
 			{
 				NodeId: "1",
 				Size:   1,
@@ -169,9 +169,9 @@ func TestProcessContainer(t *testing.T) {
 func TestProcessVolume(t *testing.T) {
 	testSize := int64(27) // can be random number
 
-	vol := workloads.TfgridWorkloadsReservationVolume1{
+	vol := workloads.Volume{
 		Size: testSize,
-		Type: workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+		Type: workloads.VolumeTypeHDD,
 	}
 	rsu := processVolume(vol)
 
@@ -188,9 +188,9 @@ func TestProcessVolume(t *testing.T) {
 		t.Errorf("Processed volume hru is %d, expected %d", rsu.hru, testSize)
 	}
 
-	vol = workloads.TfgridWorkloadsReservationVolume1{
+	vol = workloads.Volume{
 		Size: testSize,
-		Type: workloads.TfgridWorkloadsReservationVolume1TypeSSD,
+		Type: workloads.VolumeTypeSSD,
 	}
 	rsu = processVolume(vol)
 
@@ -211,8 +211,8 @@ func TestProcessVolume(t *testing.T) {
 func TestProcessZdb(t *testing.T) {
 	testSize := int64(43) // can be random number
 
-	zdb := workloads.TfgridWorkloadsReservationZdb1{
-		DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
+	zdb := workloads.ZDB{
+		DiskType: workloads.DiskTypeHDD,
 		Size:     testSize,
 	}
 	rsu := processZdb(zdb)
@@ -230,8 +230,8 @@ func TestProcessZdb(t *testing.T) {
 		t.Errorf("Processed zdb hru is %d, expected %d", rsu.hru, testSize)
 	}
 
-	zdb = workloads.TfgridWorkloadsReservationZdb1{
-		DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+	zdb = workloads.ZDB{
+		DiskType: workloads.DiskTypeSSD,
 		Size:     testSize,
 	}
 	rsu = processZdb(zdb)
@@ -251,7 +251,7 @@ func TestProcessZdb(t *testing.T) {
 }
 
 func TestProcessKubernetes(t *testing.T) {
-	k8s := workloads.TfgridWorkloadsReservationK8S1{
+	k8s := workloads.K8S{
 		Size: 1,
 	}
 	rsu := processKubernetes(k8s)
@@ -269,7 +269,7 @@ func TestProcessKubernetes(t *testing.T) {
 		t.Errorf("Processed zdb hru is %d, expected 0", rsu.hru)
 	}
 
-	k8s = workloads.TfgridWorkloadsReservationK8S1{
+	k8s = workloads.K8S{
 		Size: 2,
 	}
 	rsu = processKubernetes(k8s)

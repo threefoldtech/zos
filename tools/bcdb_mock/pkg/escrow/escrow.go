@@ -32,7 +32,7 @@ type (
 	}
 
 	reservationRegisterJob struct {
-		reservation  workloads.TfgridWorkloadsReservation1
+		reservation  workloads.Reservation
 		responseChan chan reservationRegisterJobResponse
 	}
 
@@ -135,7 +135,7 @@ func (e *Escrow) CreateOrLoadAccount(farmerID int64, customerTID int64) (string,
 }
 
 // RegisterReservation registers a workload reservation
-func (e *Escrow) RegisterReservation(reservation workloads.TfgridWorkloadsReservation1) ([]types.EscrowDetail, error) {
+func (e *Escrow) RegisterReservation(reservation workloads.Reservation) ([]types.EscrowDetail, error) {
 	job := reservationRegisterJob{
 		reservation:  reservation,
 		responseChan: make(chan reservationRegisterJobResponse),

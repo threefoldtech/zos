@@ -42,13 +42,13 @@ const precision = 1e7
 // Creates a farm and assigns some values which in some cases might be falsy in order to test the logic
 func (api farmAPIMock) GetByID(ctx context.Context, db *mongo.Database, id int64) (directorytypes.Farm, error) {
 	farm := directorytypes.Farm{}
-	rsuPrices := []directory.TfgridDirectoryNodeResourcePrice1{{
+	rsuPrices := []directory.NodeResourcePrice{{
 		Cru:      5,
 		Sru:      10,
 		Hru:      5,
 		Mru:      10,
 		Nru:      0,
-		Currency: directory.TfgridDirectoryNodeResourcePrice1CurrencyTFT,
+		Currency: directory.PriceCurrencyTFT,
 	}}
 	farm.ThreebotId = 12
 	farm.ID = schema.ID(id)
@@ -84,8 +84,8 @@ func (api farmAPIMock) GetByID(ctx context.Context, db *mongo.Database, id int64
 }
 
 func TestCalculateReservationCost(t *testing.T) {
-	data := workloads.TfgridWorkloadsReservationData1{
-		Containers: []workloads.TfgridWorkloadsReservationContainer1{
+	data := workloads.ReservationData{
+		Containers: []workloads.Container{
 			{
 				NodeId: "1",
 				// TODO when capacity field is added
@@ -111,51 +111,51 @@ func TestCalculateReservationCost(t *testing.T) {
 				// TODO when capacity field is added
 			},
 		},
-		Volumes: []workloads.TfgridWorkloadsReservationVolume1{
+		Volumes: []workloads.Volume{
 			{
 				NodeId: "1",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   500,
 			},
 			{
 				NodeId: "1",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   500,
 			},
 			{
 				NodeId: "3",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeSSD,
+				Type:   workloads.VolumeTypeSSD,
 				Size:   100,
 			},
 			{
 				NodeId: "3",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   2500,
 			},
 			{
 				NodeId: "3",
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   1000,
 			},
 		},
-		Zdbs: []workloads.TfgridWorkloadsReservationZdb1{
+		Zdbs: []workloads.ZDB{
 			{
 				NodeId:   "1",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				DiskType: workloads.DiskTypeSSD,
 				Size:     750,
 			},
 			{
 				NodeId:   "3",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				DiskType: workloads.DiskTypeSSD,
 				Size:     250,
 			},
 			{
 				NodeId:   "3",
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd,
+				DiskType: workloads.DiskTypeHDD,
 				Size:     500,
 			},
 		},
-		Kubernetes: []workloads.TfgridWorkloadsReservationK8S1{
+		Kubernetes: []workloads.K8S{
 			{
 				NodeId: "1",
 				Size:   1,
@@ -317,29 +317,29 @@ func TestCalculateReservationCostForFarmerWithFalsyMruPrice(t *testing.T) {
 	}
 }
 
-func makeMockReservationData(id string) workloads.TfgridWorkloadsReservationData1 {
-	return workloads.TfgridWorkloadsReservationData1{
-		Containers: []workloads.TfgridWorkloadsReservationContainer1{
+func makeMockReservationData(id string) workloads.ReservationData {
+	return workloads.ReservationData{
+		Containers: []workloads.Container{
 			{
 				NodeId: id,
 				// TODO when capacity field is added
 			},
 		},
-		Volumes: []workloads.TfgridWorkloadsReservationVolume1{
+		Volumes: []workloads.Volume{
 			{
 				NodeId: id,
-				Type:   workloads.TfgridWorkloadsReservationVolume1TypeHDD,
+				Type:   workloads.VolumeTypeHDD,
 				Size:   500,
 			},
 		},
-		Zdbs: []workloads.TfgridWorkloadsReservationZdb1{
+		Zdbs: []workloads.ZDB{
 			{
 				NodeId:   id,
-				DiskType: workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd,
+				DiskType: workloads.DiskTypeSSD,
 				Size:     750,
 			},
 		},
-		Kubernetes: []workloads.TfgridWorkloadsReservationK8S1{
+		Kubernetes: []workloads.K8S{
 			{
 				NodeId: id,
 				Size:   1,

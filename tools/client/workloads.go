@@ -8,14 +8,15 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
+	wrklds "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
 )
 
 type httpWorkloads struct {
 	*httpClient
 }
 
-func (w *httpWorkloads) Create(reservation workloads.Reservation) (id schema.ID, err error) {
-	err = w.post(w.url("reservations"), reservation, &id, http.StatusCreated)
+func (w *httpWorkloads) Create(reservation workloads.Reservation) (resp wrklds.ReservationCreateResponse, err error) {
+	err = w.post(w.url("reservations"), reservation, &resp, http.StatusCreated)
 	return
 }
 

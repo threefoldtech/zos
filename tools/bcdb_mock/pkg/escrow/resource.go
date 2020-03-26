@@ -35,7 +35,7 @@ func (db *dbNodeSource) getNode(nodeID string) (types.Node, error) {
 	return types.NodeFilter{}.WithNodeID(nodeID).Get(db.ctx, db.db, false)
 }
 
-func processReservation(resData workloads.TfgridWorkloadsReservationData1, ns nodeSource) (rsuPerFarmer, error) {
+func processReservation(resData workloads.ReservationData, ns nodeSource) (rsuPerFarmer, error) {
 	rsuPerNodeMap := make(rsuPerNode)
 	for _, cont := range resData.Containers {
 		rsuPerNodeMap[cont.NodeId] = rsuPerNodeMap[cont.NodeId].add(processContainer(cont))
@@ -61,18 +61,18 @@ func processReservation(resData workloads.TfgridWorkloadsReservationData1, ns no
 	return rsuPerFarmerMap, nil
 }
 
-func processContainer(cont workloads.TfgridWorkloadsReservationContainer1) rsu {
-	// TODO implement after capcity field is added on TfgridWorkloadsReservationContainer1
+func processContainer(cont workloads.Container) rsu {
+	// TODO implement after capcity field is added on Container
 	return rsu{}
 }
 
-func processVolume(vol workloads.TfgridWorkloadsReservationVolume1) rsu {
+func processVolume(vol workloads.Volume) rsu {
 	switch vol.Type {
-	case workloads.TfgridWorkloadsReservationVolume1TypeHDD:
+	case workloads.VolumeTypeHDD:
 		return rsu{
 			hru: vol.Size,
 		}
-	case workloads.TfgridWorkloadsReservationVolume1TypeSSD:
+	case workloads.VolumeTypeSSD:
 		return rsu{
 			sru: vol.Size,
 		}
@@ -80,13 +80,13 @@ func processVolume(vol workloads.TfgridWorkloadsReservationVolume1) rsu {
 	return rsu{}
 }
 
-func processZdb(zdb workloads.TfgridWorkloadsReservationZdb1) rsu {
+func processZdb(zdb workloads.ZDB) rsu {
 	switch zdb.DiskType {
-	case workloads.TfgridWorkloadsReservationZdb1DiskTypeHdd:
+	case workloads.DiskTypeHDD:
 		return rsu{
 			hru: zdb.Size,
 		}
-	case workloads.TfgridWorkloadsReservationZdb1DiskTypeSsd:
+	case workloads.DiskTypeSSD:
 		return rsu{
 			sru: zdb.Size,
 		}
@@ -95,7 +95,7 @@ func processZdb(zdb workloads.TfgridWorkloadsReservationZdb1) rsu {
 
 }
 
-func processKubernetes(k8s workloads.TfgridWorkloadsReservationK8S1) rsu {
+func processKubernetes(k8s workloads.K8S) rsu {
 	switch k8s.Size {
 	case 1:
 		return rsu{

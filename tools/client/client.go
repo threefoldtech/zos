@@ -10,6 +10,7 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/phonebook"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
+	wrklds "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
 )
 
 // Client structure
@@ -58,7 +59,7 @@ type Phonebook interface {
 
 // Workloads interface
 type Workloads interface {
-	Create(reservation workloads.Reservation) (id schema.ID, err error)
+	Create(reservation workloads.Reservation) (resp wrklds.ReservationCreateResponse, err error)
 	List(page *Pager) (reservation []workloads.Reservation, err error)
 	Get(id schema.ID) (reservation workloads.Reservation, err error)
 

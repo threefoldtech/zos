@@ -96,7 +96,7 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	escrowDetails, err := a.escrow.RegisterReservation(generated.TfgridWorkloadsReservation1(reservation))
+	escrowDetails, err := a.escrow.RegisterReservation(generated.Reservation(reservation))
 	if err != nil {
 		return nil, mw.Error(err)
 	}
