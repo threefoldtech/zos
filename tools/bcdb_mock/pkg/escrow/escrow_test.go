@@ -7,14 +7,13 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stellar/go/xdr"
 	"github.com/stretchr/testify/assert"
-	rivtypes "github.com/threefoldtech/rivine/types"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	directorytypes "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow/types"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/tfchain"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/stellar"
 
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -37,7 +36,7 @@ func (mns *mockNodeSource) getNode(nodeID string) (directorytypes.Node, error) {
 	}, nil
 }
 
-const precision = 1e9
+const precision = 1e7
 
 // GetByID mock method for testing purposes.
 // Creates a farm and assigns some values which in some cases might be falsy in order to test the logic
@@ -188,7 +187,7 @@ func TestCalculateReservationCost(t *testing.T) {
 	assert.NoError(t, err)
 
 	escrow := Escrow{
-		wallet:             tfchain.Wallet{},
+		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
 		farmAPI:            farmAPIMock{},
@@ -200,8 +199,8 @@ func TestCalculateReservationCost(t *testing.T) {
 	}
 
 	assert.True(t, len(res) == 2)
-	assert.Equal(t, types.Currency{Currency: rivtypes.NewCurrency64(15125 * precision)}, res[1])
-	assert.Equal(t, types.Currency{Currency: rivtypes.NewCurrency64(26650 * precision)}, res[3])
+	assert.Equal(t, xdr.Int64(15125*precision), res[1])
+	assert.Equal(t, xdr.Int64(26650*precision), res[3])
 }
 
 func TestCalculateReservationCostForUnknownFarmer(t *testing.T) {
@@ -211,7 +210,7 @@ func TestCalculateReservationCostForUnknownFarmer(t *testing.T) {
 	assert.NoError(t, err)
 
 	escrow := Escrow{
-		wallet:             tfchain.Wallet{},
+		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
 		farmAPI:            farmAPIMock{},
@@ -230,7 +229,7 @@ func TestCalculateReservationCostForFarmerWithoutPrices(t *testing.T) {
 	assert.NoError(t, err)
 
 	escrow := Escrow{
-		wallet:             tfchain.Wallet{},
+		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
 		farmAPI:            farmAPIMock{},
@@ -249,7 +248,7 @@ func TestCalculateReservationCostForFarmerWithFalsyCruPrice(t *testing.T) {
 	assert.NoError(t, err)
 
 	escrow := Escrow{
-		wallet:             tfchain.Wallet{},
+		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
 		farmAPI:            farmAPIMock{},
@@ -268,7 +267,7 @@ func TestCalculateReservationCostForFarmerWithFalsySruPrice(t *testing.T) {
 	assert.NoError(t, err)
 
 	escrow := Escrow{
-		wallet:             tfchain.Wallet{},
+		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
 		farmAPI:            farmAPIMock{},
@@ -287,7 +286,7 @@ func TestCalculateReservationCostForFarmerWithFalsyHruPrice(t *testing.T) {
 	assert.NoError(t, err)
 
 	escrow := Escrow{
-		wallet:             tfchain.Wallet{},
+		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
 		farmAPI:            farmAPIMock{},
@@ -306,7 +305,7 @@ func TestCalculateReservationCostForFarmerWithFalsyMruPrice(t *testing.T) {
 	assert.NoError(t, err)
 
 	escrow := Escrow{
-		wallet:             tfchain.Wallet{},
+		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
 		farmAPI:            farmAPIMock{},
