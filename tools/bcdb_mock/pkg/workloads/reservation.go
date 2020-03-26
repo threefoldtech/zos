@@ -126,20 +126,14 @@ func (a *API) get(r *http.Request) (interface{}, mw.Response) {
 
 func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 	var filter types.ReservationFilter
-	sCustomerTid := r.URL.Query().Get("customer_tid")
-	sNextAction := r.URL.Query().Get("next_action")
-	custeromTid, err := strconv.Atoi(sCustomerTid)
-	if err == nil {
-		filter = filter.WithCustomerTid(custeromTid)
-	}
-	nextAction, err := strconv.Atoi(sNextAction)
-	if err == nil {
-		filter = filter.WithNextAction(generated.TfgridWorkloadsReservation1NextActionEnum(nextAction))
+	q := types.ReservationQuery{}
+	if err := q.Parse(r); err != nil {
+		return nil, err
 	}
 
 	db := mw.Database(r)
 	pager := models.PageFromRequest(r)
-	cur, err := filter.Find(r.Context(), db, pager)
+	cur, err := filter.Find(r.Context(), db, q, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
@@ -274,6 +268,7 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 		nodeID = mux.Vars(r)["node_id"]
 	)
 
+	q := types.ReservationQuery{}
 	db := mw.Database(r)
 	workloads, err := a.queued(r.Context(), db, nodeID, maxPageSize)
 	if err != nil {
@@ -292,7 +287,7 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 	filter := types.ReservationFilter{}.WithIDGE(from)
 	filter = filter.WithNodeID(nodeID)
 
-	cur, err := filter.Find(r.Context(), db)
+	cur, err := filter.Find(r.Context(), db, q)
 	if err != nil {
 		return nil, mw.Error(err)
 	}

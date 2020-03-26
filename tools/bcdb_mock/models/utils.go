@@ -66,3 +66,12 @@ func Pages(p Pager, total int64) int64 {
 func NrPages(total, pageSize int64) int64 {
 	return int64(math.Ceil(float64(total) / float64(pageSize)))
 }
+
+// QueryInt get integer from query string
+func QueryInt(r *http.Request, q string) (int64, error) {
+	s := r.URL.Query().Get(q)
+	if s != "" {
+		return strconv.ParseInt(s, 10, 64)
+	}
+	return 0, nil
+}

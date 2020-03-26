@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -15,6 +14,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
@@ -39,39 +39,31 @@ type nodeQuery struct {
 
 func (n *nodeQuery) Parse(r *http.Request) mw.Response {
 	var err error
-	n.FarmID, err = queryInt(r, "farm")
+	n.FarmID, err = models.QueryInt(r, "farm")
 	if err != nil {
 		return mw.BadRequest(errors.Wrap(err, "invalid farm id"))
 	}
 	n.Country = r.URL.Query().Get("country")
 	n.City = r.URL.Query().Get("city")
-	n.CRU, err = queryInt(r, "cru")
+	n.CRU, err = models.QueryInt(r, "cru")
 	if err != nil {
 		return mw.BadRequest(errors.Wrap(err, "invalid cru"))
 	}
-	n.MRU, err = queryInt(r, "mru")
+	n.MRU, err = models.QueryInt(r, "mru")
 	if err != nil {
 		return mw.BadRequest(errors.Wrap(err, "invalid mru"))
 	}
-	n.SRU, err = queryInt(r, "sru")
+	n.SRU, err = models.QueryInt(r, "sru")
 	if err != nil {
 		return mw.BadRequest(errors.Wrap(err, "invalid sru"))
 	}
-	n.HRU, err = queryInt(r, "hru")
+	n.HRU, err = models.QueryInt(r, "hru")
 	if err != nil {
 		return mw.BadRequest(errors.Wrap(err, "invalid hru"))
 	}
 	n.Proofs = r.URL.Query().Get("proofs") == "true"
 
 	return nil
-}
-
-func queryInt(r *http.Request, q string) (int64, error) {
-	s := r.URL.Query().Get(q)
-	if s != "" {
-		return strconv.ParseInt(s, 10, 64)
-	}
-	return 0, nil
 }
 
 // List farms

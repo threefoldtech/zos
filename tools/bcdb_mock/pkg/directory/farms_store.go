@@ -3,9 +3,12 @@ package directory
 import (
 	"context"
 
+	"net/http"
+
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -14,18 +17,31 @@ import (
 // FarmAPI holds farm releated handlers
 type FarmAPI struct{}
 
+type farmQuery struct {
+	FarmName string
+	OwnerID  int64
+}
+
+func (f *farmQuery) Parse(r *http.Request) mw.Response {
+	var err error
+	f.OwnerID, err = models.QueryInt(r, "owner")
+	if err != nil {
+		return mw.BadRequest(errors.Wrap(err, "owner should be a integer"))
+	}
+	f.FarmName = r.FormValue("name")
+	return nil
+}
+
 // List farms
 // TODO: add paging arguments
-func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, tid int64, name string, opts ...*options.FindOptions) ([]directory.Farm, int64, error) {
+func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, q farmQuery, opts ...*options.FindOptions) ([]directory.Farm, int64, error) {
 	var filter directory.FarmFilter
 
-	if tid != 0 {
-		log.Info().Msgf("with owner id %d", tid)
-		filter = filter.WithOwner(tid)
+	if q.OwnerID != 0 {
+		filter = filter.WithOwner(q.OwnerID)
 	}
-	if len(name) != 0 {
-		log.Info().Msgf("with name %s", name)
-		filter = filter.WithName(name)
+	if len(q.FarmName) != 0 {
+		filter = filter.WithName(q.FarmName)
 	}
 
 	cur, err := filter.Find(ctx, db, opts...)

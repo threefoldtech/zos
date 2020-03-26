@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -43,6 +45,28 @@ const (
 	Deleted = generated.NextActionDeleted
 )
 
+// ReservationQuery type to parse reservation query string
+type ReservationQuery struct {
+	CustomerID int
+	NextAction int
+}
+
+// Parse parese the query string
+func (rq *ReservationQuery) Parse(r *http.Request) mw.Response {
+	var err error
+	customerid, err := models.QueryInt(r, "customer_tid")
+	if err != nil {
+		return mw.BadRequest(errors.Wrap(err, "customer_tid should be an integer"))
+	}
+	rq.CustomerID = int(customerid)
+	nextaction, err := models.QueryInt(r, "next_action")
+	if err != nil {
+		return mw.BadRequest(errors.Wrap(err, "next_action should be an integer"))
+	}
+	rq.NextAction = int(nextaction)
+	return nil
+}
+
 // ReservationFilter type
 type ReservationFilter bson.D
 
@@ -65,10 +89,10 @@ func (f ReservationFilter) WithNextAction(action generated.NextActionEnum) Reser
 	})
 }
 
-// WithCustomerTid filter reservation on customer
-func (f ReservationFilter) WithCustomerTid(customerTid int) ReservationFilter {
+// WithCustomerID filter reservation on customer
+func (f ReservationFilter) WithCustomerID(customerID int) ReservationFilter {
 	return append(f, bson.E{
-		Key: "customer_tid", Value: customerTid,
+		Key: "customer_tid", Value: customerID,
 	})
 
 }
@@ -116,9 +140,15 @@ func (f ReservationFilter) Get(ctx context.Context, db *mongo.Database) (reserva
 }
 
 // Find all users that matches filter
-func (f ReservationFilter) Find(ctx context.Context, db *mongo.Database, opts ...*options.FindOptions) (*mongo.Cursor, error) {
+func (f ReservationFilter) Find(ctx context.Context, db *mongo.Database, q ReservationQuery, opts ...*options.FindOptions) (*mongo.Cursor, error) {
 	if f == nil {
 		f = ReservationFilter{}
+	}
+	if q.CustomerID > 0 {
+		f = f.WithCustomerID(q.CustomerID)
+	}
+	if q.NextAction > 0 {
+		f = f.WithNextAction(generated.NextActionEnum(q.NextAction))
 	}
 	return db.Collection(ReservationCollection).Find(ctx, f, opts...)
 }
