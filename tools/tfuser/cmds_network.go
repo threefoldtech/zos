@@ -74,7 +74,7 @@ func cmdCreateNetwork(c *cli.Context) error {
 		return err
 	}
 
-	return output(c.GlobalString("schema"), r)
+	return writeWorkload(c.GlobalString("schema"), r)
 }
 
 func cmdsAddNode(c *cli.Context) error {
@@ -163,7 +163,7 @@ func cmdsAddNode(c *cli.Context) error {
 		return err
 	}
 
-	return output(schema, r)
+	return writeWorkload(schema, r)
 }
 
 func cmdsAddAccess(c *cli.Context) error {
@@ -273,7 +273,7 @@ func cmdsAddAccess(c *cli.Context) error {
 		return err
 	}
 
-	return output(schema, r)
+	return writeWorkload(schema, r)
 }
 
 func cmdsRemoveNode(c *cli.Context) error {
@@ -316,7 +316,7 @@ func cmdsRemoveNode(c *cli.Context) error {
 	//	return err
 	// }
 
-	return output(schema, r)
+	return writeWorkload(schema, r)
 }
 
 func loadNetwork(name string) (*Network, error) {
