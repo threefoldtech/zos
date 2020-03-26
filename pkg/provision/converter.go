@@ -8,7 +8,6 @@ import (
 
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
-	generated "github.com/threefoldtech/zos/pkg/gedis/types/provision"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 )
@@ -68,7 +67,7 @@ func ContainerToProvisionType(c workloads.TfgridWorkloadsReservationContainer1) 
 		}
 	}
 
-	return container, c.NodeID, nil
+	return container, c.NodeId, nil
 }
 
 // VolumeToProvisionType converts TfgridReservationVolume1 to Volume
