@@ -18,7 +18,18 @@ func Setup(ctx context.Context, db *mongo.Database) error {
 	escrow := db.Collection(EscrowCollection)
 	_, err := escrow.Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{
-			Keys:    bson.M{"_id": 1},
+			Keys: bson.M{"_id": 1},
+		},
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to initialize reservation payment index")
+		return err
+	}
+
+	addresses := db.Collection(AddressCollection)
+	_, err = addresses.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{
+			Keys:    bson.M{"farmer_id": 1, "customer_tid": 1},
 			Options: options.Index().SetUnique(true),
 		},
 	})
@@ -29,6 +40,7 @@ func Setup(ctx context.Context, db *mongo.Database) error {
 	return err
 }
 
+// TODO: Remove
 // AddTestReservation helper method to inser a reservation for testing purposes
 func AddTestReservation(ctx context.Context, db *mongo.Database) error {
 	info := ReservationPaymentInformation{
