@@ -254,22 +254,14 @@ func networkReservation(i interface{}) workloads.TfgridWorkloadsReservationNetwo
 
 func containerReservation(i interface{}, nodeID string) workloads.TfgridWorkloadsReservationContainer1 {
 
-	env := func(in map[string]string) map[string]interface{} {
-		m := make(map[string]interface{})
-		for k, v := range in {
-			m[k] = v
-		}
-		return m
-	}
-
 	c := i.(Container)
 	container := workloads.TfgridWorkloadsReservationContainer1{
 		NodeId:            nodeID,
 		WorkloadId:        1,
 		Flist:             c.FList,
 		HubUrl:            c.FlistStorage,
-		Environment:       env(c.Env),
-		SecretEnvironment: env(c.SecretEnv),
+		Environment:       c.Env,
+		SecretEnvironment: c.SecretEnv,
 		Entrypoint:        c.Entrypoint,
 		Interactive:       c.Interactive,
 		Volumes:           make([]workloads.TfgridWorkloadsReservationContainerMount1, len(c.Mounts)),

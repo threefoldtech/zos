@@ -86,8 +86,8 @@ type TfgridWorkloadsReservationContainer1 struct {
 	NodeId            string                                         `bson:"node_id" json:"node_id"`
 	Flist             string                                         `bson:"flist" json:"flist"`
 	HubUrl            string                                         `bson:"hub_url" json:"hub_url"`
-	Environment       map[string]interface{}                         `bson:"environment" json:"environment"`
-	SecretEnvironment map[string]interface{}                         `bson:"secret_environment" json:"secret_environment"`
+	Environment       map[string]string                              `bson:"environment" json:"environment"`
+	SecretEnvironment map[string]string                              `bson:"secret_environment" json:"secret_environment"`
 	Entrypoint        string                                         `bson:"entrypoint" json:"entrypoint"`
 	Interactive       bool                                           `bson:"interactive" json:"interactive"`
 	Volumes           []TfgridWorkloadsReservationContainerMount1    `bson:"volumes" json:"volumes"`

@@ -14,18 +14,12 @@ import (
 
 // ContainerToProvisionType converts TfgridReservationContainer1 to Container
 func ContainerToProvisionType(c workloads.TfgridWorkloadsReservationContainer1) (Container, string, error) {
-	env := func(m map[string]interface{}) map[string]string {
-		o := make(map[string]string)
-		for k, v := range m {
-			o[k] = fmt.Sprint(v)
-		}
-		return o
-	}
+
 	container := Container{
 		FList:        c.Flist,
 		FlistStorage: c.HubUrl,
-		Env:          env(c.Environment),
-		SecretEnv:    env(c.SecretEnvironment),
+		Env:          c.Environment,
+		SecretEnv:    c.SecretEnvironment,
 		Entrypoint:   c.Entrypoint,
 		Interactive:  c.Interactive,
 		Mounts:       make([]Mount, len(c.Volumes)),

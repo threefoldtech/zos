@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -74,6 +75,7 @@ func (c *httpClient) process(response *http.Response, output interface{}, expect
 
 	if output == nil {
 		//discard output
+		ioutil.ReadAll(response.Body)
 		return nil
 	}
 
@@ -90,7 +92,7 @@ func (c *httpClient) post(u string, input interface{}, output interface{}, expec
 		return errors.Wrap(err, "failed to serialize request body")
 	}
 
-	response, err := http.Post(u, httpContentType, &buf)
+	response, err := c.cl.Post(u, httpContentType, &buf)
 	if err != nil {
 		return errors.Wrap(err, "failed to send request")
 	}
@@ -107,7 +109,7 @@ func (c *httpClient) put(u string, input interface{}, output interface{}, expect
 	if err != nil {
 		return errors.Wrap(err, "failed to build request")
 	}
-	response, err := http.DefaultClient.Do(req)
+	response, err := c.cl.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "failed to send request")
 	}
@@ -120,7 +122,7 @@ func (c *httpClient) get(u string, query url.Values, output interface{}, expect 
 		u = fmt.Sprintf("%s?%s", u, query.Encode())
 	}
 
-	response, err := http.Get(u)
+	response, err := c.cl.Get(u)
 	if err != nil {
 		return errors.Wrap(err, "failed to send request")
 	}
@@ -136,7 +138,7 @@ func (c *httpClient) delete(u string, query url.Values, output interface{}, expe
 	if err != nil {
 		return errors.Wrap(err, "failed to build request")
 	}
-	response, err := http.DefaultClient.Do(req)
+	response, err := c.cl.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "failed to send request")
 	}

@@ -38,7 +38,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 		NodeID            string
 		Flist             string
 		HubURL            string
-		Environment       map[string]interface{}
+		Environment       map[string]string
 		Entrypoint        string
 		Interactive       bool
 		Volumes           []workloads.TfgridWorkloadsReservationContainerMount1
@@ -58,7 +58,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				NodeID:            "node1",
 				Flist:             "https://hub.grid.tf/tf-official-apps/ubuntu-bionic-build.flist",
 				HubURL:            "zdb://hub.grid.tf:9900",
-				Environment:       map[string]interface{}{"FOO": "BAR"},
+				Environment:       map[string]string{"FOO": "BAR"},
 				Entrypoint:        "/sbin/my_init",
 				Interactive:       false,
 				Volumes:           nil,
@@ -85,7 +85,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				NodeID:      "node1",
 				Flist:       "https://hub.grid.tf/tf-official-apps/ubuntu-bionic-build.flist",
 				HubURL:      "zdb://hub.grid.tf:9900",
-				Environment: map[string]interface{}{"FOO": "BAR"},
+				Environment: map[string]string{"FOO": "BAR"},
 				Entrypoint:  "/sbin/my_init",
 				Interactive: false,
 				Volumes: []workloads.TfgridWorkloadsReservationContainerMount1{
@@ -132,13 +132,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	// convertEnv := func(m map[string]string) map[string]interface{
-	// 	o := make(map[string]interface{})
-	// 	for k, v := range m {
-	// 		o[k] = v
-	// 	}
-	// 	return o
-	// }
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := workloads.TfgridWorkloadsReservationContainer1{
