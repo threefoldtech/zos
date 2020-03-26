@@ -2,12 +2,8 @@ package escrow
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/stellar/go/amount"
-	"github.com/stellar/go/xdr"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
@@ -23,7 +19,8 @@ type (
 		wallet             *stellar.Wallet
 		db                 *mongo.Database
 		reservationChannel chan reservationRegisterJob
-		farmAPI            FarmAPI
+		// TODO: Remove
+		farmAPI FarmAPI
 	}
 
 	// FarmAPI interface
@@ -60,7 +57,7 @@ func (e *Escrow) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case job := <-e.reservationChannel:
-			rsuPerFarmer, err := processReservation(job.reservation.DataReservation, &dbNodeSource{ctx: ctx, db: e.db})
+			rsuPerFarmer, err := e.processReservation(job.reservation.DataReservation, &dbNodeSource{ctx: ctx, db: e.db})
 			if err != nil {
 				job.responseChan <- reservationRegisterJobResponse{
 					err: err,
@@ -68,7 +65,7 @@ func (e *Escrow) Run(ctx context.Context) error {
 				close(job.responseChan)
 				continue
 			}
-			res, err := e.CalculateReservationCost(rsuPerFarmer)
+			res, err := e.calculateReservationCost(rsuPerFarmer)
 			if err != nil {
 				job.responseChan <- reservationRegisterJobResponse{
 					err: err,
@@ -145,61 +142,4 @@ func (e *Escrow) RegisterReservation(reservation workloads.Reservation) ([]types
 	response := <-job.responseChan
 
 	return response.data, response.err
-}
-
-// CalculateReservationCost calculates the cost of reservation based on a resource per farmer map
-func (e *Escrow) CalculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int64]xdr.Int64, error) {
-	costPerFarmerMap := make(map[int64]xdr.Int64)
-	for id, rsu := range rsuPerFarmerMap {
-		farm, err := e.farmAPI.GetByID(context.Background(), e.db, id)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get farm with id: %d", id)
-		}
-		// why is this a list ?!
-		if len(farm.ResourcePrices) == 0 {
-			return nil, fmt.Errorf("farm with id: %d does not have price setup", id)
-		}
-		price := farm.ResourcePrices[0]
-		var cost xdr.Int64
-
-		cruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Cru, 'f', 7, 64))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse cru price")
-		}
-		if cruPriceCoin < 0 {
-			return nil, errors.New("cru price is invalid")
-		}
-
-		sruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Sru, 'f', 7, 64))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse sru price")
-		}
-		if sruPriceCoin < 0 {
-			return nil, errors.New("sru price is invalid")
-		}
-
-		hruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Hru, 'f', 7, 64))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse hru price")
-		}
-		if hruPriceCoin < 0 {
-			return nil, errors.New("hru price is invalid")
-		}
-
-		mruPriceCoin, err := amount.Parse(strconv.FormatFloat(price.Mru, 'f', 7, 64))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse mru price")
-		}
-		if mruPriceCoin < 0 {
-			return nil, errors.New("mru price is invalid")
-		}
-
-		cost += cruPriceCoin * (xdr.Int64(rsu.cru))
-		cost += sruPriceCoin * (xdr.Int64(rsu.sru))
-		cost += hruPriceCoin * (xdr.Int64(rsu.hru))
-		cost += mruPriceCoin * (xdr.Int64(rsu.mru))
-
-		costPerFarmerMap[id] = cost
-	}
-	return costPerFarmerMap, nil
 }
