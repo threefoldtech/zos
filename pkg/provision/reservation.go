@@ -415,6 +415,8 @@ func (r *Result) ToSchemaType() workloads.Result {
 		rType = workloads.ResultCategoryZDB
 	case NetworkReservation:
 		rType = workloads.ResultCategoryNetwork
+	case KubernetesReservation:
+		rType = workloads.ResultCategoryK8S
 	default:
 		panic(fmt.Errorf("unknown reservation type: %s", r.Type))
 	}
