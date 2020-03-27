@@ -155,18 +155,18 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, error) {
 // destination is the refund destination address
 // id is the reservation ID to refund for
 // TODO add a method to fund payment and refunds
-func (w *Wallet) Refund(keypair keypair.Full, destination string, id schema.ID) (txnbuild.Transaction, error) {
+func (w *Wallet) Refund(keypair keypair.Full, destination string, id schema.ID) error {
 	sourceAccount, err := w.getAccountDetails(keypair.Address())
 	if err != nil {
-		return txnbuild.Transaction{}, errors.Wrap(err, "failed to get source account")
+		return errors.Wrap(err, "failed to get source account")
 	}
 	amount, err := w.GetBalance(keypair.Address(), id)
 	if err != nil {
-		return txnbuild.Transaction{}, errors.Wrap(err, "failed to get balance")
+		return errors.Wrap(err, "failed to get balance")
 	}
 	// if no balance for this reservation, do nothing
 	if amount == 0 {
-		return txnbuild.Transaction{}, nil
+		return nil
 	}
 
 	paymentOP := txnbuild.Payment{
@@ -181,29 +181,40 @@ func (w *Wallet) Refund(keypair keypair.Full, destination string, id schema.ID) 
 
 	formattedMemo := fmt.Sprintf("refund %d", id)
 	memo := txnbuild.MemoText(formattedMemo)
-	return txnbuild.Transaction{
+	tx := txnbuild.Transaction{
 		Operations: []txnbuild.Operation{&paymentOP},
 		Timebounds: txnbuild.NewTimeout(300),
 		Network:    w.getNetworkPassPhrase(),
 		Memo:       memo,
-	}, nil
+	}
+
+	fundedTx, err := w.fundTransaction(&tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to fund transaction")
+	}
+
+	err = w.signAndSubmitTx(&keypair, fundedTx)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign and submit transaction")
+	}
+	return nil
 }
 
 // PayoutFarmer using a keypair
 // keypair is account assiociated with farmer - user
 // destination is the farmer destination address
 // id is the reservation ID to pay for
-func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount xdr.Int64, id schema.ID) (txnbuild.Transaction, error) {
+func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount xdr.Int64, id schema.ID) error {
 	sourceAccount, err := w.getAccountDetails(keypair.Address())
 	if err != nil {
-		return txnbuild.Transaction{}, errors.Wrap(err, "failed to get source account")
+		return errors.Wrap(err, "failed to get source account")
 	}
 	balance, err := w.GetBalance(keypair.Address(), id)
 	if err != nil {
-		return txnbuild.Transaction{}, errors.Wrap(err, "failed to get balance")
+		return errors.Wrap(err, "failed to get balance")
 	}
 	if balance < amount {
-		return txnbuild.Transaction{}, ErrInsuficientBalance
+		return ErrInsuficientBalance
 	}
 
 	// 10% cut for the foundation
@@ -216,7 +227,7 @@ func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount x
 		instead of using floating points which might lead to floating point errors
 	*/
 	if amount%10 != 0 {
-		return txnbuild.Transaction{}, errors.New("invalid reservation cost")
+		return errors.New("invalid reservation cost")
 	}
 	foundationCut := amount / 10 * 1
 	amountDue := amount / 10 * 9
@@ -242,17 +253,28 @@ func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount x
 
 	formattedMemo := fmt.Sprintf("refund %d", id)
 	memo := txnbuild.MemoText(formattedMemo)
-	return txnbuild.Transaction{
+	tx := txnbuild.Transaction{
 		Operations: []txnbuild.Operation{&farmerPaymentOP, &foundationPaymentOP},
 		Timebounds: txnbuild.NewTimeout(300),
 		Network:    w.getNetworkPassPhrase(),
 		Memo:       memo,
-	}, nil
+	}
+
+	fundedTx, err := w.fundTransaction(&tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to fund transaction")
+	}
+
+	err = w.signAndSubmitTx(&keypair, fundedTx)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign and submit transaction")
+	}
+	return nil
 }
 
-// FundTransaction funds a transaction with the foundation wallet
+// fundTransaction funds a transaction with the foundation wallet
 // For every operation in the transaction, the fee will be paid by the foundation wallet
-func (w *Wallet) FundTransaction(tx *txnbuild.Transaction) (*txnbuild.Transaction, error) {
+func (w *Wallet) fundTransaction(tx *txnbuild.Transaction) (*txnbuild.Transaction, error) {
 	sourceAccount, err := w.getAccountDetails(w.keypair.Address())
 	if err != nil {
 		return &txnbuild.Transaction{}, errors.Wrap(err, "failed to get source account")
@@ -280,9 +302,9 @@ func (w *Wallet) FundTransaction(tx *txnbuild.Transaction) (*txnbuild.Transactio
 	return tx, nil
 }
 
-// SignTransaction sings of on a transaction with a given keypair
+// signAndSubmitTx sings of on a transaction with a given keypair
 // and submits it to the network
-func (w *Wallet) SignTransaction(keypair *keypair.Full, tx *txnbuild.Transaction) error {
+func (w *Wallet) signAndSubmitTx(keypair *keypair.Full, tx *txnbuild.Transaction) error {
 	client, err := w.getHorizonClient()
 	if err != nil {
 		return errors.Wrap(err, "failed to get horizon client")
