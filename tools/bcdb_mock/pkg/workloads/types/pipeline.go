@@ -133,7 +133,6 @@ func (p *Pipeline) Next() (Reservation, bool) {
 		case generated.NextActionPay:
 			// Pay needs to block, until the escrow moves us past this point
 			log.Debug().Int64("id", int64(p.r.ID)).Msg("ready to deploy")
-			break
 		case generated.NextActionDeploy:
 			//nothing to do
 			log.Debug().Int64("id", int64(p.r.ID)).Msg("let's deploy")

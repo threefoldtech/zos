@@ -127,8 +127,9 @@ func (e *Escrow) Run(ctx context.Context) error {
 						// TODO
 					}
 
+					log.Debug().Msg("all farmer are paid, trying to move to deploy state")
 					// update reservation
-					if err = workloadtypes.ReservationSetNextAction(ctx, e.db, escrowInfo.ReservationID, workloadtypes.Pay); err != nil {
+					if err = workloadtypes.ReservationSetNextAction(ctx, e.db, escrowInfo.ReservationID, workloadtypes.Deploy); err != nil {
 						log.Error().Msgf("failed to set reservation in deploy state: %s", err)
 						continue
 					}
