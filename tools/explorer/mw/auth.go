@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
@@ -16,14 +17,21 @@ import (
 	"github.com/zaibon/httpsig"
 
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type mongoKeyGetter struct {
+// UserKeyGetter implements httpsig.KeyGetter for the users collections
+type UserKeyGetter struct {
 	db *mongo.Database
 }
 
-func (m mongoKeyGetter) GetKey(id string) interface{} {
+// NewUserKeyGetter create a httpsig.KeyGetter that uses the users collection
+// to find the key
+func NewUserKeyGetter(db *mongo.Database) UserKeyGetter {
+	return UserKeyGetter{db: db}
+}
+
+// GetKey implements httpsig.KeyGetter
+func (u UserKeyGetter) GetKey(id string) interface{} {
 	ctx := context.TODO()
 
 	uid, err := strconv.ParseInt(id, 10, 64)
@@ -32,19 +40,10 @@ func (m mongoKeyGetter) GetKey(id string) interface{} {
 	}
 
 	f := types.UserFilter{}
-
 	f = f.WithID(schema.ID(uid))
 
-	col := m.db.Collection(types.UserCollection)
-	result := col.FindOne(ctx, f, options.FindOne())
-
-	err = result.Err()
+	user, err := f.Get(ctx, u.db)
 	if err != nil {
-		return nil
-	}
-
-	user := types.User{}
-	if err = result.Decode(&user); err != nil {
 		return nil
 	}
 
@@ -55,11 +54,27 @@ func (m mongoKeyGetter) GetKey(id string) interface{} {
 	return pk
 }
 
+// NodeKeyGetter implements httpsig.KeyGetter for the nodes collections
+type NodeKeyGetter struct{}
+
+// NewNodeKeyGetter create a httpsig.KeyGetter that uses the nodes collection
+// to find the key
+func NewNodeKeyGetter() NodeKeyGetter {
+	return NodeKeyGetter{}
+}
+
+// GetKey implements httpsig.KeyGetter
+func (m NodeKeyGetter) GetKey(id string) interface{} {
+	// the node ID is its public key base58 encoded, so we just need
+	// to decode it to get the []byte version of the key
+	return base58.Decode(id)
+}
+
 // requiredHeaders are the parameters to be used to generated the http signature
 var requiredHeaders = []string{"(created)", "date", "threebot-id"}
 
-func AuthMiddleware(db *mongo.Database, h http.Handler) http.Handler {
-	kg := mongoKeyGetter{db}
+// AuthMiddleware enable authentication on HTTP handlers
+func AuthMiddleware(db *mongo.Database, h http.Handler, kg httpsig.KeyGetter) http.Handler {
 	verifier := httpsig.NewVerifier(kg)
 	verifier.SetRequiredHeaders(requiredHeaders)
 

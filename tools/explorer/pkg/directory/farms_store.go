@@ -56,3 +56,10 @@ func (s *FarmAPI) GetByID(ctx context.Context, db *mongo.Database, id int64) (di
 func (s *FarmAPI) Add(ctx context.Context, db *mongo.Database, farm directory.Farm) (schema.ID, error) {
 	return directory.FarmCreate(ctx, db, farm)
 }
+
+// Delete deletes a farm by ID
+func (s FarmAPI) Delete(ctx context.Context, db *mongo.Database, id int64) error {
+	var filter directory.FarmFilter
+	filter = filter.WithID(schema.ID(id))
+	return filter.Delete(ctx, db)
+}

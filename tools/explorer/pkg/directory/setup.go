@@ -16,24 +16,31 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 		return err
 	}
 
+	nkg := mw.NewNodeKeyGetter()
+	ukg := mw.NewUserKeyGetter(db)
+
 	var farmAPI FarmAPI
 	farms := parent.PathPrefix("/farms").Subrouter()
-
-	farmsAuthenticated := parent.PathPrefix("/farms").Subrouter()
-	farmsAuthenticated.Use(func(h http.Handler) http.Handler {
-		return mw.AuthMiddleware(db, farmsAuthenticated)
+	farmAuthenticated := parent.PathPrefix("/farms").Subrouter()
+	farmAuthenticated.Use(func(h http.Handler) http.Handler {
+		return mw.AuthMiddleware(db, farmAuthenticated, ukg)
 	})
 
-	farmsAuthenticated.HandleFunc("", mw.AsHandlerFunc(farmAPI.registerFarm)).Methods("POST")
+	farms.HandleFunc("", mw.AsHandlerFunc(farmAPI.registerFarm)).Methods("POST")
 	farms.HandleFunc("", mw.AsHandlerFunc(farmAPI.listFarm)).Methods("GET")
 	farms.HandleFunc("/{farm_id}", mw.AsHandlerFunc(farmAPI.getFarm)).Methods("GET")
+	farmAuthenticated.HandleFunc("/{farm_id}", mw.AsHandlerFunc(farmAPI.delete)).Methods("DELETE")
 
 	var nodeAPI NodeAPI
 	nodes := parent.PathPrefix("/nodes").Subrouter()
 
 	nodesAuthenticated := parent.PathPrefix("/nodes").Subrouter()
+	userAuthenticated := parent.PathPrefix("/nodes").Subrouter()
 	nodesAuthenticated.Use(func(h http.Handler) http.Handler {
-		return mw.AuthMiddleware(db, nodesAuthenticated)
+		return mw.AuthMiddleware(db, nodesAuthenticated, nkg)
+	})
+	userAuthenticated.Use(func(h http.Handler) http.Handler {
+		return mw.AuthMiddleware(db, nodesAuthenticated, ukg)
 	})
 
 	nodesAuthenticated.HandleFunc("", mw.AsHandlerFunc(nodeAPI.registerNode)).Methods("POST")
@@ -41,10 +48,11 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 	nodes.HandleFunc("/{node_id}", mw.AsHandlerFunc(nodeAPI.nodeDetail)).Methods("GET")
 	nodesAuthenticated.HandleFunc("/{node_id}/interfaces", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerIfaces))).Methods("POST")
 	nodesAuthenticated.HandleFunc("/{node_id}/ports", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerPorts))).Methods("POST")
-	nodesAuthenticated.HandleFunc("/{node_id}/configure_public", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.configurePublic))).Methods("POST")
+	userAuthenticated.HandleFunc("/{node_id}/configure_public", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.configurePublic))).Methods("POST")
 	nodesAuthenticated.HandleFunc("/{node_id}/capacity", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerCapacity))).Methods("POST")
 	nodesAuthenticated.HandleFunc("/{node_id}/uptime", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.updateUptimeHandler))).Methods("POST")
 	nodesAuthenticated.HandleFunc("/{node_id}/used_resources", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.updateReservedResources))).Methods("POST")
+	userAuthenticated.HandleFunc("/{node_id}", mw.AsHandlerFunc(nodeAPI.delete)).Methods("DELETE")
 
 	return nil
 }

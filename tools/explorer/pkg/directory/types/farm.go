@@ -130,6 +130,16 @@ func (f FarmFilter) Get(ctx context.Context, db *mongo.Database) (farm Farm, err
 	return
 }
 
+// Delete deletes one farm that match the filter
+func (f FarmFilter) Delete(ctx context.Context, db *mongo.Database) (err error) {
+	if f == nil {
+		f = FarmFilter{}
+	}
+	col := db.Collection(FarmCollection)
+	_, err = col.DeleteOne(ctx, f, options.Delete())
+	return err
+}
+
 // FarmCreate creates a new farm
 func FarmCreate(ctx context.Context, db *mongo.Database, farm Farm) (schema.ID, error) {
 	if err := farm.Validate(); err != nil {
