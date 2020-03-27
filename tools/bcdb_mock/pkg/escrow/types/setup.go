@@ -32,6 +32,10 @@ func Setup(ctx context.Context, db *mongo.Database) error {
 			Keys:    bson.M{"farmer_id": 1, "customer_tid": 1},
 			Options: options.Index().SetUnique(true),
 		},
+		{
+			Keys:    bson.M{"address": 1},
+			Options: options.Index().SetUnique(true),
+		},
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to initialize reservation payment index")

@@ -28,10 +28,25 @@ var (
 type (
 	// ReservationPaymentInformation stores the reservation payment information
 	ReservationPaymentInformation struct {
-		ReservationID schema.ID      `bson:"_id" json:"_id"`
-		Expiration    schema.Date    `bson:"expiration" json:"expiration"`
-		Infos         []EscrowDetail `bson:"infos" json:"infos"`
-		Paid          bool           `bson:"paid" json:"paid"`
+		ReservationID schema.ID      `bson:"_id"`
+		Expiration    schema.Date    `bson:"expiration"`
+		Infos         []EscrowDetail `bson:"infos"`
+		// Paid indicates the reservation escrows have been fully funded, and
+		// the reservation has been moved from the "PAY" state to the "DEPLOY"
+		// state
+		Paid bool `bson:"paid"`
+		// Released indicates the reservation has been fully deployed, and
+		// that an attempt was made to pay the farmers. If this flag is set, it is
+		// still possible that there are funds on an escrow related to this transaction
+		// either because someone funded it after the reservation was already
+		// deployed , because there was an error paying the farmers
+		// or because there was an error refunding any overpaid amount.
+		Released bool `bson:"released"`
+		// Canceled indicates that the reservation was canceled, either by the
+		// user, or because a workload deployment failed, which resulted in the
+		// entire reservation being canceled. As a result, an attempt was made
+		// to refund the client. It is possible for this to have failed.
+		Canceled bool `bson:"canceled"`
 	}
 
 	// EscrowDetail hold the details of an escrow address
@@ -67,6 +82,22 @@ func ReservationPaymentInfoUpdate(ctx context.Context, db *mongo.Database, updat
 	}
 
 	return nil
+}
+
+// ReservationPaymentInfoGet a single reservation escrow info using its id
+func ReservationPaymentInfoGet(ctx context.Context, db *mongo.Database, id schema.ID) (ReservationPaymentInformation, error) {
+	col := db.Collection(EscrowCollection)
+	var rpi ReservationPaymentInformation
+	res := col.FindOne(ctx, bson.M{"_id": id})
+	if err := res.Err(); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return rpi, ErrEscrowNotFound
+		}
+		return rpi, err
+	}
+	err := res.Decode(&rpi)
+	return rpi, err
+
 }
 
 // GetAllActiveReservationPaymentInfos get all active reservation payment information

@@ -109,18 +109,31 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	return *newKp, nil
 }
 
-// GetBalance gets balance
-func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, error) {
+// KeyPairFromSeed parses a seed and creates a keypair for it, which can be
+// used to sign transactions
+func (w *Wallet) KeyPairFromSeed(seed string) (*keypair.Full, error) {
+	return keypair.ParseFull(seed)
+}
+
+// GetBalance gets balance for an address and a given reservation id. It also returns
+// a list of addresses which funded the given address.
+func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, error) {
 	var total xdr.Int64
 	horizonClient, err := w.getHorizonClient()
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	txReq := horizonclient.TransactionRequest{
 		ForAccount: address,
 	}
+
 	txes, err := horizonClient.Transactions(txReq)
+	if err != nil {
+		return 0, nil, errors.Wrap(err, "could not get transactions")
+	}
+
+	donors := make(map[string]struct{})
 	for _, tx := range txes.Embedded.Records {
 		if tx.Memo == strconv.FormatInt(int64(id), 10) {
 			effectsReq := horizonclient.EffectRequest{
@@ -131,36 +144,60 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, error) {
 				log.Debug().Msgf("failed to get transaction effects: %v", err)
 				continue
 			}
+			// first check if we have been paid
+			var isFunding bool
 			for _, effect := range effects.Embedded.Records {
 				if effect.GetAccount() != address {
 					continue
 				}
 				if effect.GetType() == "account_credited" {
-					// TODO also parse debits and payment to farmer
+					isFunding = true
 					creditedEffect := effect.(horizoneffects.AccountCredited)
 					parsedAmount, err := amount.Parse(creditedEffect.Amount)
 					if err != nil {
 						continue
 					}
 					total += parsedAmount
+				} else if effect.GetType() == "account_debited" {
+					isFunding = false
+					debitedEffect := effect.(horizoneffects.AccountDebited)
+					// Plot twist: this is a negative amount because in stellar,
+					// debiting ( `-` ) a negative amount for some reason does not
+					// equal adding, as it does in the rest of the world
+					parsedAmount, err := amount.Parse(debitedEffect.Amount)
+					if err != nil {
+						continue
+					}
+					total += parsedAmount
+				}
+			}
+			if isFunding {
+				for _, effect := range effects.Embedded.Records {
+					if effect.GetType() == "account_debited" && effect.GetAccount() != address {
+						donors[effect.GetAccount()] = struct{}{}
+					}
 				}
 			}
 		}
 	}
-	return total, nil
+	donorList := []string{}
+	for donor := range donors {
+		donorList = append(donorList, donor)
+	}
+	return total, donorList, nil
 }
 
 // Refund using a keypair
 // keypair is account assiociated with farmer - user
-// destination is the refund destination address
+// refund destination is the first address in the "funder" list as returned by
+// GetBalance
 // id is the reservation ID to refund for
-// TODO add a method to fund payment and refunds
-func (w *Wallet) Refund(keypair keypair.Full, destination string, id schema.ID) error {
+func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 	sourceAccount, err := w.getAccountDetails(keypair.Address())
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
 	}
-	amount, err := w.GetBalance(keypair.Address(), id)
+	amount, funders, err := w.GetBalance(keypair.Address(), id)
 	if err != nil {
 		return errors.Wrap(err, "failed to get balance")
 	}
@@ -168,6 +205,7 @@ func (w *Wallet) Refund(keypair keypair.Full, destination string, id schema.ID) 
 	if amount == 0 {
 		return nil
 	}
+	destination := funders[0]
 
 	paymentOP := txnbuild.Payment{
 		Destination: destination,
@@ -209,7 +247,7 @@ func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount x
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
 	}
-	balance, err := w.GetBalance(keypair.Address(), id)
+	balance, _, err := w.GetBalance(keypair.Address(), id)
 	if err != nil {
 		return errors.Wrap(err, "failed to get balance")
 	}

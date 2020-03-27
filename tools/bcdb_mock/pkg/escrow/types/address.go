@@ -57,3 +57,14 @@ func Get(ctx context.Context, db *mongo.Database, farmerID int64, customerTID in
 	err := doc.Decode(&farmerCustomerAddress)
 	return farmerCustomerAddress, err
 }
+
+// Get gets one address using the address
+func GetByAddress(ctx context.Context, db *mongo.Database, address string) (FarmerCustomerAddress, error) {
+	var farmerCustomerAddress FarmerCustomerAddress
+	doc := db.Collection(AddressCollection).FindOne(ctx, bson.M{"address": address})
+	if errors.Is(doc.Err(), mongo.ErrNoDocuments) {
+		return FarmerCustomerAddress{}, ErrAddressNotFound
+	}
+	err := doc.Decode(&farmerCustomerAddress)
+	return farmerCustomerAddress, err
+}

@@ -58,7 +58,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create stellar wallet")
 	}
 
-	escrow, err := escrow.New(wallet, db.Database())
+	escrow := escrow.New(wallet, db.Database())
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create escrow")
 	}
