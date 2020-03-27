@@ -19,13 +19,15 @@ type (
 		wallet             *stellar.Wallet
 		db                 *mongo.Database
 		reservationChannel chan reservationRegisterJob
-		// TODO: Remove
-		farmAPI FarmAPI
+		nodeAPI            NodeAPI
+
+		ctx context.Context
 	}
 
-	// FarmAPI interface
-	FarmAPI interface {
-		GetByID(ctx context.Context, db *mongo.Database, id int64) (directorytypes.Farm, error)
+	// NodeAPI allows retrieval of a node using its ID
+	NodeAPI interface {
+		// Get a node from the database using its ID
+		Get(ctx context.Context, db *mongo.Database, id string, proofs bool) (directorytypes.Node, error)
 	}
 
 	reservationRegisterJob struct {
@@ -45,7 +47,7 @@ func New(wallet *stellar.Wallet, db *mongo.Database) (*Escrow, error) {
 	return &Escrow{
 		wallet:             wallet,
 		db:                 db,
-		farmAPI:            &directory.FarmAPI{},
+		nodeAPI:            &directory.NodeAPI{},
 		reservationChannel: jobChannel,
 	}, nil
 }
@@ -57,7 +59,7 @@ func (e *Escrow) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case job := <-e.reservationChannel:
-			rsuPerFarmer, err := e.processReservation(job.reservation.DataReservation, &dbNodeSource{ctx: ctx, db: e.db})
+			rsuPerFarmer, err := e.processReservation(job.reservation.DataReservation)
 			if err != nil {
 				job.responseChan <- reservationRegisterJobResponse{
 					err: err,

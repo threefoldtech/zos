@@ -1,7 +1,6 @@
 package escrow
 
 import (
-	"context"
 	"math"
 	"math/big"
 
@@ -9,8 +8,6 @@ import (
 	"github.com/stellar/go/amount"
 	"github.com/stellar/go/xdr"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type (
@@ -29,16 +26,6 @@ type (
 		cu float64
 		su float64
 	}
-
-	// TODO: refactor this to be part of the escrow struct
-	nodeSource interface {
-		getNode(nodeID string) (types.Node, error)
-	}
-
-	dbNodeSource struct {
-		ctx context.Context
-		db  *mongo.Database
-	}
 )
 
 // cost price of cloud units:
@@ -51,10 +38,6 @@ const (
 	computeUnitTFTCost = 66.667 // 10 / 0.15
 	storageUnitTFTCost = 53.334 // 10 / 0.15
 )
-
-func (db *dbNodeSource) getNode(nodeID string) (types.Node, error) {
-	return types.NodeFilter{}.WithNodeID(nodeID).Get(db.ctx, db.db, false)
-}
 
 // calculateReservationCost calculates the cost of reservation based on a resource per farmer map
 func (e *Escrow) calculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int64]xdr.Int64, error) {
@@ -87,7 +70,7 @@ func (e *Escrow) calculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 	return costPerFarmerMap, nil
 }
 
-func (e *Escrow) processReservation(resData workloads.ReservationData, ns nodeSource) (rsuPerFarmer, error) {
+func (e *Escrow) processReservation(resData workloads.ReservationData) (rsuPerFarmer, error) {
 	rsuPerNodeMap := make(rsuPerNode)
 	for _, cont := range resData.Containers {
 		rsuPerNodeMap[cont.NodeId] = rsuPerNodeMap[cont.NodeId].add(processContainer(cont))
@@ -102,8 +85,8 @@ func (e *Escrow) processReservation(resData workloads.ReservationData, ns nodeSo
 		rsuPerNodeMap[k8s.NodeId] = rsuPerNodeMap[k8s.NodeId].add(processKubernetes(k8s))
 	}
 	rsuPerFarmerMap := make(rsuPerFarmer)
-	for node, rsu := range rsuPerNodeMap {
-		node, err := ns.getNode(node)
+	for nodeID, rsu := range rsuPerNodeMap {
+		node, err := e.nodeAPI.Get(e.ctx, e.db, nodeID, false)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not get node")
 		}

@@ -2,7 +2,6 @@ package escrow
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -10,12 +9,18 @@ import (
 	"github.com/stellar/go/xdr"
 	"github.com/stretchr/testify/assert"
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
 	directorytypes "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/stellar"
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+type (
+	farmAPIMock struct{}
+	nodeAPIMock struct{}
+)
+
+const precision = 1e7
 
 func TestProcessReservation(t *testing.T) {
 	data := workloads.ReservationData{
@@ -121,10 +126,10 @@ func TestProcessReservation(t *testing.T) {
 		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmAPI:            farmAPIMock{},
+		nodeAPI:            &nodeAPIMock{},
 	}
 
-	farmRsu, err := escrow.processReservation(data, &mockNodeSource{})
+	farmRsu, err := escrow.processReservation(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,71 +330,6 @@ func TestRsuAdd(t *testing.T) {
 	}
 }
 
-type (
-	farmAPIMock struct{}
-
-	mockNodeSource struct{}
-)
-
-func (mns *mockNodeSource) getNode(nodeID string) (directorytypes.Node, error) {
-	idInt, err := strconv.Atoi(nodeID)
-	if err != nil {
-		return directorytypes.Node{}, errors.New("node not found")
-	}
-	return directorytypes.Node{
-		ID:     schema.ID(idInt),
-		NodeId: nodeID,
-		FarmId: int64(idInt),
-	}, nil
-}
-
-const precision = 1e7
-
-// GetByID mock method for testing purposes.
-// Creates a farm and assigns some values which in some cases might be falsy in order to test the logic
-func (api farmAPIMock) GetByID(ctx context.Context, db *mongo.Database, id int64) (directorytypes.Farm, error) {
-	farm := directorytypes.Farm{}
-	rsuPrices := []directory.NodeResourcePrice{{
-		Cru:      5,
-		Sru:      10,
-		Hru:      5,
-		Mru:      10,
-		Nru:      0,
-		Currency: directory.PriceCurrencyTFT,
-	}}
-	farm.ThreebotId = 12
-	farm.ID = schema.ID(id)
-
-	switch id {
-	case 1:
-		farm.ResourcePrices = rsuPrices
-		return farm, nil
-	case 2:
-		return farm, nil
-	case 3:
-		farm.ResourcePrices = rsuPrices
-		return farm, nil
-	case 4:
-		rsuPrices[0].Cru = -11
-		farm.ResourcePrices = rsuPrices
-		return farm, nil
-	case 5:
-		rsuPrices[0].Sru = -554564
-		farm.ResourcePrices = rsuPrices
-		return farm, nil
-	case 6:
-		rsuPrices[0].Hru = -87455
-		farm.ResourcePrices = rsuPrices
-		return farm, nil
-	case 7:
-		rsuPrices[0].Mru = -6545
-		farm.ResourcePrices = rsuPrices
-		return farm, nil
-	}
-
-	return directorytypes.Farm{}, fmt.Errorf("failed to get farm with id: %d", id)
-}
-
 func TestCalculateReservationCost(t *testing.T) {
 	data := workloads.ReservationData{
 		Containers: []workloads.Container{
@@ -494,10 +434,10 @@ func TestCalculateReservationCost(t *testing.T) {
 		wallet:             &stellar.Wallet{},
 		db:                 nil,
 		reservationChannel: nil,
-		farmAPI:            farmAPIMock{},
+		nodeAPI:            &nodeAPIMock{},
 	}
 
-	farmRsu, err := escrow.processReservation(data, &mockNodeSource{})
+	farmRsu, err := escrow.processReservation(data)
 	assert.NoError(t, err)
 
 	res, err := escrow.calculateReservationCost(farmRsu)
@@ -595,4 +535,16 @@ func TestResourceUnitsToCloudUnits(t *testing.T) {
 	for i := range rsus {
 		assert.Equal(t, rsuToCu(rsus[i]), expectedCUs[i])
 	}
+}
+
+func (napim *nodeAPIMock) Get(_ context.Context, _ *mongo.Database, nodeID string, _ bool) (directorytypes.Node, error) {
+	idInt, err := strconv.Atoi(nodeID)
+	if err != nil {
+		return directorytypes.Node{}, errors.New("node not found")
+	}
+	return directorytypes.Node{
+		ID:     schema.ID(idInt),
+		NodeId: nodeID,
+		FarmId: int64(idInt),
+	}, nil
 }
