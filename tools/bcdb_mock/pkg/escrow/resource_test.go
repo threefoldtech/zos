@@ -27,27 +27,45 @@ func TestProcessReservation(t *testing.T) {
 		Containers: []workloads.Container{
 			{
 				NodeId: "1",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    2,
+					Memory: 4096,
+				},
 			},
 			{
 				NodeId: "1",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    1,
+					Memory: 2096,
+				},
 			},
 			{
 				NodeId: "2",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    3,
+					Memory: 3096,
+				},
 			},
 			{
 				NodeId: "2",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    2,
+					Memory: 5000,
+				},
 			},
 			{
 				NodeId: "3",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    2,
+					Memory: 6589,
+				},
 			},
 			{
 				NodeId: "3",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    2,
+					Memory: 1234,
+				},
 			},
 		},
 		Volumes: []workloads.Volume{
@@ -138,13 +156,12 @@ func TestProcessReservation(t *testing.T) {
 		t.Errorf("Found %d farmers, expected to find 3", len(farmRsu))
 	}
 
-	// TODO: Update when container capacity field is here
 	// check farm tid 1
 	rsu := farmRsu[1]
-	if rsu.cru != 5 {
-		t.Errorf("Farmer 1 total cru is %d, expected 5", rsu.cru)
+	if rsu.cru != 8 {
+		t.Errorf("Farmer 1 total cru is %d, expected 8", rsu.cru)
 	}
-	if rsu.mru != 10 {
+	if rsu.mru != 16.0469 {
 		t.Errorf("Farmer 1 total mru is %f, expected 10", rsu.mru)
 	}
 	if rsu.sru != 1000 {
@@ -156,10 +173,10 @@ func TestProcessReservation(t *testing.T) {
 
 	// check farm tid 2
 	rsu = farmRsu[2]
-	if rsu.cru != 4 {
-		t.Errorf("Farmer 2 total cru is %d, expected 4", rsu.cru)
+	if rsu.cru != 9 {
+		t.Errorf("Farmer 2 total cru is %d, expected 9", rsu.cru)
 	}
-	if rsu.mru != 8 {
+	if rsu.mru != 15.9062 {
 		t.Errorf("Farmer 2 total mru is %f, expected 8", rsu.mru)
 	}
 	if rsu.sru != 300 {
@@ -171,10 +188,10 @@ func TestProcessReservation(t *testing.T) {
 
 	// check farm tid 3
 	rsu = farmRsu[3]
-	if rsu.cru != 2 {
-		t.Errorf("Farmer 3 total cru is %d, expected 2", rsu.cru)
+	if rsu.cru != 6 {
+		t.Errorf("Farmer 3 total cru is %d, expected 6", rsu.cru)
 	}
-	if rsu.mru != 4 {
+	if rsu.mru != 11.6397 {
 		t.Errorf("Farmer 3 total mru is %f, expected 4", rsu.mru)
 	}
 	if rsu.sru != 350 {
