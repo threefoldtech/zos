@@ -145,7 +145,7 @@ func TestProcessReservation(t *testing.T) {
 		t.Errorf("Farmer 1 total cru is %d, expected 5", rsu.cru)
 	}
 	if rsu.mru != 10 {
-		t.Errorf("Farmer 1 total mru is %d, expected 10", rsu.mru)
+		t.Errorf("Farmer 1 total mru is %f, expected 10", rsu.mru)
 	}
 	if rsu.sru != 1000 {
 		t.Errorf("Farmer 1 total sru is %d, expected 1000", rsu.sru)
@@ -160,7 +160,7 @@ func TestProcessReservation(t *testing.T) {
 		t.Errorf("Farmer 2 total cru is %d, expected 4", rsu.cru)
 	}
 	if rsu.mru != 8 {
-		t.Errorf("Farmer 2 total mru is %d, expected 8", rsu.mru)
+		t.Errorf("Farmer 2 total mru is %f, expected 8", rsu.mru)
 	}
 	if rsu.sru != 300 {
 		t.Errorf("Farmer 2 total sru is %d, expected 300", rsu.sru)
@@ -175,7 +175,7 @@ func TestProcessReservation(t *testing.T) {
 		t.Errorf("Farmer 3 total cru is %d, expected 2", rsu.cru)
 	}
 	if rsu.mru != 4 {
-		t.Errorf("Farmer 3 total mru is %d, expected 4", rsu.mru)
+		t.Errorf("Farmer 3 total mru is %f, expected 4", rsu.mru)
 	}
 	if rsu.sru != 350 {
 		t.Errorf("Farmer 3 total sru is %d, expected 350", rsu.sru)
@@ -186,7 +186,47 @@ func TestProcessReservation(t *testing.T) {
 }
 
 func TestProcessContainer(t *testing.T) {
-	// TODO once capacity field is added on container
+	cont := workloads.Container{
+		Capacity: workloads.ContainerCapacity{
+			Cpu:    1,
+			Memory: 1024,
+		},
+	}
+	rsu := processContainer(cont)
+
+	if rsu.cru != 1 {
+		t.Errorf("Processed volume cru is %d, expected 1", rsu.cru)
+	}
+	if rsu.mru != 1 {
+		t.Errorf("Processed volume mru is %f, expected 1", rsu.mru)
+	}
+	if rsu.sru != 0 {
+		t.Errorf("Processed volume sru is %d, expected 0", rsu.sru)
+	}
+	if rsu.hru != 0 {
+		t.Errorf("Processed volume hru is %d, expected 0", rsu.hru)
+	}
+
+	cont = workloads.Container{
+		Capacity: workloads.ContainerCapacity{
+			Cpu:    4,
+			Memory: 2024,
+		},
+	}
+	rsu = processContainer(cont)
+
+	if rsu.cru != 4 {
+		t.Errorf("Processed volume cru is %d, expected 1", rsu.cru)
+	}
+	if rsu.mru != 1.9766 {
+		t.Errorf("Processed volume mru is %f, expected 1", rsu.mru)
+	}
+	if rsu.sru != 0 {
+		t.Errorf("Processed volume sru is %d, expected 0", rsu.sru)
+	}
+	if rsu.hru != 0 {
+		t.Errorf("Processed volume hru is %d, expected 0", rsu.hru)
+	}
 }
 
 func TestProcessVolume(t *testing.T) {
@@ -202,7 +242,7 @@ func TestProcessVolume(t *testing.T) {
 		t.Errorf("Processed volume cru is %d, expected 0", rsu.cru)
 	}
 	if rsu.mru != 0 {
-		t.Errorf("Processed volume mru is %d, expected 0", rsu.mru)
+		t.Errorf("Processed volume mru is %f, expected 0", rsu.mru)
 	}
 	if rsu.sru != 0 {
 		t.Errorf("Processed volume sru is %d, expected 0", rsu.sru)
@@ -221,7 +261,7 @@ func TestProcessVolume(t *testing.T) {
 		t.Errorf("Processed volume cru is %d, expected 0", rsu.cru)
 	}
 	if rsu.mru != 0 {
-		t.Errorf("Processed volume mru is %d, expected 0", rsu.mru)
+		t.Errorf("Processed volume mru is %f, expected 0", rsu.mru)
 	}
 	if rsu.sru != testSize {
 		t.Errorf("Processed volume sru is %d, expected %d", rsu.sru, testSize)
@@ -244,7 +284,7 @@ func TestProcessZdb(t *testing.T) {
 		t.Errorf("Processed zdb cru is %d, expected 0", rsu.cru)
 	}
 	if rsu.mru != 0 {
-		t.Errorf("Processed zdb mru is %d, expected 0", rsu.mru)
+		t.Errorf("Processed zdb mru is %f, expected 0", rsu.mru)
 	}
 	if rsu.sru != 0 {
 		t.Errorf("Processed zdb sru is %d, expected 0", rsu.sru)
@@ -263,7 +303,7 @@ func TestProcessZdb(t *testing.T) {
 		t.Errorf("Processed zdb cru is %d, expected 0", rsu.cru)
 	}
 	if rsu.mru != 0 {
-		t.Errorf("Processed zdb mru is %d, expected 0", rsu.mru)
+		t.Errorf("Processed zdb mru is %f, expected 0", rsu.mru)
 	}
 	if rsu.sru != testSize {
 		t.Errorf("Processed zdb sru is %d, expected %d", rsu.sru, testSize)
@@ -283,7 +323,7 @@ func TestProcessKubernetes(t *testing.T) {
 		t.Errorf("Processed zdb cru is %d, expected 1", rsu.cru)
 	}
 	if rsu.mru != 2 {
-		t.Errorf("Processed zdb mru is %d, expected 2", rsu.mru)
+		t.Errorf("Processed zdb mru is %f, expected 2", rsu.mru)
 	}
 	if rsu.sru != 50 {
 		t.Errorf("Processed zdb sru is %d, expected 50", rsu.sru)
@@ -301,7 +341,7 @@ func TestProcessKubernetes(t *testing.T) {
 		t.Errorf("Processed zdb cru is %d, expected 2", rsu.cru)
 	}
 	if rsu.mru != 4 {
-		t.Errorf("Processed zdb mru is %d, expected 4", rsu.mru)
+		t.Errorf("Processed zdb mru is %f, expected 4", rsu.mru)
 	}
 	if rsu.sru != 100 {
 		t.Errorf("Processed zdb sru is %d, expected 100", rsu.sru)
@@ -320,7 +360,7 @@ func TestRsuAdd(t *testing.T) {
 		t.Errorf("Result cru is %d, expected 9", result.cru)
 	}
 	if result.mru != 8 {
-		t.Errorf("Result mru is %d, expected 8", result.mru)
+		t.Errorf("Result mru is %f, expected 8", result.mru)
 	}
 	if result.sru != 7 {
 		t.Errorf("Result sru is %d, expected 7", result.sru)
@@ -335,27 +375,45 @@ func TestCalculateReservationCost(t *testing.T) {
 		Containers: []workloads.Container{
 			{
 				NodeId: "1",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    2,
+					Memory: 2048,
+				},
 			},
 			{
 				NodeId: "1",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    4,
+					Memory: 5120,
+				},
 			},
 			{
 				NodeId: "3",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    2,
+					Memory: 1000,
+				},
 			},
 			{
 				NodeId: "3",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    4,
+					Memory: 4000,
+				},
 			},
 			{
 				NodeId: "3",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    4,
+					Memory: 4096,
+				},
 			},
 			{
 				NodeId: "3",
-				// TODO when capacity field is added
+				Capacity: workloads.ContainerCapacity{
+					Cpu:    1,
+					Memory: 1024,
+				},
 			},
 		},
 		Volumes: []workloads.Volume{
@@ -446,41 +504,12 @@ func TestCalculateReservationCost(t *testing.T) {
 	}
 
 	assert.True(t, len(res) == 2)
-	// 2.375 * 66.667 + 11.904 * 53.334
-	assert.Equal(t, xdr.Int64(793.222061*precision), res[1])
-	// 2.85 * 66.667 + 10.803 * 53.334
-	assert.Equal(t, xdr.Int64(766.168152*precision), res[3])
-}
-
-func makeMockReservationData(id string) workloads.ReservationData {
-	return workloads.ReservationData{
-		Containers: []workloads.Container{
-			{
-				NodeId: id,
-				// TODO when capacity field is added
-			},
-		},
-		Volumes: []workloads.Volume{
-			{
-				NodeId: id,
-				Type:   workloads.VolumeTypeHDD,
-				Size:   500,
-			},
-		},
-		Zdbs: []workloads.ZDB{
-			{
-				NodeId:   id,
-				DiskType: workloads.DiskTypeSSD,
-				Size:     750,
-			},
-		},
-		Kubernetes: []workloads.K8S{
-			{
-				NodeId: id,
-				Size:   1,
-			},
-		},
-	}
+	// cru: 11, sru: 1000, hru: 1000, mru: 17
+	// 4.037 * 66.667 + 11.904 * 53.334
+	assert.Equal(t, xdr.Int64(904.022615*precision), res[1])
+	// cru: 17, sru: 650, hru: 4000, mru: 21.8829
+	// 5.197 * 66.667 + 10.803 * 53.334
+	assert.Equal(t, xdr.Int64(922.635601*precision), res[3])
 }
 
 func TestResourceUnitsToCloudUnits(t *testing.T) {

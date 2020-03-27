@@ -19,10 +19,12 @@ type (
 		cru int64
 		sru int64
 		hru int64
-		mru int64
+		// TODO: should we use big.Float here to avoid floating point errors?
+		mru float64
 	}
 
 	cloudUnits struct {
+		// TODO: should we use big.Float here to avoid floating point errors?
 		cu float64
 		su float64
 	}
@@ -96,8 +98,11 @@ func (e *Escrow) processReservation(resData workloads.ReservationData) (rsuPerFa
 }
 
 func processContainer(cont workloads.Container) rsu {
-	// TODO implement after capcity field is added on Container
-	return rsu{}
+	return rsu{
+		cru: cont.Capacity.Cpu,
+		// round mru to 4 digits precision
+		mru: math.Round(float64(cont.Capacity.Memory)/1024*10000) / 10000,
+	}
 }
 
 func processVolume(vol workloads.Volume) rsu {
@@ -161,7 +166,7 @@ func (r rsu) add(other rsu) rsu {
 // decimal places
 func rsuToCu(r rsu) cloudUnits {
 	cloudUnits := cloudUnits{
-		cu: math.Round(math.Min(float64(r.mru)/4*0.95, float64(r.cru)*2)*1000) / 1000,
+		cu: math.Round(math.Min(r.mru/4*0.95, float64(r.cru)*2)*1000) / 1000,
 		su: math.Round((float64(r.hru)/1093+float64(r.sru)/91)*1000) / 1000,
 	}
 	return cloudUnits
