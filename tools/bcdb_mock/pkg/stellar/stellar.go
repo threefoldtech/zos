@@ -1,6 +1,7 @@
 package stellar
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/rs/zerolog/log"
@@ -22,7 +23,11 @@ const (
 	assetIssuerProd    = "GBOVQKJYHXRR3DX6NOX2RRYFRCUMSADGDESTDNBDS6CDVLGVESRTAC47"
 )
 
-// Wallet is a stellar wallet
+// ErrInsuficientBalance is an error that is used when there is insufficient balance
+var ErrInsuficientBalance = errors.New("insuficient balance")
+
+// Wallet is the foundation wallet
+// Payments will be funded and fees will be taken with this wallet
 type Wallet struct {
 	keypair *keypair.Full
 	network string
@@ -143,6 +148,158 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, error) {
 		}
 	}
 	return total, nil
+}
+
+// Refund using a keypair
+// keypair is account assiociated with farmer - user
+// destination is the refund destination address
+// id is the reservation ID to refund for
+// TODO add a method to fund payment and refunds
+func (w *Wallet) Refund(keypair keypair.Full, destination string, id schema.ID) (txnbuild.Transaction, error) {
+	sourceAccount, err := w.getAccountDetails(keypair.Address())
+	if err != nil {
+		return txnbuild.Transaction{}, errors.Wrap(err, "failed to get source account")
+	}
+	amount, err := w.GetBalance(keypair.Address(), id)
+	if err != nil {
+		return txnbuild.Transaction{}, errors.Wrap(err, "failed to get balance")
+	}
+	// if no balance for this reservation, do nothing
+	if amount == 0 {
+		return txnbuild.Transaction{}, nil
+	}
+
+	paymentOP := txnbuild.Payment{
+		Destination: destination,
+		Amount:      strconv.FormatInt(int64(amount), 10),
+		Asset: txnbuild.CreditAsset{
+			Code:   assetCode,
+			Issuer: w.getIssuer(),
+		},
+		SourceAccount: &sourceAccount,
+	}
+
+	formattedMemo := fmt.Sprintf("refund %d", id)
+	memo := txnbuild.MemoText(formattedMemo)
+	return txnbuild.Transaction{
+		Operations: []txnbuild.Operation{&paymentOP},
+		Timebounds: txnbuild.NewTimeout(300),
+		Network:    w.getNetworkPassPhrase(),
+		Memo:       memo,
+	}, nil
+}
+
+// PayoutFarmer using a keypair
+// keypair is account assiociated with farmer - user
+// destination is the farmer destination address
+// id is the reservation ID to pay for
+func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount xdr.Int64, id schema.ID) (txnbuild.Transaction, error) {
+	sourceAccount, err := w.getAccountDetails(keypair.Address())
+	if err != nil {
+		return txnbuild.Transaction{}, errors.Wrap(err, "failed to get source account")
+	}
+	balance, err := w.GetBalance(keypair.Address(), id)
+	if err != nil {
+		return txnbuild.Transaction{}, errors.Wrap(err, "failed to get balance")
+	}
+	if balance < amount {
+		return txnbuild.Transaction{}, ErrInsuficientBalance
+	}
+
+	// 10% cut for the foundation
+	/*
+		Based on the way we calculate the cost of reservation we know it has at most
+		6 digit precision whereas stellar has 7 digits precision.
+		This means that any valid reservation must necessarily have a "0" as least
+		significant digit (when expressed as `stropes` as is the case here).
+		With this knowledge it is safe to perform the 90% cut as regular integer operations
+		instead of using floating points which might lead to floating point errors
+	*/
+	if amount%10 != 0 {
+		return txnbuild.Transaction{}, errors.New("invalid reservation cost")
+	}
+	foundationCut := amount / 10 * 1
+	amountDue := amount / 10 * 9
+
+	farmerPaymentOP := txnbuild.Payment{
+		Destination: destination,
+		Amount:      strconv.FormatInt(int64(amountDue), 10),
+		Asset: txnbuild.CreditAsset{
+			Code:   assetCode,
+			Issuer: w.getIssuer(),
+		},
+		SourceAccount: &sourceAccount,
+	}
+	foundationPaymentOP := txnbuild.Payment{
+		Destination: w.keypair.Address(),
+		Amount:      strconv.FormatInt(int64(foundationCut), 10),
+		Asset: txnbuild.CreditAsset{
+			Code:   assetCode,
+			Issuer: w.getIssuer(),
+		},
+		SourceAccount: &sourceAccount,
+	}
+
+	formattedMemo := fmt.Sprintf("refund %d", id)
+	memo := txnbuild.MemoText(formattedMemo)
+	return txnbuild.Transaction{
+		Operations: []txnbuild.Operation{&farmerPaymentOP, &foundationPaymentOP},
+		Timebounds: txnbuild.NewTimeout(300),
+		Network:    w.getNetworkPassPhrase(),
+		Memo:       memo,
+	}, nil
+}
+
+// FundTransaction funds a transaction with the foundation wallet
+// For every operation in the transaction, the fee will be paid by the foundation wallet
+func (w *Wallet) FundTransaction(tx *txnbuild.Transaction) (*txnbuild.Transaction, error) {
+	sourceAccount, err := w.getAccountDetails(w.keypair.Address())
+	if err != nil {
+		return &txnbuild.Transaction{}, errors.Wrap(err, "failed to get source account")
+	}
+
+	// set the source account of the tx to the foundation account
+	tx.SourceAccount = &sourceAccount
+
+	if len(tx.Operations) == 0 {
+		return &txnbuild.Transaction{}, errors.New("no operations were set on the transaction")
+	}
+
+	// calculate total fee based on the operations in the transaction
+	tx.BaseFee = tx.BaseFee * uint32(len(tx.Operations))
+	err = tx.Build()
+	if err != nil {
+		return &txnbuild.Transaction{}, errors.Wrap(err, "failed to build transaction")
+	}
+
+	err = tx.Sign(w.keypair)
+	if err != nil {
+		return &txnbuild.Transaction{}, errors.Wrap(err, "failed to sign transaction")
+	}
+
+	return tx, nil
+}
+
+// SignTransaction sings of on a transaction with a given keypair
+// and submits it to the network
+func (w *Wallet) SignTransaction(keypair *keypair.Full, tx *txnbuild.Transaction) error {
+	client, err := w.getHorizonClient()
+	if err != nil {
+		return errors.Wrap(err, "failed to get horizon client")
+	}
+
+	err = tx.Sign(keypair)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign transaction with keypair")
+	}
+
+	// Submit the transaction
+	_, err = client.SubmitTransaction(*tx)
+	if err != nil {
+		hError := err.(*horizonclient.Error)
+		return errors.Wrap(hError, "error submitting transaction")
+	}
+	return nil
 }
 
 func (w *Wallet) getAccountDetails(address string) (account horizon.Account, err error) {
