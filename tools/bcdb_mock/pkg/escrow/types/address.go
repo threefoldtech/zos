@@ -27,6 +27,7 @@ type (
 		FarmerID    int64  `bson:"farmer_id" json:"farmer_id"`
 		CustomerTID int64  `bson:"customer_tid" json:"customer_tid"`
 		Address     string `bson:"address" json:"address"`
+		Secret      string `bson:"secret" json:"secret"`
 	}
 )
 

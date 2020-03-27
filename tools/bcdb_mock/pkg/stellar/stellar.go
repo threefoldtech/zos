@@ -42,19 +42,19 @@ func New(seed string, network string) (*Wallet, error) {
 }
 
 // CreateAccount and activates
-func (w *Wallet) CreateAccount() (string, error) {
+func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	client, err := w.getHorizonClient()
 	if err != nil {
-		return "", err
+		return keypair.Full{}, err
 	}
 	newKp, err := keypair.Random()
 	if err != nil {
-		return "", err
+		return keypair.Full{}, err
 	}
 
 	sourceAccount, err := w.getAccountDetails(w.keypair.Address())
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get source account")
+		return keypair.Full{}, errors.Wrap(err, "failed to get source account")
 	}
 	createAccountOp := txnbuild.CreateAccount{
 		Destination: newKp.Address(),
@@ -73,7 +73,7 @@ func (w *Wallet) CreateAccount() (string, error) {
 	_, err = client.SubmitTransactionXDR(txeBase64)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		return "", errors.Wrap(hError, "error submitting transaction")
+		return keypair.Full{}, errors.Wrap(hError, "error submitting transaction")
 	}
 
 	// Set the trustline
@@ -98,10 +98,10 @@ func (w *Wallet) CreateAccount() (string, error) {
 	_, err = client.SubmitTransactionXDR(txeBase64)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		return "", errors.Wrap(hError, "error submitting transaction")
+		return keypair.Full{}, errors.Wrap(hError, "error submitting transaction")
 	}
 
-	return newKp.Address(), nil
+	return *newKp, nil
 }
 
 // GetBalance gets balance

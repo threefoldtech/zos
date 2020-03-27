@@ -112,19 +112,20 @@ func (e *Escrow) CreateOrLoadAccount(farmerID int64, customerTID int64) (string,
 	res, err := types.Get(context.Background(), e.db, farmerID, customerTID)
 	if err != nil {
 		if err == types.ErrAddressNotFound {
-			addr, err := e.wallet.CreateAccount()
+			keypair, err := e.wallet.CreateAccount()
 			if err != nil {
-				return "", errors.Wrap(err, "failed to create a new address for farmer - customer")
+				return "", errors.Wrap(err, "failed to create a new account for farmer - customer")
 			}
 			err = types.FarmerCustomerAddressCreate(context.Background(), e.db, types.FarmerCustomerAddress{
 				CustomerTID: customerTID,
-				Address:     addr,
+				Address:     keypair.Address(),
 				FarmerID:    farmerID,
+				Secret:      keypair.Seed(),
 			})
 			if err != nil {
-				return "", errors.Wrap(err, "failed to save a new address for farmer - customer")
+				return "", errors.Wrap(err, "failed to save a new account for farmer - customer")
 			}
-			return addr, nil
+			return keypair.Address(), nil
 		}
 		return "", errors.Wrap(err, "failed to get farmer - customer address")
 	}
