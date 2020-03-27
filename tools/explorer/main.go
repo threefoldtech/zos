@@ -111,7 +111,6 @@ func createServer(listen, dbName string, client *mongo.Client) (*http.Server, er
 	log.Printf("start on %s\n", listen)
 	r := handlers.LoggingHandler(os.Stderr, router)
 	r = handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(r)
-	// r = mw.AuthMiddleware(client.Database(dbName), r)
 
 	return &http.Server{
 		Addr:    listen,
