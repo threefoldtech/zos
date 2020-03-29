@@ -151,7 +151,11 @@ func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 	for cur.Next(r.Context()) {
 		var reservation types.Reservation
 		if err := cur.Decode(&reservation); err != nil {
-			return nil, mw.Error(err)
+			// skip reservations we can not load
+			// this is probably an old reservation
+			currentID := cur.Current.Lookup("_id").Int64()
+			log.Error().Err(err).Int64("id", currentID).Msg("failed to decode reservation")
+			continue
 		}
 
 		reservation, err := a.pipeline(reservation, nil)
