@@ -19,8 +19,14 @@ func (w *httpWorkloads) Create(reservation workloads.Reservation) (id schema.ID,
 	return
 }
 
-func (w *httpWorkloads) List(page *Pager) (reservation []workloads.Reservation, err error) {
+func (w *httpWorkloads) List(nextAction workloads.NextActionEnum, customerTid int64, page *Pager) (reservation []workloads.Reservation, err error) {
 	query := url.Values{}
+	if nextAction != 0 {
+		query.Set("next_action", fmt.Sprint(nextAction))
+	}
+	if customerTid != 0 {
+		query.Set("customer_tid", fmt.Sprint(customerTid))
+	}
 	page.apply(query)
 
 	err = w.get(w.url("reservations"), query, &reservation, http.StatusOK)
