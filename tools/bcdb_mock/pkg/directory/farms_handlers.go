@@ -44,33 +44,22 @@ func (s *FarmAPI) registerFarm(r *http.Request) (interface{}, mw.Response) {
 }
 
 func (s *FarmAPI) listFarm(r *http.Request) (interface{}, mw.Response) {
+	q := directory.FarmQuery{}
+	if err := q.Parse(r); err != nil {
+		return nil, err
+	}
+	var filter directory.FarmFilter
+	filter = filter.WithFarmQuery(q)
 	db := mw.Database(r)
 
-	tid, err := parseOwnerID(r)
-	if err != nil {
-		return nil, mw.Error(err, http.StatusBadRequest)
-	}
-
 	pager := models.PageFromRequest(r)
-	farms, total, err := s.List(r.Context(), db, tid, pager)
+	farms, total, err := s.List(r.Context(), db, filter, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
 
 	pages := fmt.Sprintf("%d", models.Pages(pager, total))
 	return farms, mw.Ok().WithHeader("Pages", pages)
-}
-
-func parseOwnerID(r *http.Request) (tid int64, err error) {
-	stid := r.URL.Query().Get("owner")
-	if stid != "" {
-		tid, err = strconv.ParseInt(stid, 10, 64)
-		if err != nil {
-			return tid, fmt.Errorf("owner should be a integer")
-		}
-	}
-	log.Debug().Msgf("owner id %d", tid)
-	return tid, err
 }
 
 func (s *FarmAPI) getFarm(r *http.Request) (interface{}, mw.Response) {

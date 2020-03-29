@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -43,6 +45,28 @@ const (
 	Deleted = generated.NextActionDeleted
 )
 
+// ReservationQuery type to parse reservation query string
+type ReservationQuery struct {
+	CustomerID int
+	NextAction int
+}
+
+// Parse parese the query string
+func (rq *ReservationQuery) Parse(r *http.Request) mw.Response {
+	var err error
+	customerid, err := models.QueryInt(r, "customer_tid")
+	if err != nil {
+		return mw.BadRequest(errors.Wrap(err, "customer_tid should be an integer"))
+	}
+	rq.CustomerID = int(customerid)
+	nextaction, err := models.QueryInt(r, "next_action")
+	if err != nil {
+		return mw.BadRequest(errors.Wrap(err, "next_action should be an integer"))
+	}
+	rq.NextAction = int(nextaction)
+	return nil
+}
+
 // ReservationFilter type
 type ReservationFilter bson.D
 
@@ -63,6 +87,14 @@ func (f ReservationFilter) WithNextAction(action generated.NextActionEnum) Reser
 	return append(f, bson.E{
 		Key: "next_action", Value: action,
 	})
+}
+
+// WithCustomerID filter reservation on customer
+func (f ReservationFilter) WithCustomerID(customerID int) ReservationFilter {
+	return append(f, bson.E{
+		Key: "customer_tid", Value: customerID,
+	})
+
 }
 
 // WithNodeID searsch reservations with NodeID
@@ -90,6 +122,17 @@ func (f ReservationFilter) Or(o ReservationFilter) ReservationFilter {
 			Value: bson.A{f, o},
 		},
 	}
+}
+
+// WithReservationQuery add filter based in query string
+func (f ReservationFilter) WithReservationQuery(q ReservationQuery) ReservationFilter {
+	if q.CustomerID > 0 {
+		f = f.WithCustomerID(q.CustomerID)
+	}
+	if q.NextAction > 0 {
+		f = f.WithNextAction(generated.NextActionEnum(q.NextAction))
+	}
+	return f
 }
 
 // Get gets single reservation that matches the filter

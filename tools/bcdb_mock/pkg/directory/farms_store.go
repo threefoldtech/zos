@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
 	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,13 +15,7 @@ type FarmAPI struct{}
 
 // List farms
 // TODO: add paging arguments
-func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, tid int64, opts ...*options.FindOptions) ([]directory.Farm, int64, error) {
-	var filter directory.FarmFilter
-
-	if tid != 0 {
-		log.Info().Msgf("with owner id %d", tid)
-		filter = filter.WithOwner(tid)
-	}
+func (s *FarmAPI) List(ctx context.Context, db *mongo.Database, filter directory.FarmFilter, opts ...*options.FindOptions) ([]directory.Farm, int64, error) {
 
 	cur, err := filter.Find(ctx, db, opts...)
 	if err != nil {
