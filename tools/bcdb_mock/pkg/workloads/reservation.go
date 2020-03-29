@@ -130,10 +130,11 @@ func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 	if err := q.Parse(r); err != nil {
 		return nil, err
 	}
+	filter = filter.WithReservationQuery(q)
 
 	db := mw.Database(r)
 	pager := models.PageFromRequest(r)
-	cur, err := filter.Find(r.Context(), db, q, pager)
+	cur, err := filter.Find(r.Context(), db, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
@@ -268,7 +269,6 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 		nodeID = mux.Vars(r)["node_id"]
 	)
 
-	q := types.ReservationQuery{}
 	db := mw.Database(r)
 	workloads, err := a.queued(r.Context(), db, nodeID, maxPageSize)
 	if err != nil {
@@ -287,7 +287,7 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 	filter := types.ReservationFilter{}.WithIDGE(from)
 	filter = filter.WithNodeID(nodeID)
 
-	cur, err := filter.Find(r.Context(), db, q)
+	cur, err := filter.Find(r.Context(), db)
 	if err != nil {
 		return nil, mw.Error(err)
 	}

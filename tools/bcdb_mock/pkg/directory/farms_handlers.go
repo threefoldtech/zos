@@ -44,14 +44,16 @@ func (s *FarmAPI) registerFarm(r *http.Request) (interface{}, mw.Response) {
 }
 
 func (s *FarmAPI) listFarm(r *http.Request) (interface{}, mw.Response) {
-	q := farmQuery{}
+	q := directory.FarmQuery{}
 	if err := q.Parse(r); err != nil {
 		return nil, err
 	}
+	var filter directory.FarmFilter
+	filter = filter.WithFarmQuery(q)
 	db := mw.Database(r)
 
 	pager := models.PageFromRequest(r)
-	farms, total, err := s.List(r.Context(), db, q, pager)
+	farms, total, err := s.List(r.Context(), db, filter, pager)
 	if err != nil {
 		return nil, mw.Error(err)
 	}

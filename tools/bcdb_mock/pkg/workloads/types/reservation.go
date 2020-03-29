@@ -124,6 +124,17 @@ func (f ReservationFilter) Or(o ReservationFilter) ReservationFilter {
 	}
 }
 
+// WithReservationQuery add filter based in query string
+func (f ReservationFilter) WithReservationQuery(q ReservationQuery) ReservationFilter {
+	if q.CustomerID > 0 {
+		f = f.WithCustomerID(q.CustomerID)
+	}
+	if q.NextAction > 0 {
+		f = f.WithNextAction(generated.NextActionEnum(q.NextAction))
+	}
+	return f
+}
+
 // Get gets single reservation that matches the filter
 func (f ReservationFilter) Get(ctx context.Context, db *mongo.Database) (reservation Reservation, err error) {
 	if f == nil {
@@ -140,15 +151,9 @@ func (f ReservationFilter) Get(ctx context.Context, db *mongo.Database) (reserva
 }
 
 // Find all users that matches filter
-func (f ReservationFilter) Find(ctx context.Context, db *mongo.Database, q ReservationQuery, opts ...*options.FindOptions) (*mongo.Cursor, error) {
+func (f ReservationFilter) Find(ctx context.Context, db *mongo.Database, opts ...*options.FindOptions) (*mongo.Cursor, error) {
 	if f == nil {
 		f = ReservationFilter{}
-	}
-	if q.CustomerID > 0 {
-		f = f.WithCustomerID(q.CustomerID)
-	}
-	if q.NextAction > 0 {
-		f = f.WithNextAction(generated.NextActionEnum(q.NextAction))
 	}
 	return db.Collection(ReservationCollection).Find(ctx, f, opts...)
 }

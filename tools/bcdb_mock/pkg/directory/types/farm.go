@@ -3,10 +3,13 @@ package types
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"regexp"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
+	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -42,6 +45,25 @@ func (f *Farm) Validate() error {
 	return nil
 }
 
+
+// FarmQuery helper to parse query string
+type FarmQuery struct {
+	FarmName string
+	OwnerID  int64
+}
+
+// Parse querystring from request
+func (f *FarmQuery) Parse(r *http.Request) mw.Response {
+	var err error
+	f.OwnerID, err = models.QueryInt(r, "owner")
+	if err != nil {
+		return mw.BadRequest(errors.Wrap(err, "owner should be a integer"))
+	}
+	f.FarmName = r.FormValue("name")
+	return nil
+}
+
+
 // FarmFilter type
 type FarmFilter bson.D
 
@@ -58,6 +80,18 @@ func (f FarmFilter) WithName(name string) FarmFilter {
 // WithOwner filter farm by owner ID
 func (f FarmFilter) WithOwner(tid int64) FarmFilter {
 	return append(f, bson.E{Key: "threebot_id", Value: tid})
+}
+
+// WithFarmQuery filter based on FarmQuery
+func (f FarmFilter) WithFarmQuery(q FarmQuery) FarmFilter {
+	if len(q.FarmName) != 0 {
+		f = f.WithName(q.FarmName)
+	}
+	if q.OwnerID != 0 {
+		f = f.WithOwner(q.OwnerID)
+	}
+	return f
+
 }
 
 // Find run the filter and return a cursor result
