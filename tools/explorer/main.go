@@ -15,10 +15,10 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
+	"github.com/threefoldtech/zos/tools/explorer/mw"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/directory"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/phonebook"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/workloads"
 )
 
 // Pkg is a shorthand type for func

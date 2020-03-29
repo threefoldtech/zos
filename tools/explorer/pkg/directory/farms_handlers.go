@@ -9,9 +9,9 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
+	"github.com/threefoldtech/zos/tools/explorer/models"
+	"github.com/threefoldtech/zos/tools/explorer/mw"
+	directory "github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
 
 	"github.com/gorilla/mux"
 )

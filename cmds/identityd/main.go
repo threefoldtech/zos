@@ -16,7 +16,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/upgrade"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
+	"github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/client"
 
 	"github.com/cenkalti/backoff/v3"

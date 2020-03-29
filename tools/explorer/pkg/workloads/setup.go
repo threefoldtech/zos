@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads/types"
+	"github.com/threefoldtech/zos/tools/explorer/mw"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/workloads/types"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 

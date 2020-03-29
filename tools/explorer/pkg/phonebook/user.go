@@ -13,9 +13,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
+	"github.com/threefoldtech/zos/tools/explorer/models"
+	"github.com/threefoldtech/zos/tools/explorer/mw"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/phonebook/types"
 )
 
 // UserAPI struct

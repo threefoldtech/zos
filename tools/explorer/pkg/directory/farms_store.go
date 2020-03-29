@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
-	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
+	directory "github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

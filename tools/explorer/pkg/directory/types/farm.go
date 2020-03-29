@@ -8,9 +8,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/directory"
+	"github.com/threefoldtech/zos/tools/explorer/models"
+	"github.com/threefoldtech/zos/tools/explorer/mw"
+	generated "github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
