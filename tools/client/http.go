@@ -67,7 +67,7 @@ func (c *httpClient) process(response *http.Response, output interface{}, expect
 		}
 
 		if err := dec.Decode(&output); err != nil {
-			return errors.Wrapf(err, "failed to load error while processing invalid return code of: %s", response.StatusCode)
+			return errors.Wrapf(err, "failed to load error while processing invalid return code of: %s", response.Status)
 		}
 
 		return fmt.Errorf("%s: %s", response.Status, output.E)

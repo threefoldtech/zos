@@ -2,10 +2,12 @@ package directory
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/rs/zerolog/log"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
@@ -31,6 +33,9 @@ func (s *NodeAPI) registerNode(r *http.Request) (interface{}, mw.Response) {
 	n.PublicConfig = nil
 	db := mw.Database(r)
 	if _, err := s.Add(r.Context(), db, n); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, mw.NotFound(fmt.Errorf("farm with id:%d does not exists", n.FarmId))
+		}
 		return nil, mw.Error(err)
 	}
 
