@@ -10,8 +10,8 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/models"
-	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/phonebook"
+	"github.com/threefoldtech/zos/tools/explorer/models"
+	generated "github.com/threefoldtech/zos/tools/explorer/models/generated/phonebook"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

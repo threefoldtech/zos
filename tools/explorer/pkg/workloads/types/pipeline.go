@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	generated "github.com/threefoldtech/zos/tools/bcdb_mock/models/generated/workloads"
+	generated "github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 )
 
 // Pipeline changes Reservation R as defined by the reservation pipeline

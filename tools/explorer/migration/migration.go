@@ -13,13 +13,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
+	"github.com/threefoldtech/zos/tools/explorer/mw"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
-	phonebook "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
-	workloads "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads/types"
+	directory "github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
+	phonebook "github.com/threefoldtech/zos/tools/explorer/pkg/phonebook/types"
+	workloads "github.com/threefoldtech/zos/tools/explorer/pkg/workloads/types"
 )
 
 func foreach(root string, f func(p string, r io.Reader) error) error {

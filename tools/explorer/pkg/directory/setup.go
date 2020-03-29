@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/gorilla/mux"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
-	directory "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory/types"
+	"github.com/threefoldtech/zos/tools/explorer/mw"
+	directory "github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
