@@ -18,6 +18,7 @@ import (
 	"github.com/threefoldtech/zos/tools/bcdb_mock/mw"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/directory"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow"
+	escrowdb "github.com/threefoldtech/zos/tools/bcdb_mock/pkg/escrow/types"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/stellar"
 	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/workloads"
@@ -52,6 +53,10 @@ func main() {
 	router := mux.NewRouter()
 
 	router.Use(db.Middleware)
+
+	if err := escrowdb.Setup(context.Background(), db.Database()); err != nil {
+		log.Fatal().Err(err).Msg("failed to create escrow database indexes")
+	}
 
 	wallet, err := stellar.New(seed, network)
 	if err != nil {
