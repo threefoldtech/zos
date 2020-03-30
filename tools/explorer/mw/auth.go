@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/bcdb_mock/pkg/phonebook/types"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/phonebook/types"
 	"github.com/zaibon/httpsig"
 
 	"go.mongodb.org/mongo-driver/mongo"

@@ -78,14 +78,6 @@ func connectDB(ctx context.Context, connectionURI string) (*mongo.Client, error)
 	return client, nil
 }
 
-type mwfunc struct {
-	mw http.Handler
-}
-
-func (m mwfunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	m.mw.ServeHTTP(w, r)
-}
-
 func createServer(listen, dbName string, client *mongo.Client) (*http.Server, error) {
 	db, err := mw.NewDatabaseMiddleware(dbName, client)
 	if err != nil {

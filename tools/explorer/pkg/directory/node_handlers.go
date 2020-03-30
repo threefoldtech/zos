@@ -35,7 +35,7 @@ func (s *NodeAPI) registerNode(r *http.Request) (interface{}, mw.Response) {
 
 	nodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
 	if nodeID != n.NodeId {
-		return nil, mw.Forbiden(fmt.Errorf("trying to register with nodeID %s while you are %s", n.NodeId, nodeID))
+		return nil, mw.Forbidden(fmt.Errorf("trying to register with nodeID %s while you are %s", n.NodeId, nodeID))
 	}
 
 	//make sure node can not set public config
@@ -103,7 +103,7 @@ func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, mw.Response) {
 	nodeID := mux.Vars(r)["node_id"]
 	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
 	if nodeID != hNodeID {
-		return nil, mw.Forbiden(fmt.Errorf("trying to register capacity for nodeID %s while you are %s", nodeID, hNodeID))
+		return nil, mw.Forbidden(fmt.Errorf("trying to register capacity for nodeID %s while you are %s", nodeID, hNodeID))
 	}
 
 	db := mw.Database(r)
@@ -132,7 +132,7 @@ func (s *NodeAPI) registerIfaces(r *http.Request) (interface{}, mw.Response) {
 	nodeID := mux.Vars(r)["node_id"]
 	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
 	if nodeID != hNodeID {
-		return nil, mw.Forbiden(fmt.Errorf("trying to register interfaces for nodeID %s while you are %s", nodeID, hNodeID))
+		return nil, mw.Forbidden(fmt.Errorf("trying to register interfaces for nodeID %s while you are %s", nodeID, hNodeID))
 	}
 
 	db := mw.Database(r)
@@ -172,7 +172,7 @@ func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	if requestFarmerID != actualFarmerID {
-		return nil, mw.Forbiden(fmt.Errorf("only the farmer can configured the public interface of its nodes"))
+		return nil, mw.Forbidden(fmt.Errorf("only the farmer can configured the public interface of its nodes"))
 	}
 
 	if err := s.SetPublicConfig(r.Context(), db, nodeID, iface); err != nil {
@@ -189,7 +189,7 @@ func (s *NodeAPI) registerPorts(r *http.Request) (interface{}, mw.Response) {
 	nodeID := mux.Vars(r)["node_id"]
 	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
 	if nodeID != hNodeID {
-		return nil, mw.Forbiden(fmt.Errorf("trying to register ports for nodeID %s while you are %s", nodeID, hNodeID))
+		return nil, mw.Forbidden(fmt.Errorf("trying to register ports for nodeID %s while you are %s", nodeID, hNodeID))
 	}
 
 	input := struct {
@@ -215,7 +215,7 @@ func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, mw.Response
 	nodeID := mux.Vars(r)["node_id"]
 	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
 	if nodeID != hNodeID {
-		return nil, mw.Forbiden(fmt.Errorf("trying to register uptime for nodeID %s while you are %s", nodeID, hNodeID))
+		return nil, mw.Forbidden(fmt.Errorf("trying to register uptime for nodeID %s while you are %s", nodeID, hNodeID))
 	}
 
 	input := struct {
@@ -241,7 +241,7 @@ func (s *NodeAPI) updateReservedResources(r *http.Request) (interface{}, mw.Resp
 	nodeID := mux.Vars(r)["node_id"]
 	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
 	if nodeID != hNodeID {
-		return nil, mw.Forbiden(fmt.Errorf("trying to update reserved capacity for nodeID %s while you are %s", nodeID, hNodeID))
+		return nil, mw.Forbidden(fmt.Errorf("trying to update reserved capacity for nodeID %s while you are %s", nodeID, hNodeID))
 	}
 
 	var resources generated.ResourceAmount

@@ -14,10 +14,6 @@ import (
 	"github.com/zaibon/httpsig"
 )
 
-const (
-	httpContentType = "application/json"
-)
-
 var (
 	successCodes = []int{
 		http.StatusOK,

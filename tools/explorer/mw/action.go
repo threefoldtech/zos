@@ -131,8 +131,8 @@ func UnAuthorized(err error) Response {
 	return Error(err, http.StatusUnauthorized)
 }
 
-// Forbiden response
-func Forbiden(err error) Response {
+// Forbidden response
+func Forbidden(err error) Response {
 	return Error(err, http.StatusForbidden)
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/threefoldtech/zos/tools/explorer/mw"
 
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	directory "github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
 	phonebook "github.com/threefoldtech/zos/tools/explorer/pkg/phonebook/types"
@@ -129,6 +130,19 @@ func migrateReservations(root string, db *mongo.Database) error {
 	})
 }
 
+func connectDB(ctx context.Context, connectionURI string) (*mongo.Client, error) {
+	client, err := mongo.NewClient(options.Client().ApplyURI(connectionURI))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := client.Connect(ctx); err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
 func main() {
 	app.Initialize()
 
@@ -147,12 +161,19 @@ func main() {
 		log.Fatal().Msg("root option is required")
 	}
 
-	db, err := mw.NewDatabaseMiddleware(name, dbConf)
+	ctx := context.TODO()
+
+	db, err := connectDB(ctx, dbConf)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
 
-	if err := directory.Setup(context.TODO(), db.Database()); err != nil {
+	dbMw, err := mw.NewDatabaseMiddleware(name, db)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to database")
+	}
+
+	if err := directory.Setup(ctx, dbMw.Database()); err != nil {
 		log.Fatal().Err(err).Msg("failed to setup directory indexes")
 	}
 
@@ -164,7 +185,7 @@ func main() {
 	}
 
 	for typ, migrator := range types {
-		if err := migrator(filepath.Join(root, typ), db.Database()); err != nil {
+		if err := migrator(filepath.Join(root, typ), dbMw.Database()); err != nil {
 			log.Error().Err(err).Str("root", typ).Msg("migration failed")
 		}
 	}
