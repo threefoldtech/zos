@@ -58,7 +58,7 @@ func Get(ctx context.Context, db *mongo.Database, farmerID int64, customerTID in
 	return farmerCustomerAddress, err
 }
 
-// Get gets one address using the address
+// GetByAddress gets one address using the address
 func GetByAddress(ctx context.Context, db *mongo.Database, address string) (FarmerCustomerAddress, error) {
 	var farmerCustomerAddress FarmerCustomerAddress
 	doc := db.Collection(AddressCollection).FindOne(ctx, bson.M{"address": address})
