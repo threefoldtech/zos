@@ -89,13 +89,17 @@ func (e *Escrow) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+			log.Debug().Msg("scanning active ecrow accounts balance")
 			if err := e.checkReservations(); err != nil {
 				log.Error().Msgf("failed to check reservations: %s", err)
 			}
+
+			log.Debug().Msg("scanning for expired escrows")
 			if err := e.refundExpiredReservations(); err != nil {
 				log.Error().Msgf("failed to refund expired reservations: %s", err)
 			}
 		case job := <-e.reservationChannel:
+			log.Debug().Msg("processing new reservation escrow")
 			details, err := e.processReservation(job.reservation)
 			if err != nil {
 				log.Error().Msgf("failed to check reservations: %s", err)
@@ -105,10 +109,12 @@ func (e *Escrow) Run(ctx context.Context) error {
 				data: details,
 			}
 		case id := <-e.deployedChannel:
+			log.Debug().Msg("trying to pay farmer for a deployed reservation")
 			if err := e.payoutFarmers(id); err != nil {
 				log.Error().Msgf("failed to payout farmers: %s", err)
 			}
 		case id := <-e.cancelledChannel:
+			log.Debug().Msg("trying to refund client for a canceled reservation")
 			if err := e.refundClients(id); err != nil {
 				log.Error().Msgf("could not refund clients: %s", err)
 			}
@@ -117,7 +123,6 @@ func (e *Escrow) Run(ctx context.Context) error {
 }
 
 func (e *Escrow) refundExpiredReservations() error {
-	log.Debug().Msg("scanning for expired escrows")
 	// load expired escrows
 	reservationEscrows, err := types.GetAllExpiredReservationPaymentInfos(e.ctx, e.db)
 	if err != nil {
@@ -137,7 +142,6 @@ func (e *Escrow) refundExpiredReservations() error {
 // if a reservation is funded then it will mark this reservation as to DEPLOY.
 // if its underfunded it will throw an error.
 func (e *Escrow) checkReservations() error {
-	log.Debug().Msg("scanning active ecrow accounts balance")
 	// load active escrows
 	reservationEscrows, err := types.GetAllActiveReservationPaymentInfos(e.ctx, e.db)
 	if err != nil {
@@ -194,7 +198,6 @@ func (e *Escrow) checkReservations() error {
 // processReservation processes a single reservation
 // calculates resources and their costs
 func (e *Escrow) processReservation(reservation workloads.Reservation) ([]types.EscrowDetail, error) {
-	log.Debug().Msg("Processing new reservation escrow")
 	rsuPerFarmer, err := e.processReservationResources(reservation.DataReservation)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to process reservation resources")
