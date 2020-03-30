@@ -72,7 +72,7 @@ func (e *Escrow) calculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 	return costPerFarmerMap, nil
 }
 
-func (e *Escrow) processReservation(resData workloads.ReservationData) (rsuPerFarmer, error) {
+func (e *Escrow) processReservationResources(resData workloads.ReservationData) (rsuPerFarmer, error) {
 	rsuPerNodeMap := make(rsuPerNode)
 	for _, cont := range resData.Containers {
 		rsuPerNodeMap[cont.NodeId] = rsuPerNodeMap[cont.NodeId].add(processContainer(cont))

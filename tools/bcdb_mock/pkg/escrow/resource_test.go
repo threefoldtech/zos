@@ -147,7 +147,7 @@ func TestProcessReservation(t *testing.T) {
 		nodeAPI:            &nodeAPIMock{},
 	}
 
-	farmRsu, err := escrow.processReservation(data)
+	farmRsu, err := escrow.processReservationResources(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -512,7 +512,7 @@ func TestCalculateReservationCost(t *testing.T) {
 		nodeAPI:            &nodeAPIMock{},
 	}
 
-	farmRsu, err := escrow.processReservation(data)
+	farmRsu, err := escrow.processReservationResources(data)
 	assert.NoError(t, err)
 
 	res, err := escrow.calculateReservationCost(farmRsu)

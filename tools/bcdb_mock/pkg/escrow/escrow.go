@@ -86,181 +86,199 @@ func (e *Escrow) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-ticker.C: // check reservations, mark those which are funded
-			log.Debug().Msg("scanning active ecrow accounts balance")
-			// load active escrows
-			reservationEscrows, err := types.GetAllActiveReservationPaymentInfos(ctx, e.db)
+		case <-ticker.C:
+			err := e.checkReservations(ctx)
 			if err != nil {
-				log.Error().Msgf("failed to load active reservations from escrow: %s", err)
-				continue
-			}
-			for _, escrowInfo := range reservationEscrows {
-				allPaid := true
-				for _, escrowAccount := range escrowInfo.Infos {
-					balance, _, err := e.wallet.GetBalance(escrowAccount.EscrowAddress, escrowInfo.ReservationID)
-					if err != nil {
-						allPaid = false
-						log.Error().Msgf("failed to verify escrow account balance: %s", err)
-						break
-					}
-					if balance < escrowAccount.TotalAmount {
-						allPaid = false
-						log.Debug().Msgf("escrow account %s for reservation id %d is not funded yet", escrowAccount.EscrowAddress, escrowInfo.ReservationID)
-						break
-					}
-				}
-				if allPaid {
-					// TODO: check reservation state, if "PAY" -> "DEPLOY"
-					reservation, err := workloadtypes.ReservationGetByID(ctx, e.db, escrowInfo.ReservationID)
-					if err != nil {
-						log.Error().Msgf("failed to load reservation: %s", err)
-						continue
-					}
-					pl, err := workloadtypes.NewPipeline(reservation)
-					if err != nil {
-						log.Error().Msgf("failed to process reservation in pipeline: %s", err)
-						continue
-					}
-
-					reservation, _ = pl.Next()
-					if !reservation.IsAny(workloadtypes.Pay) {
-						// TODO
-					}
-
-					log.Debug().Msg("all farmer are paid, trying to move to deploy state")
-					// update reservation
-					if err = workloadtypes.ReservationSetNextAction(ctx, e.db, escrowInfo.ReservationID, workloadtypes.Deploy); err != nil {
-						log.Error().Msgf("failed to set reservation in deploy state: %s", err)
-						continue
-					}
-
-					escrowInfo.Paid = true
-					if err = types.ReservationPaymentInfoUpdate(ctx, e.db, escrowInfo); err != nil {
-						log.Error().Msgf("failed to mark reservation escrow info as paid: %s", err)
-						continue
-					}
-				}
+				log.Error().Msgf("could not check reservations: %s", err)
 			}
 		case job := <-e.reservationChannel:
-			log.Debug().Msg("Processing new reservation escrow")
-			rsuPerFarmer, err := e.processReservation(job.reservation.DataReservation)
+			details, err := e.processReservation(ctx, job.reservation)
 			if err != nil {
-				job.responseChan <- reservationRegisterJobResponse{
-					err: err,
-				}
-				close(job.responseChan)
-				continue
+				log.Error().Msgf("could not check reservations: %s", err)
 			}
-			res, err := e.calculateReservationCost(rsuPerFarmer)
-			if err != nil {
-				job.responseChan <- reservationRegisterJobResponse{
-					err: err,
-				}
-				close(job.responseChan)
-				continue
-			}
-			details := make([]types.EscrowDetail, 0, len(res))
-			for farmer, value := range res {
-				var address string
-				address, err = e.createOrLoadAccount(farmer, job.reservation.CustomerTid)
-				if err != nil {
-					job.responseChan <- reservationRegisterJobResponse{
-						err: err,
-					}
-					close(job.responseChan)
-					break
-				}
-				details = append(details, types.EscrowDetail{
-					FarmerID:      schema.ID(farmer),
-					EscrowAddress: address,
-					TotalAmount:   value,
-				})
-			}
-			if err != nil {
-				continue
-			}
-			reservationPaymentInfo := types.ReservationPaymentInformation{
-				Infos:         details,
-				ReservationID: job.reservation.ID,
-				Expiration:    job.reservation.DataReservation.ExpirationProvisioning,
-				Paid:          false,
-			}
-			err = types.ReservationPaymentInfoCreate(ctx, e.db, reservationPaymentInfo)
 			job.responseChan <- reservationRegisterJobResponse{
 				err:  err,
 				data: details,
 			}
 		case id := <-e.deployedChannel:
-			rpi, err := types.ReservationPaymentInfoGet(ctx, e.db, id)
+			err := e.payoutFarmers(ctx, id)
 			if err != nil {
-				log.Error().Msgf("failed to get reservation escrow info: %s", err)
-				continue
-			}
-			// we already verified we have enough balance on every escrow for this reservation
-			for _, escrowDetails := range rpi.Infos {
-				// in case of an error in this flow we continue, so we try to pay as much
-				// farmers as possible even if one fails
-				farm, err := e.farmAPI.GetByID(ctx, e.db, int64(escrowDetails.FarmerID))
-				if err != nil {
-					log.Error().Msgf("failed to load farm info: %s", err)
-					continue
-				}
-				// TODO rework this type to an object with currency and filter based on "TFT"
-				destination := farm.WalletAddresses[0]
-				addressInfo, err := types.GetByAddress(ctx, e.db, escrowDetails.EscrowAddress)
-				if err != nil {
-					log.Error().Msgf("failed to load escrow address info: %s", err)
-					continue
-				}
-				kp, err := e.wallet.KeyPairFromSeed(addressInfo.Secret)
-				if err != nil {
-					log.Error().Msgf("failed to parse escrow address secret: %s", err)
-					continue
-				}
-				if err = e.wallet.PayoutFarmer(*kp, destination, escrowDetails.TotalAmount, id); err != nil {
-					log.Error().Msgf("failed to pay farmer: %s", err)
-					continue
-				}
-				// now refund any possible overpayment
-				if err = e.wallet.Refund(*kp, id); err != nil {
-					log.Error().Msgf("failed to pay farmer: %s", err)
-					continue
-				}
-			}
-			rpi.Released = true
-			if err = types.ReservationPaymentInfoUpdate(ctx, e.db, rpi); err != nil {
-				log.Error().Msgf("could not mark escrows for %d as released: %s", rpi.ReservationID, err)
+				log.Error().Msgf("could not payout farmers: %s", err)
 			}
 		case id := <-e.cancelledChannel:
-			rpi, err := types.ReservationPaymentInfoGet(ctx, e.db, id)
+			err := e.refundClients(ctx, id)
 			if err != nil {
-				log.Error().Msgf("failed to get reservation escrow info: %s", err)
-				continue
-			}
-			for _, escrowDetails := range rpi.Infos {
-				// in case of an error in this flow we continue, so we try to pay as much
-				// farmers as possible even if one fails
-				addressInfo, err := types.GetByAddress(ctx, e.db, escrowDetails.EscrowAddress)
-				if err != nil {
-					log.Error().Msgf("failed to load escrow address info: %s", err)
-					continue
-				}
-				kp, err := e.wallet.KeyPairFromSeed(addressInfo.Secret)
-				if err != nil {
-					log.Error().Msgf("failed to parse escrow address secret: %s", err)
-					continue
-				}
-				if err = e.wallet.Refund(*kp, id); err != nil {
-					log.Error().Msgf("failed to pay farmer: %s", err)
-					continue
-				}
-			}
-			rpi.Canceled = true
-			if err = types.ReservationPaymentInfoUpdate(ctx, e.db, rpi); err != nil {
-				log.Error().Msgf("could not mark escrows for %d as canceled: %s", rpi.ReservationID, err)
+				log.Error().Msgf("could not refund clients: %s", err)
 			}
 		}
 	}
+}
+
+// checkReservations checks all the active reservations and marks those who are funded.
+// if a reservation is funded then it will mark this reservation as to DEPLOY.
+// if its underfunded it will throw an error.
+func (e *Escrow) checkReservations(ctx context.Context) error {
+	log.Debug().Msg("scanning active ecrow accounts balance")
+	// load active escrows
+	reservationEscrows, err := types.GetAllActiveReservationPaymentInfos(ctx, e.db)
+	if err != nil {
+		return errors.Wrap(err, "failed to load active reservations from escrow")
+	}
+	for _, escrowInfo := range reservationEscrows {
+		allPaid := true
+		for _, escrowAccount := range escrowInfo.Infos {
+			balance, _, err := e.wallet.GetBalance(escrowAccount.EscrowAddress, escrowInfo.ReservationID)
+			if err != nil {
+				allPaid = false
+				return errors.Wrap(err, "failed to verify escrow account balance")
+			}
+			if balance < escrowAccount.TotalAmount {
+				allPaid = false
+				return errors.Wrapf(err, "escrow account %s for reservation id %d is not funded yet", escrowAccount.EscrowAddress, escrowInfo.ReservationID)
+			}
+		}
+		if allPaid {
+			// TODO: check reservation state, if "PAY" -> "DEPLOY"
+			reservation, err := workloadtypes.ReservationGetByID(ctx, e.db, escrowInfo.ReservationID)
+			if err != nil {
+				return errors.Wrap(err, "failed to load reservation")
+			}
+			pl, err := workloadtypes.NewPipeline(reservation)
+			if err != nil {
+				return errors.Wrap(err, "failed to process reservation in pipeline")
+			}
+
+			reservation, _ = pl.Next()
+			if !reservation.IsAny(workloadtypes.Pay) {
+				// TODO
+			}
+
+			log.Debug().Msg("all farmer are paid, trying to move to deploy state")
+			// update reservation
+			if err = workloadtypes.ReservationSetNextAction(ctx, e.db, escrowInfo.ReservationID, workloadtypes.Deploy); err != nil {
+				return errors.Wrap(err, "failed to set reservation in deploy state")
+			}
+
+			escrowInfo.Paid = true
+			if err = types.ReservationPaymentInfoUpdate(ctx, e.db, escrowInfo); err != nil {
+				return errors.Wrap(err, "failed to mark reservation escrow info as paid")
+			}
+		}
+	}
+	return nil
+}
+
+// processReservation processes a single reservation
+// calculates resources and their costs
+func (e *Escrow) processReservation(ctx context.Context, reservation workloads.Reservation) ([]types.EscrowDetail, error) {
+	log.Debug().Msg("Processing new reservation escrow")
+	rsuPerFarmer, err := e.processReservationResources(reservation.DataReservation)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to process reservation resources")
+	}
+	res, err := e.calculateReservationCost(rsuPerFarmer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to process reservation resources costs")
+	}
+	details := make([]types.EscrowDetail, 0, len(res))
+	for farmer, value := range res {
+		var address string
+		address, err = e.createOrLoadAccount(farmer, reservation.CustomerTid)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create or load account")
+		}
+		details = append(details, types.EscrowDetail{
+			FarmerID:      schema.ID(farmer),
+			EscrowAddress: address,
+			TotalAmount:   value,
+		})
+	}
+	reservationPaymentInfo := types.ReservationPaymentInformation{
+		Infos:         details,
+		ReservationID: reservation.ID,
+		Expiration:    reservation.DataReservation.ExpirationProvisioning,
+		Paid:          false,
+	}
+	err = types.ReservationPaymentInfoCreate(ctx, e.db, reservationPaymentInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create reservation payment information")
+	}
+	return details, nil
+}
+
+// refundClients refunds clients if the reservation is cancelled
+func (e *Escrow) refundClients(ctx context.Context, id schema.ID) error {
+	rpi, err := types.ReservationPaymentInfoGet(ctx, e.db, id)
+	if err != nil {
+		return errors.Wrap(err, "failed to get reservation escrow info")
+	}
+	for _, escrowDetails := range rpi.Infos {
+		// in case of an error in this flow we continue, so we try to refund as much
+		// client as possible even if one fails
+		addressInfo, err := types.GetByAddress(ctx, e.db, escrowDetails.EscrowAddress)
+		if err != nil {
+			log.Error().Msgf("failed to load escrow address info: %s", err)
+			continue
+		}
+		kp, err := e.wallet.KeyPairFromSeed(addressInfo.Secret)
+		if err != nil {
+			log.Error().Msgf("failed to parse escrow address secret: %s", err)
+			continue
+		}
+		if err = e.wallet.Refund(*kp, id); err != nil {
+			log.Error().Msgf("failed to refund clients: %s", err)
+			continue
+		}
+	}
+	rpi.Canceled = true
+	if err = types.ReservationPaymentInfoUpdate(ctx, e.db, rpi); err != nil {
+		return errors.Wrapf(err, "could not mark escrows for %d as canceled", rpi.ReservationID)
+	}
+	return nil
+}
+
+// payoutFarmers pays out the farmer for a processed reservation
+func (e *Escrow) payoutFarmers(ctx context.Context, id schema.ID) error {
+	rpi, err := types.ReservationPaymentInfoGet(ctx, e.db, id)
+	if err != nil {
+		return errors.Wrap(err, "failed to get reservation escrow info")
+	}
+	// we already verified we have enough balance on every escrow for this reservation
+	for _, escrowDetails := range rpi.Infos {
+		// in case of an error in this flow we continue, so we try to pay as much
+		// farmers as possible even if one fails
+		farm, err := e.farmAPI.GetByID(ctx, e.db, int64(escrowDetails.FarmerID))
+		if err != nil {
+			log.Error().Msgf("failed to load farm info: %s", err)
+			continue
+		}
+		// TODO rework this type to an object with currency and filter based on "TFT"
+		destination := farm.WalletAddresses[0]
+		addressInfo, err := types.GetByAddress(ctx, e.db, escrowDetails.EscrowAddress)
+		if err != nil {
+			log.Error().Msgf("failed to load escrow address info: %s", err)
+			continue
+		}
+		kp, err := e.wallet.KeyPairFromSeed(addressInfo.Secret)
+		if err != nil {
+			log.Error().Msgf("failed to parse escrow address secret: %s", err)
+			continue
+		}
+		if err = e.wallet.PayoutFarmer(*kp, destination, escrowDetails.TotalAmount, id); err != nil {
+			log.Error().Msgf("failed to pay farmer: %s", err)
+			continue
+		}
+		// now refund any possible overpayment
+		if err = e.wallet.Refund(*kp, id); err != nil {
+			log.Error().Msgf("failed to pay farmer: %s", err)
+			continue
+		}
+	}
+	rpi.Released = true
+	if err = types.ReservationPaymentInfoUpdate(ctx, e.db, rpi); err != nil {
+		return errors.Wrapf(err, "could not mark escrows for %d as released", rpi.ReservationID)
+	}
+	return nil
 }
 
 // RegisterReservation registers a workload reservation
