@@ -677,6 +677,8 @@ func (a *API) signDelete(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	if reservation.NextAction != generated.NextActionDelete {
+		// cancel reservation escrow in case the reservation has not yet been deployed
+		a.escrow.ReservationCanceled(reservation.ID)
 		return nil, mw.Created()
 	}
 
