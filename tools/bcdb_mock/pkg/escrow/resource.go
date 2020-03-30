@@ -19,12 +19,10 @@ type (
 		cru int64
 		sru int64
 		hru int64
-		// TODO: should we use big.Float here to avoid floating point errors?
 		mru float64
 	}
 
 	cloudUnits struct {
-		// TODO: should we use big.Float here to avoid floating point errors?
 		cu float64
 		su float64
 	}
