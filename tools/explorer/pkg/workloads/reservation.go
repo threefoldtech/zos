@@ -126,11 +126,10 @@ func (a *API) get(r *http.Request) (interface{}, mw.Response) {
 
 func (a *API) list(r *http.Request) (interface{}, mw.Response) {
 	var filter types.ReservationFilter
-	q := types.ReservationQuery{}
-	if err := q.Parse(r); err != nil {
-		return nil, err
+	filter, err := types.ApplyQueryFilter(r, filter)
+	if err != nil {
+		return nil, mw.BadRequest(err)
 	}
-	filter = filter.WithReservationQuery(q)
 
 	db := mw.Database(r)
 	pager := models.PageFromRequest(r)
