@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/explorer/models"
-	"github.com/threefoldtech/zos/tools/explorer/mw"
 	generated "github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
+	"github.com/threefoldtech/zos/tools/explorer/mw"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -45,7 +45,6 @@ func (f *Farm) Validate() error {
 	return nil
 }
 
-
 // FarmQuery helper to parse query string
 type FarmQuery struct {
 	FarmName string
@@ -62,7 +61,6 @@ func (f *FarmQuery) Parse(r *http.Request) mw.Response {
 	f.FarmName = r.FormValue("name")
 	return nil
 }
-
 
 // FarmFilter type
 type FarmFilter bson.D
