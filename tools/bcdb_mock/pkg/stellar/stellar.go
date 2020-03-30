@@ -2,6 +2,7 @@ package stellar
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 
 	"github.com/rs/zerolog/log"
@@ -21,6 +22,9 @@ const (
 	assetCode          = "TFT"
 	assetIssuerTestnet = "GA47YZA3PKFUZMPLQ3B5F2E3CJIB57TGGU7SPCQT2WAEYKN766PWIMB3"
 	assetIssuerProd    = "GBOVQKJYHXRR3DX6NOX2RRYFRCUMSADGDESTDNBDS6CDVLGVESRTAC47"
+
+	stellarPrecision       = 1e7
+	stellarPrecisionDigits = 7
 )
 
 // ErrInsuficientBalance is an error that is used when there is insufficient balance
@@ -89,7 +93,6 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 			Code:   assetCode,
 			Issuer: w.getIssuer(),
 		},
-		Limit: "10000",
 	}
 	trustTx := txnbuild.Transaction{
 		SourceAccount: &sourceAccount,
@@ -124,8 +127,11 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 		return 0, nil, err
 	}
 
+	cursor := ""
+
 	txReq := horizonclient.TransactionRequest{
 		ForAccount: address,
+		Cursor:     cursor,
 	}
 
 	txes, err := horizonClient.Transactions(txReq)
@@ -134,56 +140,63 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 	}
 
 	donors := make(map[string]struct{})
-	for _, tx := range txes.Embedded.Records {
-		if tx.Memo == strconv.FormatInt(int64(id), 10) {
-			effectsReq := horizonclient.EffectRequest{
-				ForTransaction: tx.Hash,
-			}
-			effects, err := horizonClient.Effects(effectsReq)
-			if err != nil {
-				log.Debug().Msgf("failed to get transaction effects: %v", err)
-				continue
-			}
-			// first check if we have been paid
-			var isFunding bool
-			for _, effect := range effects.Embedded.Records {
-				if effect.GetAccount() != address {
+	for len(txes.Embedded.Records) != 0 {
+		for _, tx := range txes.Embedded.Records {
+			if tx.Memo == strconv.FormatInt(int64(id), 10) {
+				effectsReq := horizonclient.EffectRequest{
+					ForTransaction: tx.Hash,
+				}
+				effects, err := horizonClient.Effects(effectsReq)
+				if err != nil {
+					log.Debug().Msgf("failed to get transaction effects: %v", err)
 					continue
 				}
-				if effect.GetType() == "account_credited" {
-					isFunding = true
-					creditedEffect := effect.(horizoneffects.AccountCredited)
-					parsedAmount, err := amount.Parse(creditedEffect.Amount)
-					if err != nil {
-						continue
-					}
-					total += parsedAmount
-				} else if effect.GetType() == "account_debited" {
-					isFunding = false
-					debitedEffect := effect.(horizoneffects.AccountDebited)
-					// Plot twist: this is a negative amount because in stellar,
-					// debiting ( `-` ) a negative amount for some reason does not
-					// equal adding, as it does in the rest of the world
-					parsedAmount, err := amount.Parse(debitedEffect.Amount)
-					if err != nil {
-						continue
-					}
-					total += parsedAmount
-				}
-			}
-			if isFunding {
+				// first check if we have been paid
+				var isFunding bool
 				for _, effect := range effects.Embedded.Records {
-					if effect.GetType() == "account_debited" && effect.GetAccount() != address {
-						donors[effect.GetAccount()] = struct{}{}
+					if effect.GetAccount() != address {
+						continue
+					}
+					if effect.GetType() == "account_credited" {
+						isFunding = true
+						creditedEffect := effect.(horizoneffects.AccountCredited)
+						parsedAmount, err := amount.Parse(creditedEffect.Amount)
+						if err != nil {
+							continue
+						}
+						total += parsedAmount
+					} else if effect.GetType() == "account_debited" {
+						isFunding = false
+						debitedEffect := effect.(horizoneffects.AccountDebited)
+						parsedAmount, err := amount.Parse(debitedEffect.Amount)
+						if err != nil {
+							continue
+						}
+						total -= parsedAmount
+					}
+				}
+				if isFunding {
+					for _, effect := range effects.Embedded.Records {
+						if effect.GetType() == "account_debited" && effect.GetAccount() != address {
+							donors[effect.GetAccount()] = struct{}{}
+						}
 					}
 				}
 			}
+			cursor = tx.PagingToken()
+		}
+		txReq.Cursor = cursor
+		txes, err = horizonClient.Transactions(txReq)
+		if err != nil {
+			return 0, nil, errors.Wrap(err, "could not get transactions")
 		}
 	}
+
 	donorList := []string{}
 	for donor := range donors {
 		donorList = append(donorList, donor)
 	}
+	log.Debug().Msgf("balance for %s - %v: %d", address, id, total)
 	return total, donorList, nil
 }
 
@@ -209,7 +222,7 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 
 	paymentOP := txnbuild.Payment{
 		Destination: destination,
-		Amount:      strconv.FormatInt(int64(amount), 10),
+		Amount:      big.NewRat(int64(amount), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
 			Code:   assetCode,
 			Issuer: w.getIssuer(),
@@ -217,7 +230,7 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 		SourceAccount: &sourceAccount,
 	}
 
-	formattedMemo := fmt.Sprintf("refund %d", id)
+	formattedMemo := fmt.Sprintf("%d", id)
 	memo := txnbuild.MemoText(formattedMemo)
 	tx := txnbuild.Transaction{
 		Operations: []txnbuild.Operation{&paymentOP},
@@ -272,7 +285,7 @@ func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount x
 
 	farmerPaymentOP := txnbuild.Payment{
 		Destination: destination,
-		Amount:      strconv.FormatInt(int64(amountDue), 10),
+		Amount:      big.NewRat(int64(amountDue), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
 			Code:   assetCode,
 			Issuer: w.getIssuer(),
@@ -281,7 +294,7 @@ func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount x
 	}
 	foundationPaymentOP := txnbuild.Payment{
 		Destination: w.keypair.Address(),
-		Amount:      strconv.FormatInt(int64(foundationCut), 10),
+		Amount:      big.NewRat(int64(foundationCut), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
 			Code:   assetCode,
 			Issuer: w.getIssuer(),
@@ -289,7 +302,7 @@ func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount x
 		SourceAccount: &sourceAccount,
 	}
 
-	formattedMemo := fmt.Sprintf("refund %d", id)
+	formattedMemo := fmt.Sprintf("%d", id)
 	memo := txnbuild.MemoText(formattedMemo)
 	tx := txnbuild.Transaction{
 		Operations: []txnbuild.Operation{&farmerPaymentOP, &foundationPaymentOP},
@@ -357,7 +370,8 @@ func (w *Wallet) signAndSubmitTx(keypair *keypair.Full, tx *txnbuild.Transaction
 	_, err = client.SubmitTransaction(*tx)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		return errors.Wrap(hError, "error submitting transaction")
+		log.Debug().Msgf("%+v", hError.Problem.Extras)
+		return errors.Wrap(hError.Problem, "error submitting transaction")
 	}
 	return nil
 }

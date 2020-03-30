@@ -91,7 +91,7 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	reservation, err = types.ReservationGetByID(r.Context(), db, id)
+	reservation, err = types.ReservationFilter{}.WithID(id).Get(r.Context(), db)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
@@ -438,6 +438,31 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 
 	if err := types.WorkloadPop(r.Context(), db, gwid); err != nil {
 		return nil, mw.Error(err)
+	}
+
+	// TODO: cancel reservation in case of error
+	if result.State == generated.ResultStateError {
+		a.escrow.ReservationCanceled(rid)
+	} else if result.State == generated.ResultStateOK {
+		// check if entire reservation is deployed successfully
+		// fetch reservation from db again to have result appended in the model
+		reservation, err = a.pipeline(filter.Get(r.Context(), db))
+		if err != nil {
+			return nil, mw.NotFound(err)
+		}
+
+		if len(reservation.Results) == len(reservation.Workloads("")) {
+			succeeded := true
+			for _, result := range reservation.Results {
+				if result.State != generated.ResultStateOK {
+					succeeded = false
+					break
+				}
+			}
+			if succeeded {
+				a.escrow.ReservationDeployed(rid)
+			}
+		}
 	}
 
 	return nil, mw.Created()

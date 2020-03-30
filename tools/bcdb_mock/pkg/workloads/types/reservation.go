@@ -394,17 +394,6 @@ func ReservationCreate(ctx context.Context, db *mongo.Database, r Reservation) (
 	return id, nil
 }
 
-// ReservationGetByID gets a reservation by id
-func ReservationGetByID(ctx context.Context, db *mongo.Database, id schema.ID) (Reservation, error) {
-	var filter ReservationFilter
-	filter = filter.WithID(id)
-
-	var reservation Reservation
-	res := db.Collection(ReservationCollection).FindOne(ctx, filter)
-	err := res.Decode(&reservation)
-	return reservation, err
-}
-
 // ReservationSetNextAction update the reservation next action in db
 func ReservationSetNextAction(ctx context.Context, db *mongo.Database, id schema.ID, action generated.NextActionEnum) error {
 	var filter ReservationFilter
