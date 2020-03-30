@@ -16,7 +16,6 @@ import (
 )
 
 type (
-	farmAPIMock struct{}
 	nodeAPIMock struct{}
 )
 

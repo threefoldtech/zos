@@ -77,6 +77,9 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	}
 
 	txeBase64, err := tx.BuildSignEncode(w.keypair)
+	if err != nil {
+		return keypair.Full{}, errors.Wrap(err, "failed to get build transaction")
+	}
 
 	// Submit the transaction
 	_, err = client.SubmitTransactionXDR(txeBase64)
@@ -87,6 +90,9 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 
 	// Set the trustline
 	sourceAccount, err = w.getAccountDetails(newKp.Address())
+	if err != nil {
+		return keypair.Full{}, errors.Wrap(err, "failed to get account details")
+	}
 	changeTrustOp := txnbuild.ChangeTrust{
 		SourceAccount: &sourceAccount,
 		Line: txnbuild.CreditAsset{
@@ -102,11 +108,15 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	}
 
 	txeBase64, err = trustTx.BuildSignEncode(newKp)
+	if err != nil {
+		return keypair.Full{}, errors.Wrap(err, "failed to get build transaction")
+	}
+
 	// Submit the transaction
 	_, err = client.SubmitTransactionXDR(txeBase64)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		return keypair.Full{}, errors.Wrap(hError, "error submitting transaction")
+		return keypair.Full{}, errors.Wrap(hError.Problem, "error submitting transaction")
 	}
 
 	return *newKp, nil
