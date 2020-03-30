@@ -44,9 +44,7 @@ func (u *User) Encode() []byte {
 	buf.WriteString(fmt.Sprint(int64(u.ID)))
 	buf.WriteString(u.Name)
 	buf.WriteString(u.Email)
-	if len(u.Ipaddr) > 0 {
-		buf.WriteString(u.Ipaddr.String())
-	}
+	buf.WriteString(u.Host)
 	buf.WriteString(u.Description)
 	buf.WriteString(u.Pubkey)
 
@@ -210,8 +208,8 @@ func UserUpdate(ctx context.Context, db *mongo.Database, id schema.ID, signature
 		current.Description = update.Description
 	}
 
-	if len(update.Ipaddr) != 0 {
-		current.Ipaddr = update.Ipaddr
+	if len(update.Host) != 0 {
+		current.Host = update.Host
 	}
 
 	// actually update the user with final data
