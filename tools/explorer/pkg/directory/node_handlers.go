@@ -33,11 +33,6 @@ func (s *NodeAPI) registerNode(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.BadRequest(err)
 	}
 
-	nodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
-	if nodeID != n.NodeId {
-		return nil, mw.Forbidden(fmt.Errorf("trying to register with nodeID %s while you are %s", n.NodeId, nodeID))
-	}
-
 	//make sure node can not set public config
 	n.PublicConfig = nil
 	db := mw.Database(r)

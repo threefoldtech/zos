@@ -73,19 +73,24 @@ func (m NodeKeyGetter) GetKey(id string) interface{} {
 // requiredHeaders are the parameters to be used to generated the http signature
 var requiredHeaders = []string{"(created)", "date", "threebot-id"}
 
-// AuthMiddleware enable authentication on HTTP handlers
-func AuthMiddleware(db *mongo.Database, h http.Handler, kg httpsig.KeyGetter) http.Handler {
-	verifier := httpsig.NewVerifier(kg)
-	verifier.SetRequiredHeaders(requiredHeaders)
-
-	return requireSignature(h, verifier)
+// AuthMiddleware implements https://tools.ietf.org/html/draft-cavage-http-signatures-12
+// authentication scheme as an HTTP middleware
+type AuthMiddleware struct {
+	verifier *httpsig.Verifier
 }
 
-func requireSignature(h http.Handler, v *httpsig.Verifier) (
-	out http.Handler) {
+// NewAuthMiddleware creates a new AuthMiddleware using the v httpsig.Verifier
+func NewAuthMiddleware(v *httpsig.Verifier) *AuthMiddleware {
+	v.SetRequiredHeaders(requiredHeaders)
+	return &AuthMiddleware{
+		verifier: v,
+	}
+}
 
+// Middleware implements mux.Middlware interface
+func (a *AuthMiddleware) Middleware(handler http.Handler) http.Handler {
 	var challengeParams []string
-	if headers := v.RequiredHeaders(); len(headers) > 0 {
+	if headers := a.verifier.RequiredHeaders(); len(headers) > 0 {
 		challengeParams = append(challengeParams,
 			fmt.Sprintf("headers=%q", strings.Join(headers, " ")))
 	}
@@ -96,7 +101,7 @@ func requireSignature(h http.Handler, v *httpsig.Verifier) (
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		err := v.Verify(req)
+		err := a.verifier.Verify(req)
 		if err != nil {
 			w.Header()["WWW-Authenticate"] = []string{challenge}
 			w.WriteHeader(http.StatusUnauthorized)
@@ -113,6 +118,6 @@ func requireSignature(h http.Handler, v *httpsig.Verifier) (
 			}
 			return
 		}
-		h.ServeHTTP(w, req)
+		handler.ServeHTTP(w, req)
 	})
 }
