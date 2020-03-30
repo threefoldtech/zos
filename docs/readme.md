@@ -1,6 +1,6 @@
 # Table Of Content
 
-![Architecture](../assets/zos-architecture.png)
+![Architecture](../assets/0-OS_v2_architecture.png)
 
 - Documentation about version:
   - [Release workflow](release/readme.md)
