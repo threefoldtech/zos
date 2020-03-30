@@ -129,24 +129,3 @@ func GetAllExpiredReservationPaymentInfos(ctx context.Context, db *mongo.Databas
 	}
 	return paymentInfos, err
 }
-
-// GetAllAddresses gets all in use addresses from the escrowcollections
-func GetAllAddresses(ctx context.Context, db *mongo.Database) ([]string, error) {
-	cursor, err := db.Collection(EscrowCollection).Find(ctx, bson.M{})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create cursor over payment infos")
-	}
-	defer cursor.Close(ctx)
-	addresses := make([]string, 0)
-	var reservationPaymentInfo ReservationPaymentInformation
-	for cursor.Next(ctx) {
-		err = cursor.Decode(&reservationPaymentInfo)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to decode reservation payment info")
-		}
-		for _, paymentInfo := range reservationPaymentInfo.Infos {
-			addresses = append(addresses, paymentInfo.EscrowAddress)
-		}
-	}
-	return addresses, nil
-}

@@ -170,7 +170,10 @@ func (e *Escrow) checkReservations() error {
 
 			reservation, _ = pl.Next()
 			if !reservation.IsAny(workloadtypes.Pay) {
-				// TODO
+				// Do not continue, but also take no action to drive the reservation
+				// as much as possible from the main explorer part.
+				log.Warn().Msgf("reservation %d is paid, but no longer in pay state", escrowInfo.ReservationID)
+				continue
 			}
 
 			log.Debug().Msg("all farmer are paid, trying to move to deploy state")

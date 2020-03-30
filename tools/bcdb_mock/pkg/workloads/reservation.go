@@ -440,9 +440,10 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	// TODO: cancel reservation in case of error
 	if result.State == generated.ResultStateError {
-		a.escrow.ReservationCanceled(rid)
+		if err := a.setReservationDeleted(r.Context(), db, rid); err != nil {
+			return nil, mw.Error(err)
+		}
 	} else if result.State == generated.ResultStateOK {
 		// check if entire reservation is deployed successfully
 		// fetch reservation from db again to have result appended in the model
@@ -677,12 +678,10 @@ func (a *API) signDelete(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	if reservation.NextAction != generated.NextActionDelete {
-		// cancel reservation escrow in case the reservation has not yet been deployed
-		a.escrow.ReservationCanceled(reservation.ID)
 		return nil, mw.Created()
 	}
 
-	if err := types.ReservationSetNextAction(r.Context(), db, reservation.ID, generated.NextActionDelete); err != nil {
+	if err := a.setReservationDeleted(r.Context(), db, reservation.ID); err != nil {
 		return nil, mw.Error(err)
 	}
 
@@ -691,4 +690,10 @@ func (a *API) signDelete(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	return nil, mw.Created()
+}
+
+func (a *API) setReservationDeleted(ctx context.Context, db *mongo.Database, id schema.ID) error {
+	// cancel reservation escrow in case the reservation has not yet been deployed
+	a.escrow.ReservationCanceled(id)
+	return types.ReservationSetNextAction(ctx, db, id, generated.NextActionDelete)
 }
