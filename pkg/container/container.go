@@ -25,6 +25,7 @@ import (
 	"github.com/google/shlex"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
+	"github.com/threefoldtech/zos/pkg/container/stats"
 )
 
 const (
@@ -206,6 +207,10 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 	if err != nil {
 		return id, err
 	}
+
+	// XXXX
+	go stats.Monitor(c.containerd, ns, task)
+	// XXXX
 
 	// call start on the task to execute the redis server
 	if err := task.Start(ctx); err != nil {
