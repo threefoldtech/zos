@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/threefoldtech/zos/pkg/kernel"
@@ -130,7 +131,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		env.Orphan = false
 		id, err := strconv.ParseUint(farmerID[0], 10, 64)
 		if err != nil {
-			return env, err
+			return env, errors.Wrap(err, "wrong format for farm ID")
 		}
 		env.FarmerID = pkg.FarmID(id)
 	}

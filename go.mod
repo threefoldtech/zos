@@ -21,6 +21,7 @@ require (
 	github.com/containerd/typeurl v0.0.0-20190911142611-5eb25027c9fd // indirect
 	github.com/containernetworking/cni v0.7.2-0.20190807151350-8c6c47d1c7fc
 	github.com/containernetworking/plugins v0.8.4
+	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/dave/jennifer v1.3.0
 	github.com/deckarep/golang-set v1.7.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -68,13 +69,13 @@ require (
 	github.com/threefoldtech/rivine v1.3.1
 	github.com/threefoldtech/rivine-extension-erc20 v0.0.0-20191215211707-6c9cf7ce839a // indirect
 	github.com/threefoldtech/zbus v0.1.3
-	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
-	github.com/urfave/cli v1.22.1
+	github.com/urfave/cli v1.22.3
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/whs/nacl-sealed-box v0.0.0-20180930164530-92b9ba845d8d
 	github.com/xdg/stringprep v1.0.0 // indirect
+	github.com/zaibon/httpsig v0.0.0-20200330100750-92f51d8ee3ec
 	go.etcd.io/bbolt v1.3.3 // indirect
 	go.mongodb.org/mongo-driver v1.3.0
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
