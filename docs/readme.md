@@ -1,6 +1,6 @@
 # Table Of Content
 
-![Architecture](../assets/0-OS_v2_architecture.png)
+![Architecture](../assets/architecture-compact.png)
 
 - Documentation about version:
   - [Release workflow](release/readme.md)
