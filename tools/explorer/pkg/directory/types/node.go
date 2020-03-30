@@ -264,3 +264,52 @@ func NodePushProof(ctx context.Context, db *mongo.Database, nodeID string, proof
 
 	return err
 }
+
+// FarmsForNodes return farm objects given node ids
+func FarmsForNodes(ctx context.Context, db *mongo.Database, nodeID ...string) (farms []directory.Farm, err error) {
+	// this pipline finds all farms from a list of nodes and return the list
+	if len(nodeID) == 0 {
+		return
+	}
+
+	pipeline := mongo.Pipeline{
+		{{
+			Key: "$match",
+			Value: bson.M{
+				"node_id": bson.M{
+					"$in": nodeID,
+				},
+			},
+		}},
+		{{
+			Key: "$group",
+			Value: bson.M{
+				"_id": "$farm_id",
+			},
+		}},
+		{{
+			Key: "$lookup",
+			Value: bson.M{
+				"from":         FarmCollection,
+				"localField":   "_id",
+				"foreignField": "_id",
+				"as":           "farm"},
+		}},
+		{{
+			Key: "$replaceRoot",
+			Value: bson.M{
+				"newRoot": bson.M{
+					"$arrayElemAt": []interface{}{"$farm", 0},
+				},
+			},
+		}},
+	}
+
+	cur, err := db.Collection(NodeCollection).Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+
+	err = cur.All(ctx, &farms)
+	return
+}

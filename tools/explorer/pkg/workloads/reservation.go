@@ -37,6 +37,33 @@ type ReservationCreateResponse struct {
 	EscrowInformation []escrowtypes.EscrowDetail `json:"escrow_information"`
 }
 
+func (a *API) validAddresses(ctx context.Context, db *mongo.Database, res *types.Reservation) error {
+	workloads := res.Workloads("")
+	var nodes []string
+
+	for _, wl := range workloads {
+		nodes = append(nodes, wl.NodeID)
+	}
+
+	farms, err := directory.FarmsForNodes(ctx, db, nodes...)
+	if err != nil {
+		return err
+	}
+
+	validator := stellar.NewAddressValidator(config.Config.Network)
+
+	for _, farm := range farms {
+		for _, address := range farm.WalletAddresses {
+			if err := validator.Valid(address); err != nil {
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
 func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	defer r.Body.Close()
 	var reservation types.Reservation
@@ -68,6 +95,10 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	db := mw.Database(r)
+	if err := a.validAddresses(r.Context(), db, &reservation); err != nil {
+		return nil, mw.Error(err, http.StatusFailedDependency)
+	}
+
 	var filter phonebook.UserFilter
 	filter = filter.WithID(schema.ID(reservation.CustomerTid))
 	user, err := filter.Get(r.Context(), db)
