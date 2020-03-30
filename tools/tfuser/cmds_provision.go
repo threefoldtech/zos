@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/stellar/go/xdr"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -180,13 +182,21 @@ func cmdsProvision(c *cli.Context) error {
 	fmt.Printf("Resource: /reservations/%v\n", response.ID)
 	fmt.Println()
 
+	fmt.Printf("Reservation id: %d \n", response.ID)
+
 	for _, detail := range response.EscrowInformation {
+		fmt.Println()
 		fmt.Printf("FarmerID: %v\n", detail.FarmerID)
 		fmt.Printf("Escrow address: %s\n", detail.EscrowAddress)
-		fmt.Printf("Amount: %d\n", detail.TotalAmount)
+		fmt.Printf("Amount: %s\n", formatCurrency(detail.TotalAmount))
 	}
 
 	return nil
+}
+
+func formatCurrency(amount xdr.Int64) string {
+	currency := big.NewRat(int64(amount), 1e7)
+	return currency.FloatString(7)
 }
 
 func embed(schema interface{}, t provision.ReservationType, node string) (*provision.Reservation, error) {
