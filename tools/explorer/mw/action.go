@@ -130,3 +130,13 @@ func Conflict(err error) Response {
 func UnAuthorized(err error) Response {
 	return Error(err, http.StatusUnauthorized)
 }
+
+// Forbidden response
+func Forbidden(err error) Response {
+	return Error(err, http.StatusForbidden)
+}
+
+// NoContent response
+func NoContent() Response {
+	return genericResponse{status: http.StatusNoContent}
+}

@@ -139,6 +139,16 @@ func (f NodeFilter) Count(ctx context.Context, db *mongo.Database) (int64, error
 	return col.CountDocuments(ctx, f)
 }
 
+// Delete deletes a node by ID
+func (f NodeFilter) Delete(ctx context.Context, db *mongo.Database) error {
+	col := db.Collection(NodeCollection)
+	if f == nil {
+		f = NodeFilter{}
+	}
+	_, err := col.DeleteOne(ctx, f, options.Delete())
+	return err
+}
+
 // NodeCreate creates a new farm
 func NodeCreate(ctx context.Context, db *mongo.Database, node Node) (schema.ID, error) {
 	if err := node.Validate(); err != nil {
