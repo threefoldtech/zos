@@ -258,40 +258,6 @@ func (s *NodeAPI) updateReservedResources(r *http.Request) (interface{}, mw.Resp
 	return nil, nil
 }
 
-func (s *NodeAPI) delete(r *http.Request) (interface{}, mw.Response) {
-	db := mw.Database(r)
-	nodeID := mux.Vars(r)["node_id"]
-
-	node, err := s.Get(r.Context(), db, nodeID, false)
-	if err != nil {
-		return nil, mw.NotFound(err)
-	}
-
-	// ensure it is the farmer that does the call
-	actualFarmerID, merr := farmOwner(r.Context(), node.FarmId, db)
-	if merr != nil {
-		return nil, merr
-	}
-
-	sfarmerID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
-	requestFarmerID, err := strconv.ParseInt(sfarmerID, 10, 64)
-	if err != nil {
-		return nil, mw.BadRequest(err)
-	}
-
-	if requestFarmerID != actualFarmerID {
-		return nil, mw.Forbiden(fmt.Errorf("only the farmer can configured the public interface of its nodes"))
-	}
-
-	f := types.NodeFilter{}
-	f = f.WithNodeID(nodeID)
-	if err := f.Delete(r.Context(), db); err != nil {
-		return nil, mw.Error(err)
-	}
-
-	return nil, mw.NoContent()
-}
-
 func farmOwner(ctx context.Context, farmID int64, db *mongo.Database) (int64, mw.Response) {
 	ff := types.FarmFilter{}
 	ff = ff.WithID(schema.ID(farmID))

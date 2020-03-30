@@ -11,7 +11,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/explorer/models"
 	"github.com/threefoldtech/zos/tools/explorer/mw"
-	"github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
 	directory "github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
 
 	"github.com/gorilla/mux"
@@ -79,37 +78,4 @@ func (s *FarmAPI) getFarm(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	return farm, nil
-}
-
-func (s *FarmAPI) delete(r *http.Request) (interface{}, mw.Response) {
-	sid := mux.Vars(r)["farm_id"]
-
-	id, err := strconv.ParseInt(sid, 10, 64)
-	if err != nil {
-		return nil, mw.BadRequest(err)
-	}
-
-	db := mw.Database(r)
-
-	farm, err := s.GetByID(r.Context(), db, id)
-	if err != nil {
-		return nil, mw.NotFound(err)
-	}
-
-	sFarmerID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
-	farmerID, err := strconv.ParseInt(sFarmerID, 10, 64)
-	if err != nil {
-		return nil, mw.BadRequest(err)
-	}
-	if farmerID != farm.ThreebotId {
-		return nil, mw.Forbiden(fmt.Errorf("only its owner can delete a farm"))
-	}
-
-	f := types.FarmFilter{}
-	f = f.WithID(schema.ID(id))
-	if err := f.Delete(r.Context(), db); err != nil {
-		return nil, mw.Error(err)
-	}
-
-	return nil, mw.NoContent()
 }

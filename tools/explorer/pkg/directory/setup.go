@@ -29,7 +29,6 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 	farms.HandleFunc("", mw.AsHandlerFunc(farmAPI.registerFarm)).Methods("POST")
 	farms.HandleFunc("", mw.AsHandlerFunc(farmAPI.listFarm)).Methods("GET")
 	farms.HandleFunc("/{farm_id}", mw.AsHandlerFunc(farmAPI.getFarm)).Methods("GET")
-	farmAuthenticated.HandleFunc("/{farm_id}", mw.AsHandlerFunc(farmAPI.delete)).Methods("DELETE")
 
 	var nodeAPI NodeAPI
 	nodes := parent.PathPrefix("/nodes").Subrouter()
@@ -52,7 +51,6 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 	nodesAuthenticated.HandleFunc("/{node_id}/capacity", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerCapacity))).Methods("POST")
 	nodesAuthenticated.HandleFunc("/{node_id}/uptime", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.updateUptimeHandler))).Methods("POST")
 	nodesAuthenticated.HandleFunc("/{node_id}/used_resources", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.updateReservedResources))).Methods("POST")
-	userAuthenticated.HandleFunc("/{node_id}", mw.AsHandlerFunc(nodeAPI.delete)).Methods("DELETE")
 
 	return nil
 }
