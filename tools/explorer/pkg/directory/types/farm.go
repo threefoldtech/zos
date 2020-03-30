@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/explorer/config"
 	"github.com/threefoldtech/zos/tools/explorer/models"
 	generated "github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/explorer/mw"
@@ -40,6 +41,13 @@ func (f *Farm) Validate() error {
 
 	if len(f.WalletAddresses) == 0 {
 		return fmt.Errorf("invalid wallet_addresses, is required")
+	}
+
+	validator := stellar.NewAddressValidator(config.Config.Network)
+	for _, address := range f.WalletAddresses {
+		if err := validator.Valid(address); err != nil {
+			return err
+		}
 	}
 
 	return nil
