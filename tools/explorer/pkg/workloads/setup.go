@@ -6,17 +6,19 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/tools/explorer/mw"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/escrow"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/workloads/types"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Setup injects and initializes directory package
-func Setup(parent *mux.Router, db *mongo.Database) error {
+func Setup(parent *mux.Router, db *mongo.Database, escrow *escrow.Escrow) error {
 	if err := types.Setup(context.TODO(), db); err != nil {
 		return err
 	}
 
 	var api API
+	api.escrow = escrow
 	reservations := parent.PathPrefix("/reservations").Subrouter()
 
 	reservations.HandleFunc("", mw.AsHandlerFunc(api.create)).Methods(http.MethodPost)

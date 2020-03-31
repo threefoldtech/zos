@@ -8,14 +8,15 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
+	wrklds "github.com/threefoldtech/zos/tools/explorer/pkg/workloads"
 )
 
 type httpWorkloads struct {
 	*httpClient
 }
 
-func (w *httpWorkloads) Create(reservation workloads.Reservation) (id schema.ID, err error) {
-	err = w.post(w.url("reservations"), reservation, &id, http.StatusCreated)
+func (w *httpWorkloads) Create(reservation workloads.Reservation) (resp wrklds.ReservationCreateResponse, err error) {
+	err = w.post(w.url("reservations"), reservation, &resp, http.StatusCreated)
 	return
 }
 
