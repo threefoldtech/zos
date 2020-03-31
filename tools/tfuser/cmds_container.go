@@ -29,6 +29,24 @@ func generateContainer(c *cli.Context) error {
 		Memory: c.Uint64("memory"),
 	}
 
+	var sts []stats.StatsAggregator
+	if s := c.String("stats"); s != "" {
+		// validating stdout argument
+		_, _, err := logger.RedisParseURL(lo)
+		if err != nil {
+			return err
+		}
+
+		ss := stats.StatsAggregator{
+			Type: stats.RedisType,
+			Data: stats.StatsRedis{
+				Endpoint: s,
+			},
+		}
+
+		sts = append(sts, ss)
+	}
+
 	var logs []logger.Logs
 	if lo := c.String("stdout"); lo != "" {
 		// validating stdout argument
@@ -76,8 +94,9 @@ func generateContainer(c *cli.Context) error {
 			},
 			PublicIP6: c.Bool("public6"),
 		},
-		Capacity: cap,
-		Logs:     logs,
+		Capacity:        cap,
+		Logs:            logs,
+		StatsAggregator: sts,
 	}
 
 	if err := validateContainer(container); err != nil {
