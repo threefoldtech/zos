@@ -56,7 +56,7 @@ type Container struct {
 	// Logs contains a list of endpoint where to send containerlogs
 	Logs []logger.Logs `json:"logs,omitempty"`
 	// StatsAggregator container metrics backend
-	StatsAggregator []stats.StatsAggregator
+	StatsAggregator []stats.Aggregator
 }
 
 // ContainerResult is the information return to the BCDB

@@ -14,10 +14,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// StatsPushInterval defines how many times we push metrics
 const StatsPushInterval = 2 * time.Second
 
 // StatsSet define a one-shot set of stats with differents metrics
-type StatsSet struct {
+type Metrics struct {
 	Timestamp   int64  `json:"timestamp"`
 	MemoryUsage uint64 `json:"memory_usage"`
 	MemoryLimit uint64 `json:"memory_limit"`
@@ -27,9 +28,9 @@ type StatsSet struct {
 }
 
 // StatsAggregator defines a stats backend
-type StatsAggregator struct {
-	Type string     `bson:"type" json:"type"`
-	Data StatsRedis `bson:"data" json:"data"`
+type Aggregator struct {
+	Type string `bson:"type" json:"type"`
+	Data Redis  `bson:"data" json:"data"`
 }
 
 // Monitor enable continuous metric fetching and forwarding to a backend
@@ -93,7 +94,7 @@ func monitor(ctx context.Context, task containerd.Task) ([]byte, error) {
 		return nil, fmt.Errorf("wrong metric type")
 	}
 
-	s := &StatsSet{
+	s := &Metrics{
 		Timestamp:   metric.Timestamp.Unix(),
 		MemoryUsage: data.Memory.Usage.Usage,
 		MemoryLimit: data.Memory.Usage.Limit,

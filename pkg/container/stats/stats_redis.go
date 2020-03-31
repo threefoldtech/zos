@@ -12,12 +12,12 @@ import (
 const RedisType = "redis"
 
 // StatsRedis defines how to connect a stats redis backend
-type StatsRedis struct {
+type Redis struct {
 	Endpoint string `bson:"stdout" json:"endpoint"`
 }
 
 // Redis define an internal redis backend
-type Redis struct {
+type RedisBackend struct {
 	channel string
 	conn    redis.Conn
 }
@@ -66,7 +66,7 @@ func NewRedis(endpoint string) (io.WriteCloser, error) {
 
 	log.Debug().Str("host", host).Str("channel", channel).Msg("redis stats")
 
-	aggregator := &Redis{
+	aggregator := &RedisBackend{
 		channel: channel,
 		conn:    conn,
 	}
@@ -75,7 +75,7 @@ func NewRedis(endpoint string) (io.WriteCloser, error) {
 }
 
 // Write will write to the channel
-func (c *Redis) Write(data []byte) (int, error) {
+func (c *RedisBackend) Write(data []byte) (int, error) {
 	_, err := c.conn.Do("PUBLISH", c.channel, data)
 	if err != nil {
 		return 0, err
@@ -85,7 +85,7 @@ func (c *Redis) Write(data []byte) (int, error) {
 }
 
 // Close closes redis connection
-func (c *Redis) Close() error {
+func (c *RedisBackend) Close() error {
 	log.Debug().Str("channel", c.channel).Msg("closind redis stats backend")
 	c.conn.Close()
 	return nil

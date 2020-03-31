@@ -30,7 +30,7 @@ func generateContainer(c *cli.Context) error {
 		Memory: c.Uint64("memory"),
 	}
 
-	var sts []stats.StatsAggregator
+	var sts []stats.Aggregator
 	if s := c.String("stats"); s != "" {
 		// validating stdout argument
 		_, _, err := logger.RedisParseURL(s)
@@ -38,9 +38,9 @@ func generateContainer(c *cli.Context) error {
 			return err
 		}
 
-		ss := stats.StatsAggregator{
+		ss := stats.Aggregator{
 			Type: stats.RedisType,
-			Data: stats.StatsRedis{
+			Data: stats.Redis{
 				Endpoint: s,
 			},
 		}

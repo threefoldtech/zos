@@ -24,7 +24,7 @@ func ContainerToProvisionType(c workloads.Container) (Container, string, error) 
 		Interactive:     c.Interactive,
 		Mounts:          make([]Mount, len(c.Volumes)),
 		Logs:            make([]logger.Logs, len(c.Logs)),
-		StatsAggregator: make([]stats.StatsAggregator, len(c.StatsAggregator)),
+		StatsAggregator: make([]stats.Aggregator, len(c.StatsAggregator)),
 		Capacity: ContainerCapacity{
 			CPU:    uint(c.Capacity.Cpu),
 			Memory: uint64(c.Capacity.Memory),
@@ -70,17 +70,17 @@ func ContainerToProvisionType(c workloads.Container) (Container, string, error) 
 	for i, s := range c.StatsAggregator {
 		// Only support redis for now
 		if s.Type != stats.RedisType {
-			container.StatsAggregator[i] = stats.StatsAggregator{
+			container.StatsAggregator[i] = stats.Aggregator{
 				Type: "unknown",
-				Data: stats.StatsRedis{
+				Data: stats.Redis{
 					Endpoint: "",
 				},
 			}
 		}
 
-		container.StatsAggregator[i] = stats.StatsAggregator{
+		container.StatsAggregator[i] = stats.Aggregator{
 			Type: s.Type,
-			Data: stats.StatsRedis{
+			Data: stats.Redis{
 				Endpoint: s.Data.Endpoint,
 			},
 		}
