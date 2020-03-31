@@ -29,7 +29,7 @@ fmt:
 
 lint:
 	@echo "Running $@"
-	golint -set_exit_status $(shell go list ./... | grep -v stubs | grep -v generated)
+	golint -set_exit_status $(shell go list ./... | grep -v stubs | grep -v generated| grep -v migrations)
 
 ineffassign:
 	@echo "Running $@"

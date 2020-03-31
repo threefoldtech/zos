@@ -77,6 +77,11 @@ func main() {
 							Usage:    "wallet address",
 							Required: true,
 						},
+						cli.StringSliceFlag{
+							Name:     "asset",
+							Usage:    "wallet address asset (TFT, FreeTFT)",
+							Required: true,
+						},
 					},
 					Action: registerFarm,
 				},

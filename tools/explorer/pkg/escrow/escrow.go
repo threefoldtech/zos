@@ -2,11 +2,14 @@ package escrow
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/explorer/config"
+	gdirectory "github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/directory"
 	directorytypes "github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
@@ -269,8 +272,14 @@ func (e *Escrow) payoutFarmers(id schema.ID) error {
 			log.Error().Msgf("failed to load farm info: %s", err)
 			continue
 		}
-		// TODO rework this type to an object with currency and filter based on "TFT"
-		destination := farm.WalletAddresses[0]
+
+		destination, err := addressByAsset(farm.WalletAddresses, config.Config.Asset)
+		if err != nil {
+			// FIXME: this is probably not ok, what do we do in this case ?
+			log.Error().Msgf(err.Error())
+			continue
+		}
+
 		addressInfo, err := types.GetByAddress(e.ctx, e.db, escrowDetails.EscrowAddress)
 		if err != nil {
 			log.Error().Msgf("failed to load escrow address info: %s", err)
@@ -367,4 +376,13 @@ func (e *Escrow) createOrLoadAccount(farmerID int64, customerTID int64) (string,
 		return "", errors.Wrap(err, "failed to get farmer - customer address")
 	}
 	return res.Address, nil
+}
+
+func addressByAsset(addrs []gdirectory.WalletAddress, asset string) (string, error) {
+	for _, a := range addrs {
+		if a.Asset == asset {
+			return a.Address, nil
+		}
+	}
+	return "", fmt.Errorf("not address found for asset %s", asset)
 }

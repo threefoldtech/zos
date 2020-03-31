@@ -12,7 +12,7 @@ type Farm struct {
 	ThreebotId      int64               `bson:"threebot_id" json:"threebot_id"`
 	IyoOrganization string              `bson:"iyo_organization" json:"iyo_organization"`
 	Name            string              `bson:"name" json:"name"`
-	WalletAddresses []string            `bson:"wallet_addresses" json:"wallet_addresses"`
+	WalletAddresses []WalletAddress     `bson:"wallet_addresses" json:"wallet_addresses"`
 	Location        Location            `bson:"location" json:"location"`
 	Email           schema.Email        `bson:"email" json:"email"`
 	ResourcePrices  []NodeResourcePrice `bson:"resource_prices" json:"resource_prices"`
@@ -26,6 +26,11 @@ func NewFarm() (Farm, error) {
 		return object, err
 	}
 	return object, nil
+}
+
+type WalletAddress struct {
+	Asset   string `bson:"asset" json:"asset"`
+	Address string `bson:"address" json:"address"`
 }
 
 type NodeResourcePrice struct {
