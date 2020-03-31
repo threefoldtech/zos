@@ -208,9 +208,23 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		return id, err
 	}
 
-	// XXXX
-	go stats.Monitor(c.containerd, ns, task)
-	// XXXX
+	// set user defined endpoint stats
+	for _, l := range data.StatsAggregator {
+		switch l.Type {
+		case stats.RedisType:
+			s, err := stats.NewRedis(l.Data.Endpoint)
+
+			if err != nil {
+				log.Error().Err(err).Msg("redis stats")
+				continue
+			}
+
+			go stats.Monitor(c.containerd, ns, data.Name, s)
+
+		default:
+			log.Error().Str("type", l.Type).Msg("invalid stats type requested")
+		}
+	}
 
 	// call start on the task to execute the redis server
 	if err := task.Start(ctx); err != nil {
