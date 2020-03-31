@@ -43,10 +43,10 @@ func main() {
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
 	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
+	flag.StringVar(&dbName, "name", "explorer", "database name")
 	flag.StringVar(&config.Config.Seed, "seed", "", "wallet seed")
 	flag.StringVar(&config.Config.Network, "network", "testnet", "tfchain network")
-	flag.StringVar(&dbName, "name", "explorer", "database name")
-	flag.StringVar(&asset, "asset", "tft", "which asset to use")
+	flag.StringVar(&config.Config.Asset, "asset", "tft", "which asset to use")
 	flag.Parse()
 
 	if err := config.Valid(); err != nil {
