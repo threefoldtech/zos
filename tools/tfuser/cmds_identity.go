@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/identity"
 	"github.com/threefoldtech/zos/tools/explorer/models/generated/phonebook"
 	"github.com/urfave/cli"
@@ -35,16 +36,21 @@ func cmdsGenerateID(c *cli.Context) error {
 		Pubkey:      hex.EncodeToString(k.PublicKey),
 		Description: description,
 	}
-	id, err := bcdb.Phonebook.Create(user)
-	if err != nil {
-		return errors.Wrap(err, "failed to register user")
-	}
 
 	if err := k.Save(c.String("output")); err != nil {
 		return errors.Wrap(err, "failed to save seed")
 	}
 
+	bcdb, err = getClient(bcdbaddr, c.String("output"))
+
+	log.Debug().Str("bcdb", bcdbaddr).Str("output", c.String("output")).Msg("register")
+
+	id, err := bcdb.Phonebook.Create(user)
+	if err != nil {
+		return errors.Wrap(err, "failed to register user")
+	}
+
 	fmt.Printf("Your ID is: %d\n", id)
-	fmt.Printf("seed saved to: %s\n", output)
+	fmt.Printf("Seed saved to: %s\n", output)
 	return nil
 }

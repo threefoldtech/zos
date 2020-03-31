@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	bcdb *client.Client
+	bcdb     *client.Client
+	bcdbaddr string
 )
 
 func main() {
@@ -35,12 +36,13 @@ func main() {
 		},
 
 		cli.StringFlag{
-			Name:     "seed",
-			Usage:    "path to the file container the seed of the user private key",
-			EnvVar:   "SEED_PATH",
-			Required: true,
+			Name:   "seed",
+			Usage:  "path to the file container the seed of the user private key",
+			EnvVar: "SEED_PATH",
+			// Required: true,
 		},
 	}
+
 	app.Before = func(c *cli.Context) error {
 		debug := c.Bool("debug")
 		if !debug {
@@ -49,13 +51,17 @@ func main() {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 		var err error
+		bcdbaddr = c.String("bcdb")
+
 		bcdb, err = getClient(c.String("bcdb"), c.String("seed"))
 		if err != nil {
-			return err
+			log.Error().Err(err).Msg("client")
+			// return err
 		}
 
 		return nil
 	}
+
 	app.Commands = []cli.Command{
 		{
 			Name:  "id",
