@@ -2,9 +2,11 @@ package types
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
+	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/explorer/models"
@@ -34,6 +36,19 @@ func (n *Node) Validate() error {
 
 	if len(n.OsVersion) == 0 {
 		return fmt.Errorf("os_version is required")
+	}
+
+	if len(n.PublicKeyHex) == 0 {
+		return fmt.Errorf("public_key_hex is required")
+	}
+
+	pk, err := hex.DecodeString(n.PublicKeyHex)
+	if err != nil {
+		return errors.Wrap(err, "fail to decode public key")
+	}
+
+	if n.NodeId != base58.Encode(pk) {
+		return fmt.Errorf("nodeID and public key does not match")
 	}
 
 	// Unfortunately, jsx schema does not support nil types
