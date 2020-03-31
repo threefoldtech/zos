@@ -35,7 +35,7 @@ type assetCodeEnum string
 
 const (
 	tft     assetCodeEnum = "tft"
-	freeTFT               = "freeTFT"
+	freeTFT assetCodeEnum = "freeTFT"
 )
 
 // ErrInsuficientBalance is an error that is used when there is insufficient balance
