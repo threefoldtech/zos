@@ -37,7 +37,7 @@ func main() {
 		dbName  string
 		seed    string
 		network string
-		freeTft bool
+		asset   string
 	)
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
@@ -45,7 +45,7 @@ func main() {
 	flag.StringVar(&seed, "seed", "", "wallet seed")
 	flag.StringVar(&network, "network", "testnet", "tfchain network")
 	flag.StringVar(&dbName, "name", "explorer", "database name")
-	flag.BoolVar(&freeTft, "freetft", false, "flag to switch to freeTFT")
+	flag.StringVar(&asset, "asset", "tft", "which asset to use")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -54,7 +54,7 @@ func main() {
 		log.Fatal().Err(err).Msg("fail to connect to database")
 	}
 
-	s, err := createServer(listen, dbName, client, network, seed, freeTft)
+	s, err := createServer(listen, dbName, client, network, seed, asset)
 	if err != nil {
 		log.Fatal().Err(err).Msg("fail to create HTTP server")
 	}
@@ -87,7 +87,7 @@ func connectDB(ctx context.Context, connectionURI string) (*mongo.Client, error)
 	return client, nil
 }
 
-func createServer(listen, dbName string, client *mongo.Client, network, seed string, freeTFT bool) (*http.Server, error) {
+func createServer(listen, dbName string, client *mongo.Client, network, seed string, asset string) (*http.Server, error) {
 	db, err := mw.NewDatabaseMiddleware(dbName, client)
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		log.Fatal().Err(err).Msg("failed to create escrow database indexes")
 	}
 
-	wallet, err := stellar.New(seed, network, freeTFT)
+	wallet, err := stellar.New(seed, network, asset)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create stellar wallet")
 	}
