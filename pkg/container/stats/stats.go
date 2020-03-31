@@ -2,9 +2,9 @@ package stats
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"os"
-	"text/tabwriter"
+	"io"
 	"time"
 
 	v1 "github.com/containerd/cgroups/stats/v1"
@@ -14,40 +14,75 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Logs defines a custom backend with variable settings
+const StatsPushInterval = 2 * time.Second
+
+// StatsSet define a one-shot set of stats with differents metrics
 type StatsSet struct {
+	Timestamp   int64  `json:"timestamp"`
 	MemoryUsage uint64 `json:"memory_usage"`
 	MemoryLimit uint64 `json:"memory_limit"`
 	MemoryCache uint64 `json:"memory_cache"`
-	CpuUsage    uint32 `json:"cpu_usage"`
+	CPUUsage    uint64 `json:"cpu_usage"`
 	PidsCurrent uint64 `json:"pids_current"`
 }
 
-func Monitor(addr string, ns string, task containerd.Task) error {
+// StatsAggregator defines a stats backend
+type StatsAggregator struct {
+	Type string     `bson:"type" json:"type"`
+	Data StatsRedis `bson:"data" json:"data"`
+}
+
+// Monitor enable continuous metric fetching and forwarding to a backend
+func Monitor(addr string, ns string, id string, backend io.WriteCloser) error {
+	log.Info().Msg("fetching metrics")
+
 	client, err := containerd.New(addr)
 	if err != nil {
+		log.Error().Err(err).Msg("metric client")
 		return err
 	}
 	defer client.Close()
 
 	ctx := namespaces.WithNamespace(context.Background(), ns)
 
+	container, err := client.LoadContainer(ctx, string(id))
+	if err != nil {
+		log.Error().Err(err).Msg("metric container")
+		return err
+	}
+
 	for {
-		monitor(ctx, task)
-		time.Sleep(2 * time.Second)
+		task, err := container.Task(ctx, nil)
+		if err != nil {
+			// container probably down
+			log.Error().Err(err).Msg("stopping metric task")
+			return err
+		}
+
+		// fetching metric
+		b, err := monitor(ctx, task)
+		if err != nil {
+			log.Error().Err(err).Msg("metric fetching")
+			return err
+		}
+
+		// sending metric to the backend
+		backend.Write(b)
+
+		time.Sleep(StatsPushInterval)
 	}
 }
 
-func monitor(ctx context.Context, task containerd.Task) error {
+func monitor(ctx context.Context, task containerd.Task) ([]byte, error) {
 	metric, err := task.Metrics(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("metrics")
-		return err
+		return nil, err
 	}
 
 	anydata, err := typeurl.UnmarshalAny(metric.Data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var data *v1.Metrics
@@ -55,32 +90,22 @@ func monitor(ctx context.Context, task containerd.Task) error {
 	case *v1.Metrics:
 		data = v
 	default:
-		return fmt.Errorf("wrong metric type")
+		return nil, fmt.Errorf("wrong metric type")
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 1, 8, 4, ' ', 0)
-	fmt.Fprintf(w, "ID\tTIMESTAMP\t\n")
-	fmt.Fprintf(w, "%s\t%s\t\n\n", metric.ID, metric.Timestamp)
-
-	printCgroupMetricsTable(w, data)
-	w.Flush()
-
-	return nil
-}
-
-func printCgroupMetricsTable(w *tabwriter.Writer, data *v1.Metrics) {
-	fmt.Fprintf(w, "METRIC\tVALUE\t\n")
-	if data.Memory != nil {
-		fmt.Fprintf(w, "memory.usage_in_bytes\t%d\t\n", data.Memory.Usage.Usage)
-		fmt.Fprintf(w, "memory.limit_in_bytes\t%d\t\n", data.Memory.Usage.Limit)
-		fmt.Fprintf(w, "memory.stat.cache\t%d\t\n", data.Memory.TotalCache)
+	s := &StatsSet{
+		Timestamp:   metric.Timestamp.Unix(),
+		MemoryUsage: data.Memory.Usage.Usage,
+		MemoryLimit: data.Memory.Usage.Limit,
+		MemoryCache: data.Memory.TotalCache,
+		CPUUsage:    data.CPU.Usage.Total,
+		PidsCurrent: data.Pids.Current,
 	}
-	if data.CPU != nil {
-		fmt.Fprintf(w, "cpuacct.usage\t%d\t\n", data.CPU.Usage.Total)
-		fmt.Fprintf(w, "cpuacct.usage_percpu\t%v\t\n", data.CPU.Usage.PerCPU)
+
+	b, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
 	}
-	if data.Pids != nil {
-		fmt.Fprintf(w, "pids.current\t%v\t\n", data.Pids.Current)
-		fmt.Fprintf(w, "pids.limit\t%v\t\n", data.Pids.Limit)
-	}
+
+	return b, nil
 }
