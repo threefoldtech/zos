@@ -17,7 +17,7 @@ import (
 // StatsPushInterval defines how many times we push metrics
 const StatsPushInterval = 2 * time.Second
 
-// StatsSet define a one-shot set of stats with differents metrics
+// Metrics define a one-shot set of stats with differents metrics
 type Metrics struct {
 	Timestamp   int64  `json:"timestamp"`
 	MemoryUsage uint64 `json:"memory_usage"`
@@ -27,7 +27,7 @@ type Metrics struct {
 	PidsCurrent uint64 `json:"pids_current"`
 }
 
-// StatsAggregator defines a stats backend
+// Aggregator defines a stats backend
 type Aggregator struct {
 	Type string `bson:"type" json:"type"`
 	Data Redis  `bson:"data" json:"data"`

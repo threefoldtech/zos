@@ -11,12 +11,12 @@ import (
 // RedisType defines the type name of redis backend
 const RedisType = "redis"
 
-// StatsRedis defines how to connect a stats redis backend
+// Redis defines how to connect a stats redis backend
 type Redis struct {
 	Endpoint string `bson:"stdout" json:"endpoint"`
 }
 
-// Redis define an internal redis backend
+// RedisBackend define an internal redis backend
 type RedisBackend struct {
 	channel string
 	conn    redis.Conn
