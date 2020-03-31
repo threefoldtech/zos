@@ -19,11 +19,13 @@ import (
 )
 
 const (
-	tftCode          = "TFT"
+	// TFTCode is the asset code for TFT on stellar
+	TFTCode          = "TFT"
 	tftIssuerTestnet = "GA47YZA3PKFUZMPLQ3B5F2E3CJIB57TGGU7SPCQT2WAEYKN766PWIMB3"
 	tftIssuerProd    = "GBOVQKJYHXRR3DX6NOX2RRYFRCUMSADGDESTDNBDS6CDVLGVESRTAC47"
 
-	freeTftCode          = "FreeTFT"
+	// FreeTFTCode is the asset code for TFT on stellar
+	FreeTFTCode          = "FreeTFT"
 	freeTftIssuerTestnet = "GBLDUINEFYTF7XEE7YNWA3JQS4K2VD37YU7I2YAE7R5AHZDKQXSS2J6R"
 	freeTftIssuerProd    = "GCBGS5TFE2BPPUVY55ZPEMWWGR6CLQ7T6P46SOFGHXEBJ34MSP6HVEUT"
 
@@ -467,9 +469,9 @@ func (w *Wallet) getNetworkPassPhrase() string {
 func (e assetCodeEnum) String() string {
 	switch e {
 	case tft:
-		return tftCode
+		return TFTCode
 	case freeTFT:
-		return freeTftCode
+		return FreeTFTCode
 	}
 	return "UNKNOWN"
 }

@@ -53,7 +53,7 @@ func (a *API) validAddresses(ctx context.Context, db *mongo.Database, res *types
 		return err
 	}
 
-	validator := stellar.NewAddressValidator(config.Config.Network)
+	validator := stellar.NewAddressValidator(config.Config.Network, config.Config.Asset)
 
 	for _, farm := range farms {
 		for _, address := range farm.WalletAddresses {
