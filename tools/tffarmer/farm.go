@@ -22,7 +22,7 @@ func registerFarm(c *cli.Context) error {
 	addresses := make([]directory.WalletAddress, len(addrs))
 	for i := range addrs {
 		addresses[i].Address = addrs[i]
-		addresses[i].Address = assets[i]
+		addresses[i].Asset = assets[i]
 	}
 
 	farmID, err := db.FarmRegister(directory.Farm{
