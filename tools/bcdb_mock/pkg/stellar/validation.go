@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
+	hProtocol "github.com/stellar/go/protocols/horizon"
 )
 
 // AddressValidator validates stellar address
@@ -53,10 +53,10 @@ func (a *AddressValidator) Valid(address string) error {
 	return fmt.Errorf("addess has no trustline")
 }
 
-func (a *AddressValidator) getAccountDetails(address string) (account horizon.Account, err error) {
+func (a *AddressValidator) getAccountDetails(address string) (account hProtocol.Account, err error) {
 	client, err := a.getHorizonClient()
 	if err != nil {
-		return horizon.Account{}, err
+		return hProtocol.Account{}, err
 	}
 	ar := horizonclient.AccountRequest{AccountID: address}
 	account, err = client.AccountDetail(ar)

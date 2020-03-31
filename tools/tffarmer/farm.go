@@ -19,7 +19,7 @@ func registerFarm(c *cli.Context) error {
 	farmID, err := db.FarmRegister(directory.Farm{
 		Name:            name,
 		ThreebotId:      int64(tid),
-		WalletAddresses: []string{"fake"},
+		WalletAddresses: c.StringSlice("address"),
 	})
 	if err != nil {
 		return err
