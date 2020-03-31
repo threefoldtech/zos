@@ -19,9 +19,13 @@ import (
 )
 
 const (
-	assetCode          = "TFT"
-	assetIssuerTestnet = "GA47YZA3PKFUZMPLQ3B5F2E3CJIB57TGGU7SPCQT2WAEYKN766PWIMB3"
-	assetIssuerProd    = "GBOVQKJYHXRR3DX6NOX2RRYFRCUMSADGDESTDNBDS6CDVLGVESRTAC47"
+	tftCode          = "TFT"
+	tftIssuerTestnet = "GA47YZA3PKFUZMPLQ3B5F2E3CJIB57TGGU7SPCQT2WAEYKN766PWIMB3"
+	tftIssuerProd    = "GBOVQKJYHXRR3DX6NOX2RRYFRCUMSADGDESTDNBDS6CDVLGVESRTAC47"
+
+	freeTftCode          = "FreeTFT"
+	freeTftIssuerTestnet = "GBLDUINEFYTF7XEE7YNWA3JQS4K2VD37YU7I2YAE7R5AHZDKQXSS2J6R"
+	freeTftIssuerProd    = "GCBGS5TFE2BPPUVY55ZPEMWWGR6CLQ7T6P46SOFGHXEBJ34MSP6HVEUT"
 
 	stellarPrecision       = 1e7
 	stellarPrecisionDigits = 7
@@ -35,10 +39,11 @@ var ErrInsuficientBalance = errors.New("insuficient balance")
 type Wallet struct {
 	keypair *keypair.Full
 	network string
+	freeTft bool
 }
 
 // New from seed
-func New(seed string, network string) (*Wallet, error) {
+func New(seed string, network string, freeTft bool) (*Wallet, error) {
 	kp, err := keypair.ParseFull(seed)
 	if err != nil {
 		return nil, err
@@ -47,6 +52,7 @@ func New(seed string, network string) (*Wallet, error) {
 	return &Wallet{
 		keypair: kp,
 		network: network,
+		freeTft: freeTft,
 	}, nil
 }
 
@@ -96,7 +102,7 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	changeTrustOp := txnbuild.ChangeTrust{
 		SourceAccount: &sourceAccount,
 		Line: txnbuild.CreditAsset{
-			Code:   assetCode,
+			Code:   w.getAssetCode(),
 			Issuer: w.getIssuer(),
 		},
 	}
@@ -234,7 +240,7 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 		Destination: destination,
 		Amount:      big.NewRat(int64(amount), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
-			Code:   assetCode,
+			Code:   w.getAssetCode(),
 			Issuer: w.getIssuer(),
 		},
 		SourceAccount: &sourceAccount,
@@ -297,7 +303,7 @@ func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount x
 		Destination: destination,
 		Amount:      big.NewRat(int64(amountDue), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
-			Code:   assetCode,
+			Code:   w.getAssetCode(),
 			Issuer: w.getIssuer(),
 		},
 		SourceAccount: &sourceAccount,
@@ -306,7 +312,7 @@ func (w *Wallet) PayoutFarmer(keypair keypair.Full, destination string, amount x
 		Destination: w.keypair.Address(),
 		Amount:      big.NewRat(int64(foundationCut), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
-			Code:   assetCode,
+			Code:   w.getAssetCode(),
 			Issuer: w.getIssuer(),
 		},
 		SourceAccount: &sourceAccount,
@@ -408,14 +414,32 @@ func (w *Wallet) getHorizonClient() (*horizonclient.Client, error) {
 }
 
 func (w *Wallet) getIssuer() string {
-	switch w.network {
-	case "testnet":
-		return assetIssuerTestnet
-	case "production":
-		return assetIssuerProd
-	default:
-		return assetIssuerTestnet
+	if w.freeTft {
+		switch w.network {
+		case "testnet":
+			return freeTftIssuerTestnet
+		case "production":
+			return freeTftIssuerProd
+		default:
+			return freeTftIssuerTestnet
+		}
+	} else {
+		switch w.network {
+		case "testnet":
+			return tftIssuerTestnet
+		case "production":
+			return tftIssuerProd
+		default:
+			return tftIssuerTestnet
+		}
 	}
+}
+
+func (w *Wallet) getAssetCode() string {
+	if w.freeTft {
+		return freeTftCode
+	}
+	return tftCode
 }
 
 func (w *Wallet) getNetworkPassPhrase() string {
