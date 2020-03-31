@@ -7,10 +7,10 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/stellar/go/amount"
-	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/network"
+	hProtocol "github.com/stellar/go/protocols/horizon"
 	horizoneffects "github.com/stellar/go/protocols/horizon/effects"
 	"github.com/stellar/go/support/errors"
 	"github.com/stellar/go/txnbuild"
@@ -386,10 +386,10 @@ func (w *Wallet) signAndSubmitTx(keypair *keypair.Full, tx *txnbuild.Transaction
 	return nil
 }
 
-func (w *Wallet) getAccountDetails(address string) (account horizon.Account, err error) {
+func (w *Wallet) getAccountDetails(address string) (account hProtocol.Account, err error) {
 	client, err := w.getHorizonClient()
 	if err != nil {
-		return horizon.Account{}, err
+		return hProtocol.Account{}, err
 	}
 	ar := horizonclient.AccountRequest{AccountID: address}
 	account, err = client.AccountDetail(ar)
