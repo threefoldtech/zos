@@ -72,6 +72,11 @@ func main() {
 							Name:  "tid",
 							Usage: "threebot id",
 						},
+						cli.StringSliceFlag{
+							Name:     "address",
+							Usage:    "wallet address",
+							Required: true,
+						},
 					},
 					Action: registerFarm,
 				},

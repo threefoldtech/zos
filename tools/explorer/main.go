@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/tools/explorer/config"
 	"github.com/threefoldtech/zos/tools/explorer/mw"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/directory"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/escrow"
@@ -42,11 +43,15 @@ func main() {
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
 	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
-	flag.StringVar(&seed, "seed", "", "wallet seed")
-	flag.StringVar(&network, "network", "testnet", "tfchain network")
+	flag.StringVar(&config.Config.Seed, "seed", "", "wallet seed")
+	flag.StringVar(&config.Config.Network, "network", "testnet", "tfchain network")
 	flag.StringVar(&dbName, "name", "explorer", "database name")
 	flag.StringVar(&asset, "asset", "tft", "which asset to use")
 	flag.Parse()
+
+	if err := config.Valid(); err != nil {
+		log.Fatal().Err(err).Msg("invalid configuration")
+	}
 
 	ctx := context.Background()
 	client, err := connectDB(ctx, dbConf)
@@ -101,7 +106,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		log.Fatal().Err(err).Msg("failed to create escrow database indexes")
 	}
 
-	wallet, err := stellar.New(seed, network, asset)
+	wallet, err := stellar.New(config.Config.Seed, config.Config.Network, asset)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create stellar wallet")
 	}

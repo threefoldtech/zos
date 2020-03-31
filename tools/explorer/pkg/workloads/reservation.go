@@ -14,12 +14,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/explorer/config"
 	"github.com/threefoldtech/zos/tools/explorer/models"
 	generated "github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/explorer/mw"
+	directory "github.com/threefoldtech/zos/tools/explorer/pkg/directory/types"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/escrow"
 	escrowtypes "github.com/threefoldtech/zos/tools/explorer/pkg/escrow/types"
 	phonebook "github.com/threefoldtech/zos/tools/explorer/pkg/phonebook/types"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/stellar"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/workloads/types"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -35,6 +38,33 @@ type API struct {
 type ReservationCreateResponse struct {
 	ID                schema.ID                  `json:"id"`
 	EscrowInformation []escrowtypes.EscrowDetail `json:"escrow_information"`
+}
+
+func (a *API) validAddresses(ctx context.Context, db *mongo.Database, res *types.Reservation) error {
+	workloads := res.Workloads("")
+	var nodes []string
+
+	for _, wl := range workloads {
+		nodes = append(nodes, wl.NodeID)
+	}
+
+	farms, err := directory.FarmsForNodes(ctx, db, nodes...)
+	if err != nil {
+		return err
+	}
+
+	validator := stellar.NewAddressValidator(config.Config.Network)
+
+	for _, farm := range farms {
+		for _, address := range farm.WalletAddresses {
+			if err := validator.Valid(address); err != nil {
+				return err
+			}
+		}
+
+	}
+
+	return nil
 }
 
 func (a *API) create(r *http.Request) (interface{}, mw.Response) {
@@ -68,6 +98,10 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	db := mw.Database(r)
+	if err := a.validAddresses(r.Context(), db, &reservation); err != nil {
+		return nil, mw.Error(err, http.StatusFailedDependency)
+	}
+
 	var filter phonebook.UserFilter
 	filter = filter.WithID(schema.ID(reservation.CustomerTid))
 	user, err := filter.Get(r.Context(), db)

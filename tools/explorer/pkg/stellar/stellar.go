@@ -29,6 +29,14 @@ const (
 
 	stellarPrecision       = 1e7
 	stellarPrecisionDigits = 7
+
+	// NetworkProduction uses stellar production network
+	NetworkProduction = "production"
+	// NetworkTest uses stellar test network
+	NetworkTest = "testnet"
+	// NetworkDebug doesn't do validation, and always address validation is skipped
+	// Only supported by the AddressValidator
+	NetworkDebug = "debug"
 )
 
 type assetCodeEnum string
