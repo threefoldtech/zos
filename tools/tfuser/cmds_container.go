@@ -8,6 +8,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/threefoldtech/zos/pkg/container/logger"
+	"github.com/threefoldtech/zos/pkg/container/stats"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/urfave/cli"
 )
@@ -32,7 +33,7 @@ func generateContainer(c *cli.Context) error {
 	var sts []stats.StatsAggregator
 	if s := c.String("stats"); s != "" {
 		// validating stdout argument
-		_, _, err := logger.RedisParseURL(lo)
+		_, _, err := logger.RedisParseURL(s)
 		if err != nil {
 			return err
 		}
