@@ -12,6 +12,7 @@ import (
 	"github.com/threefoldtech/zos/tools/explorer/models"
 	generated "github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/explorer/mw"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/stellar"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
