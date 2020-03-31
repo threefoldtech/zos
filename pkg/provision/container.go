@@ -13,6 +13,7 @@ import (
 
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
+	"github.com/threefoldtech/zos/pkg/container/stats"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -54,6 +55,8 @@ type Container struct {
 	Capacity ContainerCapacity `json:"capacity"`
 	// Logs contains a list of endpoint where to send containerlogs
 	Logs []logger.Logs `json:"logs,omitempty"`
+	// StatsAggregator container metrics backend
+	StatsAggregator []stats.StatsAggregator
 }
 
 // ContainerResult is the information return to the BCDB
