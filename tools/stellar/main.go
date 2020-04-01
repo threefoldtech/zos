@@ -6,12 +6,7 @@ import (
 
 	"os"
 
-	"github.com/threefoldtech/zos/tools/client"
 	"github.com/urfave/cli"
-)
-
-var (
-	db client.Directory
 )
 
 func main() {
