@@ -244,6 +244,66 @@ func (w *Wallet) setupEscrowMultisig(newKp *keypair.Full, sourceAccount hProtoco
 	return nil
 }
 
+// CreateMultisigTransaction will create a multisig transaction from an address to a destination
+// This is will be used in the multisig client
+func (w *Wallet) CreateMultisigTransaction(from, destination, amount string) (string, error) {
+	sourceAccount, err := w.getAccountDetails(from)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get source account")
+	}
+
+	paymentOP := txnbuild.Payment{
+		Destination: destination,
+		Amount:      amount,
+		Asset: txnbuild.CreditAsset{
+			Code:   w.asset.String(),
+			Issuer: w.getIssuer(),
+		},
+	}
+
+	tx := txnbuild.Transaction{
+		SourceAccount: &sourceAccount,
+		Operations:    []txnbuild.Operation{&paymentOP},
+		Timebounds:    txnbuild.NewTimeout(300),
+		Network:       w.getNetworkPassPhrase(),
+	}
+
+	return tx.BuildSignEncode(w.keypair)
+}
+
+// SignAndSubmitMultisigTransaction signs off on a multisig transaction and tries to submit it to the network
+func (w *Wallet) SignAndSubmitMultisigTransaction(transaction string) (string, error) {
+	tx, err := txnbuild.TransactionFromXDR(transaction)
+	if err != nil {
+		return "", errors.Wrap(err, "failed parse xdr to a transaction")
+	}
+
+	tx.Network = w.getNetworkPassPhrase()
+
+	err = tx.Sign(w.keypair)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to sign transaction")
+	}
+
+	client, err := w.getHorizonClient()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get horizon client")
+	}
+
+	txXDR, err := tx.Base64()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse transaction to xdr")
+	}
+	// Submit the transaction
+	_, err = client.SubmitTransaction(tx)
+	if err != nil {
+		hError := err.(*horizonclient.Error)
+		log.Debug().Msgf("%+v", hError.Problem.Extras)
+		return txXDR, errors.Wrap(hError.Problem, "error submitting transaction, perhaps another signature is required")
+	}
+	return txXDR, nil
+}
+
 // KeyPairFromSeed parses a seed and creates a keypair for it, which can be
 // used to sign transactions
 func (w *Wallet) KeyPairFromSeed(seed string) (*keypair.Full, error) {
