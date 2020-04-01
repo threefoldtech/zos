@@ -11,6 +11,7 @@ import (
 	"github.com/jbenet/go-base58"
 
 	"github.com/threefoldtech/zos/pkg/gedis/types/directory"
+	"github.com/threefoldtech/zos/pkg/network"
 
 	"github.com/threefoldtech/zos/pkg/geoip"
 
@@ -39,8 +40,11 @@ func (s *httpIDStore) RegisterNode(node pkg.Identifier, farm pkg.FarmID, version
 
 	pk := base58.Decode(node.Identity())
 
+	v1ID, _ := network.NodeIDv1()
+
 	err := json.NewEncoder(&buf).Encode(directory.TfgridNode2{
 		NodeID:    node.Identity(),
+		NodeIDv1:  v1ID,
 		FarmID:    uint64(farm),
 		OsVersion: version,
 		Location: directory.TfgridLocation1{
