@@ -54,9 +54,8 @@ func main() {
 	flag.StringVar(&config.Config.Network, "network", "testnet", "tfchain network")
 	flag.StringVar(&config.Config.Asset, "asset", "TFT", "which asset to use")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
-
 	flag.Var(&backupSigners, "backupsigner", "reusable flag which adds a signer to the escrow accounts, we need alteast 5 signers to activate multisig")
-	flag.Var(&backupSigners, "backupsigner", "reusable flag which adds a signer to the escrow accounts, we need atleast 5 signers to activate multisig")
+
 	flag.Parse()
 
 	if ver {

@@ -240,6 +240,7 @@ func (w *Wallet) setupEscrowMultisig(newKp *keypair.Full, sourceAccount hProtoco
 			return errors.Wrap(hError.Problem, "error submitting transaction")
 		}
 	}
+
 	return nil
 }
 
