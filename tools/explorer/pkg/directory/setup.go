@@ -18,10 +18,13 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 
 	var farmAPI FarmAPI
 	farms := parent.PathPrefix("/farms").Subrouter()
+	farmsAuthenticated := parent.PathPrefix("/farms").Subrouter()
+	farmsAuthenticated.Use(mw.NewAuthMiddleware(httpsig.NewVerifier(mw.NewUserKeyGetter(db))).Middleware)
 
 	farms.HandleFunc("", mw.AsHandlerFunc(farmAPI.registerFarm)).Methods("POST")
 	farms.HandleFunc("", mw.AsHandlerFunc(farmAPI.listFarm)).Methods("GET")
 	farms.HandleFunc("/{farm_id}", mw.AsHandlerFunc(farmAPI.getFarm)).Methods("GET")
+	farmsAuthenticated.HandleFunc("/{farm_id}", mw.AsHandlerFunc(farmAPI.updateFarm)).Methods("PUT")
 
 	var nodeAPI NodeAPI
 	nodes := parent.PathPrefix("/nodes").Subrouter()

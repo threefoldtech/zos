@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/rs/zerolog/log"
+	"github.com/zaibon/httpsig"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/threefoldtech/zos/pkg/capacity"
@@ -96,7 +97,7 @@ func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
-	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
+	hNodeID := httpsig.KeyIDFromContext(r.Context())
 	if nodeID != hNodeID {
 		return nil, mw.Forbidden(fmt.Errorf("trying to register capacity for nodeID %s while you are %s", nodeID, hNodeID))
 	}
@@ -125,7 +126,7 @@ func (s *NodeAPI) registerIfaces(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	nodeID := mux.Vars(r)["node_id"]
-	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
+	hNodeID := httpsig.KeyIDFromContext(r.Context())
 	if nodeID != hNodeID {
 		return nil, mw.Forbidden(fmt.Errorf("trying to register interfaces for nodeID %s while you are %s", nodeID, hNodeID))
 	}
@@ -160,7 +161,7 @@ func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, mw.Response) {
 		return nil, merr
 	}
 
-	sfarmerID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
+	sfarmerID := httpsig.KeyIDFromContext(r.Context())
 	requestFarmerID, err := strconv.ParseInt(sfarmerID, 10, 64)
 	if err != nil {
 		return nil, mw.BadRequest(err)
@@ -182,7 +183,7 @@ func (s *NodeAPI) registerPorts(r *http.Request) (interface{}, mw.Response) {
 	defer r.Body.Close()
 
 	nodeID := mux.Vars(r)["node_id"]
-	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
+	hNodeID := httpsig.KeyIDFromContext(r.Context())
 	if nodeID != hNodeID {
 		return nil, mw.Forbidden(fmt.Errorf("trying to register ports for nodeID %s while you are %s", nodeID, hNodeID))
 	}
@@ -208,7 +209,7 @@ func (s *NodeAPI) updateUptimeHandler(r *http.Request) (interface{}, mw.Response
 	defer r.Body.Close()
 
 	nodeID := mux.Vars(r)["node_id"]
-	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
+	hNodeID := httpsig.KeyIDFromContext(r.Context())
 	if nodeID != hNodeID {
 		return nil, mw.Forbidden(fmt.Errorf("trying to register uptime for nodeID %s while you are %s", nodeID, hNodeID))
 	}
@@ -234,7 +235,7 @@ func (s *NodeAPI) updateReservedResources(r *http.Request) (interface{}, mw.Resp
 	defer r.Body.Close()
 
 	nodeID := mux.Vars(r)["node_id"]
-	hNodeID := r.Header.Get(http.CanonicalHeaderKey("threebot-id"))
+	hNodeID := httpsig.KeyIDFromContext(r.Context())
 	if nodeID != hNodeID {
 		return nil, mw.Forbidden(fmt.Errorf("trying to update reserved capacity for nodeID %s while you are %s", nodeID, hNodeID))
 	}
