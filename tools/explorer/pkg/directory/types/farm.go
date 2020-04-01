@@ -173,3 +173,17 @@ func FarmCreate(ctx context.Context, db *mongo.Database, farm Farm) (schema.ID, 
 	_, err = col.InsertOne(ctx, farm)
 	return id, err
 }
+
+// FarmUpdate update an existing farm
+func FarmUpdate(ctx context.Context, db *mongo.Database, id schema.ID, farm Farm) error {
+	farm.ID = id
+
+	if err := farm.Validate(); err != nil {
+		return err
+	}
+
+	col := db.Collection(FarmCollection)
+	f := FarmFilter{}.WithID(id)
+	_, err := col.UpdateOne(ctx, f, bson.M{"$set": farm})
+	return err
+}
