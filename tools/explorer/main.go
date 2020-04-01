@@ -46,7 +46,7 @@ func main() {
 	flag.StringVar(&dbName, "name", "explorer", "database name")
 	flag.StringVar(&config.Config.Seed, "seed", "", "wallet seed")
 	flag.StringVar(&config.Config.Network, "network", "testnet", "tfchain network")
-	flag.StringVar(&config.Config.Asset, "asset", "tft", "which asset to use")
+	flag.StringVar(&config.Config.Asset, "asset", "TFT", "which asset to use")
 	flag.Parse()
 
 	if err := config.Valid(); err != nil {
@@ -106,7 +106,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		log.Fatal().Err(err).Msg("failed to create escrow database indexes")
 	}
 
-	wallet, err := stellar.New(config.Config.Seed, config.Config.Network, asset)
+	wallet, err := stellar.New(config.Config.Seed, config.Config.Network, config.Config.Asset)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create stellar wallet")
 	}
