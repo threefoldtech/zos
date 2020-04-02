@@ -1,6 +1,6 @@
 # Reservation of capacity on the grid
 
-Reservations of capacity on the grid now require payments. If the user wishes to reserve some capacity, before the capacity is deployed they will get a payment invitation. When the user transfers the full amount due, the reservation will be deployed on the grid. If the reservation fails for any reason, the user will be refunded.
+Reservations of capacity on the grid now require payments. If the user wishes to [reserve some capacity](it_contract.md#reservation), he would register a reservation to the explorer. As a result he will receive a payment invitation. When the user transfers the full amount due, the reservation will be deployed on the grid. If the reservation fails for any reason, the user will be refunded.
 
 The payment of reservation will be done with Stellar wallets. We issued TFT on the Stellar network and we expect the user to pay with these assets. We support multiple assets for both testing and production.
 
@@ -34,7 +34,7 @@ In order to support a wallet to hold any of the supported assets a trustline is 
 
 Example of setting a trustline to `Production TFT`
 
-```
+```python
 # valid types for network: STD and TEST, by default it is set to STD
 JSX> wallet = j.clients.stellar.new('my_wallet', network='STD', secret='S.....')
 # available as `j.clients.stellar.my_wallet` from now on
@@ -51,7 +51,7 @@ We will use the ZosV2 sal in Jumpscale to create and pay for a reservation.
 
 Example: 
 
-```
+```python
 JSX> wallet = j.clients.stellar.get(name="my_wallet", network="STD")
 
 JSX> import time
