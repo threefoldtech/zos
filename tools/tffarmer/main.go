@@ -29,6 +29,11 @@ func main() {
 			Usage: "enable debug logging",
 		},
 		cli.StringFlag{
+			Name:  "seed",
+			Usage: "seed filename",
+			Value: "user.seed",
+		},
+		cli.StringFlag{
 			Name:   "bcdb, b",
 			Usage:  "URL of the BCDB",
 			Value:  "https://explorer.devnet.grid.tf",
@@ -42,7 +47,7 @@ func main() {
 		}
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-		kp, err := identity.LoadKeyPair("user.seed")
+		kp, err := identity.LoadKeyPair(c.String("seed"))
 		if err != nil {
 			return err
 		}
