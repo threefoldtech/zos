@@ -191,6 +191,8 @@ func NodeCreate(ctx context.Context, db *mongo.Database, node Node) (schema.ID, 
 		node.Created = schema.Date{Time: time.Now()}
 	} else {
 		id = current.ID
+		// make sure we do NOT overwrite created date
+		node.Created = current.Created
 	}
 
 	node.ID = id
