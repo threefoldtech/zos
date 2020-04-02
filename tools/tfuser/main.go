@@ -6,6 +6,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/identity"
 	"github.com/threefoldtech/zos/tools/client"
 
+	"fmt"
 	"os"
 
 	"github.com/urfave/cli"
@@ -13,11 +14,19 @@ import (
 
 var (
 	bcdb     *client.Client
-	bcdbaddr string
+	bcdbAddr string
+	mainSeed string
 )
 
-func main() {
+func requireSeed(c *cli.Context) error {
+	if mainSeed == "" {
+		return fmt.Errorf("seed required")
+	}
 
+	return nil
+}
+
+func main() {
 	app := cli.NewApp()
 	app.Version = "0.0.1"
 	app.Usage = "Let you provision capacity on the ThreefoldGrid 2.0"
@@ -39,7 +48,6 @@ func main() {
 			Name:   "seed",
 			Usage:  "path to the file container the seed of the user private key",
 			EnvVar: "SEED_PATH",
-			// Required: true,
 		},
 	}
 
@@ -51,12 +59,15 @@ func main() {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 		var err error
-		bcdbaddr = c.String("bcdb")
+		bcdbAddr = c.String("bcdb")
 
-		bcdb, err = getClient(c.String("bcdb"), c.String("seed"))
-		if err != nil {
-			log.Error().Err(err).Msg("client")
-			// return err
+		if seed := c.String("seed"); seed != "" {
+			mainSeed = seed
+
+			bcdb, err = getClient(c.String("bcdb"), c.String("seed"))
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -379,8 +390,9 @@ func main() {
 			},
 		},
 		{
-			Name:  "provision",
-			Usage: "Provision a workload",
+			Name:   "provision",
+			Usage:  "Provision a workload",
+			Before: requireSeed,
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "schema",
@@ -390,12 +402,6 @@ func main() {
 				cli.StringFlag{
 					Name:  "duration",
 					Usage: "duration of the reservation. By default is number of days. But also support notation with duration suffix like m for minute or h for hours",
-				},
-				cli.StringFlag{
-					Name:     "seed",
-					Usage:    "path to the file container the seed of the user private key",
-					EnvVar:   "SEED_PATH",
-					Required: true,
 				},
 				cli.Int64Flag{
 					Name:     "id",

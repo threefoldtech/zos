@@ -20,8 +20,8 @@ func cmdsGenerateID(c *cli.Context) error {
 
 	k, err := identity.LoadKeyPair(output)
 	if err == nil {
-		fmt.Printf("a seed already exists at %s\n", output)
-		fmt.Printf("identity: %s\n", k.Identity())
+		fmt.Printf("A seed already exists at %s\n", output)
+		fmt.Printf("Identity: %s\n", k.Identity())
 		return nil
 	}
 
@@ -41,10 +41,10 @@ func cmdsGenerateID(c *cli.Context) error {
 		return errors.Wrap(err, "failed to save seed")
 	}
 
-	bcdb, err = getClient(bcdbaddr, c.String("output"))
+	log.Debug().Str("bcdb", bcdbAddr).Str("output", c.String("output")).Msg("connecting")
+	bcdb, err = getClient(bcdbAddr, c.String("output"))
 
-	log.Debug().Str("bcdb", bcdbaddr).Str("output", c.String("output")).Msg("register")
-
+	log.Debug().Msg("register user")
 	id, err := bcdb.Phonebook.Create(user)
 	if err != nil {
 		return errors.Wrap(err, "failed to register user")

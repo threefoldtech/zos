@@ -92,7 +92,7 @@ func cmdsProvision(c *cli.Context) error {
 	var (
 		schema   []byte
 		path     = c.String("schema")
-		seedPath = c.String("seed")
+		seedPath = mainSeed
 		d        = c.String("duration")
 		userID   = c.Int64("id")
 		duration time.Duration
