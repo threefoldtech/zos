@@ -183,7 +183,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 				}
 				effects, err := horizonClient.Effects(effectsReq)
 				if err != nil {
-					log.Debug().Msgf("failed to get transaction effects: %v", err)
+					log.Error().Err(err).Msgf("failed to get transaction effects")
 					continue
 				}
 				// first check if we have been paid
@@ -231,12 +231,15 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 	for donor := range donors {
 		donorList = append(donorList, donor)
 	}
-	log.Debug().Int64("id", int64(id)).Msgf("balance for %s = %d, reservation", address, total)
+	log.Info().
+		Int64("balance", int64(total)).
+		Str("address", address).
+		Int64("id", int64(id)).Msgf("status of balance for reservation")
 	return total, donorList, nil
 }
 
 // Refund using a keypair
-// keypair is account assiociated with farmer - user
+// keypair is account associated with farmer - user
 // refund destination is the first address in the "funder" list as returned by
 // GetBalance
 // id is the reservation ID to refund for
@@ -405,7 +408,9 @@ func (w *Wallet) signAndSubmitTx(keypair *keypair.Full, tx *txnbuild.Transaction
 	_, err = client.SubmitTransaction(*tx)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		log.Debug().Msgf("%+v", hError.Problem.Extras)
+		log.Debug().
+			Err(fmt.Errorf("%+v", hError.Problem.Extras)).
+			Msg("error submitting transaction")
 		return errors.Wrap(hError.Problem, "error submitting transaction")
 	}
 	return nil
