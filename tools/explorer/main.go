@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/version"
 	"github.com/threefoldtech/zos/tools/explorer/config"
 	"github.com/threefoldtech/zos/tools/explorer/mw"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/directory"
@@ -39,6 +40,7 @@ func main() {
 		seed    string
 		network string
 		asset   string
+		ver     bool
 	)
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
@@ -47,7 +49,13 @@ func main() {
 	flag.StringVar(&config.Config.Seed, "seed", "", "wallet seed")
 	flag.StringVar(&config.Config.Network, "network", "testnet", "tfchain network")
 	flag.StringVar(&config.Config.Asset, "asset", "TFT", "which asset to use")
+	flag.BoolVar(&ver, "v", false, "show version and exit")
+
 	flag.Parse()
+
+	if ver {
+		version.ShowAndExit(false)
+	}
 
 	if err := config.Valid(); err != nil {
 		log.Fatal().Err(err).Msg("invalid configuration")
