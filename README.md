@@ -9,7 +9,9 @@ Head to https://threefold.io and https://wiki.threefold.io to learn more about T
 
 ## Documentation
 
-Start exploring the code base by first checking the [documentation](/docs) and [specification documents](/specs)
+Start exploring the code base by first checking the [documentation](/docs) and [specification documents](/specs).
+
+An [FAQ](./docs/faq/readme.md) is also available for all the common questions.
 
 ## Setting up your development environment
 
