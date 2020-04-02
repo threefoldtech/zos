@@ -92,17 +92,17 @@ func (e *Escrow) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			log.Debug().Msg("scanning active ecrow accounts balance")
+			log.Info().Msg("scanning active ecrow accounts balance")
 			if err := e.checkReservations(); err != nil {
 				log.Error().Msgf("failed to check reservations: %s", err)
 			}
 
-			log.Debug().Msg("scanning for expired escrows")
+			log.Info().Msg("scanning for expired escrows")
 			if err := e.refundExpiredReservations(); err != nil {
 				log.Error().Msgf("failed to refund expired reservations: %s", err)
 			}
 		case job := <-e.reservationChannel:
-			log.Debug().Msg("processing new reservation escrow")
+			log.Info().Int64("id", int64(job.reservation.ID)).Msg("processing new reservation escrow for reservation")
 			details, err := e.processReservation(job.reservation)
 			if err != nil {
 				log.Error().Msgf("failed to check reservations: %s", err)
@@ -112,12 +112,12 @@ func (e *Escrow) Run(ctx context.Context) error {
 				data: details,
 			}
 		case id := <-e.deployedChannel:
-			log.Debug().Msg("trying to pay farmer for a deployed reservation")
+			log.Info().Int64("id", int64(id)).Msg("trying to pay farmer for deployed reservation")
 			if err := e.payoutFarmers(id); err != nil {
 				log.Error().Msgf("failed to payout farmers: %s", err)
 			}
 		case id := <-e.cancelledChannel:
-			log.Debug().Msg("trying to refund client for a canceled reservation")
+			log.Info().Int64("id", int64(id)).Msg("trying to refund clients for canceled reservation")
 			if err := e.refundClients(id); err != nil {
 				log.Error().Msgf("could not refund clients: %s", err)
 			}
@@ -183,7 +183,7 @@ func (e *Escrow) checkReservations() error {
 				continue
 			}
 
-			log.Debug().Msg("all farmer are paid, trying to move to deploy state")
+			log.Info().Int64("id", int64(escrowInfo.ReservationID)).Msg("all farmer are paid, trying to move to deploy state")
 			// update reservation
 			if err = workloadtypes.ReservationSetNextAction(e.ctx, e.db, escrowInfo.ReservationID, workloadtypes.Deploy); err != nil {
 				log.Error().Msgf("failed to set reservation in deploy state: %s", err)
@@ -232,6 +232,7 @@ func (e *Escrow) processReservation(reservation workloads.Reservation) ([]types.
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create reservation payment information")
 	}
+	log.Info().Int64("id", int64(reservation.ID)).Msg("processed reservation and created payment information")
 	return details, nil
 }
 
@@ -250,6 +251,7 @@ func (e *Escrow) refundClients(id schema.ID) error {
 	if err = types.ReservationPaymentInfoUpdate(e.ctx, e.db, rpi); err != nil {
 		return errors.Wrapf(err, "could not mark escrows for %d as canceled", rpi.ReservationID)
 	}
+	log.Debug().Int64("id", int64(rpi.ReservationID)).Msg("refunded clients for reservation")
 	return nil
 }
 
@@ -299,6 +301,7 @@ func (e *Escrow) payoutFarmers(id schema.ID) error {
 			log.Error().Msgf("failed to pay farmer: %s", err)
 			continue
 		}
+		log.Debug().Msgf("paid farmer: %d, from escrow: %s for an amount of: %d", escrowDetails.FarmerID, escrowDetails.EscrowAddress, escrowDetails.TotalAmount)
 	}
 	rpi.Released = true
 	if err = types.ReservationPaymentInfoUpdate(e.ctx, e.db, rpi); err != nil {
@@ -325,6 +328,7 @@ func (e *Escrow) refundEscrow(escrowInfo types.ReservationPaymentInformation) {
 			log.Error().Msgf("failed to refund clients: %s", err)
 			continue
 		}
+		log.Debug().Msgf("refunded client for escrow: %s", info.EscrowAddress)
 	}
 }
 
@@ -371,10 +375,13 @@ func (e *Escrow) createOrLoadAccount(farmerID int64, customerTID int64) (string,
 			if err != nil {
 				return "", errors.Wrap(err, "failed to save a new account for farmer - customer")
 			}
+			log.Debug().Msgf("created new escrow address %s for farmer: %d and customer: %d", keypair.Address(), farmerID, customerTID)
 			return keypair.Address(), nil
 		}
 		return "", errors.Wrap(err, "failed to get farmer - customer address")
 	}
+	log.Debug().Msgf("escrow address %s found for farmer: %d and customer: %d", res.Address, farmerID, customerTID)
+
 	return res.Address, nil
 }
 

@@ -231,7 +231,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 	for donor := range donors {
 		donorList = append(donorList, donor)
 	}
-	log.Debug().Msgf("balance for %s - %v: %d", address, id, total)
+	log.Debug().Int64("id", int64(id)).Msgf("balance for %s = %d, reservation", address, total)
 	return total, donorList, nil
 }
 
