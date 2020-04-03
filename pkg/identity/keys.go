@@ -65,7 +65,7 @@ func LoadSeed(path string) ([]byte, error) {
 		return nil, err
 	}
 
-	if version.NE(seedVersionLatest) {
+	if version.NE(seedVersion1) {
 		return nil, fmt.Errorf("unknown seed version")
 	}
 
