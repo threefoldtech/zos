@@ -92,6 +92,9 @@ func SaveUserData(u *UserData, path string) error {
 
 	// Versioning json output
 	buf, err := json.Marshal(ui)
+	if err != nil {
+		return err
+	}
 
 	// Saving json to file
 	log.Info().Str("filename", path).Msg("writing user identity")
