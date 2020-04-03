@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/identity"
+	"github.com/threefoldtech/zos/tools/client"
 	"github.com/threefoldtech/zos/tools/explorer/models/generated/phonebook"
 	"github.com/urfave/cli"
 )
@@ -37,17 +38,27 @@ func cmdsGenerateID(c *cli.Context) error {
 		Description: description,
 	}
 
-	if err := k.Save(c.String("output")); err != nil {
-		return errors.Wrap(err, "failed to save seed")
+	log.Debug().Msg("initializing client with created key")
+	bcdb, err = client.NewClient(bcdbAddr, k)
+	if err != nil {
+		return err
 	}
-
-	log.Debug().Str("bcdb", bcdbAddr).Str("output", c.String("output")).Msg("connecting")
-	bcdb, err = getClient(bcdbAddr, c.String("output"))
 
 	log.Debug().Msg("register user")
 	id, err := bcdb.Phonebook.Create(user)
 	if err != nil {
 		return errors.Wrap(err, "failed to register user")
+	}
+
+	// Building seed struct
+	ud := &identity.UserData{
+		Key:        k,
+		ThreebotID: uint64(id),
+	}
+
+	// Saving new seed struct
+	if err := identity.SaveUserData(ud, c.String("output")); err != nil {
+		return errors.Wrap(err, "failed to save seed")
 	}
 
 	fmt.Printf("Your ID is: %d\n", id)
