@@ -43,7 +43,7 @@ func main() {
 		log.Fatal().Err(err).Msg("load user identity")
 	}
 
-	if bytes.Compare(newkey.Key.PrivateKey, kp.PrivateKey) == 0 {
+	if bytes.Equal(newkey.Key.PrivateKey, kp.PrivateKey) {
 		log.Info().Msg("keys matches")
 
 	} else {
