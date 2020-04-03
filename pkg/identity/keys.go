@@ -9,11 +9,17 @@ import (
 	"golang.org/x/crypto/ed25519"
 )
 
+// Version History:
+//   1.0.0: seed binary directly encoded
+//   1.1.0: json with key mnemonic and threebot id
+
 var (
-	//SeedVersion1 version
+	// SeedVersion1 (binary seed)
 	seedVersion1 = versioned.MustParse("1.0.0")
-	//SeedVersionLatest link to latest seed version
-	seedVersionLatest = seedVersion1
+	// SeedVersion11 (json mnemonic)
+	seedVersion11 = versioned.MustParse("1.1.0")
+	// SeedVersionLatest link to latest seed version
+	seedVersionLatest = seedVersion11
 )
 
 // KeyPair holds a public and private side of an ed25519 key pair
