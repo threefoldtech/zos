@@ -18,6 +18,7 @@ type UserIdentity struct {
 	ThreebotID uint64 `json:"threebotid"`
 }
 
+// UserData contains all information needed to identify someone
 type UserData struct {
 	// Seed is the KeyPair object decoded from seed base64
 	Key KeyPair
@@ -25,6 +26,7 @@ type UserData struct {
 	ThreebotID uint64
 }
 
+// LoadUserIdentity load a dumped UserData from file
 func LoadUserIdentity(path string) (UserData, error) {
 	// Initializing empty object
 	ud := UserData{}
@@ -63,6 +65,7 @@ func LoadUserIdentity(path string) (UserData, error) {
 	return ud, nil
 }
 
+// SaveUserData dumps UserData into a file
 func SaveUserData(u *UserData, path string) error {
 	log.Info().Msg("generating seed mnemonic")
 
