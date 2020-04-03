@@ -26,7 +26,7 @@ type UserData struct {
 	ThreebotID uint64
 }
 
-// LoadUserIdentity load a dumped UserData from file
+// LoadUserIdentity load a UserIdentity from file
 func LoadUserIdentity(path string) (UserData, error) {
 	// Initializing empty object
 	ud := UserData{}
@@ -46,6 +46,14 @@ func LoadUserIdentity(path string) (UserData, error) {
 		return ud, err
 	}
 
+	return LoadUserIdentityObject(&ui)
+}
+
+// LoadUserIdentityObject converts a UserIdentity object to UserData
+func LoadUserIdentityObject(ui *UserIdentity) (UserData, error) {
+	// Initializing empty object
+	ud := UserData{}
+
 	seed, err := bip39.EntropyFromMnemonic(ui.Mnemonic)
 	if err != nil {
 		return ud, err
@@ -57,9 +65,10 @@ func LoadUserIdentity(path string) (UserData, error) {
 		return ud, err
 	}
 
+	// Link keys
 	ud.Key = kp
 
-	// Linking ThreebotID
+	// Link ThreebotID
 	ud.ThreebotID = ui.ThreebotID
 
 	return ud, nil
