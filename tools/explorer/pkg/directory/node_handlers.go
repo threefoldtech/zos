@@ -156,18 +156,12 @@ func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	// ensure it is the farmer that does the call
-	actualFarmerID, merr := farmOwner(r.Context(), node.FarmId, db)
-	if merr != nil {
+	authorized, merr := isFarmerAuthorized(r, node, db)
+	if err != nil {
 		return nil, merr
 	}
 
-	sfarmerID := httpsig.KeyIDFromContext(r.Context())
-	requestFarmerID, err := strconv.ParseInt(sfarmerID, 10, 64)
-	if err != nil {
-		return nil, mw.BadRequest(err)
-	}
-
-	if requestFarmerID != actualFarmerID {
+	if !authorized {
 		return nil, mw.Forbidden(fmt.Errorf("only the farmer can configured the public interface of its nodes"))
 	}
 
@@ -176,6 +170,41 @@ func (s *NodeAPI) configurePublic(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	return nil, mw.Created()
+}
+
+func (s *NodeAPI) configureFreeToUse(r *http.Request) (interface{}, mw.Response) {
+	db := mw.Database(r)
+	nodeID := mux.Vars(r)["node_id"]
+
+	node, err := s.Get(r.Context(), db, nodeID, false)
+	if err != nil {
+		return nil, mw.NotFound(err)
+	}
+
+	// ensure it is the farmer that does the call
+	authorized, merr := isFarmerAuthorized(r, node, db)
+	if err != nil {
+		return nil, merr
+	}
+
+	if !authorized {
+		return nil, mw.Forbidden(fmt.Errorf("only the farmer can configured the if the node is free to use"))
+	}
+
+	choice := struct {
+		FreeToUse bool `json:"free_to_use"`
+	}{}
+
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&choice); err != nil {
+		return nil, mw.BadRequest(err)
+	}
+
+	if err := s.updateFreeToUse(r.Context(), db, node.NodeId, choice.FreeToUse); err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return nil, mw.Ok()
 }
 
 func (s *NodeAPI) registerPorts(r *http.Request) (interface{}, mw.Response) {
@@ -264,4 +293,20 @@ func farmOwner(ctx context.Context, farmID int64, db *mongo.Database) (int64, mw
 	}
 
 	return farm.ThreebotId, nil
+}
+
+// isFarmerAuthorized ensure it is the farmer authenticated in request r is owning the node
+func isFarmerAuthorized(r *http.Request, node directory.Node, db *mongo.Database) (bool, mw.Response) {
+	actualFarmerID, merr := farmOwner(r.Context(), node.FarmId, db)
+	if merr != nil {
+		return false, merr
+	}
+
+	sfarmerID := httpsig.KeyIDFromContext(r.Context())
+	requestFarmerID, err := strconv.ParseInt(sfarmerID, 10, 64)
+	if err != nil {
+		return false, mw.BadRequest(err)
+	}
+	log.Debug().Int64("actualFarmerID", actualFarmerID).Int64("requestFarmID", requestFarmerID).Send()
+	return (requestFarmerID == actualFarmerID), nil
 }
