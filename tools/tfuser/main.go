@@ -98,6 +98,10 @@ func main() {
 					Usage:    "user description",
 					Required: true,
 				},
+				cli.StringFlag{
+					Name:  "mnemonic",
+					Usage: "generate a key from given mnemonic",
+				},
 			},
 			Action: cmdsGenerateID,
 		},
