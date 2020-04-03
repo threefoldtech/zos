@@ -72,8 +72,6 @@ func SaveUserData(u *UserData, path string) error {
 		return err
 	}
 
-	fmt.Println(mnemonic)
-
 	// Fillin serializable struct
 	ui := &UserIdentity{
 		Mnemonic:   mnemonic,
