@@ -89,7 +89,7 @@ func cmdsConvertID(c *cli.Context) error {
 	log.Info().Str("source", source).Msg("loading original seed")
 
 	// Load original seed file
-	kp, err := identity.LoadKeyPair(source)
+	kp, err := identity.LoadLegacyKeyPair(source)
 	if err != nil {
 		log.Fatal().Err(err).Msg("load key pair")
 	}
