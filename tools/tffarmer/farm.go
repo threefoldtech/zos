@@ -8,7 +8,6 @@ import (
 )
 
 func registerFarm(c *cli.Context) error {
-
 	name := c.Args().First()
 	if name == "" {
 		return fmt.Errorf("farm name needs to be specified")
@@ -25,7 +24,7 @@ func registerFarm(c *cli.Context) error {
 
 	farmID, err := db.FarmRegister(directory.Farm{
 		Name:            name,
-		ThreebotId:      int64(userdata.ThreebotID),
+		ThreebotId:      int64(userid.ThreebotID),
 		WalletAddresses: addresses,
 	})
 	if err != nil {

@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	db       client.Directory
-	userdata identity.UserData
+	db     client.Directory
+	userid identity.UserIdentity
 )
 
 func main() {
@@ -40,6 +40,7 @@ func main() {
 			EnvVar: "BCDB_URL",
 		},
 	}
+
 	app.Before = func(c *cli.Context) error {
 		var err error
 
@@ -49,13 +50,13 @@ func main() {
 		}
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-		userdata, err = identity.LoadUserIdentity(c.String("seed"))
+		err = userid.Load(c.String("seed"))
 		if err != nil {
 			return err
 		}
 
 		url := c.String("bcdb")
-		cl, err := client.NewClient(url, userdata.Key)
+		cl, err := client.NewClient(url, userid.Key())
 		if err != nil {
 			return errors.Wrap(err, "failed to create client to bcdb")
 		}
@@ -64,6 +65,7 @@ func main() {
 
 		return nil
 	}
+
 	app.Commands = []cli.Command{
 		{
 			Name:  "farm",

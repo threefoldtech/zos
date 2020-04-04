@@ -27,23 +27,25 @@ func main() {
 	}
 
 	// Create new object
-	ud := &identity.UserData{
-		Key:        kp,
-		ThreebotID: 0,
-	}
+	ui := &identity.UserIdentity{}
+	ui.SetKey(kp)
 
 	// Save new object
-	identity.SaveUserData(ud, destination)
+	err = ui.Save(destination)
+	if err != nil {
+		log.Fatal().Err(err).Msg("saving seed file")
+	}
 
 	// Load new key to ensure loads works
 	log.Info().Msg("reloading new seed to check")
 
-	newkey, err := identity.LoadUserIdentity(destination)
+	newkey := &identity.UserIdentity{}
+	err = newkey.Load(destination)
 	if err != nil {
 		log.Fatal().Err(err).Msg("load user identity")
 	}
 
-	if bytes.Equal(newkey.Key.PrivateKey, kp.PrivateKey) {
+	if bytes.Equal(newkey.Key().PrivateKey, kp.PrivateKey) {
 		log.Info().Msg("keys matches")
 
 	} else {
