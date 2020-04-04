@@ -80,6 +80,7 @@ func LoadKeyPair(path string) (k KeyPair, err error) {
 	return loadKeyPair(path)
 }
 
+// LoadLegacyKeyPair load keypair without deprecated message for converted
 func LoadLegacyKeyPair(path string) (k KeyPair, err error) {
 	return loadKeyPair(path)
 }
