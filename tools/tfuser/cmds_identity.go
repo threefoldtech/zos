@@ -33,8 +33,7 @@ func cmdsGenerateID(c *cli.Context) error {
 	if mnemonic != "" {
 		log.Info().Msg("building key using existing mnemonic")
 
-		ui.Mnemonic = mnemonic
-		err = ui.Initialize()
+		err = ui.FromMnemonic(mnemonic)
 		if err != nil {
 			return err
 		}
