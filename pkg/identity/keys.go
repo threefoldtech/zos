@@ -77,7 +77,14 @@ func LoadSeed(path string) ([]byte, error) {
 // KeyPair using the seed
 func LoadKeyPair(path string) (k KeyPair, err error) {
 	log.Warn().Msg("LoadKeyPair is deprecated, please use UserIdentity struct")
+	return loadKeyPair(path)
+}
 
+func LoadLegacyKeyPair(path string) (k KeyPair, err error) {
+	return loadKeyPair(path)
+}
+
+func loadKeyPair(path string) (k KeyPair, err error) {
 	seed, err := LoadSeed(path)
 	if err != nil {
 		return k, err
