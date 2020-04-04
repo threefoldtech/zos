@@ -51,7 +51,7 @@ func GenerateKeyPair() (k KeyPair, err error) {
 func (k *KeyPair) Save(path string) error {
 	seed := k.PrivateKey.Seed()
 
-	return versioned.WriteFile(path, seedVersionLatest, seed, 0400)
+	return versioned.WriteFile(path, seedVersion1, seed, 0400)
 }
 
 // LoadSeed from path
