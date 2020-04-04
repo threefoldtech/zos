@@ -37,6 +37,10 @@ func (u *UserIdentity) Load(path string) error {
 		return err
 	}
 
+	if version.Compare(seedVersion1) == 0 {
+		return fmt.Errorf("seed file too old, please update it using 'tfuser id convert' command")
+	}
+
 	if version.NE(seedVersionLatest) {
 		return fmt.Errorf("unsupported seed version")
 	}
