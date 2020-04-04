@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 
@@ -76,5 +77,65 @@ func cmdsGenerateID(c *cli.Context) error {
 
 	fmt.Printf("Your ID is: %d\n", id)
 	fmt.Printf("Seed saved to: %s\n", output)
+
+	return nil
+}
+
+func cmdsConvertID(c *cli.Context) error {
+	source := c.String("source")
+	destination := c.String("target")
+	tid := c.Int("tid")
+
+	log.Info().Str("source", source).Msg("loading original seed")
+
+	// Load original seed file
+	kp, err := identity.LoadKeyPair(source)
+	if err != nil {
+		log.Fatal().Err(err).Msg("load key pair")
+	}
+
+	// Create new object
+	ui := &identity.UserIdentity{}
+	ui.SetKey(kp)
+	ui.ThreebotID = uint64(tid)
+
+	// Save new object
+	err = ui.Save(destination)
+	if err != nil {
+		log.Fatal().Err(err).Msg("saving seed file")
+	}
+
+	// Load new key to ensure loads works
+	log.Info().Msg("reloading new seed to check")
+
+	newkey := &identity.UserIdentity{}
+	err = newkey.Load(destination)
+	if err != nil {
+		log.Fatal().Err(err).Msg("load user identity")
+	}
+
+	if bytes.Equal(newkey.Key().PrivateKey, kp.PrivateKey) {
+		log.Info().Msg("keys matches")
+
+	} else {
+		log.Error().Msg("keys doesn't matches")
+	}
+
+	return nil
+}
+
+func cmdsShowID(c *cli.Context) error {
+	ui := &identity.UserIdentity{}
+	err := ui.Load(mainSeed)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Identify File: %s\n", mainSeed)
+	fmt.Printf("ThreeBot ID  : %d\n", ui.ThreebotID)
+	fmt.Printf("Public Key   : %s\n", hex.EncodeToString(ui.Key().PublicKey))
+	fmt.Printf("Mnemonic     : %s\n", ui.Mnemonic)
+
 	return nil
 }

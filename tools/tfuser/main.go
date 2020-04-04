@@ -63,8 +63,14 @@ func main() {
 
 		if seed := c.String("seed"); seed != "" {
 			mainSeed = seed
+			ui := &identity.UserIdentity{}
 
-			bcdb, err = getClient(c.String("bcdb"), c.String("seed"))
+			err = ui.Load(seed)
+			if err != nil {
+				return err
+			}
+
+			bcdb, err = client.NewClient(bcdbAddr, ui.Key())
 			if err != nil {
 				return err
 			}
@@ -76,34 +82,68 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:  "id",
-			Usage: "generate a user identity",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "output,o",
-					Usage: "output path of the identity seed",
-					Value: "user.seed",
+			Usage: "Group of command to generate provisioning schemas",
+			Subcommands: []cli.Command{
+				{
+					Name:  "create",
+					Usage: "generate a user identity",
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "output,o",
+							Usage: "output path of the identity seed",
+							Value: "user.seed",
+						},
+						cli.StringFlag{
+							Name:     "name,n",
+							Usage:    "user name",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:     "email",
+							Usage:    "user email address",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:     "description",
+							Usage:    "user description",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:  "mnemonic",
+							Usage: "generate a key from given mnemonic",
+						},
+					},
+					Action: cmdsGenerateID,
 				},
-				cli.StringFlag{
-					Name:     "name,n",
-					Usage:    "user name",
-					Required: true,
+				{
+					Name:  "convert",
+					Usage: "convert an old user.seed to latest version",
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "source",
+							Usage:    "original user.seed file",
+							Value:    "user.seed",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:     "target",
+							Usage:    "converted seedfile path",
+							Required: true,
+						},
+						cli.IntFlag{
+							Name:  "tid",
+							Usage: "threebot id",
+							Value: 0,
+						},
+					},
+					Action: cmdsConvertID,
 				},
-				cli.StringFlag{
-					Name:     "email",
-					Usage:    "user email address",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:     "description",
-					Usage:    "user description",
-					Required: true,
-				},
-				cli.StringFlag{
-					Name:  "mnemonic",
-					Usage: "generate a key from given mnemonic",
+				{
+					Name:   "show",
+					Usage:  "show user information from seed file",
+					Action: cmdsShowID,
 				},
 			},
-			Action: cmdsGenerateID,
 		},
 		{
 			Name:    "generate",
@@ -480,12 +520,4 @@ func main() {
 	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}
-}
-
-func getClient(addr, path string) (*client.Client, error) {
-	kp, err := identity.LoadKeyPair(path)
-	if err != nil {
-		return nil, err
-	}
-	return client.NewClient(addr, kp)
 }
