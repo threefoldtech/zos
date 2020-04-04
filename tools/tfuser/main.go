@@ -14,6 +14,7 @@ import (
 
 var (
 	bcdb     *client.Client
+	mainui   identity.UserIdentity
 	bcdbAddr string
 	mainSeed string
 )
@@ -63,14 +64,13 @@ func main() {
 
 		if seed := c.String("seed"); seed != "" {
 			mainSeed = seed
-			ui := &identity.UserIdentity{}
 
-			err = ui.Load(seed)
+			err = mainui.Load(seed)
 			if err != nil {
 				return err
 			}
 
-			bcdb, err = client.NewClient(bcdbAddr, ui.Key())
+			bcdb, err = client.NewClient(bcdbAddr, mainui.Key())
 			if err != nil {
 				return err
 			}
@@ -447,12 +447,6 @@ func main() {
 					Name:  "duration",
 					Usage: "duration of the reservation. By default is number of days. But also support notation with duration suffix like m for minute or h for hours",
 				},
-				cli.Int64Flag{
-					Name:     "id",
-					Usage:    "user id associated with the seed",
-					EnvVar:   "TF_USER_ID",
-					Required: true,
-				},
 				cli.BoolFlag{
 					Name:  "dry-run",
 					Usage: "dry run, prints the reservation instead of registering it",
@@ -461,15 +455,10 @@ func main() {
 			Action: cmdsProvision,
 		},
 		{
-			Name:  "delete",
-			Usage: "Mark a workload as to be deleted",
+			Name:   "delete",
+			Usage:  "Mark a workload as to be deleted",
+			Before: requireSeed,
 			Flags: []cli.Flag{
-				cli.Int64Flag{
-					Name:     "id",
-					Usage:    "user id associated with the seed",
-					EnvVar:   "TF_USER_ID",
-					Required: true,
-				},
 				cli.Int64Flag{
 					Name:     "reservation",
 					Usage:    "reservation id",
@@ -485,15 +474,10 @@ func main() {
 			Action: cmdsDeleteReservation,
 		},
 		{
-			Name:  "live",
-			Usage: "show you all the reservations that are still alive",
+			Name:   "live",
+			Usage:  "show you all the reservations that are still alive",
+			Before: requireSeed,
 			Flags: []cli.Flag{
-				cli.Int64Flag{
-					Name:     "id",
-					Usage:    "user id associated with the seed",
-					EnvVar:   "TF_USER_ID",
-					Required: true,
-				},
 				cli.IntFlag{
 					Name:  "start",
 					Usage: "start scrapping at that reservation ID",

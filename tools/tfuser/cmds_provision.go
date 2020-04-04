@@ -94,7 +94,7 @@ func cmdsProvision(c *cli.Context) error {
 		path     = c.String("schema")
 		seedPath = mainSeed
 		d        = c.String("duration")
-		userID   = c.Int64("id")
+		userID   = int64(mainui.ThreebotID)
 		duration time.Duration
 		err      error
 	)
@@ -112,7 +112,7 @@ func cmdsProvision(c *cli.Context) error {
 		}
 	}
 
-	signer, err := client.NewSignerFromFile(seedPath)
+	signer, err := client.NewSigner(mainui.Key().PrivateKey.Seed())
 	if err != nil {
 		return errors.Wrapf(err, "could not find seed file at %s", seedPath)
 	}
@@ -216,7 +216,7 @@ func embed(schema interface{}, t provision.ReservationType, node string) (*provi
 func cmdsDeleteReservation(c *cli.Context) error {
 	var (
 		resID    = c.Int64("reservation")
-		userID   = c.Int64("id")
+		userID   = mainui.ThreebotID
 		seedPath = c.String("seed")
 	)
 
