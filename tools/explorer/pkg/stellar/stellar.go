@@ -176,6 +176,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 		Cursor:     cursor,
 	}
 
+	log.Info().Str("address", address).Msg("fetching balance for address")
 	txes, err := horizonClient.Transactions(txReq)
 	if err != nil {
 		return 0, nil, errors.Wrap(err, "could not get transactions")
@@ -228,6 +229,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 			cursor = tx.PagingToken()
 		}
 		txReq.Cursor = cursor
+		log.Info().Str("address", address).Msgf("fetching balance for address with cursor: %s", cursor)
 		txes, err = horizonClient.Transactions(txReq)
 		if err != nil {
 			return 0, nil, errors.Wrap(err, "could not get transactions")
@@ -422,6 +424,7 @@ func (w *Wallet) signAndSubmitTx(keypair *keypair.Full, tx *txnbuild.Transaction
 		return errors.Wrap(err, "failed to sign transaction with keypair")
 	}
 
+	log.Info().Msg("submitting transaction to the stellar network")
 	// Submit the transaction
 	_, err = client.SubmitTransaction(*tx)
 	if err != nil {
@@ -440,8 +443,12 @@ func (w *Wallet) getAccountDetails(address string) (account hProtocol.Account, e
 		return hProtocol.Account{}, err
 	}
 	ar := horizonclient.AccountRequest{AccountID: address}
+	log.Info().Str("address", address).Msgf("fetching account details for address: ")
 	account, err = client.AccountDetail(ar)
-	return
+	if err != nil {
+		return hProtocol.Account{}, errors.Wrapf(err, "failed to get account details for account: %s", address)
+	}
+	return account, nil
 }
 
 func (w *Wallet) getHorizonClient() (*horizonclient.Client, error) {
