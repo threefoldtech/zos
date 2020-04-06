@@ -98,7 +98,7 @@ func New(seed, network, asset string, signers Signers) (*Wallet, error) {
 // sets up a trustline to the correct issuer and asset
 // and sets up multisig on the account for recovery of funds
 func (w *Wallet) CreateAccount() (keypair.Full, error) {
-	client, err := w.getHorizonClient()
+	client, err := w.GetHorizonClient()
 	if err != nil {
 		return keypair.Full{}, err
 	}
@@ -107,7 +107,7 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 		return keypair.Full{}, err
 	}
 
-	sourceAccount, err := w.getAccountDetails(w.keypair.Address())
+	sourceAccount, err := w.GetAccountDetails(w.keypair.Address())
 	if err != nil {
 		return keypair.Full{}, errors.Wrap(err, "failed to get source account")
 	}
@@ -139,7 +139,7 @@ func (w *Wallet) activateEscrowAccount(newKp *keypair.Full, sourceAccount hProto
 		SourceAccount: &sourceAccount,
 		Operations:    []txnbuild.Operation{&createAccountOp},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       w.getNetworkPassPhrase(),
+		Network:       w.GetNetworkPassPhrase(),
 	}
 
 	txeBase64, err := tx.BuildSignEncode(w.keypair)
@@ -157,7 +157,7 @@ func (w *Wallet) activateEscrowAccount(newKp *keypair.Full, sourceAccount hProto
 }
 
 func (w *Wallet) setupTrustline(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
-	sourceAccount, err := w.getAccountDetails(newKp.Address())
+	sourceAccount, err := w.GetAccountDetails(newKp.Address())
 	if err != nil {
 		return errors.Wrap(err, "failed to get account details")
 	}
@@ -165,14 +165,14 @@ func (w *Wallet) setupTrustline(newKp *keypair.Full, sourceAccount hProtocol.Acc
 		SourceAccount: &sourceAccount,
 		Line: txnbuild.CreditAsset{
 			Code:   w.asset.String(),
-			Issuer: w.getIssuer(),
+			Issuer: w.GetIssuer(),
 		},
 	}
 	trustTx := txnbuild.Transaction{
 		SourceAccount: &sourceAccount,
 		Operations:    []txnbuild.Operation{&changeTrustOp},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       w.getNetworkPassPhrase(),
+		Network:       w.GetNetworkPassPhrase(),
 	}
 
 	txeBase64, err := trustTx.BuildSignEncode(newKp)
@@ -216,7 +216,7 @@ func (w *Wallet) setupEscrowMultisig(newKp *keypair.Full, sourceAccount hProtoco
 			SourceAccount: &sourceAccount,
 			Operations:    operations,
 			Timebounds:    txnbuild.NewTimeout(300),
-			Network:       w.getNetworkPassPhrase(),
+			Network:       w.GetNetworkPassPhrase(),
 		}
 
 		txeBase64, err := addSignersTx.BuildSignEncode(newKp)
@@ -232,66 +232,6 @@ func (w *Wallet) setupEscrowMultisig(newKp *keypair.Full, sourceAccount hProtoco
 		}
 	}
 	return nil
-}
-
-// CreateMultisigTransaction will create a multisig transaction from an address to a destination
-// This is will be used in the multisig client
-func (w *Wallet) CreateMultisigTransaction(from, destination, amount string) (string, error) {
-	sourceAccount, err := w.getAccountDetails(from)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get source account")
-	}
-
-	paymentOP := txnbuild.Payment{
-		Destination: destination,
-		Amount:      amount,
-		Asset: txnbuild.CreditAsset{
-			Code:   w.asset.String(),
-			Issuer: w.getIssuer(),
-		},
-	}
-
-	tx := txnbuild.Transaction{
-		SourceAccount: &sourceAccount,
-		Operations:    []txnbuild.Operation{&paymentOP},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       w.getNetworkPassPhrase(),
-	}
-
-	return tx.BuildSignEncode(w.keypair)
-}
-
-// SignAndSubmitMultisigTransaction signs off on a multisig transaction and tries to submit it to the network
-func (w *Wallet) SignAndSubmitMultisigTransaction(transaction string) (string, error) {
-	tx, err := txnbuild.TransactionFromXDR(transaction)
-	if err != nil {
-		return "", errors.Wrap(err, "failed parse xdr to a transaction")
-	}
-
-	tx.Network = w.getNetworkPassPhrase()
-
-	err = tx.Sign(w.keypair)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to sign transaction")
-	}
-
-	client, err := w.getHorizonClient()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get horizon client")
-	}
-
-	txXDR, err := tx.Base64()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to parse transaction to xdr")
-	}
-	// Submit the transaction
-	_, err = client.SubmitTransaction(tx)
-	if err != nil {
-		hError := err.(*horizonclient.Error)
-		log.Debug().Msgf("%+v", hError.Problem.Extras)
-		return txXDR, errors.Wrap(hError.Problem, "error submitting transaction, perhaps another signature is required")
-	}
-	return txXDR, nil
 }
 
 // KeyPairFromSeed parses a seed and creates a keypair for it, which can be
@@ -311,7 +251,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 	}
 
 	var total xdr.Int64
-	horizonClient, err := w.getHorizonClient()
+	horizonClient, err := w.GetHorizonClient()
 	if err != nil {
 		return 0, nil, err
 	}
@@ -400,7 +340,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 // GetBalance
 // id is the reservation ID to refund for
 func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
-	sourceAccount, err := w.getAccountDetails(keypair.Address())
+	sourceAccount, err := w.GetAccountDetails(keypair.Address())
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
 	}
@@ -419,7 +359,7 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 		Amount:      big.NewRat(int64(amount), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
 			Code:   w.asset.String(),
-			Issuer: w.getIssuer(),
+			Issuer: w.GetIssuer(),
 		},
 		SourceAccount: &sourceAccount,
 	}
@@ -429,7 +369,7 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 	tx := txnbuild.Transaction{
 		Operations: []txnbuild.Operation{&paymentOP},
 		Timebounds: txnbuild.NewTimeout(300),
-		Network:    w.getNetworkPassPhrase(),
+		Network:    w.GetNetworkPassPhrase(),
 		Memo:       memo,
 	}
 
@@ -450,7 +390,7 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 // destination is the farmer destination address
 // id is the reservation ID to pay for
 func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, id schema.ID) error {
-	sourceAccount, err := w.getAccountDetails(keypair.Address())
+	sourceAccount, err := w.GetAccountDetails(keypair.Address())
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
 	}
@@ -490,7 +430,7 @@ func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, 
 			Amount:      big.NewRat(int64(amountDue), stellarPrecision).FloatString(stellarPrecisionDigits),
 			Asset: txnbuild.CreditAsset{
 				Code:   w.asset.String(),
-				Issuer: w.getIssuer(),
+				Issuer: w.GetIssuer(),
 			},
 			SourceAccount: &sourceAccount,
 		})
@@ -502,7 +442,7 @@ func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, 
 		Amount:      big.NewRat(int64(foundationCut), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
 			Code:   w.asset.String(),
-			Issuer: w.getIssuer(),
+			Issuer: w.GetIssuer(),
 		},
 		SourceAccount: &sourceAccount,
 	})
@@ -512,7 +452,7 @@ func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, 
 	tx := txnbuild.Transaction{
 		Operations: paymentOps,
 		Timebounds: txnbuild.NewTimeout(300),
-		Network:    w.getNetworkPassPhrase(),
+		Network:    w.GetNetworkPassPhrase(),
 		Memo:       memo,
 	}
 
@@ -531,7 +471,7 @@ func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, 
 // fundTransaction funds a transaction with the foundation wallet
 // For every operation in the transaction, the fee will be paid by the foundation wallet
 func (w *Wallet) fundTransaction(tx *txnbuild.Transaction) (*txnbuild.Transaction, error) {
-	sourceAccount, err := w.getAccountDetails(w.keypair.Address())
+	sourceAccount, err := w.GetAccountDetails(w.keypair.Address())
 	if err != nil {
 		return &txnbuild.Transaction{}, errors.Wrap(err, "failed to get source account")
 	}
@@ -561,7 +501,7 @@ func (w *Wallet) fundTransaction(tx *txnbuild.Transaction) (*txnbuild.Transactio
 // signAndSubmitTx sings of on a transaction with a given keypair
 // and submits it to the network
 func (w *Wallet) signAndSubmitTx(keypair *keypair.Full, tx *txnbuild.Transaction) error {
-	client, err := w.getHorizonClient()
+	client, err := w.GetHorizonClient()
 	if err != nil {
 		return errors.Wrap(err, "failed to get horizon client")
 	}
@@ -584,8 +524,8 @@ func (w *Wallet) signAndSubmitTx(keypair *keypair.Full, tx *txnbuild.Transaction
 	return nil
 }
 
-func (w *Wallet) getAccountDetails(address string) (account hProtocol.Account, err error) {
-	client, err := w.getHorizonClient()
+func (w *Wallet) GetAccountDetails(address string) (account hProtocol.Account, err error) {
+	client, err := w.GetHorizonClient()
 	if err != nil {
 		return hProtocol.Account{}, err
 	}
@@ -598,7 +538,7 @@ func (w *Wallet) getAccountDetails(address string) (account hProtocol.Account, e
 	return account, nil
 }
 
-func (w *Wallet) getHorizonClient() (*horizonclient.Client, error) {
+func (w *Wallet) GetHorizonClient() (*horizonclient.Client, error) {
 	switch w.network {
 	case "testnet":
 		return horizonclient.DefaultTestNetClient, nil
@@ -609,7 +549,7 @@ func (w *Wallet) getHorizonClient() (*horizonclient.Client, error) {
 	}
 }
 
-func (w *Wallet) getIssuer() string {
+func (w *Wallet) GetIssuer() string {
 	switch w.asset {
 	case TFT:
 		switch w.network {
@@ -634,7 +574,7 @@ func (w *Wallet) getIssuer() string {
 	}
 }
 
-func (w *Wallet) getNetworkPassPhrase() string {
+func (w *Wallet) GetNetworkPassPhrase() string {
 	switch w.network {
 	case "testnet":
 		return network.TestNetworkPassphrase

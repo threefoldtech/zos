@@ -10,7 +10,6 @@ import (
 )
 
 func main() {
-
 	app := cli.NewApp()
 	app.Usage = "Create and sign Stellar multisig transactions"
 	app.Version = "0.0.1"
