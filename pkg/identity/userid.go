@@ -20,14 +20,17 @@ type UserIdentity struct {
 	key KeyPair
 }
 
+// NewUserIdentity create a new UserIdentity from existing key
+func NewUserIdentity(key KeyPair, threebotid uint64) UserIdentity {
+	return UserIdentity{
+		key:        key,
+		ThreebotID: threebotid,
+	}
+}
+
 // Key returns the internal KeyPair
 func (u *UserIdentity) Key() KeyPair {
 	return u.key
-}
-
-// SetKey set internal KeyPair from an existing one
-func (u *UserIdentity) SetKey(kp KeyPair) {
-	u.key = kp
 }
 
 // Load fetch a seed file and initialize key based on mnemonic

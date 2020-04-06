@@ -45,7 +45,7 @@ func cmdsGenerateID(c *cli.Context) error {
 			return err
 		}
 
-		ui.SetKey(k)
+		ui = identity.NewUserIdentity(k, 0)
 	}
 
 	user := phonebook.User{
@@ -95,9 +95,7 @@ func cmdsConvertID(c *cli.Context) error {
 	}
 
 	// Create new object
-	ui := &identity.UserIdentity{}
-	ui.SetKey(kp)
-	ui.ThreebotID = uint64(tid)
+	ui := identity.NewUserIdentity(kp, uint64(tid))
 
 	// Save new object
 	err = ui.Save(destination)
