@@ -56,6 +56,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.5.1
+	github.com/rakyll/statik v0.1.7
 	github.com/rs/zerolog v1.18.0
 	github.com/rusart/muxprom v0.0.0-20200323164249-36ea051efbe6
 	github.com/shirou/gopsutil v2.19.11+incompatible
@@ -65,7 +66,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
 	github.com/threefoldtech/zbus v0.1.3
-	github.com/tyler-smith/go-bip32 v0.0.0-20170922074101-2c9cfd177564
+	github.com/tyler-smith/go-bip32 v0.0.0-20170922074101-2c9cfd177564 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.2
 	github.com/urfave/cli v1.22.3
 	github.com/vishvananda/netlink v1.0.0
