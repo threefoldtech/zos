@@ -81,6 +81,10 @@ func New(seed, network, asset string, signers Signers) (*Wallet, error) {
 		return nil, err
 	}
 
+	if len(signers) < 3 {
+		log.Warn().Msg("it is recommended that atleast 3 signers are set in order to recover escrow account")
+	}
+
 	return &Wallet{
 		keypair: kp,
 		network: network,
@@ -89,7 +93,10 @@ func New(seed, network, asset string, signers Signers) (*Wallet, error) {
 	}, nil
 }
 
-// CreateAccount and activates
+// CreateAccount creates a new keypair
+// and activates this keypair
+// sets up a trustline to the correct issuer and asset
+// and sets up multisig on the account for recovery of funds
 func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	client, err := w.getHorizonClient()
 	if err != nil {
@@ -104,6 +111,26 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	if err != nil {
 		return keypair.Full{}, errors.Wrap(err, "failed to get source account")
 	}
+
+	err = w.activateEscrowAccount(newKp, sourceAccount, client)
+	if err != nil {
+		return keypair.Full{}, errors.Wrapf(err, "failed to activate escrow account %s", newKp.Address())
+	}
+
+	err = w.setupTrustline(newKp, sourceAccount, client)
+	if err != nil {
+		return keypair.Full{}, errors.Wrapf(err, "failed to get setup trustline on escrow account %s", newKp.Address())
+	}
+
+	err = w.setupEscrowMultisig(newKp, sourceAccount, client)
+	if err != nil {
+		return keypair.Full{}, errors.Wrapf(err, "failed to get setup multsig on escrow account %s", newKp.Address())
+	}
+
+	return *newKp, nil
+}
+
+func (w *Wallet) activateEscrowAccount(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
 	createAccountOp := txnbuild.CreateAccount{
 		Destination: newKp.Address(),
 		Amount:      "10",
@@ -117,20 +144,22 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 
 	txeBase64, err := tx.BuildSignEncode(w.keypair)
 	if err != nil {
-		return keypair.Full{}, errors.Wrap(err, "failed to get build transaction")
+		return errors.Wrap(err, "failed to get build transaction")
 	}
 
 	// Submit the transaction
 	_, err = client.SubmitTransactionXDR(txeBase64)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		return keypair.Full{}, errors.Wrap(hError, "error submitting transaction")
+		return errors.Wrap(hError, "error submitting transaction")
 	}
+	return nil
+}
 
-	// Set the trustline
-	sourceAccount, err = w.getAccountDetails(newKp.Address())
+func (w *Wallet) setupTrustline(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
+	sourceAccount, err := w.getAccountDetails(newKp.Address())
 	if err != nil {
-		return keypair.Full{}, errors.Wrap(err, "failed to get account details")
+		return errors.Wrap(err, "failed to get account details")
 	}
 	changeTrustOp := txnbuild.ChangeTrust{
 		SourceAccount: &sourceAccount,
@@ -146,18 +175,21 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 		Network:       w.getNetworkPassPhrase(),
 	}
 
-	txeBase64, err = trustTx.BuildSignEncode(newKp)
+	txeBase64, err := trustTx.BuildSignEncode(newKp)
 	if err != nil {
-		return keypair.Full{}, errors.Wrap(err, "failed to get build transaction")
+		return errors.Wrap(err, "failed to get build transaction")
 	}
 
 	// Submit the transaction
 	_, err = client.SubmitTransactionXDR(txeBase64)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		return keypair.Full{}, errors.Wrap(hError.Problem, "error submitting transaction")
+		return errors.Wrap(hError.Problem, "error submitting transaction")
 	}
+	return nil
+}
 
+func (w *Wallet) setupEscrowMultisig(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
 	if len(w.signers) == 5 {
 		var operations []txnbuild.Operation
 		// add the signing options
@@ -187,20 +219,19 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 			Network:       w.getNetworkPassPhrase(),
 		}
 
-		txeBase64, err = addSignersTx.BuildSignEncode(newKp)
+		txeBase64, err := addSignersTx.BuildSignEncode(newKp)
 		if err != nil {
-			return keypair.Full{}, errors.Wrap(err, "failed to get build transaction")
+			return errors.Wrap(err, "failed to get build transaction")
 		}
 
 		// Submit the transaction
 		_, err = client.SubmitTransactionXDR(txeBase64)
 		if err != nil {
 			hError := err.(*horizonclient.Error)
-			return keypair.Full{}, errors.Wrap(hError.Problem, "error submitting transaction")
+			return errors.Wrap(hError.Problem, "error submitting transaction")
 		}
 	}
-
-	return *newKp, nil
+	return nil
 }
 
 // CreateMultisigTransaction will create a multisig transaction from an address to a destination
