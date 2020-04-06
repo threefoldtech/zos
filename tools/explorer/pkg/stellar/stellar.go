@@ -163,6 +163,13 @@ func (w *Wallet) KeyPairFromSeed(seed string) (*keypair.Full, error) {
 // GetBalance gets balance for an address and a given reservation id. It also returns
 // a list of addresses which funded the given address.
 func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, error) {
+
+	if address == "" {
+		err := fmt.Errorf("trying to get the balance of an empty address. this should never happen")
+		log.Warn().Err(err).Send()
+		return 0, nil, err
+	}
+
 	var total xdr.Int64
 	horizonClient, err := w.getHorizonClient()
 	if err != nil {

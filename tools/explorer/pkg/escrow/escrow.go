@@ -481,7 +481,7 @@ func (e *Escrow) createOrLoadAccount(customerTID int64) (string, error) {
 
 func addressByAsset(addrs []gdirectory.WalletAddress, asset string) (string, error) {
 	for _, a := range addrs {
-		if a.Asset == asset {
+		if a.Asset == asset && a.Address != "" {
 			return a.Address, nil
 		}
 	}
