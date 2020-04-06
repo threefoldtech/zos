@@ -178,16 +178,22 @@ func cmdsProvision(c *cli.Context) error {
 		return errors.Wrap(err, "failed to send reservation")
 	}
 
+	totalAmount := xdr.Int64(0)
+	for _, detail := range response.EscrowInformation.Details {
+		totalAmount += detail.TotalAmount
+	}
+
 	fmt.Printf("Reservation for %v send to node bcdb\n", duration)
 	fmt.Printf("Resource: /reservations/%v\n", response.ID)
 	fmt.Println()
 
 	fmt.Printf("Reservation id: %d \n", response.ID)
+	fmt.Printf("Reservation escrow address: %s \n", response.EscrowInformation.Address)
+	fmt.Printf("Reservation amount: %s \n", formatCurrency(totalAmount))
 
-	for _, detail := range response.EscrowInformation {
+	for _, detail := range response.EscrowInformation.Details {
 		fmt.Println()
 		fmt.Printf("FarmerID: %v\n", detail.FarmerID)
-		fmt.Printf("Escrow address: %s\n", detail.EscrowAddress)
 		fmt.Printf("Amount: %s\n", formatCurrency(detail.TotalAmount))
 	}
 
