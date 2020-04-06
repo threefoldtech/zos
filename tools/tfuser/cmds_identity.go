@@ -20,7 +20,7 @@ func cmdsGenerateID(c *cli.Context) error {
 	description := c.String("description")
 	mnemonic := c.String("mnemonic")
 
-	ui := identity.UserIdentity{}
+	ui := &identity.UserIdentity{}
 
 	// Try to load the destination file (not allow overwrite)
 	err := ui.Load(output)

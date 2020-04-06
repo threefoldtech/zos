@@ -21,8 +21,8 @@ type UserIdentity struct {
 }
 
 // NewUserIdentity create a new UserIdentity from existing key
-func NewUserIdentity(key KeyPair, threebotid uint64) UserIdentity {
-	return UserIdentity{
+func NewUserIdentity(key KeyPair, threebotid uint64) *UserIdentity {
+	return &UserIdentity{
 		key:        key,
 		ThreebotID: threebotid,
 	}
