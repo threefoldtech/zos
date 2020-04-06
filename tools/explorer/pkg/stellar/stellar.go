@@ -82,7 +82,7 @@ func New(seed, network, asset string, signers Signers) (*Wallet, error) {
 	}
 
 	if len(signers) < 3 {
-		log.Warn().Msg("it is recommended that atleast 3 signers are set in order to recover escrow account")
+		log.Warn().Msg("to enable escrow account recovery, provide atleast 3 signers")
 	}
 
 	return &Wallet{
@@ -190,14 +190,23 @@ func (w *Wallet) setupTrustline(newKp *keypair.Full, sourceAccount hProtocol.Acc
 }
 
 func (w *Wallet) setupEscrowMultisig(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
-	if len(w.signers) == 5 {
+	if len(w.signers) >= 3 {
+		// set the threshold for the master key equal to the amount of signers
+		threshold := txnbuild.Threshold(len(w.signers))
+
+		// set the threshold to complete transaction for signers. atleast 3 signatures are required
+		txThreshold := txnbuild.Threshold(3)
+		if len(w.signers) > 3 {
+			txThreshold = txnbuild.Threshold(len(w.signers)/2 + 1)
+		}
+
 		var operations []txnbuild.Operation
 		// add the signing options
 		addSignersOp := txnbuild.SetOptions{
 			LowThreshold:    txnbuild.NewThreshold(0),
-			MediumThreshold: txnbuild.NewThreshold(3),
-			HighThreshold:   txnbuild.NewThreshold(3),
-			MasterWeight:    txnbuild.NewThreshold(3),
+			MediumThreshold: txnbuild.NewThreshold(txThreshold),
+			HighThreshold:   txnbuild.NewThreshold(txThreshold),
+			MasterWeight:    txnbuild.NewThreshold(threshold),
 		}
 		operations = append(operations, &addSignersOp)
 
@@ -524,6 +533,7 @@ func (w *Wallet) signAndSubmitTx(keypair *keypair.Full, tx *txnbuild.Transaction
 	return nil
 }
 
+// GetAccountDetails gets account details based an a Stellar address
 func (w *Wallet) GetAccountDetails(address string) (account hProtocol.Account, err error) {
 	client, err := w.GetHorizonClient()
 	if err != nil {
@@ -538,6 +548,7 @@ func (w *Wallet) GetAccountDetails(address string) (account hProtocol.Account, e
 	return account, nil
 }
 
+// GetHorizonClient gets the horizon client based on the wallet's network
 func (w *Wallet) GetHorizonClient() (*horizonclient.Client, error) {
 	switch w.network {
 	case "testnet":
@@ -549,6 +560,7 @@ func (w *Wallet) GetHorizonClient() (*horizonclient.Client, error) {
 	}
 }
 
+// GetIssuer gets the issuer based on the wallet's asset and network
 func (w *Wallet) GetIssuer() string {
 	switch w.asset {
 	case TFT:
@@ -574,6 +586,7 @@ func (w *Wallet) GetIssuer() string {
 	}
 }
 
+// GetNetworkPassPhrase gets the Stellar network passphrase based on the wallet's network
 func (w *Wallet) GetNetworkPassPhrase() string {
 	switch w.network {
 	case "testnet":
