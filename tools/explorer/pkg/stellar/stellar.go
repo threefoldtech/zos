@@ -240,14 +240,13 @@ func (w *Wallet) setupEscrowMultisig(newKp *keypair.Full, sourceAccount hProtoco
 			return errors.Wrap(hError.Problem, "error submitting transaction")
 		}
 	}
-
 	return nil
 }
 
 // CreateMultisigTransaction will create a multisig transaction from an address to a destination
 // This is will be used in the multisig client
 func (w *Wallet) CreateMultisigTransaction(from, destination, amount string) (string, error) {
-	sourceAccount, err := w.getAccountDetails(from)
+	sourceAccount, err := w.GetAccountDetails(from)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get source account")
 	}
@@ -257,7 +256,7 @@ func (w *Wallet) CreateMultisigTransaction(from, destination, amount string) (st
 		Amount:      amount,
 		Asset: txnbuild.CreditAsset{
 			Code:   w.asset.String(),
-			Issuer: w.getIssuer(),
+			Issuer: w.GetIssuer(),
 		},
 	}
 
@@ -265,7 +264,7 @@ func (w *Wallet) CreateMultisigTransaction(from, destination, amount string) (st
 		SourceAccount: &sourceAccount,
 		Operations:    []txnbuild.Operation{&paymentOP},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       w.getNetworkPassPhrase(),
+		Network:       w.GetNetworkPassPhrase(),
 	}
 
 	return tx.BuildSignEncode(w.keypair)
@@ -278,14 +277,14 @@ func (w *Wallet) SignAndSubmitMultisigTransaction(transaction string) (string, e
 		return "", errors.Wrap(err, "failed parse xdr to a transaction")
 	}
 
-	tx.Network = w.getNetworkPassPhrase()
+	tx.Network = w.GetNetworkPassPhrase()
 
 	err = tx.Sign(w.keypair)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to sign transaction")
 	}
 
-	client, err := w.getHorizonClient()
+	client, err := w.GetHorizonClient()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get horizon client")
 	}
