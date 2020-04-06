@@ -41,7 +41,21 @@ const (
 	NetworkDebug = "debug"
 )
 
-type assetCodeEnum string
+type (
+	assetCodeEnum string
+
+	// Signers is a flag type for setting the signers on the escrow accounts
+	Signers []string
+
+	// Wallet is the foundation wallet
+	// Payments will be funded and fees will be taken with this wallet
+	Wallet struct {
+		keypair *keypair.Full
+		network string
+		asset   assetCodeEnum
+		signers Signers
+	}
+)
 
 const (
 	// TFT assetcode
@@ -53,14 +67,6 @@ const (
 // ErrInsuficientBalance is an error that is used when there is insufficient balance
 var ErrInsuficientBalance = errors.New("insuficient balance")
 
-// Wallet is the foundation wallet
-// Payments will be funded and fees will be taken with this wallet
-type Wallet struct {
-	keypair *keypair.Full
-	network string
-	asset   assetCodeEnum
-}
-
 // PayoutInfo holds information about which address needs to receive how many funds
 // for payment commands which take multiple receivers
 type PayoutInfo struct {
@@ -69,7 +75,7 @@ type PayoutInfo struct {
 }
 
 // New from seed
-func New(seed string, network string, asset string) (*Wallet, error) {
+func New(seed, network, asset string, signers Signers) (*Wallet, error) {
 	kp, err := keypair.ParseFull(seed)
 	if err != nil {
 		return nil, err
@@ -79,6 +85,7 @@ func New(seed string, network string, asset string) (*Wallet, error) {
 		keypair: kp,
 		network: network,
 		asset:   assetCodeEnum(asset),
+		signers: signers,
 	}, nil
 }
 
@@ -149,6 +156,48 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	if err != nil {
 		hError := err.(*horizonclient.Error)
 		return keypair.Full{}, errors.Wrap(hError.Problem, "error submitting transaction")
+	}
+
+	if len(w.signers) == 5 {
+		var operations []txnbuild.Operation
+		// add the signing options
+		addSignersOp := txnbuild.SetOptions{
+			LowThreshold:    txnbuild.NewThreshold(0),
+			MediumThreshold: txnbuild.NewThreshold(3),
+			HighThreshold:   txnbuild.NewThreshold(3),
+			MasterWeight:    txnbuild.NewThreshold(3),
+		}
+		operations = append(operations, &addSignersOp)
+
+		// add the signers
+		for _, signer := range w.signers {
+			addSignerOperation := txnbuild.SetOptions{
+				Signer: &txnbuild.Signer{
+					Address: signer,
+					Weight:  1,
+				},
+			}
+			operations = append(operations, &addSignerOperation)
+		}
+
+		addSignersTx := txnbuild.Transaction{
+			SourceAccount: &sourceAccount,
+			Operations:    operations,
+			Timebounds:    txnbuild.NewTimeout(300),
+			Network:       w.getNetworkPassPhrase(),
+		}
+
+		txeBase64, err = addSignersTx.BuildSignEncode(newKp)
+		if err != nil {
+			return keypair.Full{}, errors.Wrap(err, "failed to get build transaction")
+		}
+
+		// Submit the transaction
+		_, err = client.SubmitTransactionXDR(txeBase64)
+		if err != nil {
+			hError := err.(*horizonclient.Error)
+			return keypair.Full{}, errors.Wrap(hError.Problem, "error submitting transaction")
+		}
 	}
 
 	return *newKp, nil
@@ -513,4 +562,18 @@ func (e assetCodeEnum) String() string {
 		return FreeTFTCode
 	}
 	return "UNKNOWN"
+}
+
+func (i *Signers) String() string {
+	repr := ""
+	for _, s := range *i {
+		repr += fmt.Sprintf("%s ", s)
+	}
+	return repr
+}
+
+// Set a value on the signers flag
+func (i *Signers) Set(value string) error {
+	*i = append(*i, value)
+	return nil
 }

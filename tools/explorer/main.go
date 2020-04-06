@@ -37,13 +37,14 @@ func main() {
 	app.Initialize()
 
 	var (
-		listen  string
-		dbConf  string
-		dbName  string
-		seed    string
-		network string
-		asset   string
-		ver     bool
+		listen        string
+		dbConf        string
+		dbName        string
+		seed          string
+		network       string
+		asset         string
+		ver           bool
+		backupSigners stellar.Signers
 	)
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
@@ -54,6 +55,7 @@ func main() {
 	flag.StringVar(&config.Config.Asset, "asset", "TFT", "which asset to use")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
+	flag.Var(&backupSigners, "backupsigner", "reusable flag which adds a signer to the escrow accounts, we need alteast 5 signers to activate multisig")
 	flag.Parse()
 
 	if ver {
@@ -70,7 +72,7 @@ func main() {
 		log.Fatal().Err(err).Msg("fail to connect to database")
 	}
 
-	s, err := createServer(listen, dbName, client, network, seed, asset)
+	s, err := createServer(listen, dbName, client, network, seed, asset, backupSigners)
 	if err != nil {
 		log.Fatal().Err(err).Msg("fail to create HTTP server")
 	}
@@ -103,7 +105,7 @@ func connectDB(ctx context.Context, connectionURI string) (*mongo.Client, error)
 	return client, nil
 }
 
-func createServer(listen, dbName string, client *mongo.Client, network, seed string, asset string) (*http.Server, error) {
+func createServer(listen, dbName string, client *mongo.Client, network, seed string, asset string, backupSigners stellar.Signers) (*http.Server, error) {
 	db, err := mw.NewDatabaseMiddleware(dbName, client)
 	if err != nil {
 		return nil, err
@@ -125,7 +127,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		log.Fatal().Err(err).Msg("failed to create escrow database indexes")
 	}
 
-	wallet, err := stellar.New(config.Config.Seed, config.Config.Network, config.Config.Asset)
+	wallet, err := stellar.New(config.Config.Seed, config.Config.Network, config.Config.Asset, backupSigners)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create stellar wallet")
 	}
