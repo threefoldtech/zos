@@ -217,12 +217,13 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 			Network: pkg.NetworkInfo{
 				Namespace: join.Namespace,
 			},
-			Mounts:      mounts,
-			Entrypoint:  config.Entrypoint,
-			Interactive: config.Interactive,
-			CPU:         config.Capacity.CPU,
-			Memory:      config.Capacity.Memory * 1024 * 1024,
-			Logs:        config.Logs,
+			Mounts:          mounts,
+			Entrypoint:      config.Entrypoint,
+			Interactive:     config.Interactive,
+			CPU:             config.Capacity.CPU,
+			Memory:          config.Capacity.Memory * 1024 * 1024,
+			Logs:            config.Logs,
+			StatsAggregator: config.StatsAggregator,
 		},
 	)
 	if err != nil {
