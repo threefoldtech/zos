@@ -124,7 +124,7 @@ func GetAllActiveReservationPaymentInfos(ctx context.Context, db *mongo.Database
 
 // GetAllExpiredReservationPaymentInfos get all active reservation payment information
 func GetAllExpiredReservationPaymentInfos(ctx context.Context, db *mongo.Database) ([]ReservationPaymentInformation, error) {
-	filter := bson.M{"paid": false, "released": false, "canceled": false, "expiration": bson.M{"$lte": schema.Date{Time: time.Now()}}}
+	filter := bson.M{"released": false, "canceled": false, "expiration": bson.M{"$lte": schema.Date{Time: time.Now()}}}
 	cursor, err := db.Collection(EscrowCollection).Find(ctx, filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get cursor over expired payment infos")

@@ -95,7 +95,7 @@ func (e *Escrow) Run(ctx context.Context) error {
 			return nil
 
 		case <-ticker.C:
-			// log.Info().Msg("scanning active escrow accounts balance")
+			log.Info().Msg("scanning active escrow accounts balance")
 			if err := e.checkReservations(); err != nil {
 				log.Error().Err(err).Msgf("failed to check reservations")
 			}
@@ -147,10 +147,13 @@ func (e *Escrow) refundExpiredReservations() error {
 		return errors.Wrap(err, "failed to load active reservations from escrow")
 	}
 	for _, escrowInfo := range reservationEscrows {
+		log.Info().Int64("id", int64(escrowInfo.ReservationID)).Msg("expired escrow")
+
 		if err := e.refundEscrow(escrowInfo); err != nil {
 			log.Error().Err(err).Msgf("failed to refund reservation escrow")
 			continue
 		}
+
 		escrowInfo.Canceled = true
 		if err = types.ReservationPaymentInfoUpdate(e.ctx, e.db, escrowInfo); err != nil {
 			log.Error().Err(err).Msgf("failed to mark expired reservation escrow info as cancelled")

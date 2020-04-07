@@ -298,6 +298,7 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 		return errors.Wrap(err, "failed to fund transaction")
 	}
 
+	log.Debug().Int64("amount", int64(amount)).Str("destination", destination).Msg("refund")
 	err = w.signAndSubmitTx(&keypair, fundedTx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign and submit transaction")
