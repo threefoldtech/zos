@@ -1,8 +1,10 @@
+//go:generate statik -f -src=./frontend/dist
 package main
 
 import (
 	"context"
 	"flag"
+	"io"
 
 	"net/http"
 	"os"
@@ -18,6 +20,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/rakyll/statik/fs"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/version"
 	"github.com/threefoldtech/zos/tools/explorer/config"
@@ -28,6 +31,7 @@ import (
 	"github.com/threefoldtech/zos/tools/explorer/pkg/phonebook"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/stellar"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/workloads"
+	_ "github.com/threefoldtech/zos/tools/explorer/statik"
 )
 
 // Pkg is a shorthand type for func
@@ -109,17 +113,35 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		return nil, err
 	}
 
-	router := mux.NewRouter()
 	var prom *muxprom.MuxProm
+	router := mux.NewRouter()
+	statikFS, err := fs.New()
+	if err != nil {
+		return nil, err
+	}
 
 	prom = muxprom.New(
 		muxprom.Router(router),
 		muxprom.Namespace("explorer"),
 	)
 	prom.Instrument()
-
 	router.Use(db.Middleware)
+
 	router.Path("/metrics").Handler(promhttp.Handler()).Name("metrics")
+	router.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(statikFS)))
+	router.Path("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		r, err := statikFS.Open("/index.html")
+		if err != nil {
+			mw.Error(err, http.StatusInternalServerError)
+			return
+		}
+		defer r.Close()
+
+		w.WriteHeader(http.StatusOK)
+		if _, err := io.Copy(w, r); err != nil {
+			log.Error().Err(err).Send()
+		}
+	})
 
 	if err := escrowdb.Setup(context.Background(), db.Database()); err != nil {
 		log.Fatal().Err(err).Msg("failed to create escrow database indexes")
@@ -142,13 +164,14 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		directory.Setup,
 	}
 
+	apiRouter := router.PathPrefix("/explorer").Subrouter()
 	for _, pkg := range pkgs {
-		if err := pkg(router, db.Database()); err != nil {
+		if err := pkg(apiRouter, db.Database()); err != nil {
 			log.Error().Err(err).Msg("failed to register package")
 		}
 	}
 
-	if err = workloads.Setup(router, db.Database(), escrow); err != nil {
+	if err = workloads.Setup(apiRouter, db.Database(), escrow); err != nil {
 		log.Error().Err(err).Msg("failed to register package")
 	}
 

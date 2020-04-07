@@ -1,0 +1,23 @@
+name: Build
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v1
+    
+    - name: Install
+      uses: Borales/actions-yarn@1.1.0
+      with:
+        args: install
+
+    - name: Build
+      uses: Borales/actions-yarn@1.1.0
+      with:
+          args: build
+
