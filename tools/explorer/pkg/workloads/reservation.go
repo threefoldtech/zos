@@ -31,7 +31,7 @@ import (
 
 // API struct
 type API struct {
-	escrow *escrow.Escrow
+	escrow escrow.Escrow
 }
 
 // ReservationCreateResponse wraps reservation create response
@@ -41,6 +41,11 @@ type ReservationCreateResponse struct {
 }
 
 func (a *API) validAddresses(ctx context.Context, db *mongo.Database, res *types.Reservation) error {
+	if config.Config.Network == "" || config.Config.Asset == "" {
+		log.Info().Msg("escrow disabled, no validation of farmer wallet address needed")
+		return nil
+	}
+
 	workloads := res.Workloads("")
 	var nodes []string
 
@@ -98,8 +103,9 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	db := mw.Database(r)
+
 	if err := a.validAddresses(r.Context(), db, &reservation); err != nil {
-		return nil, mw.Error(err, http.StatusFailedDependency)
+		return nil, mw.Error(err, http.StatusFailedDependency) //FIXME: what is this strange status ?
 	}
 
 	var filter phonebook.UserFilter
@@ -366,8 +372,14 @@ func (a *API) workloads(r *http.Request) (interface{}, mw.Response) {
 			continue
 		}
 
+		if reservation.NextAction == types.Delete {
+			if err := a.setReservationDeleted(r.Context(), db, reservation.ID); err != nil {
+				return nil, mw.Error(err)
+			}
+		}
+
 		// only reservations that is in right status
-		if !reservation.IsAny(types.Deploy) {
+		if !reservation.IsAny(types.Deploy, types.Delete) {
 			continue
 		}
 
@@ -494,17 +506,8 @@ func (a *API) workloadPutResult(r *http.Request) (interface{}, mw.Response) {
 			return nil, mw.NotFound(err)
 		}
 
-		if len(reservation.Results) == len(reservation.Workloads("")) {
-			succeeded := true
-			for _, result := range reservation.Results {
-				if result.State != generated.ResultStateOK {
-					succeeded = false
-					break
-				}
-			}
-			if succeeded {
-				a.escrow.ReservationDeployed(rid)
-			}
+		if reservation.IsSuccessfullyDeployed() {
+			a.escrow.ReservationDeployed(rid)
 		}
 	}
 
