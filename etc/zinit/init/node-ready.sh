@@ -9,10 +9,26 @@ setup_loopback() {
     ip link set lo up
 }
 
+disable_overlay() {
+    set -x
+
+    rmmod ata_piix
+    rmmod pata_acpi
+    rmmod ata_generic
+    rmmod libata
+
+    partprobe
+    lsblk
+
+    set +x
+}
+
 main() {
     # bring the loop back interface up
     setup_loopback
 
+    # does not expose qemu overlay to the system
+    disable_overlay
 }
 
 main
