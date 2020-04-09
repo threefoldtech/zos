@@ -50,8 +50,8 @@ func main() {
 	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
 	flag.StringVar(&dbName, "name", "explorer", "database name")
 	flag.StringVar(&config.Config.Seed, "seed", "", "wallet seed")
-	flag.StringVar(&config.Config.Network, "network", "testnet", "tfchain network")
-	flag.StringVar(&config.Config.Asset, "asset", "TFT", "which asset to use")
+	flag.StringVar(&config.Config.Network, "network", "", "tfchain network")
+	flag.StringVar(&config.Config.Asset, "asset", "", "which asset to use")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
 	flag.Parse()
@@ -121,6 +121,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 
 	var e escrow.Escrow
 	if seed != "" && asset != "" {
+		log.Info().Msgf("escrow disabled on %s %s", config.Config.Network, config.Config.Asset)
 		if err := escrowdb.Setup(context.Background(), db.Database()); err != nil {
 			log.Fatal().Err(err).Msg("failed to create escrow database indexes")
 		}
@@ -133,6 +134,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		e = escrow.NewStellar(wallet, db.Database())
 
 	} else {
+		log.Info().Msg("escrow disabled")
 		e = escrow.NewFree(db.Database())
 	}
 
@@ -149,7 +151,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		}
 	}
 
-	if err = workloads.Setup(router, db.Database(), e); err != nil {
+	if err = workloads.Setup(apiRouter, db.Database(), e); err != nil {
 		log.Error().Err(err).Msg("failed to register package")
 	}
 

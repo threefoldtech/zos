@@ -32,11 +32,11 @@ func Valid() error {
 		}
 		return false
 	}
-	if !in(Config.Network, possibleNetworks) {
+	if Config.Network != "" && !in(Config.Network, possibleNetworks) {
 		return fmt.Errorf("invalid network '%s'", Config.Network)
 	}
 
-	if !in(Config.Asset, possibleAssets) {
+	if Config.Asset != "" && !in(Config.Asset, possibleAssets) {
 		return fmt.Errorf("invalid asset '%s'", Config.Asset)
 	}
 
