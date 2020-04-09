@@ -10,17 +10,11 @@ setup_loopback() {
 }
 
 disable_overlay() {
-    set -x
-
     rmmod ata_piix
     rmmod pata_acpi
     rmmod ata_generic
     rmmod libata
-
     partprobe
-    lsblk
-
-    set +x
 }
 
 main() {
