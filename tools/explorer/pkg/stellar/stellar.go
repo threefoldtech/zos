@@ -117,14 +117,9 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 		return keypair.Full{}, errors.Wrapf(err, "failed to activate escrow account %s", newKp.Address())
 	}
 
-	err = w.setupTrustline(newKp, sourceAccount, client)
+	err = w.setupEscrow(newKp, sourceAccount, client)
 	if err != nil {
-		return keypair.Full{}, errors.Wrapf(err, "failed to get setup trustline on escrow account %s", newKp.Address())
-	}
-
-	err = w.setupEscrowMultisig(newKp, sourceAccount, client)
-	if err != nil {
-		return keypair.Full{}, errors.Wrapf(err, "failed to get setup multsig on escrow account %s", newKp.Address())
+		return keypair.Full{}, errors.Wrapf(err, "failed to setup escrow account %s", newKp.Address())
 	}
 
 	return *newKp, nil
@@ -156,91 +151,86 @@ func (w *Wallet) activateEscrowAccount(newKp *keypair.Full, sourceAccount hProto
 	return nil
 }
 
-func (w *Wallet) setupTrustline(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
-	sourceAccount, err := w.GetAccountDetails(newKp.Address())
-	if err != nil {
-		return errors.Wrap(err, "failed to get account details")
+// setupEscrow will setup a trustline to the correct asset and issuer
+// and also setup multisig on the escrow
+func (w *Wallet) setupEscrow(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
+	var operations []txnbuild.Operation
+
+	trustlineOperation := w.setupTrustline(newKp)
+	operations = append(operations, trustlineOperation)
+
+	addSignerOperations := w.setupEscrowMultisig()
+	if addSignerOperations != nil {
+		operations = append(operations, addSignerOperations...)
 	}
-	changeTrustOp := txnbuild.ChangeTrust{
+
+	tx := txnbuild.Transaction{
 		SourceAccount: &sourceAccount,
-		Line: txnbuild.CreditAsset{
-			Code:   w.asset.String(),
-			Issuer: w.GetIssuer(),
-		},
-	}
-	trustTx := txnbuild.Transaction{
-		SourceAccount: &sourceAccount,
-		Operations:    []txnbuild.Operation{&changeTrustOp},
+		Operations:    operations,
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       w.GetNetworkPassPhrase(),
 	}
 
-	txeBase64, err := trustTx.BuildSignEncode(newKp)
+	txeBase64, err := tx.BuildSignEncode(w.keypair)
 	if err != nil {
-		return errors.Wrap(err, "failed to get build transaction")
+		return errors.Wrap(err, "failed to get build setup escrow transaction")
 	}
 
 	// Submit the transaction
 	_, err = client.SubmitTransactionXDR(txeBase64)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		return errors.Wrap(hError.Problem, "error submitting transaction")
+		return errors.Wrap(hError, "error submitting setup escrow transaction")
 	}
 	return nil
 }
 
-func (w *Wallet) setupEscrowMultisig(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
-	if len(w.signers) >= 3 {
-		// set the threshold for the master key equal to the amount of signers
-		threshold := txnbuild.Threshold(len(w.signers))
-
-		// set the threshold to complete transaction for signers. atleast 3 signatures are required
-		txThreshold := txnbuild.Threshold(3)
-		if len(w.signers) > 3 {
-			txThreshold = txnbuild.Threshold(len(w.signers)/2 + 1)
-		}
-
-		var operations []txnbuild.Operation
-		// add the signing options
-		addSignersOp := txnbuild.SetOptions{
-			LowThreshold:    txnbuild.NewThreshold(0),
-			MediumThreshold: txnbuild.NewThreshold(txThreshold),
-			HighThreshold:   txnbuild.NewThreshold(txThreshold),
-			MasterWeight:    txnbuild.NewThreshold(threshold),
-		}
-		operations = append(operations, &addSignersOp)
-
-		// add the signers
-		for _, signer := range w.signers {
-			addSignerOperation := txnbuild.SetOptions{
-				Signer: &txnbuild.Signer{
-					Address: signer,
-					Weight:  1,
-				},
-			}
-			operations = append(operations, &addSignerOperation)
-		}
-
-		addSignersTx := txnbuild.Transaction{
-			SourceAccount: &sourceAccount,
-			Operations:    operations,
-			Timebounds:    txnbuild.NewTimeout(300),
-			Network:       w.GetNetworkPassPhrase(),
-		}
-
-		txeBase64, err := addSignersTx.BuildSignEncode(newKp)
-		if err != nil {
-			return errors.Wrap(err, "failed to get build transaction")
-		}
-
-		// Submit the transaction
-		_, err = client.SubmitTransactionXDR(txeBase64)
-		if err != nil {
-			hError := err.(*horizonclient.Error)
-			return errors.Wrap(hError.Problem, "error submitting transaction")
-		}
+func (w *Wallet) setupTrustline(newKp *keypair.Full) txnbuild.Operation {
+	changeTrustOp := txnbuild.ChangeTrust{
+		Line: txnbuild.CreditAsset{
+			Code:   w.asset.String(),
+			Issuer: w.GetIssuer(),
+		},
 	}
-	return nil
+	return &changeTrustOp
+}
+
+func (w *Wallet) setupEscrowMultisig() []txnbuild.Operation {
+	if len(w.signers) < 3 {
+		// not enough signers, don't add multisig
+		return nil
+	}
+	// set the threshold for the master key equal to the amount of signers
+	threshold := txnbuild.Threshold(len(w.signers))
+
+	// set the threshold to complete transaction for signers. atleast 3 signatures are required
+	txThreshold := txnbuild.Threshold(3)
+	if len(w.signers) > 3 {
+		txThreshold = txnbuild.Threshold(len(w.signers)/2 + 1)
+	}
+
+	var operations []txnbuild.Operation
+	// add the signing options
+	addSignersOp := txnbuild.SetOptions{
+		LowThreshold:    txnbuild.NewThreshold(0),
+		MediumThreshold: txnbuild.NewThreshold(txThreshold),
+		HighThreshold:   txnbuild.NewThreshold(txThreshold),
+		MasterWeight:    txnbuild.NewThreshold(threshold),
+	}
+	operations = append(operations, &addSignersOp)
+
+	// add the signers
+	for _, signer := range w.signers {
+		addSignerOperation := txnbuild.SetOptions{
+			Signer: &txnbuild.Signer{
+				Address: signer,
+				Weight:  1,
+			},
+		}
+		operations = append(operations, &addSignerOperation)
+	}
+
+	return operations
 }
 
 // KeyPairFromSeed parses a seed and creates a keypair for it, which can be
