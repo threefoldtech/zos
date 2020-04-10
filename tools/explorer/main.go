@@ -1,4 +1,4 @@
-//go:generate statik -f -src=./public
+//go:generate statik -f -src=./frontend/dist
 package main
 
 import (
