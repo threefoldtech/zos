@@ -136,8 +136,14 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 
 	if dropEscrowData {
 		log.Warn().Msg("dropping escrow and address collection")
-		db.Database().Collection(escrowdb.AddressCollection).Drop(context.Background())
-		db.Database().Collection(escrowdb.EscrowCollection).Drop(context.Background())
+		if err := db.Database().Collection(escrowdb.AddressCollection).Drop(context.Background()); err != nil {
+			log.Fatal().Err(err).Msg("failed to drop address collection")
+		}
+		if err := db.Database().Collection(escrowdb.EscrowCollection).Drop(context.Background()); err != nil {
+			log.Fatal().Err(err).Msg("failed to drop escrow collection")
+		}
+		log.Info().Msg("escrow and address collection dropped successfully. restart the explorer without \"flush-escrows\" flag")
+		os.Exit(0)
 	}
 
 	var e escrow.Escrow
