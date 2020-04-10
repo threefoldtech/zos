@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sort"
 	"sync"
 	"time"
@@ -108,15 +109,17 @@ func (s *pollSource) Reservations(ctx context.Context) <-chan *Reservation {
 		for {
 			time.Sleep(time.Until(on))
 			on = time.Now().Add(s.maxSleep)
-			log.Debug().Uint64("next", next).Msg("Polling for reservations")
+			log.Info().Uint64("next", next).Msg("Polling for reservations")
 
 			res, err := s.store.Poll(pkg.StrIdentifier(s.nodeID), next)
 			if err != nil && err != ErrPollEOS {
-				log.Error().Err(err).Msg("failed to get reservation")
 				// if this is not a temporary error, then skip the reservation entirely
 				// and try to get the next one
-				if !errors.Is(err, ErrTemporary{}) {
+				if !isNetworkErr(err) {
+					log.Error().Err(err).Uint64("next", next).Msg("failed to get reservation")
 					next++
+				} else {
+					log.Error().Err(err).Uint64("next", next).Msg("failed to get reservation, retry same")
 				}
 				continue
 			}
@@ -244,4 +247,9 @@ func (s *combinedSource) Reservations(ctx context.Context) <-chan *Reservation {
 	}()
 
 	return out
+}
+
+func isNetworkErr(err error) bool {
+	var perr *net.OpError
+	return errors.As(err, &perr)
 }
