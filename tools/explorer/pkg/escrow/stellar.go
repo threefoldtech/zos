@@ -263,7 +263,7 @@ func (e *Stellar) checkReservationPaid(escrowInfo types.ReservationPaymentInform
 // calculates resources and their costs
 func (e *Stellar) processReservation(reservation workloads.Reservation) (types.CustomerEscrowInformation, error) {
 	var customerInfo types.CustomerEscrowInformation
-	rsuPerFarmer, err := e.processReservationResources(reservation.DataReservation)
+	rsuPerFarmer, freeToUse, err := e.processReservationResources(reservation.DataReservation)
 	if err != nil {
 		return customerInfo, errors.Wrap(err, "failed to process reservation resources")
 	}
@@ -296,6 +296,7 @@ func (e *Stellar) processReservation(reservation workloads.Reservation) (types.C
 		Paid:          false,
 		Canceled:      false,
 		Released:      false,
+		Free:          freeToUse,
 	}
 	err = types.ReservationPaymentInfoCreate(e.ctx, e.db, reservationPaymentInfo)
 	if err != nil {
@@ -352,11 +353,19 @@ func (e *Stellar) payoutFarmers(id schema.ID) error {
 			continue
 		}
 
-		destination, err := addressByAsset(farm.WalletAddresses, config.Config.Asset)
-		if err != nil {
-			// FIXME: this is probably not ok, what do we do in this case ?
-			log.Error().Err(err).Msgf("failed to find address for %s for farmer %d", config.Config.Asset, farm.ID)
-			continue
+		// default use freeTFT issuer as destination
+		// if a reservation is free to use we send the tokens
+		// back to the issuer, this will freeze the tokens from being used again
+		destination := e.wallet.GetFreeTFTIssuer()
+
+		// if the reservation is not free we assume the currency is TFT
+		if !rpi.Free {
+			destination, err = getAddressFarmer(farm.WalletAddresses)
+			if err != nil {
+				// FIXME: this is probably not ok, what do we do in this case ?
+				log.Error().Err(err).Msgf("failed to find address for %s for farmer %d", config.Config.Asset, farm.ID)
+				continue
+			}
 		}
 
 		paymentInfo = append(paymentInfo,
@@ -482,11 +491,11 @@ func (e *Stellar) createOrLoadAccount(customerTID int64) (string, error) {
 	return res.Address, nil
 }
 
-func addressByAsset(addrs []gdirectory.WalletAddress, asset string) (string, error) {
+func getAddressFarmer(addrs []gdirectory.WalletAddress) (string, error) {
 	for _, a := range addrs {
-		if a.Asset == asset && a.Address != "" {
+		if a.Asset == "TFT" && a.Address != "" {
 			return a.Address, nil
 		}
 	}
-	return "", fmt.Errorf("not address found for asset %s", asset)
+	return "", fmt.Errorf("not address found for TFT asset")
 }

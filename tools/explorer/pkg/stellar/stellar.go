@@ -41,13 +41,14 @@ const (
 	NetworkDebug = "debug"
 )
 
-type assetCodeEnum string
+// AssetCodeEnum represents assets as a enum
+type AssetCodeEnum string
 
 const (
 	// TFT assetcode
-	TFT assetCodeEnum = TFTCode
+	TFT AssetCodeEnum = TFTCode
 	// FreeTFT assetcode
-	FreeTFT assetCodeEnum = FreeTFTCode
+	FreeTFT AssetCodeEnum = FreeTFTCode
 )
 
 // ErrInsuficientBalance is an error that is used when there is insufficient balance
@@ -58,12 +59,13 @@ var ErrInsuficientBalance = errors.New("insuficient balance")
 type Wallet struct {
 	keypair *keypair.Full
 	network string
-	asset   assetCodeEnum
+	asset   AssetCodeEnum
 }
 
 // PayoutInfo holds information about which address needs to receive how many funds
 // for payment commands which take multiple receivers
 type PayoutInfo struct {
+	Asset   AssetCodeEnum
 	Address string
 	Amount  xdr.Int64
 }
@@ -78,7 +80,7 @@ func New(seed string, network string, asset string) (*Wallet, error) {
 	return &Wallet{
 		keypair: kp,
 		network: network,
-		asset:   assetCodeEnum(asset),
+		asset:   AssetCodeEnum(asset),
 	}, nil
 }
 
@@ -495,6 +497,18 @@ func (w *Wallet) getIssuer() string {
 	}
 }
 
+// GetFreeTFTIssuer get the issues for FreeTFT based on the network of the wallet
+func (w *Wallet) GetFreeTFTIssuer() string {
+	switch w.network {
+	case "testnet":
+		return freeTftIssuerTestnet
+	case "production":
+		return freeTftIssuerProd
+	default:
+		return freeTftIssuerTestnet
+	}
+}
+
 func (w *Wallet) getNetworkPassPhrase() string {
 	switch w.network {
 	case "testnet":
@@ -506,7 +520,7 @@ func (w *Wallet) getNetworkPassPhrase() string {
 	}
 }
 
-func (e assetCodeEnum) String() string {
+func (e AssetCodeEnum) String() string {
 	switch e {
 	case TFT:
 		return TFTCode

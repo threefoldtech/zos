@@ -48,6 +48,11 @@ type (
 		// entire reservation being canceled. As a result, an attempt was made
 		// to refund the client. It is possible for this to have failed.
 		Canceled bool `bson:"canceled"`
+		// Free indicates that a reservation must be paid with FreeTFT
+		// if this is true, we will send the full amount for the reservation
+		// back to the issuer of this asset. This way the funds used for this
+		// reservation will be frozen and will never get used again.
+		Free bool `bson:"free"`
 	}
 
 	// EscrowDetail hold the details of an escrow address

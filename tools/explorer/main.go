@@ -37,13 +37,10 @@ func main() {
 	app.Initialize()
 
 	var (
-		listen  string
-		dbConf  string
-		dbName  string
-		seed    string
-		network string
-		asset   string
-		ver     bool
+		listen string
+		dbConf string
+		dbName string
+		ver    bool
 	)
 
 	flag.StringVar(&listen, "listen", ":8080", "listen address, default :8080")
@@ -70,7 +67,7 @@ func main() {
 		log.Fatal().Err(err).Msg("fail to connect to database")
 	}
 
-	s, err := createServer(listen, dbName, client, network, seed, asset)
+	s, err := createServer(listen, dbName, client, config.Config.Network, config.Config.Seed, config.Config.Asset)
 	if err != nil {
 		log.Fatal().Err(err).Msg("fail to create HTTP server")
 	}
@@ -121,6 +118,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 
 	var e escrow.Escrow
 	if seed != "" && asset != "" {
+		log.Info().Msgf("escrow enabled on %s %s", config.Config.Network, config.Config.Asset)
 		if err := escrowdb.Setup(context.Background(), db.Database()); err != nil {
 			log.Fatal().Err(err).Msg("failed to create escrow database indexes")
 		}
