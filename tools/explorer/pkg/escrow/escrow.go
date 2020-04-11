@@ -25,7 +25,7 @@ type Free struct {
 }
 
 // NewFree creates a new EscrowFree object
-func NewFree(db *mongo.Database) *Free { return &Free{} }
+func NewFree(db *mongo.Database) *Free { return &Free{db: db} }
 
 // Run implements the escrow interface
 func (e *Free) Run(ctx context.Context) error {
