@@ -364,14 +364,15 @@ func (e *Stellar) payoutFarmers(id schema.ID) error {
 			continue
 		}
 
-		// default use freeTFT issuer as destination
-		// if a reservation is free to use we send the tokens
-		// back to the issuer, this will freeze the tokens from being used again
-		destination := e.wallet.GetFreeTFTIssuer()
-
-		// if the reservation is not free we assume the currency is TFT
-		if !rpi.Free {
-			destination, err = getAddressFarmer(farm.WalletAddresses)
+		var destination string
+		if rpi.Free {
+			// default use freeTFT issuer as destination
+			// if a reservation is free to use we send the tokens
+			// back to the issuer, this will freeze the tokens from being used again
+			destination = e.wallet.GetFreeTFTIssuer()
+		} else {
+			// if the reservation is not free we assume the currency is TFT
+			destination, err = addressByAsset(farm.WalletAddresses, rpi.Asset.String())
 			if err != nil {
 				// FIXME: this is probably not ok, what do we do in this case ?
 				log.Error().Err(err).Msgf("failed to find address for %s for farmer %d", rpi.Asset.String(), farm.ID)
@@ -503,11 +504,11 @@ func (e *Stellar) createOrLoadAccount(customerTID int64) (string, error) {
 	return res.Address, nil
 }
 
-func getAddressFarmer(addrs []gdirectory.WalletAddress) (string, error) {
+func addressByAsset(addrs []gdirectory.WalletAddress, asset string) (string, error) {
 	for _, a := range addrs {
-		if a.Asset == "TFT" && a.Address != "" {
+		if a.Asset == asset && a.Address != "" {
 			return a.Address, nil
 		}
 	}
-	return "", fmt.Errorf("not address found for TFT asset")
+	return "", fmt.Errorf("not address found for %s asset", asset)
 }
