@@ -10,7 +10,6 @@ import (
 // Settings struct
 type Settings struct {
 	Network string
-	Asset   string
 	Seed    string
 }
 
@@ -34,10 +33,6 @@ func Valid() error {
 	}
 	if !in(Config.Network, possibleNetworks) {
 		return fmt.Errorf("invalid network '%s'", Config.Network)
-	}
-
-	if !in(Config.Asset, possibleAssets) {
-		return fmt.Errorf("invalid asset '%s'", Config.Asset)
 	}
 
 	return nil

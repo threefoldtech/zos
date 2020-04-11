@@ -15,7 +15,7 @@ type httpWorkloads struct {
 	*httpClient
 }
 
-func (w *httpWorkloads) Create(reservation workloads.Reservation) (resp wrklds.ReservationCreateResponse, err error) {
+func (w *httpWorkloads) Create(reservation workloads.ReservationCreate) (resp wrklds.ReservationCreateResponse, err error) {
 	err = w.post(w.url("reservations"), reservation, &resp, http.StatusCreated)
 	return
 }

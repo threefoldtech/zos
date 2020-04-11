@@ -17,6 +17,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/client"
+	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 
 	"github.com/urfave/cli"
 )
@@ -173,7 +174,13 @@ func cmdsProvision(c *cli.Context) error {
 		return enc.Encode(jsx)
 	}
 
-	response, err := bcdb.Workloads.Create(jsx)
+	asset := c.String("asset")
+	reservationCreate := workloads.ReservationCreate{
+		Reservation: jsx,
+		Asset:       asset,
+	}
+
+	response, err := bcdb.Workloads.Create(reservationCreate)
 	if err != nil {
 		return errors.Wrap(err, "failed to send reservation")
 	}
@@ -195,6 +202,11 @@ func cmdsProvision(c *cli.Context) error {
 		fmt.Println()
 		fmt.Printf("FarmerID: %v\n", detail.FarmerID)
 		fmt.Printf("Amount: %s\n", formatCurrency(detail.TotalAmount))
+		if detail.Asset != c.String("asset") {
+			fmt.Printf("\nYou are trying to reserve capacity on a free to use node, payment needs to be made in FreeTFT!\n")
+		}
+		fmt.Printf("Currency: %s\n", detail.Asset)
+		fmt.Printf("Issuer currency: %s\n", detail.Issuer)
 	}
 
 	return nil

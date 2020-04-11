@@ -48,7 +48,6 @@ func main() {
 	flag.StringVar(&dbName, "name", "explorer", "database name")
 	flag.StringVar(&config.Config.Seed, "seed", "", "wallet seed")
 	flag.StringVar(&config.Config.Network, "network", "testnet", "tfchain network")
-	flag.StringVar(&config.Config.Asset, "asset", "TFT", "which asset to use")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
 	flag.Parse()
@@ -67,7 +66,7 @@ func main() {
 		log.Fatal().Err(err).Msg("fail to connect to database")
 	}
 
-	s, err := createServer(listen, dbName, client, config.Config.Network, config.Config.Seed, config.Config.Asset)
+	s, err := createServer(listen, dbName, client, config.Config.Network, config.Config.Seed)
 	if err != nil {
 		log.Fatal().Err(err).Msg("fail to create HTTP server")
 	}
@@ -100,7 +99,7 @@ func connectDB(ctx context.Context, connectionURI string) (*mongo.Client, error)
 	return client, nil
 }
 
-func createServer(listen, dbName string, client *mongo.Client, network, seed string, asset string) (*http.Server, error) {
+func createServer(listen, dbName string, client *mongo.Client, network, seed string) (*http.Server, error) {
 	db, err := mw.NewDatabaseMiddleware(dbName, client)
 	if err != nil {
 		return nil, err
@@ -117,13 +116,13 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 	router.Path("/metrics").Handler(promhttp.Handler()).Name("metrics")
 
 	var e escrow.Escrow
-	if seed != "" && asset != "" {
-		log.Info().Msgf("escrow enabled on %s %s", config.Config.Network, config.Config.Asset)
+	if seed != "" {
+		log.Info().Msgf("escrow enabled on %s", config.Config.Network)
 		if err := escrowdb.Setup(context.Background(), db.Database()); err != nil {
 			log.Fatal().Err(err).Msg("failed to create escrow database indexes")
 		}
 
-		wallet, err := stellar.New(config.Config.Seed, config.Config.Network, config.Config.Asset)
+		wallet, err := stellar.New(config.Config.Seed, config.Config.Network)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to create stellar wallet")
 		}

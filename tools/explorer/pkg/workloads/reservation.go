@@ -41,7 +41,7 @@ type ReservationCreateResponse struct {
 }
 
 func (a *API) validAddresses(ctx context.Context, db *mongo.Database, res *types.Reservation) error {
-	if config.Config.Network == "" || config.Config.Asset == "" {
+	if config.Config.Network == "" {
 		log.Info().Msg("escrow disabled, no validation of farmer wallet address needed")
 		return nil
 	}
@@ -58,11 +58,11 @@ func (a *API) validAddresses(ctx context.Context, db *mongo.Database, res *types
 		return err
 	}
 
-	validator := stellar.NewAddressValidator(config.Config.Network, config.Config.Asset)
+	validator := stellar.NewAddressValidator(config.Config.Network)
 
 	for _, farm := range farms {
 		for _, a := range farm.WalletAddresses {
-			if err := validator.Valid(a.Address); err != nil {
+			if err := validator.Valid(a.Address, a.Asset); err != nil {
 				return err
 			}
 		}
@@ -74,10 +74,15 @@ func (a *API) validAddresses(ctx context.Context, db *mongo.Database, res *types
 
 func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 	defer r.Body.Close()
-	var reservation types.Reservation
-	if err := json.NewDecoder(r.Body).Decode(&reservation); err != nil {
+	var reservationCreate struct {
+		Reservation types.Reservation
+		Asset       string
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reservationCreate); err != nil {
 		return nil, mw.BadRequest(err)
 	}
+
+	reservation := reservationCreate.Reservation
 
 	if reservation.Expired() {
 		return nil, mw.BadRequest(fmt.Errorf("creating for a reservation that expires in the past"))
@@ -136,7 +141,7 @@ func (a *API) create(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	escrowDetails, err := a.escrow.RegisterReservation(generated.Reservation(reservation))
+	escrowDetails, err := a.escrow.RegisterReservation(generated.Reservation(reservation), reservationCreate.Asset)
 	if err != nil {
 		return nil, mw.Error(err)
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/stellar/go/xdr"
 
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/explorer/pkg/stellar"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -52,13 +53,16 @@ type (
 		// if this is true, we will send the full amount for the reservation
 		// back to the issuer of this asset. This way the funds used for this
 		// reservation will be frozen and will never get used again.
-		Free bool `bson:"free"`
+		Free  bool                  `bson:"free"`
+		Asset stellar.AssetCodeEnum `bson:"asset"`
 	}
 
 	// EscrowDetail hold the details of an escrow address
 	EscrowDetail struct {
 		FarmerID    schema.ID `bson:"farmer_id" json:"farmer_id"`
 		TotalAmount xdr.Int64 `bson:"total_amount" json:"total_amount"`
+		Asset       string    `bson:"asset" json:"asset"`
+		Issuer      string    `bson:"issuer" json:"issuer"`
 	}
 
 	// CustomerEscrowInformation is the escrow information which will get exposed

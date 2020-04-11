@@ -59,19 +59,17 @@ var ErrInsuficientBalance = errors.New("insuficient balance")
 type Wallet struct {
 	keypair *keypair.Full
 	network string
-	asset   AssetCodeEnum
 }
 
 // PayoutInfo holds information about which address needs to receive how many funds
 // for payment commands which take multiple receivers
 type PayoutInfo struct {
-	Asset   AssetCodeEnum
 	Address string
 	Amount  xdr.Int64
 }
 
 // New from seed
-func New(seed string, network string, asset string) (*Wallet, error) {
+func New(seed string, network string) (*Wallet, error) {
 	kp, err := keypair.ParseFull(seed)
 	if err != nil {
 		return nil, err
@@ -80,7 +78,6 @@ func New(seed string, network string, asset string) (*Wallet, error) {
 	return &Wallet{
 		keypair: kp,
 		network: network,
-		asset:   AssetCodeEnum(asset),
 	}, nil
 }
 
@@ -127,16 +124,24 @@ func (w *Wallet) CreateAccount() (keypair.Full, error) {
 	if err != nil {
 		return keypair.Full{}, errors.Wrap(err, "failed to get account details")
 	}
-	changeTrustOp := txnbuild.ChangeTrust{
+
+	changeTrustTFTOp := txnbuild.ChangeTrust{
 		SourceAccount: &sourceAccount,
 		Line: txnbuild.CreditAsset{
-			Code:   w.asset.String(),
-			Issuer: w.getIssuer(),
+			Code:   TFTCode,
+			Issuer: w.GetTFTIssuer(),
+		},
+	}
+	changeTrustFreeTFTOp := txnbuild.ChangeTrust{
+		SourceAccount: &sourceAccount,
+		Line: txnbuild.CreditAsset{
+			Code:   FreeTFTCode,
+			Issuer: w.GetFreeTFTIssuer(),
 		},
 	}
 	trustTx := txnbuild.Transaction{
 		SourceAccount: &sourceAccount,
-		Operations:    []txnbuild.Operation{&changeTrustOp},
+		Operations:    []txnbuild.Operation{&changeTrustTFTOp, &changeTrustFreeTFTOp},
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       w.getNetworkPassPhrase(),
 	}
@@ -164,7 +169,7 @@ func (w *Wallet) KeyPairFromSeed(seed string) (*keypair.Full, error) {
 
 // GetBalance gets balance for an address and a given reservation id. It also returns
 // a list of addresses which funded the given address.
-func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, error) {
+func (w *Wallet) GetBalance(address string, id schema.ID, asset AssetCodeEnum) (xdr.Int64, []string, error) {
 
 	if address == "" {
 		err := fmt.Errorf("trying to get the balance of an empty address. this should never happen")
@@ -212,19 +217,23 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 					if effect.GetType() == "account_credited" {
 						isFunding = true
 						creditedEffect := effect.(horizoneffects.AccountCredited)
-						parsedAmount, err := amount.Parse(creditedEffect.Amount)
-						if err != nil {
-							continue
+						if asset.String() == creditedEffect.Asset.Code {
+							parsedAmount, err := amount.Parse(creditedEffect.Amount)
+							if err != nil {
+								continue
+							}
+							total += parsedAmount
 						}
-						total += parsedAmount
 					} else if effect.GetType() == "account_debited" {
 						isFunding = false
 						debitedEffect := effect.(horizoneffects.AccountDebited)
-						parsedAmount, err := amount.Parse(debitedEffect.Amount)
-						if err != nil {
-							continue
+						if asset.String() == debitedEffect.Asset.Code {
+							parsedAmount, err := amount.Parse(debitedEffect.Amount)
+							if err != nil {
+								continue
+							}
+							total -= parsedAmount
 						}
-						total -= parsedAmount
 					}
 				}
 				if isFunding {
@@ -261,12 +270,12 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 // refund destination is the first address in the "funder" list as returned by
 // GetBalance
 // id is the reservation ID to refund for
-func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
+func (w *Wallet) Refund(keypair keypair.Full, id schema.ID, asset AssetCodeEnum) error {
 	sourceAccount, err := w.getAccountDetails(keypair.Address())
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
 	}
-	amount, funders, err := w.GetBalance(keypair.Address(), id)
+	amount, funders, err := w.GetBalance(keypair.Address(), id, asset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get balance")
 	}
@@ -280,8 +289,8 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 		Destination: destination,
 		Amount:      big.NewRat(int64(amount), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
-			Code:   w.asset.String(),
-			Issuer: w.getIssuer(),
+			Code:   asset.String(),
+			Issuer: w.GetIssuerByAsset(asset),
 		},
 		SourceAccount: &sourceAccount,
 	}
@@ -312,12 +321,12 @@ func (w *Wallet) Refund(keypair keypair.Full, id schema.ID) error {
 // keypair is account assiociated with farmer - user
 // destination is the farmer destination address
 // id is the reservation ID to pay for
-func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, id schema.ID) error {
+func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, id schema.ID, asset AssetCodeEnum) error {
 	sourceAccount, err := w.getAccountDetails(keypair.Address())
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
 	}
-	balance, _, err := w.GetBalance(keypair.Address(), id)
+	balance, _, err := w.GetBalance(keypair.Address(), id, asset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get balance")
 	}
@@ -352,8 +361,8 @@ func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, 
 			Destination: pi.Address,
 			Amount:      big.NewRat(int64(amountDue), stellarPrecision).FloatString(stellarPrecisionDigits),
 			Asset: txnbuild.CreditAsset{
-				Code:   w.asset.String(),
-				Issuer: w.getIssuer(),
+				Code:   asset.String(),
+				Issuer: w.GetIssuerByAsset(asset),
 			},
 			SourceAccount: &sourceAccount,
 		})
@@ -364,8 +373,8 @@ func (w *Wallet) PayoutFarmers(keypair keypair.Full, destinations []PayoutInfo, 
 		Destination: w.keypair.Address(),
 		Amount:      big.NewRat(int64(foundationCut), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
-			Code:   w.asset.String(),
-			Issuer: w.getIssuer(),
+			Code:   asset.String(),
+			Issuer: w.GetIssuerByAsset(asset),
 		},
 		SourceAccount: &sourceAccount,
 	})
@@ -472,8 +481,33 @@ func (w *Wallet) getHorizonClient() (*horizonclient.Client, error) {
 	}
 }
 
-func (w *Wallet) getIssuer() string {
-	switch w.asset {
+// GetFreeTFTIssuer get the issues for FreeTFT based on the network of the wallet
+func (w *Wallet) GetFreeTFTIssuer() string {
+	switch w.network {
+	case "testnet":
+		return freeTftIssuerTestnet
+	case "production":
+		return freeTftIssuerProd
+	default:
+		return freeTftIssuerTestnet
+	}
+}
+
+// GetTFTIssuer get the issues for TFT based on the network of the wallet
+func (w *Wallet) GetTFTIssuer() string {
+	switch w.network {
+	case "testnet":
+		return tftIssuerTestnet
+	case "production":
+		return tftIssuerProd
+	default:
+		return tftIssuerTestnet
+	}
+}
+
+// GetIssuerByAsset get the issuer for an asset based on the network of the wallet
+func (w *Wallet) GetIssuerByAsset(asset AssetCodeEnum) string {
+	switch asset {
 	case TFT:
 		switch w.network {
 		case "testnet":
@@ -492,20 +526,15 @@ func (w *Wallet) getIssuer() string {
 		default:
 			return freeTftIssuerTestnet
 		}
-	default:
-		return tftIssuerTestnet
 	}
-}
 
-// GetFreeTFTIssuer get the issues for FreeTFT based on the network of the wallet
-func (w *Wallet) GetFreeTFTIssuer() string {
 	switch w.network {
 	case "testnet":
-		return freeTftIssuerTestnet
+		return tftIssuerTestnet
 	case "production":
-		return freeTftIssuerProd
+		return tftIssuerProd
 	default:
-		return freeTftIssuerTestnet
+		return tftIssuerTestnet
 	}
 }
 

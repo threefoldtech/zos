@@ -7,6 +7,11 @@ import (
 	schema "github.com/threefoldtech/zos/pkg/schema"
 )
 
+type ReservationCreate struct {
+	Reservation Reservation
+	Asset       string
+}
+
 type Reservation struct {
 	ID                  schema.ID          `bson:"_id" json:"id"`
 	Json                string             `bson:"json" json:"json"`

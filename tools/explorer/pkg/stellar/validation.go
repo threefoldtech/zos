@@ -12,16 +12,15 @@ import (
 // AddressValidator validates stellar address
 type AddressValidator struct {
 	network string
-	asset   string
 }
 
 // NewAddressValidator creates an address validator instance
-func NewAddressValidator(network, asset string) *AddressValidator {
-	return &AddressValidator{network: network, asset: asset}
+func NewAddressValidator(network string) *AddressValidator {
+	return &AddressValidator{network: network}
 }
 
-func (a *AddressValidator) issuer() (string, error) {
-	switch a.asset {
+func (a *AddressValidator) issuer(asset string) (string, error) {
+	switch asset {
 	case TFTCode:
 		switch a.network {
 		case NetworkProduction:
@@ -29,7 +28,7 @@ func (a *AddressValidator) issuer() (string, error) {
 		case NetworkTest:
 			return tftIssuerTestnet, nil
 		default:
-			return "", fmt.Errorf("unsupported network %s for asset %s", a.network, a.asset)
+			return "", fmt.Errorf("unsupported network %s for asset %s", a.network, asset)
 		}
 
 	case FreeTFTCode:
@@ -39,15 +38,15 @@ func (a *AddressValidator) issuer() (string, error) {
 		case NetworkTest:
 			return freeTftIssuerTestnet, nil
 		default:
-			return "", fmt.Errorf("unsupported network %s for asset %s", a.network, a.asset)
+			return "", fmt.Errorf("unsupported network %s for asset %s", a.network, asset)
 		}
 	default:
-		return "", fmt.Errorf("unsupported network %s for asset %s", a.network, a.asset)
+		return "", fmt.Errorf("unsupported network %s for asset %s", a.network, asset)
 	}
 }
 
 // Valid validates a stellar address, and only return nil if address is valid
-func (a *AddressValidator) Valid(address string) error {
+func (a *AddressValidator) Valid(address, asset string) error {
 	if a.network == NetworkDebug {
 		return nil
 	}
@@ -57,13 +56,13 @@ func (a *AddressValidator) Valid(address string) error {
 		return errors.Wrap(err, "invalid account address")
 	}
 
-	issuer, err := a.issuer()
+	issuer, err := a.issuer(asset)
 	if err != nil {
 		return err
 	}
 
 	for _, balance := range account.Balances {
-		if balance.Code != a.asset || balance.Issuer != issuer {
+		if balance.Code != asset || balance.Issuer != issuer {
 			continue
 		}
 		limit, err := strconv.ParseFloat(balance.Limit, 64)

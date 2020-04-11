@@ -70,8 +70,8 @@ func (e Stellar) calculateReservationCost(rsuPerFarmerMap rsuPerFarmer) (map[int
 	return costPerFarmerMap, nil
 }
 
-func (e Stellar) processReservationResources(resData workloads.ReservationData) (rsuFarmer rsuPerFarmer, free bool, err error) {
-	free = false
+func (e Stellar) processReservationResources(resData workloads.ReservationData) (rsuFarmer rsuPerFarmer, freeToUse bool, err error) {
+	freeToUse = true
 	rsuPerNodeMap := make(rsuPerNode)
 	for _, cont := range resData.Containers {
 		rsuPerNodeMap[cont.NodeId] = rsuPerNodeMap[cont.NodeId].add(processContainer(cont))
@@ -91,12 +91,12 @@ func (e Stellar) processReservationResources(resData workloads.ReservationData) 
 		if err != nil {
 			return nil, false, errors.Wrap(err, "could not get node")
 		}
-		if node.FreeToUse {
-			free = true
+		if !node.FreeToUse {
+			freeToUse = false
 		}
 		rsuPerFarmerMap[node.FarmId] = rsuPerFarmerMap[node.FarmId].add(rsu)
 	}
-	return rsuPerFarmerMap, free, nil
+	return rsuPerFarmerMap, freeToUse, nil
 }
 
 func processContainer(cont workloads.Container) rsu {

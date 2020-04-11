@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/stellar/go/xdr"
 	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/explorer/config"
 	gdirectory "github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
 	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/directory"
@@ -50,6 +49,7 @@ type (
 
 	reservationRegisterJob struct {
 		reservation  workloads.Reservation
+		asset        string
 		responseChan chan reservationRegisterJobResponse
 	}
 
@@ -107,7 +107,7 @@ func (e *Stellar) Run(ctx context.Context) error {
 
 		case job := <-e.reservationChannel:
 			log.Info().Int64("reservation_id", int64(job.reservation.ID)).Msg("processing new reservation escrow for reservation")
-			details, err := e.processReservation(job.reservation)
+			details, err := e.processReservation(job.reservation, job.asset)
 			if err != nil {
 				log.Error().
 					Err(err).
@@ -202,7 +202,7 @@ func (e *Stellar) checkReservationPaid(escrowInfo types.ReservationPaymentInform
 		requiredValue += escrowAccount.TotalAmount
 	}
 
-	balance, _, err := e.wallet.GetBalance(escrowInfo.Address, escrowInfo.ReservationID)
+	balance, _, err := e.wallet.GetBalance(escrowInfo.Address, escrowInfo.ReservationID, escrowInfo.Asset)
 	if err != nil {
 		return errors.Wrap(err, "failed to verify escrow account balance")
 	}
@@ -261,7 +261,7 @@ func (e *Stellar) checkReservationPaid(escrowInfo types.ReservationPaymentInform
 
 // processReservation processes a single reservation
 // calculates resources and their costs
-func (e *Stellar) processReservation(reservation workloads.Reservation) (types.CustomerEscrowInformation, error) {
+func (e *Stellar) processReservation(reservation workloads.Reservation, asset string) (types.CustomerEscrowInformation, error) {
 	var customerInfo types.CustomerEscrowInformation
 	rsuPerFarmer, freeToUse, err := e.processReservationResources(reservation.DataReservation)
 	if err != nil {
@@ -278,6 +278,13 @@ func (e *Stellar) processReservation(reservation workloads.Reservation) (types.C
 		return customerInfo, errors.Wrap(err, "failed to get escrow address for customer")
 	}
 
+	// If the node has a flag that it is free to use we will expect a payment in FreeTFT
+	// if any other currency is passed we let the user know that he must pay
+	// for this reservation in FreeTFT
+	if freeToUse && asset != stellar.FreeTFT.String() {
+		asset = stellar.FreeTFT.String()
+	}
+
 	details := make([]types.EscrowDetail, 0, len(res))
 	for farmer, value := range res {
 		if err != nil {
@@ -286,6 +293,8 @@ func (e *Stellar) processReservation(reservation workloads.Reservation) (types.C
 		details = append(details, types.EscrowDetail{
 			FarmerID:    schema.ID(farmer),
 			TotalAmount: value,
+			Asset:       asset,
+			Issuer:      e.wallet.GetIssuerByAsset(stellar.AssetCodeEnum(asset)),
 		})
 	}
 	reservationPaymentInfo := types.ReservationPaymentInformation{
@@ -297,6 +306,7 @@ func (e *Stellar) processReservation(reservation workloads.Reservation) (types.C
 		Canceled:      false,
 		Released:      false,
 		Free:          freeToUse,
+		Asset:         stellar.AssetCodeEnum(asset),
 	}
 	err = types.ReservationPaymentInfoCreate(e.ctx, e.db, reservationPaymentInfo)
 	if err != nil {
@@ -305,6 +315,7 @@ func (e *Stellar) processReservation(reservation workloads.Reservation) (types.C
 	log.Info().Int64("id", int64(reservation.ID)).Msg("processed reservation and created payment information")
 	customerInfo.Address = address
 	customerInfo.Details = details
+
 	return customerInfo, nil
 }
 
@@ -363,7 +374,7 @@ func (e *Stellar) payoutFarmers(id schema.ID) error {
 			destination, err = getAddressFarmer(farm.WalletAddresses)
 			if err != nil {
 				// FIXME: this is probably not ok, what do we do in this case ?
-				log.Error().Err(err).Msgf("failed to find address for %s for farmer %d", config.Config.Asset, farm.ID)
+				log.Error().Err(err).Msgf("failed to find address for %s for farmer %d", rpi.Asset.String(), farm.ID)
 				continue
 			}
 		}
@@ -386,12 +397,12 @@ func (e *Stellar) payoutFarmers(id schema.ID) error {
 		log.Error().Msgf("failed to parse escrow address secret: %s", err)
 		return errors.Wrap(err, "could not load escrow address info")
 	}
-	if err = e.wallet.PayoutFarmers(*kp, paymentInfo, id); err != nil {
+	if err = e.wallet.PayoutFarmers(*kp, paymentInfo, id, rpi.Asset); err != nil {
 		log.Error().Msgf("failed to pay farmer: %s for reservation %d", err, id)
 		return errors.Wrap(err, "could not pay farmer")
 	}
 	// now refund any possible overpayment
-	if err = e.wallet.Refund(*kp, id); err != nil {
+	if err = e.wallet.Refund(*kp, id, rpi.Asset); err != nil {
 		log.Error().Msgf("failed to refund overpayment farmer: %s", err)
 		return errors.Wrap(err, "could not refund overpayment")
 	}
@@ -425,7 +436,7 @@ func (e *Stellar) refundEscrow(escrowInfo types.ReservationPaymentInformation) e
 		return errors.Wrap(err, "failed to parse escrow address secret")
 	}
 
-	if err = e.wallet.Refund(*kp, escrowInfo.ReservationID); err != nil {
+	if err = e.wallet.Refund(*kp, escrowInfo.ReservationID, escrowInfo.Asset); err != nil {
 		return errors.Wrap(err, "failed to refund clients")
 	}
 
@@ -434,9 +445,10 @@ func (e *Stellar) refundEscrow(escrowInfo types.ReservationPaymentInformation) e
 }
 
 // RegisterReservation registers a workload reservation
-func (e *Stellar) RegisterReservation(reservation workloads.Reservation) (types.CustomerEscrowInformation, error) {
+func (e *Stellar) RegisterReservation(reservation workloads.Reservation, asset string) (types.CustomerEscrowInformation, error) {
 	job := reservationRegisterJob{
 		reservation:  reservation,
+		asset:        asset,
 		responseChan: make(chan reservationRegisterJobResponse),
 	}
 	e.reservationChannel <- job
