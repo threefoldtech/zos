@@ -18,7 +18,6 @@ var (
 	Config Settings
 
 	possibleNetworks = []string{stellar.NetworkProduction, stellar.NetworkTest}
-	possibleAssets   = []string{stellar.TFTCode, stellar.FreeTFTCode}
 )
 
 // Valid checks if Config is filled with valid data
