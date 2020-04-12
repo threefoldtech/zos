@@ -46,7 +46,7 @@ type Directory interface {
 	) error
 
 	NodeUpdateUptime(id string, uptime uint64) error
-	NodeUpdateUsedResources(id string, amount directory.ResourceAmount) error
+	NodeUpdateUsedResources(id string, resources directory.ResourceAmount, workloads directory.WorkloadAmount) error
 }
 
 // Phonebook interface

@@ -101,23 +101,33 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 				}
 			}
 
-			if err := e.cl.Directory.NodeUpdateUsedResources(e.nodeID, e.resourceAmount()); err != nil {
+			if err := e.updateReservedCapacity(); err != nil {
 				log.Error().Err(err).Msg("failed to updated the used resources")
 			}
 		}
 	}
 }
 
-func (e *defaultEngine) resourceAmount() directory.ResourceAmount {
+func (e *defaultEngine) updateReservedCapacity() error {
 	counters := e.store.Counters()
-	amount := directory.ResourceAmount{
+	resources := directory.ResourceAmount{
 		Sru: counters.SRU.Current(),
 		Hru: counters.HRU.Current(),
 		Cru: counters.CRU.Current(),
 		Mru: counters.MRU.Current(),
 	}
-	log.Info().Msgf("%+v", amount)
-	return amount
+
+	workloads := directory.WorkloadAmount{
+		Volume:       counters.volumes.Current(),
+		Container:    counters.containers.Current(),
+		ZDBNamespace: counters.zdbs.Current(),
+		K8sVM:        counters.vms.Current(),
+		Network:      counters.networks.Current(),
+	}
+	log.Info().Msgf("reserved resource %+v", resources)
+	log.Info().Msgf("provisionned workloads %+v", workloads)
+
+	return e.cl.Directory.NodeUpdateUsedResources(e.nodeID, resources, workloads)
 }
 
 func (e *defaultEngine) provision(ctx context.Context, r *Reservation) error {
