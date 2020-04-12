@@ -16,6 +16,7 @@ getdeps:
 	@echo "Installing gocyclo" && go install github.com/fzipp/gocyclo
 	@echo "Installing misspell" && go install github.com/client9/misspell/cmd/misspell
 	@echo "Installing ineffassign" && go install github.com/gordonklaus/ineffassign
+	@echo "Installing statik" && go install github.com/rakyll/statik
 
 verifiers: vet fmt lint cyclo spelling static
 
