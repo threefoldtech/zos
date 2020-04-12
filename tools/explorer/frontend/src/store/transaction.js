@@ -30,7 +30,7 @@ export default ({
       context.commit('setUser', response.data)
     },
     getRegisteredNodes (context) {
-      tfService.registered3bots().then(response => {
+      tfService.getNodes().then(response => {
         context.commit('setRegisteredNodes', response.data)
         context.commit('setTotalSpecs', response.data)
       })

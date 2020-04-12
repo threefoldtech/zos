@@ -20,7 +20,7 @@
       <v-row>
         <v-flex xs3 class="text-left pr-2">Farmer</v-flex>
         <v-flex class="text-truncate font-weight-bold">
-          <span>{{node.farmer}}</span>
+          <span>{{node.farmer.name}} ({{node.farmer.id}}</span>
         </v-flex>
       </v-row>
       <v-row>
@@ -52,7 +52,7 @@
           <template v-slot:activator="{ on }">
             <v-flex xs3 class="text-left pr-2">Free to use</v-flex>
             <v-flex class="text-truncate font-weight-bold">
-              <span v-on="on">{{node.freeToUse}} <v-icon x-small>fa-question-circle</v-icon></span>
+              <span v-on="on"><v-icon :color="freeIcon.color">{{freeIcon.icon}}</v-icon> <v-icon x-small>fa-question-circle</v-icon></span>
             </v-flex>
           </template>
           <span>
@@ -65,8 +65,39 @@
   </v-col>
   <v-col>
     <div class="title">
-      <v-icon small left>fa-wrench</v-icon>
-      Node Usage
+      <v-icon small left>fa-chart-bar</v-icon>Provisioned workloads
+    </div>
+    <v-container fluid>
+      <v-row>
+        <v-col>
+          <v-row>
+            <v-col>Network:</v-col> <v-col><span class="font-weight-bold text-right">{{node.workloads.network}}</span></v-col>
+          </v-row>
+          <v-row>
+            <v-col>0-DB namespace:</v-col> <v-col><span class="font-weight-bold text-right">{{node.workloads.zdb_namespace}}</span></v-col>
+          </v-row>
+        </v-col>
+        <v-col>
+          <v-row>
+            <v-col>Volume:</v-col> <v-col><span class="font-weight-bold text-right">{{node.workloads.volume}}</span></v-col>
+          </v-row>
+          <v-row>
+            <v-col>Container:</v-col> <v-col><span class="font-weight-bold text-right">{{node.workloads.container}}</span></v-col>
+          </v-row>
+        </v-col>
+        <v-col>
+          <v-row>
+            <v-col>Kubernetes VM:</v-col> <v-col><span class="font-weight-bold text-right">{{node.workloads.k8s_vm}}</span></v-col>
+          </v-row>
+        </v-col>
+      </v-row>
+    </v-container>
+    </div>
+  </v-col>
+
+  <v-col>
+    <div class="title">
+      <v-icon small left>fa-chart-pie</v-icon>Resource units reserved
     </div>
 
     <v-row>
@@ -87,9 +118,6 @@
               <v-row dense>
                 Total: {{ node.totalResources[key] }}
               </v-row>
-              <!-- <v-row dense>
-                Used: {{ node.usedResources[key] }}
-              </v-row> -->
               <v-row dense>
                 Reserved: {{ node.reservedResources[key] }}
               </v-row>
@@ -99,63 +127,6 @@
       </v-col>
     </v-row>
   </v-col>
-  <!--<v-col cols="auto">
-        <div class="title">
-          <v-icon small left>fa-wrench</v-icon>
-          Node Usage
-        </div>
-        
-        <v-row>
-          <v-col
-            v-for="(value, key) in node.totalResources"
-            :key="key"
-            align="center"
-          >
-            <v-flex class="text-center pr-2">
-              <span class="text-uppercase">{{ key }}</span>
-            </v-flex>
-            <v-flex class="text-truncate font-weight-bold">
-              <v-tooltip bottom>
-                <template v-slot:activator="{ on }">
-                  <v-progress-circular
-                    v-on="on"
-                    :rotate="-90"
-                    :size="100"
-                    :width="15"
-                    :value="getPercentage(key)"
-                    color="light-green darken-2"
-                  />
-                  <span>
-                    {{ node.usedResources[key] }} / {{ node.totalResources[key] }}
-                  </span>
-                </template>
-                <span>
-                  <v-row dense>
-                    Total: {{ node.totalResources[key] }}
-                  </v-row>
-                  <v-row dense>
-                    Used: {{ node.usedResources[key] }}
-                  </v-row>
-                  <v-row dense>
-                    Reserved: {{ node.reservedResources[key] }}
-                  </v-row>
-                </span>
-              </v-tooltip>
-            </v-flex>
-          </v-col>
-        </v-row>
-    </v-col>
-      <v-row v-for="(value, key) in node.totalResources" :key="key">
-        <v-flex xs3 class="text-left pr-2">Total <span class="text-uppercase">{{ key }}</span></v-flex>
-        <v-flex xs5 class="text-truncate font-weight-bold">
-          <v-progress-linear
-            color="light-green darken-2"
-            height="12"
-            :value="getPercentage(key)"
-            striped
-          />
-          <span>{{ node.usedResources[key] }} / {{ node.totalResources[key] }}</span>
-        </v-flex>
-      </v-row> 
-  </v-row>-->
+  </v-row>
+  </v-col>
 </section>

@@ -43,25 +43,29 @@ export default {
     parsedNodesList: function () {
       const nodeList = this.nodes ? this.nodes : this.registerednodes
       const parsedNodes = nodeList.filter(node => this.showNode(node)).map(node => {
-        const farmer = find(this.registeredFarms, farmer => {
+        const farm = find(this.registeredFarms, farmer => {
           return farmer.id === node.farm_id
         })
 
         // initialize farmer name with farmer_id from node in case farmer is not found
-        let farmerName = node.farm_id
-        if (farmer) {
-          farmerName = farmer.name
+        let farmer = {
+          id: node.farm_id,
+          name: ''
+        }
+        if (farm) {
+          farmer.name = farm.name
         }
 
         return {
           uptime: moment.duration(node.uptime, 'seconds').format(),
           version: node.os_version,
           id: node.node_id,
-          farmer: farmerName,
+          farmer: farmer,
           name: 'node ' + node.node_id,
           totalResources: node.total_resources,
           reservedResources: node.reserved_resources,
           usedResources: node.used_resources,
+          workloads: node.workloads,
           updated: new Date(node.updated * 1000),
           status: this.getStatus(node),
           location: node.location,

@@ -36,7 +36,7 @@ export default {
       }
     })
   },
-  registered3bots (farm_id = undefined) {
+  getNodes (farm_id = undefined) {
     return axios.get(`${config.tfApiUrl}/nodes`, {
       params: {
         farm_id: farm_id,
