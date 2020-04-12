@@ -1,4 +1,4 @@
-//go:generate statik -f -src=./frontend/dist
+//go:generate $GOPATH/bin/statik -f -src=./frontend/dist
 package main
 
 import (
