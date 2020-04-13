@@ -82,7 +82,7 @@ type Node struct {
 	TotalResources    ResourceAmount `bson:"total_resources" json:"total_resources"`
 	UsedResources     ResourceAmount `bson:"used_resources" json:"used_resources"`
 	ReservedResources ResourceAmount `bson:"reserved_resources" json:"reserved_resources"`
-	Workloads         WorkloadAmount `json:"workloads" json:"workloads"`
+	Workloads         WorkloadAmount `bson:"workloads" json:"workloads"`
 	Proofs            []Proof        `bson:"proofs" json:"proofs"`
 	Ifaces            []Iface        `bson:"ifaces" json:"ifaces"`
 	PublicConfig      *PublicIface   `bson:"public_config,omitempty" json:"public_config"`

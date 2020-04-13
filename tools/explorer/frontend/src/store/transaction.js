@@ -16,7 +16,13 @@ export default ({
       cru: 0,
       mru: 0,
       sru: 0,
-      hru: 0
+      hru: 0,
+      network: 0,
+      volume: 0,
+      container: 0,
+      zdb_namespace: 0,
+      k8s_vm: 0
+
     }
   },
   actions: {
@@ -80,6 +86,11 @@ export default ({
       state.nodeSpecs.mru = lodash.sumBy(value, node => node.total_resources.mru)
       state.nodeSpecs.sru = lodash.sumBy(value, node => node.total_resources.sru)
       state.nodeSpecs.hru = lodash.sumBy(value, node => node.total_resources.hru)
+      state.nodeSpecs.network = lodash.sumBy(value, node => node.workloads.network)
+      state.nodeSpecs.volume = lodash.sumBy(value, node => node.workloads.volume)
+      state.nodeSpecs.container = lodash.sumBy(value, node => node.workloads.container)
+      state.nodeSpecs.zdb_namespace = lodash.sumBy(value, node => node.workloads.zdb_namespace)
+      state.nodeSpecs.k8s_vm = lodash.sumBy(value, node => node.workloads.k8s_vm)
     }
   },
   getters: {
