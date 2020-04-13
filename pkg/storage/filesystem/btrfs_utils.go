@@ -71,6 +71,9 @@ type BtrfsUtil struct {
 	executer
 }
 
+func NewUtils() BtrfsUtil {
+	return BtrfsUtil{executerFunc(run)}
+}
 func newUtils(exec executer) BtrfsUtil {
 	return BtrfsUtil{exec}
 }
