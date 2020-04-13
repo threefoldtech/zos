@@ -31,7 +31,7 @@ func create(c *cli.Context) error {
 		return err
 	}
 
-	wallet, err := stellar.New(seed, network, asset, nil)
+	wallet, err := stellar.New(seed, network, nil)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func signAndSubmit(c *cli.Context) error {
 	network := c.String("network")
 	transaction := c.String("transaction")
 
-	wallet, err := stellar.New(seed, network, "", nil)
+	wallet, err := stellar.New(seed, network, nil)
 	if err != nil {
 		return err
 	}
@@ -70,18 +70,22 @@ func signAndSubmit(c *cli.Context) error {
 
 // createMultisigTransaction will create a multisig transaction from an address to a destination
 // This is will be used in the multisig client
-func (w *multisigWallet) createMultisigTransaction(from, destination, amount, asset string) (string, error) {
+func (w *multisigWallet) createMultisigTransaction(from, destination, amount, assetCode string) (string, error) {
 	sourceAccount, err := w.wallet.GetAccountDetails(from)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get source account")
 	}
 
+	asset, err := w.wallet.AssetFromCode(assetCode)
+	if err != nil {
+		return "", errors.Wrap(err, "could not load asset")
+	}
 	paymentOP := txnbuild.Payment{
 		Destination: destination,
 		Amount:      amount,
 		Asset: txnbuild.CreditAsset{
-			Code:   asset,
-			Issuer: w.wallet.GetIssuer(),
+			Code:   asset.Code(),
+			Issuer: asset.Issuer(),
 		},
 	}
 

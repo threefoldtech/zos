@@ -18,17 +18,28 @@ import (
 	"github.com/threefoldtech/zos/pkg/schema"
 )
 
+type (
+	// Signers is a flag type for setting the signers on the escrow accounts
+	Signers []string
+
+	// PayoutInfo holds information about which address needs to receive how many funds
+	// for payment commands which take multiple receivers
+	PayoutInfo struct {
+		Address string
+		Amount  xdr.Int64
+	}
+
+	// Wallet is the foundation wallet
+	// Payments will be funded and fees will be taken with this wallet
+	Wallet struct {
+		keypair *keypair.Full
+		network string
+		assets  map[Asset]struct{}
+		signers Signers
+	}
+)
+
 const (
-	// TFTCode is the asset code for TFT on stellar
-	TFTCode          = "TFT"
-	tftIssuerTestnet = "GA47YZA3PKFUZMPLQ3B5F2E3CJIB57TGGU7SPCQT2WAEYKN766PWIMB3"
-	tftIssuerProd    = "GBOVQKJYHXRR3DX6NOX2RRYFRCUMSADGDESTDNBDS6CDVLGVESRTAC47"
-
-	// FreeTFTCode is the asset code for TFT on stellar
-	FreeTFTCode          = "FreeTFT"
-	freeTftIssuerTestnet = "GBLDUINEFYTF7XEE7YNWA3JQS4K2VD37YU7I2YAE7R5AHZDKQXSS2J6R"
-	freeTftIssuerProd    = "GCBGS5TFE2BPPUVY55ZPEMWWGR6CLQ7T6P46SOFGHXEBJ34MSP6HVEUT"
-
 	stellarPrecision       = 1e7
 	stellarPrecisionDigits = 7
 
@@ -41,56 +52,66 @@ const (
 	NetworkDebug = "debug"
 )
 
-type (
-	assetCodeEnum string
-
-	// Signers is a flag type for setting the signers on the escrow accounts
-	Signers []string
-
-	// Wallet is the foundation wallet
-	// Payments will be funded and fees will be taken with this wallet
-	Wallet struct {
-		keypair *keypair.Full
-		network string
-		asset   assetCodeEnum
-		signers Signers
-	}
+var (
+	// ErrInsuficientBalance is an error that is used when there is insufficient balance
+	ErrInsuficientBalance = errors.New("insuficient balance")
+	// ErrAssetCodeNotSupported indicated the given asset code is not supported by this wallet
+	ErrAssetCodeNotSupported = errors.New("asset code not supported")
 )
 
-const (
-	// TFT assetcode
-	TFT assetCodeEnum = TFTCode
-	// FreeTFT assetcode
-	FreeTFT assetCodeEnum = FreeTFTCode
-)
+// New stellar wallet from an optional seed. If no seed is given (i.e. empty string),
+// the wallet will panic on all actions which need to be signed, or otherwise require
+// a key to be loaded.
+func New(seed, network string, signers []string) (*Wallet, error) {
+	assets := mainnetAssets
 
-// ErrInsuficientBalance is an error that is used when there is insufficient balance
-var ErrInsuficientBalance = errors.New("insuficient balance")
-
-// PayoutInfo holds information about which address needs to receive how many funds
-// for payment commands which take multiple receivers
-type PayoutInfo struct {
-	Address string
-	Amount  xdr.Int64
-}
-
-// New from seed
-func New(seed, network, asset string, signers Signers) (*Wallet, error) {
-	kp, err := keypair.ParseFull(seed)
-	if err != nil {
-		return nil, err
+	if network == NetworkTest {
+		assets = testnetAssets
 	}
 
-	if len(signers) < 3 {
+	if len(signers) < 3 && seed != "" {
 		log.Warn().Msg("to enable escrow account recovery, provide atleast 3 signers")
 	}
 
-	return &Wallet{
-		keypair: kp,
+	w := &Wallet{
 		network: network,
-		asset:   assetCodeEnum(asset),
+		assets:  assets,
 		signers: signers,
-	}, nil
+	}
+
+	var err error
+	if seed != "" {
+		w.keypair, err = keypair.ParseFull(seed)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return w, nil
+}
+
+// AssetFromCode loads the full asset from a code, provided the wallet supports
+// the asset code
+func (w *Wallet) AssetFromCode(code string) (Asset, error) {
+	for asset := range w.assets {
+		if asset.Code() == code {
+			return asset, nil
+		}
+	}
+	return "", ErrAssetCodeNotSupported
+}
+
+// PrecisionDigits of the underlying currencies on chain
+func (w *Wallet) PrecisionDigits() int {
+	return stellarPrecisionDigits
+}
+
+// PublicAddress of this wallet
+func (w *Wallet) PublicAddress() string {
+	if w.keypair == nil {
+		return ""
+	}
+	return w.keypair.Address()
 }
 
 // CreateAccount and activate it, so that it is ready to be used
@@ -113,6 +134,12 @@ func (w *Wallet) CreateAccount() (string, string, error) {
 	err = w.activateEscrowAccount(newKp, sourceAccount, client)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "failed to activate escrow account %s", newKp.Address())
+	}
+
+	// Now fetch the escrow source account to perform operations on it
+	sourceAccount, err = w.GetAccountDetails(newKp.Address())
+	if err != nil {
+		return "", "", errors.Wrap(err, "failed to get escrow source account")
 	}
 
 	err = w.setupEscrow(newKp, sourceAccount, client)
@@ -161,8 +188,8 @@ func (w *Wallet) activateEscrowAccount(newKp *keypair.Full, sourceAccount hProto
 func (w *Wallet) setupEscrow(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
 	var operations []txnbuild.Operation
 
-	trustlineOperation := w.setupTrustline(newKp)
-	operations = append(operations, trustlineOperation)
+	trustlineOperation := w.setupTrustline(sourceAccount)
+	operations = append(operations, trustlineOperation...)
 
 	addSignerOperations := w.setupEscrowMultisig()
 	if addSignerOperations != nil {
@@ -176,7 +203,7 @@ func (w *Wallet) setupEscrow(newKp *keypair.Full, sourceAccount hProtocol.Accoun
 		Network:       w.GetNetworkPassPhrase(),
 	}
 
-	txeBase64, err := tx.BuildSignEncode(w.keypair)
+	txeBase64, err := tx.BuildSignEncode(newKp)
 	if err != nil {
 		return errors.Wrap(err, "failed to get build transaction")
 	}
@@ -185,19 +212,26 @@ func (w *Wallet) setupEscrow(newKp *keypair.Full, sourceAccount hProtocol.Accoun
 	_, err = client.SubmitTransactionXDR(txeBase64)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
+		for _, extra := range hError.Problem.Extras {
+			log.Debug().Msgf("%+v", extra)
+		}
 		return errors.Wrap(hError.Problem, "error submitting transaction")
 	}
 	return nil
 }
 
-func (w *Wallet) setupTrustline(newKp *keypair.Full) txnbuild.Operation {
-	changeTrustOp := txnbuild.ChangeTrust{
-		Line: txnbuild.CreditAsset{
-			Code:   w.asset.String(),
-			Issuer: w.GetIssuer(),
-		},
+func (w *Wallet) setupTrustline(sourceAccount hProtocol.Account) []txnbuild.Operation {
+	ops := make([]txnbuild.Operation, 0, len(w.assets))
+	for asset := range w.assets {
+		ops = append(ops, &txnbuild.ChangeTrust{
+			SourceAccount: &sourceAccount,
+			Line: txnbuild.CreditAsset{
+				Code:   asset.Code(),
+				Issuer: asset.Issuer(),
+			},
+		})
 	}
-	return &changeTrustOp
+	return ops
 }
 
 func (w *Wallet) setupEscrowMultisig() []txnbuild.Operation {
@@ -240,8 +274,7 @@ func (w *Wallet) setupEscrowMultisig() []txnbuild.Operation {
 
 // GetBalance gets balance for an address and a given reservation id. It also returns
 // a list of addresses which funded the given address.
-func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, error) {
-
+func (w *Wallet) GetBalance(address string, id schema.ID, asset Asset) (xdr.Int64, []string, error) {
 	if address == "" {
 		err := fmt.Errorf("trying to get the balance of an empty address. this should never happen")
 		log.Warn().Err(err).Send()
@@ -286,24 +319,35 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 						continue
 					}
 					if effect.GetType() == "account_credited" {
-						isFunding = true
 						creditedEffect := effect.(horizoneffects.AccountCredited)
+						if creditedEffect.Asset.Code != asset.Code() ||
+							creditedEffect.Asset.Issuer != asset.Issuer() {
+							continue
+						}
 						parsedAmount, err := amount.Parse(creditedEffect.Amount)
 						if err != nil {
 							continue
 						}
+						isFunding = true
 						total += parsedAmount
 					} else if effect.GetType() == "account_debited" {
-						isFunding = false
 						debitedEffect := effect.(horizoneffects.AccountDebited)
+						if debitedEffect.Asset.Code != asset.Code() ||
+							debitedEffect.Asset.Issuer != asset.Issuer() {
+							continue
+						}
 						parsedAmount, err := amount.Parse(debitedEffect.Amount)
 						if err != nil {
 							continue
 						}
+						isFunding = false
 						total -= parsedAmount
 					}
 				}
 				if isFunding {
+					// we don't need to verify the asset here anymore, since this
+					// flag is only toggled on after that check passed in the loop
+					// above
 					for _, effect := range effects.Embedded.Records {
 						if effect.GetType() == "account_debited" && effect.GetAccount() != address {
 							donors[effect.GetAccount()] = struct{}{}
@@ -335,7 +379,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID) (xdr.Int64, []string, 
 // Refund an escrow address for a reservation. This will transfer all funds
 // for this reservation that are currently on the address (if any), to (some of)
 // the addresses which these funds came from.
-func (w *Wallet) Refund(encryptedSeed string, id schema.ID) error {
+func (w *Wallet) Refund(encryptedSeed string, id schema.ID, asset Asset) error {
 	keypair, err := w.keypairFromEncryptedSeed(encryptedSeed)
 	if err != nil {
 		return errors.Wrap(err, "could not get keypair from encrypted seed")
@@ -344,7 +388,7 @@ func (w *Wallet) Refund(encryptedSeed string, id schema.ID) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
 	}
-	amount, funders, err := w.GetBalance(keypair.Address(), id)
+	amount, funders, err := w.GetBalance(keypair.Address(), id, asset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get balance")
 	}
@@ -358,8 +402,8 @@ func (w *Wallet) Refund(encryptedSeed string, id schema.ID) error {
 		Destination: destination,
 		Amount:      big.NewRat(int64(amount), stellarPrecision).FloatString(stellarPrecisionDigits),
 		Asset: txnbuild.CreditAsset{
-			Code:   w.asset.String(),
-			Issuer: w.GetIssuer(),
+			Code:   asset.Code(),
+			Issuer: asset.Issuer(),
 		},
 		SourceAccount: &sourceAccount,
 	}
@@ -388,7 +432,7 @@ func (w *Wallet) Refund(encryptedSeed string, id schema.ID) error {
 
 // PayoutFarmers pays a group of farmers, from an escrow account. The escrow
 // account must be provided as the encrypted string of the seed.
-func (w *Wallet) PayoutFarmers(encryptedSeed string, destinations []PayoutInfo, id schema.ID) error {
+func (w *Wallet) PayoutFarmers(encryptedSeed string, destinations []PayoutInfo, id schema.ID, asset Asset) error {
 	keypair, err := w.keypairFromEncryptedSeed(encryptedSeed)
 	if err != nil {
 		return errors.Wrap(err, "could not get keypair from encrypted seed")
@@ -397,7 +441,7 @@ func (w *Wallet) PayoutFarmers(encryptedSeed string, destinations []PayoutInfo, 
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
 	}
-	balance, _, err := w.GetBalance(keypair.Address(), id)
+	balance, _, err := w.GetBalance(keypair.Address(), id, asset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get balance")
 	}
@@ -410,45 +454,18 @@ func (w *Wallet) PayoutFarmers(encryptedSeed string, destinations []PayoutInfo, 
 	}
 
 	paymentOps := make([]txnbuild.Operation, 0, len(destinations)+1)
-	foundationCut := xdr.Int64(0)
 
 	for _, pi := range destinations {
-		// 10% cut for the foundation
-		/*
-			Based on the way we calculate the cost of reservation we know it has at most
-			6 digit precision whereas stellar has 7 digits precision.
-			This means that any valid reservation must necessarily have a "0" as least
-			significant digit (when expressed as `stropes` as is the case here).
-			With this knowledge it is safe to perform the 90% cut as regular integer operations
-			instead of using floating points which might lead to floating point errors
-		*/
-		if pi.Amount%10 != 0 {
-			return errors.New("invalid reservation cost")
-		}
-		foundationCut += pi.Amount / 10 * 1
-		amountDue := pi.Amount / 10 * 9
-
 		paymentOps = append(paymentOps, &txnbuild.Payment{
 			Destination: pi.Address,
-			Amount:      big.NewRat(int64(amountDue), stellarPrecision).FloatString(stellarPrecisionDigits),
+			Amount:      big.NewRat(int64(pi.Amount), stellarPrecision).FloatString(stellarPrecisionDigits),
 			Asset: txnbuild.CreditAsset{
-				Code:   w.asset.String(),
-				Issuer: w.GetIssuer(),
+				Code:   asset.Code(),
+				Issuer: asset.Issuer(),
 			},
 			SourceAccount: &sourceAccount,
 		})
 	}
-
-	// add foundation payment
-	paymentOps = append(paymentOps, &txnbuild.Payment{
-		Destination: w.keypair.Address(),
-		Amount:      big.NewRat(int64(foundationCut), stellarPrecision).FloatString(stellarPrecisionDigits),
-		Asset: txnbuild.CreditAsset{
-			Code:   w.asset.String(),
-			Issuer: w.GetIssuer(),
-		},
-		SourceAccount: &sourceAccount,
-	})
 
 	formattedMemo := fmt.Sprintf("%d", id)
 	memo := txnbuild.MemoText(formattedMemo)
@@ -568,32 +585,6 @@ func (w *Wallet) GetHorizonClient() (*horizonclient.Client, error) {
 	}
 }
 
-// GetIssuer gets the issuer based on the wallet's asset and network
-func (w *Wallet) GetIssuer() string {
-	switch w.asset {
-	case TFT:
-		switch w.network {
-		case "testnet":
-			return tftIssuerTestnet
-		case "production":
-			return tftIssuerProd
-		default:
-			return tftIssuerTestnet
-		}
-	case FreeTFT:
-		switch w.network {
-		case "testnet":
-			return freeTftIssuerTestnet
-		case "production":
-			return freeTftIssuerProd
-		default:
-			return freeTftIssuerTestnet
-		}
-	default:
-		return tftIssuerTestnet
-	}
-}
-
 // GetNetworkPassPhrase gets the Stellar network passphrase based on the wallet's network
 func (w *Wallet) GetNetworkPassPhrase() string {
 	switch w.network {
@@ -604,16 +595,6 @@ func (w *Wallet) GetNetworkPassPhrase() string {
 	default:
 		return network.TestNetworkPassphrase
 	}
-}
-
-func (e assetCodeEnum) String() string {
-	switch e {
-	case TFT:
-		return TFTCode
-	case FreeTFT:
-		return FreeTFTCode
-	}
-	return "UNKNOWN"
 }
 
 func (i *Signers) String() string {
