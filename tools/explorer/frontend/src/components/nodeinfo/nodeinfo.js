@@ -3,6 +3,7 @@ export default {
   props: ['node'],
   data () {
     return {
+      freeIcon: this.node.freeToUse === true ? { icon: 'fa-check', color: 'green' } : { icon: 'fa-times', color: 'red' }
     }
   },
   mounted () {
