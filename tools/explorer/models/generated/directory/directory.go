@@ -137,10 +137,10 @@ func NewPublicIface() (PublicIface, error) {
 }
 
 type ResourceAmount struct {
-	Cru int64 `bson:"cru" json:"cru"`
-	Mru int64 `bson:"mru" json:"mru"`
-	Hru int64 `bson:"hru" json:"hru"`
-	Sru int64 `bson:"sru" json:"sru"`
+	Cru uint64  `bson:"cru" json:"cru"`
+	Mru float64 `bson:"mru" json:"mru"`
+	Hru float64 `bson:"hru" json:"hru"`
+	Sru float64 `bson:"sru" json:"sru"`
 }
 
 func NewResourceAmount() (ResourceAmount, error) {
@@ -153,11 +153,11 @@ func NewResourceAmount() (ResourceAmount, error) {
 }
 
 type WorkloadAmount struct {
-	Network      int64 `bson:"network" json:"network"`
-	Volume       int64 `bson:"volume" json:"volume"`
-	ZDBNamespace int64 `bson:"zdb_namespace" json:"zdb_namespace"`
-	Container    int64 `bson:"container" json:"container"`
-	K8sVM        int64 `bson:"k8s_vm" json:"k8s_vm"`
+	Network      uint16 `bson:"network" json:"network"`
+	Volume       uint16 `bson:"volume" json:"volume"`
+	ZDBNamespace uint16 `bson:"zdb_namespace" json:"zdb_namespace"`
+	Container    uint16 `bson:"container" json:"container"`
+	K8sVM        uint16 `bson:"k8s_vm" json:"k8s_vm"`
 }
 
 func NewWorkloadAmount() (WorkloadAmount, error) {

@@ -203,7 +203,7 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		}
 	}
 
-	if err = workloads.Setup(router, db.Database(), e); err != nil {
+	if err = workloads.Setup(apiRouter, db.Database(), e); err != nil {
 		log.Error().Err(err).Msg("failed to register package")
 	}
 

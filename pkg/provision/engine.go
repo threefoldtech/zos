@@ -108,22 +108,28 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 	}
 }
 
-func (e *defaultEngine) updateReservedCapacity() error {
+func (e defaultEngine) capacityUsed() (directory.ResourceAmount, directory.WorkloadAmount) {
 	counters := e.store.Counters()
+
 	resources := directory.ResourceAmount{
-		Sru: counters.SRU.Current(),
-		Hru: counters.HRU.Current(),
 		Cru: counters.CRU.Current(),
-		Mru: counters.MRU.Current(),
+		Mru: float64(counters.MRU.Current()) / float64(gib),
+		Sru: float64(counters.SRU.Current()) / float64(gib),
+		Hru: float64(counters.HRU.Current()) / float64(gib),
 	}
 
 	workloads := directory.WorkloadAmount{
-		Volume:       counters.volumes.Current(),
-		Container:    counters.containers.Current(),
-		ZDBNamespace: counters.zdbs.Current(),
-		K8sVM:        counters.vms.Current(),
-		Network:      counters.networks.Current(),
+		Volume:       uint16(counters.volumes.Current()),
+		Container:    uint16(counters.containers.Current()),
+		ZDBNamespace: uint16(counters.zdbs.Current()),
+		K8sVM:        uint16(counters.vms.Current()),
+		Network:      uint16(counters.networks.Current()),
 	}
+	return resources, workloads
+}
+
+func (e *defaultEngine) updateReservedCapacity() error {
+	resources, workloads := e.capacityUsed()
 	log.Info().Msgf("reserved resource %+v", resources)
 	log.Info().Msgf("provisionned workloads %+v", workloads)
 
@@ -254,11 +260,11 @@ func (e *defaultEngine) Counters(ctx context.Context) <-chan pkg.ProvisionCounte
 
 			c := e.store.Counters()
 			pc := pkg.ProvisionCounters{
-				Container: int64(c.containers),
-				Network:   int64(c.networks),
-				ZDB:       int64(c.zdbs),
-				Volume:    int64(c.volumes),
-				VM:        int64(c.vms),
+				Container: int64(c.containers.Current()),
+				Network:   int64(c.networks.Current()),
+				ZDB:       int64(c.zdbs.Current()),
+				Volume:    int64(c.volumes.Current()),
+				VM:        int64(c.vms.Current()),
 			}
 
 			select {
