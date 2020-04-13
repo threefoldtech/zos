@@ -472,6 +472,10 @@ func main() {
 					Name:  "duration",
 					Usage: "duration of the reservation. By default is number of days. But also support notation with duration suffix like m for minute or h for hours",
 				},
+				cli.StringSliceFlag{
+					Name:  "asset",
+					Usage: "add an asset which is acceptable to pay the reservation",
+				},
 				cli.BoolFlag{
 					Name:  "dry-run",
 					Usage: "dry run, prints the reservation instead of registering it",
