@@ -134,7 +134,6 @@ func (c *httpClient) post(u string, input interface{}, output interface{}, expec
 	if err := c.sign(req); err != nil {
 		return errors.Wrap(err, "failed to sign HTTP request")
 	}
-
 	response, err := c.cl.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "failed to send request")

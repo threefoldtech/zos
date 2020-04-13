@@ -109,6 +109,8 @@ func NewFSStore(root string) (*FSStore, error) {
 	return store, store.sync()
 }
 
+//TODO: i think both sync and removeAllButPersistent can be merged into
+// one method because now it scans the same directory twice.
 func (s *FSStore) removeAllButPersistent(rootPath string) error {
 	// if rootPath is not present on the filesystem, return
 	_, err := os.Stat(rootPath)
