@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -33,6 +34,19 @@ var (
 
 // User type
 type User generated.User
+
+// Validate makes the sanity check requires for the user type
+func (u User) Validate() error {
+	if strings.ToLower(u.Name) != u.Name {
+		return fmt.Errorf("name should be all lower case")
+	}
+
+	if len(u.Name) < 3 {
+		return fmt.Errorf("name should be at least 3 character")
+	}
+
+	return nil
+}
 
 // Encode user data for signing
 func (u *User) Encode() []byte {
