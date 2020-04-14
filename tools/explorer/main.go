@@ -1,8 +1,12 @@
+//go:generate $GOPATH/bin/statik -f -src=./frontend/dist
 package main
 
 import (
 	"context"
 	"flag"
+	"fmt"
+	"io"
+	"strings"
 
 	"net/http"
 	"os"
@@ -18,6 +22,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/rakyll/statik/fs"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/version"
 	"github.com/threefoldtech/zos/tools/explorer/config"
@@ -28,6 +33,7 @@ import (
 	"github.com/threefoldtech/zos/tools/explorer/pkg/phonebook"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/stellar"
 	"github.com/threefoldtech/zos/tools/explorer/pkg/workloads"
+	_ "github.com/threefoldtech/zos/tools/explorer/statik"
 )
 
 // Pkg is a shorthand type for func
@@ -44,6 +50,7 @@ func main() {
 		network       string
 		asset         string
 		ver           bool
+		flushEscrows  bool
 		backupSigners stellar.Signers
 	)
 
@@ -51,10 +58,11 @@ func main() {
 	flag.StringVar(&dbConf, "mongo", "mongodb://localhost:27017", "connection string to mongo database")
 	flag.StringVar(&dbName, "name", "explorer", "database name")
 	flag.StringVar(&config.Config.Seed, "seed", "", "wallet seed")
-	flag.StringVar(&config.Config.Network, "network", "testnet", "tfchain network")
-	flag.StringVar(&config.Config.Asset, "asset", "TFT", "which asset to use")
+	flag.StringVar(&config.Config.Network, "network", "", "tfchain network")
+	flag.StringVar(&config.Config.Asset, "asset", "", "which asset to use")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 	flag.Var(&backupSigners, "backupsigner", "reusable flag which adds a signer to the escrow accounts, we need atleast 5 signers to activate multisig")
+	flag.BoolVar(&flushEscrows, "flush-escrows", false, "flush all escrows in the database, including currently active ones, and their associated addressses")
 
 	flag.Parse()
 
@@ -66,13 +74,24 @@ func main() {
 		log.Fatal().Err(err).Msg("invalid configuration")
 	}
 
+	dropEscrow := false
+
+	if flushEscrows {
+		dropEscrow = userInputYesNo("Are you sure you want to drop all escrows and related addresses?") &&
+			userInputYesNo("Are you REALLY sure you want to drop all escrows and related addresses?")
+	}
+
+	if flushEscrows && !dropEscrow {
+		log.Fatal().Msg("user indicated he does not want to remove existing escrow information - please restart the explorer without the \"flush-escrows\" flag")
+	}
+
 	ctx := context.Background()
 	client, err := connectDB(ctx, dbConf)
 	if err != nil {
 		log.Fatal().Err(err).Msg("fail to connect to database")
 	}
 
-	s, err := createServer(listen, dbName, client, network, seed, asset, backupSigners)
+	s, err := createServer(listen, dbName, client, network, seed, asset, dropEscrow, backupSigners)
 	if err != nil {
 		log.Fatal().Err(err).Msg("fail to create HTTP server")
 	}
@@ -105,36 +124,70 @@ func connectDB(ctx context.Context, connectionURI string) (*mongo.Client, error)
 	return client, nil
 }
 
-func createServer(listen, dbName string, client *mongo.Client, network, seed string, asset string, backupSigners stellar.Signers) (*http.Server, error) {
+func createServer(listen, dbName string, client *mongo.Client, network, seed string, asset string, dropEscrowData bool, backupSigners stellar.Signers) (*http.Server, error) {
 	db, err := mw.NewDatabaseMiddleware(dbName, client)
 	if err != nil {
 		return nil, err
 	}
 
+	var prom *muxprom.MuxProm
 	router := mux.NewRouter()
-	prom := muxprom.New(
+	statikFS, err := fs.New()
+	if err != nil {
+		return nil, err
+	}
+
+	prom = muxprom.New(
 		muxprom.Router(router),
 		muxprom.Namespace("explorer"),
 	)
 	prom.Instrument()
-
 	router.Use(db.Middleware)
+
 	router.Path("/metrics").Handler(promhttp.Handler()).Name("metrics")
+	router.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(statikFS)))
+	router.Path("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		r, err := statikFS.Open("/index.html")
+		if err != nil {
+			mw.Error(err, http.StatusInternalServerError)
+			return
+		}
+		defer r.Close()
+
+		w.WriteHeader(http.StatusOK)
+		if _, err := io.Copy(w, r); err != nil {
+			log.Error().Err(err).Send()
+		}
+	})
+
+	if dropEscrowData {
+		log.Warn().Msg("dropping escrow and address collection")
+		if err := db.Database().Collection(escrowdb.AddressCollection).Drop(context.Background()); err != nil {
+			log.Fatal().Err(err).Msg("failed to drop address collection")
+		}
+		if err := db.Database().Collection(escrowdb.EscrowCollection).Drop(context.Background()); err != nil {
+			log.Fatal().Err(err).Msg("failed to drop escrow collection")
+		}
+		log.Info().Msg("escrow and address collection dropped successfully. restart the explorer without \"flush-escrows\" flag")
+		os.Exit(0)
+	}
 
 	var e escrow.Escrow
 	if seed != "" && asset != "" {
+		log.Info().Msgf("escrow disabled on %s %s", config.Config.Network, config.Config.Asset)
 		if err := escrowdb.Setup(context.Background(), db.Database()); err != nil {
 			log.Fatal().Err(err).Msg("failed to create escrow database indexes")
 		}
 
-	wallet, err := stellar.New(config.Config.Seed, config.Config.Network, config.Config.Asset, backupSigners)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create stellar wallet")
-	}
+		wallet, err := stellar.New(config.Config.Seed, config.Config.Network, config.Config.Asset, backupSigners)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to create stellar wallet")
+		}
 
 		e = escrow.NewStellar(wallet, db.Database())
 
 	} else {
+		log.Info().Msg("escrow disabled")
 		e = escrow.NewFree(db.Database())
 	}
 
@@ -145,13 +198,14 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		directory.Setup,
 	}
 
+	apiRouter := router.PathPrefix("/explorer").Subrouter()
 	for _, pkg := range pkgs {
-		if err := pkg(router, db.Database()); err != nil {
+		if err := pkg(apiRouter, db.Database()); err != nil {
 			log.Error().Err(err).Msg("failed to register package")
 		}
 	}
 
-	if err = workloads.Setup(router, db.Database(), e); err != nil {
+	if err = workloads.Setup(apiRouter, db.Database(), e); err != nil {
 		log.Error().Err(err).Msg("failed to register package")
 	}
 
@@ -163,4 +217,19 @@ func createServer(listen, dbName string, client *mongo.Client, network, seed str
 		Addr:    listen,
 		Handler: r,
 	}, nil
+}
+
+func userInputYesNo(question string) bool {
+	var reply string
+	fmt.Printf("%s (yes/no): ", question)
+	_, err := fmt.Scan(&reply)
+	if err != nil {
+		// if we can't read from the cmd line something is really really wrong
+		log.Fatal().Err(err).Msg("could not read user reply from command line")
+	}
+
+	reply = strings.TrimSpace(reply)
+	reply = strings.ToLower(reply)
+
+	return reply == "y" || reply == "yes"
 }

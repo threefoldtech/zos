@@ -14,7 +14,7 @@ import (
 
 var (
 	db     client.Directory
-	userid identity.UserIdentity
+	userid *identity.UserIdentity
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 		cli.StringFlag{
 			Name:   "bcdb, b",
 			Usage:  "URL of the BCDB",
-			Value:  "https://explorer.devnet.grid.tf",
+			Value:  "https://explorer.devnet.grid.tf/explorer",
 			EnvVar: "BCDB_URL",
 		},
 	}
@@ -56,7 +56,7 @@ func main() {
 		}
 
 		url := c.String("bcdb")
-		cl, err := client.NewClient(url, userid.Key())
+		cl, err := client.NewClient(url, userid)
 		if err != nil {
 			return errors.Wrap(err, "failed to create client to bcdb")
 		}
@@ -86,6 +86,16 @@ func main() {
 							Name:     "asset",
 							Usage:    "wallet address asset (TFT, FreeTFT)",
 							Required: true,
+						},
+						cli.StringSliceFlag{
+							Name:     "email",
+							Usage:    "email address of the farmer. It is used to send communication to the farmer and for the minting",
+							Required: true,
+						},
+						cli.StringSliceFlag{
+							Name:     "iyo_organization",
+							Usage:    "the It'sYouOnline organization used by your farm in v1",
+							Required: false,
 						},
 					},
 					Action: registerFarm,
