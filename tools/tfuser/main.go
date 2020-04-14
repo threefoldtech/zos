@@ -14,7 +14,7 @@ import (
 
 var (
 	bcdb     *client.Client
-	mainui   *identity.UserIdentity
+	mainui   = &identity.UserIdentity{}
 	bcdbAddr string
 	mainSeed string
 )
