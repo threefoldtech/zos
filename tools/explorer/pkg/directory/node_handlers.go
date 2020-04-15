@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/zaibon/httpsig"
@@ -23,6 +24,21 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 )
+
+type nodesSpecs struct {
+	AmountRegisteredNodes int64   `json:"amountOfRegisteredNodes"`
+	OnlineNodes           int     `json:"onlineNodes"`
+	Countries             int     `json:"countries"`
+	TotalCru              uint64  `json:"totalCru"`
+	TotalSru              float64 `json:"totalSru"`
+	TotalHru              float64 `json:"totalHru"`
+	TotalMru              float64 `json:"totalMru"`
+	Networks              uint16  `json:"networks"`
+	Volumes               uint16  `json:"volumes"`
+	Containers            uint16  `json:"containers"`
+	Zdbs                  uint16  `json:"zdbs"`
+	K8s                   uint16  `json:"k8s"`
+}
 
 func (s *NodeAPI) registerNode(r *http.Request) (interface{}, mw.Response) {
 	log.Info().Msg("node register request received")
@@ -80,6 +96,73 @@ func (s *NodeAPI) listNodes(r *http.Request) (interface{}, mw.Response) {
 
 	pages := fmt.Sprintf("%d", models.Pages(pager, total))
 	return nodes, mw.Ok().WithHeader("Pages", pages)
+}
+
+func (s *NodeAPI) nodeStats(r *http.Request) (interface{}, mw.Response) {
+	q := nodeQuery{}
+	if err := q.Parse(r); err != nil {
+		return nil, err
+	}
+
+	db := mw.Database(r)
+	nodes, total, err := s.List(r.Context(), db, q, nil)
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	nodeSpecs := caculateNodeSpecs(nodes)
+	nodeSpecs.AmountRegisteredNodes = total
+
+	return nodeSpecs, mw.Ok()
+}
+
+func caculateNodeSpecs(nodes []directory.Node) nodesSpecs {
+	nodeCountries := make([]string, 0)
+	nodeSpecs := nodesSpecs{}
+	for _, node := range nodes {
+		_, found := find(nodeCountries, node.Location.Country)
+		if !found {
+			nodeCountries = append(nodeCountries, node.Location.Country)
+			nodeSpecs.Countries++
+		}
+		if time.Now().Before(node.Updated.Time.Add(time.Minute * 20)) {
+			nodeSpecs.OnlineNodes++
+		}
+		nodeSpecs.TotalCru += node.TotalResources.Cru
+		nodeSpecs.TotalSru += node.TotalResources.Sru
+		nodeSpecs.TotalHru += node.TotalResources.Hru
+		nodeSpecs.TotalMru += node.TotalResources.Mru
+		nodeSpecs.Networks += node.Workloads.Network
+		nodeSpecs.Volumes += node.Workloads.Volume
+		nodeSpecs.Containers += node.Workloads.Container
+		nodeSpecs.Zdbs += node.Workloads.ZDBNamespace
+		nodeSpecs.K8s += node.Workloads.K8sVM
+
+	}
+	return nodeSpecs
+}
+
+// find takes a slice and looks for an element in it. If found it will
+// return it's key, otherwise it will return -1 and a bool of false.
+func find(slice []string, val string) (int, bool) {
+	for i, item := range slice {
+		if item == val {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+func countOnlineNodes(nodes []directory.Node) int {
+	onlinecounter := 0
+	for _, node := range nodes {
+		timestamp := time.Now()
+		minutes := (timestamp.Sub(node.Updated.Time)) / 60
+		if minutes < 20 {
+			onlinecounter++
+		}
+	}
+	return onlinecounter
 }
 
 func (s *NodeAPI) registerCapacity(r *http.Request) (interface{}, mw.Response) {

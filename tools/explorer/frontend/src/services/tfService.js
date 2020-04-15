@@ -36,13 +36,17 @@ export default {
       }
     })
   },
-  getNodes (farm_id = undefined) {
+  getNodes (farm_id = undefined, size, page) {
     return axios.get(`${config.tfApiUrl}/nodes`, {
       params: {
         farm_id: farm_id,
-        size: 250
+        size,
+        page
       }
     })
+  },
+  getNodeStats () {
+    return axios.get(`${config.tfApiUrl}/nodes/stats`)
   },
   registeredfarms () {
     return axios.get(`${config.tfApiUrl}/farms`)

@@ -31,7 +31,18 @@
         <v-card-text>
           <v-flex class="ml-3">
             <v-layout column justify-space-around>
-              <v-data-table show-expand item-key="name" :search="searchnodes" :headers="headers" :items="parsedNodesList" :items-per-page="10" single-expand :expanded.sync="expanded" @click:row="openNodeDetails">
+              <v-data-table 
+                show-expand item-key="name" 
+                :search="searchnodes" 
+                :headers="headers" 
+                :items="parsedNodesList" 
+                :items-per-page="10" 
+                single-expand 
+                :expanded.sync="expanded" 
+                @click:row="openNodeDetails"
+                :server-items-length="nodeSpecs.amountregisteredNodes"
+                :options.sync="options"
+              >
                 
                 <template v-slot:item.farmer="{ item }">
                   <v-tooltip top>

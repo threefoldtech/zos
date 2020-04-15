@@ -39,6 +39,7 @@ func Setup(parent *mux.Router, db *mongo.Database) error {
 
 	nodes.HandleFunc("", mw.AsHandlerFunc(nodeAPI.registerNode)).Methods("POST").Name("node-register")
 	nodes.HandleFunc("", mw.AsHandlerFunc(nodeAPI.listNodes)).Methods("GET").Name("nodes-list")
+	nodes.HandleFunc("/stats", mw.AsHandlerFunc(nodeAPI.nodeStats)).Methods("GET").Name("nodes-stats")
 	nodes.HandleFunc("/{node_id}", mw.AsHandlerFunc(nodeAPI.nodeDetail)).Methods("GET").Name(("node-get"))
 	nodesAuthenticated.HandleFunc("/{node_id}/interfaces", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerIfaces))).Methods("POST").Name("node-interfaces")
 	nodesAuthenticated.HandleFunc("/{node_id}/ports", mw.AsHandlerFunc(nodeAPI.Requires("node_id", nodeAPI.registerPorts))).Methods("POST").Name("node-set-ports")

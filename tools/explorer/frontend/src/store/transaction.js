@@ -1,6 +1,5 @@
 import tfService from '../services/tfService'
-import lodash from 'lodash'
-
+/* eslint-disable */
 export default ({
   state: {
     user: {},
@@ -35,9 +34,13 @@ export default ({
       var response = await tfService.getUser(name)
       context.commit('setUser', response.data)
     },
-    getRegisteredNodes (context) {
-      tfService.getNodes().then(response => {
+    getRegisteredNodes (context, params) {
+      tfService.getNodes(undefined, params.size, params.page).then(response => {
         context.commit('setRegisteredNodes', response.data)
+      })
+    },
+    getRegisteredNodesStats (context) {
+      tfService.getNodeStats().then(response => {
         context.commit('setTotalSpecs', response.data)
       })
     },
@@ -75,22 +78,20 @@ export default ({
     setAmountOfFarms (state, value) {
       state.nodeSpecs.amountregisteredFarms = value.length
     },
-    setTotalSpecs (state, value) {
-      state.nodeSpecs.amountregisteredNodes = value.length
-      state.nodeSpecs.onlinenodes = countOnlineNodes(value)
-      state.nodeSpecs.countries = lodash.uniqBy(
-        value,
-        node => node.location.country
-      ).length
-      state.nodeSpecs.cru = lodash.sumBy(value, node => node.total_resources.cru)
-      state.nodeSpecs.mru = lodash.sumBy(value, node => node.total_resources.mru)
-      state.nodeSpecs.sru = lodash.sumBy(value, node => node.total_resources.sru)
-      state.nodeSpecs.hru = lodash.sumBy(value, node => node.total_resources.hru)
-      state.nodeSpecs.network = lodash.sumBy(value, node => node.workloads.network)
-      state.nodeSpecs.volume = lodash.sumBy(value, node => node.workloads.volume)
-      state.nodeSpecs.container = lodash.sumBy(value, node => node.workloads.container)
-      state.nodeSpecs.zdb_namespace = lodash.sumBy(value, node => node.workloads.zdb_namespace)
-      state.nodeSpecs.k8s_vm = lodash.sumBy(value, node => node.workloads.k8s_vm)
+    setTotalSpecs (state, data) {
+      debugger
+      state.nodeSpecs.amountregisteredNodes = data.amountOfRegisteredNodes
+      state.nodeSpecs.onlinenodes = data.onlineNodes
+      state.nodeSpecs.countries = data.countries
+      state.nodeSpecs.cru = data.totalCru
+      state.nodeSpecs.mru = data.totalMru
+      state.nodeSpecs.sru = data.totalSru
+      state.nodeSpecs.hru = data.totalHru
+      state.nodeSpecs.network = data.networks
+      state.nodeSpecs.volume = data.volumes
+      state.nodeSpecs.container = data.containers
+      state.nodeSpecs.zdb_namespace = data.zdbs
+      state.nodeSpecs.k8s_vm = data.k8s
     }
   },
   getters: {

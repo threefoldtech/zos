@@ -3,6 +3,7 @@ import { mapGetters, mapActions } from 'vuex'
 import moment from 'moment'
 import momentDurationFormatSetup from 'moment-duration-format'
 import { find } from 'lodash'
+/* eslint-disable */
 
 momentDurationFormatSetup(moment)
 
@@ -28,7 +29,7 @@ export default {
       othersHidden: false,
       itemsPerPage: 4,
       expanded: [],
-
+      options: {},
       headers: [
         { text: 'ID', value: 'id' },
         { text: 'Uptime', value: 'uptime' },
@@ -38,12 +39,22 @@ export default {
       ]
     }
   },
+  watch: {
+    options: {
+      handler (page) {
+        this.getRegisteredNodes({ page: page.page, size: page.itemsPerPage })
+      },
+      deep: true,
+    },
+  },
   computed: {
-    ...mapGetters(['registeredFarms', 'nodes']),
+    ...mapGetters(['registeredFarms', 'nodes', 'nodeSpecs']),
     // Parse nodelist to table format here
     parsedNodesList: function () {
+      debugger
       const nodeList = this.nodes ? this.nodes : this.registerednodes
       const parsedNodes = nodeList.filter(node => this.showNode(node)).map(node => {
+        debugger
         const farm = find(this.registeredFarms, farmer => {
           return farmer.id === node.farm_id
         })
@@ -72,7 +83,7 @@ export default {
     this.resetNodes()
   },
   methods: {
-    ...mapActions(['resetNodes']),
+    ...mapActions(['resetNodes', 'getRegisteredNodes']),
     getStatus (node) {
       const { updated } = node
       const startTime = moment()
@@ -84,6 +95,7 @@ export default {
       else if (minutes > 16 && minutes < 20) { return { color: 'orange', status: 'likely down' } } else return { color: 'red', status: 'down' }
     },
     showNode (node) {
+      debugger
       if (this.farmselected && this.farmselected.id !== node.farm_id) {
         return false
       }

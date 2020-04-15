@@ -27,20 +27,22 @@ export default {
     ])
   },
   mounted () {
-    this.getRegisteredNodes()
+    this.getRegisteredNodes({ size: 10, page: 1 })
     this.getRegisteredFarms()
+    this.getRegisteredNodesStats()
     // this.initialiseRefresh()
   },
 
   methods: {
-    ...mapActions(['getRegisteredNodes', 'getRegisteredFarms']),
+    ...mapActions(['getRegisteredNodes', 'getRegisteredFarms', 'getRegisteredNodesStats']),
     changeSelectedNode (data) {
       this.selectedNode = data
     },
     initialiseRefresh () {
       const that = this
       this.refreshInterval = setInterval(() => {
-        that.getRegisteredNodes()
+        that.getRegisteredNodes({ size: 10, page: 1 })
+        that.getRegisteredNodesStats()
         that.getRegisteredFarms()
       }, 60000) // refresh every 10 minutes
     }
