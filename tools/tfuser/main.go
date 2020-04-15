@@ -330,6 +330,10 @@ func main() {
 							Name:  "stderr",
 							Usage: "like stdout but for stderr, if only stdout is set, stderr will use the same",
 						},
+						cli.StringFlag{
+							Name:  "stats",
+							Usage: "like process logs, but for metrics (metrics are pushed as json)",
+						},
 					},
 					Action: generateContainer,
 				},

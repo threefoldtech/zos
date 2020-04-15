@@ -246,9 +246,12 @@ func NewResult() (Result, error) {
 }
 
 type StatsAggregator struct {
-	Addr   string `bson:"addr" json:"addr"`
-	Port   int64  `bson:"port" json:"port"`
-	Secret string `bson:"secret" json:"secret"`
+	Type string     `bson:"type" json:"type"`
+	Data StatsRedis `bson:"data" json:"data"`
+}
+
+type StatsRedis struct {
+	Endpoint string `bson:"stdout" json:"endpoint"`
 }
 
 func NewStatsAggregator() (StatsAggregator, error) {
