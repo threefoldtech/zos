@@ -56,6 +56,12 @@
             <span>TF</span>
             <span class="font-weight-light">explorer</span>
             <span class="title font-weight-light">- {{$route.meta.displayName}}</span>
+            <v-progress-circular
+              class="spinner"
+              v-if="page"
+              indeterminate
+              color="primary"
+            ></v-progress-circular>
           </h1>
           <v-spacer />
         </v-row>
@@ -87,6 +93,8 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
+
 export default {
   name: 'App',
   components: {},
@@ -103,7 +111,10 @@ export default {
   computed: {
     routes () {
       return this.$router.options.routes
-    }
+    },
+    ...mapGetters([
+      'page'
+    ])
   },
   mounted () {}
 }
@@ -125,5 +136,8 @@ export default {
 }
 .v-card__title {
   font-size: 18px !important;
+}
+.spinner {
+  margin-left: 20px;
 }
 </style>

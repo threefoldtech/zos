@@ -3,6 +3,7 @@ import capacityMap from '../../components/capacitymap'
 import nodesTable from '../../components/nodestable'
 import scrollablecard from '../../components/scrollablecard'
 import { mapGetters, mapActions } from 'vuex'
+
 export default {
   name: 'capacity',
   components: { miniGraph, capacityMap, nodesTable, scrollablecard },
@@ -23,12 +24,14 @@ export default {
   computed: {
     ...mapGetters([
       'nodeSpecs',
-      'registeredNodes'
+      'registeredNodes',
+      'page'
     ])
   },
   mounted () {
-    this.getRegisteredNodes()
+    this.getRegisteredNodes({ size: 100, page: 1 })
     this.getRegisteredFarms()
+    this.initialiseNodesLoading()
     // this.initialiseRefresh()
   },
 
@@ -43,6 +46,12 @@ export default {
         that.getRegisteredNodes()
         that.getRegisteredFarms()
       }, 60000) // refresh every 10 minutes
+    },
+    initialiseNodesLoading () {
+      const that = this
+      this.nodesLoadingInterval = setInterval(() => {
+        that.getRegisteredNodes({ size: 50, page: undefined })
+      }, 500)
     }
   }
 }
