@@ -292,7 +292,6 @@ func (w *Wallet) GetBalance(address string, id schema.ID, asset Asset) (xdr.Int6
 	txReq := horizonclient.TransactionRequest{
 		ForAccount: address,
 		Cursor:     cursor,
-		Limit:      200,
 	}
 
 	log.Info().Str("address", address).Msg("fetching balance for address")
@@ -385,7 +384,10 @@ func (w *Wallet) Refund(encryptedSeed string, id schema.ID, asset Asset) error {
 	if err != nil {
 		return errors.Wrap(err, "could not get keypair from encrypted seed")
 	}
-
+	sourceAccount, err := w.GetAccountDetails(keypair.Address())
+	if err != nil {
+		return errors.Wrap(err, "failed to get source account")
+	}
 	amount, funders, err := w.GetBalance(keypair.Address(), id, asset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get balance")
@@ -394,12 +396,6 @@ func (w *Wallet) Refund(encryptedSeed string, id schema.ID, asset Asset) error {
 	if amount == 0 {
 		return nil
 	}
-
-	sourceAccount, err := w.GetAccountDetails(keypair.Address())
-	if err != nil {
-		return errors.Wrap(err, "failed to get source account")
-	}
-
 	destination := funders[0]
 
 	paymentOP := txnbuild.Payment{
@@ -444,6 +440,17 @@ func (w *Wallet) PayoutFarmers(encryptedSeed string, destinations []PayoutInfo, 
 	sourceAccount, err := w.GetAccountDetails(keypair.Address())
 	if err != nil {
 		return errors.Wrap(err, "failed to get source account")
+	}
+	balance, _, err := w.GetBalance(keypair.Address(), id, asset)
+	if err != nil {
+		return errors.Wrap(err, "failed to get balance")
+	}
+	requiredAmount := xdr.Int64(0)
+	for _, pi := range destinations {
+		requiredAmount += pi.Amount
+	}
+	if balance < requiredAmount {
+		return ErrInsuficientBalance
 	}
 
 	paymentOps := make([]txnbuild.Operation, 0, len(destinations)+1)
