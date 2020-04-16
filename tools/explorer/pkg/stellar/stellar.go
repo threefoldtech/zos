@@ -32,11 +32,10 @@ type (
 	// Wallet is the foundation wallet
 	// Payments will be funded and fees will be taken with this wallet
 	Wallet struct {
-		keypair        *keypair.Full
-		network        string
-		assets         map[Asset]struct{}
-		signers        Signers
-		minimumBalance float64
+		keypair *keypair.Full
+		network string
+		assets  map[Asset]struct{}
+		signers Signers
 	}
 )
 
@@ -74,18 +73,10 @@ func New(seed, network string, signers []string) (*Wallet, error) {
 		log.Warn().Msg("to enable escrow account recovery, provide atleast 3 signers")
 	}
 
-	// mimimumBalance can be calculated as following
-	// Minimum Balance = (2 + # of entries) * base reserve
-	// entries is the amount of operations are required to setup the account
-	// we have 3 trustline operations for assets, and an equally number of operations for
-	// the lenght of the signers
-	minimumBalance := float64((2 + 3 + len(signers))) * 0.5
-
 	w := &Wallet{
-		network:        network,
-		assets:         assets,
-		signers:        signers,
-		minimumBalance: minimumBalance,
+		network: network,
+		assets:  assets,
+		signers: signers,
 	}
 
 	var err error
@@ -167,9 +158,11 @@ func (w *Wallet) CreateAccount() (string, string, error) {
 }
 
 func (w *Wallet) activateEscrowAccount(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
+	currency := big.NewRat(int64(w.getMinumumBalance()), stellarPrecision)
+	minimumBalance := currency.FloatString(stellarPrecisionDigits)
 	createAccountOp := txnbuild.CreateAccount{
 		Destination: newKp.Address(),
-		Amount:      strconv.FormatFloat(w.minimumBalance, 'f', 2, 64),
+		Amount:      minimumBalance,
 	}
 	tx := txnbuild.Transaction{
 		SourceAccount: &sourceAccount,
@@ -604,6 +597,13 @@ func (w *Wallet) GetNetworkPassPhrase() string {
 	default:
 		return network.TestNetworkPassphrase
 	}
+}
+
+// getMinumumBalance calculates minimum balance for an escrow account
+// following formula is used: minimum Balance = (2 + # of entries) * base reserve
+// entries is the amount of operations are required to setup the account
+func (w *Wallet) getMinumumBalance() int {
+	return (2 + len(w.assets) + len(w.signers)) * (1e7 / 2)
 }
 
 func (i *Signers) String() string {
