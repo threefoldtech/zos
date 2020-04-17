@@ -102,7 +102,7 @@
 
 <script>
 import { mapGetters, mapActions } from 'vuex'
-/* eslint-disable */
+
 export default {
   name: 'App',
   components: {},
