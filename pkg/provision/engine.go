@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/threefoldtech/tfexplorer/client"
+	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/tools/client"
-	"github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/tools/client"
 )
 
 type pollSource struct {

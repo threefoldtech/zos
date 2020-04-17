@@ -6,11 +6,11 @@ import (
 	"net"
 	"time"
 
+	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
 	"github.com/threefoldtech/zos/pkg/network/types"
-	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 )
 
 // ContainerToProvisionType converts TfgridReservationContainer1 to Container

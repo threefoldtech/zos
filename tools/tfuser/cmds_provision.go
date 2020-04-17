@@ -12,11 +12,11 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stellar/go/xdr"
+	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/provision"
-	"github.com/threefoldtech/zos/pkg/schema"
-	"github.com/threefoldtech/zos/tools/client"
+	"github.com/threefoldtech/tfexplorer/schema"
 
 	"github.com/urfave/cli"
 )

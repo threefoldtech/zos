@@ -3,7 +3,7 @@ package provision
 import (
 	"fmt"
 
-	"github.com/threefoldtech/zos/tools/client"
+	"github.com/threefoldtech/tfexplorer/client"
 )
 
 // ReservationGetter define the interface how to get

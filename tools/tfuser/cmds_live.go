@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
+	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"gopkg.in/yaml.v2"
 
-	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/urfave/cli"
 )
 

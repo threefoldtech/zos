@@ -5,8 +5,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/zos/pkg/network/types"
-	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 
 	"github.com/threefoldtech/zos/pkg"
 
@@ -14,7 +14,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
 	"github.com/threefoldtech/zos/pkg/provision"
-	schema "github.com/threefoldtech/zos/pkg/schema"
+	schema "github.com/threefoldtech/tfexplorer/schema"
 	"gotest.tools/assert"
 )
 

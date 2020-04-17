@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/tfexplorer/schema"
 )
 
 func handle(in io.Reader, pkg, dir string) error {

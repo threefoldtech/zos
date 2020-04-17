@@ -7,9 +7,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/tfexplorer/client"
+	"github.com/threefoldtech/tfexplorer/models/generated/phonebook"
 	"github.com/threefoldtech/zos/pkg/identity"
-	"github.com/threefoldtech/zos/tools/client"
-	"github.com/threefoldtech/zos/tools/explorer/models/generated/phonebook"
 	"github.com/urfave/cli"
 )
 

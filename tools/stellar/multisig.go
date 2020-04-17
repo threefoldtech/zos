@@ -8,7 +8,7 @@ import (
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/txnbuild"
-	"github.com/threefoldtech/zos/tools/explorer/pkg/stellar"
+	"github.com/threefoldtech/tfexplorer/pkg/stellar"
 
 	"github.com/urfave/cli"
 )

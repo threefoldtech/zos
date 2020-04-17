@@ -7,13 +7,12 @@ import (
 
 	"github.com/cenkalti/backoff/v3"
 
+	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/monitord"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
-	"github.com/threefoldtech/zos/tools/client"
-	"github.com/threefoldtech/zos/tools/explorer/models/generated/directory"
 
 	"github.com/rs/zerolog/log"
 
@@ -32,7 +31,7 @@ func cap(ctx context.Context, client zbus.Client) {
 	}
 
 	// call this now so we block here until identityd is ready to serve us
-	nodeID := identity.NodeID().Identity()
+	// nodeID := identity.NodeID().Identity()
 
 	r := capacity.NewResourceOracle(storage)
 
@@ -49,31 +48,32 @@ func cap(ctx context.Context, client zbus.Client) {
 		Msg("resource units found")
 
 	log.Info().Msg("read DMI info")
-	dmi, err := r.DMI()
-	if err != nil {
-		log.Fatal().Err(err).Msgf("failed to read DMI information from hardware")
-	}
+	// dmi, err := r.DMI()
+	// if err != nil {
+	// 	log.Fatal().Err(err).Msgf("failed to read DMI information from hardware")
+	// }
 
-	disks, err := r.Disks()
-	if err != nil {
-		log.Fatal().Err(err).Msgf("failed to read smartctl information from disks")
-	}
+	// disks, err := r.Disks()
+	// if err != nil {
+	// 	log.Fatal().Err(err).Msgf("failed to read smartctl information from disks")
+	// }
 
-	hypervisor, err := r.GetHypervisor()
-	if err != nil {
-		log.Fatal().Err(err).Msgf("failed to read virtualized state")
-	}
+	// hypervisor, err := r.GetHypervisor()
+	// if err != nil {
+	// 	log.Fatal().Err(err).Msgf("failed to read virtualized state")
+	// }
 
-	ru := directory.ResourceAmount{
-		Cru: resources.CRU,
-		Mru: float64(resources.MRU),
-		Hru: float64(resources.HRU),
-		Sru: float64(resources.SRU),
-	}
+	// ru := directory.ResourceAmount{
+	// 	Cru: resources.CRU,
+	// 	Mru: float64(resources.MRU),
+	// 	Hru: float64(resources.HRU),
+	// 	Sru: float64(resources.SRU),
+	// }
 
 	setCapacity := func() error {
 		log.Info().Msg("sends capacity detail to BCDB")
-		return cl.NodeSetCapacity(nodeID, ru, *dmi, disks, hypervisor)
+		// return cl.NodeSetCapacity(nodeID, ru, *dmi, disks, hypervisor)
+		return nil
 	}
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0 // retry forever
