@@ -5,7 +5,8 @@ export default ({
   state: {
     user: {},
     registeredNodes: [],
-    page: 2,
+    nodePage: 2,
+    farmPage: 2,
     nodes: undefined,
     registeredFarms: [],
     farms: [],
@@ -38,21 +39,28 @@ export default ({
     },
     getRegisteredNodes (context, params) {
       // if state.page is undefined, means we reached an endstate and fetched all the nodes already
-      if (context.state.page === undefined) {
+      if (context.state.nodePage === undefined) {
         return
       }
 
-      let page = params.page || context.state.page
+      let page = params.page || context.state.nodePage
 
       tfService.getNodes(undefined, params.size, page).then(response => {
         context.commit('setRegisteredNodes', response)
         context.commit('setTotalSpecs', response.data)
       })
     },
-    getRegisteredFarms (context, farmId) {
-      tfService.registeredfarms(farmId).then(response => {
+    getRegisteredFarms (context, params) {
+      // if state.page is undefined, means we reached an endstate and fetched all the nodes already
+      if (context.state.farmPage === undefined) {
+        return
+      }
+
+      let page = params.page || context.state.farmPage
+
+      tfService.registeredfarms(params.size, page).then(response => {
         context.commit('setAmountOfFarms', response.data)
-        context.commit('setRegisteredFarms', response.data)
+        context.commit('setRegisteredFarms', response)
       })
     },
     getFarms: context => {
@@ -67,14 +75,20 @@ export default ({
   mutations: {
     setRegisteredNodes (state, response) {
       if (response.data.length === 0) {
-        state.page = undefined
+        state.nodePage = undefined
         return
       }
       state.registeredNodes = state.registeredNodes.concat(response.data)
-      state.page += 1
+      state.nodePage += 1
     },
-    setRegisteredFarms (state, value) {
-      state.registeredFarms = value
+    setRegisteredFarms (state, response) {
+      // state.registeredFarms = value
+      if (response.data.length === 0) {
+        state.farmPage = undefined
+        return
+      }
+      state.registeredFarms = state.registeredFarms.concat(response.data)
+      state.farmPage += 1
     },
     setFarms (state, value) {
       state.farms = value
@@ -116,7 +130,8 @@ export default ({
     registeredFarms: state => state.registeredFarms,
     farms: state => state.farms,
     nodeSpecs: state => state.nodeSpecs,
-    page: state => state.page
+    nodePage: state => state.nodePage,
+    farmPage: state => state.farmPage
   }
 })
 

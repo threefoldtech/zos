@@ -45,8 +45,13 @@ export default {
       }
     })
   },
-  registeredfarms () {
-    return axios.get(`${config.tfApiUrl}/farms`)
+  registeredfarms (size, page) {
+    return axios.get(`${config.tfApiUrl}/farms`, {
+      params: {
+        size,
+        page
+      }
+    })
   },
   news () {
     return axios.get(`${config.tfApiUrl}/news`)

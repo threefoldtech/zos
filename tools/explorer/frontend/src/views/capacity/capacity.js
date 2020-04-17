@@ -24,14 +24,14 @@ export default {
   computed: {
     ...mapGetters([
       'nodeSpecs',
-      'registeredNodes',
-      'page'
+      'registeredNodes'
     ])
   },
   mounted () {
     this.getRegisteredNodes({ size: 100, page: 1 })
-    this.getRegisteredFarms()
+    this.getRegisteredFarms({ size: 100, page: 1 })
     this.initialiseNodesLoading()
+    this.initialiseFarmsLoading()
     // this.initialiseRefresh()
   },
 
@@ -43,14 +43,20 @@ export default {
     initialiseRefresh () {
       const that = this
       this.refreshInterval = setInterval(() => {
-        that.getRegisteredNodes()
-        that.getRegisteredFarms()
+        that.getRegisteredNodes({ size: 100, page: 1 })
+        that.getRegisteredFarms({ size: 100, page: 1 })
       }, 60000) // refresh every 10 minutes
     },
     initialiseNodesLoading () {
       const that = this
       this.nodesLoadingInterval = setInterval(() => {
         that.getRegisteredNodes({ size: 50, page: undefined })
+      }, 500)
+    },
+    initialiseFarmsLoading () {
+      const that = this
+      this.farmsLoadingInterval = setInterval(() => {
+        that.getRegisteredFarms({ size: 50, page: undefined })
       }, 500)
     }
   }

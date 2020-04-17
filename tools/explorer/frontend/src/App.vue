@@ -58,7 +58,7 @@
             <span class="title font-weight-light">- {{$route.meta.displayName}}</span>
             <v-progress-circular
               class="spinner"
-              v-if="page"
+              v-if="nodePage || farmPage"
               indeterminate
               color="primary"
             ></v-progress-circular>
@@ -113,7 +113,8 @@ export default {
       return this.$router.options.routes
     },
     ...mapGetters([
-      'page'
+      'nodePage',
+      'farmPage'
     ])
   },
   mounted () {}
