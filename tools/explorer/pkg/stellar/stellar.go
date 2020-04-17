@@ -307,7 +307,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID, asset Asset) (xdr.Int6
 	}
 
 	donors := make(map[string]struct{})
-	for len(txes.Embedded.Records) < stellarPageLimit {
+	for len(txes.Embedded.Records) != 0 {
 		for _, tx := range txes.Embedded.Records {
 			if tx.Memo == strconv.FormatInt(int64(id), 10) {
 				effectsReq := horizonclient.EffectRequest{
@@ -363,6 +363,14 @@ func (w *Wallet) GetBalance(address string, id schema.ID, asset Asset) (xdr.Int6
 			}
 			cursor = tx.PagingToken()
 		}
+
+		// if the amount of records fetched is smaller than the page limit
+		// we can assume we are on the last page and we break to prevent another
+		// call to horizon
+		if len(txes.Embedded.Records) < stellarPageLimit {
+			break
+		}
+
 		txReq.Cursor = cursor
 		log.Info().Str("address", address).Msgf("fetching balance for address with cursor: %s", cursor)
 		txes, err = horizonClient.Transactions(txReq)
