@@ -24,6 +24,10 @@ func (d *httpDirectory) FarmRegister(farm directory.Farm) (schema.ID, error) {
 	return output.ID, err
 }
 
+func (d *httpDirectory) FarmUpdate(farm directory.Farm) error {
+	return d.put(d.url("farms", fmt.Sprintf("%d", farm.ID)), farm, nil, http.StatusOK)
+}
+
 func (d *httpDirectory) FarmList(tid schema.ID, name string, page *Pager) (farms []directory.Farm, err error) {
 	query := url.Values{}
 	page.apply(query)
@@ -118,4 +122,12 @@ func (d *httpDirectory) NodeUpdateUsedResources(id string, resources directory.R
 		workloads,
 	}
 	return d.post(d.url("nodes", id, "used_resources"), input, nil, http.StatusOK)
+}
+
+func (d *httpDirectory) NodeSetFreeToUse(id string, free bool) error {
+	choice := struct {
+		FreeToUse bool `json:"free_to_use"`
+	}{FreeToUse: free}
+
+	return d.post(d.url("nodes", id, "configure_free"), choice, nil, http.StatusOK)
 }

@@ -32,6 +32,7 @@ func NewReservation() (Reservation, error) {
 
 type ReservationData struct {
 	Description             string         `bson:"description" json:"description"`
+	Currencies              []string       `bson:"currencies" json:"currencies"`
 	SigningRequestProvision SigningRequest `bson:"signing_request_provision" json:"signing_request_provision"`
 	SigningRequestDelete    SigningRequest `bson:"signing_request_delete" json:"signing_request_delete"`
 	Containers              []Container    `bson:"containers" json:"containers"`

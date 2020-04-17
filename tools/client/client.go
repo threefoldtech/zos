@@ -24,6 +24,7 @@ type Client struct {
 // Directory API interface
 type Directory interface {
 	FarmRegister(farm directory.Farm) (schema.ID, error)
+	FarmUpdate(farm directory.Farm) error
 	FarmList(tid schema.ID, name string, page *Pager) (farms []directory.Farm, err error)
 	FarmGet(id schema.ID) (farm directory.Farm, err error)
 
@@ -34,6 +35,7 @@ type Directory interface {
 	NodeSetInterfaces(id string, ifaces []directory.Iface) error
 	NodeSetPorts(id string, ports []uint) error
 	NodeSetPublic(id string, pub directory.PublicIface) error
+	NodeSetFreeToUse(id string, free bool) error
 
 	//TODO: this method call uses types from zos that is not generated
 	//from the schema. Which is wrong imho.
