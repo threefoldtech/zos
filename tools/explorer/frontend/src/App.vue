@@ -140,7 +140,6 @@ export default {
       clearInterval(this.refreshInterval)
     }
 
-
     // instead of refreshing every 10 minutes in the background
     // we do following:
     // when the user enters the page again and 10 minutes have passed since the first visit
@@ -148,10 +147,10 @@ export default {
     // if the user decides to leave this page again this interval will be cleared again
     window.onfocus = () => {
       const now = new Date()
-      let elapsedTime = now - this.start; //in ms
+      let elapsedTime = now - this.start
       // strip the ms
-      elapsedTime /= 1000;
-      const seconds = Math.round(elapsedTime);
+      elapsedTime /= 1000
+      const seconds = Math.round(elapsedTime)
 
       // if 10 minutes are passed since last focus, refresh data.
       if (seconds >= 600) {
