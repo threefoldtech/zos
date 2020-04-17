@@ -16,9 +16,14 @@ import (
 )
 
 var (
-	ROOT_DIR   = "/var/cache/modules/contd/"
-	LOGS_DIR   = "logs"
-	CONFIG_DIR = "config"
+	// RootDir is the contd module root directory
+	RootDir = "/var/cache/modules/contd/"
+
+	// LogsDir points to logs directory
+	LogsDir = "logs"
+
+	// ConfigDir points to config (logs settings) directory
+	ConfigDir = "config"
 )
 
 func main() {
@@ -27,7 +32,7 @@ func main() {
 
 func runlog(ctx context.Context, config *logging.Config, ready func() error) error {
 	// initializing container logger
-	cfgfile := path.Join(ROOT_DIR, CONFIG_DIR, config.Namespace, fmt.Sprintf("%s-logs.json", config.ID))
+	cfgfile := path.Join(RootDir, ConfigDir, config.Namespace, fmt.Sprintf("%s-logs.json", config.ID))
 
 	// load config saved by contd
 	logs, err := logger.Deserialize(cfgfile)
@@ -39,7 +44,7 @@ func runlog(ctx context.Context, config *logging.Config, ready func() error) err
 	loggers := logger.NewLoggers()
 
 	// create local default logs directory
-	local := path.Join(ROOT_DIR, LOGS_DIR, config.Namespace)
+	local := path.Join(RootDir, LogsDir, config.Namespace)
 	if err = os.MkdirAll(local, 0755); err != nil {
 		return err
 	}
