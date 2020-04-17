@@ -42,6 +42,7 @@ type (
 const (
 	stellarPrecision       = 1e7
 	stellarPrecisionDigits = 7
+	stellarOneCoin         = 10000000
 
 	// NetworkProduction uses stellar production network
 	NetworkProduction = "production"
@@ -158,9 +159,11 @@ func (w *Wallet) CreateAccount() (string, string, error) {
 }
 
 func (w *Wallet) activateEscrowAccount(newKp *keypair.Full, sourceAccount hProtocol.Account, client *horizonclient.Client) error {
+	currency := big.NewRat(int64(w.getMinumumBalance()), stellarPrecision)
+	minimumBalance := currency.FloatString(stellarPrecisionDigits)
 	createAccountOp := txnbuild.CreateAccount{
 		Destination: newKp.Address(),
-		Amount:      "10",
+		Amount:      minimumBalance,
 	}
 	tx := txnbuild.Transaction{
 		SourceAccount: &sourceAccount,
@@ -595,6 +598,13 @@ func (w *Wallet) GetNetworkPassPhrase() string {
 	default:
 		return network.TestNetworkPassphrase
 	}
+}
+
+// getMinumumBalance calculates minimum balance for an escrow account
+// following formula is used: minimum Balance = (2 + # of entries) * base reserve
+// entries is the amount of operations are required to setup the account
+func (w *Wallet) getMinumumBalance() int {
+	return (2 + len(w.assets) + len(w.signers)) * (stellarOneCoin / 2)
 }
 
 func (i *Signers) String() string {
