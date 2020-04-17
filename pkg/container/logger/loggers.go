@@ -54,6 +54,16 @@ func (c *Loggers) Add(stdout io.Writer, stderr io.Writer) {
 	c.stderrs = append(c.stderrs, stderr)
 }
 
+// Stdouts returns list of stdout availables
+func (c *Loggers) Stdouts() []io.Writer {
+	return c.stdouts
+}
+
+// Stderrs returns list of stderr availables
+func (c *Loggers) Stderrs() []io.Writer {
+	return c.stderrs
+}
+
 // Log create the containers logs redirector
 func (c *Loggers) Log() cio.Creator {
 	mwo := io.MultiWriter(c.stdouts...)
