@@ -42,6 +42,7 @@ type (
 const (
 	stellarPrecision       = 1e7
 	stellarPrecisionDigits = 7
+	stellarPageLimit       = 200
 
 	// NetworkProduction uses stellar production network
 	NetworkProduction = "production"
@@ -292,7 +293,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID, asset Asset) (xdr.Int6
 	txReq := horizonclient.TransactionRequest{
 		ForAccount: address,
 		Cursor:     cursor,
-		Limit:      200,
+		Limit:      stellarPageLimit,
 	}
 
 	log.Info().Str("address", address).Msg("fetching balance for address")
@@ -302,7 +303,7 @@ func (w *Wallet) GetBalance(address string, id schema.ID, asset Asset) (xdr.Int6
 	}
 
 	donors := make(map[string]struct{})
-	for len(txes.Embedded.Records) != 0 {
+	for len(txes.Embedded.Records) < stellarPageLimit {
 		for _, tx := range txes.Embedded.Records {
 			if tx.Memo == strconv.FormatInt(int64(id), 10) {
 				effectsReq := horizonclient.EffectRequest{
