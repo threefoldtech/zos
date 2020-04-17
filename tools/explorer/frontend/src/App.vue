@@ -56,14 +56,22 @@
             <span>TF</span>
             <span class="font-weight-light">explorer</span>
             <span class="title font-weight-light">- {{$route.meta.displayName}}</span>
-            <v-progress-circular
-              class="spinner"
-              v-if="nodePage || farmPage"
-              indeterminate
-              color="primary"
-            ></v-progress-circular>
           </h1>
-          <v-spacer />
+          <v-progress-circular
+            class="refresh"
+            v-if="nodePage || farmPage"
+            indeterminate
+            color="primary"
+          ></v-progress-circular>
+          <v-btn class="refresh" icon v-else @click="refresh">
+            <v-icon
+              big
+              color="primary"
+              left
+            >
+              fas fa-sync-alt
+            </v-icon>
+          </v-btn>
         </v-row>
         <router-view></router-view>
       </v-col>
@@ -93,8 +101,8 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-
+import { mapGetters, mapActions } from 'vuex'
+/* eslint-disable */
 export default {
   name: 'App',
   components: {},
@@ -106,7 +114,9 @@ export default {
     dialogImage: null,
     block: null,
     showBadge: true,
-    menu: false
+    menu: false,
+    start: undefined,
+    refreshInterval: undefined
   }),
   computed: {
     routes () {
@@ -117,7 +127,46 @@ export default {
       'farmPage'
     ])
   },
-  mounted () {}
+  mounted () {
+    // keep track when the user opened this app
+    this.start = new Date()
+
+    // refresh every 10 minutes
+    this.refreshInterval = setInterval(this.refreshData(), 60000)
+
+    // if user loses focus, clear the refreshing interval
+    // we don't refresh data if the page is not focused.
+    window.onblur = () => {
+      clearInterval(this.refreshInterval)
+    }
+
+
+    // instead of refreshing every 10 minutes in the background
+    // we do following:
+    // when the user enters the page again and 10 minutes have passed since the first visit
+    // refresh all data. Start the refresh interval again (since we assume the user is going to stay on this page)
+    // if the user decides to leave this page again this interval will be cleared again
+    window.onfocus = () => {
+      const now = new Date()
+      let elapsedTime = now - this.start; //in ms
+      // strip the ms
+      elapsedTime /= 1000;
+      const seconds = Math.round(elapsedTime);
+
+      // if 10 minutes are passed since last focus, refresh data.
+      if (seconds >= 600) {
+        this.start = new Date()
+        this.refreshData()
+        this.refreshInterval = setInterval(this.refreshData(), 60000)
+      }
+    }
+  },
+  methods: {
+    ...mapActions(['refreshData']),
+    refresh () {
+      this.refreshData()
+    }
+  }
 }
 </script>
 
@@ -140,5 +189,11 @@ export default {
 }
 .spinner {
   margin-left: 20px;
+}
+.refresh {
+  position: absolute !important;
+  right: 25px !important;
+  top: 30px !important;
+  font-size: 30px !important;
 }
 </style>

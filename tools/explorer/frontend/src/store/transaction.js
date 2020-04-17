@@ -1,8 +1,11 @@
 import tfService from '../services/tfService'
 import lodash from 'lodash'
 
-export default ({
-  state: {
+// keep the interval object locally to clear them afterwards
+let nodesLoadingInterval, farmsLoadingInterval
+
+const getDefaultState = () => {
+  return {
     user: {},
     registeredNodes: [],
     nodePage: 2,
@@ -24,9 +27,12 @@ export default ({
       container: 0,
       zdb_namespace: 0,
       k8s_vm: 0
-
     }
-  },
+  }
+}
+
+export default ({
+  state: getDefaultState(),
   actions: {
     getName: async context => {
       var response = await tfService.getName()
@@ -38,11 +44,6 @@ export default ({
       context.commit('setUser', response.data)
     },
     getRegisteredNodes (context, params) {
-      // if state.page is undefined, means we reached an endstate and fetched all the nodes already
-      if (context.state.nodePage === undefined) {
-        return
-      }
-
       let page = params.page || context.state.nodePage
 
       tfService.getNodes(undefined, params.size, page).then(response => {
@@ -51,11 +52,6 @@ export default ({
       })
     },
     getRegisteredFarms (context, params) {
-      // if state.page is undefined, means we reached an endstate and fetched all the nodes already
-      if (context.state.farmPage === undefined) {
-        return
-      }
-
       let page = params.page || context.state.farmPage
 
       tfService.registeredfarms(params.size, page).then(response => {
@@ -70,23 +66,55 @@ export default ({
     },
     resetNodes: context => {
       context.commit('setNodes', undefined)
+    },
+    resetState: context => {
+      context.commit('resetState')
+    },
+    refreshData: ({ dispatch }) => {
+      // clear intervals first
+      clearInterval(nodesLoadingInterval)
+      clearInterval(farmsLoadingInterval)
+
+      // reset the vuex store
+      dispatch('resetState')
+
+      // load 100 nodes and farms
+      dispatch('getRegisteredNodes', { size: 100, page: 1 })
+      dispatch('getRegisteredFarms', { size: 100, page: 1 })
+
+      // load all the rest of nodes and farms over time
+      dispatch('initialiseFarmsLoading')
+      dispatch('initialiseNodesLoading')
+    },
+    initialiseNodesLoading ({ dispatch }) {
+      nodesLoadingInterval = setInterval(() => {
+        dispatch('getRegisteredNodes', { size: 50 })
+      }, 500)
+    },
+    initialiseFarmsLoading ({ dispatch }) {
+      farmsLoadingInterval = setInterval(() => {
+        dispatch('getRegisteredFarms', { size: 50 })
+      }, 500)
     }
   },
   mutations: {
     setRegisteredNodes (state, response) {
       if (response.data.length === 0) {
         state.nodePage = undefined
-        return
+        // all nodes are loaded, clear the interval
+        return clearInterval(nodesLoadingInterval)
       }
+      // more pages to load, concat data and increase page number
       state.registeredNodes = state.registeredNodes.concat(response.data)
       state.nodePage += 1
     },
     setRegisteredFarms (state, response) {
-      // state.registeredFarms = value
       if (response.data.length === 0) {
         state.farmPage = undefined
-        return
+        // all farms are loaded, clear the interval
+        return clearInterval(farmsLoadingInterval)
       }
+      // more pages to load, concat data and increase page number
       state.registeredFarms = state.registeredFarms.concat(response.data)
       state.farmPage += 1
     },
@@ -121,6 +149,11 @@ export default ({
       state.nodeSpecs.container += lodash.sumBy(value, node => node.workloads.container)
       state.nodeSpecs.zdb_namespace += lodash.sumBy(value, node => node.workloads.zdb_namespace)
       state.nodeSpecs.k8s_vm += lodash.sumBy(value, node => node.workloads.k8s_vm)
+    },
+    resetState (state) {
+      // Merge rather than replace so we don't lose observers
+      // https://github.com/vuejs/vuex/issues/1118
+      Object.assign(state, getDefaultState())
     }
   },
   getters: {
