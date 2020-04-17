@@ -114,7 +114,12 @@ func main() {
 		provision.NewDecommissionSource(localStore),
 	)
 
-	engine := provision.New(nodeID.Identity(), source, localStore, cl)
+	engine := provision.New(
+		provision.WithNodeID(nodeID.Identity()),
+		provision.WithSource(source),
+		provision.WithCache(localStore),
+		provision.WithExplorer(cl),
+	)
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.ProvisionMonitor(engine))
 

@@ -34,11 +34,57 @@ type Feedbacker interface {
 	UpdateReservedResources(nodeID string, c Counters) error
 }
 
-type defaultEngine struct {
+type Engine struct {
+	nodeID         string
+	source         ReservationSource
+	store          ReservationCache
+	cl             *client.Client
+	provisioners   map[ReservationType]Provisioner
+	decomissioners map[ReservationType]Decommissioner
+}
+
+type option func(*Engine)
+
+type engineOptions struct {
 	nodeID string
 	source ReservationSource
 	store  ReservationCache
 	cl     *client.Client
+}
+
+func WithNodeID(nodeID string) option {
+	return func(e *Engine) {
+		e.nodeID = nodeID
+	}
+}
+func WithSource(s ReservationSource) option {
+	return func(e *Engine) {
+		e.source = s
+	}
+}
+
+func WithCache(c ReservationCache) option {
+	return func(e *Engine) {
+		e.store = c
+	}
+}
+
+func WithExplorer(c *client.Client) option {
+	return func(e *Engine) {
+		e.cl = c
+	}
+}
+
+func WithProvisioners(m map[ReservationType]Provisioner) option {
+	return func(e *Engine) {
+		e.provisioners = m
+	}
+}
+
+func WithDecomissioners(m map[ReservationType]Decommissioner) option {
+	return func(e *Engine) {
+		e.decomissioners = m
+	}
 }
 
 // New creates a new engine. Once started, the engine
@@ -47,18 +93,25 @@ type defaultEngine struct {
 // the default implementation is a single threaded worker. so it process
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
-func New(nodeID string, source ReservationSource, rw ReservationCache, cl *client.Client) Engine {
-	return &defaultEngine{
-		nodeID: nodeID,
-		source: source,
-		store:  rw,
-		cl:     cl,
+func New(opts ...option) *Engine {
+	e := &Engine{}
+	for _, f := range opts {
+		f(e)
 	}
+	if e.provisioners == nil {
+		e.provisioners = provisioners
+	}
+
+	if e.decomissioners == nil {
+		e.decomissioners = decommissioners
+	}
+
+	return e
 }
 
 // Run starts processing reservation resource. Then try to allocate
 // reservations
-func (e *defaultEngine) Run(ctx context.Context) error {
+func (e *Engine) Run(ctx context.Context) error {
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -108,7 +161,7 @@ func (e *defaultEngine) Run(ctx context.Context) error {
 	}
 }
 
-func (e defaultEngine) capacityUsed() (directory.ResourceAmount, directory.WorkloadAmount) {
+func (e Engine) capacityUsed() (directory.ResourceAmount, directory.WorkloadAmount) {
 	counters := e.store.Counters()
 
 	resources := directory.ResourceAmount{
@@ -128,7 +181,7 @@ func (e defaultEngine) capacityUsed() (directory.ResourceAmount, directory.Workl
 	return resources, workloads
 }
 
-func (e *defaultEngine) updateReservedCapacity() error {
+func (e *Engine) updateReservedCapacity() error {
 	resources, workloads := e.capacityUsed()
 	log.Info().Msgf("reserved resource %+v", resources)
 	log.Info().Msgf("provisionned workloads %+v", workloads)
@@ -136,7 +189,7 @@ func (e *defaultEngine) updateReservedCapacity() error {
 	return e.cl.Directory.NodeUpdateUsedResources(e.nodeID, resources, workloads)
 }
 
-func (e *defaultEngine) provision(ctx context.Context, r *Reservation) error {
+func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 	if err := r.validate(); err != nil {
 		return errors.Wrapf(err, "failed validation of reservation")
 	}
@@ -169,7 +222,7 @@ func (e *defaultEngine) provision(ctx context.Context, r *Reservation) error {
 	return nil
 }
 
-func (e *defaultEngine) decommission(ctx context.Context, r *Reservation) error {
+func (e *Engine) decommission(ctx context.Context, r *Reservation) error {
 	fn, ok := decommissioners[r.Type]
 	if !ok {
 		return fmt.Errorf("type of reservation not supported: %s", r.Type)
@@ -204,7 +257,7 @@ func (e *defaultEngine) decommission(ctx context.Context, r *Reservation) error 
 	return nil
 }
 
-func (e *defaultEngine) reply(ctx context.Context, r *Reservation, rErr error, info interface{}) error {
+func (e *Engine) reply(ctx context.Context, r *Reservation, rErr error, info interface{}) error {
 	log.Debug().Str("id", r.ID).Msg("sending reply for reservation")
 
 	zbus := GetZBus(ctx)
@@ -249,7 +302,7 @@ func (e *defaultEngine) reply(ctx context.Context, r *Reservation, rErr error, i
 	return e.cl.Workloads.WorkloadPutResult(e.nodeID, r.ID, result.ToSchemaType())
 }
 
-func (e *defaultEngine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
+func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
 	ch := make(chan pkg.ProvisionCounters)
 	go func() {
 		for {

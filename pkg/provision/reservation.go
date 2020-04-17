@@ -33,6 +33,8 @@ const (
 	DebugReservation ReservationType = "debug"
 	// KubernetesReservation type
 	KubernetesReservation ReservationType = "kubernetes"
+	// TCPProxyReservation type
+	TCPProxyReservation ReservationType = "tc-proxy"
 )
 
 var (

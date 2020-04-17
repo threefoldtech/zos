@@ -9,8 +9,6 @@ package provision
 
 import (
 	"context"
-
-	"github.com/threefoldtech/zos/pkg"
 )
 
 // ReservationSource interface. The source
@@ -21,22 +19,14 @@ type ReservationSource interface {
 	Reservations(ctx context.Context) <-chan *Reservation
 }
 
-// Engine interface
-type Engine interface {
-	// Start the engine
-	Run(ctx context.Context) error
-	// Counters stream for number of provisioned resources
-	Counters(ctx context.Context) <-chan pkg.ProvisionCounters
-}
-
-type provisioner func(ctx context.Context, reservation *Reservation) (interface{}, error)
-type decommissioner func(ctx context.Context, reservation *Reservation) error
+type Provisioner func(ctx context.Context, reservation *Reservation) (interface{}, error)
+type Decommissioner func(ctx context.Context, reservation *Reservation) error
 
 var (
 	// provisioners defines the entry point for the different
 	// reservation provisioners. Currently only containers are
 	// supported.
-	provisioners = map[ReservationType]provisioner{
+	provisioners = map[ReservationType]Provisioner{
 		ContainerReservation:  containerProvision,
 		VolumeReservation:     volumeProvision,
 		NetworkReservation:    networkProvision,
@@ -45,7 +35,7 @@ var (
 		KubernetesReservation: kubernetesProvision,
 	}
 
-	decommissioners = map[ReservationType]decommissioner{
+	decommissioners = map[ReservationType]Decommissioner{
 		ContainerReservation:  containerDecommission,
 		VolumeReservation:     volumeDecommission,
 		NetworkReservation:    networkDecommission,
