@@ -42,6 +42,7 @@ type (
 const (
 	stellarPrecision       = 1e7
 	stellarPrecisionDigits = 7
+	stellarOneCoin         = 10000000
 
 	// NetworkProduction uses stellar production network
 	NetworkProduction = "production"
@@ -603,7 +604,7 @@ func (w *Wallet) GetNetworkPassPhrase() string {
 // following formula is used: minimum Balance = (2 + # of entries) * base reserve
 // entries is the amount of operations are required to setup the account
 func (w *Wallet) getMinumumBalance() int {
-	return (2 + len(w.assets) + len(w.signers)) * (1e7 / 2)
+	return (2 + len(w.assets) + len(w.signers)) * (stellarOneCoin / 2)
 }
 
 func (i *Signers) String() string {
