@@ -1,4 +1,4 @@
-package provision_test
+package primitives_test
 
 import (
 	"encoding/json"
@@ -11,10 +11,10 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/stretchr/testify/require"
+	schema "github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
 	"github.com/threefoldtech/zos/pkg/provision"
-	schema "github.com/threefoldtech/tfexplorer/schema"
 	"gotest.tools/assert"
 )
 

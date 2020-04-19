@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -75,12 +76,12 @@ type ContainerCapacity struct {
 	Memory uint64 `json:"memory"`
 }
 
-func (p *Provisioner) containerProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+func (p *Provisioner) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.containerProvisionImpl(ctx, reservation)
 }
 
 // ContainerProvision is entry point to container reservation
-func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *Reservation) (ContainerResult, error) {
+func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *provision.Reservation) (ContainerResult, error) {
 	containerClient := stubs.NewContainerModuleStub(p.zbus)
 	flistClient := stubs.NewFlisterStub(p.zbus)
 	storageClient := stubs.NewStorageModuleStub(p.zbus)
@@ -137,13 +138,12 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *R
 
 	var mounts []pkg.MountInfo
 	for _, mount := range config.Mounts {
-		var owner string
-		owner, err = p.cache.OwnerOf(mount.VolumeID)
+		volumeRes, err := p.cache.Get(mount.VolumeID)
 		if err != nil {
 			return ContainerResult{}, errors.Wrapf(err, "failed to retrieve the owner of volume %s", mount.VolumeID)
 		}
 
-		if owner != reservation.User {
+		if volumeRes.User != reservation.User {
 			return ContainerResult{}, fmt.Errorf("cannot use volume %s, user %s is not the owner of it", mount.VolumeID, reservation.User)
 		}
 
@@ -174,7 +174,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *R
 		Str("config", fmt.Sprintf("%+v", config)).
 		Msg("deploying network")
 
-	networkMgr := stubs.NewNetworkerStub(GetZBus(ctx))
+	networkMgr := stubs.NewNetworkerStub(p.zbus)
 
 	ips := make([]string, len(config.Network.IPs))
 	for i, ip := range config.Network.IPs {
@@ -242,7 +242,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *R
 	}, nil
 }
 
-func (p *Provisioner) containerDecommission(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) containerDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	container := stubs.NewContainerModuleStub(p.zbus)
 	flist := stubs.NewFlisterStub(p.zbus)
 	networkMgr := stubs.NewNetworkerStub(p.zbus)

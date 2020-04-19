@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -47,11 +48,11 @@ type Kubernetes struct {
 
 const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
 
-func (p *Provisioner) kubernetesProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+func (p *Provisioner) kubernetesProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.kubernetesProvisionImpl(ctx, reservation)
 }
 
-func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) (result KubernetesResult, err error) {
+func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result KubernetesResult, err error) {
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)
@@ -232,7 +233,7 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 	return vm.Run(kubevm)
 }
 
-func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *provision.Reservation) error {
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)

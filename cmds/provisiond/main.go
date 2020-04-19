@@ -10,6 +10,8 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/provision/explorer"
+	"github.com/threefoldtech/zos/pkg/provision/primitives"
 
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -94,28 +96,32 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to instantiate BCDB client")
 	}
+
+	// keep track of resource unnits reserved and amount of workloads provisionned
+	statser := &primitives.Counters{}
+
 	// to store reservation locally on the node
-	localStore, err := provision.NewFSStore(filepath.Join(storageDir, "reservations"))
+	localStore, err := primitives.NewFSStore(filepath.Join(storageDir, "reservations"))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create local reservation store")
 	}
+	// update stats from the local reservation cache
+	localStore.Sync(statser)
 
-	provisioner := provision.NewProvisioner(
-		// use to get the user ID of a reservation
-		provision.NewCache(localStore, provision.ReservationGetterFromWorkloads(cl.Workloads)),
-		zbusCl)
+	provisioner := primitives.NewProvisioner(localStore, zbusCl)
 
 	engine := provision.New(provision.EngineOps{
 		NodeID: nodeID.Identity(),
 		Cache:  localStore,
 		Source: provision.CombinedSource(
-			provision.PollSource(provision.ReservationPollerFromWorkloads(cl.Workloads, provision.WorkloadToProvisionType), nodeID),
+			provision.PollSource(explorer.ReservationPollerFromWorkloads(cl.Workloads, primitives.WorkloadToProvisionType, primitives.ProvisionOrder), nodeID),
 			provision.NewDecommissionSource(localStore),
 		),
 		Provisioners:   provisioner.Provisioners,
 		Decomissioners: provisioner.Decommissioners,
-		Feedback:       provision.NewExplorerFeedback(cl, provision.ToSchemaType),
+		Feedback:       explorer.NewExplorerFeedback(cl, primitives.ResultToSchemaType),
 		Signer:         identity,
+		Statser:        statser,
 	})
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.ProvisionMonitor(engine))
@@ -144,7 +150,6 @@ func main() {
 }
 
 type store interface {
-	provision.ReservationGetter
 	provision.ReservationPoller
 	provision.Feedbacker
 }

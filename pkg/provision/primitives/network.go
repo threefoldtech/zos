@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"bytes"
@@ -13,11 +13,12 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 // networkProvision is entry point to provision a network
-func (p *Provisioner) networkProvisionImpl(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) networkProvisionImpl(ctx context.Context, reservation *provision.Reservation) error {
 	network := &pkg.Network{}
 	if err := json.Unmarshal(reservation.Data, network); err != nil {
 		return errors.Wrap(err, "failed to unmarshal network from reservation")
@@ -36,11 +37,11 @@ func (p *Provisioner) networkProvisionImpl(ctx context.Context, reservation *Res
 	return nil
 }
 
-func (p *Provisioner) networkProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+func (p *Provisioner) networkProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return nil, p.networkProvisionImpl(ctx, reservation)
 }
 
-func (p *Provisioner) networkDecommission(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) networkDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	mgr := stubs.NewNetworkerStub(p.zbus)
 
 	network := &pkg.Network{}

@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -39,7 +40,7 @@ type VolumeResult struct {
 	ID string `json:"volume_id"`
 }
 
-func (p *Provisioner) volumeProvisionImpl(ctx context.Context, reservation *Reservation) (VolumeResult, error) {
+func (p *Provisioner) volumeProvisionImpl(ctx context.Context, reservation *provision.Reservation) (VolumeResult, error) {
 	var config Volume
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return VolumeResult{}, err
@@ -63,11 +64,11 @@ func (p *Provisioner) volumeProvisionImpl(ctx context.Context, reservation *Rese
 }
 
 // VolumeProvision is entry point to provision a volume
-func (p *Provisioner) volumeProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+func (p *Provisioner) volumeProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.volumeProvisionImpl(ctx, reservation)
 }
 
-func (p *Provisioner) volumeDecommission(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) volumeDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	storageClient := stubs.NewStorageModuleStub(p.zbus)
 
 	return storageClient.ReleaseFilesystem(reservation.ID)

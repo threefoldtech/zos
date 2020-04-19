@@ -13,37 +13,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ReservationCache define the interface to store
-// some reservations
-type ReservationCache interface {
-	Add(r *Reservation) error
-	Get(id string) (*Reservation, error)
-	Remove(id string) error
-	Exists(id string) (bool, error)
-	Counters() Counters
-}
-
-// Feedbacker defines the method that needs to be implemented
-// to send the provision result to BCDB
-type Feedbacker interface {
-	Feedback(nodeID string, r *Result) error
-	Deleted(nodeID, id string) error
-	UpdateReservedResources(nodeID string, c Counters) error
-}
-
-type Signer interface {
-	Sign(b []byte) ([]byte, error)
-}
-
 type Engine struct {
-	nodeID   string
-	source   ReservationSource
-	cache    ReservationCache
-	feedback Feedbacker
-	// cl             *client.Client
+	nodeID         string
+	source         ReservationSource
+	cache          ReservationCache
+	feedback       Feedbacker
 	provisioners   map[ReservationType]ProvisionerFunc
-	decomissioners map[ReservationType]DecommissionerFunc
+	decomissioners map[ReservationType]DecomissionerFunc
 	signer         Signer
+	statser        Statser
 }
 
 type EngineOps struct {
@@ -52,8 +30,9 @@ type EngineOps struct {
 	Cache          ReservationCache
 	Feedback       Feedbacker
 	Provisioners   map[ReservationType]ProvisionerFunc
-	Decomissioners map[ReservationType]DecommissionerFunc
+	Decomissioners map[ReservationType]DecomissionerFunc
 	Signer         Signer
+	Statser        Statser
 }
 
 // New creates a new engine. Once started, the engine
@@ -70,6 +49,7 @@ func New(opts EngineOps) *Engine {
 		feedback:       opts.Feedback,
 		decomissioners: opts.Decomissioners,
 		signer:         opts.Signer,
+		statser:        opts.Statser,
 	}
 }
 
@@ -118,7 +98,7 @@ func (e *Engine) Run(ctx context.Context) error {
 				}
 			}
 
-			if err := e.feedback.UpdateReservedResources(e.nodeID, e.cache.Counters()); err != nil {
+			if err := e.updateStats(); err != nil {
 				log.Error().Err(err).Msg("failed to updated the capacity counters")
 			}
 
@@ -239,6 +219,16 @@ func (e *Engine) reply(ctx context.Context, r *Reservation, err error, info inte
 	return e.feedback.Feedback(e.nodeID, result)
 }
 
+func (e *Engine) updateStats() error {
+	wl := e.statser.CurrentWorkloads()
+	r := e.statser.CurrentUnits()
+
+	log.Info().Msgf("reserved resource %+v", r)
+	log.Info().Msgf("provisionned workloads %+v", wl)
+
+	return e.feedback.UpdateStats(e.nodeID, wl, r)
+}
+
 func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
 	ch := make(chan pkg.ProvisionCounters)
 	go func() {
@@ -248,18 +238,18 @@ func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
 			case <-ctx.Done():
 			}
 
-			c := e.cache.Counters()
-			pc := pkg.ProvisionCounters{
-				Container: int64(c.containers.Current()),
-				Network:   int64(c.networks.Current()),
-				ZDB:       int64(c.zdbs.Current()),
-				Volume:    int64(c.volumes.Current()),
-				VM:        int64(c.vms.Current()),
-			}
+			// c := e.cache.Counters()
+			// pc := pkg.ProvisionCounters{
+			// 	Container: int64(c.containers.Current()),
+			// 	Network:   int64(c.networks.Current()),
+			// 	ZDB:       int64(c.zdbs.Current()),
+			// 	Volume:    int64(c.volumes.Current()),
+			// 	VM:        int64(c.vms.Current()),
+			// }
 
 			select {
 			case <-ctx.Done():
-			case ch <- pc:
+				// case ch <- pc:
 			}
 		}
 	}()

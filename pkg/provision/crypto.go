@@ -2,14 +2,11 @@ package provision
 
 import (
 	"bytes"
-	"encoding/hex"
 
 	"github.com/pkg/errors"
 
-	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
-	"github.com/threefoldtech/zos/pkg/stubs"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -75,19 +72,4 @@ func Verify(r *Reservation) error {
 	}
 
 	return crypto.Verify(publicKey, buf.Bytes(), r.Signature)
-}
-
-func decryptSecret(client zbus.Client, secret string) (string, error) {
-	if len(secret) == 0 {
-		return "", nil
-	}
-	identity := stubs.NewIdentityManagerStub(client)
-
-	bytes, err := hex.DecodeString(secret)
-	if err != nil {
-		return "", err
-	}
-
-	out, err := identity.Decrypt(bytes)
-	return string(out), err
 }

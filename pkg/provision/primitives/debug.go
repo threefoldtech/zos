@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
@@ -21,7 +22,7 @@ type Debug struct {
 	Channel string `json:"channel"`
 }
 
-func (p *Provisioner) debugProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+func (p *Provisioner) debugProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	var cfg Debug
 	if err := json.Unmarshal(reservation.Data, &cfg); err != nil {
 		return nil, err
@@ -32,13 +33,12 @@ func (p *Provisioner) debugProvision(ctx context.Context, reservation *Reservati
 	return nil, err
 }
 
-func (p *Provisioner) debugDecommission(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) debugDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	return p.stopZLF(ctx, reservation.ID)
 }
 
 func (p *Provisioner) startZLF(ctx context.Context, ID string, cfg Debug) (string, error) {
-	zbus := GetZBus(ctx)
-	identity := stubs.NewIdentityManagerStub(zbus)
+	identity := stubs.NewIdentityManagerStub(p.zbus)
 
 	path, err := exec.LookPath("zlf")
 	if err != nil {

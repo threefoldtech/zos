@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/zdb"
 
 	"github.com/pkg/errors"
@@ -46,11 +47,11 @@ type ZDBResult struct {
 	Port      uint
 }
 
-func (p *Provisioner) zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+func (p *Provisioner) zdbProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.zdbProvisionImpl(ctx, reservation)
 }
 
-func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult, error) {
+func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *provision.Reservation) (ZDBResult, error) {
 	var (
 		storage = stubs.NewZDBAllocaterStub(p.zbus)
 
@@ -283,7 +284,7 @@ func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID strin
 	return nil
 }
 
-func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	var (
 		storage = stubs.NewZDBAllocaterStub(p.zbus)
 

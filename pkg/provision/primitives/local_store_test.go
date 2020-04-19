@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"io/ioutil"

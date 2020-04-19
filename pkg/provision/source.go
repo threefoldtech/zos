@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sort"
 	"sync"
 	"time"
 
@@ -15,12 +14,6 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 )
 
-type pollSource struct {
-	store    ReservationPoller
-	nodeID   string
-	maxSleep time.Duration
-}
-
 var (
 	// ErrPollEOS can be returned by a reservation poll to
 	// notify the caller that it has reached end of stream
@@ -29,7 +22,7 @@ var (
 )
 
 // ReservationPoller define the interface to implement
-// to poll the BCDB for new reservation
+// to poll the Explorer for new reservation
 type ReservationPoller interface {
 	// Poll ask the store to send us reservation for a specific node ID
 	// from is the used as a filter to which reservation to use as
@@ -38,59 +31,9 @@ type ReservationPoller interface {
 	Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, error)
 }
 
+// ReservationConverterFunc is used to convert from the explorer workloads type into the
+// internal Reservation type
 type ReservationConverterFunc func(w workloads.ReservationWorkload) (*Reservation, error)
-type ResultConverterFunc func(result Result) (*workloads.Result, error)
-
-type reservationPoller struct {
-	wl         client.Workloads
-	inputConv  ReservationConverterFunc
-	outputConv ResultConverterFunc
-}
-
-// provisionOrder is used to sort the workload type
-// in the right order for provisiond
-var provisionOrder = map[ReservationType]int{
-	DebugReservation:      0,
-	NetworkReservation:    1,
-	ZDBReservation:        2,
-	VolumeReservation:     3,
-	ContainerReservation:  4,
-	KubernetesReservation: 5,
-}
-
-func (r *reservationPoller) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, error) {
-
-	list, err := r.wl.Workloads(nodeID.Identity(), from)
-	if err != nil {
-		return nil, fmt.Errorf("error while retrieving workloads from explorer: %w", err)
-	}
-
-	result := make([]*Reservation, 0, len(list))
-	for _, wl := range list {
-		log.Info().Msgf("convert %+v", wl)
-		r, err := r.inputConv(wl)
-		if err != nil {
-			return nil, err
-		}
-
-		result = append(result, r)
-	}
-
-	// sorts the workloads in the oder they need to be processed by provisiond
-	sort.Slice(result, func(i int, j int) bool {
-		return provisionOrder[result[i].Type] < provisionOrder[result[j].Type]
-	})
-
-	return result, nil
-}
-
-// ReservationPollerFromWorkloads returns a reservation poller from client.Workloads
-func ReservationPollerFromWorkloads(wl client.Workloads, inputConv ReservationConverterFunc) ReservationPoller {
-	return &reservationPoller{
-		wl:        wl,
-		inputConv: inputConv,
-	}
-}
 
 // PollSource does a long poll on address to get new and to be deleted
 // reservations. the server should only return unique reservations
@@ -102,6 +45,12 @@ func PollSource(store ReservationPoller, nodeID pkg.Identifier) ReservationSourc
 		nodeID:   nodeID.Identity(),
 		maxSleep: 10 * time.Second,
 	}
+}
+
+type pollSource struct {
+	store    ReservationPoller
+	nodeID   string
+	maxSleep time.Duration
 }
 
 func (s *pollSource) Reservations(ctx context.Context) <-chan *Reservation {

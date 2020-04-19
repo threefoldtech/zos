@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"encoding/json"
@@ -8,81 +8,27 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
-// Counter interface
-type Counter interface {
-	// Increment counter atomically by v
-	Increment(v uint64) uint64
-	// Decrement counter atomically by v
-	Decrement(v uint64) uint64
-	// Current returns the current value
-	Current() uint64
-}
-
-type counterNop struct{}
-
-func (c *counterNop) Increment(v uint64) uint64 {
-	return 0
-}
-
-func (c *counterNop) Decrement(v uint64) uint64 {
-	return 0
-}
-
-func (c *counterNop) Current() uint64 {
-	return 0
-}
-
-// counterImpl value for safe increment/decrement
-type counterImpl uint64
-
-// Increment counter atomically by one
-func (c *counterImpl) Increment(v uint64) uint64 {
-	return atomic.AddUint64((*uint64)(c), v)
-}
-
-// Decrement counter atomically by one
-func (c *counterImpl) Decrement(v uint64) uint64 {
-	return atomic.AddUint64((*uint64)(c), -v)
-}
-
-// Current returns the current value
-func (c *counterImpl) Current() uint64 {
-	return atomic.LoadUint64((*uint64)(c))
-}
-
-type (
-	// FSStore is a in reservation store
-	// using the filesystem as backend
-	FSStore struct {
-		sync.RWMutex
-		root     string
-		counters Counters
-	}
-
-	// Counters tracks the amount of primitives workload deployed and
-	// the amount of resource unit used
-	Counters struct {
-		containers counterImpl
-		volumes    counterImpl
-		networks   counterImpl
-		zdbs       counterImpl
-		vms        counterImpl
-		debugs     counterImpl
-
-		SRU counterImpl // SSD storage in bytes
-		HRU counterImpl // HDD storage in bytes
-		MRU counterImpl // Memory storage in bytes
-		CRU counterImpl // CPU count absolute
-	}
+var (
+	// reservationSchemaV1 reservation schema version 1
+	reservationSchemaV1 = versioned.MustParse("1.0.0")
+	// ReservationSchemaLastVersion link to latest version
+	reservationSchemaLastVersion = reservationSchemaV1
 )
+
+// FSStore is a in reservation store
+// using the filesystem as backend
+type FSStore struct {
+	sync.RWMutex
+	root string
+}
 
 // NewFSStore creates a in memory reservation store
 func NewFSStore(root string) (*FSStore, error) {
@@ -106,7 +52,7 @@ func NewFSStore(root string) (*FSStore, error) {
 
 	log.Info().Msg("restart detected, keep reservation cache intact")
 
-	return store, store.sync()
+	return store, nil
 }
 
 //TODO: i think both sync and removeAllButPersistent can be merged into
@@ -150,7 +96,7 @@ func (s *FSStore) removeAllButPersistent(rootPath string) error {
 	return nil
 }
 
-func (s *FSStore) sync() error {
+func (s *FSStore) Sync(statser provision.Statser) error {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -169,40 +115,14 @@ func (s *FSStore) sync() error {
 			return err
 		}
 
-		s.counterFor(r.Type).Increment(1)
-		s.processResourceUnits(r, true)
+		statser.Increment(r)
 	}
 
 	return nil
 }
 
-// Counters returns stats about the cashed reservations
-func (s *FSStore) Counters() Counters {
-	return s.counters
-}
-
-func (s *FSStore) counterFor(typ ReservationType) Counter {
-	switch typ {
-	case ContainerReservation:
-		return &s.counters.containers
-	case VolumeReservation:
-		return &s.counters.volumes
-	case NetworkReservation:
-		return &s.counters.networks
-	case ZDBReservation:
-		return &s.counters.zdbs
-	case DebugReservation:
-		return &s.counters.debugs
-	case KubernetesReservation:
-		return &s.counters.vms
-	default:
-		// this will avoid nil pointer
-		return &counterNop{}
-	}
-}
-
 // Add a reservation to the store
-func (s *FSStore) Add(r *Reservation) error {
+func (s *FSStore) Add(r *provision.Reservation) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -228,10 +148,10 @@ func (s *FSStore) Add(r *Reservation) error {
 		return err
 	}
 
-	s.counterFor(r.Type).Increment(1)
-	if err := s.processResourceUnits(r, true); err != nil {
-		return errors.Wrapf(err, "could not compute the amount of resource used by reservation %s", r.ID)
-	}
+	// s.counterFor(r.Type).Increment(1)
+	// if err := s.processResourceUnits(r, true); err != nil {
+	// 	return errors.Wrapf(err, "could not compute the amount of resource used by reservation %s", r.ID)
+	// }
 
 	return nil
 }
@@ -241,13 +161,13 @@ func (s *FSStore) Remove(id string) error {
 	s.Lock()
 	defer s.Unlock()
 
-	r, err := s.get(id)
-	if os.IsNotExist(errors.Cause(err)) {
-		return nil
-	}
+	// r, err := s.get(id)
+	// if os.IsNotExist(errors.Cause(err)) {
+	// 	return nil
+	// }
 
 	path := filepath.Join(s.root, id)
-	err = os.Remove(path)
+	err := os.Remove(path)
 	if os.IsNotExist(err) {
 		// shouldn't happen because we just did a get
 		return nil
@@ -255,17 +175,17 @@ func (s *FSStore) Remove(id string) error {
 		return err
 	}
 
-	s.counterFor(r.Type).Decrement(1)
-	if err := s.processResourceUnits(r, false); err != nil {
-		return errors.Wrapf(err, "could not compute the amount of resource used by reservation %s", r.ID)
-	}
+	// s.counterFor(r.Type).Decrement(1)
+	// if err := s.processResourceUnits(r, false); err != nil {
+	// 	return errors.Wrapf(err, "could not compute the amount of resource used by reservation %s", r.ID)
+	// }
 
 	return nil
 }
 
 // GetExpired returns all id the the reservations that are expired
 // at the time of the function call
-func (s *FSStore) GetExpired() ([]*Reservation, error) {
+func (s *FSStore) GetExpired() ([]*provision.Reservation, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -274,7 +194,7 @@ func (s *FSStore) GetExpired() ([]*Reservation, error) {
 		return nil, err
 	}
 
-	rs := make([]*Reservation, 0, len(infos))
+	rs := make([]*provision.Reservation, 0, len(infos))
 	for _, info := range infos {
 		if info.IsDir() {
 			continue
@@ -293,7 +213,7 @@ func (s *FSStore) GetExpired() ([]*Reservation, error) {
 			return nil, err
 		}
 		if r.Expired() {
-			r.Tag = Tag{"source": "FSStore"}
+			// r.Tag = Tag{"source": "FSStore"}
 			rs = append(rs, r)
 		}
 
@@ -304,7 +224,7 @@ func (s *FSStore) GetExpired() ([]*Reservation, error) {
 
 // Get retrieves a specific reservation using its ID
 // if returns a non nil error if the reservation is not present in the store
-func (s *FSStore) Get(id string) (*Reservation, error) {
+func (s *FSStore) Get(id string) (*provision.Reservation, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -313,9 +233,9 @@ func (s *FSStore) Get(id string) (*Reservation, error) {
 
 // getType retrieves a specific reservation's type using its ID
 // if returns a non nil error if the reservation is not present in the store
-func (s *FSStore) getType(id string) (ReservationType, error) {
+func (s *FSStore) getType(id string) (provision.ReservationType, error) {
 	res := struct {
-		Type ReservationType `json:"type"`
+		Type provision.ReservationType `json:"type"`
 	}{}
 	path := filepath.Join(s.root, id)
 	f, err := os.Open(path)
@@ -362,7 +282,7 @@ func (s *FSStore) Exists(id string) (bool, error) {
 	return false, err
 }
 
-func (s *FSStore) get(id string) (*Reservation, error) {
+func (s *FSStore) get(id string) (*provision.Reservation, error) {
 	path := filepath.Join(s.root, id)
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
@@ -381,7 +301,7 @@ func (s *FSStore) get(id string) (*Reservation, error) {
 	}
 
 	validV1 := versioned.MustParseRange(fmt.Sprintf("<=%s", reservationSchemaV1))
-	var reservation Reservation
+	var reservation provision.Reservation
 
 	if validV1(reader.Version()) {
 		if err := json.NewDecoder(reader).Decode(&reservation); err != nil {
@@ -390,7 +310,7 @@ func (s *FSStore) get(id string) (*Reservation, error) {
 	} else {
 		return nil, fmt.Errorf("unknown reservation object version (%s)", reader.Version())
 	}
-	reservation.Tag = Tag{"source": "FSStore"}
+	// reservation.Tag = Tag{"source": "FSStore"}
 	return &reservation, nil
 }
 

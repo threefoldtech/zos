@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"encoding/json"
@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
+	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
 	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/provision"
 )
 
 // ContainerToProvisionType converts TfgridReservationContainer1 to Container
@@ -204,11 +206,11 @@ func NetResourceToProvisionType(r workloads.NetworkNetResource) (pkg.NetResource
 }
 
 // WorkloadToProvisionType TfgridReservationWorkload1 to provision.Reservation
-func WorkloadToProvisionType(w workloads.ReservationWorkload) (*Reservation, error) {
-	reservation := &Reservation{
+func WorkloadToProvisionType(w workloads.ReservationWorkload) (*provision.Reservation, error) {
+	reservation := &provision.Reservation{
 		ID:        w.WorkloadId,
 		User:      w.User,
-		Type:      ReservationType(w.Type.String()),
+		Type:      provision.ReservationType(w.Type.String()),
 		Created:   w.Created.Time,
 		Duration:  time.Duration(w.Duration) * time.Second,
 		Signature: []byte(w.Signature),
@@ -257,4 +259,35 @@ func WorkloadToProvisionType(w workloads.ReservationWorkload) (*Reservation, err
 	}
 
 	return reservation, nil
+}
+
+// ResultToSchemaType converts result to schema type
+func ResultToSchemaType(r provision.Result) (*workloads.Result, error) {
+
+	var rType workloads.ResultCategoryEnum
+	switch r.Type {
+	case VolumeReservation:
+		rType = workloads.ResultCategoryVolume
+	case ContainerReservation:
+		rType = workloads.ResultCategoryContainer
+	case ZDBReservation:
+		rType = workloads.ResultCategoryZDB
+	case NetworkReservation:
+		rType = workloads.ResultCategoryNetwork
+	case KubernetesReservation:
+	default:
+		return nil, fmt.Errorf("unknown reservation type: %s", r.Type)
+	}
+
+	result := workloads.Result{
+		Category:   rType,
+		WorkloadId: r.ID,
+		DataJson:   r.Data,
+		Signature:  r.Signature,
+		State:      workloads.ResultStateEnum(r.State),
+		Message:    r.Error,
+		Epoch:      schema.Date{Time: r.Created},
+	}
+
+	return &result, nil
 }
