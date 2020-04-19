@@ -10,13 +10,28 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-type ReservationPoller struct {
+// Poller is an implementation of the provision.ReservationPoller
+// that retrieve reservation from the TFExplorer: https://github.com/threefoldtech/tfexplorer
+type Poller struct {
 	wl             client.Workloads
 	inputConv      provision.ReservationConverterFunc
 	provisionOrder map[provision.ReservationType]int
 }
 
-func (r *ReservationPoller) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservation, error) {
+// NewPoller returns a reservation poller
+// inputConv is a function used by the provision.Engine to convert date received from the explorer to into the internal type of the system
+// provisionOrder is a map with each primitive type as key. It is used to order the reservation before sending them to the engine.
+//  This can be useful if some workloads in a same reservation depends on each other
+func NewPoller(cl *client.Client, inputConv provision.ReservationConverterFunc, provisionOrder map[provision.ReservationType]int) *Poller {
+	return &Poller{
+		wl:             cl.Workloads,
+		inputConv:      inputConv,
+		provisionOrder: provisionOrder,
+	}
+}
+
+// Poll implements provision.ReservationPoller
+func (r *Poller) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservation, error) {
 
 	list, err := r.wl.Workloads(nodeID.Identity(), from)
 	if err != nil {
@@ -42,13 +57,4 @@ func (r *ReservationPoller) Poll(nodeID pkg.Identifier, from uint64) ([]*provisi
 	}
 
 	return result, nil
-}
-
-// ReservationPollerFromWorkloads returns a reservation poller from client.Workloads
-func ReservationPollerFromWorkloads(wl client.Workloads, inputConv provision.ReservationConverterFunc, provisionOrder map[provision.ReservationType]int) *ReservationPoller {
-	return &ReservationPoller{
-		wl:             wl,
-		inputConv:      inputConv,
-		provisionOrder: provisionOrder,
-	}
 }

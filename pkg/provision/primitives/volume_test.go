@@ -1,91 +1,82 @@
 package primitives
 
-import (
-	"context"
-	"testing"
+// func TestVolumeProvisionExists(t *testing.T) {
+// 	require := require.New(t)
 
-	"github.com/stretchr/testify/require"
-	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
-)
+// 	var client TestClient
+// 	ctx := context.Background()
+// 	ctx = WithZBus(ctx, &client)
 
-func TestVolumeProvisionExists(t *testing.T) {
-	require := require.New(t)
+// 	const module = "storage"
+// 	version := zbus.ObjectID{Name: "storage", Version: "0.0.1"}
 
-	var client TestClient
-	ctx := context.Background()
-	ctx = WithZBus(ctx, &client)
+// 	reservation := Reservation{
+// 		ID:   "reservation-id",
+// 		User: "user",
+// 		Type: VolumeReservation,
+// 		Data: MustMarshal(t, Volume{}),
+// 	}
 
-	const module = "storage"
-	version := zbus.ObjectID{Name: "storage", Version: "0.0.1"}
+// 	client.On("Request", module, version, "Path", reservation.ID).
+// 		Return("/some/path", nil)
 
-	reservation := Reservation{
-		ID:   "reservation-id",
-		User: "user",
-		Type: VolumeReservation,
-		Data: MustMarshal(t, Volume{}),
-	}
+// 	result, err := volumeProvisionImpl(ctx, &reservation)
+// 	require.NoError(err)
+// 	require.EqualValues(VolumeResult{"reservation-id"}, result)
+// }
 
-	client.On("Request", module, version, "Path", reservation.ID).
-		Return("/some/path", nil)
+// func TestVolumeProvisionNew(t *testing.T) {
+// 	require := require.New(t)
 
-	result, err := volumeProvisionImpl(ctx, &reservation)
-	require.NoError(err)
-	require.EqualValues(VolumeResult{"reservation-id"}, result)
-}
+// 	var client TestClient
+// 	ctx := context.Background()
+// 	ctx = WithZBus(ctx, &client)
 
-func TestVolumeProvisionNew(t *testing.T) {
-	require := require.New(t)
+// 	const module = "storage"
+// 	version := zbus.ObjectID{Name: "storage", Version: "0.0.1"}
 
-	var client TestClient
-	ctx := context.Background()
-	ctx = WithZBus(ctx, &client)
+// 	reservation := Reservation{
+// 		ID:   "reservation-id",
+// 		User: "user",
+// 		Type: VolumeReservation,
+// 		Data: MustMarshal(t, Volume{
+// 			Size: 10,
+// 			Type: SSDDiskType,
+// 		}),
+// 	}
 
-	const module = "storage"
-	version := zbus.ObjectID{Name: "storage", Version: "0.0.1"}
+// 	// force creation by returning an error
+// 	client.On("Request", module, version, "Path", reservation.ID).
+// 		Return("", zbus.RemoteError{"does not exist"})
 
-	reservation := Reservation{
-		ID:   "reservation-id",
-		User: "user",
-		Type: VolumeReservation,
-		Data: MustMarshal(t, Volume{
-			Size: 10,
-			Type: SSDDiskType,
-		}),
-	}
+// 	client.On("Request", module, version, "CreateFilesystem", reservation.ID, 10*gigabyte, pkg.DeviceType(SSDDiskType)).
+// 		Return("/some/path", nil)
 
-	// force creation by returning an error
-	client.On("Request", module, version, "Path", reservation.ID).
-		Return("", zbus.RemoteError{"does not exist"})
+// 	result, err := volumeProvisionImpl(ctx, &reservation)
+// 	require.NoError(err)
+// 	require.EqualValues(VolumeResult{"reservation-id"}, result)
+// }
 
-	client.On("Request", module, version, "CreateFilesystem", reservation.ID, 10*gigabyte, pkg.DeviceType(SSDDiskType)).
-		Return("/some/path", nil)
+// func TestVolumeDecomission(t *testing.T) {
+// 	require := require.New(t)
 
-	result, err := volumeProvisionImpl(ctx, &reservation)
-	require.NoError(err)
-	require.EqualValues(VolumeResult{"reservation-id"}, result)
-}
+// 	var client TestClient
+// 	ctx := context.Background()
+// 	ctx = WithZBus(ctx, &client)
 
-func TestVolumeDecomission(t *testing.T) {
-	require := require.New(t)
+// 	const module = "storage"
+// 	version := zbus.ObjectID{Name: "storage", Version: "0.0.1"}
 
-	var client TestClient
-	ctx := context.Background()
-	ctx = WithZBus(ctx, &client)
+// 	reservation := Reservation{
+// 		ID:   "reservation-id",
+// 		User: "user",
+// 		Type: VolumeReservation,
+// 	}
 
-	const module = "storage"
-	version := zbus.ObjectID{Name: "storage", Version: "0.0.1"}
+// 	// force decomission by returning a nil error
+// 	client.On("Request", module, version, "ReleaseFilesystem", reservation.ID).
+// 		Return(nil)
 
-	reservation := Reservation{
-		ID:   "reservation-id",
-		User: "user",
-		Type: VolumeReservation,
-	}
-
-	// force decomission by returning a nil error
-	client.On("Request", module, version, "ReleaseFilesystem", reservation.ID).
-		Return(nil)
-
-	err := volumeDecommission(ctx, &reservation)
-	require.NoError(err)
-}
+// 	err := volumeDecommission(ctx, &reservation)
+// 	require.NoError(err)
+// }

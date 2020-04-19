@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 )
 
+// BootedPath is the path where to store the booted flag
 var BootedPath = "/var/run/modules"
 
 // MarkBooted creates a file in a memory

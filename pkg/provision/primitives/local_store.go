@@ -96,7 +96,10 @@ func (s *FSStore) removeAllButPersistent(rootPath string) error {
 	return nil
 }
 
+// Sync update the statser with all the reservation present in the cache
 func (s *FSStore) Sync(statser provision.Statser) error {
+	//this should probably be reversed and moved to the Statser object instead
+
 	s.RLock()
 	defer s.RUnlock()
 

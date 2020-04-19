@@ -1,4 +1,4 @@
-package primitives_test
+package primitives
 
 import (
 	"encoding/json"
@@ -14,7 +14,6 @@ import (
 	schema "github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
-	"github.com/threefoldtech/zos/pkg/provision"
 	"gotest.tools/assert"
 )
 
@@ -49,7 +48,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		want    provision.Container
+		want    Container
 		wantErr bool
 	}{
 		{
@@ -66,15 +65,15 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				NetworkConnection: nil,
 				StatsAggregator:   nil,
 			},
-			want: provision.Container{
+			want: Container{
 				FList:           "https://hub.grid.tf/tf-official-apps/ubuntu-bionic-build.flist",
 				FlistStorage:    "zdb://hub.grid.tf:9900",
 				Env:             map[string]string{"FOO": "BAR"},
 				SecretEnv:       nil,
 				Entrypoint:      "/sbin/my_init",
 				Interactive:     false,
-				Mounts:          []provision.Mount{},
-				Network:         provision.Network{},
+				Mounts:          []Mount{},
+				Network:         Network{},
 				Logs:            []logger.Logs{},
 				StatsAggregator: []stats.Aggregator{},
 			},
@@ -107,14 +106,14 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 					},
 				},
 			},
-			want: provision.Container{
+			want: Container{
 				FList:        "https://hub.grid.tf/tf-official-apps/ubuntu-bionic-build.flist",
 				FlistStorage: "zdb://hub.grid.tf:9900",
 				Env:          map[string]string{"FOO": "BAR"},
 				SecretEnv:    nil,
 				Entrypoint:   "/sbin/my_init",
 				Interactive:  false,
-				Mounts: []provision.Mount{
+				Mounts: []Mount{
 					{
 						VolumeID:   "volume1",
 						Mountpoint: "/mnt",
@@ -124,7 +123,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 						Mountpoint: "/data",
 					},
 				},
-				Network: provision.Network{
+				Network: Network{
 					NetworkID: "net1",
 					IPs:       []net.IP{net.ParseIP("10.0.0.1")},
 				},
@@ -149,7 +148,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				NetworkConnection: tt.fields.NetworkConnection,
 				StatsAggregator:   tt.fields.StatsAggregator,
 			}
-			got, _, err := provision.ContainerToProvisionType(c)
+			got, _, err := ContainerToProvisionType(c)
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.DeepEqual(t, tt.want, got)
@@ -172,7 +171,7 @@ func TestTfgridReservationVolume1_ToProvisionType(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		want    provision.Volume
+		want    Volume
 		wantErr bool
 	}{
 		{
@@ -184,9 +183,9 @@ func TestTfgridReservationVolume1_ToProvisionType(t *testing.T) {
 				Type:            workloads.VolumeTypeHDD,
 				StatsAggregator: nil,
 			},
-			want: provision.Volume{
+			want: Volume{
 				Size: 10,
-				Type: provision.HDDDiskType,
+				Type: HDDDiskType,
 			},
 		},
 		{
@@ -198,9 +197,9 @@ func TestTfgridReservationVolume1_ToProvisionType(t *testing.T) {
 				Type:            workloads.VolumeTypeSSD,
 				StatsAggregator: nil,
 			},
-			want: provision.Volume{
+			want: Volume{
 				Size: 10,
-				Type: provision.SSDDiskType,
+				Type: SSDDiskType,
 			},
 		},
 	}
@@ -213,7 +212,7 @@ func TestTfgridReservationVolume1_ToProvisionType(t *testing.T) {
 				Type:            tt.fields.Type,
 				StatsAggregator: tt.fields.StatsAggregator,
 			}
-			got, _, err := provision.VolumeToProvisionType(v)
+			got, _, err := VolumeToProvisionType(v)
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.DeepEqual(t, tt.want, got)
@@ -238,7 +237,7 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		want    provision.ZDB
+		want    ZDB
 		wantErr bool
 	}{
 		{
@@ -253,7 +252,7 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 				DiskType: workloads.DiskTypeHDD,
 				Public:   true,
 			},
-			want: provision.ZDB{
+			want: ZDB{
 				Size:     10,
 				Mode:     pkg.ZDBModeSeq,
 				Password: "supersecret",
@@ -274,7 +273,7 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 				DiskType: workloads.DiskTypeHDD,
 				Public:   true,
 			},
-			want: provision.ZDB{
+			want: ZDB{
 				Size:     10,
 				Mode:     pkg.ZDBModeUser,
 				Password: "supersecret",
@@ -295,7 +294,7 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 				DiskType: workloads.DiskTypeSSD,
 				Public:   true,
 			},
-			want: provision.ZDB{
+			want: ZDB{
 				Size:     10,
 				Mode:     pkg.ZDBModeUser,
 				Password: "supersecret",
@@ -317,7 +316,7 @@ func TestTfgridReservationZdb1_ToProvisionType(t *testing.T) {
 				DiskType: tt.fields.DiskType,
 				Public:   tt.fields.Public,
 			}
-			got, _, err := provision.ZDBToProvisionType(z)
+			got, _, err := ZDBToProvisionType(z)
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.DeepEqual(t, tt.want, got)
@@ -367,7 +366,7 @@ func TestTfgridReservationNetwork1_ToProvisionType(t *testing.T) {
 				StatsAggregator:  tt.fields.StatsAggregator,
 				NetworkResources: tt.fields.NetworkResources,
 			}
-			got, err := provision.NetworkToProvisionType(n)
+			got, err := NetworkToProvisionType(n)
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.DeepEqual(t, tt.want, got)
@@ -422,7 +421,7 @@ func TestTfgridNetworkNetResource1_ToProvisionType(t *testing.T) {
 				WireguardListenPort:          tt.fields.WireguardListenPort,
 				Peers:                        tt.fields.Peers,
 			}
-			got, err := provision.NetResourceToProvisionType(r)
+			got, err := NetResourceToProvisionType(r)
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.DeepEqual(t, tt.want, got)
@@ -491,7 +490,7 @@ func TestWireguardPeer1_ToProvisionType(t *testing.T) {
 				Endpoint:       tt.fields.Endpoint,
 				AllowedIprange: tt.fields.AllowedIPs,
 			}
-			got, err := provision.WireguardToProvisionType(p)
+			got, err := WireguardToProvisionType(p)
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.DeepEqual(t, tt.want, got)

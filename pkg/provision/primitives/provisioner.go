@@ -5,6 +5,8 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
+// Provisioner hold all the logic responsible to provision and decomission
+// the different primitives workloads defined by this package
 type Provisioner struct {
 	cache provision.ReservationCache
 	zbus  zbus.Client
@@ -13,6 +15,7 @@ type Provisioner struct {
 	Decommissioners map[provision.ReservationType]provision.DecomissionerFunc
 }
 
+// NewProvisioner creates a new 0-OS provisioner
 func NewProvisioner(cache provision.ReservationCache, zbus zbus.Client) *Provisioner {
 	p := &Provisioner{
 		cache: cache,

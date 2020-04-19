@@ -10,7 +10,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
-	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -30,10 +29,6 @@ type ReservationPoller interface {
 	// sure to call it with the last (MAX) reservation ID he receieved.
 	Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, error)
 }
-
-// ReservationConverterFunc is used to convert from the explorer workloads type into the
-// internal Reservation type
-type ReservationConverterFunc func(w workloads.ReservationWorkload) (*Reservation, error)
 
 // PollSource does a long poll on address to get new and to be deleted
 // reservations. the server should only return unique reservations

@@ -21,6 +21,10 @@ type ProvisionerFunc func(ctx context.Context, reservation *Reservation) (interf
 // DecomissionerFunc is the function called by the Engine to decomission a workload
 type DecomissionerFunc func(ctx context.Context, reservation *Reservation) error
 
+// ReservationConverterFunc is used to convert from the explorer workloads type into the
+// internal Reservation type
+type ReservationConverterFunc func(w workloads.ReservationWorkload) (*Reservation, error)
+
 //ResultConverterFunc is used to convert internal Result type to the explorer workload result
 type ResultConverterFunc func(result Result) (*workloads.Result, error)
 
@@ -31,6 +35,7 @@ type ReservationCache interface {
 	Get(id string) (*Reservation, error)
 	Remove(id string) error
 	Exists(id string) (bool, error)
+	Sync(Statser) error
 }
 
 // Feedbacker defines the method that needs to be implemented

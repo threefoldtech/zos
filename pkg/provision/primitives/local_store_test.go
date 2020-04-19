@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg/provision"
 )
 
 func TestLocalStore(t *testing.T) {
@@ -19,7 +20,7 @@ func TestLocalStore(t *testing.T) {
 		root string
 	}
 	type args struct {
-		r *Reservation
+		r *provision.Reservation
 	}
 	tests := []struct {
 		name    string
@@ -33,11 +34,11 @@ func TestLocalStore(t *testing.T) {
 				root: root,
 			},
 			args: args{
-				r: &Reservation{
+				r: &provision.Reservation{
 					ID:       "r-1",
 					Created:  time.Now().UTC().Add(-time.Minute).Round(time.Second),
 					Duration: time.Second * 10,
-					Tag:      Tag{"source": "FSStore"},
+					// Tag:      Tag{"source": "FSStore"},
 				},
 			},
 		},

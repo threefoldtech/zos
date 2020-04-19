@@ -13,6 +13,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Engine is the core of this package
+// The engine is responsible to manage provision and decomission of workloads on the system
 type Engine struct {
 	nodeID         string
 	source         ReservationSource
@@ -24,15 +26,30 @@ type Engine struct {
 	statser        Statser
 }
 
+// EngineOps are the configuration of the engine
 type EngineOps struct {
-	NodeID         string
-	Source         ReservationSource
-	Cache          ReservationCache
-	Feedback       Feedbacker
-	Provisioners   map[ReservationType]ProvisionerFunc
+	// NodeID is the identity of the system running the engine
+	NodeID string
+	// Source is responsible to retrieve reservation for a remote source
+	Source ReservationSource
+	// Feedback is used to send provision result to the source
+	// after the reservation is provisionned
+	Feedback Feedbacker
+	// Cache is a used to keep track of which reservation are provisionned on the system
+	// and know when they expired so they can be decommissioned
+	Cache ReservationCache
+	// Provisioners is a function map so the engine knows how to provision the different
+	// workloads supported by the system running the engine
+	Provisioners map[ReservationType]ProvisionerFunc
+	// Decomissioners contains the opposite function from Provisioners
+	// they are used to decomission workloads from the system
 	Decomissioners map[ReservationType]DecomissionerFunc
-	Signer         Signer
-	Statser        Statser
+	// Signer is used to authenticate the result send to the source
+	Signer Signer
+	// Statser is responsible to keep track of how much workloads and resource units
+	// are reserved on the system running the engine
+	// After each provision/decomission the engine sends statistics update to the staster
+	Statser Statser
 }
 
 // New creates a new engine. Once started, the engine
@@ -53,9 +70,12 @@ func New(opts EngineOps) *Engine {
 	}
 }
 
-// Run starts processing reservation resource. Then try to allocate
-// reservations
+// Run starts reader reservation from the Source and handle them
 func (e *Engine) Run(ctx context.Context) error {
+
+	if err := e.cache.Sync(e.statser); err != nil {
+		return fmt.Errorf("failed to synchronize statser: %w", err)
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -229,6 +249,7 @@ func (e *Engine) updateStats() error {
 	return e.feedback.UpdateStats(e.nodeID, wl, r)
 }
 
+// Counters is a zbus stream that sends statistics from the engine
 func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
 	ch := make(chan pkg.ProvisionCounters)
 	go func() {
@@ -238,18 +259,18 @@ func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
 			case <-ctx.Done():
 			}
 
-			// c := e.cache.Counters()
-			// pc := pkg.ProvisionCounters{
-			// 	Container: int64(c.containers.Current()),
-			// 	Network:   int64(c.networks.Current()),
-			// 	ZDB:       int64(c.zdbs.Current()),
-			// 	Volume:    int64(c.volumes.Current()),
-			// 	VM:        int64(c.vms.Current()),
-			// }
+			wls := e.statser.CurrentWorkloads()
+			pc := pkg.ProvisionCounters{
+				Container: int64(wls.Container),
+				Network:   int64(wls.Network),
+				ZDB:       int64(wls.ZDBNamespace),
+				Volume:    int64(wls.Volume),
+				VM:        int64(wls.K8sVM),
+			}
 
 			select {
 			case <-ctx.Done():
-				// case ch <- pc:
+			case ch <- pc:
 			}
 		}
 	}()

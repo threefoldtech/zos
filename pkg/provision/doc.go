@@ -1,8 +1,4 @@
-// Package provision is a daemon that pulls
-// on reservation source, and then tries to
-// apply these reservations locally.
-// Note that, provision module doesn't expose
-// any interface on zbus. since it should not
-// be driven by users, instead all reservation
-// should be pushed by the reservation source.
+// Package provision exposes the Engine type.
+// Engine is a fully configurable type that can be used to
+// implement custom provisioning of workloads
 package provision

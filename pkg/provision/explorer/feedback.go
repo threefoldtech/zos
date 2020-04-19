@@ -8,31 +8,37 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-type ExplorerFeedback struct {
+// Feedback is an implementation of the provision.Feedbacker
+// that u sends results to the TFExplorer: https://github.com/threefoldtech/tfexplorer
+type Feedback struct {
 	client    *client.Client
 	converter provision.ResultConverterFunc
 }
 
-func NewExplorerFeedback(client *client.Client, converter provision.ResultConverterFunc) *ExplorerFeedback {
-	return &ExplorerFeedback{
+// NewFeedback creates an ExplorerFeedback
+func NewFeedback(client *client.Client, converter provision.ResultConverterFunc) *Feedback {
+	return &Feedback{
 		client:    client,
 		converter: converter,
 	}
 }
 
-func (e *ExplorerFeedback) Feedback(nodeID string, r *provision.Result) error {
+// Feedback implements provision.Feedbacker
+func (e *Feedback) Feedback(nodeID string, r *provision.Result) error {
 	wr, err := e.converter(*r)
 	if err != nil {
-		return fmt.Errorf("failed to convert result into schema type: %w")
+		return fmt.Errorf("failed to convert result into schema type: %w", err)
 	}
 
 	return e.client.Workloads.WorkloadPutResult(nodeID, r.ID, *wr)
 }
 
-func (e *ExplorerFeedback) Deleted(nodeID, id string) error {
+// Deleted implements provision.Feedbacker
+func (e *Feedback) Deleted(nodeID, id string) error {
 	return e.client.Workloads.WorkloadPutDeleted(nodeID, id)
 }
 
-func (e *ExplorerFeedback) UpdateStats(nodeID string, w directory.WorkloadAmount, u directory.ResourceAmount) error {
+// UpdateStats implements provision.Feedbacker
+func (e *Feedback) UpdateStats(nodeID string, w directory.WorkloadAmount, u directory.ResourceAmount) error {
 	return e.client.Directory.NodeUpdateUsedResources(nodeID, u, w)
 }

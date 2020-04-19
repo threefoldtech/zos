@@ -19,20 +19,6 @@ type Counter interface {
 	Current() uint64
 }
 
-type counterNop struct{}
-
-func (c *counterNop) Increment(v uint64) uint64 {
-	return 0
-}
-
-func (c *counterNop) Decrement(v uint64) uint64 {
-	return 0
-}
-
-func (c *counterNop) Current() uint64 {
-	return 0
-}
-
 // counterImpl value for safe increment/decrement
 type counterImpl uint64
 
@@ -59,7 +45,6 @@ type Counters struct {
 	networks   counterImpl
 	zdbs       counterImpl
 	vms        counterImpl
-	debugs     counterImpl
 
 	SRU counterImpl // SSD storage in bytes
 	HRU counterImpl // HDD storage in bytes
@@ -67,6 +52,7 @@ type Counters struct {
 	CRU counterImpl // CPU count absolute
 }
 
+// CurrentWorkloads return the number of each workloads provisioned on the system
 func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 	return directory.WorkloadAmount{
 		Network:      uint16(c.containers.Current()),
@@ -77,6 +63,7 @@ func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 	}
 }
 
+// CurrentUnits return the number of each resource units reserved on the system
 func (c *Counters) CurrentUnits() directory.ResourceAmount {
 	return directory.ResourceAmount{
 		Cru: c.CRU.Current(),
@@ -91,6 +78,7 @@ const (
 	gib = uint64(mib * 1024)
 )
 
+// Increment is called by the provision.Engine when a reservation has been provisionned
 func (c *Counters) Increment(r *provision.Reservation) error {
 
 	var (
@@ -121,6 +109,7 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 	return nil
 }
 
+// Decrement is called by the provision.Engine when a reservation has been decommissioned
 func (c *Counters) Decrement(r *provision.Reservation) error {
 
 	var (
