@@ -10,10 +10,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
+	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
-	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
@@ -148,75 +148,6 @@ func (r *Reservation) validate() error {
 	}
 
 	return nil
-}
-
-// ToSchemaType creates a TfgridReservation1 from zos provision types
-func (r *Reservation) ToSchemaType() (res workloads.Reservation, err error) {
-
-	w, err := workloadFromRaw(r.Data, r.Type)
-	if err != nil {
-		return res, err
-	}
-
-	switch r.Type {
-	case ContainerReservation:
-		res.DataReservation.Containers = []workloads.Container{
-			containerReservation(w, r.NodeID),
-		}
-	case VolumeReservation:
-		res.DataReservation.Volumes = []workloads.Volume{
-			volumeReservation(w, r.NodeID),
-		}
-	case ZDBReservation:
-		res.DataReservation.Zdbs = []workloads.ZDB{
-			zdbReservation(w, r.NodeID),
-		}
-	case NetworkReservation:
-		res.DataReservation.Networks = []workloads.Network{
-			networkReservation(w),
-		}
-	case KubernetesReservation:
-		res.DataReservation.Kubernetes = []workloads.K8S{
-			k8sReservation(w, r.NodeID),
-		}
-	}
-
-	res.Epoch = schema.Date{Time: r.Created}
-	res.DataReservation.ExpirationReservation = schema.Date{Time: r.Created.Add(r.Duration)}
-	res.DataReservation.ExpirationProvisioning = schema.Date{Time: r.Created.Add(2 * time.Minute)}
-
-	return res, nil
-}
-
-func workloadFromRaw(s json.RawMessage, t ReservationType) (interface{}, error) {
-	switch t {
-	case ContainerReservation:
-		c := Container{}
-		err := json.Unmarshal([]byte(s), &c)
-		return c, err
-
-	case VolumeReservation:
-		v := Volume{}
-		err := json.Unmarshal([]byte(s), &v)
-		return v, err
-
-	case NetworkReservation:
-		n := pkg.Network{}
-		err := json.Unmarshal([]byte(s), &n)
-		return n, err
-
-	case ZDBReservation:
-		z := ZDB{}
-		err := json.Unmarshal([]byte(s), &z)
-		return z, err
-
-	case KubernetesReservation:
-		k := Kubernetes{}
-		err := json.Unmarshal([]byte(s), &k)
-		return k, err
-	}
-
-	return nil, fmt.Errorf("unsupported reservation type %v", t)
 }
 
 func networkReservation(i interface{}) workloads.Network {
@@ -445,35 +376,4 @@ func (r *Result) Bytes() ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
-}
-
-// ToSchemaType converts result to schema type
-func (r *Result) ToSchemaType() workloads.Result {
-	var rType workloads.ResultCategoryEnum
-	switch r.Type {
-	case VolumeReservation:
-		rType = workloads.ResultCategoryVolume
-	case ContainerReservation:
-		rType = workloads.ResultCategoryContainer
-	case ZDBReservation:
-		rType = workloads.ResultCategoryZDB
-	case NetworkReservation:
-		rType = workloads.ResultCategoryNetwork
-	case KubernetesReservation:
-		rType = workloads.ResultCategoryK8S
-	default:
-		panic(fmt.Errorf("unknown reservation type: %s", r.Type))
-	}
-
-	result := workloads.Result{
-		Category:   rType,
-		WorkloadId: r.ID,
-		DataJson:   r.Data,
-		Signature:  r.Signature,
-		State:      workloads.ResultStateEnum(r.State),
-		Message:    r.Error,
-		Epoch:      schema.Date{Time: r.Created},
-	}
-
-	return result
 }

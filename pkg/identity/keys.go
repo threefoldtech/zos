@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/jbenet/go-base58"
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/versioned"
 
 	"golang.org/x/crypto/ed25519"
@@ -76,7 +75,6 @@ func LoadSeed(path string) ([]byte, error) {
 // LoadKeyPair reads a seed from a file located at path and re-create a
 // KeyPair using the seed
 func LoadKeyPair(path string) (k KeyPair, err error) {
-	log.Warn().Msg("LoadKeyPair is deprecated, please use UserIdentity struct")
 	return loadKeyPair(path)
 }
 

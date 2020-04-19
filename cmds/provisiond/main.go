@@ -107,19 +107,16 @@ func main() {
 	ctx = provision.WithZBus(ctx, client)
 	ctx = provision.WithOwnerCache(ctx, ownerCache)
 
-	// From here we start the real provision engine that will live
-	// for the rest of the life of the node
-	source := provision.CombinedSource(
-		provision.PollSource(provision.ReservationPollerFromWorkloads(cl.Workloads), nodeID),
-		provision.NewDecommissionSource(localStore),
-	)
-
-	engine := provision.New(
-		provision.WithNodeID(nodeID.Identity()),
-		provision.WithSource(source),
-		provision.WithCache(localStore),
-		provision.WithExplorer(cl),
-	)
+	engine := provision.New(provision.EngineOps{
+		NodeID: nodeID.Identity(),
+		Cache:  localStore,
+		Source: provision.CombinedSource(
+			provision.PollSource(provision.ReservationPollerFromWorkloads(cl.Workloads, provision.WorkloadToProvisionType), nodeID),
+			provision.NewDecommissionSource(localStore),
+		),
+		Feedback: provision.NewExplorerFeedback(cl, provision.ToSchemaType),
+		Signer:   identity,
+	})
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.ProvisionMonitor(engine))
 

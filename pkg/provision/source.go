@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
+	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -37,8 +38,13 @@ type ReservationPoller interface {
 	Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, error)
 }
 
+type ReservationConverterFunc func(w workloads.ReservationWorkload) (*Reservation, error)
+type ResultConverterFunc func(result Result) (*workloads.Result, error)
+
 type reservationPoller struct {
-	wl client.Workloads
+	wl         client.Workloads
+	inputConv  ReservationConverterFunc
+	outputConv ResultConverterFunc
 }
 
 // provisionOrder is used to sort the workload type
@@ -53,14 +59,16 @@ var provisionOrder = map[ReservationType]int{
 }
 
 func (r *reservationPoller) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, error) {
+
 	list, err := r.wl.Workloads(nodeID.Identity(), from)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while retrieving workloads from explorer: %w", err)
 	}
 
 	result := make([]*Reservation, 0, len(list))
 	for _, wl := range list {
-		r, err := WorkloadToProvisionType(wl)
+		log.Info().Msgf("convert %+v", wl)
+		r, err := r.inputConv(wl)
 		if err != nil {
 			return nil, err
 		}
@@ -77,8 +85,11 @@ func (r *reservationPoller) Poll(nodeID pkg.Identifier, from uint64) ([]*Reserva
 }
 
 // ReservationPollerFromWorkloads returns a reservation poller from client.Workloads
-func ReservationPollerFromWorkloads(wl client.Workloads) ReservationPoller {
-	return &reservationPoller{wl: wl}
+func ReservationPollerFromWorkloads(wl client.Workloads, inputConv ReservationConverterFunc) ReservationPoller {
+	return &reservationPoller{
+		wl:        wl,
+		inputConv: inputConv,
+	}
 }
 
 // PollSource does a long poll on address to get new and to be deleted
@@ -94,7 +105,6 @@ func PollSource(store ReservationPoller, nodeID pkg.Identifier) ReservationSourc
 }
 
 func (s *pollSource) Reservations(ctx context.Context) <-chan *Reservation {
-	log.Info().Msg("start reservation http source")
 	ch := make(chan *Reservation)
 
 	// on the first run we will get all the reservation

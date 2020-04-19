@@ -19,14 +19,14 @@ type ReservationSource interface {
 	Reservations(ctx context.Context) <-chan *Reservation
 }
 
-type Provisioner func(ctx context.Context, reservation *Reservation) (interface{}, error)
-type Decommissioner func(ctx context.Context, reservation *Reservation) error
+type ProvisionerFunc func(ctx context.Context, reservation *Reservation) (interface{}, error)
+type DecommissionerFunc func(ctx context.Context, reservation *Reservation) error
 
 var (
 	// provisioners defines the entry point for the different
 	// reservation provisioners. Currently only containers are
 	// supported.
-	provisioners = map[ReservationType]Provisioner{
+	provisioners = map[ReservationType]ProvisionerFunc{
 		ContainerReservation:  containerProvision,
 		VolumeReservation:     volumeProvision,
 		NetworkReservation:    networkProvision,
@@ -35,7 +35,7 @@ var (
 		KubernetesReservation: kubernetesProvision,
 	}
 
-	decommissioners = map[ReservationType]Decommissioner{
+	decommissioners = map[ReservationType]DecommissionerFunc{
 		ContainerReservation:  containerDecommission,
 		VolumeReservation:     volumeDecommission,
 		NetworkReservation:    networkDecommission,
