@@ -1,15 +1,13 @@
-package primitives
+package provision
 
 import (
 	"testing"
 	"time"
-
-	"github.com/threefoldtech/zos/pkg/provision"
 )
 
 func TestExpired(t *testing.T) {
 	type args struct {
-		r *provision.Reservation
+		r *Reservation
 	}
 	tests := []struct {
 		name string
@@ -18,7 +16,7 @@ func TestExpired(t *testing.T) {
 	}{
 		{
 			name: "expired",
-			args: args{&provision.Reservation{
+			args: args{&Reservation{
 				Created:  time.Now().Add(-time.Minute),
 				Duration: time.Second,
 			}},
@@ -26,7 +24,7 @@ func TestExpired(t *testing.T) {
 		},
 		{
 			name: "not expired",
-			args: args{&provision.Reservation{
+			args: args{&Reservation{
 				Created:  time.Now(),
 				Duration: time.Minute,
 			}},

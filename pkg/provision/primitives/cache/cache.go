@@ -1,4 +1,4 @@
-package primitives
+package cache
 
 import (
 	"encoding/json"
@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/provision/primitives"
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
@@ -23,16 +24,15 @@ var (
 	reservationSchemaLastVersion = reservationSchemaV1
 )
 
-// FSStore is a in reservation store
-// using the filesystem as backend
-type FSStore struct {
+// Fs is a in reservation cache using the filesystem as backend
+type Fs struct {
 	sync.RWMutex
 	root string
 }
 
 // NewFSStore creates a in memory reservation store
-func NewFSStore(root string) (*FSStore, error) {
-	store := &FSStore{
+func NewFSStore(root string) (*Fs, error) {
+	store := &Fs{
 		root: root,
 	}
 	if app.IsFirstBoot("provisiond") {
@@ -57,7 +57,7 @@ func NewFSStore(root string) (*FSStore, error) {
 
 //TODO: i think both sync and removeAllButPersistent can be merged into
 // one method because now it scans the same directory twice.
-func (s *FSStore) removeAllButPersistent(rootPath string) error {
+func (s *Fs) removeAllButPersistent(rootPath string) error {
 	// if rootPath is not present on the filesystem, return
 	_, err := os.Stat(rootPath)
 	if os.IsNotExist(err) {
@@ -83,7 +83,7 @@ func (s *FSStore) removeAllButPersistent(rootPath string) error {
 		if err != nil {
 			return err
 		}
-		if reservationType != VolumeReservation && reservationType != ZDBReservation {
+		if reservationType != primitives.VolumeReservation && reservationType != primitives.ZDBReservation {
 			log.Info().Msgf("Removing %s from cache", path)
 			return os.Remove(path)
 		}
@@ -97,7 +97,7 @@ func (s *FSStore) removeAllButPersistent(rootPath string) error {
 }
 
 // Sync update the statser with all the reservation present in the cache
-func (s *FSStore) Sync(statser provision.Statser) error {
+func (s *Fs) Sync(statser provision.Statser) error {
 	//this should probably be reversed and moved to the Statser object instead
 
 	s.RLock()
@@ -125,7 +125,7 @@ func (s *FSStore) Sync(statser provision.Statser) error {
 }
 
 // Add a reservation to the store
-func (s *FSStore) Add(r *provision.Reservation) error {
+func (s *Fs) Add(r *provision.Reservation) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -151,44 +151,28 @@ func (s *FSStore) Add(r *provision.Reservation) error {
 		return err
 	}
 
-	// s.counterFor(r.Type).Increment(1)
-	// if err := s.processResourceUnits(r, true); err != nil {
-	// 	return errors.Wrapf(err, "could not compute the amount of resource used by reservation %s", r.ID)
-	// }
-
 	return nil
 }
 
 // Remove a reservation from the store
-func (s *FSStore) Remove(id string) error {
+func (s *Fs) Remove(id string) error {
 	s.Lock()
 	defer s.Unlock()
 
-	// r, err := s.get(id)
-	// if os.IsNotExist(errors.Cause(err)) {
-	// 	return nil
-	// }
-
 	path := filepath.Join(s.root, id)
 	err := os.Remove(path)
-	if os.IsNotExist(err) {
-		// shouldn't happen because we just did a get
+	if os.IsNotExist(errors.Cause(err)) {
 		return nil
 	} else if err != nil {
 		return err
 	}
-
-	// s.counterFor(r.Type).Decrement(1)
-	// if err := s.processResourceUnits(r, false); err != nil {
-	// 	return errors.Wrapf(err, "could not compute the amount of resource used by reservation %s", r.ID)
-	// }
 
 	return nil
 }
 
 // GetExpired returns all id the the reservations that are expired
 // at the time of the function call
-func (s *FSStore) GetExpired() ([]*provision.Reservation, error) {
+func (s *Fs) GetExpired() ([]*provision.Reservation, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -227,7 +211,7 @@ func (s *FSStore) GetExpired() ([]*provision.Reservation, error) {
 
 // Get retrieves a specific reservation using its ID
 // if returns a non nil error if the reservation is not present in the store
-func (s *FSStore) Get(id string) (*provision.Reservation, error) {
+func (s *Fs) Get(id string) (*provision.Reservation, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -236,41 +220,16 @@ func (s *FSStore) Get(id string) (*provision.Reservation, error) {
 
 // getType retrieves a specific reservation's type using its ID
 // if returns a non nil error if the reservation is not present in the store
-func (s *FSStore) getType(id string) (provision.ReservationType, error) {
-	res := struct {
-		Type provision.ReservationType `json:"type"`
-	}{}
-	path := filepath.Join(s.root, id)
-	f, err := os.Open(path)
-	if os.IsNotExist(err) {
-		return "", errors.Wrapf(err, "reservation %s not found", id)
-	} else if err != nil {
-		return "", err
+func (s *Fs) getType(id string) (provision.ReservationType, error) {
+	r, err := s.get(id)
+	if err != nil {
+		return provision.ReservationType(0), err
 	}
-
-	defer f.Close()
-	reader, err := versioned.NewReader(f)
-	if versioned.IsNotVersioned(err) {
-		if _, err := f.Seek(0, 0); err != nil { // make sure to read from start
-			return "", err
-		}
-		reader = versioned.NewVersionedReader(versioned.MustParse("0.0.0"), f)
-	}
-
-	validV1 := versioned.MustParseRange(fmt.Sprintf("<=%s", reservationSchemaV1))
-
-	if validV1(reader.Version()) {
-		if err := json.NewDecoder(reader).Decode(&res); err != nil {
-			return "nil", err
-		}
-	} else {
-		return "", fmt.Errorf("unknown reservation object version (%s)", reader.Version())
-	}
-	return res.Type, nil
+	return r.Type, nil
 }
 
 // Exists checks if the reservation ID is in the store
-func (s *FSStore) Exists(id string) (bool, error) {
+func (s *Fs) Exists(id string) (bool, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -285,7 +244,7 @@ func (s *FSStore) Exists(id string) (bool, error) {
 	return false, err
 }
 
-func (s *FSStore) get(id string) (*provision.Reservation, error) {
+func (s *Fs) get(id string) (*provision.Reservation, error) {
 	path := filepath.Join(s.root, id)
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
@@ -318,6 +277,6 @@ func (s *FSStore) get(id string) (*provision.Reservation, error) {
 }
 
 // Close makes sure the backend of the store is closed properly
-func (s *FSStore) Close() error {
+func (s *Fs) Close() error {
 	return nil
 }

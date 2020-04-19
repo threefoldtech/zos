@@ -12,6 +12,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/provision/explorer"
 	"github.com/threefoldtech/zos/pkg/provision/primitives"
+	"github.com/threefoldtech/zos/pkg/provision/primitives/cache"
 
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -92,7 +93,7 @@ func main() {
 	nodeID := identity.NodeID()
 
 	// to get reservation from tnodb
-	cl, err := app.ExplorerClient()
+	e, err := app.ExplorerClient()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to instantiate BCDB client")
 	}
@@ -101,7 +102,7 @@ func main() {
 	statser := &primitives.Counters{}
 
 	// to store reservation locally on the node
-	localStore, err := primitives.NewFSStore(filepath.Join(storageDir, "reservations"))
+	localStore, err := cache.NewFSStore(filepath.Join(storageDir, "reservations"))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create local reservation store")
 	}
@@ -114,12 +115,12 @@ func main() {
 		NodeID: nodeID.Identity(),
 		Cache:  localStore,
 		Source: provision.CombinedSource(
-			provision.PollSource(explorer.ReservationPollerFromWorkloads(cl.Workloads, primitives.WorkloadToProvisionType, primitives.ProvisionOrder), nodeID),
+			provision.PollSource(explorer.NewPoller(e, primitives.WorkloadToProvisionType, primitives.ProvisionOrder), nodeID),
 			provision.NewDecommissionSource(localStore),
 		),
 		Provisioners:   provisioner.Provisioners,
 		Decomissioners: provisioner.Decommissioners,
-		Feedback:       explorer.NewExplorerFeedback(cl, primitives.ResultToSchemaType),
+		Feedback:       explorer.NewFeedback(e, primitives.ResultToSchemaType),
 		Signer:         identity,
 		Statser:        statser,
 	})
