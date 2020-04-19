@@ -63,15 +63,7 @@ type EngineOps struct {
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
 func New(opts EngineOps) *Engine {
-	if opts.Provisioners == nil {
-		opts.Provisioners = provisioners
-	}
-
-	if opts.Decomissioners == nil {
-		opts.Decomissioners = decommissioners
-	}
-
-	e := &Engine{
+	return &Engine{
 		nodeID:         opts.NodeID,
 		source:         opts.Source,
 		cache:          opts.Cache,
@@ -79,8 +71,6 @@ func New(opts EngineOps) *Engine {
 		decomissioners: opts.Decomissioners,
 		signer:         opts.Signer,
 	}
-
-	return e
 }
 
 // Run starts processing reservation resource. Then try to allocate

@@ -81,12 +81,12 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to message broker")
 	}
-	client, err := zbus.NewRedisClient(msgBrokerCon)
+	zbusCl, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		log.Fatal().Err(err).Msg("fail to connect to message broker server")
 	}
 
-	identity := stubs.NewIdentityManagerStub(client)
+	identity := stubs.NewIdentityManagerStub(zbusCl)
 	nodeID := identity.NodeID()
 
 	// to get reservation from tnodb
@@ -99,13 +99,11 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create local reservation store")
 	}
-	// to get the user ID of a reservation
-	ownerCache := provision.NewCache(localStore, provision.ReservationGetterFromWorkloads(cl.Workloads))
 
-	// create context and add middlewares
-	ctx := context.Background()
-	ctx = provision.WithZBus(ctx, client)
-	ctx = provision.WithOwnerCache(ctx, ownerCache)
+	provisioner := provision.NewProvisioner(
+		// use to get the user ID of a reservation
+		provision.NewCache(localStore, provision.ReservationGetterFromWorkloads(cl.Workloads)),
+		zbusCl)
 
 	engine := provision.New(provision.EngineOps{
 		NodeID: nodeID.Identity(),
@@ -114,8 +112,10 @@ func main() {
 			provision.PollSource(provision.ReservationPollerFromWorkloads(cl.Workloads, provision.WorkloadToProvisionType), nodeID),
 			provision.NewDecommissionSource(localStore),
 		),
-		Feedback: provision.NewExplorerFeedback(cl, provision.ToSchemaType),
-		Signer:   identity,
+		Provisioners:   provisioner.Provisioners,
+		Decomissioners: provisioner.Decommissioners,
+		Feedback:       provision.NewExplorerFeedback(cl, provision.ToSchemaType),
+		Signer:         identity,
 	})
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.ProvisionMonitor(engine))
@@ -124,6 +124,7 @@ func main() {
 		Str("broker", msgBrokerCon).
 		Msg("starting provision module")
 
+	ctx := context.Background()
 	ctx, _ = utils.WithSignal(ctx)
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("shutting down")

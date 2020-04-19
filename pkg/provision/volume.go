@@ -39,14 +39,13 @@ type VolumeResult struct {
 	ID string `json:"volume_id"`
 }
 
-func volumeProvisionImpl(ctx context.Context, reservation *Reservation) (VolumeResult, error) {
-	client := GetZBus(ctx)
+func (p *Provisioner) volumeProvisionImpl(ctx context.Context, reservation *Reservation) (VolumeResult, error) {
 	var config Volume
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return VolumeResult{}, err
 	}
 
-	storageClient := stubs.NewStorageModuleStub(client)
+	storageClient := stubs.NewStorageModuleStub(p.zbus)
 
 	_, err := storageClient.Path(reservation.ID)
 	if err == nil {
@@ -64,13 +63,12 @@ func volumeProvisionImpl(ctx context.Context, reservation *Reservation) (VolumeR
 }
 
 // VolumeProvision is entry point to provision a volume
-func volumeProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
-	return volumeProvisionImpl(ctx, reservation)
+func (p *Provisioner) volumeProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+	return p.volumeProvisionImpl(ctx, reservation)
 }
 
-func volumeDecommission(ctx context.Context, reservation *Reservation) error {
-	client := GetZBus(ctx)
-	storageClient := stubs.NewStorageModuleStub(client)
+func (p *Provisioner) volumeDecommission(ctx context.Context, reservation *Reservation) error {
+	storageClient := stubs.NewStorageModuleStub(p.zbus)
 
 	return storageClient.ReleaseFilesystem(reservation.ID)
 }

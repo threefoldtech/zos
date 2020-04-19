@@ -17,7 +17,7 @@ import (
 )
 
 // networkProvision is entry point to provision a network
-func networkProvisionImpl(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) networkProvisionImpl(ctx context.Context, reservation *Reservation) error {
 	network := &pkg.Network{}
 	if err := json.Unmarshal(reservation.Data, network); err != nil {
 		return errors.Wrap(err, "failed to unmarshal network from reservation")
@@ -25,7 +25,7 @@ func networkProvisionImpl(ctx context.Context, reservation *Reservation) error {
 
 	network.NetID = networkID(reservation.User, network.Name)
 
-	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
+	mgr := stubs.NewNetworkerStub(p.zbus)
 	log.Debug().Str("network", fmt.Sprintf("%+v", network)).Msg("provision network")
 
 	_, err := mgr.CreateNR(*network)
@@ -36,12 +36,12 @@ func networkProvisionImpl(ctx context.Context, reservation *Reservation) error {
 	return nil
 }
 
-func networkProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
-	return nil, networkProvisionImpl(ctx, reservation)
+func (p *Provisioner) networkProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+	return nil, p.networkProvisionImpl(ctx, reservation)
 }
 
-func networkDecommission(ctx context.Context, reservation *Reservation) error {
-	mgr := stubs.NewNetworkerStub(GetZBus(ctx))
+func (p *Provisioner) networkDecommission(ctx context.Context, reservation *Reservation) error {
+	mgr := stubs.NewNetworkerStub(p.zbus)
 
 	network := &pkg.Network{}
 	if err := json.Unmarshal(reservation.Data, network); err != nil {

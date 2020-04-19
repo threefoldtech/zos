@@ -21,22 +21,22 @@ type Debug struct {
 	Channel string `json:"channel"`
 }
 
-func debugProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+func (p *Provisioner) debugProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
 	var cfg Debug
 	if err := json.Unmarshal(reservation.Data, &cfg); err != nil {
 		return nil, err
 	}
 
-	_, err := startZLF(ctx, reservation.ID, cfg)
+	_, err := p.startZLF(ctx, reservation.ID, cfg)
 	// nothing to return to BCDB
 	return nil, err
 }
 
-func debugDecommission(ctx context.Context, reservation *Reservation) error {
-	return stopZLF(ctx, reservation.ID)
+func (p *Provisioner) debugDecommission(ctx context.Context, reservation *Reservation) error {
+	return p.stopZLF(ctx, reservation.ID)
 }
 
-func startZLF(ctx context.Context, ID string, cfg Debug) (string, error) {
+func (p *Provisioner) startZLF(ctx context.Context, ID string, cfg Debug) (string, error) {
 	zbus := GetZBus(ctx)
 	identity := stubs.NewIdentityManagerStub(zbus)
 
@@ -75,7 +75,7 @@ func startZLF(ctx context.Context, ID string, cfg Debug) (string, error) {
 	return name, nil
 }
 
-func stopZLF(ctx context.Context, ID string) error {
+func (p *Provisioner) stopZLF(ctx context.Context, ID string) error {
 	z, err := zinit.New("")
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to zinit")

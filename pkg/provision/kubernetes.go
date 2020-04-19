@@ -47,18 +47,16 @@ type Kubernetes struct {
 
 const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
 
-func kubernetesProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
-	return kubernetesProvisionImpl(ctx, reservation)
+func (p *Provisioner) kubernetesProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+	return p.kubernetesProvisionImpl(ctx, reservation)
 }
 
-func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) (result KubernetesResult, err error) {
+func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) (result KubernetesResult, err error) {
 	var (
-		client = GetZBus(ctx)
-
-		storage = stubs.NewVDiskModuleStub(client)
-		network = stubs.NewNetworkerStub(client)
-		flist   = stubs.NewFlisterStub(client)
-		vm      = stubs.NewVMModuleStub(client)
+		storage = stubs.NewVDiskModuleStub(p.zbus)
+		network = stubs.NewNetworkerStub(p.zbus)
+		flist   = stubs.NewFlisterStub(p.zbus)
+		vm      = stubs.NewVMModuleStub(p.zbus)
 
 		config Kubernetes
 
@@ -72,7 +70,7 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) (res
 	result.ID = reservation.ID
 	result.IP = config.IP.String()
 
-	config.PlainClusterSecret, err = decryptSecret(client, config.ClusterSecret)
+	config.PlainClusterSecret, err = decryptSecret(p.zbus, config.ClusterSecret)
 	if err != nil {
 		return result, errors.Wrap(err, "failed to decrypt namespace password")
 	}
@@ -136,23 +134,23 @@ func kubernetesProvisionImpl(ctx context.Context, reservation *Reservation) (res
 	}()
 
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = buildNetworkInfo(ctx, reservation.User, iface, config)
+	netInfo, err = p.buildNetworkInfo(ctx, reservation.User, iface, config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
 
 	if needsInstall {
-		if err = kubernetesInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
+		if err = p.kubernetesInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
 			return result, errors.Wrap(err, "failed to install k3s")
 		}
 	}
 
-	err = kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
+	err = p.kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
 	return result, err
 }
 
-func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
-	vm := stubs.NewVMModuleStub(GetZBus(ctx))
+func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
+	vm := stubs.NewVMModuleStub(p.zbus)
 
 	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.mode=install k3os.install.silent k3os.install.device=/dev/vda k3os.token=%s", cfg.PlainClusterSecret)
 	// if there is no server url configured, the node is set up as a master, therefore
@@ -213,8 +211,8 @@ func kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint6
 	return vm.Delete(name)
 }
 
-func kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
-	vm := stubs.NewVMModuleStub(GetZBus(ctx))
+func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
+	vm := stubs.NewVMModuleStub(p.zbus)
 
 	disks := make([]pkg.VMDisk, 1)
 	// installed disk
@@ -234,14 +232,12 @@ func kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, d
 	return vm.Run(kubevm)
 }
 
-func kubernetesDecomission(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *Reservation) error {
 	var (
-		client = GetZBus(ctx)
-
-		storage = stubs.NewVDiskModuleStub(client)
-		network = stubs.NewNetworkerStub(client)
-		flist   = stubs.NewFlisterStub(client)
-		vm      = stubs.NewVMModuleStub(client)
+		storage = stubs.NewVDiskModuleStub(p.zbus)
+		network = stubs.NewNetworkerStub(p.zbus)
+		flist   = stubs.NewFlisterStub(p.zbus)
+		vm      = stubs.NewVMModuleStub(p.zbus)
 
 		cfg Kubernetes
 	)
@@ -272,8 +268,8 @@ func kubernetesDecomission(ctx context.Context, reservation *Reservation) error 
 	return nil
 }
 
-func buildNetworkInfo(ctx context.Context, userID string, iface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
-	network := stubs.NewNetworkerStub(GetZBus(ctx))
+func (p *Provisioner) buildNetworkInfo(ctx context.Context, userID string, iface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
+	network := stubs.NewNetworkerStub(p.zbus)
 
 	netID := networkID(userID, string(cfg.NetworkID))
 	subnet, err := network.GetSubnet(netID)

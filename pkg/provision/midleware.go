@@ -46,29 +46,3 @@ func GetOwnerCache(ctx context.Context) OwnerCache {
 
 	return value.(OwnerCache)
 }
-
-// ZDBMapping interface
-type ZDBMapping interface {
-
-	// Get returns the container ID where namespace lives
-	// if the namespace is not found an empty string and false is returned
-	Get(namespace string) (string, bool)
-
-	// Set saves the mapping between the namespace and a container ID
-	Set(namespace, container string)
-}
-
-// WithZDBMapping set ZDBMapping into the context
-func WithZDBMapping(ctx context.Context, mapping ZDBMapping) context.Context {
-	return context.WithValue(ctx, zdbMappingKey{}, mapping)
-}
-
-// GetZDBMapping gets the zdb mapping from the context
-func GetZDBMapping(ctx context.Context) ZDBMapping {
-	value := ctx.Value(zdbMappingKey{})
-	if value == nil {
-		panic("no reservation mapping associated with context")
-	}
-
-	return value.(ZDBMapping)
-}

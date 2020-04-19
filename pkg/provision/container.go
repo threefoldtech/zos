@@ -75,18 +75,15 @@ type ContainerCapacity struct {
 	Memory uint64 `json:"memory"`
 }
 
-func containerProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
-	return containerProvisionImpl(ctx, reservation)
+func (p *Provisioner) containerProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+	return p.containerProvisionImpl(ctx, reservation)
 }
 
 // ContainerProvision is entry point to container reservation
-func containerProvisionImpl(ctx context.Context, reservation *Reservation) (ContainerResult, error) {
-	client := GetZBus(ctx)
-	cache := GetOwnerCache(ctx)
-
-	containerClient := stubs.NewContainerModuleStub(client)
-	flistClient := stubs.NewFlisterStub(client)
-	storageClient := stubs.NewStorageModuleStub(client)
+func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *Reservation) (ContainerResult, error) {
+	containerClient := stubs.NewContainerModuleStub(p.zbus)
+	flistClient := stubs.NewFlisterStub(p.zbus)
+	storageClient := stubs.NewStorageModuleStub(p.zbus)
 
 	tenantNS := fmt.Sprintf("ns%s", reservation.User)
 	containerID := reservation.ID
@@ -131,7 +128,7 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 	}
 
 	for k, v := range config.SecretEnv {
-		v, err := decryptSecret(client, v)
+		v, err := decryptSecret(p.zbus, v)
 		if err != nil {
 			return ContainerResult{}, errors.Wrapf(err, "failed to decrypt secret env var '%s'", k)
 		}
@@ -141,7 +138,7 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 	var mounts []pkg.MountInfo
 	for _, mount := range config.Mounts {
 		var owner string
-		owner, err = cache.OwnerOf(mount.VolumeID)
+		owner, err = p.cache.OwnerOf(mount.VolumeID)
 		if err != nil {
 			return ContainerResult{}, errors.Wrapf(err, "failed to retrieve the owner of volume %s", mount.VolumeID)
 		}
@@ -231,7 +228,7 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 	}
 
 	if config.Network.PublicIP6 {
-		join.IPv6, err = getIfaceIP(ctx, "pub", join.Namespace)
+		join.IPv6, err = p.getIfaceIP(ctx, "pub", join.Namespace)
 		if err != nil {
 			return ContainerResult{}, errors.Wrap(err, "error reading container ipv6")
 		}
@@ -245,12 +242,10 @@ func containerProvisionImpl(ctx context.Context, reservation *Reservation) (Cont
 	}, nil
 }
 
-func containerDecommission(ctx context.Context, reservation *Reservation) error {
-	client := GetZBus(ctx)
-
-	container := stubs.NewContainerModuleStub(client)
-	flist := stubs.NewFlisterStub(client)
-	networkMgr := stubs.NewNetworkerStub(client)
+func (p *Provisioner) containerDecommission(ctx context.Context, reservation *Reservation) error {
+	container := stubs.NewContainerModuleStub(p.zbus)
+	flist := stubs.NewFlisterStub(p.zbus)
+	networkMgr := stubs.NewNetworkerStub(p.zbus)
 
 	tenantNS := fmt.Sprintf("ns%s", reservation.User)
 	containerID := pkg.ContainerID(reservation.ID)

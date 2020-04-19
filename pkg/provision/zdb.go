@@ -46,14 +46,13 @@ type ZDBResult struct {
 	Port      uint
 }
 
-func zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
-	return zdbProvisionImpl(ctx, reservation)
+func (p *Provisioner) zdbProvision(ctx context.Context, reservation *Reservation) (interface{}, error) {
+	return p.zdbProvisionImpl(ctx, reservation)
 }
 
-func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult, error) {
+func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult, error) {
 	var (
-		client  = GetZBus(ctx)
-		storage = stubs.NewZDBAllocaterStub(client)
+		storage = stubs.NewZDBAllocaterStub(p.zbus)
 
 		nsID        = reservation.ID
 		config      ZDB
@@ -64,7 +63,7 @@ func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult,
 	}
 
 	var err error
-	config.PlainPassword, err = decryptSecret(client, config.Password)
+	config.PlainPassword, err = decryptSecret(p.zbus, config.Password)
 	if err != nil {
 		return ZDBResult{}, errors.Wrap(err, "failed to decrypt namespace password")
 	}
@@ -78,18 +77,18 @@ func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult,
 
 	containerID := pkg.ContainerID(allocation.VolumeID)
 
-	cont, err := ensureZdbContainer(ctx, allocation, config.Mode)
+	cont, err := p.ensureZdbContainer(ctx, allocation, config.Mode)
 	if err != nil {
 		return ZDBResult{}, err
 	}
 
-	containerIP, err = getIfaceIP(ctx, nwmod.ZDBIface, cont.Network.Namespace)
+	containerIP, err = p.getIfaceIP(ctx, nwmod.ZDBIface, cont.Network.Namespace)
 	if err != nil {
 		return ZDBResult{}, err
 	}
 
 	// this call will actually configure the namespace in zdb and set the password
-	if err := createZDBNamespace(containerID, nsID, config); err != nil {
+	if err := p.createZDBNamespace(containerID, nsID, config); err != nil {
 		return ZDBResult{}, err
 	}
 
@@ -100,18 +99,15 @@ func zdbProvisionImpl(ctx context.Context, reservation *Reservation) (ZDBResult,
 	}, nil
 }
 
-func ensureZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) (pkg.Container, error) {
-	var (
-		client    = GetZBus(ctx)
-		container = stubs.NewContainerModuleStub(client)
-	)
+func (p *Provisioner) ensureZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) (pkg.Container, error) {
+	var container = stubs.NewContainerModuleStub(p.zbus)
 
 	name := pkg.ContainerID(allocation.VolumeID)
 
 	cont, err := container.Inspect(zdbContainerNS, name)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		// container not found, create one
-		if err := createZdbContainer(ctx, allocation, mode); err != nil {
+		if err := p.createZdbContainer(ctx, allocation, mode); err != nil {
 			return cont, err
 		}
 		cont, err = container.Inspect(zdbContainerNS, name)
@@ -127,16 +123,13 @@ func ensureZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg
 
 }
 
-func createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) error {
+func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) error {
 	var (
 		name       = pkg.ContainerID(allocation.VolumeID)
 		volumePath = allocation.VolumePath
-
-		client = GetZBus(ctx)
-
-		cont    = stubs.NewContainerModuleStub(client)
-		flist   = stubs.NewFlisterStub(client)
-		network = stubs.NewNetworkerStub(client)
+		cont       = stubs.NewContainerModuleStub(p.zbus)
+		flist      = stubs.NewFlisterStub(p.zbus)
+		network    = stubs.NewNetworkerStub(p.zbus)
 
 		slog = log.With().Str("containerID", string(name)).Logger()
 	)
@@ -220,11 +213,8 @@ func createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg
 	return nil
 }
 
-func getIfaceIP(ctx context.Context, ifaceName, namespace string) (containerIP net.IP, err error) {
-	var (
-		client  = GetZBus(ctx)
-		network = stubs.NewNetworkerStub(client)
-	)
+func (p *Provisioner) getIfaceIP(ctx context.Context, ifaceName, namespace string) (containerIP net.IP, err error) {
+	var network = stubs.NewNetworkerStub(p.zbus)
 
 	getIP := func() error {
 		ips, err := network.Addrs(ifaceName, namespace)
@@ -259,7 +249,7 @@ func getIfaceIP(ctx context.Context, ifaceName, namespace string) (containerIP n
 	return containerIP, nil
 }
 
-func createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
+func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
 	zdbCl := zdbConnection(containerID)
 	defer zdbCl.Close()
 	if err := zdbCl.Connect(); err != nil {
@@ -293,10 +283,9 @@ func createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) er
 	return nil
 }
 
-func zdbDecommission(ctx context.Context, reservation *Reservation) error {
+func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *Reservation) error {
 	var (
-		client  = GetZBus(ctx)
-		storage = stubs.NewZDBAllocaterStub(client)
+		storage = stubs.NewZDBAllocaterStub(p.zbus)
 
 		config ZDB
 		nsID   = reservation.ID
@@ -313,7 +302,7 @@ func zdbDecommission(ctx context.Context, reservation *Reservation) error {
 		return err
 	}
 
-	_, err = ensureZdbContainer(ctx, allocation, config.Mode)
+	_, err = p.ensureZdbContainer(ctx, allocation, config.Mode)
 	if err != nil {
 		return errors.Wrap(err, "failed to find namespace zdb container")
 	}
