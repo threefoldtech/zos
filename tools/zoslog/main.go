@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 
 	"github.com/rs/zerolog/log"
@@ -30,9 +31,28 @@ func main() {
 	logging.Run(runlog)
 }
 
+func addlocal(config *logging.Config, loggers *logger.Loggers) error {
+	// create local default logs directory
+	local := path.Join(RootDir, LogsDir, config.Namespace)
+	if err := os.MkdirAll(local, 0755); err != nil {
+		return err
+	}
+
+	// hardcode local logfile
+	filepath := filepath.Join(local, fmt.Sprintf("%s.log", config.ID))
+	fileout, fileerr, err := logger.NewFile(filepath, filepath)
+	if err != nil {
+		return err
+	}
+
+	loggers.Add(fileout, fileerr)
+
+	return nil
+}
+
 func runlog(ctx context.Context, config *logging.Config, ready func() error) error {
 	// initializing container logger
-	cfgfile := path.Join(RootDir, ConfigDir, config.Namespace, fmt.Sprintf("%s-logs.json", config.ID))
+	cfgfile := filepath.Join(RootDir, ConfigDir, config.Namespace, fmt.Sprintf("%s-logs.json", config.ID))
 
 	// load config saved by contd
 	logs, err := logger.Deserialize(cfgfile)
@@ -43,20 +63,8 @@ func runlog(ctx context.Context, config *logging.Config, ready func() error) err
 	// initializing logs endpoints
 	loggers := logger.NewLoggers()
 
-	// create local default logs directory
-	local := path.Join(RootDir, LogsDir, config.Namespace)
-	if err = os.MkdirAll(local, 0755); err != nil {
-		return err
-	}
-
-	// hardcode local logfile
-	filepath := path.Join(local, fmt.Sprintf("%s.log", config.ID))
-	fileout, fileerr, err := logger.NewFile(filepath, filepath)
-	if err != nil {
-		return err
-	}
-
-	loggers.Add(fileout, fileerr)
+	// add default local log file (skipped by default)
+	// addlocal(config, loggers)
 
 	// set user defined endpoint logging
 	for _, l := range logs {
