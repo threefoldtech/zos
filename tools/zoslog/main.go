@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"path"
+	_ "os"
+	_ "path"
 	"path/filepath"
 	"sync"
 
@@ -21,7 +21,7 @@ var (
 	RootDir = "/var/cache/modules/contd/"
 
 	// LogsDir points to logs directory
-	LogsDir = "logs"
+	// LogsDir = "logs"
 
 	// ConfigDir points to config (logs settings) directory
 	ConfigDir = "config"
@@ -31,6 +31,7 @@ func main() {
 	logging.Run(runlog)
 }
 
+/*
 func addlocal(config *logging.Config, loggers *logger.Loggers) error {
 	// create local default logs directory
 	local := path.Join(RootDir, LogsDir, config.Namespace)
@@ -49,6 +50,7 @@ func addlocal(config *logging.Config, loggers *logger.Loggers) error {
 
 	return nil
 }
+*/
 
 func runlog(ctx context.Context, config *logging.Config, ready func() error) error {
 	// initializing container logger
