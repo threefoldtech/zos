@@ -15,11 +15,11 @@ import (
 
 var (
 	// SeedVersion1 (binary seed)
-	seedVersion1 = versioned.MustParse("1.0.0")
+	SeedVersion1 = versioned.MustParse("1.0.0")
 	// SeedVersion11 (json mnemonic)
-	seedVersion11 = versioned.MustParse("1.1.0")
+	SeedVersion11 = versioned.MustParse("1.1.0")
 	// SeedVersionLatest link to latest seed version
-	seedVersionLatest = seedVersion11
+	SeedVersionLatest = SeedVersion11
 )
 
 // KeyPair holds a public and private side of an ed25519 key pair
@@ -50,7 +50,7 @@ func GenerateKeyPair() (k KeyPair, err error) {
 func (k *KeyPair) Save(path string) error {
 	seed := k.PrivateKey.Seed()
 
-	return versioned.WriteFile(path, seedVersion1, seed, 0400)
+	return versioned.WriteFile(path, SeedVersion1, seed, 0400)
 }
 
 // LoadSeed from path
@@ -59,13 +59,13 @@ func LoadSeed(path string) ([]byte, error) {
 	if versioned.IsNotVersioned(err) {
 		// this is a compatibility code for seed files
 		// in case it does not have any version information
-		versioned.WriteFile(path, seedVersionLatest, seed, 0400)
-		version = seedVersionLatest
+		versioned.WriteFile(path, SeedVersionLatest, seed, 0400)
+		version = SeedVersionLatest
 	} else if err != nil {
 		return nil, err
 	}
 
-	if version.NE(seedVersion1) {
+	if version.NE(SeedVersion1) {
 		return nil, fmt.Errorf("unknown seed version")
 	}
 
