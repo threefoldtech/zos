@@ -4,33 +4,31 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/tools/builders"
+	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 
-	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/urfave/cli"
 )
 
 func generateVolume(c *cli.Context) error {
-	s := c.Uint64("size")
-	t := strings.ToUpper(c.String("type"))
+	s := c.Int64("size")
+	t := strings.ToLower(c.String("type"))
 
-	if pkg.DeviceType(t) != pkg.HDDDevice && pkg.DeviceType(t) != pkg.SSDDevice {
-		return fmt.Errorf("volume type can only HHD or SSD")
+	if t != workloads.DiskTypeHDD.String() && t != workloads.DiskTypeSSD.String() {
+		return fmt.Errorf("volume type can only hdd or ssd")
 	}
 
 	if s < 1 { //TODO: upper bound ?
 		return fmt.Errorf("size cannot be less then 1")
 	}
 
-	v := provision.Volume{
-		Size: s,
-		Type: provision.DiskType(t),
+	volumeBuilder := builders.NewVolumeBuilder()
+	volumeBuilder.WithNodeID(c.String("node")).WithSize(s)
+	if t == workloads.DiskTypeHDD.String() {
+		volumeBuilder.WithType(workloads.VolumeTypeHDD)
+	} else if t == workloads.DiskTypeSSD.String() {
+		volumeBuilder.WithType(workloads.VolumeTypeSSD)
 	}
 
-	p, err := embed(v, provision.VolumeReservation, c.String("node"))
-	if err != nil {
-		return err
-	}
-
-	return writeWorkload(c.GlobalString("output"), p)
+	return writeWorkload(c.GlobalString("output"), volumeBuilder.Volume)
 }

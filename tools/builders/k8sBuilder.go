@@ -40,41 +40,49 @@ func (k8s *K8sBuilder) Save(writer io.Writer) error {
 }
 
 // WithNodeID sets the node ID to the K8S
-func (k8s *K8sBuilder) WithNodeID(nodeID string) {
+func (k8s *K8sBuilder) WithNodeID(nodeID string) *K8sBuilder {
 	k8s.K8S.NodeId = nodeID
+	return k8s
 }
 
 // WithSize sets the size to the K8S
-func (k8s *K8sBuilder) WithSize(size int64) {
+func (k8s *K8sBuilder) WithSize(size int64) *K8sBuilder {
 	k8s.K8S.Size = size
+	return k8s
 }
 
 // WithNetworkID sets the network id to the K8S
-func (k8s *K8sBuilder) WithNetworkID(id string) {
+func (k8s *K8sBuilder) WithNetworkID(id string) *K8sBuilder {
 	k8s.K8S.NetworkId = id
+	return k8s
 }
 
 // WithIPAddress sets the ip address to the K8S
-func (k8s *K8sBuilder) WithIPAddress(ip net.IP) {
+func (k8s *K8sBuilder) WithIPAddress(ip net.IP) *K8sBuilder {
 	k8s.K8S.Ipaddress = ip
+	return k8s
 }
 
 // WithClusterSecret sets the cluster secret to the K8S
-func (k8s *K8sBuilder) WithClusterSecret(secret string) {
+func (k8s *K8sBuilder) WithClusterSecret(secret string) *K8sBuilder {
 	k8s.K8S.ClusterSecret = secret
+	return k8s
 }
 
 // WithMasterIPs sets the master IPs to the K8S
-func (k8s *K8sBuilder) WithMasterIPs(ips []net.IP) {
+func (k8s *K8sBuilder) WithMasterIPs(ips []net.IP) *K8sBuilder {
 	k8s.K8S.MasterIps = ips
+	return k8s
 }
 
 // WithSSHKeys sets the ssh keys to the K8S
-func (k8s *K8sBuilder) WithSSHKeys(sshKeys []string) {
+func (k8s *K8sBuilder) WithSSHKeys(sshKeys []string) *K8sBuilder {
 	k8s.K8S.SshKeys = sshKeys
+	return k8s
 }
 
 // WithStatsAggregator sets the stats aggregators to the K8S
-func (k8s *K8sBuilder) WithStatsAggregator(aggregators []workloads.StatsAggregator) {
+func (k8s *K8sBuilder) WithStatsAggregator(aggregators []workloads.StatsAggregator) *K8sBuilder {
 	k8s.K8S.StatsAggregator = aggregators
+	return k8s
 }

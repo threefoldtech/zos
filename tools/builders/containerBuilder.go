@@ -59,56 +59,79 @@ func (c *ContainerBuilder) Build() error {
 }
 
 // WithNodeID sets the node ID to the container
-func (c *ContainerBuilder) WithNodeID(nodeID string) {
+func (c *ContainerBuilder) WithNodeID(nodeID string) *ContainerBuilder {
 	c.Container.NodeId = nodeID
+	return c
 }
 
 // WithFlist sets the flist to the container
-func (c *ContainerBuilder) WithFlist(flist string) {
+func (c *ContainerBuilder) WithFlist(flist string) *ContainerBuilder {
 	c.Container.Flist = flist
+	return c
+}
+
+// WithNetwork sets the networks to the container
+func (c *ContainerBuilder) WithNetwork(connections []workloads.NetworkConnection) *ContainerBuilder {
+	c.Container.NetworkConnection = connections
+	return c
+}
+
+// WithInteractive sets the interactive flag to the container
+func (c *ContainerBuilder) WithInteractive(interactive bool) *ContainerBuilder {
+	c.Container.Interactive = interactive
+	return c
 }
 
 // WithHubURL sets the hub url to the container
-func (c *ContainerBuilder) WithHubURL(url string) {
+func (c *ContainerBuilder) WithHubURL(url string) *ContainerBuilder {
 	c.Container.HubUrl = url
+	return c
 }
 
 // WithEnvs sets the environments to the container
-func (c *ContainerBuilder) WithEnvs(envs map[string]string) {
+func (c *ContainerBuilder) WithEnvs(envs map[string]string) *ContainerBuilder {
 	c.Container.Environment = envs
+	return c
 }
 
 // WithSecretEnvs sets the secret environments to the container
-func (c *ContainerBuilder) WithSecretEnvs(envs map[string]string) {
+func (c *ContainerBuilder) WithSecretEnvs(envs map[string]string) *ContainerBuilder {
 	c.Container.SecretEnvironment = envs
+	return c
 }
 
 // WithEntrypoint sets the entrypoint to the container
-func (c *ContainerBuilder) WithEntrypoint(entrypoint string) {
+func (c *ContainerBuilder) WithEntrypoint(entrypoint string) *ContainerBuilder {
 	c.Container.Entrypoint = entrypoint
+	return c
 }
 
 // WithVolumes sets the volumes to the container
-func (c *ContainerBuilder) WithVolumes(mounts []workloads.ContainerMount) {
+func (c *ContainerBuilder) WithVolumes(mounts []workloads.ContainerMount) *ContainerBuilder {
 	c.Container.Volumes = mounts
+	return c
 }
 
 // WithConnection sets the conntections to the container
-func (c *ContainerBuilder) WithConnection(connections []workloads.NetworkConnection) {
+func (c *ContainerBuilder) WithConnection(connections []workloads.NetworkConnection) *ContainerBuilder {
 	c.Container.NetworkConnection = connections
+	return c
 }
 
 // WithStatsAggregator sets the stats aggregators to the container
-func (c *ContainerBuilder) WithStatsAggregator(aggregators []workloads.StatsAggregator) {
+func (c *ContainerBuilder) WithStatsAggregator(aggregators []workloads.StatsAggregator) *ContainerBuilder {
 	c.Container.StatsAggregator = aggregators
+	return c
 }
 
 // WithLogs sets the logs to the container
-func (c *ContainerBuilder) WithLogs(logs []workloads.Logs) {
+func (c *ContainerBuilder) WithLogs(logs []workloads.Logs) *ContainerBuilder {
 	c.Container.Logs = logs
+	return c
 }
 
 // WithContainerCapacity sets the container capacity to the container
-func (c *ContainerBuilder) WithContainerCapacity(cap workloads.ContainerCapacity) {
+func (c *ContainerBuilder) WithContainerCapacity(cap workloads.ContainerCapacity) *ContainerBuilder {
 	c.Container.Capacity = cap
+	return c
 }

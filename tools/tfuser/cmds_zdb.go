@@ -3,26 +3,26 @@ package main
 import (
 	"fmt"
 
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/tools/builders"
+	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 
-	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/urfave/cli"
 )
 
 func generateZDB(c *cli.Context) error {
 	var (
-		size     = c.Uint64("size")
+		size     = c.Int64("size")
 		mode     = c.String("mode")
 		password = c.String("password")
 		disktype = c.String("type")
 		public   = c.Bool("Public")
 	)
 
-	if pkg.DeviceType(disktype) != pkg.HDDDevice && pkg.DeviceType(disktype) != pkg.SSDDevice {
-		return fmt.Errorf("volume type can only 'HHD' or 'SSD'")
+	if disktype != workloads.DiskTypeHDD.String() && disktype != workloads.DiskTypeSSD.String() {
+		return fmt.Errorf("volume type can only hdd or ssd")
 	}
 
-	if mode != pkg.ZDBModeSeq && mode != pkg.ZDBModeUser {
+	if mode != workloads.ZDBModeSeq.String() && mode != workloads.ZDBModeUser.String() {
 		return fmt.Errorf("mode can only 'user' or 'seq'")
 	}
 
@@ -30,18 +30,20 @@ func generateZDB(c *cli.Context) error {
 		return fmt.Errorf("size cannot be less than 1")
 	}
 
-	zdb := provision.ZDB{
-		Size:     size,
-		DiskType: pkg.DeviceType(disktype),
-		Mode:     pkg.ZDBMode(mode),
-		Password: password,
-		Public:   public,
+	zdbBuilder := builders.NewZdbBuilder()
+	zdbBuilder.WithSize(size).WithPassword(password).WithPublic(public)
+
+	if mode == workloads.ZDBModeSeq.String() {
+		zdbBuilder.WithMode(workloads.ZDBModeSeq)
+	} else if mode == workloads.ZDBModeUser.String() {
+		zdbBuilder.WithMode(workloads.ZDBModeUser)
 	}
 
-	p, err := embed(zdb, provision.ZDBReservation, c.String("node"))
-	if err != nil {
-		return err
+	if disktype == workloads.DiskTypeHDD.String() {
+		zdbBuilder.WithDiskType(workloads.DiskTypeHDD)
+	} else if disktype == workloads.DiskTypeSSD.String() {
+		zdbBuilder.WithDiskType(workloads.DiskTypeSSD)
 	}
 
-	return writeWorkload(c.GlobalString("output"), p)
+	return writeWorkload(c.GlobalString("output"), zdbBuilder.ZDB)
 }

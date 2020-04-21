@@ -39,16 +39,19 @@ func (v *VolumeBuilder) Save(writer io.Writer) error {
 }
 
 // WithNodeID sets the node ID to the volume
-func (v *VolumeBuilder) WithNodeID(nodeID string) {
+func (v *VolumeBuilder) WithNodeID(nodeID string) *VolumeBuilder {
 	v.Volume.NodeId = nodeID
+	return v
 }
 
 // WithSize sets the volume size
-func (v *VolumeBuilder) WithSize(size int64) {
+func (v *VolumeBuilder) WithSize(size int64) *VolumeBuilder {
 	v.Volume.Size = size
+	return v
 }
 
 // WithType sets the volume type
-func (v *VolumeBuilder) WithType(diskType workloads.VolumeTypeEnum) {
+func (v *VolumeBuilder) WithType(diskType workloads.VolumeTypeEnum) *VolumeBuilder {
 	v.Volume.Type = diskType
+	return v
 }

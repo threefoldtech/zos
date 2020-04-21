@@ -52,36 +52,43 @@ func (z *ZdbBuilder) Build() error {
 }
 
 // WithNodeID sets the node ID to the zdb
-func (z *ZdbBuilder) WithNodeID(nodeID string) {
+func (z *ZdbBuilder) WithNodeID(nodeID string) *ZdbBuilder {
 	z.ZDB.NodeId = nodeID
+	return z
 }
 
 // WithSize sets the size on the zdb
-func (z *ZdbBuilder) WithSize(size int64) {
+func (z *ZdbBuilder) WithSize(size int64) *ZdbBuilder {
 	z.ZDB.Size = size
+	return z
 }
 
 // WithMode sets the mode to the zdb
-func (z *ZdbBuilder) WithMode(mode workloads.ZDBModeEnum) {
+func (z *ZdbBuilder) WithMode(mode workloads.ZDBModeEnum) *ZdbBuilder {
 	z.ZDB.Mode = mode
+	return z
 }
 
 // WithPassword sets the password to the zdb
-func (z *ZdbBuilder) WithPassword(password string) {
+func (z *ZdbBuilder) WithPassword(password string) *ZdbBuilder {
 	z.ZDB.Password = password
+	return z
 }
 
 // WithDiskType sets the disktype to the zdb
-func (z *ZdbBuilder) WithDiskType(diskType workloads.DiskTypeEnum) {
+func (z *ZdbBuilder) WithDiskType(diskType workloads.DiskTypeEnum) *ZdbBuilder {
 	z.ZDB.DiskType = diskType
+	return z
 }
 
 // WithPublic sets if public to the zdb
-func (z *ZdbBuilder) WithPublic(public bool) {
+func (z *ZdbBuilder) WithPublic(public bool) *ZdbBuilder {
 	z.ZDB.Public = public
+	return z
 }
 
 // WithStatsAggregator sets the stats aggregators to the zdb
-func (z *ZdbBuilder) WithStatsAggregator(aggregators []workloads.StatsAggregator) {
+func (z *ZdbBuilder) WithStatsAggregator(aggregators []workloads.StatsAggregator) *ZdbBuilder {
 	z.ZDB.StatsAggregator = aggregators
+	return z
 }

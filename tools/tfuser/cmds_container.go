@@ -5,11 +5,10 @@ import (
 	"net"
 	"strings"
 
-	"github.com/threefoldtech/zos/pkg"
-
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/tools/builders"
+	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 	"github.com/urfave/cli"
 )
 
@@ -25,12 +24,12 @@ func generateContainer(c *cli.Context) error {
 		return err
 	}
 
-	cap := provision.ContainerCapacity{
-		CPU:    c.Uint("cpu"),
-		Memory: c.Uint64("memory"),
+	cap := workloads.ContainerCapacity{
+		Cpu:    c.Int64("cpu"),
+		Memory: c.Int64("memory"),
 	}
 
-	var sts []stats.Aggregator
+	var sts []workloads.StatsAggregator
 	if s := c.String("stats"); s != "" {
 		// validating stdout argument
 		_, _, err := logger.RedisParseURL(s)
@@ -38,9 +37,9 @@ func generateContainer(c *cli.Context) error {
 			return err
 		}
 
-		ss := stats.Aggregator{
+		ss := workloads.StatsAggregator{
 			Type: stats.RedisType,
-			Data: stats.Redis{
+			Data: workloads.StatsRedis{
 				Endpoint: s,
 			},
 		}
@@ -48,7 +47,7 @@ func generateContainer(c *cli.Context) error {
 		sts = append(sts, ss)
 	}
 
-	var logs []logger.Logs
+	var logs []workloads.Logs
 	if lo := c.String("stdout"); lo != "" {
 		// validating stdout argument
 		_, _, err := logger.RedisParseURL(lo)
@@ -70,9 +69,9 @@ func generateContainer(c *cli.Context) error {
 			lr = nlr
 		}
 
-		lg := logger.Logs{
+		lg := workloads.Logs{
 			Type: "redis",
-			Data: logger.LogsRedis{
+			Data: workloads.LogsRedis{
 				Stdout: lo,
 				Stderr: lr,
 			},
@@ -81,39 +80,27 @@ func generateContainer(c *cli.Context) error {
 		logs = append(logs, lg)
 	}
 
-	container := provision.Container{
-		FList:        c.String("flist"),
-		FlistStorage: c.String("storage"),
-		Env:          envs,
-		Entrypoint:   c.String("entrypoint"),
-		Interactive:  c.Bool("corex"),
-		Mounts:       mounts,
-		Network: provision.Network{
-			NetworkID: pkg.NetID(c.String("network")),
-			IPs: []net.IP{
-				net.ParseIP(c.String("ip")),
-			},
-			PublicIP6: c.Bool("public6"),
+	network := []workloads.NetworkConnection{
+		workloads.NetworkConnection{
+			NetworkId: c.String("network"),
+			Ipaddress: net.ParseIP(c.String("ip")),
+			PublicIp6: c.Bool("public6"),
 		},
-		Capacity:        cap,
-		Logs:            logs,
-		StatsAggregator: sts,
 	}
 
-	if err := validateContainer(container); err != nil {
+	containerBuilder := builders.NewContainerBuilder()
+	containerBuilder.WithFlist(c.String("flist")).WithEnvs(envs).WithEntrypoint(c.String("entrypoint")).WithVolumes(mounts).WithInteractive(c.Bool("corex")).WithNetwork(network)
+	containerBuilder.WithContainerCapacity(cap).WithLogs(logs).WithStatsAggregator(sts)
+
+	if err := validateContainer(containerBuilder.Container); err != nil {
 		return err
 	}
 
-	p, err := embed(container, provision.ContainerReservation, c.String("node"))
-	if err != nil {
-		return err
-	}
-
-	return writeWorkload(c.GlobalString("output"), p)
+	return writeWorkload(c.GlobalString("output"), containerBuilder.Container)
 }
 
-func validateContainer(c provision.Container) error {
-	if c.FList == "" {
+func validateContainer(c workloads.Container) error {
+	if c.Flist == "" {
 		return fmt.Errorf("flist cannot be empty")
 	}
 	return nil
@@ -133,8 +120,8 @@ func splitEnvs(envs []string) (map[string]string, error) {
 	return out, nil
 }
 
-func splitMounts(mounts []string) ([]provision.Mount, error) {
-	out := make([]provision.Mount, 0, len(mounts))
+func splitMounts(mounts []string) ([]workloads.ContainerMount, error) {
+	out := make([]workloads.ContainerMount, 0, len(mounts))
 
 	for _, mount := range mounts {
 		ss := strings.SplitN(mount, ":", 2)
@@ -142,8 +129,8 @@ func splitMounts(mounts []string) ([]provision.Mount, error) {
 			return nil, fmt.Errorf("mounts flag mal formatted: %v", mount)
 		}
 
-		out = append(out, provision.Mount{
-			VolumeID:   ss[0],
+		out = append(out, workloads.ContainerMount{
+			VolumeId:   ss[0],
 			Mountpoint: ss[1],
 		})
 	}

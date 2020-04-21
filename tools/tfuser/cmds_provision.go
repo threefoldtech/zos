@@ -4,10 +4,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -16,6 +14,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/builders"
 	"github.com/threefoldtech/zos/tools/client"
 
 	"github.com/urfave/cli"
@@ -90,96 +89,41 @@ var (
 
 func cmdsProvision(c *cli.Context) error {
 	var (
-		schema   []byte
 		path     = c.String("schema")
 		seedPath = mainSeed
 		d        = c.String("duration")
 		assets   = c.StringSlice("asset")
-		userID   = int64(mainui.ThreebotID)
 		duration time.Duration
 		err      error
 	)
 
-	if d == "" {
-		duration = defaultDuration
-	} else {
-		duration, err = time.ParseDuration(d)
-		if err != nil {
-			nrDays, err := strconv.Atoi(d)
-			if err != nil {
-				return errors.Wrap(err, "unsupported duration format")
-			}
-			duration = time.Duration(nrDays) * day
-		}
-	}
-
-	signer, err := client.NewSigner(mainui.Key().PrivateKey.Seed())
+	f, err := os.Open(path)
 	if err != nil {
-		return errors.Wrapf(err, "could not find seed file at %s", seedPath)
+		return errors.Wrap(err, "failed to open reservation")
 	}
 
-	if path == "-" {
-		schema, err = ioutil.ReadAll(os.Stdin)
-	} else {
-		schema, err = ioutil.ReadFile(path)
-	}
+	volumeBuilder, err := builders.LoadVolumeBuilder(f)
 	if err != nil {
-		return errors.Wrap(err, "could not find provision schema")
+		return errors.Wrap(err, "failed to load the reservation builder")
 	}
 
-	var reservation provision.Reservation
-	if err := json.Unmarshal(schema, &reservation); err != nil {
-		return errors.Wrap(err, "failed to read the provision schema")
-	}
-
-	reservation.Duration = duration
-	reservation.Created = time.Now()
-	// set the user ID into the reservation schema
-	//reservation.User = keypair.Identity()
-
-	custom, ok := provCustomModifiers[reservation.Type]
-	fmt.Println("customization: ", ok)
-	if ok {
-		fmt.Println("running customization function", reservation.NodeID)
-		if err := custom(&reservation); err != nil {
-			return err
-		}
-	}
-
-	jsx, err := reservation.ToSchemaType()
+	reservationBuilder, err := builders.NewReservationBuilder()
 	if err != nil {
-		return errors.Wrap(err, "failed to convert reservation to schema type")
+		return errors.Wrap(err, "failed to load the reservation builder")
 	}
-	jsx.CustomerTid = userID
-	// we always allow user to delete his own reservations
-	jsx.DataReservation.SigningRequestDelete.QuorumMin = 1
-	jsx.DataReservation.SigningRequestDelete.Signers = []int64{userID}
 
-	// set allowed the currencies as provided by the user
-	jsx.DataReservation.Currencies = assets
+	reservationBuilder.AddVolume(*volumeBuilder)
 
-	bytes, err := json.Marshal(jsx.DataReservation)
+	_, err = reservationBuilder.WithDuration(d)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to set the reservation builder duration")
 	}
 
-	jsx.Json = string(bytes)
-	_, signature, err := signer.SignHex(jsx.Json)
+	reservationBuilder.WithDryRun(true).WithSeedPath(seedPath).WithAssets(assets)
+
+	response, err := reservationBuilder.Deploy(bcdb, mainui)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign the reservation")
-	}
-
-	jsx.CustomerSignature = signature
-
-	if c.Bool("dry-run") {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(jsx)
-	}
-
-	response, err := bcdb.Workloads.Create(jsx)
-	if err != nil {
-		return errors.Wrap(err, "failed to send reservation")
+		return errors.Wrap(err, "failed to deploy reservation")
 	}
 
 	totalAmount := xdr.Int64(0)

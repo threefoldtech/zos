@@ -41,17 +41,26 @@ func (n *NetworkBuilder) Save(writer io.Writer) error {
 
 // TODO ADD NODE ID TO NETWORK?
 
+// WithName sets the ip range to the network
+func (n *NetworkBuilder) WithName(name string) *NetworkBuilder {
+	n.Network.Name = name
+	return n
+}
+
 // WithIPRange sets the ip range to the network
-func (n *NetworkBuilder) WithIPRange(ipRange schema.IPRange) {
+func (n *NetworkBuilder) WithIPRange(ipRange schema.IPRange) *NetworkBuilder {
 	n.Network.Iprange = ipRange
+	return n
 }
 
 // WithStatsAggregator sets the stats aggregators to the network
-func (n *NetworkBuilder) WithStatsAggregator(aggregators []workloads.StatsAggregator) {
+func (n *NetworkBuilder) WithStatsAggregator(aggregators []workloads.StatsAggregator) *NetworkBuilder {
 	n.Network.StatsAggregator = aggregators
+	return n
 }
 
 // WithNetworkResources sets the network resources to the network
-func (n *NetworkBuilder) WithNetworkResources(netResources []workloads.NetworkNetResource) {
+func (n *NetworkBuilder) WithNetworkResources(netResources []workloads.NetworkNetResource) *NetworkBuilder {
 	n.Network.NetworkResources = netResources
+	return n
 }

@@ -66,8 +66,7 @@ func TestBuildNetwork(t *testing.T) {
 
 	networkBuilder := NewNetworkBuilder()
 
-	networkBuilder.WithIPRange(network.Iprange)
-	networkBuilder.WithNetworkResources(network.NetworkResources)
+	networkBuilder.WithIPRange(network.Iprange).WithNetworkResources(network.NetworkResources)
 
 	assert.Equal(networkBuilder.Network.Iprange, network.Iprange)
 	assert.Equal(networkBuilder.Network.NetworkResources, network.NetworkResources)

@@ -66,39 +66,6 @@ func (r *ReservationBuilder) Save(writer io.Writer) error {
 	return err
 }
 
-// WithDryRun sets if dry run to the reservation
-func (r *ReservationBuilder) WithDryRun(dryRun bool) {
-	r.dryRun = dryRun
-}
-
-// WithDuration sets the duration to the reservation
-func (r *ReservationBuilder) WithDuration(duration string) error {
-	if duration == "" {
-		r.duration = defaultDuration
-		return nil
-	}
-	d, err := time.ParseDuration(duration)
-	if err != nil {
-		nrDays, err := strconv.Atoi(duration)
-		if err != nil {
-			return errors.Wrap(err, "unsupported duration format")
-		}
-		d = time.Duration(nrDays) * day
-	}
-	r.duration = d
-	return nil
-}
-
-// WithAssets sets the assets to the reservation
-func (r *ReservationBuilder) WithAssets(assets []string) {
-	r.assets = assets
-}
-
-// WithSeedPath sets the seed to the reservation
-func (r *ReservationBuilder) WithSeedPath(seedPath string) {
-	r.seedPath = seedPath
-}
-
 // Deploy deploys the reservation
 func (r *ReservationBuilder) Deploy(bcdb *client.Client, mainui *identity.UserIdentity) (wrklds.ReservationCreateResponse, error) {
 	userID := int64(mainui.ThreebotID)
@@ -142,29 +109,70 @@ func (r *ReservationBuilder) Deploy(bcdb *client.Client, mainui *identity.UserId
 	return response, nil
 }
 
+// WithDryRun sets if dry run to the reservation
+func (r *ReservationBuilder) WithDryRun(dryRun bool) *ReservationBuilder {
+	r.dryRun = dryRun
+	return r
+}
+
+// WithDuration sets the duration to the reservation
+func (r *ReservationBuilder) WithDuration(duration string) (*ReservationBuilder, error) {
+	if duration == "" {
+		r.duration = defaultDuration
+		return r, nil
+	}
+	d, err := time.ParseDuration(duration)
+	if err != nil {
+		nrDays, err := strconv.Atoi(duration)
+		if err != nil {
+			return r, errors.Wrap(err, "unsupported duration format")
+		}
+		d = time.Duration(nrDays) * day
+	}
+	r.duration = d
+	return r, nil
+}
+
+// WithAssets sets the assets to the reservation
+func (r *ReservationBuilder) WithAssets(assets []string) *ReservationBuilder {
+	r.assets = assets
+	return r
+}
+
+// WithSeedPath sets the seed to the reservation
+func (r *ReservationBuilder) WithSeedPath(seedPath string) *ReservationBuilder {
+	r.seedPath = seedPath
+	return r
+}
+
 // AddVolume adds a volume builder to the reservation builder
-func (r *ReservationBuilder) AddVolume(volume VolumeBuilder) {
+func (r *ReservationBuilder) AddVolume(volume VolumeBuilder) *ReservationBuilder {
 	r.Reservation.DataReservation.Volumes = append(r.Reservation.DataReservation.Volumes, volume.Volume)
+	return r
 }
 
 // AddNetwork adds a network builder to the reservation builder
-func (r *ReservationBuilder) AddNetwork(network *NetworkBuilder) {
+func (r *ReservationBuilder) AddNetwork(network *NetworkBuilder) *ReservationBuilder {
 	r.Reservation.DataReservation.Networks = append(r.Reservation.DataReservation.Networks, network.Network)
+	return r
 }
 
 // AddZdb adds a zdb builder to the reservation builder
-func (r *ReservationBuilder) AddZdb(zdb ZdbBuilder) {
+func (r *ReservationBuilder) AddZdb(zdb ZdbBuilder) *ReservationBuilder {
 	r.Reservation.DataReservation.Zdbs = append(r.Reservation.DataReservation.Zdbs, zdb.ZDB)
+	return r
 }
 
 // AddContainer adds a container builder to the reservation builder
-func (r *ReservationBuilder) AddContainer(container ContainerBuilder) {
+func (r *ReservationBuilder) AddContainer(container ContainerBuilder) *ReservationBuilder {
 	r.Reservation.DataReservation.Containers = append(r.Reservation.DataReservation.Containers, container.Container)
+	return r
 }
 
 // AddK8s adds a k8s builder to the reservation builder
-func (r *ReservationBuilder) AddK8s(k8s K8sBuilder) {
+func (r *ReservationBuilder) AddK8s(k8s K8sBuilder) *ReservationBuilder {
 	r.Reservation.DataReservation.Kubernetes = append(r.Reservation.DataReservation.Kubernetes, k8s.K8S)
+	return r
 }
 
 func encryptSecret(plain, nodeID string) (string, error) {

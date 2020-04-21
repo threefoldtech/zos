@@ -7,13 +7,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/tools/builders"
 	"github.com/urfave/cli"
 )
 
 func generateKubernetes(c *cli.Context) error {
 	var (
-		size            = c.Uint("size")
+		size            = c.Int64("size")
 		netID           = c.String("network-id")
 		ipString        = c.String("ip")
 		plainSecret     = c.String("secret")
@@ -59,19 +59,9 @@ func generateKubernetes(c *cli.Context) error {
 		masterIPs[i] = mip
 	}
 
-	kube := provision.Kubernetes{
-		Size:          uint8(size),
-		NetworkID:     pkg.NetID(netID),
-		IP:            ip,
-		ClusterSecret: encryptedSecret,
-		MasterIPs:     masterIPs,
-		SSHKeys:       sshKeys,
-	}
+	kube := builders.NewK8sBuilder()
 
-	p, err := embed(kube, provision.KubernetesReservation, c.String("node"))
-	if err != nil {
-		return errors.Wrap(err, "could not generate reservation schema")
-	}
+	kube.WithSize(size).WithNetworkID(netID).WithIPAddress(ip).WithClusterSecret(encryptedSecret).WithMasterIPs(masterIPs).WithSSHKeys(sshKeys)
 
-	return writeWorkload(c.GlobalString("schema"), p)
+	return writeWorkload(c.GlobalString("schema"), kube.K8S)
 }

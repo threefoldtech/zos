@@ -17,6 +17,9 @@ import (
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/schema"
+	"github.com/threefoldtech/zos/tools/builders"
+	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/emicklei/dot"
@@ -63,18 +66,11 @@ func cmdCreateNetwork(c *cli.Context) error {
 	if err != nil {
 		errors.Wrap(err, "invalid ip range")
 	}
-	network := pkg.Network{
-		Name:         name,
-		IPRange:      ipnet,
-		NetResources: []pkg.NetResource{},
-	}
 
-	r, err := embed(network, provision.NetworkReservation, "")
-	if err != nil {
-		return err
-	}
+	networkBuilder := builders.NewNetworkBuilder()
+	networkBuilder.WithIPRange(schema.IPRange{IPNet: ipnet.IPNet}).WithName(name).WithNetworkResources([]workloads.NetworkNetResource{})
 
-	return writeWorkload(c.GlobalString("schema"), r)
+	return writeWorkload(c.GlobalString("schema"), networkBuilder.Network)
 }
 
 func cmdsAddNode(c *cli.Context) error {
