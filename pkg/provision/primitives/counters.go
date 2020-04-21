@@ -19,37 +19,37 @@ type Counter interface {
 	Current() uint64
 }
 
-// counterImpl value for safe increment/decrement
-type counterImpl uint64
+// CounterUint64 value for safe increment/decrement
+type CounterUint64 uint64
 
 // Increment counter atomically by one
-func (c *counterImpl) Increment(v uint64) uint64 {
+func (c *CounterUint64) Increment(v uint64) uint64 {
 	return atomic.AddUint64((*uint64)(c), v)
 }
 
 // Decrement counter atomically by one
-func (c *counterImpl) Decrement(v uint64) uint64 {
+func (c *CounterUint64) Decrement(v uint64) uint64 {
 	return atomic.AddUint64((*uint64)(c), -v)
 }
 
 // Current returns the current value
-func (c *counterImpl) Current() uint64 {
+func (c *CounterUint64) Current() uint64 {
 	return atomic.LoadUint64((*uint64)(c))
 }
 
 // Counters tracks the amount of primitives workload deployed and
 // the amount of resource unit used
 type Counters struct {
-	containers counterImpl
-	volumes    counterImpl
-	networks   counterImpl
-	zdbs       counterImpl
-	vms        counterImpl
+	containers CounterUint64
+	volumes    CounterUint64
+	networks   CounterUint64
+	zdbs       CounterUint64
+	vms        CounterUint64
 
-	SRU counterImpl // SSD storage in bytes
-	HRU counterImpl // HDD storage in bytes
-	MRU counterImpl // Memory storage in bytes
-	CRU counterImpl // CPU count absolute
+	SRU CounterUint64 // SSD storage in bytes
+	HRU CounterUint64 // HDD storage in bytes
+	MRU CounterUint64 // Memory storage in bytes
+	CRU CounterUint64 // CPU count absolute
 }
 
 // CurrentWorkloads return the number of each workloads provisioned on the system

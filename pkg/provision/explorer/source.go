@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -40,7 +39,6 @@ func (r *Poller) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservat
 
 	result := make([]*provision.Reservation, 0, len(list))
 	for _, wl := range list {
-		log.Info().Msgf("convert %+v", wl)
 		r, err := r.inputConv(wl)
 		if err != nil {
 			return nil, err

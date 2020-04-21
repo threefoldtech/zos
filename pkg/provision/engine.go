@@ -64,6 +64,7 @@ func New(opts EngineOps) *Engine {
 		source:         opts.Source,
 		cache:          opts.Cache,
 		feedback:       opts.Feedback,
+		provisioners:   opts.Provisioners,
 		decomissioners: opts.Decomissioners,
 		signer:         opts.Signer,
 		statser:        opts.Statser,
@@ -166,6 +167,10 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		return errors.Wrapf(err, "failed to cache reservation %s locally", r.ID)
 	}
 
+	if err := e.statser.Increment(r); err != nil {
+		log.Err(err).Str("reservation_id", r.ID).Msg("failed to increment workloads statistics")
+	}
+
 	return nil
 }
 
@@ -195,6 +200,10 @@ func (e *Engine) decommission(ctx context.Context, r *Reservation) error {
 
 	if err := e.cache.Remove(r.ID); err != nil {
 		return errors.Wrapf(err, "failed to remove reservation %s from cache", r.ID)
+	}
+
+	if err := e.statser.Decrement(r); err != nil {
+		log.Err(err).Str("reservation_id", r.ID).Msg("failed to decrement workloads statistics")
 	}
 
 	if err := e.feedback.Deleted(e.nodeID, r.ID); err != nil {
@@ -243,7 +252,21 @@ func (e *Engine) updateStats() error {
 	wl := e.statser.CurrentWorkloads()
 	r := e.statser.CurrentUnits()
 
-	log.Info().Msgf("reserved resource %+v", r)
+	log.Info().
+		Uint16("network", wl.Network).
+		Uint16("volume", wl.Volume).
+		Uint16("zDBNamespace", wl.ZDBNamespace).
+		Uint16("container", wl.Container).
+		Uint16("k8sVM", wl.K8sVM).
+		Uint16("proxy", wl.Proxy).
+		Uint16("reverseProxy", wl.ReverseProxy).
+		Uint16("subdomain", wl.Subdomain).
+		Uint16("delegateDomain", wl.DelegateDomain).
+		Uint64("cru", r.Cru).
+		Float64("mru", r.Mru).
+		Float64("hru", r.Hru).
+		Float64("sru", r.Sru).
+		Msgf("provision statistics")
 	log.Info().Msgf("provisionned workloads %+v", wl)
 
 	return e.feedback.UpdateStats(e.nodeID, wl, r)
