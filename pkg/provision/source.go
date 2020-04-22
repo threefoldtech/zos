@@ -133,7 +133,7 @@ func (s *decommissionSource) Reservations(ctx context.Context) <-chan *Reservati
 
 		for {
 			<-time.After(time.Second * 20) //TODO: make configuration ? default value ?
-			log.Debug().Msg("check for expired reservation")
+			log.Info().Msg("check for expired reservation")
 
 			reservations, err := s.store.GetExpired()
 			if err != nil {

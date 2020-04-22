@@ -88,10 +88,13 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 
 	switch r.Type {
 	case VolumeReservation:
+		c.volumes.Increment(1)
 		u, err = processVolume(r)
 	case ContainerReservation:
+		c.containers.Increment(1)
 		u, err = processContainer(r)
 	case ZDBReservation:
+		c.zdbs.Increment(1)
 		u, err = processZdb(r)
 	case KubernetesReservation:
 		c.vms.Increment(1)

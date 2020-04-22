@@ -267,7 +267,6 @@ func (e *Engine) updateStats() error {
 		Float64("hru", r.Hru).
 		Float64("sru", r.Sru).
 		Msgf("provision statistics")
-	log.Info().Msgf("provisionned workloads %+v", wl)
 
 	return e.feedback.UpdateStats(e.nodeID, wl, r)
 }

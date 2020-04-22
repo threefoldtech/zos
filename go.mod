@@ -36,7 +36,6 @@ require (
 	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
 	github.com/threefoldtech/tfexplorer v0.0.0-00010101000000-000000000000
 	github.com/threefoldtech/zbus v0.1.3
-	github.com/tyler-smith/go-bip39 v1.0.2
 	github.com/urfave/cli v1.22.3
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
