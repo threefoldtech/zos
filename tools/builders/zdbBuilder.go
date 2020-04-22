@@ -12,9 +12,15 @@ type ZdbBuilder struct {
 	workloads.ZDB
 }
 
-// NewZdbBuilder creates a new zdb builder
+// NewZdbBuilder creates a new zdb builder and initializes some default values
 func NewZdbBuilder() *ZdbBuilder {
-	return &ZdbBuilder{}
+	return &ZdbBuilder{
+		ZDB: workloads.ZDB{
+			Size:     1,
+			Mode:     workloads.ZDBModeUser,
+			DiskType: workloads.DiskTypeSSD,
+		},
+	}
 }
 
 // LoadZdbBuilder loads a zdb builder based on a file path
@@ -39,16 +45,14 @@ func (z *ZdbBuilder) Save(writer io.Writer) error {
 }
 
 // Build validates and encrypts the zdb secret
-func (z *ZdbBuilder) Build() error {
-	// TODO check validity fields
-
+func (z *ZdbBuilder) Build() (workloads.ZDB, error) {
 	encrypted, err := encryptSecret(z.ZDB.Password, z.ZDB.NodeId)
 	if err != nil {
-		return err
+		return workloads.ZDB{}, err
 	}
 
 	z.ZDB.Password = encrypted
-	return nil
+	return z.ZDB, nil
 }
 
 // WithNodeID sets the node ID to the zdb

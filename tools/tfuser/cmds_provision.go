@@ -29,7 +29,8 @@ func cmdsProvision(c *cli.Context) error {
 		err        error
 	)
 
-	volumeBuilders := []builders.VolumeBuilder{}
+	reservationBuilder := builders.NewReservationBuilder()
+
 	for _, vol := range volumes {
 		f, err := os.Open(vol)
 		if err != nil {
@@ -40,11 +41,9 @@ func cmdsProvision(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load the reservation builder")
 		}
-
-		volumeBuilders = append(volumeBuilders, *volumeBuilder)
+		reservationBuilder.AddVolume(*volumeBuilder)
 	}
 
-	containerBuilders := []builders.ContainerBuilder{}
 	for _, cont := range containers {
 		f, err := os.Open(cont)
 		if err != nil {
@@ -55,11 +54,9 @@ func cmdsProvision(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load the reservation builder")
 		}
-
-		containerBuilders = append(containerBuilders, *containerBuilder)
+		reservationBuilder.AddContainer(*containerBuilder)
 	}
 
-	zdbBuilders := []builders.ZdbBuilder{}
 	for _, zdb := range zdbs {
 		f, err := os.Open(zdb)
 		if err != nil {
@@ -70,11 +67,9 @@ func cmdsProvision(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load the zdb builder")
 		}
-
-		zdbBuilders = append(zdbBuilders, *zdbBuilder)
+		reservationBuilder.AddZdb(*zdbBuilder)
 	}
 
-	kubeBuilders := []builders.K8sBuilder{}
 	for _, k8s := range kubes {
 		f, err := os.Open(k8s)
 		if err != nil {
@@ -85,11 +80,9 @@ func cmdsProvision(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load the k8s builder")
 		}
-
-		kubeBuilders = append(kubeBuilders, *k8sBuilder)
+		reservationBuilder.AddK8s(*k8sBuilder)
 	}
 
-	networkBuilders := []builders.NetworkBuilder{}
 	for _, network := range networks {
 		f, err := os.Open(network)
 		if err != nil {
@@ -100,29 +93,7 @@ func cmdsProvision(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load the network builder")
 		}
-
-		networkBuilders = append(networkBuilders, *networkBuilder)
-	}
-
-	reservationBuilder, err := builders.NewReservationBuilder()
-	if err != nil {
-		return errors.Wrap(err, "failed to load the reservation builder")
-	}
-
-	for _, volBuilder := range volumeBuilders {
-		reservationBuilder.AddVolume(volBuilder)
-	}
-	for _, contBuilder := range containerBuilders {
-		reservationBuilder.AddContainer(contBuilder)
-	}
-	for _, zdbBuilder := range zdbBuilders {
-		reservationBuilder.AddZdb(zdbBuilder)
-	}
-	for _, kubeBuilder := range kubeBuilders {
-		reservationBuilder.AddK8s(kubeBuilder)
-	}
-	for _, netBuilder := range networkBuilders {
-		reservationBuilder.AddNetwork(netBuilder)
+		reservationBuilder.AddNetwork(*networkBuilder)
 	}
 
 	_, err = reservationBuilder.WithDuration(d)

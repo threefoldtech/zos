@@ -15,7 +15,11 @@ type K8sBuilder struct {
 
 // NewK8sBuilder creates a new K8S builder
 func NewK8sBuilder() *K8sBuilder {
-	return &K8sBuilder{}
+	return &K8sBuilder{
+		K8S: workloads.K8S{
+			Size: 1,
+		},
+	}
 }
 
 // LoadK8sBuilder loads a k8s builder based on a file path
@@ -37,6 +41,11 @@ func (k8s *K8sBuilder) Save(writer io.Writer) error {
 		return err
 	}
 	return err
+}
+
+// Build returns the kubernetes
+func (k8s *K8sBuilder) Build() workloads.K8S {
+	return k8s.K8S
 }
 
 // WithNodeID sets the node ID to the K8S

@@ -63,5 +63,5 @@ func generateKubernetes(c *cli.Context) error {
 
 	kube.WithSize(size).WithNetworkID(netID).WithIPAddress(ip).WithClusterSecret(encryptedSecret).WithMasterIPs(masterIPs).WithSSHKeys(sshKeys)
 
-	return writeWorkload(c.GlobalString("schema"), kube.K8S)
+	return writeWorkload(c.GlobalString("schema"), kube.Build())
 }

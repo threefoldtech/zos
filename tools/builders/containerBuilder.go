@@ -40,7 +40,7 @@ func (c *ContainerBuilder) Save(writer io.Writer) error {
 }
 
 // Build validates and encrypts the secret environment of the container
-func (c *ContainerBuilder) Build() error {
+func (c *ContainerBuilder) Build() (workloads.Container, error) {
 	// TODO check validity fields
 
 	if c.Container.SecretEnvironment == nil {
@@ -50,12 +50,12 @@ func (c *ContainerBuilder) Build() error {
 	for k, value := range c.Container.Environment {
 		secret, err := encryptSecret(value, c.Container.NodeId)
 		if err != nil {
-			return errors.Wrapf(err, "failed to encrypt env with key '%s'", k)
+			return workloads.Container{}, errors.Wrapf(err, "failed to encrypt env with key '%s'", k)
 		}
 		c.Container.SecretEnvironment[k] = secret
 	}
 	c.Container.Environment = make(map[string]string)
-	return nil
+	return c.Container, nil
 }
 
 // WithNodeID sets the node ID to the container

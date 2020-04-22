@@ -37,9 +37,7 @@ func TestLoadNetwork(t *testing.T) {
 	assert.Equal(networkBuilder.Network.Iprange, network.Iprange)
 	assert.Equal(networkBuilder.Network.NetworkResources, network.NetworkResources)
 
-	reservationBuilder, err := NewReservationBuilder()
-	require.NoError(t, err)
-	reservationBuilder.AddNetwork(*networkBuilder)
+	reservationBuilder := NewReservationBuilder().AddNetwork(*networkBuilder)
 
 	assert.Equal(len(reservationBuilder.Reservation.DataReservation.Networks), 1)
 }
@@ -71,9 +69,7 @@ func TestBuildNetwork(t *testing.T) {
 	assert.Equal(networkBuilder.Network.Iprange, network.Iprange)
 	assert.Equal(networkBuilder.Network.NetworkResources, network.NetworkResources)
 
-	reservationBuilder, err := NewReservationBuilder()
-	require.NoError(t, err)
-	reservationBuilder.AddNetwork(*networkBuilder)
+	reservationBuilder := NewReservationBuilder().AddNetwork(*networkBuilder)
 
 	assert.Equal(len(reservationBuilder.Reservation.DataReservation.Networks), 1)
 }

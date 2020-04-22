@@ -70,7 +70,7 @@ func cmdCreateNetwork(c *cli.Context) error {
 	networkBuilder := builders.NewNetworkBuilder()
 	networkBuilder.WithIPRange(schema.IPRange{IPNet: ipnet.IPNet}).WithName(name).WithNetworkResources([]workloads.NetworkNetResource{})
 
-	return writeWorkload(c.GlobalString("schema"), networkBuilder.Network)
+	return writeWorkload(c.GlobalString("schema"), networkBuilder.Build())
 }
 
 func cmdsAddNode(c *cli.Context) error {

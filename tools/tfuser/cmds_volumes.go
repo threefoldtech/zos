@@ -30,5 +30,5 @@ func generateVolume(c *cli.Context) error {
 		volumeBuilder.WithType(workloads.VolumeTypeSSD)
 	}
 
-	return writeWorkload(c.GlobalString("output"), volumeBuilder.Volume)
+	return writeWorkload(c.GlobalString("output"), volumeBuilder.Build())
 }

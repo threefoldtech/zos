@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/tools/builders"
 	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 
@@ -45,5 +46,10 @@ func generateZDB(c *cli.Context) error {
 		zdbBuilder.WithDiskType(workloads.DiskTypeSSD)
 	}
 
-	return writeWorkload(c.GlobalString("output"), zdbBuilder.ZDB)
+	zdb, err := zdbBuilder.Build()
+	if err != nil {
+		return errors.Wrap(err, "failed to build to build zdb")
+	}
+
+	return writeWorkload(c.GlobalString("output"), zdb)
 }

@@ -14,7 +14,12 @@ type VolumeBuilder struct {
 
 // NewVolumeBuilder creates a new volume builder
 func NewVolumeBuilder() *VolumeBuilder {
-	return &VolumeBuilder{}
+	return &VolumeBuilder{
+		Volume: workloads.Volume{
+			Size: 1,
+			Type: workloads.VolumeTypeSSD,
+		},
+	}
 }
 
 // LoadVolumeBuilder loads a volume builder based on a file path
@@ -36,6 +41,11 @@ func (v *VolumeBuilder) Save(writer io.Writer) error {
 		return err
 	}
 	return err
+}
+
+// Build returns the volume
+func (v *VolumeBuilder) Build() workloads.Volume {
+	return v.Volume
 }
 
 // WithNodeID sets the node ID to the volume

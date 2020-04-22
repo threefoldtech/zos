@@ -32,18 +32,12 @@ type ReservationBuilder struct {
 }
 
 // NewReservationBuilder creates a new ReservationBuilder
-func NewReservationBuilder() (*ReservationBuilder, error) {
-	reservation, err := workloads.NewReservation()
-	if err != nil {
-		return &ReservationBuilder{}, err
-	}
-	reservation.DataReservation, err = workloads.NewReservationData()
-	if err != nil {
-		return &ReservationBuilder{}, err
-	}
+func NewReservationBuilder() *ReservationBuilder {
+	reservation := workloads.Reservation{}
+	reservation.Epoch = schema.Date{Time: time.Now()}
 	return &ReservationBuilder{
 		Reservation: reservation,
-	}, nil
+	}
 }
 
 // LoadReservationBuilder loads a reservation builder based on a file path
@@ -64,6 +58,11 @@ func (r *ReservationBuilder) Save(writer io.Writer) error {
 		return err
 	}
 	return err
+}
+
+// Build returns the reservation
+func (r *ReservationBuilder) Build() workloads.Reservation {
+	return r.Reservation
 }
 
 // Deploy deploys the reservation

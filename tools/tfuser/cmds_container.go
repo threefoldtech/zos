@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
 	"github.com/threefoldtech/zos/tools/builders"
@@ -96,7 +97,11 @@ func generateContainer(c *cli.Context) error {
 		return err
 	}
 
-	return writeWorkload(c.GlobalString("output"), containerBuilder.Container)
+	container, err := containerBuilder.Build()
+	if err != nil {
+		return errors.Wrap(err, "failed to build container")
+	}
+	return writeWorkload(c.GlobalString("output"), container)
 }
 
 func validateContainer(c workloads.Container) error {

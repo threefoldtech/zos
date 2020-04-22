@@ -39,6 +39,11 @@ func (n *NetworkBuilder) Save(writer io.Writer) error {
 	return err
 }
 
+// Build returns the network
+func (n *NetworkBuilder) Build() workloads.Network {
+	return n.Network
+}
+
 // TODO ADD NODE ID TO NETWORK?
 
 // WithName sets the ip range to the network
