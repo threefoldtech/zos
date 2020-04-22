@@ -12,4 +12,5 @@ if [ -z "${archive}" ]; then
 fi
 
 mkdir -p ${archive}/bin ${archive}/etc
-cp tfexplorer ${archive}/bin/
+cp bin/* ${archive}/bin/
+cp -r etc/* ${archive}/etc/
