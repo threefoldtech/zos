@@ -59,9 +59,9 @@ func generateKubernetes(c *cli.Context) error {
 		masterIPs[i] = mip
 	}
 
-	kube := builders.NewK8sBuilder()
+	kube := builders.NewK8sBuilder(nodeID, size)
 
-	kube.WithSize(size).WithNetworkID(netID).WithIPAddress(ip).WithClusterSecret(encryptedSecret).WithMasterIPs(masterIPs).WithSSHKeys(sshKeys)
+	kube.WithNetworkID(netID).WithIPAddress(ip).WithClusterSecret(encryptedSecret).WithMasterIPs(masterIPs).WithSSHKeys(sshKeys)
 
 	return writeWorkload(c.GlobalString("schema"), kube.Build())
 }

@@ -14,8 +14,12 @@ type NetworkBuilder struct {
 }
 
 // NewNetworkBuilder creates a new network builder
-func NewNetworkBuilder() *NetworkBuilder {
-	return &NetworkBuilder{}
+func NewNetworkBuilder(name string) *NetworkBuilder {
+	return &NetworkBuilder{
+		Network: workloads.Network{
+			Name: name,
+		},
+	}
 }
 
 // LoadNetworkBuilder loads a network builder based on a file path

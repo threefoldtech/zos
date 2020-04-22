@@ -89,7 +89,7 @@ func generateContainer(c *cli.Context) error {
 		},
 	}
 
-	containerBuilder := builders.NewContainerBuilder()
+	containerBuilder := builders.NewContainerBuilder(c.String("node"))
 	containerBuilder.WithFlist(c.String("flist")).WithEnvs(envs).WithEntrypoint(c.String("entrypoint")).WithVolumes(mounts).WithInteractive(c.Bool("corex")).WithNetwork(network)
 	containerBuilder.WithContainerCapacity(cap).WithLogs(logs).WithStatsAggregator(sts)
 

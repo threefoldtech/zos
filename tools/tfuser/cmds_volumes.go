@@ -22,13 +22,13 @@ func generateVolume(c *cli.Context) error {
 		return fmt.Errorf("size cannot be less then 1")
 	}
 
-	volumeBuilder := builders.NewVolumeBuilder()
-	volumeBuilder.WithNodeID(c.String("node")).WithSize(s)
+	var volumeType workloads.VolumeTypeEnum
 	if t == workloads.DiskTypeHDD.String() {
-		volumeBuilder.WithType(workloads.VolumeTypeHDD)
+		volumeType = workloads.VolumeTypeEnum(workloads.VolumeTypeSSD)
 	} else if t == workloads.DiskTypeSSD.String() {
-		volumeBuilder.WithType(workloads.VolumeTypeSSD)
+		volumeType = workloads.VolumeTypeEnum(workloads.VolumeTypeHDD)
 	}
 
+	volumeBuilder := builders.NewVolumeBuilder(c.String("node"), s, volumeType)
 	return writeWorkload(c.GlobalString("output"), volumeBuilder.Build())
 }

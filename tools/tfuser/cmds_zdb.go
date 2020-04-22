@@ -31,20 +31,22 @@ func generateZDB(c *cli.Context) error {
 		return fmt.Errorf("size cannot be less than 1")
 	}
 
-	zdbBuilder := builders.NewZdbBuilder()
-	zdbBuilder.WithSize(size).WithPassword(password).WithPublic(public)
-
+	var zdbMode workloads.ZDBModeEnum
 	if mode == workloads.ZDBModeSeq.String() {
-		zdbBuilder.WithMode(workloads.ZDBModeSeq)
+		zdbMode = workloads.ZDBModeSeq
 	} else if mode == workloads.ZDBModeUser.String() {
-		zdbBuilder.WithMode(workloads.ZDBModeUser)
+		zdbMode = workloads.ZDBModeUser
 	}
 
+	var zdbDiskType workloads.DiskTypeEnum
 	if disktype == workloads.DiskTypeHDD.String() {
-		zdbBuilder.WithDiskType(workloads.DiskTypeHDD)
+		zdbDiskType = workloads.DiskTypeHDD
 	} else if disktype == workloads.DiskTypeSSD.String() {
-		zdbBuilder.WithDiskType(workloads.DiskTypeSSD)
+		zdbDiskType = workloads.DiskTypeSSD
 	}
+
+	zdbBuilder := builders.NewZdbBuilder(c.String("node"), size, zdbMode, zdbDiskType)
+	zdbBuilder.WithPassword(password).WithPublic(public)
 
 	zdb, err := zdbBuilder.Build()
 	if err != nil {

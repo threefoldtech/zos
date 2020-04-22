@@ -14,8 +14,12 @@ type ContainerBuilder struct {
 }
 
 // NewContainerBuilder creates a new container builder
-func NewContainerBuilder() *ContainerBuilder {
-	return &ContainerBuilder{}
+func NewContainerBuilder(nodeID string) *ContainerBuilder {
+	return &ContainerBuilder{
+		Container: workloads.Container{
+			NodeId: nodeID,
+		},
+	}
 }
 
 // LoadContainerBuilder loads a container builder based on a file path

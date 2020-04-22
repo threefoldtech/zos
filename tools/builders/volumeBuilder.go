@@ -13,11 +13,12 @@ type VolumeBuilder struct {
 }
 
 // NewVolumeBuilder creates a new volume builder
-func NewVolumeBuilder() *VolumeBuilder {
+func NewVolumeBuilder(nodeID string, size int64, volumeType workloads.VolumeTypeEnum) *VolumeBuilder {
 	return &VolumeBuilder{
 		Volume: workloads.Volume{
-			Size: 1,
-			Type: workloads.VolumeTypeSSD,
+			NodeId: nodeID,
+			Size:   size,
+			Type:   volumeType,
 		},
 	}
 }

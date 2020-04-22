@@ -14,10 +14,11 @@ type K8sBuilder struct {
 }
 
 // NewK8sBuilder creates a new K8S builder
-func NewK8sBuilder() *K8sBuilder {
+func NewK8sBuilder(nodeID string, size int64) *K8sBuilder {
 	return &K8sBuilder{
 		K8S: workloads.K8S{
-			Size: 1,
+			NodeId: nodeID,
+			Size:   1,
 		},
 	}
 }
