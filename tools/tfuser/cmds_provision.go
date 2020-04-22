@@ -9,9 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stellar/go/xdr"
 	"github.com/threefoldtech/zos/pkg/provision"
-	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/builders"
-	"github.com/threefoldtech/zos/tools/client"
 
 	"github.com/urfave/cli"
 )
@@ -29,7 +27,7 @@ func cmdsProvision(c *cli.Context) error {
 		err        error
 	)
 
-	reservationBuilder := builders.NewReservationBuilder()
+	reservationBuilder := builders.NewReservationBuilder(bcdb, mainui)
 
 	for _, vol := range volumes {
 		f, err := os.Open(vol)
@@ -103,7 +101,7 @@ func cmdsProvision(c *cli.Context) error {
 
 	reservationBuilder.WithDryRun(true).WithSeedPath(seedPath).WithAssets(assets)
 
-	response, err := reservationBuilder.Deploy(bcdb, mainui)
+	response, err := reservationBuilder.Deploy()
 	if err != nil {
 		return errors.Wrap(err, "failed to deploy reservation")
 	}
@@ -151,31 +149,6 @@ func embed(schema interface{}, t provision.ReservationType, node string) (*provi
 }
 
 func cmdsDeleteReservation(c *cli.Context) error {
-	var (
-		resID  = c.Int64("reservation")
-		userID = mainui.ThreebotID
-		//seedPath = c.GlobalString("seed")
-	)
-
-	reservation, err := bcdb.Workloads.Get(schema.ID(resID))
-	if err != nil {
-		return errors.Wrap(err, "failed to get reservation info")
-	}
-
-	signer, err := client.NewSigner(mainui.Key().PrivateKey.Seed())
-	if err != nil {
-		return errors.Wrapf(err, "failed to load signer")
-	}
-
-	_, signature, err := signer.SignHex(resID, reservation.Json)
-	if err != nil {
-		return errors.Wrap(err, "failed to sign the reservation")
-	}
-
-	if err := bcdb.Workloads.SignDelete(schema.ID(resID), schema.ID(userID), signature); err != nil {
-		return errors.Wrapf(err, "failed to sign deletion of reservation: %d", resID)
-	}
-
-	fmt.Printf("Reservation %v marked as to be deleted\n", resID)
-	return nil
+	reservationBuilder := builders.NewReservationBuilder(bcdb, mainui)
+	return reservationBuilder.DeleteReservation(c.Int64("reservation"))
 }

@@ -3,6 +3,7 @@ package builders
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -26,17 +27,21 @@ var (
 // ReservationBuilder is a struct that can build reservations
 type ReservationBuilder struct {
 	Reservation workloads.Reservation
+	Bcdb        *client.Client
+	Mainui      *identity.UserIdentity
 	assets      []string
 	seedPath    string
 	dryRun      bool
 }
 
 // NewReservationBuilder creates a new ReservationBuilder
-func NewReservationBuilder() *ReservationBuilder {
+func NewReservationBuilder(bcdb *client.Client, mainui *identity.UserIdentity) *ReservationBuilder {
 	reservation := workloads.Reservation{}
 	reservation.Epoch = schema.Date{Time: time.Now()}
 	return &ReservationBuilder{
 		Reservation: reservation,
+		Bcdb:        bcdb,
+		Mainui:      mainui,
 	}
 }
 
@@ -66,9 +71,9 @@ func (r *ReservationBuilder) Build() workloads.Reservation {
 }
 
 // Deploy deploys the reservation
-func (r *ReservationBuilder) Deploy(bcdb *client.Client, mainui *identity.UserIdentity) (wrklds.ReservationCreateResponse, error) {
-	userID := int64(mainui.ThreebotID)
-	signer, err := client.NewSigner(mainui.Key().PrivateKey.Seed())
+func (r *ReservationBuilder) Deploy() (wrklds.ReservationCreateResponse, error) {
+	userID := int64(r.Mainui.ThreebotID)
+	signer, err := client.NewSigner(r.Mainui.Key().PrivateKey.Seed())
 	if err != nil {
 		return wrklds.ReservationCreateResponse{}, errors.Wrapf(err, "could not find seed file at %s", r.seedPath)
 	}
@@ -100,12 +105,39 @@ func (r *ReservationBuilder) Deploy(bcdb *client.Client, mainui *identity.UserId
 		return wrklds.ReservationCreateResponse{}, enc.Encode(r.Reservation)
 	}
 
-	response, err := bcdb.Workloads.Create(r.Reservation)
+	response, err := r.Bcdb.Workloads.Create(r.Reservation)
 	if err != nil {
 		return wrklds.ReservationCreateResponse{}, errors.Wrap(err, "failed to send reservation")
 	}
 
 	return response, nil
+}
+
+// DeleteReservation deletes a reservation by id
+func (r *ReservationBuilder) DeleteReservation(resID int64) error {
+	userID := int64(r.Mainui.ThreebotID)
+
+	reservation, err := r.Bcdb.Workloads.Get(schema.ID(resID))
+	if err != nil {
+		return errors.Wrap(err, "failed to get reservation info")
+	}
+
+	signer, err := client.NewSigner(r.Mainui.Key().PrivateKey.Seed())
+	if err != nil {
+		return errors.Wrapf(err, "failed to load signer")
+	}
+
+	_, signature, err := signer.SignHex(resID, reservation.Json)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign the reservation")
+	}
+
+	if err := r.Bcdb.Workloads.SignDelete(schema.ID(resID), schema.ID(userID), signature); err != nil {
+		return errors.Wrapf(err, "failed to sign deletion of reservation: %d", resID)
+	}
+
+	fmt.Printf("Reservation %v marked as to be deleted\n", resID)
+	return nil
 }
 
 // WithDryRun sets if dry run to the reservation
