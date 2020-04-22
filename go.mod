@@ -34,7 +34,7 @@ require (
 	github.com/stellar/go v0.0.0-20200325172527-9cabbc6b9388
 	github.com/stretchr/testify v1.5.1
 	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
-	github.com/threefoldtech/tfexplorer v0.0.0-00010101000000-000000000000
+	github.com/threefoldtech/tfexplorer v0.2.5
 	github.com/threefoldtech/zbus v0.1.3
 	github.com/urfave/cli v1.22.3
 	github.com/vishvananda/netlink v1.0.0
@@ -48,7 +48,3 @@ require (
 )
 
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
-
-replace github.com/threefoldtech/tfgateway => ../tf_gateway
-
-replace github.com/threefoldtech/tfexplorer => ../tfexplorer

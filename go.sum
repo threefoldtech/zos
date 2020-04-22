@@ -540,6 +540,8 @@ github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 h1:b6uOv7YOFK0
 github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae h1:vgGSvdW5Lqg+I1aZOlG32uyE6xHpLdKhZzcTEktz5wM=
 github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae/go.mod h1:quDq6Se6jlGwiIKia/itDZxqC5rj6/8OdFyMMAwTxCs=
+github.com/threefoldtech/tfexplorer v0.2.5 h1:xFDSqyzL8eOMpdS+T/LFFZZciI+vNZ5oZKKch8WNFME=
+github.com/threefoldtech/tfexplorer v0.2.5/go.mod h1:TugylEDgMNKk4ZIzee9PpVmIcLNLaRLdiXuhHTt/AR0=
 github.com/threefoldtech/zbus v0.1.3 h1:18DnIzximRbATle5ZdZz0i84n/bCYB8k/gkhr2dXayc=
 github.com/threefoldtech/zbus v0.1.3/go.mod h1:ZtiRpcqzEBJetVQDsEbw0p48h/AF3O1kf0tvd30I0BU=
 github.com/threefoldtech/zos v0.2.4-rc2/go.mod h1:7A2oflcmSVsHFC4slOcydWgJyFBMFMH9wsaTRv+CnTA=
