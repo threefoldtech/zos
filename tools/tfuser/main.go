@@ -464,11 +464,6 @@ func main() {
 			Before: requireSeed,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "schema",
-					Usage: "path to the provisioning schema, use - to read from stdin",
-					Value: "provision.json",
-				},
-				cli.StringFlag{
 					Name:  "duration",
 					Usage: "duration of the reservation. By default is number of days. But also support notation with duration suffix like m for minute or h for hours",
 				},
@@ -479,6 +474,26 @@ func main() {
 				cli.BoolFlag{
 					Name:  "dry-run",
 					Usage: "dry run, prints the reservation instead of registering it",
+				},
+				cli.StringSliceFlag{
+					Name:  "volume",
+					Usage: "add a volume to provision",
+				},
+				cli.StringSliceFlag{
+					Name:  "zdb",
+					Usage: "add a zdb to provision",
+				},
+				cli.StringSliceFlag{
+					Name:  "container",
+					Usage: "add a container to provision",
+				},
+				cli.StringSliceFlag{
+					Name:  "kube",
+					Usage: "add a kube to provision",
+				},
+				cli.StringSliceFlag{
+					Name:  "network",
+					Usage: "add a network to provision",
 				},
 			},
 			Action: cmdsProvision,

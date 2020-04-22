@@ -1,17 +1,13 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stellar/go/xdr"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/builders"
@@ -20,91 +16,92 @@ import (
 	"github.com/urfave/cli"
 )
 
-var (
-	day             = time.Hour * 24
-	defaultDuration = day * 30
-)
-
-func encryptSecret(plain, nodeID string) (string, error) {
-	if len(plain) == 0 {
-		return "", nil
-	}
-
-	pubkey, err := crypto.KeyFromID(pkg.StrIdentifier(nodeID))
-	if err != nil {
-		return "", err
-	}
-
-	encrypted, err := crypto.Encrypt([]byte(plain), pubkey)
-	return hex.EncodeToString(encrypted), err
-}
-
-func provisionCustomZDB(r *provision.Reservation) error {
-	var config provision.ZDB
-	if err := json.Unmarshal(r.Data, &config); err != nil {
-		return errors.Wrap(err, "failed to load zdb reservation schema")
-	}
-
-	encrypted, err := encryptSecret(config.Password, r.NodeID)
-	if err != nil {
-		return err
-	}
-
-	config.Password = encrypted
-	r.Data, err = json.Marshal(config)
-
-	return err
-}
-
-func provisionCustomContainer(r *provision.Reservation) error {
-	var config provision.Container
-	var err error
-	if err := json.Unmarshal(r.Data, &config); err != nil {
-		return errors.Wrap(err, "failed to load zdb reservation schema")
-	}
-
-	if config.SecretEnv == nil {
-		config.SecretEnv = make(map[string]string)
-	}
-
-	for k, v := range config.Env {
-		v, err := encryptSecret(v, r.NodeID)
-		if err != nil {
-			return errors.Wrapf(err, "failed to encrypt env with key '%s'", k)
-		}
-		config.SecretEnv[k] = v
-	}
-	config.Env = make(map[string]string)
-	r.Data, err = json.Marshal(config)
-
-	return err
-}
-
-var (
-	provCustomModifiers = map[provision.ReservationType]func(r *provision.Reservation) error{
-		provision.ZDBReservation:       provisionCustomZDB,
-		provision.ContainerReservation: provisionCustomContainer,
-	}
-)
-
 func cmdsProvision(c *cli.Context) error {
 	var (
-		path     = c.String("schema")
-		seedPath = mainSeed
-		d        = c.String("duration")
-		assets   = c.StringSlice("asset")
-		duration time.Duration
-		err      error
+		seedPath   = mainSeed
+		d          = c.String("duration")
+		assets     = c.StringSlice("asset")
+		volumes    = c.StringSlice("volume")
+		containers = c.StringSlice("container")
+		zdbs       = c.StringSlice("zdb")
+		kubes      = c.StringSlice("kube")
+		networks   = c.StringSlice("network")
+		err        error
 	)
 
-	f, err := os.Open(path)
-	if err != nil {
-		return errors.Wrap(err, "failed to open reservation")
+	volumeBuilders := []builders.VolumeBuilder{}
+	for _, vol := range volumes {
+		f, err := os.Open(vol)
+		if err != nil {
+			return errors.Wrap(err, "failed to open volume")
+		}
+
+		volumeBuilder, err := builders.LoadVolumeBuilder(f)
+		if err != nil {
+			return errors.Wrap(err, "failed to load the reservation builder")
+		}
+
+		volumeBuilders = append(volumeBuilders, *volumeBuilder)
 	}
 
-	volumeBuilder, err := builders.LoadVolumeBuilder(f)
-	if err != nil {
-		return errors.Wrap(err, "failed to load the reservation builder")
+	containerBuilders := []builders.ContainerBuilder{}
+	for _, cont := range containers {
+		f, err := os.Open(cont)
+		if err != nil {
+			return errors.Wrap(err, "failed to open container")
+		}
+
+		containerBuilder, err := builders.LoadContainerBuilder(f)
+		if err != nil {
+			return errors.Wrap(err, "failed to load the reservation builder")
+		}
+
+		containerBuilders = append(containerBuilders, *containerBuilder)
+	}
+
+	zdbBuilders := []builders.ZdbBuilder{}
+	for _, zdb := range zdbs {
+		f, err := os.Open(zdb)
+		if err != nil {
+			return errors.Wrap(err, "failed to open zdb")
+		}
+
+		zdbBuilder, err := builders.LoadZdbBuilder(f)
+		if err != nil {
+			return errors.Wrap(err, "failed to load the zdb builder")
+		}
+
+		zdbBuilders = append(zdbBuilders, *zdbBuilder)
+	}
+
+	kubeBuilders := []builders.K8sBuilder{}
+	for _, k8s := range kubes {
+		f, err := os.Open(k8s)
+		if err != nil {
+			return errors.Wrap(err, "failed to open kube")
+		}
+
+		k8sBuilder, err := builders.LoadK8sBuilder(f)
+		if err != nil {
+			return errors.Wrap(err, "failed to load the k8s builder")
+		}
+
+		kubeBuilders = append(kubeBuilders, *k8sBuilder)
+	}
+
+	networkBuilders := []builders.NetworkBuilder{}
+	for _, network := range networks {
+		f, err := os.Open(network)
+		if err != nil {
+			return errors.Wrap(err, "failed to open reservation")
+		}
+
+		networkBuilder, err := builders.LoadNetworkBuilder(f)
+		if err != nil {
+			return errors.Wrap(err, "failed to load the network builder")
+		}
+
+		networkBuilders = append(networkBuilders, *networkBuilder)
 	}
 
 	reservationBuilder, err := builders.NewReservationBuilder()
@@ -112,7 +109,21 @@ func cmdsProvision(c *cli.Context) error {
 		return errors.Wrap(err, "failed to load the reservation builder")
 	}
 
-	reservationBuilder.AddVolume(*volumeBuilder)
+	for _, volBuilder := range volumeBuilders {
+		reservationBuilder.AddVolume(volBuilder)
+	}
+	for _, contBuilder := range containerBuilders {
+		reservationBuilder.AddContainer(contBuilder)
+	}
+	for _, zdbBuilder := range zdbBuilders {
+		reservationBuilder.AddZdb(zdbBuilder)
+	}
+	for _, kubeBuilder := range kubeBuilders {
+		reservationBuilder.AddK8s(kubeBuilder)
+	}
+	for _, netBuilder := range networkBuilders {
+		reservationBuilder.AddNetwork(netBuilder)
+	}
 
 	_, err = reservationBuilder.WithDuration(d)
 	if err != nil {
@@ -131,7 +142,7 @@ func cmdsProvision(c *cli.Context) error {
 		totalAmount += detail.TotalAmount
 	}
 
-	fmt.Printf("Reservation for %v send to node bcdb\n", duration)
+	fmt.Printf("Reservation for %v send to node bcdb\n", d)
 	fmt.Printf("Resource: /reservations/%v\n", response.ID)
 	fmt.Println()
 

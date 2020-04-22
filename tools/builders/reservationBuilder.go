@@ -12,6 +12,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/threefoldtech/zos/pkg/identity"
+	"github.com/threefoldtech/zos/pkg/schema"
 	"github.com/threefoldtech/zos/tools/client"
 	"github.com/threefoldtech/zos/tools/explorer/models/generated/workloads"
 	wrklds "github.com/threefoldtech/zos/tools/explorer/pkg/workloads"
@@ -25,7 +26,6 @@ var (
 // ReservationBuilder is a struct that can build reservations
 type ReservationBuilder struct {
 	Reservation workloads.Reservation
-	duration    time.Duration
 	assets      []string
 	seedPath    string
 	dryRun      bool
@@ -118,7 +118,8 @@ func (r *ReservationBuilder) WithDryRun(dryRun bool) *ReservationBuilder {
 // WithDuration sets the duration to the reservation
 func (r *ReservationBuilder) WithDuration(duration string) (*ReservationBuilder, error) {
 	if duration == "" {
-		r.duration = defaultDuration
+		timein := time.Now().Local().Add(defaultDuration)
+		r.Reservation.DataReservation.ExpirationReservation = schema.Date{Time: timein}
 		return r, nil
 	}
 	d, err := time.ParseDuration(duration)
@@ -129,7 +130,8 @@ func (r *ReservationBuilder) WithDuration(duration string) (*ReservationBuilder,
 		}
 		d = time.Duration(nrDays) * day
 	}
-	r.duration = d
+	timein := time.Now().Local().Add(d)
+	r.Reservation.DataReservation.ExpirationReservation = schema.Date{Time: timein}
 	return r, nil
 }
 
@@ -152,7 +154,7 @@ func (r *ReservationBuilder) AddVolume(volume VolumeBuilder) *ReservationBuilder
 }
 
 // AddNetwork adds a network builder to the reservation builder
-func (r *ReservationBuilder) AddNetwork(network *NetworkBuilder) *ReservationBuilder {
+func (r *ReservationBuilder) AddNetwork(network NetworkBuilder) *ReservationBuilder {
 	r.Reservation.DataReservation.Networks = append(r.Reservation.DataReservation.Networks, network.Network)
 	return r
 }
