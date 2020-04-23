@@ -7,8 +7,8 @@ import (
 
 	"os"
 
+	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/identity"
-	"github.com/threefoldtech/zos/tools/client"
 	"github.com/urfave/cli"
 )
 

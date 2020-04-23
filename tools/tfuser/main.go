@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/identity"
-	"github.com/threefoldtech/zos/tools/client"
 
 	"fmt"
 	"os"
@@ -397,6 +397,33 @@ func main() {
 								},
 							},
 							Action: generateZDB,
+						},
+					},
+				},
+				{
+					Name:  "gateway",
+					Usage: "Provision TCP proxy and DNS configuration",
+					Subcommands: []cli.Command{
+						{
+							Name: "proxy",
+							Flags: []cli.Flag{
+								cli.StringFlag{
+									Name:     "node",
+									Usage:    "node id for the generated workload",
+									Required: true,
+								},
+								cli.StringFlag{
+									Name:     "domain, s",
+									Usage:    "Domain to proxy",
+									Required: true,
+								},
+								cli.StringFlag{
+									Name:     "destination, d",
+									Usage:    "Destination ip:port",
+									Required: true,
+								},
+							},
+							// Action: generateProxy,
 						},
 					},
 				},
