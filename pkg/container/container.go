@@ -193,7 +193,7 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 	}
 
 	// setting external logger process
-	uri, err := url.Parse("binary:///bin/shim-zoslog")
+	uri, err := url.Parse("binary:///bin/shim-logs")
 	if err != nil {
 		log.Error().Err(err).Msg("log uri")
 		return id, err
