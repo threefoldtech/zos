@@ -94,7 +94,14 @@ func cmdsAddAccess(c *cli.Context) error {
 		return err
 	}
 
-	return network.AddAccess(schema, nodeID, subnet, wgPubKey, ip4)
+	wgSchema, err := network.AddAccess(schema, nodeID, subnet, wgPubKey, ip4)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(wgSchema)
+
+	return nil
 }
 
 func cmdsRemoveNode(c *cli.Context) error {

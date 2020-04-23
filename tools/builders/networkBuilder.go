@@ -189,17 +189,17 @@ func (n *NetworkBuilder) AddNode(networkSchema string, nodeID string, subnet str
 }
 
 // AddAccess adds access to a network node
-func (n *NetworkBuilder) AddAccess(networkSchema string, nodeID string, subnet string, wgPubKey string, ip4 bool) error {
+func (n *NetworkBuilder) AddAccess(networkSchema string, nodeID string, subnet string, wgPubKey string, ip4 bool) (string, error) {
 	if nodeID == "" {
-		return fmt.Errorf("nodeID cannot be empty")
+		return "", fmt.Errorf("nodeID cannot be empty")
 	}
 
 	if subnet == "" {
-		return fmt.Errorf("subnet cannot be empty")
+		return "", fmt.Errorf("subnet cannot be empty")
 	}
 	ipnet, err := types.ParseIPNet(subnet)
 	if err != nil {
-		return errors.Wrap(err, "invalid subnet")
+		return "", errors.Wrap(err, "invalid subnet")
 	}
 
 	var nodeExists bool
@@ -213,11 +213,11 @@ func (n *NetworkBuilder) AddAccess(networkSchema string, nodeID string, subnet s
 	}
 
 	if !nodeExists {
-		return errors.New("can not add access through a node which is not in the network")
+		return "", errors.New("can not add access through a node which is not in the network")
 	}
 
 	if len(node.PubEndpoints) == 0 {
-		return errors.New("access node must have at least 1 public endpoint")
+		return "", errors.New("access node must have at least 1 public endpoint")
 	}
 
 	var endpoint string
@@ -242,14 +242,14 @@ func (n *NetworkBuilder) AddAccess(networkSchema string, nodeID string, subnet s
 		}
 	}
 	if endpoint == "" {
-		return errors.New("access node has no public endpoint of the requested type")
+		return "", errors.New("access node has no public endpoint of the requested type")
 	}
 
 	var privateKey wgtypes.Key
 	if wgPubKey == "" {
 		privateKey, err = wgtypes.GeneratePrivateKey()
 		if err != nil {
-			return errors.Wrap(err, "error during wireguard key generation")
+			return "", errors.Wrap(err, "error during wireguard key generation")
 		}
 		wgPubKey = privateKey.PublicKey().String()
 	}
@@ -264,22 +264,19 @@ func (n *NetworkBuilder) AddAccess(networkSchema string, nodeID string, subnet s
 	n.AccessPoints = append(n.AccessPoints, ap)
 
 	if err = n.generatePeers(); err != nil {
-		return errors.Wrap(err, "failed to generate peers")
+		return "", errors.Wrap(err, "failed to generate peers")
 	}
 
-	// TODO: WHAT WAS THIS THING DOING HERE ?? !!
-	// wgConf, err := genWGQuick(privateKey.String(), ipnet, node.WGPublicKey, network.IPRange, endpoint)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// fmt.Println(wgConf)
+	wgConf, err := genWGQuick(privateKey.String(), ipnet, node.WireguardPublicKey, n.Network.Iprange, endpoint)
+	if err != nil {
+		return "", err
+	}
 
 	f, err := os.Open(networkSchema)
 	if err != nil {
-		return errors.Wrap(err, "failed to open network schema")
+		return "", errors.Wrap(err, "failed to open network schema")
 	}
-	return n.Save(f)
+	return wgConf, n.Save(f)
 }
 
 // RemoveNode removes a node
@@ -564,7 +561,6 @@ func (n *NetworkBuilder) generatePeers() error {
 				}
 			}
 
-			// TODO DID SOME WEIRD SHIT WITH ALLOWED IPS HERE :S
 			nr.Peers = append(nr.Peers, workloads.WireguardPeer{
 				PublicKey:      onr.WireguardPublicKey,
 				Iprange:        onr.Iprange,
@@ -599,7 +595,7 @@ func isIPv4Subnet(n types.IPNet) bool {
 	return ones <= 30
 }
 
-func genWGQuick(wgPrivateKey string, localSubnet types.IPNet, peerWgPubKey string, allowedSubnet types.IPNet, peerEndpoint string) (string, error) {
+func genWGQuick(wgPrivateKey string, localSubnet types.IPNet, peerWgPubKey string, allowedSubnet schema.IPRange, peerEndpoint string) (string, error) {
 	type data struct {
 		PrivateKey    string
 		Address       string
@@ -643,6 +639,7 @@ PersistentKeepalive = 20
 {{if .PeerEndpoint}}Endpoint = {{.PeerEndpoint}}{{end}}
 `
 
+// NetworkGraph creates a networkgraph for a network
 func (n *NetworkBuilder) NetworkGraph(w io.Writer) error {
 	nodes := make(map[string]dot.Node)
 	nodesByID := make(map[string]dot.Node)
