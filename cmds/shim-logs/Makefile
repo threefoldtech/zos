@@ -9,8 +9,8 @@ OBJ=$(SRC:.c=.o)
 
 all: $(EXEC)
 
-musl: CFLAGS += -march=x86-64
-musl: LDFLAGS += -static
+musl: CFLAGS = -g -W -Wall -O2 -march=x86-64
+musl: LDFLAGS = -static -lhiredis -ljansson
 musl: CC = x86_64-pc-linux-musl-gcc
 musl: clean $(EXEC)
 

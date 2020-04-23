@@ -22,7 +22,7 @@ int main(void) {
     memset(rnds, 0x00, sizeof(rnds));
     srand(time(NULL));
 
-    for(int i = 0; i < 4096; i++) {
+    for(int i = 0; i < 64; i++) {
         written += sprintf(buffer, "[+ %6d]  %s", written, rn(rnds, sizeof(rnds)));
         puts(buffer);
         usleep(60000);

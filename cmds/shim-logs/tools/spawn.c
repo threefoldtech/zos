@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <hiredis/hiredis.h>
 
@@ -53,18 +54,35 @@ int main() {
             diep("execlp");
 
     } else {
-        // wait close
-        printf("[+] spawn: waiting for lock\n");
-        char buff[32];
-        if(read(lock[0], buff, sizeof(buff)) < 0)
-            perror("read");
+        pid_t px = fork();
 
-        printf("[+] spawn: starting real process\n");
-        dup2(stdo[1], 1);
-        dup2(stde[1], 2);
+        if(px == 0) {
+            printf("[+] spawn: waiting for lock\n");
 
-        execlp("./shim-debug", "./shim-debug", (char *) NULL);
+            char buff[32];
+            if(read(lock[0], buff, sizeof(buff)) < 0)
+                perror("read");
+
+            printf("[+] spawn: starting real process\n");
+            dup2(stdo[1], 1);
+            dup2(stde[1], 2);
+
+            execlp("./shim-debug", "./shim-debug", (char *) NULL);
+        }
+
+        printf("[+] spawn (new): waiting for shim-debug [%d] to finish\n", px);
+        int status;
+        waitpid(px, &status, 0);
+
+        printf("[+] spawn (new): shim-debug done, status: %d\n", WEXITSTATUS(status));
     }
+
+    printf("[+] spawn: waiting for shim-logs [%d] to finish\n", p);
+    int status;
+    waitpid(p, &status, 0);
+
+    printf("[+] spawn: shim-logs done, status: %d\n", WEXITSTATUS(status));
+
 
     return 0;
 }

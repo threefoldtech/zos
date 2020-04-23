@@ -85,11 +85,11 @@ int main() {
     //
     // async fetching logs
     //
-    char buffer[512];
-    memset(buffer, 0x00, sizeof(buffer));
-
     while(1) {
         int n = epoll_wait(evfd, events, MAXEVENTS, -1);
+
+        if(n < 0)
+            diep("epoll_wait");
 
         for(int i = 0; i < n; i++) {
             struct epoll_event *ev = events + i;
