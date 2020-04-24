@@ -55,10 +55,10 @@ type Counters struct {
 // CurrentWorkloads return the number of each workloads provisioned on the system
 func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 	return directory.WorkloadAmount{
-		Network:      uint16(c.containers.Current()),
+		Network:      uint16(c.networks.Current()),
 		Volume:       uint16(c.volumes.Current()),
-		ZDBNamespace: uint16(c.networks.Current()),
-		Container:    uint16(c.zdbs.Current()),
+		ZDBNamespace: uint16(c.zdbs.Current()),
+		Container:    uint16(c.containers.Current()),
 		K8sVM:        uint16(c.vms.Current()),
 	}
 }
@@ -67,9 +67,9 @@ func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 func (c *Counters) CurrentUnits() directory.ResourceAmount {
 	return directory.ResourceAmount{
 		Cru: c.CRU.Current(),
-		Mru: float64(c.CRU.Current()),
-		Hru: float64(c.CRU.Current()),
-		Sru: float64(c.CRU.Current()),
+		Mru: float64(c.MRU.Current() / gib),
+		Hru: float64(c.HRU.Current() / gib),
+		Sru: float64(c.SRU.Current() / gib),
 	}
 }
 
@@ -99,6 +99,13 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 	case KubernetesReservation:
 		c.vms.Increment(1)
 		u, err = processKubernetes(r)
+	case NetworkReservation:
+		c.networks.Increment(1)
+		u = resourceUnits{}
+		err = nil
+	default:
+		u = resourceUnits{}
+		err = nil
 	}
 	if err != nil {
 		return err
@@ -133,6 +140,13 @@ func (c *Counters) Decrement(r *provision.Reservation) error {
 	case KubernetesReservation:
 		c.vms.Decrement(1)
 		u, err = processKubernetes(r)
+	case NetworkReservation:
+		c.networks.Decrement(1)
+		u = resourceUnits{}
+		err = nil
+	default:
+		u = resourceUnits{}
+		err = nil
 	}
 	if err != nil {
 		return err

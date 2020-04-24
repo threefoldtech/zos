@@ -118,7 +118,11 @@ func (s *Fs) Sync(statser provision.Statser) error {
 			return err
 		}
 
-		statser.Increment(r)
+		if !r.Expired() {
+			if err := statser.Increment(r); err != nil {
+				return fmt.Errorf("fail to update stats:%w", err)
+			}
+		}
 	}
 
 	return nil
