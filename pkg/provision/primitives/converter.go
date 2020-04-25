@@ -264,17 +264,18 @@ func WorkloadToProvisionType(w workloads.ReservationWorkload) (*provision.Reserv
 // ResultToSchemaType converts result to schema type
 func ResultToSchemaType(r provision.Result) (*workloads.Result, error) {
 
-	var rType workloads.ResultCategoryEnum
+	var rType workloads.WorkloadTypeEnum
 	switch r.Type {
 	case VolumeReservation:
-		rType = workloads.ResultCategoryVolume
+		rType = workloads.WorkloadTypeVolume
 	case ContainerReservation:
-		rType = workloads.ResultCategoryContainer
+		rType = workloads.WorkloadTypeContainer
 	case ZDBReservation:
-		rType = workloads.ResultCategoryZDB
+		rType = workloads.WorkloadTypeZDB
 	case NetworkReservation:
-		rType = workloads.ResultCategoryNetwork
+		rType = workloads.WorkloadTypeNetwork
 	case KubernetesReservation:
+		rType = workloads.WorkloadTypeKubernetes
 	default:
 		return nil, fmt.Errorf("unknown reservation type: %s", r.Type)
 	}
