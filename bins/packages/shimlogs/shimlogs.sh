@@ -3,7 +3,7 @@ SHIMLOGS_CHECKSUM="0fbc114c8becf012cf9bb6c734dbc3d9"
 SHIMLOGS_LINK="https://github.com/threefoldtech/shim-logs/archive/v${SHIMLOGS_VERSION}.tar.gz"
 
 dependencies_shimlogs() {
-    apt-get install -y libjansson-dev libhiredis-dev
+    apt-get install -y libjansson-dev libhiredis-dev build-essential
 }
 
 download_shimlogs() {

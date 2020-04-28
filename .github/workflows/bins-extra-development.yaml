@@ -224,7 +224,7 @@ jobs:
       id: package
       run: |
         cd bins
-        sudo ./bins-extra.sh --package shim-logs
+        sudo ./bins-extra.sh --package shimlogs
 
     - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
       if: success()
