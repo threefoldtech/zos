@@ -233,7 +233,7 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         action: publish
         user: tf-autobuilder
-        root: bins/releases/shim-logs
+        root: bins/releases/shimlogs
         name: ${{ steps.package.outputs.name }}.flist
 
     - name: Crosslink flist (tf-zos-bins.dev)

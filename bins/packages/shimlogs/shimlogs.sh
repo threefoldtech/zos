@@ -30,8 +30,7 @@ install_shimlogs() {
     mkdir -p "${ROOTDIR}/bin"
 
     cp shim-logs ${ROOTDIR}/bin/shim-logs
-
-    chmod +x ${ROOTDIR}/bin/*
+    chmod +x ${ROOTDIR}/bin/shim-logs
 }
 
 build_shimlogs() {
