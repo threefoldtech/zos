@@ -149,6 +149,22 @@ func K8SToProvisionType(k workloads.K8S) (Kubernetes, string, error) {
 	return k8s, k.NodeId, nil
 }
 
+// QemuProvisionType converts type to internal provision type
+func QemuToProvisionType(q workloads.Qemu) (Qemu, string, error) {
+	qemu := Qemu{
+		NetworkID: pkg.NetID(q.NetworkId),
+		IP:        q.Ipaddress,
+		Image:     q.Image,
+		Capacity: QemuCapacity{
+			CPU:     uint(q.Capacity.Cpu),
+			Memory:  uint64(q.Capacity.Memory),
+			HDDSize: uint64(q.Capacity.HDD),
+		},
+	}
+
+	return qemu, q.NodeId, nil
+}
+
 // NetworkToProvisionType convert TfgridReservationNetwork1 to pkg.Network
 func NetworkToProvisionType(n workloads.Network) (pkg.Network, error) {
 	network := pkg.Network{
@@ -249,6 +265,11 @@ func WorkloadToProvisionType(w workloads.ReservationWorkload) (*provision.Reserv
 		if err != nil {
 			return nil, err
 		}
+	case workloads.Qemu:
+		data, reservation.NodeID, err = QemuToProvisionType(tmp)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unknown workload type (%s) (%T)", w.Type.String(), tmp)
 	}
@@ -276,6 +297,8 @@ func ResultToSchemaType(r provision.Result) (*workloads.Result, error) {
 		rType = workloads.WorkloadTypeNetwork
 	case KubernetesReservation:
 		rType = workloads.WorkloadTypeKubernetes
+	case QemuReservation:
+		rType = workloads.WorkloadTypeQemu
 	default:
 		return nil, fmt.Errorf("unknown reservation type: %s", r.Type)
 	}

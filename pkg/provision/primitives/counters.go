@@ -45,6 +45,7 @@ type Counters struct {
 	networks   CounterUint64
 	zdbs       CounterUint64
 	vms        CounterUint64
+	qemuvms    CounterUint64
 
 	SRU CounterUint64 // SSD storage in bytes
 	HRU CounterUint64 // HDD storage in bytes
@@ -60,6 +61,7 @@ func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 		ZDBNamespace: uint16(c.zdbs.Current()),
 		Container:    uint16(c.containers.Current()),
 		K8sVM:        uint16(c.vms.Current()),
+		QemuVM:       uint16(c.qemuvms.Current()),
 	}
 }
 
@@ -99,6 +101,9 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 	case KubernetesReservation:
 		c.vms.Increment(1)
 		u, err = processKubernetes(r)
+	case QemuReservation:
+		c.qemuvms.Increment(1)
+		u, err = processQemu(r)
 	case NetworkReservation:
 		c.networks.Increment(1)
 		u = resourceUnits{}
@@ -140,6 +145,9 @@ func (c *Counters) Decrement(r *provision.Reservation) error {
 	case KubernetesReservation:
 		c.vms.Decrement(1)
 		u, err = processKubernetes(r)
+	case QemuReservation:
+		c.qemuvms.Decrement(1)
+		u, err = processQemu(r)
 	case NetworkReservation:
 		c.networks.Decrement(1)
 		u = resourceUnits{}
@@ -233,6 +241,20 @@ func processKubernetes(r *provision.Reservation) (u resourceUnits, err error) {
 		u.MRU = 4 * gib
 		u.SRU = 100 * gib
 	}
+
+	return u, nil
+}
+
+func processQemu(r *provision.Reservation) (u resourceUnits, err error) {
+	var qemuVM Qemu
+	if err = json.Unmarshal(r.Data, &qemuVM); err != nil {
+		return u, err
+	}
+
+	u.CRU = uint64(qemuVM.Capacity.CPU)
+	// memory is in MiB
+	u.MRU = qemuVM.Capacity.Memory * mib
+	u.HRU = qemuVM.Capacity.HDDSize
 
 	return u, nil
 }
