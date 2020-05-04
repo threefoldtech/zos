@@ -148,7 +148,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				NetworkConnection: tt.fields.NetworkConnection,
 				StatsAggregator:   tt.fields.StatsAggregator,
 			}
-			got, _, err := ContainerToProvisionType(c)
+			got, _, err := ContainerToProvisionType(c, "")
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.DeepEqual(t, tt.want, got)
