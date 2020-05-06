@@ -77,7 +77,12 @@ func (s *pollSource) Reservations(ctx context.Context) <-chan *Reservation {
 				continue
 			}
 
-			next = lastID + 1
+			// guard to make sure we always at least poll once on the latest unprocessed id
+			if len(res) == 0 {
+				next = lastID
+			} else {
+				next = lastID + 1
+			}
 
 			select {
 			case <-ctx.Done():
