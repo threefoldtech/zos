@@ -29,7 +29,12 @@ func (c *CounterUint64) Increment(v uint64) uint64 {
 
 // Decrement counter atomically by one
 func (c *CounterUint64) Decrement(v uint64) uint64 {
-	return atomic.AddUint64((*uint64)(c), -v)
+	result := atomic.AddUint64((*uint64)(c), -v)
+	if result < 0 {
+		// return smallest possible uint64 (= 0)
+		return 0
+	}
+	return result
 }
 
 // Current returns the current value
