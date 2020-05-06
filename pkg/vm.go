@@ -29,8 +29,24 @@ type VMDisk struct {
 	Root     bool
 }
 
-// VM config structure
-type VM struct {
+// VM config interface
+type VM interface {
+	// first start by including all public functions that are needed
+	// for the firecracker vm to do it's things
+	// after that, we can look how we need to change these functions
+	// so they work with qemu and firecracker (hypervisor independent)
+	GetDisks() []VMDisk
+	GetNetwork() VMNetworkInfo
+	GetName() string
+	Validate() error
+	GetKernelArgs() string
+	GetKernelImage() string
+	GetInitrdImage() string
+	GetCPU() uint8
+	GetMemory() int64
+}
+
+type FirecrackerVM struct {
 	// virtual machine name, or ID
 	Name string
 	// CPU is number of cores assigned to the VM
@@ -50,25 +66,123 @@ type VM struct {
 	Disks []VMDisk
 }
 
-// Validate vm data
-func (vm *VM) Validate() error {
+func (fcvm *FirecrackerVM) GetName() string {
+	return fcvm.Name
+}
+
+func (fcvm *FirecrackerVM) GetDisks() []VMDisk {
+	return fcvm.Disks
+}
+
+func (fcvm *FirecrackerVM) GetKernelArgs() string {
+	return fcvm.KernelArgs
+}
+
+func (fcvm *FirecrackerVM) GetNetwork() VMNetworkInfo {
+	// function to parse the Firecracker Network to generic network model (not implemented yet)
+	return fcvm.Network
+}
+
+func (fcvm *FirecrackerVM) GetKernelImage() string {
+	return fcvm.KernelImage
+}
+
+func (fcvm *FirecrackerVM) GetInitrdImage() string {
+	return fcvm.InitrdImage
+}
+
+func (fcvm *FirecrackerVM) GetCPU() uint8 {
+	return fcvm.CPU
+}
+
+func (fcvm *FirecrackerVM) GetMemory() int64 {
+	return fcvm.Memory
+}
+
+// Validate Firecracker vm data
+func (fcvm *FirecrackerVM) Validate() error {
 	missing := func(s string) bool {
 		return len(s) == 0
 	}
 
-	if missing(vm.Name) {
+	if missing(fcvm.Name) {
 		return fmt.Errorf("name is required")
 	}
 
-	if missing(vm.KernelImage) {
+	if missing(fcvm.KernelImage) {
 		return fmt.Errorf("kernel-image is required")
 	}
 
-	if vm.Memory < 512 {
+	if fcvm.Memory < 512 {
 		return fmt.Errorf("invalid memory must not be less than 512M")
 	}
 
-	if vm.CPU == 0 || vm.CPU > 32 {
+	if fcvm.CPU == 0 || fcvm.CPU > 32 {
+		return fmt.Errorf("invalid cpu must be between 1 and 32")
+	}
+
+	return nil
+}
+
+type QemuVM struct {
+	// virtual machine name, or ID
+	Name string
+	// CPU is number of cores assigned to the VM
+	CPU uint8
+	// Memory size in Mib
+	Memory int64
+	// Disks are a list of disks that are going to
+	// be auto allocated on the provided storage path
+	Disks []VMDisk
+}
+
+func (qvm *QemuVM) GetName() string {
+	return qvm.Name
+}
+
+func (qvm *QemuVM) GetCPU() uint8 {
+	return qvm.CPU
+}
+
+func (qvm *QemuVM) GetDisks() []VMDisk {
+	return qvm.Disks
+}
+
+func (qvm *QemuVM) GetMemory() int64 {
+	return qvm.Memory
+}
+
+func (qvm *QemuVM) GetNetwork() VMNetworkInfo {
+	return VMNetworkInfo{}
+}
+
+func (qvm *QemuVM) GetKernelArgs() string {
+	return ""
+}
+
+func (qvm *QemuVM) GetKernelImage() string {
+	return ""
+}
+
+func (qvm *QemuVM) GetInitrdImage() string {
+	return ""
+}
+
+// Validate Qemu vm data
+func (qvm *QemuVM) Validate() error {
+	missing := func(s string) bool {
+		return len(s) == 0
+	}
+
+	if missing(qvm.Name) {
+		return fmt.Errorf("name is required")
+	}
+
+	if qvm.Memory < 512 {
+		return fmt.Errorf("invalid memory must not be less than 512M")
+	}
+
+	if qvm.CPU == 0 || qvm.CPU > 32 {
 		return fmt.Errorf("invalid cpu must be between 1 and 32")
 	}
 

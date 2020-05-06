@@ -178,7 +178,7 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 	// install ISO
 	disks[1] = pkg.VMDisk{Path: imagePath + "/k3os-amd64.iso", ReadOnly: true, Root: false}
 
-	installVM := pkg.VM{
+	installVM := pkg.FirecrackerVM{
 		Name:        name,
 		CPU:         cpu,
 		Memory:      int64(memory),
@@ -189,7 +189,7 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 		Disks:       disks,
 	}
 
-	if err := vm.Run(installVM); err != nil {
+	if err := vm.Run(&installVM); err != nil {
 		return errors.Wrap(err, "could not run vm")
 	}
 
@@ -219,7 +219,7 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 	// installed disk
 	disks[0] = pkg.VMDisk{Path: diskPath, ReadOnly: false, Root: false}
 
-	kubevm := pkg.VM{
+	kubevm := pkg.FirecrackerVM{
 		Name:        name,
 		CPU:         cpu,
 		Memory:      int64(memory),
@@ -230,7 +230,7 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 		Disks:       disks,
 	}
 
-	return vm.Run(kubevm)
+	return vm.Run(&kubevm)
 }
 
 func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *provision.Reservation) error {

@@ -50,9 +50,9 @@ func NewVMModule(root string) (pkg.VMModule, error) {
 	}, nil
 }
 
-func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]Drive, error) {
+func (m *vmModuleImpl) makeDevices(vm pkg.VM) ([]Drive, error) {
 	var drives []Drive
-	for i, disk := range vm.Disks {
+	for i, disk := range vm.GetDisks() {
 		id := fmt.Sprintf("%d", i+2)
 
 		drives = append(drives, Drive{
@@ -111,27 +111,29 @@ func (m *vmModuleImpl) cleanFs(id string) error {
 	return os.RemoveAll(m.machineRoot(id))
 }
 
-func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) (iface Interface, cmdline string, err error) {
-	netIP := vm.Network.AddressCIDR
+func (m *vmModuleImpl) makeNetwork(vm pkg.VM) (iface Interface, cmdline string, err error) {
+	network := vm.GetNetwork()
+
+	netIP := network.AddressCIDR
 
 	nic := Interface{
 		ID:  "eth0",
-		Tap: vm.Network.Tap,
-		Mac: vm.Network.MAC,
+		Tap: network.Tap,
+		Mac: network.MAC,
 	}
 
 	dns0 := ""
 	dns1 := ""
-	if len(vm.Network.Nameservers) > 0 {
-		dns0 = vm.Network.Nameservers[0].String()
+	if len(network.Nameservers) > 0 {
+		dns0 = network.Nameservers[0].String()
 	}
-	if len(vm.Network.Nameservers) > 1 {
-		dns1 = vm.Network.Nameservers[1].String()
+	if len(network.Nameservers) > 1 {
+		dns1 = network.Nameservers[1].String()
 	}
 
 	cmdline = fmt.Sprintf("ip=%s::%s:%s:::off:%s:%s:",
 		netIP.IP.String(),
-		vm.Network.GatewayIP.String(),
+		network.GatewayIP.String(),
 		net.IP(netIP.Mask).String(),
 		dns0,
 		dns1,
@@ -199,27 +201,27 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 
 	ctx := context.Background()
 
-	if m.Exists(vm.Name) {
+	if m.Exists(vm.GetName()) {
 		return fmt.Errorf("a vm with same name already exists")
 	}
 
 	// make sure to clean up previous roots just in case
-	if err := m.cleanFs(vm.Name); err != nil {
+	if err := m.cleanFs(vm.GetName()); err != nil {
 		return err
 	}
 
-	devices, err := m.makeDevices(&vm)
+	devices, err := m.makeDevices(vm)
 	if err != nil {
 		return err
 	}
 
 	var kargs strings.Builder
-	kargs.WriteString(vm.KernelArgs)
+	kargs.WriteString(vm.GetKernelArgs())
 	if kargs.Len() == 0 {
 		kargs.WriteString(defaultKernelArgs)
 	}
 
-	nic, args, err := m.makeNetwork(&vm)
+	nic, args, err := m.makeNetwork(vm)
 	if err != nil {
 		return err
 	}
@@ -231,15 +233,15 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	kargs.WriteString(args)
 
 	machine := Machine{
-		ID: vm.Name,
+		ID: vm.GetName(),
 		Boot: Boot{
-			Kernel: vm.KernelImage,
-			Initrd: vm.InitrdImage,
+			Kernel: vm.GetKernelImage(),
+			Initrd: vm.GetInitrdImage(),
 			Args:   kargs.String(),
 		},
 		Config: Config{
-			CPU:       vm.CPU,
-			Mem:       vm.Memory,
+			CPU:       vm.GetCPU(),
+			Mem:       vm.GetMemory(),
 			HTEnabled: false,
 		},
 		Interfaces: []Interface{

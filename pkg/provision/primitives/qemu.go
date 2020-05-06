@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 // QemuResult result returned by qemu reservation
@@ -37,7 +39,7 @@ type Qemu struct {
 // QemuCapacity is the amount of resource to allocate to the virtual machine
 type QemuCapacity struct {
 	// Number of CPU
-	CPU uint `json:"cpu"`
+	CPU uint8 `json:"cpu"`
 	// Memory in MiB
 	Memory uint64 `json:"memory"`
 	// HDD in GB
@@ -51,41 +53,43 @@ func (p *Provisioner) qemuProvision(ctx context.Context, reservation *provision.
 }
 
 func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result QemuResult, err error) {
-	qemuClient := stubs.NewQemuModuleStub(p.zbus)
-	flistClient := stubs.NewFlisterStub(p.zbus)
-	vmClient := stubs.NewVMModuleStub(p.zbus)
-	vm := stubs.NewVMModuleStub(p.zbus)
+	var (
+		storage = stubs.NewVDiskModuleStub(p.zbus)
+		//network = stubs.NewNetworkerStub(p.zbus)
+		flist = stubs.NewFlisterStub(p.zbus)
+		vm    = stubs.NewVMModuleStub(p.zbus)
 
-	var needsInstall = true
+		config Qemu
+
+		needsInstall = true
+	)
 
 	// checking reservation scheme and putting data in config
-	var config Qemu
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	// mounting image
 	var mnt string
-	mnt, err = flistClient.Mount(config.Image, config.ImageFlistStorage, pkg.DefaultMountOptions)
+	mnt, err = flist.Mount(config.Image, config.ImageFlistStorage, pkg.DefaultMountOptions)
 	if err != nil {
 		return QemuResult{}, err
 	}
 	// unmount flist if error occurs
 	defer func() {
 		if err != nil {
-			if err := flistClient.Umount(mnt); err != nil {
+			if err := flist.Umount(mnt); err != nil {
 				log.Error().Err(err).Str("mnt", mnt).Msg("failed to unmount")
 			}
 		}
 	}()
 
 	// set IP address
-	result.IP = config.IP.string()
+	result.IP = config.IP.String()
 	// set ID
 	result.ID = reservation.ID
 
-
-	cpu, memory, disk, err := vmSize(config.Capacity)
+	cpu, memory, disk, err := qemuCapacitySize(config.Capacity)
 	if err != nil {
 		return result, errors.Wrap(err, "could not interpret vm size")
 	}
@@ -134,7 +138,9 @@ func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provis
 		}
 	}()
 
-	// setup tap device
+	// NETWORK THINGS HAVE TO BE DONE
+	// ___________________________________________________________________________________________
+	/* // setup tap device
 	var iface string
 	netID := networkID(reservation.User, string(config.NetworkID))
 	iface, err = network.SetupTap(netID)
@@ -153,22 +159,31 @@ func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provis
 	netInfo, err = p.buildNetworkInfo(ctx, reservation.User, iface, config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
-	}
+	} */
+	// ___________________________________________________________________________________________
 
 	if needsInstall {
-		if err = p.qemuInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
+		if err = p.qemuInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, config); err != nil {
 			return result, errors.Wrap(err, "failed to install qemu")
 		}
 	}
 
-	err = p.qemuRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
+	err = p.qemuRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, config)
 
 	return result, err
 }
 
-func (p *Provisioner) qemuInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Qemu) error {
+// with network info
+//func (p *Provisioner) qemuInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Qemu) error {
+
+//without network info
+func (p *Provisioner) qemuInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, cfg Qemu) error {
 	// prepare disks here
 	// ....
+
+	vm := stubs.NewVMModuleStub(p.zbus)
+
+	//cmdline = fmt.Sprintf()
 
 	deadline, cancel := context.WithTimeout(ctx, time.Minute*5)
 	defer cancel()
@@ -187,27 +202,26 @@ func (p *Provisioner) qemuInstall(ctx context.Context, name string, cpu uint8, m
 
 	// Delete the VM, the disk will be installed now
 	return vm.Delete(name)
+	//return nil
 }
 
-func (p *Provisioner) qemuRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Qemu) error {
+// with network info
+//func (p *Provisioner) qemuRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Qemu) error {
+// witouth network info
+func (p *Provisioner) qemuRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, cfg Qemu) error {
 	vm := stubs.NewVMModuleStub(p.zbus)
 
 	// create virtual machine and run it
-	qemuVM := {}
+	qemuVM := pkg.QemuVM{}
 
-	return vm.Run(qemuVM)
+	return vm.Run(&qemuVM)
+	//return nil
 }
-
-
 
 func (p *Provisioner) qemuDecommision(ctx context.Context, reservation *provision.Reservation) error {
 	return nil
 }
 
-
-// returns the vCpu's, memory, disksize for a vm size
-// memory and disk size is expressed in MiB
-// hardcoded for now to test
-func vmSize(size uint8) (uint8, uint64, uint64, error) {
-	return 1, 2 * 1024, 50 * 1024, nil)
+func qemuCapacitySize(qc QemuCapacity) (uint8, uint64, uint64, error) {
+	return qc.CPU, qc.Memory, qc.HDDSize, nil
 }
