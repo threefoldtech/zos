@@ -15,9 +15,9 @@ type TestPollSource struct {
 	mock.Mock
 }
 
-func (s *TestPollSource) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, error) {
+func (s *TestPollSource) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, uint64, error) {
 	returns := s.Called(nodeID, from)
-	return returns.Get(0).([]*Reservation), returns.Error(1)
+	return returns.Get(0).([]*Reservation), uint64(returns.Get(1).(int)), returns.Error(2)
 }
 
 func TestHTTPReservationSource(t *testing.T) {
@@ -32,7 +32,7 @@ func TestHTTPReservationSource(t *testing.T) {
 		Return([]*Reservation{
 			&Reservation{ID: "1-1"},
 			&Reservation{ID: "1-2"},
-		}, ErrPollEOS)
+		}, 1, ErrPollEOS)
 
 	reservations := []*Reservation{}
 	for res := range chn {
@@ -60,13 +60,13 @@ func TestHTTPReservationSourceMultiple(t *testing.T) {
 		Return([]*Reservation{
 			&Reservation{ID: "1-1"},
 			&Reservation{ID: "2-1"},
-		}, nil) // return nil error so it tries again
+		}, 2, nil) // return nil error so it tries again
 
 	store.On("Poll", nodeID, uint64(3)).
 		Return([]*Reservation{
 			&Reservation{ID: "3-1"},
 			&Reservation{ID: "4-1"},
-		}, ErrPollEOS)
+		}, 6, ErrPollEOS)
 
 	reservations := []*Reservation{}
 	for res := range chn {
@@ -86,9 +86,9 @@ type TestTrackSource struct {
 	Calls []int64
 }
 
-func (s *TestTrackSource) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, error) {
+func (s *TestTrackSource) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservation, uint64, error) {
 	if s.ID == s.Max {
-		return nil, ErrPollEOS
+		return nil, 0, ErrPollEOS
 	}
 
 	s.Calls = append(s.Calls, time.Now().Unix())
@@ -101,7 +101,7 @@ func (s *TestTrackSource) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservati
 		&Reservation{
 			ID: fmt.Sprint(s.ID, "-", "0"),
 		},
-	}, nil
+	}, s.ID, nil
 }
 
 func TestHTTPReservationSourceSleep(t *testing.T) {
