@@ -30,8 +30,6 @@ type Qemu struct {
 	IP net.IP `json:"ip"`
 	// Image of the VM.
 	Image string `json:"image"`
-	// URL of the storage backend for the flist
-	ImageFlistStorage string `json:"image_flist_storage"`
 	// QemuCapacity is the amount of resource to allocate to the virtual machine
 	Capacity QemuCapacity `json:"capacity"`
 }
@@ -71,7 +69,7 @@ func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provis
 
 	// mounting image
 	var mnt string
-	mnt, err = flist.Mount(config.Image, config.ImageFlistStorage, pkg.DefaultMountOptions)
+	mnt, err = flist.Mount(config.Image, "", pkg.DefaultMountOptions)
 	if err != nil {
 		return QemuResult{}, err
 	}

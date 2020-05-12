@@ -235,7 +235,7 @@ func getBinsRepo() string {
 
 	switch env.RunningMode {
 	case environment.RunningDev:
-		return "tf-zos-bins.dev"
+		return "maximevanhees.3bot"
 	case environment.RunningTest:
 		return "tf-zos-bins.test"
 	default:
