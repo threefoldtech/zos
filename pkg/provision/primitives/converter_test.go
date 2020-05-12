@@ -91,7 +91,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				Interactive: false,
 				Volumes: []workloads.ContainerMount{
 					{
-						VolumeId:   "volume1",
+						VolumeId:   "-volume1",
 						Mountpoint: "/mnt",
 					},
 					{
@@ -115,7 +115,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				Interactive:  false,
 				Mounts: []Mount{
 					{
-						VolumeID:   "volume1",
+						VolumeID:   "reservation-volume1",
 						Mountpoint: "/mnt",
 					},
 					{
@@ -148,7 +148,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				NetworkConnection: tt.fields.NetworkConnection,
 				StatsAggregator:   tt.fields.StatsAggregator,
 			}
-			got, _, err := ContainerToProvisionType(c)
+			got, _, err := ContainerToProvisionType(c, "reservation")
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.DeepEqual(t, tt.want, got)

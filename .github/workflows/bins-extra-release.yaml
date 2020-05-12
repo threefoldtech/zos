@@ -215,8 +215,8 @@ jobs:
         name: logtrunc.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
 
-  qemu:
-    name: 'Package: qemu'
+  shim-logs:
+    name: 'Package: shim-logs'
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -231,7 +231,7 @@ jobs:
       id: package
       run: |
         cd bins
-        sudo ./bins-extra.sh --package qemu
+        sudo ./bins-extra.sh --package shimlogs
 
     - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
       if: success()
@@ -240,7 +240,7 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         action: publish
         user: tf-autobuilder
-        root: bins/releases/qemu
+        root: bins/releases/shimlogs
         name: ${{ steps.package.outputs.name }}.flist
 
     - name: crosslink flist (tf-zos-bins)
@@ -250,6 +250,6 @@ jobs:
         token: ${{ secrets.hub_jwt }}
         action: crosslink
         user: tf-zos-bins
-        name: qemu.flist
+        name: shim-logs.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
 

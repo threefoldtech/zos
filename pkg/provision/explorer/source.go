@@ -30,18 +30,18 @@ func NewPoller(cl *client.Client, inputConv provision.ReservationConverterFunc, 
 }
 
 // Poll implements provision.ReservationPoller
-func (r *Poller) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservation, error) {
+func (r *Poller) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservation, uint64, error) {
 
-	list, err := r.wl.Workloads(nodeID.Identity(), from)
+	list, lastID, err := r.wl.Workloads(nodeID.Identity(), from)
 	if err != nil {
-		return nil, fmt.Errorf("error while retrieving workloads from explorer: %w", err)
+		return nil, 0, fmt.Errorf("error while retrieving workloads from explorer: %w", err)
 	}
 
 	result := make([]*provision.Reservation, 0, len(list))
 	for _, wl := range list {
 		r, err := r.inputConv(wl)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		result = append(result, r)
@@ -54,5 +54,5 @@ func (r *Poller) Poll(nodeID pkg.Identifier, from uint64) ([]*provision.Reservat
 		})
 	}
 
-	return result, nil
+	return result, lastID, nil
 }
