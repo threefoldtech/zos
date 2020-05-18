@@ -156,8 +156,9 @@ func K8SToProvisionType(k workloads.K8S) (Kubernetes, string, error) {
 // QemuProvisionType converts type to internal provision type
 func QemuToProvisionType(q workloads.Qemu) (Qemu, string, error) {
 	qemu := Qemu{
-		IP:    q.Ipaddress,
-		Image: q.Image,
+		NetworkID: pkg.NetID(q.NetworkId),
+		IP:        q.Ipaddress,
+		Image:     q.Image,
 		Capacity: QemuCapacity{
 			CPU:     uint8(q.Capacity.CPU),
 			Memory:  uint64(q.Capacity.Memory),
