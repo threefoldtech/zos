@@ -207,6 +207,10 @@ func getLocalInterfaces() ([]types.IfaceInfo, error) {
 }
 
 func publishIfaces(ifaces []types.IfaceInfo, id pkg.Identifier, db client.Directory) error {
+	err := container.SendUptime(context.Background(), id, db)
+	if err != nil {
+		return err
+	}
 	f := func() error {
 		log.Info().Msg("try to publish interfaces to TNoDB")
 		var input []directory.Iface
@@ -219,11 +223,6 @@ func publishIfaces(ifaces []types.IfaceInfo, id pkg.Identifier, db client.Direct
 		if err != nil {
 			log.Error().Err(err).Msg("error while trying to publish the node interaces")
 		}
-	}
-
-	err := container.SendUptime(context.Background(), id, db)
-	if err != nil {
-		return err
 	}
 
 	if err := backoff.RetryNotify(f, backoff.NewExponentialBackOff(), errHandler); err != nil {

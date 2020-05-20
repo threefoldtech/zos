@@ -691,14 +691,14 @@ func (n *networker) publishWGPorts() error {
 		return err
 	}
 
+	err = container.SendUptime(context.Background(), n.identity.NodeID(), n.tnodb)
+	if err != nil {
+		return err
+	}
 	if err := n.tnodb.NodeSetPorts(n.identity.NodeID().Identity(), ports); err != nil {
 		// maybe retry a couple of times ?
 		// having bdb and the node out of sync is pretty bad
 		return errors.Wrap(err, "fail to publish wireguard port to bcdb")
-	}
-	err = container.SendUptime(context.Background(), n.identity.NodeID(), n.tnodb)
-	if err != nil {
-		return err
 	}
 	return nil
 }
