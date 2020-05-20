@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/jbenet/go-base58"
+	"github.com/shirou/gopsutil/host"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/flist"
 	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/network"
@@ -163,13 +163,8 @@ func main() {
 		log.Fatal().Err(err).Msg("fetch location")
 	}
 
-	client, err := zbus.NewRedisClient(broker)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to zbus")
-	}
-
 	register := func(v string) error {
-		return registerNode(nodeID, farmID, v, idStore, loc, client)
+		return registerNode(nodeID, farmID, v, idStore, loc)
 	}
 
 	if err := backoff.RetryNotify(func() error {
@@ -457,21 +452,17 @@ func bcdbClient() (client.Directory, error) {
 	return client.Directory, nil
 }
 
-func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location, client zbus.Client) error {
+func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location) error {
 	log.Info().Str("version", version).Msg("start registration of the node")
-
-	storage := stubs.NewStorageModuleStub(client)
-
-	r := capacity.NewResourceOracle(storage)
-
-	uptime, err := r.Uptime()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to get uptime")
-	}
 
 	v1ID, _ := network.NodeIDv1()
 
 	publicKeyHex := hex.EncodeToString(base58.Decode(nodeID.Identity()))
+
+	uptime, err := hostUptime()
+	if err != nil {
+		return errors.Wrap(err, "could not get node uptime")
+	}
 
 	err = store.NodeRegister(directory.Node{
 		NodeId:    nodeID.Identity(),
@@ -495,4 +486,13 @@ func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, stor
 	}
 
 	return nil
+}
+
+// hostUptime returns the uptime of the node
+func hostUptime() (uint64, error) {
+	info, err := host.Info()
+	if err != nil {
+		return 0, err
+	}
+	return info.Uptime, nil
 }
