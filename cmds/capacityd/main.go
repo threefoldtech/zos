@@ -11,6 +11,7 @@ import (
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/container"
 	"github.com/threefoldtech/zos/pkg/monitord"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -47,6 +48,7 @@ func cap(ctx context.Context, client zbus.Client) {
 	})
 
 	r := capacity.NewResourceOracle(storage)
+	container.InitUptimeReporter(client)
 
 	log.Info().Msg("inspect hardware resources")
 	resources, err := r.Total()
@@ -96,38 +98,9 @@ func cap(ctx context.Context, client zbus.Client) {
 			Msgf("failed to write resources capacity on BCDB")
 	})
 
-	sendUptime := func() error {
-		uptime, err := r.Uptime()
-		if err != nil {
-			log.Error().Err(err).Msgf("failed to read uptime")
-			return err
-		}
-
-		log.Info().Msg("send heart-beat to BCDB")
-		if err := cl.NodeUpdateUptime(identity.NodeID().Identity(), uptime); err != nil {
-			log.Error().Err(err).Msgf("failed to send heart-beat to BCDB")
-			return err
-		}
-		return nil
-	}
-	if err := sendUptime(); err != nil {
+	if err := container.SendUptime(ctx, identity.NodeID(), cl); err != nil {
 		log.Fatal().Err(err).Send()
 	}
-
-	tick := time.NewTicker(time.Minute * 10)
-
-	go func() {
-		defer tick.Stop()
-
-		for {
-			select {
-			case <-tick.C:
-				backoff.Retry(sendUptime, backoff.NewExponentialBackOff())
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 }
 
 func mon(ctx context.Context, server zbus.Server) {

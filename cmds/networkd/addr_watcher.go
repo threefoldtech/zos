@@ -14,6 +14,7 @@ import (
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/container"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
@@ -218,6 +219,11 @@ func publishIfaces(ifaces []types.IfaceInfo, id pkg.Identifier, db client.Direct
 		if err != nil {
 			log.Error().Err(err).Msg("error while trying to publish the node interaces")
 		}
+	}
+
+	err := container.SendUptime(context.Background(), id, db)
+	if err != nil {
+		return err
 	}
 
 	if err := backoff.RetryNotify(f, backoff.NewExponentialBackOff(), errHandler); err != nil {

@@ -15,6 +15,7 @@ import (
 
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/cache"
+	"github.com/threefoldtech/zos/pkg/container"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
 
@@ -694,6 +695,10 @@ func (n *networker) publishWGPorts() error {
 		// maybe retry a couple of times ?
 		// having bdb and the node out of sync is pretty bad
 		return errors.Wrap(err, "fail to publish wireguard port to bcdb")
+	}
+	err = container.SendUptime(context.Background(), n.identity.NodeID(), n.tnodb)
+	if err != nil {
+		return err
 	}
 	return nil
 }

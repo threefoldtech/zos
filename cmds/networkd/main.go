@@ -13,6 +13,7 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/container"
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
@@ -59,6 +60,8 @@ func main() {
 
 	identity := stubs.NewIdentityManagerStub(client)
 	nodeID := identity.NodeID()
+
+	container.InitUptimeReporter(client)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
