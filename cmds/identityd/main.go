@@ -16,6 +16,7 @@ import (
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/flist"
 	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/network"
@@ -162,8 +163,13 @@ func main() {
 		log.Fatal().Err(err).Msg("fetch location")
 	}
 
+	client, err := zbus.NewRedisClient(broker)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to zbus")
+	}
+
 	register := func(v string) error {
-		return registerNode(nodeID, farmID, v, idStore, loc)
+		return registerNode(nodeID, farmID, v, idStore, loc, client)
 	}
 
 	if err := backoff.RetryNotify(func() error {
@@ -451,14 +457,23 @@ func bcdbClient() (client.Directory, error) {
 	return client.Directory, nil
 }
 
-func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location) error {
+func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location, client zbus.Client) error {
 	log.Info().Str("version", version).Msg("start registration of the node")
+
+	storage := stubs.NewStorageModuleStub(client)
+
+	r := capacity.NewResourceOracle(storage)
+
+	uptime, err := r.Uptime()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to get uptime")
+	}
 
 	v1ID, _ := network.NodeIDv1()
 
 	publicKeyHex := hex.EncodeToString(base58.Decode(nodeID.Identity()))
 
-	err := store.NodeRegister(directory.Node{
+	err = store.NodeRegister(directory.Node{
 		NodeId:    nodeID.Identity(),
 		NodeIdV1:  v1ID,
 		FarmId:    int64(farmID),
@@ -471,6 +486,7 @@ func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, stor
 			Latitude:  loc.Latitude,
 		},
 		PublicKeyHex: publicKeyHex,
+		Uptime:       int64(uptime),
 	})
 
 	if err != nil {
