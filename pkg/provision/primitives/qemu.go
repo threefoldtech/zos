@@ -28,7 +28,7 @@ type Qemu struct {
 	// IP of the VM. The IP must be part of the subnet available in the network
 	// resource defined by the networkID on this node
 	IP net.IP `json:"ip"`
-	// Image of the VM.
+	// Image of the VM (string is link to image on the hub)
 	Image string `json:"image"`
 	// QemuCapacity is the amount of resource to allocate to the virtual machine
 	Capacity QemuCapacity `json:"capacity"`
@@ -44,13 +44,26 @@ type QemuCapacity struct {
 	HDDSize uint64 `json:"hdd"`
 }
 
-const qemuFlistURL = "https://hub.grid.tf/maximevanhees.3bot/qemu-flist-tarball.flist"
-
 func (p *Provisioner) qemuProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.qemuProvisionImpl(ctx, reservation)
 }
 
 func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result QemuResult, err error) {
+
+	// When the user creates a reservation the following fields will be required:
+	// - nodeID (to specify on which node the reservation will be applied)
+	// - flist (string to point to the location of the image that qemu will boot from)
+	// - network-ID (reffers to the network the user created before-hand)
+	// - IP (this could be the IP of the VM, but this can also be done by running DHCP to obtain IP for the VM)
+	// - CPU (the amount of virtual cpu that the user assigns to the VM)
+	// - memory (amount of RAM user assigns to the VM (in MiB))
+	// - HDD (amount of HDD storage user wants VM to be (in GiB))
+
+	// When a reservation gets assigned to a specific node, the code here will get executed
+	// If my repo is used (maximevanhees.3bot) the qemu-system-x86_64 binary will get downloaded and installed on the node
+	// this code will need to parse the different fields (acquired from the reservation scheme) and create a script
+	// that uses the qemu binary to start the virtual machine (qemu-system-x86_64 arg1 arg2, ...)
+
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
 		//network = stubs.NewNetworkerStub(p.zbus)
@@ -59,7 +72,7 @@ func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provis
 
 		config Qemu
 
-		needsInstall = true
+		//needsInstall = true
 	)
 
 	// checking reservation scheme and putting data in config
@@ -69,7 +82,7 @@ func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provis
 
 	// mounting image
 	var mnt string
-	mnt, err = flist.Mount(config.Image, "", pkg.DefaultMountOptions)
+	mnt, err = flist.Mount(config.Image, "images", pkg.DefaultMountOptions)
 	if err != nil {
 		return QemuResult{}, err
 	}
@@ -97,27 +110,25 @@ func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provis
 		return result, nil
 	}
 
-	if _, err = vm.Inspect(reservation.ID); err == nil {
-		// vm is already running, nothing to do here
-		return result, nil
-	}
-
-	var imagePath string
-	imagePath, err = flist.NamedMount(reservation.ID, qemuFlistURL, "", pkg.ReadOnlyMountOptions)
-	if err != nil {
-		return result, errors.Wrap(err, "could not mount qemu flist")
-	}
-	// In case of future errrors in the provisioning make sure we clean up
-	defer func() {
-		if err != nil {
-			_ = flist.Umount(imagePath)
-		}
-	}()
+	/* 	// using ubuntu2004 image to test (ERROR: context deadline (but: can pull the file using wget testImageUrl)
+	   	var testImageURL = "https://hub.grid.tf/maximevanhees-images.3bot/ubuntu2004.flist"
+	   	var imagePath string
+	   	imagePath, err = flist.NamedMount(reservation.ID, testImageURL, "", pkg.ReadOnlyMountOptions)
+	   	if err != nil {
+	   		return result, errors.Wrap(err, "could not mount image flist")
+	   	}
+	   	// In case of future errrors in the provisioning make sure we clean up
+	   	defer func() {
+	   		if err != nil {
+	   			_ = flist.Umount(imagePath)
+	   		}
+	   	}()
+	*/
 
 	var diskPath string
 	diskName := fmt.Sprintf("%s-%s", reservation.ID, "vda")
 	if storage.Exists(diskName) {
-		needsInstall = false
+		//needsInstall = false
 		info, err := storage.Inspect(diskName)
 		if err != nil {
 			return result, errors.Wrap(err, "could not get path to existing disk")
@@ -160,12 +171,13 @@ func (p *Provisioner) qemuProvisionImpl(ctx context.Context, reservation *provis
 	} */
 	// ___________________________________________________________________________________________
 
-	if needsInstall {
+	/* if needsInstall {
 		if err = p.qemuInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, config); err != nil {
 			return result, errors.Wrap(err, "failed to install qemu")
 		}
-	}
+	} */
 
+	var imagePath string = ""
 	err = p.qemuRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, config)
 
 	return result, err
@@ -191,7 +203,7 @@ func (p *Provisioner) qemuInstall(ctx context.Context, name string, cpu uint8, m
 			break
 		}
 		select {
-		case <-time.After(time.Second * 3):
+		case <-time.After(time.Second * 3000):
 			// retry after 3 secs
 		case <-deadline.Done():
 			return errors.New("failed to install vm in 5 minutes")
