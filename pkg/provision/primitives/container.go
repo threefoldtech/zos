@@ -74,6 +74,10 @@ type ContainerCapacity struct {
 	CPU uint `json:"cpu"`
 	// Memory in MiB
 	Memory uint64 `json:"memory"`
+	//DiskType is the type of disk to use for root fs
+	DiskType pkg.DeviceType `json:"disk_type"`
+	// DiskSize of the root fs in MiB
+	DiskSize uint64 `json:"disk_size"`
 }
 
 func (p *Provisioner) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
@@ -109,8 +113,18 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 	}
 
 	log.Debug().Str("flist", config.FList).Msg("mounting flist")
+
+	rootfsMntOpt := pkg.MountOptions{
+		Limit:    config.Capacity.DiskSize,
+		ReadOnly: false,
+		Type:     config.Capacity.DiskType,
+	}
+	if rootfsMntOpt.Limit == 0 || rootfsMntOpt.Type == "" {
+		rootfsMntOpt = pkg.DefaultMountOptions
+	}
+
 	var mnt string
-	mnt, err = flistClient.Mount(config.FList, config.FlistStorage, pkg.DefaultMountOptions)
+	mnt, err = flistClient.NamedMount(reservation.ID, config.FList, config.FlistStorage, rootfsMntOpt)
 	if err != nil {
 		return ContainerResult{}, err
 	}
@@ -218,7 +232,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 			Entrypoint:      config.Entrypoint,
 			Interactive:     config.Interactive,
 			CPU:             config.Capacity.CPU,
-			Memory:          config.Capacity.Memory * 1024 * 1024,
+			Memory:          config.Capacity.Memory * mib,
 			Logs:            config.Logs,
 			StatsAggregator: config.StatsAggregator,
 		},

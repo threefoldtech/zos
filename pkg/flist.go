@@ -9,6 +9,7 @@ var (
 	DefaultMountOptions = MountOptions{
 		ReadOnly: false,
 		Limit:    256, //Mib
+		Type:     SSDDevice,
 	}
 
 	//ReadOnlyMountOptions shortcut for readonly mount options
@@ -23,6 +24,8 @@ type MountOptions struct {
 	ReadOnly bool
 	// Limit size of read-write layer in Mib
 	Limit uint64
+	// Type of disk to use
+	Type DeviceType
 }
 
 //Flister is the interface for the flist module
