@@ -453,13 +453,20 @@ func bcdbClient() (client.Directory, error) {
 
 func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location) error {
 	log.Info().Str("version", version).Msg("start registration of the node")
+	var err error
 
 	v1ID, _ := network.NodeIDv1()
 
 	publicKeyHex := hex.EncodeToString(base58.Decode(nodeID.Identity()))
 
-	err := store.NodeRegister(directory.Node{
+	hostName, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
+	err = store.NodeRegister(directory.Node{
 		NodeId:    nodeID.Identity(),
+		HostName:  hostName,
 		NodeIdV1:  v1ID,
 		FarmId:    int64(farmID),
 		OsVersion: version,
