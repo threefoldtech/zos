@@ -91,7 +91,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	if err != nil {
 		return result, errors.Wrap(err, "could not mount k3os flist")
 	}
-	// In case of future errrors in the provisioning make sure we clean up
+	// In case of future errors in the provisioning make sure we clean up
 	defer func() {
 		if err != nil {
 			_ = flist.Umount(imagePath)
