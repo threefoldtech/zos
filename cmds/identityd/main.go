@@ -462,7 +462,7 @@ func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, stor
 
 	hostName, err := os.Hostname()
 	if err != nil {
-		return err
+		hostName = "unknown"
 	}
 
 	uptime, err := hostUptime()
