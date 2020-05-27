@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
@@ -15,6 +16,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
+
+// ErrUnsupportedWorkload is return when a workload of a type not supported by
+// provisiond is received from the explorer
+var ErrUnsupportedWorkload = errors.New("workload type not supported")
 
 // ContainerToProvisionType converts TfgridReservationContainer1 to Container
 func ContainerToProvisionType(c workloads.Container, reservationID string) (Container, string, error) {
@@ -259,7 +264,7 @@ func WorkloadToProvisionType(w workloads.ReservationWorkload) (*provision.Reserv
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("unknown workload type (%s) (%T)", w.Type.String(), tmp)
+		return nil, fmt.Errorf("%w (%s) (%T)", ErrUnsupportedWorkload, w.Type.String(), tmp)
 	}
 
 	reservation.Data, err = json.Marshal(data)
