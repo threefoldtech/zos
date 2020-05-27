@@ -454,7 +454,6 @@ func bcdbClient() (client.Directory, error) {
 
 func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location) error {
 	log.Info().Str("version", version).Msg("start registration of the node")
-	var err error
 
 	v1ID, _ := network.NodeIDv1()
 
