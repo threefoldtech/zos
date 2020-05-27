@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"flag"
 	"fmt"
 	"os"
@@ -17,9 +18,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/threefoldtech/zos/pkg/version"
+	"github.com/threefoldtech/zos/pkg/zinit"
 )
 
 const redisSocket = "unix:///var/run/redis.sock"
@@ -116,6 +119,10 @@ func main() {
 	// with eventual new values
 	go startAddrWatch(ctx, nodeID, directory, ifaces)
 
+	if err := startYggdrasil(ctx, identity.PrivateKey()); err != nil {
+		log.Fatal().Err(err).Msgf("fail to start yggdrasil")
+	}
+
 	log.Info().Msg("start zbus server")
 	if err := os.MkdirAll(root, 0750); err != nil {
 		log.Fatal().Err(err).Msgf("fail to create module root")
@@ -149,6 +156,28 @@ func startServer(ctx context.Context, broker string, networker pkg.Networker) er
 		return err
 	}
 
+	return nil
+}
+
+func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey) error {
+	client, err := zinit.New("")
+	if err != nil {
+		return err
+	}
+
+	server := yggdrasil.NewServer(client, privateKey)
+	log.Info().Msg("start yggdrasil")
+	if err = server.Start(); err != nil {
+		return err
+	}
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			server.Stop()
+			return
+		}
+	}()
 	return nil
 }
 
