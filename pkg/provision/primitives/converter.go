@@ -23,6 +23,16 @@ var ErrUnsupportedWorkload = errors.New("workload type not supported")
 
 // ContainerToProvisionType converts TfgridReservationContainer1 to Container
 func ContainerToProvisionType(c workloads.Container, reservationID string) (Container, string, error) {
+	var diskType pkg.DeviceType
+	switch strings.ToLower(c.Capacity.DiskType.String()) {
+	case "hdd":
+		diskType = pkg.HDDDevice
+	case "ssd":
+		diskType = pkg.SSDDevice
+	default:
+		return Container{}, "", fmt.Errorf("unknown disk type: %s", c.Capacity.DiskType.String())
+	}
+
 	container := Container{
 		FList:           c.Flist,
 		FlistStorage:    c.HubUrl,
@@ -36,7 +46,7 @@ func ContainerToProvisionType(c workloads.Container, reservationID string) (Cont
 		Capacity: ContainerCapacity{
 			CPU:      uint(c.Capacity.Cpu),
 			Memory:   uint64(c.Capacity.Memory),
-			DiskType: pkg.DeviceType(c.Capacity.DiskType),
+			DiskType: diskType,
 			DiskSize: uint64(c.Capacity.DiskSize),
 		},
 	}
@@ -107,11 +117,11 @@ func VolumeToProvisionType(v workloads.Volume) (Volume, string, error) {
 	volume := Volume{
 		Size: uint64(v.Size),
 	}
-	switch v.Type.String() {
-	case "HDD":
-		volume.Type = HDDDiskType
-	case "SSD":
-		volume.Type = SSDDiskType
+	switch strings.ToLower(v.Type.String()) {
+	case "hdd":
+		volume.Type = pkg.HDDDevice
+	case "ssd":
+		volume.Type = pkg.SSDDevice
 	default:
 		return volume, v.NodeId, fmt.Errorf("disk type %s not supported", v.Type.String())
 	}
@@ -125,7 +135,7 @@ func ZDBToProvisionType(z workloads.ZDB) (ZDB, string, error) {
 		Password: z.Password,
 		Public:   z.Public,
 	}
-	switch z.DiskType.String() {
+	switch strings.ToLower(z.DiskType.String()) {
 	case "hdd":
 		zdb.DiskType = pkg.HDDDevice
 	case "ssd":
