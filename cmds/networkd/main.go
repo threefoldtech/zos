@@ -22,7 +22,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/threefoldtech/zos/pkg/version"
-	"github.com/threefoldtech/zos/pkg/zinit"
 )
 
 const redisSocket = "unix:///var/run/redis.sock"
@@ -160,21 +159,16 @@ func startServer(ctx context.Context, broker string, networker pkg.Networker) er
 }
 
 func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey) error {
-	client, err := zinit.New("")
-	if err != nil {
-		return err
-	}
+	node := yggdrasil.New(yggdrasil.GenerateConfig(privateKey))
 
-	server := yggdrasil.NewServer(client, privateKey)
-	log.Info().Msg("start yggdrasil")
-	if err = server.Start(); err != nil {
+	if err := node.Start(); err != nil {
 		return err
 	}
 
 	go func() {
 		select {
 		case <-ctx.Done():
-			server.Stop()
+			node.Shutdown()
 			return
 		}
 	}()
