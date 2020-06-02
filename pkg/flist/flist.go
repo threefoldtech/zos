@@ -160,6 +160,11 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 	sublog := log.With().Str("url", url).Str("storage", storage).Logger()
 	sublog.Info().Msg("request to mount flist")
 
+	if len(opts.Type) == 0 {
+		// sanity check in case type is not set always use hdd
+		opts.Type = pkg.HDDDevice
+	}
+
 	mountpoint, err := f.mountpath(name)
 	if err != nil {
 		return "", err

@@ -141,7 +141,9 @@ func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.All
 	rootFS, err := flist.Mount(zdbFlistURL, "", pkg.MountOptions{
 		Limit:    10,
 		ReadOnly: false,
+		Type:     pkg.HDDDevice,
 	})
+
 	if err != nil {
 		return err
 	}
