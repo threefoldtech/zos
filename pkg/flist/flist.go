@@ -160,11 +160,6 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 	sublog := log.With().Str("url", url).Str("storage", storage).Logger()
 	sublog.Info().Msg("request to mount flist")
 
-	if len(opts.Type) == 0 {
-		// sanity check in case type is not set always use hdd
-		opts.Type = pkg.HDDDevice
-	}
-
 	mountpoint, err := f.mountpath(name)
 	if err != nil {
 		return "", err
@@ -188,6 +183,11 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		if err != nil {
 			sublog.Info().Msgf("create new subvolume %s", name)
 			// and only create a new one if it doesn't exist
+			if opts.Limit == 0 || len(opts.Type) == 0 {
+				// sanity check in case type is not set always use hdd
+				return "", fmt.Errorf("invalid mount option, missing disk type and/or size")
+			}
+
 			path, err = f.storage.CreateFilesystem(name, opts.Limit*mib, opts.Type)
 			if err != nil {
 				return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
