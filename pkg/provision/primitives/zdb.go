@@ -138,14 +138,26 @@ func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.All
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(allocation.VolumeID))
 
 	slog.Debug().Str("flist", zdbFlistURL).Msg("mounting flist")
-	rootFS, err := flist.Mount(zdbFlistURL, "", pkg.MountOptions{
-		Limit:    10,
-		ReadOnly: false,
-		Type:     pkg.HDDDevice,
-	})
+	var err error
+	var rootFS string
+	for _, typ := range []pkg.DeviceType{pkg.HDDDevice, pkg.SSDDevice} {
+		rootFS, err = flist.Mount(zdbFlistURL, "", pkg.MountOptions{
+			Limit:    10,
+			ReadOnly: false,
+			Type:     typ,
+		})
+
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to allocate rootfs for zdb container (type: '%s'): %s", typ, err)
+		}
+
+		if err == nil {
+			break
+		}
+	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to allocate rootfs for zdb container: %s", err)
 	}
 
 	cleanup := func() {
