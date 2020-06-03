@@ -156,7 +156,10 @@ func (c *containerModule) Maintenance() error {
 						continue
 					}
 
+					fmt.Println(uri)
+
 					task, err := c.NewTask(nsctx, cio.LogURI(uri))
+					// task, err := c.NewTask(nsctx, cio.NullIO)
 					if err != nil {
 						fmt.Println(err)
 						continue
@@ -175,8 +178,6 @@ func (c *containerModule) Maintenance() error {
 		time.Sleep(2 * time.Second)
 		fmt.Println("loop")
 	}
-
-	return nil
 }
 
 func ensureLabels(c *containers.Container) {
