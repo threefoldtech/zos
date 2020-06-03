@@ -78,6 +78,30 @@ func New(root string, containerd string) pkg.ContainerModule {
 	return mod
 }
 
+func killTask(ctx context.Context, container containerd.Container) error {
+	task, err := container.Task(ctx, nil)
+	if err == nil {
+		wait, err := task.Wait(ctx)
+		if err != nil {
+			if _, derr := task.Delete(ctx); derr == nil {
+				return nil
+			}
+			return err
+		}
+		if err := task.Kill(ctx, syscall.SIGKILL, containerd.WithKillAll); err != nil {
+			if _, derr := task.Delete(ctx); derr == nil {
+				return nil
+			}
+			return err
+		}
+		<-wait
+		if _, err := task.Delete(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Maintenance work in the background and do actions at specific interval
 func (c *containerModule) Maintenance() error {
 	client, err := containerd.New(c.containerd)
@@ -121,7 +145,27 @@ func (c *containerModule) Maintenance() error {
 				}
 
 				if state.Status == containerd.Stopped {
-					fmt.Println("PROCESS IS STOPPED OMFG")
+					fmt.Println("PROCESS IS STOPPED OMFG RESTARTING")
+
+					killTask(nsctx, c)
+
+					// setting external logger process
+					uri, err := url.Parse("binary:///bin/shim-logs")
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+
+					task, err := c.NewTask(nsctx, cio.LogURI(uri))
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+
+					if err := task.Start(nsctx); err != nil {
+						fmt.Println(err)
+						continue
+					}
 				}
 
 				fmt.Println(state.Status)
