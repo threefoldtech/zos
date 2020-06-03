@@ -186,7 +186,7 @@ func ensureLabels(c *containers.Container) {
 	}
 }
 
-func WithRestart() func(context.Context, *containerd.Client, *containers.Container) error {
+func withRestart() func(context.Context, *containerd.Client, *containers.Container) error {
 	return func(_ context.Context, _ *containerd.Client, c *containers.Container) error {
 		ensureLabels(c)
 		c.Labels[restartFlag] = "yes"
@@ -273,7 +273,7 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		// if it gets killed for whatever reason (mostly OOM killer)
 		// restart.WithStatus(containerd.Running),
 		// restart.WithLogPath("/tmp/restart-log"),
-		WithRestart(),
+		withRestart(),
 	)
 
 	if err != nil {
