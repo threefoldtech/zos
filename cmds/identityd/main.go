@@ -44,9 +44,8 @@ const (
 )
 
 const (
-	module          = "identityd"
-	seedName        = "seed.txt"
-	maxUpdateTrials = 20
+	module   = "identityd"
+	seedName = "seed.txt"
 )
 
 // setup is a sanity check function, the whole purpose of this
@@ -364,22 +363,16 @@ func upgradeLoop(
 
 			exp := backoff.NewExponentialBackOff()
 			exp.MaxInterval = 3 * time.Minute
-			trials := 0
+			exp.MaxElapsedTime = 60 * time.Minute
 			err = backoff.Retry(func() error {
-				trials++
-				log.Debug().Int("trials", trials).Int("of", maxUpdateTrials).Msg("retry upgrade")
+				log.Debug().Str("version", version.String()).Msg("trying to update")
+
 				err := Safe(func() error {
 					return upgrader.Upgrade(from, *event)
 				})
 
 				if err == upgrade.ErrRestartNeeded {
 					return backoff.Permanent(err)
-				}
-
-				if err != nil {
-					if trials == maxUpdateTrials {
-						return backoff.Permanent(errors.Wrap(err, "max update trials reached"))
-					}
 				}
 
 				return err
