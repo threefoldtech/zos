@@ -29,10 +29,12 @@ import (
 	"github.com/threefoldtech/zos/pkg/container/stats"
 
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/containers"
 )
 
 const (
 	containerdSock = "/run/containerd/containerd.sock"
+	restartFlag    = "threefoldtech/restart.enabled"
 )
 
 const (
@@ -66,9 +68,84 @@ func New(root string, containerd string) pkg.ContainerModule {
 		containerd = containerdSock
 	}
 
-	return &containerModule{
+	mod := &containerModule{
 		containerd: containerd,
 		root:       root,
+	}
+
+	go mod.Maintenance()
+
+	return mod
+}
+
+// Maintenance work in the background and do actions at specific interval
+func (c *containerModule) Maintenance() error {
+	client, err := containerd.New(c.containerd)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	for {
+		ctx := context.Background()
+
+		ns, err := client.NamespaceService().List(ctx)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		for _, nsname := range ns {
+			nsctx := namespaces.WithNamespace(context.Background(), nsname)
+
+			containers, err := client.Containers(nsctx, fmt.Sprintf("labels.%q", restartFlag))
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			for _, c := range containers {
+				fmt.Println(c)
+
+				task, err := c.Task(nsctx, nil)
+				if err != nil {
+					fmt.Println(err)
+					fmt.Println("PROBABLY DOWN")
+					continue
+				}
+
+				state, err := task.Status(nsctx)
+				if err != nil {
+					fmt.Println("PROBABLY DOWN 22")
+					continue
+				}
+
+				if state.Status == containerd.Stopped {
+					fmt.Println("PROCESS IS STOPPED OMFG")
+				}
+
+				fmt.Println(state.Status)
+			}
+		}
+
+		time.Sleep(2 * time.Second)
+		fmt.Println("loop")
+	}
+
+	return nil
+}
+
+func ensureLabels(c *containers.Container) {
+	if c.Labels == nil {
+		c.Labels = make(map[string]string)
+	}
+}
+
+func WithRestart() func(context.Context, *containerd.Client, *containers.Container) error {
+	return func(_ context.Context, _ *containerd.Client, c *containers.Container) error {
+		ensureLabels(c)
+		c.Labels[restartFlag] = "yes"
+		return nil
 	}
 }
 
@@ -149,8 +226,11 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		containerd.WithNewSpec(opts...),
 		// this ensure that the container/task will be restarted automatically
 		// if it gets killed for whatever reason (mostly OOM killer)
-		restart.WithStatus(containerd.Running),
+		// restart.WithStatus(containerd.Running),
+		// restart.WithLogPath("/tmp/restart-log"),
+		WithRestart(),
 	)
+
 	if err != nil {
 		return id, err
 	}
