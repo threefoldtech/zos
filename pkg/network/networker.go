@@ -17,6 +17,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/cache"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
+	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
@@ -57,10 +58,12 @@ type networker struct {
 	ipamLeaseDir string
 	tnodb        client.Directory
 	portSet      *set.UintSet
+
+	ygg *yggdrasil.Node
 }
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageDir string) (pkg.Networker, error) {
+func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageDir string, ygg *yggdrasil.Node) (pkg.Networker, error) {
 
 	vd, err := cache.VolatileDir("networkd", 50*mib)
 	if err != nil && !os.IsExist(err) {
@@ -97,6 +100,8 @@ func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageD
 		networkDir:   nwDir,
 		ipamLeaseDir: ipamLease,
 		portSet:      set.NewUint(wgDir),
+
+		ygg: ygg,
 	}
 
 	return nw, nil
@@ -259,7 +264,7 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, addrs []strin
 
 		hw := ifaceutil.HardwareAddrFromInputBytes([]byte(containerID))
 
-		if err = createMacVlan("pub", hw, netNs); err != nil {
+		if err = n.createMacVlan("pub", hw, nil, nil, netNs); err != nil {
 			return join, errors.Wrap(err, "failed to create public macvlan interface")
 		}
 	}
@@ -303,10 +308,33 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 	}
 	defer netNs.Close()
 
-	return netNSName, createMacVlan(ZDBIface, hw, netNs)
+	ip, err := n.ygg.SubnetFor(hw)
+	if err != nil {
+		return "", err
+	}
+
+	ips := []*net.IPNet{
+		{
+			IP:   ip,
+			Mask: net.CIDRMask(64, 128),
+		},
+	}
+
+	routes := []*netlink.Route{
+		{
+			Dst: &net.IPNet{
+				IP:   net.ParseIP("200::"),
+				Mask: net.CIDRMask(7, 128),
+			},
+			Gw: n.ygg.Gateway().IP,
+			// LinkIndex:... this is set by macvlan.Install
+		},
+	}
+
+	return netNSName, n.createMacVlan(ZDBIface, hw, ips, routes, netNs)
 }
 
-func createMacVlan(iface string, hw net.HardwareAddr, netNs ns.NetNS) error {
+func (n networker) createMacVlan(iface string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {
 	// find which interface to use as master for the macvlan
 	var (
 		pubIface string
@@ -332,7 +360,7 @@ func createMacVlan(iface string, hw net.HardwareAddr, netNs ns.NetNS) error {
 
 	log.Debug().Str("HW", hw.String()).Str("macvlan", macVlan.Name).Msg("setting hw address on link")
 	// we don't set any route or ip
-	if err := macvlan.Install(macVlan, hw, []*net.IPNet{}, []*netlink.Route{}, netNs); err != nil {
+	if err := macvlan.Install(macVlan, hw, ips, routes, netNs); err != nil {
 		return err
 	}
 

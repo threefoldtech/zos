@@ -5,10 +5,13 @@ import (
 	"crypto/ed25519"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/containernetworking/plugins/pkg/utils/sysctl"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zbus"
@@ -16,6 +19,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
+	"github.com/threefoldtech/zos/pkg/network/macvlan"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
@@ -118,8 +122,12 @@ func main() {
 	// with eventual new values
 	go startAddrWatch(ctx, nodeID, directory, ifaces)
 
-	if err := startYggdrasil(ctx, identity.PrivateKey()); err != nil {
-		log.Fatal().Err(err).Msgf("fail to start yggdrasil")
+	ygg, err := startYggdrasil(ctx, identity.PrivateKey())
+	if err != nil {
+		//TODO
+		log.Error().Err(err).Msgf("fail to start yggdrasil")
+		time.Sleep(time.Second * 5)
+		return
 	}
 
 	log.Info().Msg("start zbus server")
@@ -127,7 +135,7 @@ func main() {
 		log.Fatal().Err(err).Msgf("fail to create module root")
 	}
 
-	networker, err := network.NewNetworker(identity, directory, root)
+	networker, err := network.NewNetworker(identity, directory, root, ygg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating network manager")
 	}
@@ -158,21 +166,52 @@ func startServer(ctx context.Context, broker string, networker pkg.Networker) er
 	return nil
 }
 
-func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey) error {
+func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey) (*yggdrasil.Node, error) {
 	node := yggdrasil.New(yggdrasil.GenerateConfig(privateKey))
 
+	log.Info().Msg("start yggdrasil node")
 	if err := node.Start(); err != nil {
-		return err
+		return nil, err
 	}
 
 	go func() {
 		select {
 		case <-ctx.Done():
+			log.Info().Msg("stop yggdrasil node")
 			node.Shutdown()
 			return
 		}
 	}()
-	return nil
+
+	var err error
+	defer func() {
+		if err != nil {
+			log.Info().Msg("stop yggdrasil node")
+			node.Shutdown()
+		}
+	}()
+
+	log.Info().Msg("create yggnet macvlan")
+	mv, err := macvlan.Create("yggnet", types.DefaultBridge, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create ygg0 mac vlan interface")
+	}
+
+	ipnet := node.Gateway()
+	ips := []*net.IPNet{
+		&ipnet,
+	}
+
+	log.Info().Msg("configure yggnet macvlan")
+	if err := macvlan.Install(mv, nil, ips, nil, nil); err != nil {
+		return nil, errors.Wrap(err, "failed to configure yggnet macvlan")
+	}
+
+	if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
+		return nil, errors.Wrapf(err, "failed to enable ipv6 forwarding")
+	}
+
+	return node, nil
 }
 
 func startAddrWatch(ctx context.Context, nodeID pkg.Identifier, cl client.Directory, ifaces []types.IfaceInfo) {

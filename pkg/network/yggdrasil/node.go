@@ -2,8 +2,10 @@ package yggdrasil
 
 import (
 	"crypto/ed25519"
+	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/gologme/log"
@@ -51,7 +53,7 @@ func GenerateConfig(privateKey ed25519.PrivateKey) config.NodeConfig {
 
 	cfg.IfName = "ygg0"
 	cfg.TunnelRouting.Enable = true
-	// cfg.SessionFirewall.Enable = false
+	cfg.SessionFirewall.Enable = false
 
 	// cfg.Listen = []string{
 	// 	"tcp://0.0.0.0:4434",
@@ -59,9 +61,9 @@ func GenerateConfig(privateKey ed25519.PrivateKey) config.NodeConfig {
 	// }
 
 	cfg.Peers = []string{
-		"tls://91.121.92.51:4444",
-		"tls://2a02:1802:5e:1001:ec4:7aff:fe30:82f8:4444",
-		"tls://185.69.166.120:4444",
+		"tls://[91.121.92.51]:4444",
+		// "tls://2a02:1802:5e:1001:ec4:7aff:fe30:82f8:4444",
+		// "tls://185.69.166.120:4444",
 	}
 
 	return *cfg
@@ -127,4 +129,51 @@ func (n *Node) UpdateConfig(cfg config.NodeConfig) {
 	n.core.UpdateConfig(&cfg)
 	n.tuntap.UpdateConfig(&cfg)
 	n.multicast.UpdateConfig(&cfg)
+}
+
+// Address return the address in the 200/7 subnet allocated by yggdrasil
+func (n *Node) Address() net.IP {
+	return n.core.Address()
+}
+
+// Subnet return the 300;;/64 subnet allocated by yggdrasil
+func (n *Node) Subnet() net.IPNet {
+	return n.core.Subnet()
+}
+
+// Gateway return the first IP of the 300::/64 subnet allocated by yggdrasil
+func (n *Node) Gateway() net.IPNet {
+	var ip = make(net.IP, net.IPv6len)
+	subnet := n.Subnet()
+	copy(ip, subnet.IP)
+	ip[len(ip)-1] = 0x1
+
+	return net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(64, 128),
+	}
+}
+
+// Tun return the TUN interface used by yggdrasil
+func (n *Node) Tun() string {
+	return n.state.GetCurrent().IfName
+}
+
+// SubnetFor return an IP address out of the node allocated subnet by hasing b and using it
+// to generate the last 64 bits of the IPV6 address
+func (n *Node) SubnetFor(b []byte) (net.IP, error) {
+	ip := make([]byte, net.IPv6len)
+	copy(ip, n.Subnet().IP)
+
+	return subnetFor(ip, b)
+}
+
+func subnetFor(prefix net.IP, b []byte) (net.IP, error) {
+	h := sha512.New()
+	if _, err := h.Write(b); err != nil {
+		return nil, err
+	}
+	digest := h.Sum(nil)
+	copy(prefix[8:], digest[:8])
+	return prefix, nil
 }
