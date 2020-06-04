@@ -80,7 +80,7 @@ func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *provisi
 
 	cont, err := p.ensureZdbContainer(ctx, allocation, config.Mode)
 	if err != nil {
-		return ZDBResult{}, errors.Wrapf(err, "failed to ensure zdb containe runing")
+		return ZDBResult{}, errors.Wrapf(err, "failed to ensure zdb containe running")
 	}
 
 	containerIP, err = p.getIfaceIP(ctx, nwmod.ZDBIface, cont.Network.Namespace)
