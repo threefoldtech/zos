@@ -45,8 +45,6 @@ func killTask(ctx context.Context, container containerd.Container) error {
 }
 
 func containerStatus(ctx context.Context, container containerd.Container) error {
-	fmt.Println(container)
-
 	task, err := container.Task(ctx, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("could not fetch container tasks")
@@ -59,7 +57,7 @@ func containerStatus(ctx context.Context, container containerd.Container) error 
 		return err
 	}
 
-	log.Info().Str("id", container.ID()).Str("status", string(state.Status)).Msg("container status")
+	log.Debug().Str("id", container.ID()).Str("status", string(state.Status)).Msg("container status")
 
 	if state.Status == containerd.Stopped {
 		err := containerStopped(ctx, container)
@@ -109,8 +107,10 @@ func (c *containerModule) Maintenance() error {
 	}
 	defer client.Close()
 
+	ctx := context.Background()
+
 	for {
-		ctx := context.Background()
+		log.Debug().Msg("container scrub loop")
 
 		ns, err := client.NamespaceService().List(ctx)
 		if err != nil {
@@ -133,7 +133,6 @@ func (c *containerModule) Maintenance() error {
 		}
 
 		time.Sleep(2 * time.Second)
-		log.Info().Msg("scrub loop")
 	}
 }
 
