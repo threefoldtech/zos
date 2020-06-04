@@ -29,12 +29,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/container/stats"
 
 	"github.com/containerd/containerd/cio"
-	"github.com/containerd/containerd/containers"
 )
 
 const (
 	containerdSock = "/run/containerd/containerd.sock"
-	restartFlag    = "threefoldtech/restart.enabled"
 )
 
 const (
@@ -76,122 +74,6 @@ func New(root string, containerd string) pkg.ContainerModule {
 	go mod.Maintenance()
 
 	return mod
-}
-
-func killTask(ctx context.Context, container containerd.Container) error {
-	task, err := container.Task(ctx, nil)
-	if err == nil {
-		wait, err := task.Wait(ctx)
-		if err != nil {
-			if _, derr := task.Delete(ctx); derr == nil {
-				return nil
-			}
-			return err
-		}
-		if err := task.Kill(ctx, syscall.SIGKILL, containerd.WithKillAll); err != nil {
-			if _, derr := task.Delete(ctx); derr == nil {
-				return nil
-			}
-			return err
-		}
-		<-wait
-		if _, err := task.Delete(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Maintenance work in the background and do actions at specific interval
-func (c *containerModule) Maintenance() error {
-	client, err := containerd.New(c.containerd)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	for {
-		ctx := context.Background()
-
-		ns, err := client.NamespaceService().List(ctx)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		for _, nsname := range ns {
-			nsctx := namespaces.WithNamespace(context.Background(), nsname)
-
-			containers, err := client.Containers(nsctx, fmt.Sprintf("labels.%q", restartFlag))
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			for _, c := range containers {
-				fmt.Println(c)
-
-				task, err := c.Task(nsctx, nil)
-				if err != nil {
-					fmt.Println(err)
-					fmt.Println("PROBABLY DOWN")
-					continue
-				}
-
-				state, err := task.Status(nsctx)
-				if err != nil {
-					fmt.Println("PROBABLY DOWN 22")
-					continue
-				}
-
-				if state.Status == containerd.Stopped {
-					fmt.Println("PROCESS IS STOPPED OMFG RESTARTING")
-
-					killTask(nsctx, c)
-
-					// setting external logger process
-					uri, err := url.Parse("binary:///bin/shim-logs")
-					if err != nil {
-						fmt.Println(err)
-						continue
-					}
-
-					fmt.Println(uri)
-
-					task, err := c.NewTask(nsctx, cio.LogURI(uri))
-					// task, err := c.NewTask(nsctx, cio.NullIO)
-					if err != nil {
-						fmt.Println(err)
-						continue
-					}
-
-					if err := task.Start(nsctx); err != nil {
-						fmt.Println(err)
-						continue
-					}
-				}
-
-				fmt.Println(state.Status)
-			}
-		}
-
-		time.Sleep(2 * time.Second)
-		fmt.Println("loop")
-	}
-}
-
-func ensureLabels(c *containers.Container) {
-	if c.Labels == nil {
-		c.Labels = make(map[string]string)
-	}
-}
-
-func withRestart() func(context.Context, *containerd.Client, *containers.Container) error {
-	return func(_ context.Context, _ *containerd.Client, c *containers.Container) error {
-		ensureLabels(c)
-		c.Labels[restartFlag] = "yes"
-		return nil
-	}
 }
 
 // Run creates and starts a container
