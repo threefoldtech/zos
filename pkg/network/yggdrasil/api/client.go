@@ -7,8 +7,6 @@ import (
 	"net"
 	"net/url"
 	"strings"
-
-	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 )
 
 type Yggdrasil struct {

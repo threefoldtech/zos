@@ -406,6 +406,24 @@ func AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error {
 	})
 }
 
+func ConfigureYggdrasil(subnetIP net.IPNet) error {
+	netns, err := namespace.GetByName(NetNSNDMZ)
+	if err != nil {
+		return err
+	}
+
+	err = netns.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(DMZPub6)
+		if err != nil {
+			return err
+		}
+		return netlink.AddrAdd(link, &netlink.Addr{
+			IPNet: &subnetIP,
+		})
+	})
+	return err
+}
+
 func convertIpv4ToIpv6(ip net.IP) net.IP {
 	var ipv6 string
 	if len(ip) == net.IPv4len {

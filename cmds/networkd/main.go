@@ -5,13 +5,10 @@ import (
 	"crypto/ed25519"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zbus"
@@ -19,13 +16,13 @@ import (
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
-	"github.com/threefoldtech/zos/pkg/network/macvlan"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/threefoldtech/zos/pkg/version"
+	"github.com/threefoldtech/zos/pkg/zinit"
 )
 
 const redisSocket = "unix:///var/run/redis.sock"
@@ -130,6 +127,16 @@ func main() {
 		return
 	}
 
+	gw, err := ygg.Gateway()
+	if err != nil {
+		log.Fatal().Err(err).Msgf("fail read yggdrasil subnet")
+	}
+
+	if err := ndmz.ConfigureYggdrasil(gw); err != nil {
+		log.Fatal().Err(err).Msgf("fail to configure yggdrasil subnet gateway IP")
+
+	}
+
 	log.Info().Msg("start zbus server")
 	if err := os.MkdirAll(root, 0750); err != nil {
 		log.Fatal().Err(err).Msgf("fail to create module root")
@@ -166,52 +173,29 @@ func startServer(ctx context.Context, broker string, networker pkg.Networker) er
 	return nil
 }
 
-func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey) (*yggdrasil.Node, error) {
-	node := yggdrasil.New(yggdrasil.GenerateConfig(privateKey))
-
-	log.Info().Msg("start yggdrasil node")
-	if err := node.Start(); err != nil {
+func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey) (*yggdrasil.Server, error) {
+	z, err := zinit.New("")
+	if err != nil {
 		return nil, err
 	}
+
+	cfg := yggdrasil.GenerateConfig(privateKey)
+
+	server := yggdrasil.NewServer(z, &cfg)
 
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.Info().Msg("stop yggdrasil node")
-			node.Shutdown()
-			return
+			z.Close()
+			server.Stop()
 		}
 	}()
 
-	var err error
-	defer func() {
-		if err != nil {
-			log.Info().Msg("stop yggdrasil node")
-			node.Shutdown()
-		}
-	}()
-
-	log.Info().Msg("create yggnet macvlan")
-	mv, err := macvlan.Create("yggnet", types.DefaultBridge, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create ygg0 mac vlan interface")
+	if err := server.Start(); err != nil {
+		return nil, err
 	}
 
-	ipnet := node.Gateway()
-	ips := []*net.IPNet{
-		&ipnet,
-	}
-
-	log.Info().Msg("configure yggnet macvlan")
-	if err := macvlan.Install(mv, nil, ips, nil, nil); err != nil {
-		return nil, errors.Wrap(err, "failed to configure yggnet macvlan")
-	}
-
-	if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
-		return nil, errors.Wrapf(err, "failed to enable ipv6 forwarding")
-	}
-
-	return node, nil
+	return server, nil
 }
 
 func startAddrWatch(ctx context.Context, nodeID pkg.Identifier, cl client.Directory, ifaces []types.IfaceInfo) {

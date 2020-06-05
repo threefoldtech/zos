@@ -59,11 +59,11 @@ type networker struct {
 	tnodb        client.Directory
 	portSet      *set.UintSet
 
-	ygg *yggdrasil.Node
+	ygg *yggdrasil.Server
 }
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageDir string, ygg *yggdrasil.Node) (pkg.Networker, error) {
+func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageDir string, ygg *yggdrasil.Server) (pkg.Networker, error) {
 
 	vd, err := cache.VolatileDir("networkd", 50*mib)
 	if err != nil && !os.IsExist(err) {
@@ -308,27 +308,40 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 	}
 	defer netNs.Close()
 
-	ip, err := n.ygg.SubnetFor(hw)
-	if err != nil {
-		return "", err
-	}
+	var (
+		ips    []*net.IPNet
+		routes []*netlink.Route
+	)
 
-	ips := []*net.IPNet{
-		{
-			IP:   ip,
-			Mask: net.CIDRMask(64, 128),
-		},
-	}
+	if n.ygg != nil {
+		ip, err := n.ygg.SubnetFor(hw)
+		if err != nil {
+			return "", err
+		}
 
-	routes := []*netlink.Route{
-		{
-			Dst: &net.IPNet{
-				IP:   net.ParseIP("200::"),
-				Mask: net.CIDRMask(7, 128),
+		ips = []*net.IPNet{
+			{
+				IP:   ip,
+				Mask: net.CIDRMask(64, 128),
 			},
-			Gw: n.ygg.Gateway().IP,
-			// LinkIndex:... this is set by macvlan.Install
-		},
+		}
+
+		gw, err := n.ygg.Gateway()
+		if err != nil {
+			return "", err
+		}
+
+		routes = []*netlink.Route{
+			{
+				Dst: &net.IPNet{
+					IP:   net.ParseIP("200::"),
+					Mask: net.CIDRMask(7, 128),
+				},
+				Gw: gw.IP,
+				// LinkIndex:... this is set by macvlan.Install
+			},
+		}
+
 	}
 
 	return netNSName, n.createMacVlan(ZDBIface, hw, ips, routes, netNs)

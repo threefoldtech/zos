@@ -20,7 +20,6 @@ require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/go-redis/redis v6.15.5+incompatible
-	github.com/gologme/log v1.2.0
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/google/uuid v1.1.1

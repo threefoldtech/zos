@@ -2,33 +2,43 @@ package yggdrasil
 
 import (
 	"crypto/ed25519"
-	"crypto/sha512"
 	"encoding/hex"
-	"fmt"
-	"net"
-	"os"
 
-	"github.com/gologme/log"
 	"github.com/jbenet/go-base58"
-	"github.com/threefoldtech/zos/pkg/crypto"
 
+	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/yggdrasil-network/yggdrasil-go/src/config"
-	"github.com/yggdrasil-network/yggdrasil-go/src/module"
-	"github.com/yggdrasil-network/yggdrasil-go/src/multicast"
-	"github.com/yggdrasil-network/yggdrasil-go/src/tuntap"
-	ygg "github.com/yggdrasil-network/yggdrasil-go/src/yggdrasil"
 )
 
-type Node struct {
-	config *config.NodeConfig
+// import (
+// 	"crypto/ed25519"
+// 	"crypto/sha512"
+// 	"encoding/hex"
+// 	"fmt"
+// 	"net"
+// 	"os"
 
-	state     *config.NodeState
-	core      ygg.Core
-	tuntap    module.Module // tuntap.TunAdapter
-	multicast module.Module // multicast.Multicast
+// 	"github.com/gologme/log"
+// 	"github.com/jbenet/go-base58"
+// 	"github.com/threefoldtech/zos/pkg/crypto"
 
-	log *log.Logger
-}
+// 	"github.com/yggdrasil-network/yggdrasil-go/src/config"
+// 	"github.com/yggdrasil-network/yggdrasil-go/src/module"
+// 	"github.com/yggdrasil-network/yggdrasil-go/src/multicast"
+// 	"github.com/yggdrasil-network/yggdrasil-go/src/tuntap"
+// 	ygg "github.com/yggdrasil-network/yggdrasil-go/src/yggdrasil"
+// )
+
+// type Node struct {
+// 	config *config.NodeConfig
+
+// 	state     *config.NodeState
+// 	core      ygg.Core
+// 	tuntap    module.Module // tuntap.TunAdapter
+// 	multicast module.Module // multicast.Multicast
+
+// 	log *log.Logger
+// }
 
 func GenerateConfig(privateKey ed25519.PrivateKey) config.NodeConfig {
 	cfg := config.GenerateConfig()
@@ -49,131 +59,130 @@ func GenerateConfig(privateKey ed25519.PrivateKey) config.NodeConfig {
 			"name": base58.Encode(signingPublicKey),
 		}
 	}
-	cfg.MulticastInterfaces = []string{"zos"}
+	cfg.MulticastInterfaces = []string{".*"}
+	cfg.LinkLocalTCPPort = 4445
 
 	cfg.IfName = "ygg0"
 	cfg.TunnelRouting.Enable = true
 	cfg.SessionFirewall.Enable = false
 
-	// cfg.Listen = []string{
-	// 	"tcp://0.0.0.0:4434",
-	// 	"tls://0.0.0.0:4444",
-	// }
+	cfg.Listen = []string{
+		"tcp://[::]:4434",
+		"tls://[::]:4444",
+	}
 
 	cfg.Peers = []string{
-		"tls://[91.121.92.51]:4444",
-		// "tls://2a02:1802:5e:1001:ec4:7aff:fe30:82f8:4444",
-		// "tls://185.69.166.120:4444",
+		"tls://91.121.92.51:4444",
 	}
 
 	return *cfg
 }
 
-func New(cfg config.NodeConfig) *Node {
+// func New(cfg config.NodeConfig) *Node {
 
-	node := &Node{
-		config:    &cfg,
-		log:       log.New(os.Stdout, "yggdrasil", log.Flags()),
-		multicast: &multicast.Multicast{},
-		tuntap:    &tuntap.TunAdapter{},
-	}
+// 	node := &Node{
+// 		config:    &cfg,
+// 		log:       log.New(os.Stdout, "yggdrasil", log.Flags()),
+// 		multicast: &multicast.Multicast{},
+// 		tuntap:    &tuntap.TunAdapter{},
+// 	}
 
-	levels := [...]string{"error", "warn", "info", "debug", "trace"}
-	for _, l := range levels {
-		node.log.EnableLevel(l)
-	}
+// 	levels := [...]string{"error", "warn", "info", "debug", "trace"}
+// 	for _, l := range levels {
+// 		node.log.EnableLevel(l)
+// 	}
 
-	return node
-}
+// 	return node
+// }
 
-func (n *Node) Start() error {
-	var err error
+// func (n *Node) Start() error {
+// 	var err error
 
-	n.state, err = n.core.Start(n.config, n.log)
-	if err != nil {
-		return err
-	}
+// 	n.state, err = n.core.Start(n.config, n.log)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// Start the multicast interface
-	n.multicast.Init(&n.core, n.state, n.log, nil)
-	n.log.Infof("start multicast")
-	if err := n.multicast.Start(); err != nil {
-		n.log.Errorln("An error occurred starting multicast:", err)
-	}
-	// Start the TUN/TAP interface
+// 	// Start the multicast interface
+// 	n.multicast.Init(&n.core, n.state, n.log, nil)
+// 	n.log.Infof("start multicast")
+// 	if err := n.multicast.Start(); err != nil {
+// 		n.log.Errorln("An error occurred starting multicast:", err)
+// 	}
+// 	// Start the TUN/TAP interface
 
-	listener, err := n.core.ConnListen()
-	if err != nil {
-		return fmt.Errorf("Unable to get Dialer: %w", err)
-	}
-	dialer, err := n.core.ConnDialer()
-	if err != nil {
-		return fmt.Errorf("Unable to get Listener: %w", err)
-	}
-	n.tuntap.Init(&n.core, n.state, n.log, tuntap.TunOptions{Listener: listener, Dialer: dialer})
-	if err := n.tuntap.Start(); err != nil {
-		return fmt.Errorf("An error occurred starting TUN/TAP: %w", err)
-	}
+// 	listener, err := n.core.ConnListen()
+// 	if err != nil {
+// 		return fmt.Errorf("Unable to get Dialer: %w", err)
+// 	}
+// 	dialer, err := n.core.ConnDialer()
+// 	if err != nil {
+// 		return fmt.Errorf("Unable to get Listener: %w", err)
+// 	}
+// 	n.tuntap.Init(&n.core, n.state, n.log, tuntap.TunOptions{Listener: listener, Dialer: dialer})
+// 	if err := n.tuntap.Start(); err != nil {
+// 		return fmt.Errorf("An error occurred starting TUN/TAP: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func (n *Node) Shutdown() {
-	n.multicast.Stop()
-	n.tuntap.Stop()
-	n.core.Stop()
-}
+// func (n *Node) Shutdown() {
+// 	n.multicast.Stop()
+// 	n.tuntap.Stop()
+// 	n.core.Stop()
+// }
 
-func (n *Node) UpdateConfig(cfg config.NodeConfig) {
-	n.log.Infoln("Reloading configuration")
-	n.core.UpdateConfig(&cfg)
-	n.tuntap.UpdateConfig(&cfg)
-	n.multicast.UpdateConfig(&cfg)
-}
+// func (n *Node) UpdateConfig(cfg config.NodeConfig) {
+// 	n.log.Infoln("Reloading configuration")
+// 	n.core.UpdateConfig(&cfg)
+// 	n.tuntap.UpdateConfig(&cfg)
+// 	n.multicast.UpdateConfig(&cfg)
+// }
 
-// Address return the address in the 200/7 subnet allocated by yggdrasil
-func (n *Node) Address() net.IP {
-	return n.core.Address()
-}
+// // Address return the address in the 200/7 subnet allocated by yggdrasil
+// func (n *Node) Address() net.IP {
+// 	return n.core.Address()
+// }
 
-// Subnet return the 300;;/64 subnet allocated by yggdrasil
-func (n *Node) Subnet() net.IPNet {
-	return n.core.Subnet()
-}
+// // Subnet return the 300;;/64 subnet allocated by yggdrasil
+// func (n *Node) Subnet() net.IPNet {
+// 	return n.core.Subnet()
+// }
 
-// Gateway return the first IP of the 300::/64 subnet allocated by yggdrasil
-func (n *Node) Gateway() net.IPNet {
-	var ip = make(net.IP, net.IPv6len)
-	subnet := n.Subnet()
-	copy(ip, subnet.IP)
-	ip[len(ip)-1] = 0x1
+// // Gateway return the first IP of the 300::/64 subnet allocated by yggdrasil
+// func (n *Node) Gateway() net.IPNet {
+// 	var ip = make(net.IP, net.IPv6len)
+// 	subnet := n.Subnet()
+// 	copy(ip, subnet.IP)
+// 	ip[len(ip)-1] = 0x1
 
-	return net.IPNet{
-		IP:   ip,
-		Mask: net.CIDRMask(64, 128),
-	}
-}
+// 	return net.IPNet{
+// 		IP:   ip,
+// 		Mask: net.CIDRMask(64, 128),
+// 	}
+// }
 
-// Tun return the TUN interface used by yggdrasil
-func (n *Node) Tun() string {
-	return n.state.GetCurrent().IfName
-}
+// // Tun return the TUN interface used by yggdrasil
+// func (n *Node) Tun() string {
+// 	return n.state.GetCurrent().IfName
+// }
 
-// SubnetFor return an IP address out of the node allocated subnet by hasing b and using it
-// to generate the last 64 bits of the IPV6 address
-func (n *Node) SubnetFor(b []byte) (net.IP, error) {
-	ip := make([]byte, net.IPv6len)
-	copy(ip, n.Subnet().IP)
+// // SubnetFor return an IP address out of the node allocated subnet by hasing b and using it
+// // to generate the last 64 bits of the IPV6 address
+// func (n *Node) SubnetFor(b []byte) (net.IP, error) {
+// 	ip := make([]byte, net.IPv6len)
+// 	copy(ip, n.Subnet().IP)
 
-	return subnetFor(ip, b)
-}
+// 	return subnetFor(ip, b)
+// }
 
-func subnetFor(prefix net.IP, b []byte) (net.IP, error) {
-	h := sha512.New()
-	if _, err := h.Write(b); err != nil {
-		return nil, err
-	}
-	digest := h.Sum(nil)
-	copy(prefix[8:], digest[:8])
-	return prefix, nil
-}
+// func subnetFor(prefix net.IP, b []byte) (net.IP, error) {
+// 	h := sha512.New()
+// 	if _, err := h.Write(b); err != nil {
+// 		return nil, err
+// 	}
+// 	digest := h.Sum(nil)
+// 	copy(prefix[8:], digest[:8])
+// 	return prefix, nil
+// }
