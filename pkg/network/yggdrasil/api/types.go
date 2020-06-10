@@ -1,4 +1,4 @@
-package yggdrasil
+package api
 
 type NodeInfo struct {
 	BoxPubKey    string `json:"box_pub_key"`

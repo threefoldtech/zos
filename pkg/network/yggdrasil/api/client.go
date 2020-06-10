@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-type Yggdrasil struct {
+type YggdrasilAdminAPI struct {
 	connectionURI string
 	conn          net.Conn
 }
@@ -21,13 +21,13 @@ type response struct {
 	Error    string                 `json:"error,omitempty"`
 }
 
-func NewYggdrasil(connectionURI string) *Yggdrasil {
-	return &Yggdrasil{
+func NewYggdrasil(connectionURI string) *YggdrasilAdminAPI {
+	return &YggdrasilAdminAPI{
 		connectionURI: connectionURI,
 	}
 }
 
-func (y *Yggdrasil) Connect() error {
+func (y *YggdrasilAdminAPI) Connect() error {
 	u, err := url.Parse(y.connectionURI)
 	if err != nil {
 		return fmt.Errorf("wrong format for connection URI %v: %w", y.connectionURI, err)
@@ -42,14 +42,14 @@ func (y *Yggdrasil) Connect() error {
 	return nil
 }
 
-func (y *Yggdrasil) Close() error {
+func (y *YggdrasilAdminAPI) Close() error {
 	if y.conn != nil {
 		return y.conn.Close()
 	}
 	return nil
 }
 
-func (y *Yggdrasil) execReq(req string) (response, error) {
+func (y *YggdrasilAdminAPI) execReq(req string) (response, error) {
 	resp := response{}
 	if _, err := y.conn.Write([]byte(req)); err != nil {
 		return resp, err
@@ -67,7 +67,7 @@ func (y *Yggdrasil) execReq(req string) (response, error) {
 	return resp, nil
 }
 
-func (y *Yggdrasil) GetSelf() (nodeinfo yggdrasil.NodeInfo, err error) {
+func (y *YggdrasilAdminAPI) GetSelf() (nodeinfo yggdrasil.NodeInfo, err error) {
 
 	resp, err := y.execReq(`{"keepalive":true, "request":"getSelf"}`)
 	if err != nil {
@@ -75,7 +75,7 @@ func (y *Yggdrasil) GetSelf() (nodeinfo yggdrasil.NodeInfo, err error) {
 	}
 
 	data := struct {
-		Self map[string]yggdrasil.NodeInfo `json:"self"`
+		Self map[string]NodeInfo `json:"self"`
 	}{}
 	if err = json.Unmarshal(resp.Response, &data); err != nil {
 		return
@@ -90,20 +90,20 @@ func (y *Yggdrasil) GetSelf() (nodeinfo yggdrasil.NodeInfo, err error) {
 	return nodeinfo, nil
 }
 
-func (y *Yggdrasil) GetPeers() ([]yggdrasil.Peer, error) {
+func (y *YggdrasilAdminAPI) GetPeers() ([]Peer, error) {
 	resp, err := y.execReq(`{"keepalive":true, "request":"getpeers"}`)
 	if err != nil {
 		return nil, err
 	}
 
 	data := struct {
-		Peers map[string]yggdrasil.Peer `json:"peers"`
+		Peers map[string]Peer `json:"peers"`
 	}{}
 	if err = json.Unmarshal(resp.Response, &data); err != nil {
 		return nil, err
 	}
 
-	peers := make([]yggdrasil.Peer, 0, len(data.Peers))
+	peers := make([]Peer, 0, len(data.Peers))
 
 	for k := range data.Peers {
 		peer := data.Peers[k]
@@ -114,7 +114,7 @@ func (y *Yggdrasil) GetPeers() ([]yggdrasil.Peer, error) {
 	return peers, nil
 }
 
-func (y *Yggdrasil) AddPeer(uri string) ([]string, error) {
+func (y *YggdrasilAdminAPI) AddPeer(uri string) ([]string, error) {
 	req := fmt.Sprintf(`{"keepalive":true, "request":"addpeer", "uri":"%s"}`, uri)
 	resp, err := y.execReq(req)
 	if err != nil {

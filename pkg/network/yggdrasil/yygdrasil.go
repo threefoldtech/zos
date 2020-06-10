@@ -22,17 +22,13 @@ const (
 
 // Server represent a yggdrasil server
 type Server struct {
-	// signingKey ed25519.PrivateKey
 	zinit *zinit.Client
 	cfg   *config.NodeConfig
 }
 
 // NewServer create a new yggdrasil Server
-// the privateKey is used to generate all the signing and encryption key of the yggdrasil node
-// func NewServer(zinit *zinit.Client, privateKey ed25519.PrivateKey) *Server {
 func NewServer(zinit *zinit.Client, cfg *config.NodeConfig) *Server {
 	return &Server{
-		// signingKey: privateKey,
 		zinit: zinit,
 		cfg:   cfg,
 	}
@@ -86,6 +82,7 @@ func (s *Server) Stop() error {
 	return s.zinit.Stop(zinitService)
 }
 
+// NodeID returns the yggdrasil node ID of s
 func (s *Server) NodeID() (*crypto.NodeID, error) {
 	if s.cfg.EncryptionPublicKey == "" {
 		panic("EncryptionPublicKey empty")
@@ -101,7 +98,7 @@ func (s *Server) NodeID() (*crypto.NodeID, error) {
 	return crypto.GetNodeID(&box), nil
 }
 
-// Address return the address in the 200/7 subnet allocated by yggdrasil
+// Address return the address in the 200::/7 subnet allocated by yggdrasil
 func (s *Server) Address() (net.IP, error) {
 	nodeID, err := s.NodeID()
 	if err != nil {
@@ -114,7 +111,7 @@ func (s *Server) Address() (net.IP, error) {
 	return ip, nil
 }
 
-// Subnet return the 300;;/64 subnet allocated by yggdrasil
+// Subnet return the 300::/64 subnet allocated by yggdrasil
 func (s *Server) Subnet() (net.IPNet, error) {
 	nodeID, err := s.NodeID()
 	if err != nil {
@@ -142,7 +139,7 @@ func (s *Server) Gateway() (net.IPNet, error) {
 	return subnet, nil
 }
 
-// Tun return the TUN interface used by yggdrasil
+// Tun return the name of the TUN interface created by yggdrasil
 func (s *Server) Tun() string {
 	return s.cfg.IfName
 }
