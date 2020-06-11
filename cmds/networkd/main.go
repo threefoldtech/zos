@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
@@ -81,25 +80,22 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to publish network interfaces to BCDB")
 	}
 
-	ifaceVersion := -1
-
 	exitIface, err := getPubIface(directory, nodeID.Identity())
 	if err == nil {
 		if err := configurePubIface(exitIface, nodeID); err != nil {
 			log.Error().Err(err).Msg("failed to configure public interface")
 			os.Exit(1)
 		}
-		ifaceVersion = exitIface.Version
 	}
 
-	// Try to create ndmz. we retry forever since networkd cannot start without it
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
-	backoff.RetryNotify(func() error {
-		return ndmz.Create(nodeID)
-	}, bo, func(err error, d time.Duration) {
-		log.Error().Err(err).Msgf("failed to create DMZ, rety in %s", d.String())
-	})
+	ndmz, err := buildNDMZ(nodeID.Identity())
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create ndmz")
+	}
+
+	if err := ndmz.Create(); err != nil {
+		log.Fatal().Err(err).Msg("failed to create ndmz")
+	}
 
 	// send another detail of network interfaces now that ndmz is created
 	ndmzIfaces, err := getNdmzInterfaces()
@@ -112,19 +108,13 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to publish ndmz network interfaces to BCDB")
 	}
 
-	// Start watcher for public NICs configuration
-	go startPublicIfaceUpdate(ctx, nodeID, ifaceVersion, directory)
-
-	// watch modification of the adress on the nic so we can update the explorer
+	// watch modification of the address on the nic so we can update the explorer
 	// with eventual new values
 	go startAddrWatch(ctx, nodeID, directory, ifaces)
 
 	ygg, err := startYggdrasil(ctx, identity.PrivateKey())
 	if err != nil {
-		//TODO
-		log.Error().Err(err).Msgf("fail to start yggdrasil")
-		time.Sleep(time.Second * 5)
-		return
+		log.Fatal().Err(err).Msgf("fail to start yggdrasil")
 	}
 
 	gw, err := ygg.Gateway()
@@ -132,7 +122,7 @@ func main() {
 		log.Fatal().Err(err).Msgf("fail read yggdrasil subnet")
 	}
 
-	if err := ndmz.ConfigureYggdrasil(gw); err != nil {
+	if err := ndmz.SetIP6PublicIface(gw); err != nil {
 		log.Fatal().Err(err).Msgf("fail to configure yggdrasil subnet gateway IP")
 
 	}
@@ -142,7 +132,7 @@ func main() {
 		log.Fatal().Err(err).Msgf("fail to create module root")
 	}
 
-	networker, err := network.NewNetworker(identity, directory, root, ygg)
+	networker, err := network.NewNetworker(identity, directory, root, ndmz, ygg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating network manager")
 	}
@@ -221,40 +211,6 @@ func startAddrWatch(ctx context.Context, nodeID pkg.Identifier, cl client.Direct
 	backoff.Retry(f, bo)
 }
 
-func startPublicIfaceUpdate(ctx context.Context, nodeID pkg.Identifier, version int, directory client.Directory) {
-	ch := watchPubIface(ctx, nodeID, directory, version)
-
-	for {
-		select {
-		case iface := <-ch:
-
-			// When changing public IP configuration, we need to also update how the NDMZ interfaces are plumbed together
-			// to achieve this any time a new public config is received, we first delete the NDMZ namespace
-			// create/update the public namespace and then re-create the NDMZ
-
-			log.Info().Str("config", fmt.Sprintf("%+v", iface)).Msg("public IP configuration received")
-
-			if err := ndmz.Delete(); err != nil {
-				log.Error().Err(err).Msg("error deleting ndmz during public ip configuration")
-				continue
-			}
-
-			if err := configurePubIface(iface, nodeID); err != nil {
-				log.Error().Err(err).Msg("error configuring public IP")
-				continue
-			}
-
-			if err := ndmz.Create(nodeID); err != nil {
-				log.Error().Err(err).Msg("error configuring ndmz during public ip configuration")
-				continue
-			}
-
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 // instantiate the proper client based on the running mode
 func explorerClient() (client.Directory, error) {
 	client, err := app.ExplorerClient()
@@ -263,4 +219,36 @@ func explorerClient() (client.Directory, error) {
 	}
 
 	return client.Directory, nil
+}
+
+func buildNDMZ(nodeID string) (ndmz.DMZ, error) {
+	var (
+		master string
+		err    error
+	)
+
+	notify := func(err error, d time.Duration) {
+		log.Error().Err(err).Msgf("did not find a valid IPV6 master address for ndmz, retry in %s", d.String())
+	}
+
+	findMaster := func() error {
+		master = ""
+		master, err = ndmz.FindIPv6Master()
+		return err
+	}
+
+	bo := backoff.NewExponentialBackOff()
+	// wait for 2 minute for public ipv6
+	bo.MaxElapsedTime = time.Minute * 2
+	err = backoff.RetryNotify(findMaster, bo, notify)
+
+	// if ipv6 found, use dual stack ndmz
+	if err == nil && master != "" {
+		log.Info().Str("ndmz_npub6_master", master).Msg("network mode dualstack")
+		return ndmz.NewDualStack(nodeID), nil
+	}
+
+	// else use ipv4 only mode
+	log.Info().Msg("network mode hidden ipv4 only")
+	return ndmz.NewHidden(nodeID), nil
 }
