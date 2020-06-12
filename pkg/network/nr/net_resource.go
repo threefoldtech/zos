@@ -37,6 +37,7 @@ type NetResource struct {
 }
 
 // New creates a new NetResource object
+// iprange is the full network subnet
 func New(networkID pkg.NetID, netResource *pkg.NetResource, ipRange *net.IPNet) (*NetResource, error) {
 
 	nr := &NetResource{
@@ -196,16 +197,16 @@ func (nr *NetResource) ConfigureWG(privateKey string) error {
 		for addr := range toRemove.Iter() {
 			addr, _ := addr.(string)
 			log.Debug().Str("ip", addr).Msg("unset ip on wireguard interface")
-			// TODO: zaibon
-			// if err := wg.UsetAddr(addr); err != nil {
-			// 	return errors.Wrapf(err, "failed to set address %s on wireguard interface %s", addr, wg.Attrs().Name)
-			// }
+			if err := wg.UnsetAddr(addr); err != nil {
+				return errors.Wrapf(err, "failed to unset address %s on wireguard interface %s", addr, wg.Attrs().Name)
+			}
 		}
 
-		if err := netlink.RouteAdd(&netlink.Route{
+		route := &netlink.Route{
 			LinkIndex: wg.Attrs().Index,
 			Dst:       nr.ipRange,
-		}); err != nil {
+		}
+		if err := netlink.RouteAdd(route); err != nil {
 			log.Error().
 				Err(err).
 				Str("route", route.String()).
