@@ -28,6 +28,7 @@ table inet nat {
 
   chain postrouting {
     type nat hook postrouting priority srcnat; policy accept;
+    ip6 saddr 200::/7 accept
     oifname "npub4" masquerade fully-random;
     oifname "npub6" masquerade fully-random;
   }

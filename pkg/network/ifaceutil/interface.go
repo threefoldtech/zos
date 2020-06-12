@@ -291,5 +291,61 @@ func HostIPV6Iface() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("no interface found with ipv6")
+	return "", nil
+}
+
+func MasterIface(iface string, netNS ns.NetNS) (netlink.Link, error) {
+	var (
+		masterIndex int
+		err         error
+	)
+
+	f := func(_ ns.NetNS) error {
+		master, err := netlink.LinkByName(iface)
+		if err != nil {
+			return err
+		}
+
+		masterIndex = master.Attrs().MasterIndex
+		return nil
+	}
+
+	if netNS != nil {
+		err = netNS.Do(f)
+	} else {
+		err = f(nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return netlink.LinkByIndex(masterIndex)
+}
+
+func ParentIface(iface string, netNS ns.NetNS) (netlink.Link, error) {
+	var (
+		parentIndex int
+		err         error
+	)
+
+	f := func(_ ns.NetNS) error {
+		master, err := netlink.LinkByName(iface)
+		if err != nil {
+			return err
+		}
+
+		parentIndex = master.Attrs().ParentIndex
+		return nil
+	}
+
+	if netNS != nil {
+		err = netNS.Do(f)
+	} else {
+		err = f(nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return netlink.LinkByIndex(parentIndex)
 }

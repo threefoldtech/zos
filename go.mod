@@ -7,7 +7,7 @@ require (
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
 	github.com/alexflint/go-filemutex v0.0.0-20171028004239-d358565f3c3f
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/cenkalti/backoff/v3 v3.0.0
+	github.com/cenkalti/backoff/v3 v3.2.2
 	github.com/containerd/cgroups v0.0.0-20200327175542-b44481373989
 	github.com/containerd/containerd v1.4.0-beta.1.0.20200615192441-ae2f3fdfd1a4
 	github.com/containerd/go-runc v0.0.0-20200612153348-0d1871416c41 // indirect
@@ -28,15 +28,14 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.1
 	github.com/opencontainers/selinux v1.5.2 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.18.0
+	github.com/rs/zerolog v1.19.0
 	github.com/shirou/gopsutil v2.19.11+incompatible
-	github.com/sirupsen/logrus v1.6.0 // indirect
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
 	github.com/threefoldtech/tfexplorer v0.3.1
 	github.com/threefoldtech/zbus v0.1.3
-	github.com/urfave/cli v1.22.3
-	github.com/vishvananda/netlink v1.0.0
+	github.com/urfave/cli v1.22.4
+	github.com/vishvananda/netlink v1.1.0
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 	github.com/whs/nacl-sealed-box v0.0.0-20180930164530-92b9ba845d8d
 	github.com/yggdrasil-network/yggdrasil-go v0.3.15-0.20200526002434-ed3bf5ef0736
