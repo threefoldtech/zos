@@ -102,17 +102,15 @@ func Install(link *netlink.Macvlan, hw net.HardwareAddr, ips []*net.IPNet, route
 
 		name := link.Attrs().Name
 
-		if ips != nil {
-			for _, ip := range ips {
-				if err := netlink.AddrAdd(link, &netlink.Addr{
-					IPNet: ip,
-				}); err != nil && !os.IsExist(err) {
-					log.Error().
-						Str("addr", ip.String()).
-						Str("link", link.Attrs().Name).
-						Err(err).Msg("failed to set address on link")
-					return err
-				}
+		for _, ip := range ips {
+			if err := netlink.AddrAdd(link, &netlink.Addr{
+				IPNet: ip,
+			}); err != nil && !os.IsExist(err) {
+				log.Error().
+					Str("addr", ip.String()).
+					Str("link", link.Attrs().Name).
+					Err(err).Msg("failed to set address on link")
+				return err
 			}
 		}
 

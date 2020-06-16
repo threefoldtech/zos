@@ -294,34 +294,36 @@ func HostIPV6Iface() (string, error) {
 	return "", nil
 }
 
-func MasterIface(iface string, netNS ns.NetNS) (netlink.Link, error) {
-	var (
-		masterIndex int
-		err         error
-	)
+// func MasterIface(iface string, netNS ns.NetNS) (netlink.Link, error) {
+// 	var (
+// 		masterIndex int
+// 		err         error
+// 	)
 
-	f := func(_ ns.NetNS) error {
-		master, err := netlink.LinkByName(iface)
-		if err != nil {
-			return err
-		}
+// 	f := func(_ ns.NetNS) error {
+// 		master, err := netlink.LinkByName(iface)
+// 		if err != nil {
+// 			return err
+// 		}
 
-		masterIndex = master.Attrs().MasterIndex
-		return nil
-	}
+// 		masterIndex = master.Attrs().MasterIndex
+// 		return nil
+// 	}
 
-	if netNS != nil {
-		err = netNS.Do(f)
-	} else {
-		err = f(nil)
-	}
-	if err != nil {
-		return nil, err
-	}
+// 	if netNS != nil {
+// 		err = netNS.Do(f)
+// 	} else {
+// 		err = f(nil)
+// 	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return netlink.LinkByIndex(masterIndex)
-}
+// 	return netlink.LinkByIndex(masterIndex)
+// }
 
+// ParentIface return the parent interface fof iface
+// if netNS is not nil, switch to the network namespace before checking iface
 func ParentIface(iface string, netNS ns.NetNS) (netlink.Link, error) {
 	var (
 		parentIndex int

@@ -21,18 +21,20 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 )
 
-type DMZHidden struct {
+// Hidden implement DMZ interface using ipv4 only
+type Hidden struct {
 	nodeID string
 }
 
-func NewHidden(nodeID string) *DMZHidden {
-	return &DMZHidden{
+// NewHidden creates a new DMZ Hidden
+func NewHidden(nodeID string) *Hidden {
+	return &Hidden{
 		nodeID: nodeID,
 	}
 }
 
 //Create create the NDMZ network namespace and configure its default routes and addresses
-func (d *DMZHidden) Create() error {
+func (d *Hidden) Create() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
 		netNS, err = namespace.Create(NetNSNDMZ)
@@ -68,7 +70,7 @@ func (d *DMZHidden) Create() error {
 }
 
 // Delete deletes the NDMZ network namespace
-func (d *DMZHidden) Delete() error {
+func (d *Hidden) Delete() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err == nil {
 		if err := namespace.Delete(netNS); err != nil {
@@ -80,7 +82,7 @@ func (d *DMZHidden) Delete() error {
 }
 
 // AttachNR links a network resource to the NDMZ
-func (d *DMZHidden) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error {
+func (d *Hidden) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error {
 	nrNSName, err := nr.Namespace()
 	if err != nil {
 		return err
@@ -154,10 +156,12 @@ func (d *DMZHidden) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir 
 	})
 }
 
-func (d *DMZHidden) SetIP6PublicIface(subnet net.IPNet) error {
+// SetIP6PublicIface implements DMZ interface
+func (d *Hidden) SetIP6PublicIface(subnet net.IPNet) error {
 	return configureYggdrasil(subnet)
 }
 
-func (d *DMZHidden) IP6PublicIface() string {
+// IP6PublicIface implements DMZ interface
+func (d *Hidden) IP6PublicIface() string {
 	return types.DefaultBridge
 }

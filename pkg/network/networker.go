@@ -863,39 +863,6 @@ func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 
 }
 
-// publicMasterIface return the name of the master interface
-// of the public interface
-func publicMasterIface() (string, error) {
-	netns, err := namespace.GetByName(types.PublicNamespace)
-	if err != nil {
-		return "", err
-	}
-	defer netns.Close()
-
-	var index int
-	if err := netns.Do(func(_ ns.NetNS) error {
-		pl, err := netlink.LinkByName(types.PublicIface)
-		if err != nil {
-			return err
-		}
-		index = pl.Attrs().ParentIndex
-		return nil
-	}); err != nil {
-		return "", err
-	}
-
-	if index == 0 {
-		return "", fmt.Errorf("public iface has not master")
-	}
-
-	ml, err := netlink.LinkByIndex(index)
-	if err != nil {
-		return "", err
-	}
-
-	return ml.Attrs().Name, nil
-}
-
 // createNetNS create a network namespace and set lo interface up
 func createNetNS(name string) (ns.NetNS, error) {
 

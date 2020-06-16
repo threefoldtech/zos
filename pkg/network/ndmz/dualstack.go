@@ -23,19 +23,21 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 )
 
-type DMZDualStack struct {
+// DualStack implement DMZ interface using dual stack ipv4/ipv6
+type DualStack struct {
 	nodeID     string
 	ipv6Master string
 }
 
-func NewDualStack(nodeID string) *DMZDualStack {
-	return &DMZDualStack{
+// NewDualStack creates a new DMZ DualStack
+func NewDualStack(nodeID string) *DualStack {
+	return &DualStack{
 		nodeID: nodeID,
 	}
 }
 
 //Create create the NDMZ network namespace and configure its default routes and addresses
-func (d *DMZDualStack) Create() error {
+func (d *DualStack) Create() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
 		netNS, err = namespace.Create(NetNSNDMZ)
@@ -88,7 +90,7 @@ func (d *DMZDualStack) Create() error {
 }
 
 // Delete deletes the NDMZ network namespace
-func (d *DMZDualStack) Delete() error {
+func (d *DualStack) Delete() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err == nil {
 		if err := namespace.Delete(netNS); err != nil {
@@ -100,7 +102,7 @@ func (d *DMZDualStack) Delete() error {
 }
 
 // AttachNR links a network resource to the NDMZ
-func (d *DMZDualStack) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error {
+func (d *DualStack) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error {
 	nrNSName, err := nr.Namespace()
 	if err != nil {
 		return err
@@ -174,11 +176,13 @@ func (d *DMZDualStack) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseD
 	})
 }
 
-func (d *DMZDualStack) SetIP6PublicIface(subnet net.IPNet) error {
+// SetIP6PublicIface implements DMZ interface
+func (d *DualStack) SetIP6PublicIface(subnet net.IPNet) error {
 	return configureYggdrasil(subnet)
 }
 
-func (d *DMZDualStack) IP6PublicIface() string {
+// IP6PublicIface implements DMZ interface
+func (d *DualStack) IP6PublicIface() string {
 	return d.ipv6Master
 }
 
