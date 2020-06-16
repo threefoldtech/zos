@@ -11,8 +11,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/macvlan"
 
-	"github.com/threefoldtech/zos/pkg/network/types"
-
 	mapset "github.com/deckarep/golang-set"
 
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
@@ -256,11 +254,6 @@ func (nr *NetResource) Delete() error {
 	}
 
 	return nil
-}
-
-func isSubnet(n types.IPNet) bool {
-	ones, bits := n.IPNet.Mask.Size()
-	return ones < bits
 }
 
 func (nr *NetResource) wgPeers() ([]*wireguard.Peer, error) {
