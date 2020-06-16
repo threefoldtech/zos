@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/ed25519"
 	"flag"
+	"fmt"
 	"os"
 	"time"
+
+	"github.com/threefoldtech/zos/pkg/network/latency"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
@@ -164,12 +167,38 @@ func startServer(ctx context.Context, broker string, networker pkg.Networker) er
 }
 
 func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey) (*yggdrasil.Server, error) {
+	pl, err := yggdrasil.FetchPeerList()
+	if err != nil {
+		return nil, err
+	}
+
+	peersUp := pl.Ups()
+	endpoints := make([]string, len(peersUp))
+	for i, p := range peersUp {
+		endpoints[i] = p.Endpoint
+	}
+
+	ls := latency.NewSorter(endpoints, 5)
+	results := ls.Run(ctx)
+	if len(results) == 0 {
+		return nil, fmt.Errorf("cannot find public yggdrasil peer to connect to")
+	}
+
+	// select the best 3 public peers
+	peers := make([]string, 3)
+	for i := 0; i < 3; i++ {
+		if len(results) > i {
+			peers[i] = results[i].Endpoint
+		}
+	}
+
 	z, err := zinit.New("")
 	if err != nil {
 		return nil, err
 	}
 
 	cfg := yggdrasil.GenerateConfig(privateKey)
+	cfg.Peers = peers
 
 	server := yggdrasil.NewServer(z, &cfg)
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// YggdrasilAdminAPI is a client that talk to the yggdrasil admin API
 type YggdrasilAdminAPI struct {
 	connectionURI string
 	conn          net.Conn
@@ -21,12 +22,14 @@ type response struct {
 	Error    string                 `json:"error,omitempty"`
 }
 
+// NewYggdrasil create a new yggdrasil admin API client by connecting to connectionURI
 func NewYggdrasil(connectionURI string) *YggdrasilAdminAPI {
 	return &YggdrasilAdminAPI{
 		connectionURI: connectionURI,
 	}
 }
 
+// Connect opens the connection to the API
 func (y *YggdrasilAdminAPI) Connect() error {
 	u, err := url.Parse(y.connectionURI)
 	if err != nil {
@@ -42,6 +45,7 @@ func (y *YggdrasilAdminAPI) Connect() error {
 	return nil
 }
 
+// Close closes all connection to the API
 func (y *YggdrasilAdminAPI) Close() error {
 	if y.conn != nil {
 		return y.conn.Close()
@@ -67,7 +71,8 @@ func (y *YggdrasilAdminAPI) execReq(req string) (response, error) {
 	return resp, nil
 }
 
-func (y *YggdrasilAdminAPI) GetSelf() (nodeinfo yggdrasil.NodeInfo, err error) {
+// GetSelf implement the getself Admin API call
+func (y *YggdrasilAdminAPI) GetSelf() (nodeinfo NodeInfo, err error) {
 
 	resp, err := y.execReq(`{"keepalive":true, "request":"getSelf"}`)
 	if err != nil {
@@ -90,6 +95,7 @@ func (y *YggdrasilAdminAPI) GetSelf() (nodeinfo yggdrasil.NodeInfo, err error) {
 	return nodeinfo, nil
 }
 
+// GetPeers implement the getpeers Admin API call
 func (y *YggdrasilAdminAPI) GetPeers() ([]Peer, error) {
 	resp, err := y.execReq(`{"keepalive":true, "request":"getpeers"}`)
 	if err != nil {
@@ -114,6 +120,7 @@ func (y *YggdrasilAdminAPI) GetPeers() ([]Peer, error) {
 	return peers, nil
 }
 
+// AddPeer implement the addpeer Admin API call
 func (y *YggdrasilAdminAPI) AddPeer(uri string) ([]string, error) {
 	req := fmt.Sprintf(`{"keepalive":true, "request":"addpeer", "uri":"%s"}`, uri)
 	resp, err := y.execReq(req)

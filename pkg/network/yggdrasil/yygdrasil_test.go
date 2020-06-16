@@ -44,11 +44,6 @@ func TestAddresses(t *testing.T) {
 }
 
 func TestSubnetFor(t *testing.T) {
-	type fields struct {
-		prefix net.IP
-		ip     net.IP
-		b      []byte
-	}
 	tests := []struct {
 		name   string
 		prefix net.IP

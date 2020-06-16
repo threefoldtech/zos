@@ -44,9 +44,7 @@ func GenerateConfig(privateKey ed25519.PrivateKey) config.NodeConfig {
 		"tls://[::]:4444",
 	}
 
-	cfg.Peers = []string{
-		"tls://91.121.92.51:4444",
-	}
+	cfg.Peers = []string{}
 
 	return *cfg
 }
