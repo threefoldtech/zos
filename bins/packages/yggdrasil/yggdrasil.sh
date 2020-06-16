@@ -24,8 +24,6 @@ install_yggdrasil() {
 
     cp -av $(which yggdrasil) "${ROOTDIR}/usr/bin/"
     cp -av $(which yggdrasilctl) "${ROOTDIR}/usr/bin/"
-    # cp -av /etc/yggdrasil.conf "${ROOTDIR}/etc/yggdrasil/"
-    # cp -av ${FILESDIR}/yggdrasil.yaml "${ROOTDIR}/etc/zinit/"
 }
 
 build_yggdrasil() {
