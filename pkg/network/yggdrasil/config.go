@@ -3,11 +3,19 @@ package yggdrasil
 import (
 	"crypto/ed25519"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/jbenet/go-base58"
 
 	"github.com/threefoldtech/zos/pkg/crypto"
 	"github.com/yggdrasil-network/yggdrasil-go/src/config"
+)
+
+// List of port used by yggdrasil
+const (
+	YggListenTCP       = 943
+	YggListenTLS       = 944
+	YggListenLinkLocal = 945
 )
 
 // GenerateConfig creates a new yggdrasil configuration and generate the
@@ -32,19 +40,17 @@ func GenerateConfig(privateKey ed25519.PrivateKey) config.NodeConfig {
 			"name": base58.Encode(signingPublicKey),
 		}
 	}
-	cfg.MulticastInterfaces = []string{"npub*"}
-	cfg.LinkLocalTCPPort = 4445
+	cfg.MulticastInterfaces = []string{"npub6", "npub4"}
+	cfg.LinkLocalTCPPort = YggListenLinkLocal
 
 	cfg.IfName = "ygg0"
 	cfg.TunnelRouting.Enable = true
 	cfg.SessionFirewall.Enable = false
 
 	cfg.Listen = []string{
-		"tcp://[::]:4434",
-		"tls://[::]:4444",
+		fmt.Sprintf("tcp://[::]:%d", YggListenTCP),
+		fmt.Sprintf("tls://[::]:%d", YggListenTLS),
 	}
-
-	cfg.Peers = []string{}
 
 	return *cfg
 }

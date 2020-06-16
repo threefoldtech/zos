@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
+	"strings"
+
+	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
@@ -190,7 +194,17 @@ func createRoutingBridge(name string, netNS ns.NetNS) error {
 func applyFirewall() error {
 	buf := bytes.Buffer{}
 
-	if err := fwTmpl.Execute(&buf, nil); err != nil {
+	data := struct {
+		YggPorts string
+	}{
+		YggPorts: strings.Join([]string{
+			strconv.Itoa(yggdrasil.YggListenTCP),
+			strconv.Itoa(yggdrasil.YggListenTLS),
+			strconv.Itoa(yggdrasil.YggListenLinkLocal),
+		}, ","),
+	}
+
+	if err := fwTmpl.Execute(&buf, data); err != nil {
 		return errors.Wrap(err, "failed to build nft rule set")
 	}
 

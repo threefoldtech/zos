@@ -47,7 +47,7 @@ table inet filter {
     type filter hook input priority 0; policy accept;
     jump base_checks
     ip6 daddr ff02::/64 accept
-    tcp dport {4434, 4444, 4445} accept
+    tcp dport { {{.YggPorts}} } accept
     ip6 nexthdr icmpv6 accept
     iifname "npub6" counter drop
     iifname "npub4" counter drop

@@ -105,6 +105,14 @@ func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageD
 		ndmz: ndmz,
 	}
 
+	// always add the reserved yggdrasil port to the port set so we make sure they are never
+	// picked for wireguard endpoints
+	for _, port := range []int{yggdrasil.YggListenTCP, yggdrasil.YggListenTLS, yggdrasil.YggListenLinkLocal} {
+		if err := nw.portSet.Add(uint(port)); err != nil && errors.Is(err, set.ErrConflict{}) {
+			return nil, err
+		}
+	}
+
 	return nw, nil
 }
 
