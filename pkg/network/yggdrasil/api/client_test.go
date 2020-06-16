@@ -8,6 +8,7 @@ import (
 )
 
 func TestGetSelf(t *testing.T) {
+	t.SkipNow()
 	c := NewYggdrasil("tcp://localhost:8999")
 	defer c.Close()
 
@@ -24,6 +25,7 @@ func TestGetSelf(t *testing.T) {
 }
 
 func TestGetPeers(t *testing.T) {
+	t.SkipNow()
 	c := NewYggdrasil("tcp://localhost:8999")
 	defer c.Close()
 
@@ -36,6 +38,7 @@ func TestGetPeers(t *testing.T) {
 }
 
 func TestAddPeer(t *testing.T) {
+	t.SkipNow()
 	c := NewYggdrasil("tcp://localhost:8999")
 	defer c.Close()
 
