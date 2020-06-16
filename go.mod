@@ -50,5 +50,3 @@ require (
 )
 
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
-
-replace github.com/yggdrasil-network/yggdrasil-go => /home/zaibon/dev/go/src/github.com/yggdrasil-network/yggdrasil-go
