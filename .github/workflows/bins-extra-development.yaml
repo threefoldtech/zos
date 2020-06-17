@@ -304,31 +304,26 @@ jobs:
         sudo ./bins-extra.sh --package base-musl
 
     - name: Build dependency (zlib)
-      id: package
       run: |
         cd bins
         sudo ./bins-extra.sh --package zlib-musl
 
     - name: Build dependency (libcap)
-      id: package
       run: |
         cd bins
         sudo ./bins-extra.sh --package libcap-musl
 
     - name: Build dependency (libjson-c)
-      id: package
       run: |
         cd bins
         sudo ./bins-extra.sh --package libjsonc-musl
 
     - name: Build dependency (openssl)
-      id: package
       run: |
         cd bins
         sudo ./bins-extra.sh --package openssl-musl
 
     - name: Build dependency (libwebsockets)
-      id: package
       run: |
         cd bins
         sudo ./bins-extra.sh --package libwebsockets-musl
@@ -358,5 +353,4 @@ jobs:
         user: tf-zos-bins.dev
         name: corex.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
 
