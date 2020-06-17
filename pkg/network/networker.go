@@ -818,6 +818,10 @@ func (n *networker) DMZAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 	return n.monitorNS(ctx, ndmz.NetNSNDMZ, ndmz.DMZPub4, ndmz.DMZPub6)
 }
 
+func (n *networker) YggAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
+	return n.monitorNS(ctx, ndmz.NetNSNDMZ, yggdrasil.YggIface)
+}
+
 func (n *networker) PublicAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
 	return n.monitorNS(ctx, types.PublicNamespace, types.PublicIface)
 }

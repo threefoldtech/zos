@@ -16,6 +16,8 @@ const (
 	YggListenTCP       = 943
 	YggListenTLS       = 944
 	YggListenLinkLocal = 945
+
+	YggIface = "ygg0"
 )
 
 // GenerateConfig creates a new yggdrasil configuration and generate the
@@ -43,7 +45,7 @@ func GenerateConfig(privateKey ed25519.PrivateKey) config.NodeConfig {
 	cfg.MulticastInterfaces = []string{"npub6", "npub4"}
 	cfg.LinkLocalTCPPort = YggListenLinkLocal
 
-	cfg.IfName = "ygg0"
+	cfg.IfName = YggIface
 	cfg.TunnelRouting.Enable = true
 	cfg.SessionFirewall.Enable = false
 

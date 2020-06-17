@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/yggdrasil-network/yggdrasil-go/src/address"
@@ -56,6 +57,7 @@ func (s *Server) Start() error {
 			"node-ready",
 			"networkd",
 		},
+		Test: "yggdrasilctl getself | grep -i coords",
 	})
 	if err != nil {
 		return err
@@ -65,7 +67,7 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	return s.zinit.Start(zinitService)
+	return s.zinit.StartWait(time.Second*20, zinitService)
 }
 
 // Stop stop the yggdrasil zinit service

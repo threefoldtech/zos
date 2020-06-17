@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/threefoldtech/zos/pkg/network/latency"
@@ -47,6 +48,8 @@ func main() {
 	if ver {
 		version.ShowAndExit(false)
 	}
+
+	waitYggdrasilBin()
 
 	if err := bootstrap.DefaultBridgeValid(); err != nil {
 		log.Fatal().Err(err).Msg("invalid setup")
@@ -100,21 +103,6 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create ndmz")
 	}
 
-	// send another detail of network interfaces now that ndmz is created
-	ndmzIfaces, err := getNdmzInterfaces()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to read ndmz network interfaces")
-	}
-	ifaces = append(ifaces, ndmzIfaces...)
-
-	if err := publishIfaces(ifaces, nodeID, directory); err != nil {
-		log.Fatal().Err(err).Msg("failed to publish ndmz network interfaces to BCDB")
-	}
-
-	// watch modification of the address on the nic so we can update the explorer
-	// with eventual new values
-	go startAddrWatch(ctx, nodeID, directory, ifaces)
-
 	ygg, err := startYggdrasil(ctx, identity.PrivateKey())
 	if err != nil {
 		log.Fatal().Err(err).Msgf("fail to start yggdrasil")
@@ -129,6 +117,21 @@ func main() {
 		log.Fatal().Err(err).Msgf("fail to configure yggdrasil subnet gateway IP")
 
 	}
+
+	// send another detail of network interfaces now that ndmz is created
+	ndmzIfaces, err := getNdmzInterfaces()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to read ndmz network interfaces")
+	}
+	ifaces = append(ifaces, ndmzIfaces...)
+
+	if err := publishIfaces(ifaces, nodeID, directory); err != nil {
+		log.Fatal().Err(err).Msg("failed to publish ndmz network interfaces to BCDB")
+	}
+
+	// watch modification of the address on the nic so we can update the explorer
+	// with eventual new values
+	go startAddrWatch(ctx, nodeID, directory, ifaces)
 
 	log.Info().Msg("start zbus server")
 	if err := os.MkdirAll(root, 0750); err != nil {
@@ -164,6 +167,18 @@ func startServer(ctx context.Context, broker string, networker pkg.Networker) er
 	}
 
 	return nil
+}
+
+func waitYggdrasilBin() {
+	log.Info().Msg("wait for yggdrasil binary to be available")
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0 //forever
+	_ = backoff.RetryNotify(func() error {
+		_, err := exec.LookPath("yggdrasil")
+		return err
+	}, bo, func(err error, d time.Duration) {
+		log.Warn().Err(err).Msgf("yggdrasil binary not found, retying in %s", d.String())
+	})
 }
 
 func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey) (*yggdrasil.Server, error) {
