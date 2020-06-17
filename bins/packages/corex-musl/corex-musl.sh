@@ -17,6 +17,7 @@ extract_corex-musl() {
 
 prepare_corex-musl() {
     echo "[+] preparing: corex"
+    github_name "corex-${COREX_MUSL_VERSION}"
 }
 
 compile_corex-musl() {
