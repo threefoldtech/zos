@@ -260,34 +260,32 @@ func HostIPV6Iface() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	zos, err := netlink.LinkByName("zos")
+	if err != nil {
+		return "", err
+	}
 
-	for _, link := range LinkFilter(links, []string{"device"}) {
+	// first check all physical interface
+	links = LinkFilter(links, []string{"device"})
+	// then check zos bridge
+	links = append(links, zos)
+
+	for _, link := range links {
+
 		addrs, err := netlink.AddrList(link, netlink.FAMILY_V6)
 		if err != nil {
 			return "", err
 		}
 
 		for _, addr := range addrs {
+			log.Info().
+				Str("iface", link.Attrs().Name).
+				Str("addr", addr.String()).
+				Msg("search public ipv6 address")
+
 			if addr.IP.IsGlobalUnicast() {
 				return link.Attrs().Name, nil
 			}
-		}
-	}
-
-	// not found on host interfaces, check on zos bridge
-	link, err := netlink.LinkByName("zos")
-	if err != nil {
-		return "", err
-	}
-
-	addrs, err := netlink.AddrList(link, netlink.FAMILY_V6)
-	if err != nil {
-		return "", err
-	}
-
-	for _, addr := range addrs {
-		if addr.IP.IsGlobalUnicast() {
-			return link.Attrs().Name, nil
 		}
 	}
 

@@ -78,7 +78,7 @@ func FindIPv6Master() (master string, err error) {
 		return "", errors.Wrap(err, "failed to find a valid network interface to use as parent for ndmz public interface")
 	}
 
-	return "", nil
+	return master, nil
 }
 
 func createPubIface6(name, master, nodeID string, netNS ns.NetNS) error {

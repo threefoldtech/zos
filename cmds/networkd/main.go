@@ -272,13 +272,19 @@ func buildNDMZ(nodeID string) (ndmz.DMZ, error) {
 	)
 
 	notify := func(err error, d time.Duration) {
-		log.Error().Err(err).Msgf("did not find a valid IPV6 master address for ndmz, retry in %s", d.String())
+		log.Warn().Err(err).Msgf("did not find a valid IPV6 master address for ndmz, retry in %s", d.String())
 	}
 
 	findMaster := func() error {
 		master = ""
 		master, err = ndmz.FindIPv6Master()
-		return err
+		if err != nil {
+			return err
+		}
+		if master == "" {
+			return fmt.Errorf("ipv6 master iface not found")
+		}
+		return nil
 	}
 
 	bo := backoff.NewExponentialBackOff()
