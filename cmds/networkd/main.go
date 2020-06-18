@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/containernetworking/plugins/pkg/utils/sysctl"
+
 	"github.com/threefoldtech/zos/pkg/network/latency"
 
 	"github.com/cenkalti/backoff/v3"
@@ -53,6 +55,10 @@ func main() {
 
 	if err := bootstrap.DefaultBridgeValid(); err != nil {
 		log.Fatal().Err(err).Msg("invalid setup")
+	}
+
+	if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "0"); err != nil {
+		log.Fatal().Err(err).Msgf("failed to disable ipv6 forwarding on bridge zos")
 	}
 
 	client, err := zbus.NewRedisClient(broker)

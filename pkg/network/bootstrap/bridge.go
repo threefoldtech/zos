@@ -38,5 +38,10 @@ func CreateDefaultBridge(name string) (*netlink.Bridge, error) {
 	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "0"); err != nil {
 		return nil, errors.Wrapf(err, "failed to disable ip6 on bridge %s", name)
 	}
+
+	if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", name); err != nil {
+		return nil, errors.Wrapf(err, "failed to disable ipv6 forwarding")
+	}
+
 	return br, nil
 }
