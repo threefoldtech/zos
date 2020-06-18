@@ -44,10 +44,6 @@ func (d *Hidden) Create() error {
 	}
 	defer netNS.Close()
 
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.all.forwarding"), "1"); err != nil {
-		return errors.Wrapf(err, "failed to enable forwarding in ndmz")
-	}
-
 	if err := createRoutingBridge(BridgeNDMZ, netNS); err != nil {
 		return errors.Wrapf(err, "ndmz: createRoutingBride error")
 	}
@@ -65,6 +61,10 @@ func (d *Hidden) Create() error {
 	}
 
 	return netNS.Do(func(_ ns.NetNS) error {
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.all.forwarding"), "1"); err != nil {
+			return errors.Wrapf(err, "failed to enable forwarding in ndmz")
+		}
+
 		return waitIP4()
 	})
 }
