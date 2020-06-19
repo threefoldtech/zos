@@ -262,6 +262,26 @@ func (f *flistModule) getMountOptions(pidPath string) (options, error) {
 	return result, nil
 }
 
+func (f *flistModule) HashFromRootPath(name string) (string, error) {
+	base := filepath.Base(name)
+	pidPath := filepath.Join(f.pid, base) + ".pid"
+
+	opts, err := f.getMountOptions(pidPath)
+	if err != nil {
+		return "", err
+	}
+
+	for _, opt := range opts {
+		// if option start with the flist meta path
+		if strings.HasPrefix(opt, f.flist) {
+			// extracting hash (dirname) from argument
+			return filepath.Base(opt), nil
+		}
+	}
+
+	return "", fmt.Errorf("could not find rootfs hash name")
+}
+
 // NamedUmount implements the Flister.NamedUmount interface
 func (f *flistModule) NamedUmount(name string) error {
 	return f.Umount(filepath.Join(f.mountpoint, name))
