@@ -438,7 +438,36 @@ func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
 		log.Debug().Str("hash", hash).Msg("running container hash")
 
 		if expected != hash {
+			var zdbmode pkg.ZDBMode
+
 			log.Info().Str("id", string(c)).Msg("restarting container, update found")
+
+			// extracting required informations
+			volumeid := continfo.Name // VolumeID is the Container Name
+			volumepath := ""          // VolumePath is /data mount on the container
+			zdbmode = pkg.ZDBModeUser
+
+			if strings.Contains(continfo.Entrypoint, "--mode seq") {
+				zdbmode = pkg.ZDBModeSeq
+			}
+
+			log.Info().Str("id", volumeid).Str("path", volumepath).Msg("rebuild zdb container")
+
+			for _, mnt := range continfo.Mounts {
+				if mnt.Target == "/data" {
+					volumepath = mnt.Source
+				}
+			}
+
+			if volumepath == "" {
+				log.Error().Msg("could not grab container /data mountpoint")
+				continue
+			}
+
+			allocation := pkg.Allocation{
+				VolumeID:   volumeid,
+				VolumePath: volumepath,
+			}
 
 			// stopping running zdb
 			err := contmod.Delete(zdbContainerNS, c)
@@ -448,7 +477,10 @@ func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
 			}
 
 			// restarting zdb
-			// TODO
+			_, err = p.ensureZdbContainer(ctx, allocation, zdbmode)
+			if err != nil {
+				log.Error().Err(err).Msg("could not restart zdb container")
+			}
 		}
 	}
 
