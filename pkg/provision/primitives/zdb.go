@@ -403,11 +403,16 @@ func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
 	// Listing running zdb containers
 	containers, err := contmod.List(zdbContainerNS)
 	if err != nil {
+		log.Error().Err(err).Msg("could not load containers list")
 		return err
 	}
 
 	// fetching extected hash
-	expected := "abcd"
+	expected, err := flistmod.FlistHash(zdbFlistURL)
+	if err != nil {
+		log.Error().Err(err).Msg("could not load expected flist hash")
+		return err
+	}
 
 	// Checking if containers are running latest zdb version
 	for _, c := range containers {
