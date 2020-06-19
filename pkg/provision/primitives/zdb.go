@@ -422,14 +422,14 @@ func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
 
 		log.Debug().Str("id", string(c)).Msg("inspecting container")
 
-		value, err := contmod.Inspect(zdbContainerNS, c)
+		continfo, err := contmod.Inspect(zdbContainerNS, c)
 
 		if err != nil {
 			log.Error().Err(err).Msg("could not inspect container")
 			continue
 		}
 
-		hash, err := flistmod.HashFromRootPath(value.RootFS)
+		hash, err := flistmod.HashFromRootPath(continfo.RootFS)
 		if err != nil {
 			log.Error().Err(err).Msg("could not find container running flist hash")
 			continue
@@ -439,7 +439,16 @@ func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
 
 		if expected != hash {
 			log.Info().Str("id", string(c)).Msg("restarting container, update found")
-			// TODO: restart container
+
+			// stopping running zdb
+			err := contmod.Delete(zdbContainerNS, c)
+			if err != nil {
+				log.Error().Err(err).Msg("could not stop running zdb container")
+				continue
+			}
+
+			// restarting zdb
+			// TODO
 		}
 	}
 
