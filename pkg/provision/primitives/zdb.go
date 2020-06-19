@@ -393,3 +393,50 @@ var yggNet = net.IPNet{
 func isYgg(ip net.IP) bool {
 	return yggNet.Contains(ip)
 }
+
+func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
+	log.Info().Msg("checking for any outdated zdb running")
+
+	flistmod := stubs.NewFlisterStub(p.zbus)
+	contmod := stubs.NewContainerModuleStub(p.zbus)
+
+	// Listing running zdb containers
+	containers, err := contmod.List(zdbContainerNS)
+	if err != nil {
+		return err
+	}
+
+	// fetching extected hash
+	expected := "abcd"
+
+	// Checking if containers are running latest zdb version
+	for _, c := range containers {
+		if c == "" {
+			continue
+		}
+
+		log.Debug().Str("id", string(c)).Msg("inspecting container")
+
+		value, err := contmod.Inspect(zdbContainerNS, c)
+
+		if err != nil {
+			log.Error().Err(err).Msg("could not inspect container")
+			continue
+		}
+
+		hash, err := flistmod.HashFromRootPath(value.RootFS)
+		if err != nil {
+			log.Error().Err(err).Msg("could not find container running flist hash")
+			continue
+		}
+
+		log.Debug().Str("hash", hash).Msg("running container hash")
+
+		if expected != hash {
+			log.Info().Str("id", string(c)).Msg("restarting container, update found")
+			// TODO: restart container
+		}
+	}
+
+	return nil
+}
