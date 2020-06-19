@@ -69,6 +69,10 @@ func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *provisi
 		return ZDBResult{}, errors.Wrap(err, "failed to decrypt namespace password")
 	}
 
+	if config.DiskType != pkg.HDDDevice {
+		return ZDBResult{}, fmt.Errorf("type '%s': %w", config.DiskType, ErrNotSupportedDeviceType)
+	}
+
 	// if we reached here, we need to create the 0-db namespace
 	log.Debug().Msg("allocating storage for namespace")
 	allocation, err := storage.Allocate(nsID, config.DiskType, config.Size*gigabyte, config.Mode)

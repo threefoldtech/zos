@@ -98,6 +98,10 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 		return ContainerResult{}, err
 	}
 
+	if config.Capacity.DiskType == pkg.HDDDevice {
+		return ContainerResult{}, fmt.Errorf("type '%s': %w", config.Capacity.DiskType, ErrNotSupportedDeviceType)
+	}
+
 	// check if workload is already deployed
 	_, err := containerClient.Inspect(tenantNS, pkg.ContainerID(containerID))
 	if err == nil {
@@ -117,8 +121,9 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 	rootfsMntOpt := pkg.MountOptions{
 		Limit:    config.Capacity.DiskSize,
 		ReadOnly: false,
-		Type:     config.Capacity.DiskType,
+		Type:     pkg.SSDDevice,
 	}
+
 	if rootfsMntOpt.Limit == 0 || rootfsMntOpt.Type == "" {
 		rootfsMntOpt = pkg.DefaultMountOptions
 	}
