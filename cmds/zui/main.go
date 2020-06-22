@@ -86,7 +86,7 @@ func main() {
 	mem.Border = true
 
 	net := ui.NewGrid()
-	net.Title = "Networ"
+	net.Title = "Network"
 	net.Border = true
 
 	disk := ui.NewGrid()

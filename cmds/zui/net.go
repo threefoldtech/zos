@@ -21,6 +21,7 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 	table.Rows = [][]string{
 		{"ZOS", "Not Configured"},
 		{"DMZ", "Not Configured"},
+		{"Ygg", "Not Configured"},
 		{"Public", "Not Configured"},
 	}
 
@@ -29,7 +30,13 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 	if err != nil {
 		return err
 	}
+
 	dmz, err := stub.DMZAddresses(ctx)
+	if err != nil {
+		return err
+	}
+
+	ygg, err := stub.YggAddresses(ctx)
 	if err != nil {
 		return err
 	}
@@ -60,8 +67,10 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 				table.Rows[0][1] = toString(a)
 			case a := <-dmz:
 				table.Rows[1][1] = toString(a)
-			case a := <-pub:
+			case a := <-ygg:
 				table.Rows[2][1] = toString(a)
+			case a := <-pub:
+				table.Rows[3][1] = toString(a)
 			}
 
 			render.Signal()
