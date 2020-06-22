@@ -1,7 +1,5 @@
 package pkg
 
-import "fmt"
-
 //go:generate mkdir -p stubs
 
 //go:generate zbusc -module flist -version 0.0.1 -name flist -package stubs github.com/threefoldtech/zos/pkg+Flister stubs/flist_stub.go
@@ -28,17 +26,6 @@ type MountOptions struct {
 	Limit uint64
 	// Type of disk to use
 	Type DeviceType
-}
-
-// Valid checks that mount options are valid
-func (m *MountOptions) Valid() error {
-	// we disable HDD support in flist creation. root fs of containers
-	// should always be SSD
-	if m.Type != SSDDevice {
-		return fmt.Errorf("only ssd type is supported not '%s'", m.Type)
-	}
-
-	return nil
 }
 
 //Flister is the interface for the flist module
