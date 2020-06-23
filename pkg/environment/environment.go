@@ -18,6 +18,9 @@ type Environment struct {
 	BcdbURL      string
 	BcdbPassword string
 
+	FlistURL string
+	BinRepo  string
+
 	FarmerID pkg.FarmID
 	Orphan   bool
 
@@ -58,6 +61,8 @@ var (
 	envDev = Environment{
 		RunningMode: RunningDev,
 		BcdbURL:     "https://explorer.devnet.grid.tf/explorer",
+		FlistURL:    "zdb://hub.grid.tf:9900",
+		BinRepo:     "tf-zos-bins.dev",
 		// ProvisionTimeout:  60,
 		// ProvisionInterval: 10,
 	}
@@ -65,6 +70,8 @@ var (
 	envTest = Environment{
 		RunningMode: RunningTest,
 		BcdbURL:     "https://explorer.testnet.grid.tf/explorer",
+		FlistURL:    "zdb://hub.grid.tf:9900",
+		BinRepo:     "tf-zos-bins.test",
 		// ProvisionTimeout:  120,
 		// ProvisionInterval: 10,
 	}
@@ -73,6 +80,8 @@ var (
 	envProd = Environment{
 		RunningMode: RunningMain,
 		BcdbURL:     "https://explorer.grid.tf/explorer",
+		FlistURL:    "zdb://hub.grid.tf:9900",
+		BinRepo:     "tf-zos-bins",
 		// ProvisionTimeout:  240,
 		// ProvisionInterval: 20,
 	}
@@ -145,6 +154,10 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 
 	if e := os.Getenv("ZOS_BCDB_PASSWORD"); e != "" {
 		env.BcdbPassword = e
+	}
+
+	if e := os.Getenv("ZOS_FLIST_URL"); e != "" {
+		env.FlistURL = e
 	}
 
 	// if e := os.Getenv("ZOS_PROVISION_INTERVAL"); e != "" {
