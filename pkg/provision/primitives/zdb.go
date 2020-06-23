@@ -491,6 +491,11 @@ func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
 				continue
 			}
 
+			// cleanup old containers rootfs
+			if err = flistmod.Umount(continfo.RootFS); err != nil {
+				log.Error().Err(err).Str("path", continfo.RootFS).Msgf("failed to unmount old zdb container")
+			}
+
 			// restarting zdb
 
 			// mount the new flist
