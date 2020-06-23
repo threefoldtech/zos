@@ -504,6 +504,10 @@ func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
 			err = p.zdbRun(volumeid, rootfs, zdbcmd, netns, volumepath, socketdir)
 			if err != nil {
 				log.Error().Err(err).Msg("could not restart zdb container")
+
+				if err = flistmod.Umount(rootfs); err != nil {
+					log.Error().Err(err).Str("path", rootfs).Msgf("failed to unmount zdb container")
+				}
 			}
 		}
 	}
