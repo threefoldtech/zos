@@ -3,9 +3,7 @@ package primitives
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 
@@ -16,11 +14,6 @@ import (
 const (
 	// gigabyte to byte conversion
 	gigabyte uint64 = 1024 * 1024 * 1024
-)
-
-var (
-	// ErrNotSupportedDeviceType error type
-	ErrNotSupportedDeviceType = errors.New("not supported device type for this workload type")
 )
 
 // Volume defines a mount point
@@ -43,9 +36,6 @@ func (p *Provisioner) volumeProvisionImpl(ctx context.Context, reservation *prov
 		return VolumeResult{}, err
 	}
 
-	if config.Type != pkg.SSDDevice {
-		return VolumeResult{}, fmt.Errorf("type '%s': %w", config.Type, ErrNotSupportedDeviceType)
-	}
 	storageClient := stubs.NewStorageModuleStub(p.zbus)
 
 	_, err := storageClient.Path(reservation.ID)
