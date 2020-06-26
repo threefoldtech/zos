@@ -43,7 +43,7 @@ func FetchPeerList() (PeerList, error) {
 		},
 	}
 
-	resp, err := http.Get("https://publicpeers.neilalexander.dev/publicnodes.jsonx")
+	resp, err := http.Get("https://publicpeers.neilalexander.dev/publicnodes.json")
 	if err != nil {
 		log.Warn().Err(err).Msg("could not fetch public peerlist, using backup")
 		return fallback, nil
