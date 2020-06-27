@@ -5,9 +5,14 @@ import (
 	"crypto/ed25519"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/vishvananda/netlink"
 
 	"github.com/threefoldtech/zos/pkg/network/latency"
 
@@ -194,8 +199,23 @@ func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz
 		endpoints[i] = p.Endpoint
 	}
 
+	// filter out the possible yggdrasil public node
+	var filter latency.IPFilter
 	_, ipv4Only := dmz.(*ndmz.Hidden)
-	ls := latency.NewSorter(endpoints, 5, ipv4Only)
+	if ipv4Only {
+		// if we are a hidden node,only keep ipv4 public nodes
+		filter = latency.IPV4Only
+	} else {
+		// if we are a dual stack node, filter out all the nodes from the same
+		// segment so we do not just connect locally
+		npub6IP, err := getDMZNPub6Addr()
+		if err != nil {
+			return nil, err
+		}
+		filter = latency.ExcludePrefix(npub6IP[:8])
+	}
+
+	ls := latency.NewSorter(endpoints, 5, filter)
 	results := ls.Run(ctx)
 	if len(results) == 0 {
 		return nil, fmt.Errorf("cannot find public yggdrasil peer to connect to")
@@ -206,6 +226,7 @@ func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz
 	for i := 0; i < 3; i++ {
 		if len(results) > i {
 			peers[i] = results[i].Endpoint
+			log.Info().Str("endpoint", results[i].Endpoint).Msg("yggdrasill public peer selected")
 		}
 	}
 
@@ -302,4 +323,43 @@ func buildNDMZ(nodeID string) (ndmz.DMZ, error) {
 	// else use ipv4 only mode
 	log.Info().Msg("network mode hidden ipv4 only")
 	return ndmz.NewHidden(nodeID), nil
+}
+
+func getDMZNPub6Addr() (net.IP, error) {
+	netns, err := namespace.GetByName(ndmz.NetNSNDMZ)
+	if err != nil {
+		return nil, err
+	}
+	defer netns.Close()
+
+	var ip net.IP
+	getIP := func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(ndmz.DMZPub6)
+		if err != nil {
+			return err
+		}
+		addrs, err := netlink.AddrList(link, netlink.FAMILY_V6)
+		if err != nil {
+			return err
+		}
+
+		for _, addr := range addrs {
+			if addr.IP.IsGlobalUnicast() {
+				ip = addr.IP
+				return nil
+			}
+		}
+
+		return nil
+	}
+
+	if err = netns.Do(getIP); err != nil {
+		return nil, err
+	}
+
+	if ip == nil {
+		return nil, fmt.Errorf("didn't not find the IP of npub6 interface")
+	}
+
+	return ip, nil
 }
