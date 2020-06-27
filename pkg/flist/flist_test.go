@@ -124,11 +124,12 @@ func TestMountUnmount(t *testing.T) {
 
 	flister := newFlister(root, strg, cmder)
 
+	strg.On("Path", mock.Anything).Return("/my/backend", nil)
+
 	strg.On("CreateFilesystem", mock.Anything, uint64(256*mib), pkg.SSDDevice).
 		Return("/my/backend", nil)
 
 	mnt, err := flister.Mount("https://hub.grid.tf/thabet/redis.flist", "", pkg.DefaultMountOptions)
-
 	require.NoError(t, err)
 
 	// Trick flister into thinking that 0-fs has exited
@@ -151,6 +152,8 @@ func TestIsolation(t *testing.T) {
 	defer os.RemoveAll(root)
 
 	flister := newFlister(root, strg, cmder)
+
+	strg.On("Path", mock.Anything).Return("/my/backend", nil)
 
 	strg.On("CreateFilesystem", mock.Anything, uint64(256*mib), pkg.SSDDevice).
 		Return("/my/backend", nil)
