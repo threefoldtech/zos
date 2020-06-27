@@ -44,18 +44,10 @@ static:
 
 check: test
 test: verifiers build
-	# we already ran vet separately, so safe to turn it off here
-	@echo "Running unit tests with GOFLAGS=${GOFLAGS}"
-	for pkg in $(shell go list ./... | grep -Ev "stubs|network" ); do \
-		go test -v -vet=off $$pkg; \
-	done
+	go test -vet=off -v $(shell go list ./... | grep -Ev "stubs|network" )
 
 testrace: verifiers build
-	# we already ran vet separately, so safe to turn it off here
-	@echo "Running unit tests with GOFLAGS=${GOFLAGS}"
-	for pkg in $(shell go list ./... | grep -Ev "stubs|network" ); do \
-		go test -v -vet=off -race $$pkg; \
-	done
+	go test -vet=off -v $(shell go list ./... | grep -Ev "stubs|network" )
 
 generate:
 	@echo "Generating modules client stubs"
