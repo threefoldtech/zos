@@ -19,6 +19,12 @@ import (
 
 // Join make a network namespace of a container join a network resource network
 func (nr *NetResource) Join(containerID string, addrs []net.IP, publicIP6 bool) (join pkg.Member, err error) {
+	// verify if addr lives in NR subnet, otherwise there is not point to continue
+	for _, addr := range addrs {
+		if !nr.ipRange.Contains(addr) {
+			return join, errors.Errorf("Error: %s is not part of subnet %s of NR", addr.String(), nr.ipRange.String())
+		}
+	}
 	name, err := nr.BridgeName()
 	if err != nil {
 		return join, err
@@ -100,7 +106,7 @@ func (nr *NetResource) Join(containerID string, addrs []net.IP, publicIP6 bool) 
 		ipnet.IP[len(ipnet.IP)-1] = 0x01
 
 		routes := []*netlink.Route{
-			&netlink.Route{
+			{
 				Dst: &net.IPNet{
 					IP:   net.ParseIP("0.0.0.0"),
 					Mask: net.CIDRMask(0, 32),
