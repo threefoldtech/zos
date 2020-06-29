@@ -186,13 +186,32 @@ func waitYggdrasilBin() {
 	})
 }
 
-func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz.DMZ) (*yggdrasil.Server, error) {
+func fetchPeerList() yggdrasil.PeerList {
+	// Try to fetch public peer for 1 minute, if we failed to do so, use the fallback hardcoded peer list
 
-	pl, err := yggdrasil.FetchPeerList()
-	if err != nil {
-		return nil, err
+	var pl yggdrasil.PeerList
+	bo := backoff.NewConstantBackOff(time.Minute)
+	bo.Interval = 10 * time.Second
+	fetchPeerList := func() error {
+		p, err := yggdrasil.FetchPeerList()
+		if err != nil {
+			return err
+		}
+		pl = p
+		return nil
 	}
 
+	err := backoff.Retry(fetchPeerList, bo)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to read yggdrasil public peer list online, using fallback")
+		pl = yggdrasil.PeerListFallback
+	}
+
+	return pl
+}
+
+func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz.DMZ) (*yggdrasil.Server, error) {
+	pl := fetchPeerList()
 	peersUp := pl.Ups()
 	endpoints := make([]string, len(peersUp))
 	for i, p := range peersUp {
