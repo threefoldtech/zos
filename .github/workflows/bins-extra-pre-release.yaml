@@ -343,7 +343,7 @@ jobs:
         root: bins/releases/corex-musl
         name: ${{ steps.package.outputs.name }}.flist
 
-    - name: Crosslink flist (tf-zos-bins.dev)
+    - name: Crosslink flist (tf-zos-bins.test)
       if: success() && github.ref == 'refs/heads/master'
       uses: threefoldtech/publish-flist@master
       with:
@@ -387,12 +387,56 @@ jobs:
         root: bins/releases/hd-idle
         name: ${{ steps.package.outputs.name }}.flist
 
-    - name: Crosslink flist (tf-zos-bins.dev)
+    - name: Crosslink flist (tf-zos-bins.test)
       if: success() && github.ref == 'refs/heads/master'
       uses: threefoldtech/publish-flist@master
       with:
         token: ${{ secrets.HUB_JWT }}
         action: crosslink
-        user: tf-zos-bins.dev
+        user: tf-zos-bins.test
         name: hd-idle.flist
+        target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+
+  storcli:
+    name: 'Package: storcli'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go 1.14
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.14
+      id: go
+
+    - name: Checkout code into the Go module directory
+      uses: actions/checkout@v1
+
+    - name: Setup basesystem
+      run: |
+        cd bins
+        sudo ./bins-extra.sh --package basesystem
+
+    - name: Build package
+      id: package
+      run: |
+        cd bins
+        sudo ./bins-extra.sh --package storcli
+
+    - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
+      if: success()
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.HUB_JWT }}
+        action: publish
+        user: tf-autobuilder
+        root: bins/releases/storcli
+        name: ${{ steps.package.outputs.name }}.flist
+
+    - name: Crosslink flist (tf-zos-bins.test)
+      if: success() && github.ref == 'refs/heads/master'
+      uses: threefoldtech/publish-flist@master
+      with:
+        token: ${{ secrets.HUB_JWT }}
+        action: crosslink
+        user: tf-zos-bins.test
+        name: storcli.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
