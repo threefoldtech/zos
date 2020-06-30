@@ -189,6 +189,7 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 	return k8s, k.NodeId, nil
 }
 
+// NetworkResourceToProvisionType converts type to internal provision type
 func NetworkResourceToProvisionType(w workloads.Workloader) (pkg.NetResource, error) {
 	n, ok := w.(*workloads.NetworkResource)
 	if !ok {
@@ -196,7 +197,7 @@ func NetworkResourceToProvisionType(w workloads.Workloader) (pkg.NetResource, er
 	}
 
 	nr := pkg.NetResource{
-		// Name:         n.Name,
+		Name:    n.Name,
 		NetID:   pkg.NetID(n.Name),
 		IPRange: types.NewIPNetFromSchema(n.Iprange), //Fix me
 
@@ -219,30 +220,6 @@ func NetworkResourceToProvisionType(w workloads.Workloader) (pkg.NetResource, er
 	return nr, nil
 }
 
-// // NetworkToProvisionType convert TfgridReservationNetwork1 to pkg.Network
-// func NetworkToProvisionType(w workloads.Workloader) (pkg.Network, error) {
-// 	n, ok := w.(*workloads.Network)
-// 	if !ok {
-// 		return Kubernetes{}, "", fmt.Errorf("failed to convert kubernetes workload, wrong format")
-// 	}
-
-// 	network := pkg.Network{
-// 		Name:         n.Name,
-// 		NetID:        pkg.NetID(n.Name),
-// 		IPRange:      types.NewIPNetFromSchema(n.Iprange),
-// 		NetResources: make([]pkg.NetResource, len(n.NetworkResources)),
-// 	}
-
-// 	var err error
-// 	for i, nr := range n.NetworkResources {
-// 		network.NetResources[i], err = NetResourceToProvisionType(nr)
-// 		if err != nil {
-// 			return network, err
-// 		}
-// 	}
-// 	return network, nil
-// }
-
 //WireguardToProvisionType converts WireguardPeer1 to pkg.Peer
 func WireguardToProvisionType(p workloads.WireguardPeer) (pkg.Peer, error) {
 	peer := pkg.Peer{
@@ -257,28 +234,6 @@ func WireguardToProvisionType(p workloads.WireguardPeer) (pkg.Peer, error) {
 	}
 	return peer, nil
 }
-
-// //NetResourceToProvisionType converts TfgridNetworkNetResource1 to pkg.NetResource
-// func NetResourceToProvisionType(r workloads.NetworkNetResource) (pkg.NetResource, error) {
-// 	nr := pkg.NetResource{
-// 		NodeID:       r.NodeId,
-// 		Subnet:       types.NewIPNetFromSchema(r.Iprange),
-// 		WGPrivateKey: r.WireguardPrivateKeyEncrypted,
-// 		WGPublicKey:  r.WireguardPublicKey,
-// 		WGListenPort: uint16(r.WireguardListenPort),
-// 		Peers:        make([]pkg.Peer, len(r.Peers)),
-// 	}
-
-// 	for i, peer := range r.Peers {
-// 		p, err := WireguardToProvisionType(peer)
-// 		if err != nil {
-// 			return nr, err
-// 		}
-// 		nr.Peers[i] = p
-// 	}
-
-// 	return nr, nil
-// }
 
 // WorkloadToProvisionType TfgridReservationWorkload1 to provision.Reservation
 func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, error) {

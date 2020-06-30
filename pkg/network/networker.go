@@ -157,76 +157,6 @@ func copyNetworksToVolatile(src, dst string) error {
 
 var _ pkg.Networker = (*networker)(nil)
 
-func validateNetwork(n *pkg.NetResource) error {
-	// if n.NetID == "" {
-	// 	return fmt.Errorf("network ID cannot be empty")
-	// }
-
-	// if n.Name == "" {
-	// 	return fmt.Errorf("network name cannot be empty")
-	// }
-
-	// if n.IPRange.Nil() {
-	// 	return fmt.Errorf("network IP range cannot be empty")
-	// }
-
-	// if len(n.NetResources) < 1 {
-	// 	return fmt.Errorf("network needs at least one network resource")
-	// }
-
-	// for _, nr := range n.NetResources {
-	// 	if err := validateNR(nr); err != nil {
-	// 		return err
-	// 	}
-	// }
-
-	return nil
-}
-func validateNR(nr pkg.NetResource) error {
-
-	if nr.NodeID == "" {
-		return fmt.Errorf("network resource node ID cannot empty")
-	}
-	if nr.Subnet.IP == nil {
-		return fmt.Errorf("network resource subnet cannot empty")
-	}
-
-	if nr.WGPrivateKey == "" {
-		return fmt.Errorf("network resource wireguard private key cannot empty")
-	}
-
-	if nr.WGPublicKey == "" {
-		return fmt.Errorf("network resource wireguard public key cannot empty")
-	}
-
-	if nr.WGListenPort == 0 {
-		return fmt.Errorf("network resource wireguard listen port cannot empty")
-	}
-
-	for _, peer := range nr.Peers {
-		if err := validatePeer(peer); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validatePeer(p pkg.Peer) error {
-	if p.WGPublicKey == "" {
-		return fmt.Errorf("peer wireguard public key cannot empty")
-	}
-
-	if p.Subnet.Nil() {
-		return fmt.Errorf("peer wireguard subnet cannot empty")
-	}
-
-	if len(p.AllowedIPs) <= 0 {
-		return fmt.Errorf("peer wireguard allowedIPs cannot empty")
-	}
-	return nil
-}
-
 func (n *networker) Ready() error {
 	return nil
 }
@@ -245,12 +175,6 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, addrs []strin
 	if err != nil {
 		return join, errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
 	}
-
-	// nodeID := n.identity.NodeID().Identity()
-	// localNR, err := resourceByNodeID(nodeID, network)
-	// if err != nil {
-	// 	return join, err
-	// }
 
 	netRes, err := nr.New(localNR)
 	if err != nil {
@@ -291,12 +215,6 @@ func (n *networker) Leave(networkdID pkg.NetID, containerID string) error {
 	if err != nil {
 		return errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
 	}
-
-	// nodeID := n.identity.NodeID().Identity()
-	// localNR, err := resourceByNodeID(nodeID, network.NetResources)
-	// if err != nil {
-	// 	return err
-	// }
 
 	netRes, err := nr.New(localNR)
 	if err != nil {
@@ -384,12 +302,6 @@ func (n *networker) SetupTap(networkID pkg.NetID) (string, error) {
 		return "", errors.Wrapf(err, "couldn't load network with id (%s)", networkID)
 	}
 
-	// nodeID := n.identity.NodeID().Identity()
-	// localNR, err := resourceByNodeID(nodeID, network.NetResources)
-	// if err != nil {
-	// 	return "", err
-	// }
-
 	netRes, err := nr.New(localNR)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to load network resource")
@@ -429,12 +341,6 @@ func (n networker) GetSubnet(networkID pkg.NetID) (net.IPNet, error) {
 		return net.IPNet{}, errors.Wrapf(err, "couldn't load network with id (%s)", networkID)
 	}
 
-	// nodeID := n.identity.NodeID().Identity()
-	// localNR, err := resourceByNodeID(nodeID, network.NetResources)
-	// if err != nil {
-	// 	return net.IPNet{}, err
-	// }
-
 	return localNR.Subnet.IPNet, nil
 }
 
@@ -445,12 +351,6 @@ func (n networker) GetDefaultGwIP(networkID pkg.NetID) (net.IP, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "couldn't load network with id (%s)", networkID)
 	}
-
-	// nodeID := n.identity.NodeID().Identity()
-	// localNR, err := resourceByNodeID(nodeID, network.NetResources)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	// only IP4 atm
 	ip := localNR.Subnet.IP.To4()
@@ -513,20 +413,7 @@ func (n *networker) CreateNR(netNR pkg.NetResource) (string, error) {
 		}
 	}()
 
-	var err error
-	// var nodeID = n.identity.NodeID().Identity()
-
-	// if err := validateNetwork(&nr); err != nil {
-	// 	log.Error().Err(err).Msg("network object format invalid")
-	// 	return "", err
-	// }
-
 	log.Info().Str("network", string(netNR.NetID)).Msg("create network resource")
-
-	// netNR, err := resourceByNodeID(nodeID, network.NetResources)
-	// if err != nil {
-	// 	return "", err
-	// }
 
 	privateKey, err := n.extractPrivateKey(netNR.WGPrivateKey)
 	if err != nil {
@@ -541,10 +428,6 @@ func (n *networker) CreateNR(netNR pkg.NetResource) (string, error) {
 	}
 
 	if err == nil {
-		// storedNR, err := resourceByNodeID(nodeID, storedNet.NetResources)
-		// if err != nil {
-		// 	return "", err
-		// }
 		if err := n.releasePort(storedNR.WGListenPort); err != nil {
 			return "", err
 		}
@@ -624,11 +507,6 @@ func (n *networker) DeleteNR(netNR pkg.NetResource) error {
 			log.Warn().Msg("failed to publish wireguard port to BCDB")
 		}
 	}()
-
-	// netNR, err := resourceByNodeID(n.identity.NodeID().Identity(), network.NetResources)
-	// if err != nil {
-	// 	return err
-	// }
 
 	nr, err := nr.New(netNR)
 	if err != nil {
@@ -895,16 +773,6 @@ func createNetNS(name string) (ns.NetNS, error) {
 	}
 
 	return netNs, nil
-}
-
-// resourceByNodeID return the net resource associated with a nodeID
-func resourceByNodeID(nodeID string, resources []pkg.NetResource) (*pkg.NetResource, error) {
-	for _, resource := range resources {
-		if resource.NodeID == nodeID {
-			return &resource, nil
-		}
-	}
-	return nil, fmt.Errorf("not network resource for this node: %s", nodeID)
 }
 
 // tapName returns the name of the tap device for a network namespace
