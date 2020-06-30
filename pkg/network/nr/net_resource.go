@@ -30,21 +30,18 @@ import (
 type NetResource struct {
 	id pkg.NetID
 	// local network resources
-	resource *pkg.NetResource
-	ipRange  *net.IPNet
+	resource pkg.NetResource
+	ipRange  net.IPNet
 }
 
 // New creates a new NetResource object
 // iprange is the full network subnet
-func New(networkID pkg.NetID, netResource *pkg.NetResource, ipRange *net.IPNet) (*NetResource, error) {
-
-	nr := &NetResource{
-		id:       networkID,
-		resource: netResource,
-		ipRange:  ipRange,
-	}
-
-	return nr, nil
+func New(nr pkg.NetResource) (*NetResource, error) {
+	return &NetResource{
+		id:       nr.NetID,
+		resource: nr,
+		ipRange:  nr.IPRange.IPNet,
+	}, nil
 }
 
 func (nr *NetResource) String() string {
@@ -202,7 +199,7 @@ func (nr *NetResource) ConfigureWG(privateKey string) error {
 
 		route := &netlink.Route{
 			LinkIndex: wg.Attrs().Index,
-			Dst:       nr.ipRange,
+			Dst:       &nr.ipRange,
 		}
 		if err := netlink.RouteAdd(route); err != nil {
 			log.Error().
