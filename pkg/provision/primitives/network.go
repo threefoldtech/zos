@@ -19,19 +19,19 @@ import (
 
 // networkProvision is entry point to provision a network
 func (p *Provisioner) networkProvisionImpl(ctx context.Context, reservation *provision.Reservation) error {
-	network := &pkg.Network{}
-	if err := json.Unmarshal(reservation.Data, network); err != nil {
+	nr := &pkg.NetResource{}
+	if err := json.Unmarshal(reservation.Data, nr); err != nil {
 		return errors.Wrap(err, "failed to unmarshal network from reservation")
 	}
 
-	network.NetID = networkID(reservation.User, network.Name)
+	nr.NetID = networkID(reservation.User, nr.Name)
 
 	mgr := stubs.NewNetworkerStub(p.zbus)
-	log.Debug().Str("network", fmt.Sprintf("%+v", network)).Msg("provision network")
+	log.Debug().Str("network", fmt.Sprintf("%+v", nr)).Msg("provision network")
 
-	_, err := mgr.CreateNR(*network)
+	_, err := mgr.CreateNR(*nr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create network resource for network %s", network.NetID)
+		return errors.Wrapf(err, "failed to create network resource for network %s", nr.NetID)
 	}
 
 	return nil
@@ -44,7 +44,7 @@ func (p *Provisioner) networkProvision(ctx context.Context, reservation *provisi
 func (p *Provisioner) networkDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	mgr := stubs.NewNetworkerStub(p.zbus)
 
-	network := &pkg.Network{}
+	network := &pkg.NetResource{}
 	if err := json.Unmarshal(reservation.Data, network); err != nil {
 		return errors.Wrap(err, "failed to unmarshal network from reservation")
 	}
