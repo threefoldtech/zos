@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"sync"
@@ -281,6 +282,17 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 
 	if err := filesystem.Partprobe(ctx); err != nil {
 		return err
+	}
+
+	// Make sure disks are going to be shutting down after 15 minutes of idle time
+	log.Info().Msgf("Making sure disk are shutting down after 15 minutes of idle time")
+	cmd := exec.Command("hd-idle", "-d", "-i", "900")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Start()
+	if err != nil {
+		log.Error().Err(err).Msg("Error starting hd-idle")
 	}
 
 	return s.ensureCache()
