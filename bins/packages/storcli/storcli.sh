@@ -1,8 +1,6 @@
 STORCLI_VERSION="1.21.06"
 
 dependencies_storcli() {
-    apt-get update
-
     echo "[+] updating soruces list"
     wget -O - http://archive.thomas-krenn.com/tk-archive.gpg.pub | apt-key add -
 

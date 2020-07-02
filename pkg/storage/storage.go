@@ -304,7 +304,7 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 }
 
 func (s *storageModule) shutdownDevice(devicePath string) error {
-	cmd := exec.Command("hd-idle", "-t", devicePath)
+	cmd := exec.Command("hdparm", "-S", "1", devicePath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
