@@ -122,11 +122,14 @@ func (s *storageModule) BrokenDevices() []pkg.BrokenDevice {
 func (s *storageModule) Dump() {
 	log.Debug().Int("volumes", len(s.volumes)).Msg("dumping volumes")
 
-	for i := range s.volumes {
-		devices := s.volumes[i].Devices()
-		for id := range devices {
-			d := devices[id]
-			log.Debug().Str("path", d.Path).Str("label", d.Label).Str("type", string(d.DiskType)).Send()
+	for _, volume := range s.volumes {
+		path, mounted := volume.Mounted()
+		if mounted {
+			log.Debug().Msgf("Volume %s is mounted at: %s", volume.Name(), path)
+		}
+		devices := volume.Devices()
+		for _, device := range devices {
+			log.Debug().Str("path", device.Path).Str("label", device.Label).Str("type", string(device.DiskType)).Send()
 		}
 	}
 
@@ -167,16 +170,22 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 			// in the list of available pools. Since we are in the initialize method,
 			// we can safely assume the pool has not been added before, so no need
 			// to check for duplicate entries.
-			s.volumes = append(s.volumes, volume)
-			continue
+
+			reserved, err := volume.Reserved()
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed to retrieve reserved space on volume %s", volume.Name())
+			}
+			// if the volume is not used we unmount it
+			if reserved == 0 {
+				log.Debug().Msgf("Volume %s is unused, unmounting", volume.Name())
+				if _, mounted := volume.Mounted(); mounted {
+					err = volume.UnMount()
+					if err != nil {
+						log.Error().Err(err).Msgf("Failed to unmount volume %s", volume.Name())
+					}
+				}
+			}
 		}
-		_, err = volume.Mount()
-		if err != nil {
-			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: volume.Name(), Err: err})
-			log.Warn().Msgf("Failed to mount volume %v", volume.Name())
-			continue
-		}
-		log.Debug().Msgf("Mounted volume %s", volume.Name())
 		s.volumes = append(s.volumes, volume)
 	}
 
@@ -267,39 +276,47 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		}
 	}
 
-	// make sure new pools are mounted
-	log.Info().Msgf("Making sure new volumes are mounted")
+	// make sure new pools are added to the list
 	for idx := range newPools {
-		if _, mounted := newPools[idx].Mounted(); !mounted {
-			log.Debug().Msgf("Mounting volume %s", newPools[idx].Name())
-			if _, err = newPools[idx].Mount(); err != nil {
-				s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: newPools[idx].Name(), Err: err})
-				continue
-			}
-			s.volumes = append(s.volumes, newPools[idx])
-		}
+		s.volumes = append(s.volumes, newPools[idx])
 	}
 
 	if err := filesystem.Partprobe(ctx); err != nil {
 		return err
 	}
 
-	// Make sure disks are going to be shutting down after 15 minutes of idle time
-	log.Info().Msgf("Making sure disk are shutting down after 15 minutes of idle time")
-	cmd := exec.Command("hd-idle", "-d", "-i", "900")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Start()
-	if err != nil {
-		log.Error().Err(err).Msg("Error starting hd-idle")
+	// Shutdown every unmounted volume
+	log.Info().Msgf("Shutting down usused disks..")
+	for _, volume := range s.volumes {
+		if _, mounted := volume.Mounted(); !mounted {
+			for _, device := range volume.Devices() {
+				log.Info().Msgf("Shutting down disk %s ...", device.Path)
+				err := s.shutdownDevice(device.Path)
+				if err != nil {
+					log.Error().Err(err).Msgf("Error shutting down device %s", device.Path)
+				}
+				log.Info().Msgf("Disk %s is shutdown", device.Path)
+			}
+		}
 	}
 
 	return s.ensureCache()
 }
 
+func (s *storageModule) shutdownDevice(devicePath string) error {
+	cmd := exec.Command("hd-idle", "-t", devicePath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Start()
+}
+
 func (s *storageModule) Maintenance() error {
 	for _, pool := range s.volumes {
+		// no need to run maintenance on unmounted pools
+		if _, mounted := pool.Mounted(); !mounted {
+			continue
+		}
 		log.Info().
 			Str("pool", pool.Name()).
 			Msg("start storage pool maintained")
@@ -337,17 +354,39 @@ func (s *storageModule) CreateFilesystem(name string, size uint64, poolType pkg.
 func (s *storageModule) ReleaseFilesystem(name string) error {
 	log.Info().Msgf("Deleting volume %v", name)
 
-	for idx := range s.volumes {
-		filesystems, err := s.volumes[idx].Volumes()
+	for _, volume := range s.volumes {
+		filesystems, err := volume.Volumes()
 		if err != nil {
 			return err
 		}
-		for jdx := range filesystems {
-			if filesystems[jdx].Name() == name {
-				log.Debug().Msgf("Removing filesystem %v in volume %v", filesystems[jdx].Name(), s.volumes[idx].Name())
-				return s.volumes[idx].RemoveVolume(filesystems[jdx].Name())
+		for _, fs := range filesystems {
+			if fs.Name() == name {
+				log.Debug().Msgf("Removing filesystem %v in volume %v", fs.Name(), volume.Name())
+				return volume.RemoveVolume(fs.Name())
 			}
 		}
+
+		// After releasing a filesystem by name, there is a chance there is going to be
+		// no reserved space on a volume, in this case we want to shutdown the disk in order to save power
+		reserved, err := volume.Reserved()
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed to retrieve reserved space on volume %s", volume.Name())
+		}
+		if reserved == 0 {
+			err = volume.UnMount()
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed to unmount volume %s", volume.Name())
+				return err
+			}
+			for _, device := range volume.Devices() {
+				err := s.shutdownDevice(device.Path)
+				if err != nil {
+					log.Error().Err(err).Msgf("Failed to shutdown device %s", device.Path)
+					return err
+				}
+			}
+		}
+
 	}
 
 	log.Warn().Msgf("Could not find filesystem %v", name)
@@ -470,6 +509,14 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 		// ignore pools which don't have the right device type
 		if pool.Type() != poolType {
 			continue
+		}
+
+		// if the pool is not mounted, mount it first
+		if _, mounted := pool.Mounted(); !mounted {
+			_, err = pool.Mount()
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to mount pool %s", pool.Name())
+			}
 		}
 
 		usage, err := pool.Usage()
