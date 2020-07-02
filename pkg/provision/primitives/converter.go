@@ -3,6 +3,7 @@ package primitives
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"strings"
 
@@ -235,20 +236,18 @@ func WireguardToProvisionType(p workloads.WireguardPeer) (pkg.Peer, error) {
 	return peer, nil
 }
 
-// WorkloadToProvisionType TfgridReservationWorkload1 to provision.Reservation
+// WorkloadToProvisionType converts from the explorer type to the internal provision.Reservation
 func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, error) {
-	reservation := &provision.Reservation{
-		ID:      fmt.Sprintf("%d", w.WorkloadID()),
-		User:    fmt.Sprintf("%d", w.GetCustomerTid()),
-		Type:    provision.ReservationType(w.GetWorkloadType().String()),
-		Created: w.GetEpoch().Time,
-		// Duration:  time.Duration(w.Duration) * time.Second,
-		// Signature: []byte(w.GetCustomerSignature()),
-		// Data:      w.Content,
-		// ToDelete: w.ToDelete, // TODO: add this method to the workloader interface
-	}
 
-	reservationID := strings.Split(w.GetWorkloadType().String(), "-")[0]
+	reservation := &provision.Reservation{
+		ID:        fmt.Sprintf("%d-%d", w.GetID(), w.WorkloadID()),
+		User:      fmt.Sprintf("%d", w.GetCustomerTid()),
+		Type:      provision.ReservationType(w.GetWorkloadType().String()),
+		Created:   w.GetEpoch().Time,
+		Duration:  math.MaxInt64, //ensure we never decomission based on expiration time. Since the capacity pool introduction this is not needed anymore
+		Signature: []byte(w.GetCustomerSignature()),
+		// ToDelete: w.ToDelete, // TODO: fix this once the farmer can actually delete reservation when a pool has expired
+	}
 
 	var (
 		data interface{}
@@ -272,7 +271,7 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 			return nil, err
 		}
 	case workloads.WorkloadTypeContainer:
-		data, reservation.NodeID, err = ContainerToProvisionType(w, reservationID)
+		data, reservation.NodeID, err = ContainerToProvisionType(w, reservation.ID)
 		if err != nil {
 			return nil, err
 		}

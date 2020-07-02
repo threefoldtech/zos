@@ -1,10 +1,12 @@
 package provision
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/threefoldtech/zos/pkg"
@@ -136,9 +138,31 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		return fmt.Errorf("type of reservation not supported: %s", r.Type)
 	}
 
-	_, err := e.cache.Get(r.ID)
+	provisioned, err := e.cache.Get(r.ID)
 	if err == nil {
 		log.Info().Str("id", r.ID).Msg("reservation already deployed")
+
+		// we have received a reservation that reference another one.
+		// This is the sign user is trying to migrate his workloads to the new capacity pool system
+		if provisioned.ID == r.Reference {
+
+			// first let make sure both are the same
+			if !bytes.Equal(provisioned.Data, r.Data) { //TODO: handle network
+				return fmt.Errorf("trying to upgrade workloads to new version. new workload content is different from the old one. upgrade refused")
+			}
+
+			// make the reservation expires never
+			provisioned.Duration = math.MaxInt64
+			// and update the cache so it is never picked by the decomission routine
+			if err := e.cache.Remove(provisioned.ID); err != nil {
+				return err
+			}
+			if err := e.cache.Add(provisioned); err != nil {
+				return err
+			}
+			log.Info().Str("id", r.ID).Msg("reservation upgraded to new system")
+		}
+
 		return nil
 	}
 
