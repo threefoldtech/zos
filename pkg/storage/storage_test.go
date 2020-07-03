@@ -160,7 +160,7 @@ func TestCreateSubvol(t *testing.T) {
 	}
 
 	mod := storageModule{
-		volumes: []filesystem.Pool{
+		pools: []filesystem.Pool{
 			pool1, pool2, pool3,
 		},
 	}
@@ -213,7 +213,7 @@ func TestCreateSubvolUnlimited(t *testing.T) {
 	}
 
 	mod := storageModule{
-		volumes: []filesystem.Pool{
+		pools: []filesystem.Pool{
 			pool1, pool2, pool3,
 		},
 	}
@@ -266,7 +266,7 @@ func TestCreateSubvolNoSpaceLeft(t *testing.T) {
 	}
 
 	mod := storageModule{
-		volumes: []filesystem.Pool{
+		pools: []filesystem.Pool{
 			pool1, pool2, pool3,
 		},
 	}

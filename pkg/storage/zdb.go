@@ -16,7 +16,7 @@ import (
 )
 
 func (s *storageModule) Find(nsID string) (allocation pkg.Allocation, err error) {
-	for _, pool := range s.volumes {
+	for _, pool := range s.pools {
 		volumes, err := pool.Volumes()
 		if err != nil {
 			return allocation, errors.Wrapf(err, "failed to list volume on pool %s", pool.Name())
@@ -63,7 +63,7 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 
 	log.Info().Msg("try to allocation space for 0-DB")
 
-	for _, pool := range s.volumes {
+	for _, pool := range s.pools {
 
 		// skip pool with wrong disk type
 		if pool.Type() != diskType {
@@ -112,7 +112,7 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 	// okay, so this is a new allocation
 	// we search all the pools for a zdb subvolume that can
 	// hold the new namespace
-	for _, pool := range s.volumes {
+	for _, pool := range s.pools {
 		// skip pool with wrong disk type
 		if pool.Type() != diskType {
 			continue
