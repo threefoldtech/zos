@@ -246,6 +246,7 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 		Created:   w.GetEpoch().Time,
 		Duration:  math.MaxInt64, //ensure we never decomission based on expiration time. Since the capacity pool introduction this is not needed anymore
 		Signature: []byte(w.GetCustomerSignature()),
+		ToDelete:  w.GetNextAction() == workloads.NextActionDelete,
 		// ToDelete: w.ToDelete, // TODO: fix this once the farmer can actually delete reservation when a pool has expired
 	}
 
