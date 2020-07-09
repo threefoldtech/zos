@@ -184,7 +184,7 @@ func (nr *NetResource) ConfigureWG(privateKey string) error {
 		for addr := range toAdd.Iter() {
 			addr, _ := addr.(string)
 			log.Debug().Str("ip", addr).Msg("set ip on wireguard interface")
-			if err := wg.SetAddr(addr); err != nil {
+			if err := wg.SetAddr(addr); err != nil && !os.IsExist(err) {
 				return errors.Wrapf(err, "failed to set address %s on wireguard interface %s", addr, wg.Attrs().Name)
 			}
 		}
@@ -192,7 +192,7 @@ func (nr *NetResource) ConfigureWG(privateKey string) error {
 		for addr := range toRemove.Iter() {
 			addr, _ := addr.(string)
 			log.Debug().Str("ip", addr).Msg("unset ip on wireguard interface")
-			if err := wg.UnsetAddr(addr); err != nil {
+			if err := wg.UnsetAddr(addr); err != nil && !os.IsNotExist(err) {
 				return errors.Wrapf(err, "failed to unset address %s on wireguard interface %s", addr, wg.Attrs().Name)
 			}
 		}
@@ -201,7 +201,7 @@ func (nr *NetResource) ConfigureWG(privateKey string) error {
 			LinkIndex: wg.Attrs().Index,
 			Dst:       &nr.ipRange,
 		}
-		if err := netlink.RouteAdd(route); err != nil {
+		if err := netlink.RouteAdd(route); err != nil && !os.IsExist(err) {
 			log.Error().
 				Err(err).
 				Str("route", route.String()).
