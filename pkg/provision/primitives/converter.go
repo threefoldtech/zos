@@ -304,7 +304,7 @@ func ResultToSchemaType(r provision.Result) (*workloads.Result, error) {
 		rType = workloads.WorkloadTypeContainer
 	case ZDBReservation:
 		rType = workloads.WorkloadTypeZDB
-	case NetworkReservation:
+	case NetworkReservation, NetworkResourceReservation:
 		rType = workloads.WorkloadTypeNetwork
 	case KubernetesReservation:
 		rType = workloads.WorkloadTypeKubernetes
