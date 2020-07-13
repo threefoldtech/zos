@@ -517,6 +517,11 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 		return nil, pkg.ErrNotEnoughSpace{DeviceType: poolType}
 	}
 
+	sort.Slice(candidates, func(i, j int) bool {
+		// reverse sorting so most available is at beginning
+		return candidates[i].Available > candidates[j].Available
+	})
+
 	var volume filesystem.Volume
 	for _, candidate := range candidates {
 		volume, err = candidate.Pool.AddVolume(name)

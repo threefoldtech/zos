@@ -178,6 +178,10 @@ func TestCreateSubvol(t *testing.T) {
 	pool2.On("AddVolume", "sub").Return(sub, nil)
 	sub.On("Limit", uint64(500)).Return(nil)
 
+	pool1.On("Volumes").Return([]filesystem.Volume{}, nil)
+	pool2.On("Volumes").Return([]filesystem.Volume{}, nil)
+	pool3.On("Volumes").Return([]filesystem.Volume{}, nil)
+
 	_, err := mod.createSubvol(500, "sub", pkg.SSDDevice)
 
 	require.NoError(err)
@@ -230,6 +234,10 @@ func TestCreateSubvolUnlimited(t *testing.T) {
 
 	pool2.On("AddVolume", "sub").Return(sub, nil)
 	sub.On("Limit", uint64(0)).Return(nil)
+
+	pool1.On("Volumes").Return([]filesystem.Volume{}, nil)
+	pool2.On("Volumes").Return([]filesystem.Volume{}, nil)
+	pool3.On("Volumes").Return([]filesystem.Volume{}, nil)
 
 	_, err := mod.createSubvol(0, "sub", pkg.SSDDevice)
 
