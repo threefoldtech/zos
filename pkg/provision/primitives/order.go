@@ -9,6 +9,8 @@ const (
 	VolumeReservation provision.ReservationType = "volume"
 	// NetworkReservation type
 	NetworkReservation provision.ReservationType = "network"
+	// NetworkResourceReservation type
+	NetworkResourceReservation provision.ReservationType = "network_resource"
 	// ZDBReservation type
 	ZDBReservation provision.ReservationType = "zdb"
 	// DebugReservation type
@@ -20,10 +22,11 @@ const (
 // ProvisionOrder is used to sort the workload type
 // in the right order for provision engine
 var ProvisionOrder = map[provision.ReservationType]int{
-	DebugReservation:      0,
-	NetworkReservation:    1,
-	ZDBReservation:        2,
-	VolumeReservation:     3,
-	ContainerReservation:  4,
-	KubernetesReservation: 5,
+	DebugReservation:           0,
+	NetworkReservation:         1,
+	NetworkResourceReservation: 2,
+	ZDBReservation:             3,
+	VolumeReservation:          4,
+	ContainerReservation:       5,
+	KubernetesReservation:      6,
 }
