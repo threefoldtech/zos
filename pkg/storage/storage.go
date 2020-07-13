@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"sync"
@@ -284,37 +283,36 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		return err
 	}
 
-	err = s.shutdownUnusedPools()
-	if err != nil {
+	if err := s.shutdownUnusedPools(); err != nil {
+		log.Error().Err(err).Msg("Error shutting down unused pools")
 		return err
 	}
 
 	return s.ensureCache()
 }
 
-func (s *storageModule) shutdownDevice(devicePath string) error {
-	cmd := exec.Command("hdparm", "-y", devicePath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Start()
-}
-
 func (s *storageModule) shutdownUnusedPools() error {
-	// Shutdown every unmounted pool
-	log.Info().Msgf("Shutting down usused disks..")
 	for _, pool := range s.pools {
-		if _, mounted := pool.Mounted(); !mounted {
-			for _, device := range pool.Devices() {
-				log.Info().Msgf("Shutting down disk %s ...", device.Path)
-				err := s.shutdownDevice(device.Path)
+		volumes, err := pool.Volumes()
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed to retrieve subvolumes on pool %s", pool.Name())
+		}
+		log.Debug().Msgf("Pool %s has: %d subvolumes", pool.Name(), len(volumes))
+
+		if len(volumes) == 0 {
+			if _, mounted := pool.Mounted(); !mounted {
+				err = pool.UnMount()
 				if err != nil {
-					log.Error().Err(err).Msgf("Error shutting down device %s", device.Path)
+					log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
 					return err
 				}
-				log.Info().Msgf("Disk %s is shutdown", device.Path)
+			}
+			if err := pool.Shutdown(); err != nil {
+				log.Error().Err(err).Msgf("Error shutting down pool %s", pool.Name())
+				return err
 			}
 		}
+
 	}
 	return nil
 }
@@ -383,25 +381,9 @@ func (s *storageModule) ReleaseFilesystem(name string) error {
 
 		// After releasing a filesystem by name, there is a chance there is going to be
 		// no reserved space on a volume, in this case we want to shutdown the disk in order to save power
-		volumes, err := pool.Volumes()
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed to retrieve subvolumes on pool %s", pool.Name())
-		}
-		log.Debug().Msgf("Pool %s is has: %d subvolumes", pool.Name(), len(volumes))
-
-		if len(volumes) == 0 {
-			err = pool.UnMount()
-			if err != nil {
-				log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
-				return err
-			}
-			for _, device := range pool.Devices() {
-				err := s.shutdownDevice(device.Path)
-				if err != nil {
-					log.Error().Err(err).Msgf("Failed to shutdown device %s", device.Path)
-					return err
-				}
-			}
+		if err := s.shutdownUnusedPools(); err != nil {
+			log.Error().Err(err).Msg("Error shutting down unused pools")
+			return err
 		}
 	}
 
@@ -528,9 +510,8 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 		if err != nil {
 			log.Error().Err(err).Msgf("failed to search conditation on unmounted pools")
 		}
+		log.Debug().Msgf("Found %d candidates in unmounted pools", len(candidates))
 	}
-
-	log.Debug().Msgf("Found %d candidates in unmounted pools", len(candidates))
 
 	if len(candidates) == 0 {
 		return nil, pkg.ErrNotEnoughSpace{DeviceType: poolType}
@@ -550,9 +531,9 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 		}
 
 		// shutdown unused pools when a volume is successfully added
-		err = s.shutdownUnusedPools()
-		if err != nil {
-			return nil, err
+		if err := s.shutdownUnusedPools(); err != nil {
+			log.Error().Err(err).Msg("Error shutting down unused pools")
+			continue
 		}
 
 		return volume, nil

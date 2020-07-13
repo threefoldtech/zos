@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -454,6 +455,23 @@ func (p *btrfsPool) Maintenance() error {
 		}
 	}
 
+	return nil
+}
+
+func (p *btrfsPool) Shutdown() error {
+	for _, device := range p.Devices() {
+		log.Info().Msgf("Shutting down disk %s ...", device.Path)
+		cmd := exec.Command("hdparm", "-y", device.Path)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		err := cmd.Start()
+		if err != nil {
+			log.Error().Err(err).Msgf("Error shutting down device %s", device.Path)
+			return err
+		}
+		log.Info().Msgf("Disk %s is shutdown", device.Path)
+	}
 	return nil
 }
 

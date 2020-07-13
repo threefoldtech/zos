@@ -126,6 +126,10 @@ func (p *testPool) Devices() []*filesystem.Device {
 	return []*filesystem.Device{}
 }
 
+func (p *testPool) Shutdown() error {
+	return nil
+}
+
 func TestCreateSubvol(t *testing.T) {
 	require := require.New(t)
 

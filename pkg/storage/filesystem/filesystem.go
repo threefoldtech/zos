@@ -62,6 +62,9 @@ type Pool interface {
 	RemoveVolume(name string) error
 	// Devices list attached devices
 	Devices() []*Device
+
+	// Shutdown spins down the device where the pool is mounted
+	Shutdown() error
 }
 
 // Filter closure for Filesystem list
