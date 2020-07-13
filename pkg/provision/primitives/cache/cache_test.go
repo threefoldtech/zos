@@ -38,7 +38,6 @@ func TestLocalStore(t *testing.T) {
 					ID:       "r-1",
 					Created:  time.Now().UTC().Add(-time.Minute).Round(time.Second),
 					Duration: time.Second * 10,
-					// Tag:      Tag{"source": "FSStore"},
 				},
 			},
 		},
@@ -59,7 +58,9 @@ func TestLocalStore(t *testing.T) {
 
 			actual, err := s.Get(tt.args.r.ID)
 			require.NoError(t, err)
-			assert.EqualValues(t, tt.args.r, actual)
+			assert.Equal(t, tt.args.r.Duration, actual.Duration)
+			assert.Equal(t, tt.args.r.Created, actual.Created)
+			assert.Equal(t, tt.args.r.ID, actual.ID)
 
 			_, err = s.Get("foo")
 			require.Error(t, err)
@@ -67,7 +68,9 @@ func TestLocalStore(t *testing.T) {
 			expired, err := s.GetExpired()
 			require.NoError(t, err)
 			assert.Equal(t, len(expired), 1)
-			assert.Equal(t, tt.args.r, expired[0])
+			assert.Equal(t, tt.args.r.Duration, expired[0].Duration)
+			assert.Equal(t, tt.args.r.Created, expired[0].Created)
+			assert.Equal(t, tt.args.r.ID, expired[0].ID)
 
 			err = s.Remove(actual.ID)
 			assert.NoError(t, err)

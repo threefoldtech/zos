@@ -21,7 +21,8 @@ type clientMock struct {
 func (c *clientMock) Create(reservation workloads.Workloader) (resp wrklds.ReservationCreateResponse, err error) {
 	return
 }
-func (c *clientMock) List(nextAction *workloads.NextActionEnum, customerTid int64, page *client.Pager) (reservation []workloads.Workloader, err error) {
+
+func (c *clientMock) List(nextAction *workloads.NextActionEnum, customerTid int64, page *client.Pager) (reservation []workloads.Reservation, err error) {
 	return
 }
 func (c *clientMock) Get(id schema.ID) (reservation workloads.Workloader, err error) {

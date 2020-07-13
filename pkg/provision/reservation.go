@@ -47,7 +47,7 @@ type Reservation struct {
 	// so the provision engine know both are linked
 	Reference string `json:"reference"`
 
-	Result Result
+	Result Result `json:"result"`
 }
 
 // AppendTag appends tags
