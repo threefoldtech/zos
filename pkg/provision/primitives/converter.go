@@ -249,6 +249,7 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 		ToDelete:  w.GetNextAction() == workloads.NextActionDelete,
 		Reference: w.GetReference(),
 		// ToDelete: w.ToDelete, // TODO: fix this once the farmer can actually delete reservation when a pool has expired
+		Result: resultFromSchemaType(w.GetResult()),
 	}
 
 	var (
@@ -324,4 +325,19 @@ func ResultToSchemaType(r provision.Result) (*workloads.Result, error) {
 	}
 
 	return &result, nil
+}
+
+func resultFromSchemaType(r workloads.Result) provision.Result {
+
+	result := provision.Result{
+		Type:      provision.ReservationType(r.Category.String()),
+		Created:   r.Epoch.Time,
+		Data:      r.DataJson,
+		Error:     r.Message,
+		ID:        r.WorkloadId,
+		State:     provision.ResultState(r.State),
+		Signature: r.Signature,
+	}
+
+	return result
 }
