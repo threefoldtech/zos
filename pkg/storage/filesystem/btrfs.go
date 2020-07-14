@@ -465,7 +465,7 @@ func (p *btrfsPool) Shutdown() error {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
-		err := cmd.Start()
+		err := cmd.Run()
 		if err != nil {
 			log.Error().Err(err).Msgf("Error shutting down device %s", device.Path)
 			return err

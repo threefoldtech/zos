@@ -121,12 +121,12 @@ func (s *storageModule) BrokenDevices() []pkg.BrokenDevice {
 func (s *storageModule) Dump() {
 	log.Debug().Int("volumes", len(s.pools)).Msg("dumping volumes")
 
-	for _, volume := range s.pools {
-		path, mounted := volume.Mounted()
+	for _, pool := range s.pools {
+		path, mounted := pool.Mounted()
 		if mounted {
-			log.Debug().Msgf("Volume %s is mounted at: %s", volume.Name(), path)
+			log.Debug().Msgf("pool %s is mounted at: %s", pool.Name(), path)
 		}
-		devices := volume.Devices()
+		devices := pool.Devices()
 		for _, device := range devices {
 			log.Debug().Str("path", device.Path).Str("label", device.Label).Str("type", string(device.DiskType)).Send()
 		}
@@ -177,11 +177,13 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 
 			log.Debug().Msgf("Pool %s has: %d subpools", pool.Name(), len(volumes))
 
-			if len(volumes) == 0 {
-				err = pool.UnMount()
-				if err != nil {
-					log.Error().Err(err).Msgf("Failed to unmount pool %s", pool.Name())
-				}
+			if len(volumes) > 0 {
+				continue
+			}
+
+			err = pool.UnMount()
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed to unmount pool %s", pool.Name())
 			}
 		}
 		s.pools = append(s.pools, pool)
@@ -299,18 +301,20 @@ func (s *storageModule) shutdownUnusedPools() error {
 		}
 		log.Debug().Msgf("Pool %s has: %d subvolumes", pool.Name(), len(volumes))
 
-		if len(volumes) == 0 {
-			if _, mounted := pool.Mounted(); !mounted {
-				err = pool.UnMount()
-				if err != nil {
-					log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
-					return err
-				}
-			}
-			if err := pool.Shutdown(); err != nil {
-				log.Error().Err(err).Msgf("Error shutting down pool %s", pool.Name())
+		if len(volumes) > 0 {
+			continue
+		}
+
+		if _, mounted := pool.Mounted(); !mounted {
+			err = pool.UnMount()
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
 				return err
 			}
+		}
+		if err := pool.Shutdown(); err != nil {
+			log.Error().Err(err).Msgf("Error shutting down pool %s", pool.Name())
+			return err
 		}
 
 	}
