@@ -83,7 +83,7 @@ func validateNR(nr pkg.NetResource) error {
 		return fmt.Errorf("network name cannot be empty")
 	}
 
-	if nr.IPRange.Nil() {
+	if nr.NetworkIPRange.Nil() {
 		return fmt.Errorf("network IP range cannot be empty")
 	}
 

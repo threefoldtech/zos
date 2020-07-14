@@ -198,9 +198,9 @@ func NetworkResourceToProvisionType(w workloads.Workloader) (pkg.NetResource, er
 	}
 
 	nr := pkg.NetResource{
-		Name:    n.Name,
-		NetID:   pkg.NetID(n.Name),
-		IPRange: types.NewIPNetFromSchema(n.Iprange), //Fix me
+		Name:           n.Name,
+		NetID:          pkg.NetID(n.Name),
+		NetworkIPRange: types.NewIPNetFromSchema(n.NetworkIprange),
 
 		NodeID:       n.GetNodeID(),
 		Subnet:       types.NewIPNetFromSchema(n.Iprange),
