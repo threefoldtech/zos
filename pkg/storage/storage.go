@@ -305,7 +305,7 @@ func (s *storageModule) shutdownUnusedPools() error {
 			continue
 		}
 
-		if _, mounted := pool.Mounted(); !mounted {
+		if _, mounted := pool.Mounted(); mounted {
 			err = pool.UnMount()
 			if err != nil {
 				log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
@@ -563,9 +563,6 @@ func (s *storageModule) checkForCandidates(size uint64, poolType pkg.DeviceType,
 		if mounted != poolIsMounted {
 			continue
 		}
-		log.Debug().Msgf("pool is mounted: %v", poolIsMounted)
-		log.Debug().Msgf("are we looking for mounted pools: %v", mounted)
-
 		log.Debug().Msgf("checking pool %s for space", pool.Name())
 
 		// ignore pools which don't have the right device type
