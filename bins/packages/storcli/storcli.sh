@@ -1,12 +1,13 @@
 STORCLI_VERSION="1.21.06"
 
 dependencies_storcli() {
+    apt-get install gnupg
     echo "[+] updating soruces list"
     wget -O - http://archive.thomas-krenn.com/tk-archive.gpg.pub | apt-key add -
 
     wget -O /etc/apt/sources.list.d/tk-main-xenial.list http://archive.thomas-krenn.com/tk-main-xenial.list
     wget -O /etc/apt/sources.list.d/tk-optional-xenial.list http://archive.thomas-krenn.com/tk-optional-xenial.list
-    cd
+
     apt-get update
 
     echo "[+] installing storcli"
