@@ -280,7 +280,8 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 			return nil, err
 		}
 	case workloads.WorkloadTypeContainer:
-		data, reservation.NodeID, err = ContainerToProvisionType(w, reservation.ID)
+		reservationID := strings.Split(reservation.ID, "-")[0]
+		data, reservation.NodeID, err = ContainerToProvisionType(w, reservationID)
 		if err != nil {
 			return nil, err
 		}
