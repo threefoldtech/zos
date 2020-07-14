@@ -83,6 +83,10 @@ func (p *testPool) Mount() (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
 
+func (p *testPool) MountWithoutScan() (string, error) {
+	return "", fmt.Errorf("not implemented")
+}
+
 func (p *testPool) UnMount() error {
 	return fmt.Errorf("not implemented")
 }

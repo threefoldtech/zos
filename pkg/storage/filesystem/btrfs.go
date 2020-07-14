@@ -94,7 +94,7 @@ func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile,
 		dev.Filesystem = BtrfsFSType
 	}
 
-	return newBtrfsPool(name, devices, &b.utils), nil
+	return newBtrfsPool(name, devices, &b.utils, nil), nil
 }
 
 func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
@@ -118,7 +118,7 @@ func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
 			return nil, err
 		}
 
-		pool := newBtrfsPool(fs.Label, devices, &b.utils)
+		pool := newBtrfsPool(fs.Label, devices, &b.utils, &fs)
 
 		if !filter(pool) {
 			continue
@@ -139,13 +139,15 @@ type btrfsPool struct {
 	name    string
 	devices []*Device
 	utils   *BtrfsUtil
+	btrfs   *Btrfs
 }
 
-func newBtrfsPool(name string, devices []*Device, utils *BtrfsUtil) *btrfsPool {
+func newBtrfsPool(name string, devices []*Device, utils *BtrfsUtil, btrfs *Btrfs) *btrfsPool {
 	return &btrfsPool{
 		name:    name,
 		devices: devices,
 		utils:   utils,
+		btrfs:   btrfs,
 	}
 }
 
@@ -215,6 +217,25 @@ func (p *btrfsPool) Mount() (string, error) {
 	}
 
 	if err := syscall.Mount(fs.Devices[0].Path, mnt, "btrfs", 0, ""); err != nil {
+		return "", err
+	}
+
+	return mnt, p.utils.QGroupEnable(ctx, mnt)
+}
+
+// Mount mounts the pool in it's default mount location under /mnt/name
+func (p *btrfsPool) MountWithoutScan() (string, error) {
+	ctx := context.Background()
+	if mnt, mounted := p.mounted(p.btrfs); mounted {
+		return mnt, nil
+	}
+
+	mnt := p.Path()
+	if err := os.MkdirAll(mnt, 0755); err != nil {
+		return "", err
+	}
+
+	if err := syscall.Mount(p.btrfs.Devices[0].Path, mnt, "btrfs", 0, ""); err != nil {
 		return "", err
 	}
 

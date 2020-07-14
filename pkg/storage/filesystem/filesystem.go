@@ -37,6 +37,8 @@ type Pool interface {
 	Mounted() (string, bool)
 	// Mount the pool, the mountpoint is returned
 	Mount() (string, error)
+	// Mount the pool, the mountpoint is returned
+	MountWithoutScan() (string, error)
 	// UnMount the pool
 	UnMount() error
 	//AddDevice to the pool

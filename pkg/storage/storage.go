@@ -287,7 +287,6 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 
 	if err := s.shutdownUnusedPools(); err != nil {
 		log.Error().Err(err).Msg("Error shutting down unused pools")
-		return err
 	}
 
 	return s.ensureCache()
@@ -537,12 +536,6 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 			continue
 		}
 
-		// shutdown unused pools when a volume is successfully added
-		if err := s.shutdownUnusedPools(); err != nil {
-			log.Error().Err(err).Msg("Error shutting down unused pools")
-			continue
-		}
-
 		return volume, nil
 	}
 
@@ -571,7 +564,7 @@ func (s *storageModule) checkForCandidates(size uint64, poolType pkg.DeviceType,
 		if !poolIsMounted && !mounted {
 			log.Debug().Msgf("Mounting pool %s...", pool.Name())
 			// if the pool is not mounted, and we are looking for not mounted pools, mount it first
-			_, err := pool.Mount()
+			_, err := pool.MountWithoutScan()
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to mount pool %s", pool.Name())
 			}

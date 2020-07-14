@@ -64,6 +64,9 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 	log.Info().Msg("try to allocation space for 0-DB")
 
 	for _, pool := range s.pools {
+		if _, mounted := pool.Mounted(); !mounted {
+			continue
+		}
 
 		// skip pool with wrong disk type
 		if pool.Type() != diskType {
@@ -108,63 +111,20 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 		targetMode = zdbpool.IndexModeSequential
 	}
 
-	var candidates []Candidate
-	// okay, so this is a new allocation
-	// we search all the pools for a zdb subvolume that can
-	// hold the new namespace
-	for _, pool := range s.pools {
-		// skip pool with wrong disk type
-		if pool.Type() != diskType {
-			continue
-		}
+	// check for candidates in mounted pools first
+	candidates, err := s.checkForZDBCandidates(size, diskType, true, targetMode)
+	if err != nil {
+		log.Error().Err(err).Msgf("failed to search on mounted pools")
+	}
 
-		usage, err := pool.Usage()
+	// If no candidates or found in mounted pools, we check the unmounted pools and get the first one that fits
+	if len(candidates) == 0 {
+		log.Debug().Msg("Checking unmounted pools")
+		candidates, err = s.checkForZDBCandidates(size, diskType, false, targetMode)
 		if err != nil {
-			return allocation, errors.Wrapf(err, "failed to read usage of pool %s", pool.Name())
+			log.Error().Err(err).Msgf("failed to search on unmounted pools")
 		}
-
-		volumes, err := pool.Volumes()
-		if err != nil {
-			return allocation, errors.Wrapf(err, "failed to list volume on pool %s", pool.Name())
-		}
-
-		for _, volume := range volumes {
-			// skip all non-zdb volume
-			if !filesystem.IsZDBVolume(volume) {
-				continue
-			}
-
-			volumeUsage, err := volume.Usage()
-			if err != nil {
-				return allocation, errors.Wrapf(err, "failed to list namespaces from volume '%s'", volume.Path())
-			}
-
-			if volumeUsage.Size+size > usage.Size {
-				// not enough space on this volume
-				continue
-			}
-
-			zdb := zdbpool.New(volume.Path())
-
-			// check if the mode is the same
-			indexMode, err := zdb.IndexMode("default")
-			if err != nil {
-				log.Err(err).Str("namespace", "default").Msg("failed to read index mode")
-				continue
-			}
-
-			if indexMode != targetMode {
-				log.Info().Msg("skip because wrong mode")
-				continue
-			}
-
-			candidates = append(
-				candidates,
-				Candidate{
-					Volume: volume,
-					Free:   usage.Size - (volumeUsage.Size + size),
-				})
-		}
+		log.Debug().Msgf("Found %d candidates in unmounted pools", len(candidates))
 	}
 
 	var volume filesystem.Volume
@@ -202,6 +162,91 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 		VolumePath: volume.Path(),
 	}, nil
 
+}
+
+type Candidate struct {
+	filesystem.Volume
+	Free uint64
+}
+
+func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceType, mounted bool, targetMode zdbpool.IndexMode) ([]Candidate, error) {
+	var candidates []Candidate
+	for _, pool := range s.pools {
+		_, poolIsMounted := pool.Mounted()
+		if mounted != poolIsMounted {
+			continue
+		}
+		log.Debug().Msgf("checking pool %s for space", pool.Name())
+
+		// ignore pools which don't have the right device type
+		if pool.Type() != poolType {
+			continue
+		}
+
+		if !poolIsMounted && !mounted {
+			log.Debug().Msgf("Mounting pool %s...", pool.Name())
+			// if the pool is not mounted, and we are looking for not mounted pools, mount it first
+			_, err := pool.Mount()
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to mount pool %s", pool.Name())
+			}
+		}
+
+		usage, err := pool.Usage()
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to read usage of pool %s", pool.Name())
+		}
+
+		volumes, err := pool.Volumes()
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to list volume on pool %s", pool.Name())
+		}
+
+		for _, volume := range volumes {
+			// skip all non-zdb volume
+			if !filesystem.IsZDBVolume(volume) {
+				continue
+			}
+
+			volumeUsage, err := volume.Usage()
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to list namespaces from volume '%s'", volume.Path())
+			}
+
+			if volumeUsage.Size+size > usage.Size {
+				// not enough space on this volume
+				continue
+			}
+
+			zdb := zdbpool.New(volume.Path())
+
+			// check if the mode is the same
+			indexMode, err := zdb.IndexMode("default")
+			if err != nil {
+				log.Err(err).Str("namespace", "default").Msg("failed to read index mode")
+				continue
+			}
+
+			if indexMode != targetMode {
+				log.Info().Msg("skip because wrong mode")
+				continue
+			}
+
+			candidates = append(
+				candidates,
+				Candidate{
+					Volume: volume,
+					Free:   usage.Size - (volumeUsage.Size + size),
+				})
+
+			// if we are looking for not mounted pools, break here
+			if !mounted {
+				return candidates, nil
+			}
+		}
+
+	}
+	return candidates, nil
 }
 
 const zdbPoolPrefix = "zdb"
