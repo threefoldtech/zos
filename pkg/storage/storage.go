@@ -309,12 +309,10 @@ func (s *storageModule) shutdownUnusedPools() error {
 			err = pool.UnMount()
 			if err != nil {
 				log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
-				return err
 			}
 		}
 		if err := pool.Shutdown(); err != nil {
 			log.Error().Err(err).Msgf("Error shutting down pool %s", pool.Name())
-			return err
 		}
 
 	}
