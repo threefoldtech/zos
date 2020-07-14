@@ -353,8 +353,8 @@ jobs:
         name: corex.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
 
-  hd-idle:
-    name: 'Package: hd-idle'
+  hdparm:
+    name: 'Package: hdparm'
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.14
@@ -375,7 +375,7 @@ jobs:
       id: package
       run: |
         cd bins
-        sudo ./bins-extra.sh --package hd-idle
+        sudo ./bins-extra.sh --package hdparm
 
     - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
       if: success()
@@ -384,7 +384,7 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         action: publish
         user: tf-autobuilder
-        root: bins/releases/hd-idle
+        root: bins/releases/hdparm
         name: ${{ steps.package.outputs.name }}.flist
 
     - name: Crosslink flist (tf-zos-bins.test)
@@ -394,7 +394,7 @@ jobs:
         token: ${{ secrets.HUB_JWT }}
         action: crosslink
         user: tf-zos-bins.test
-        name: hd-idle.flist
+        name: hdparm.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
 
   storcli:
