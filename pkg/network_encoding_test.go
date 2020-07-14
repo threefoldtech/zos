@@ -41,7 +41,7 @@ func TestEncodeDecode(t *testing.T) {
 	network := &NetResource{
 		NetID: NetID("test"),
 		Name:  "supernet",
-		IPRange: types.NewIPNet(&net.IPNet{
+		NetworkIPRange: types.NewIPNet(&net.IPNet{
 			IP:   net.ParseIP("10.0.0.0"),
 			Mask: net.CIDRMask(16, 32),
 		}),
@@ -75,7 +75,7 @@ func TestEncodeDecode(t *testing.T) {
 	err = json.Unmarshal(b, decoded)
 	require.NoError(t, err)
 	assert.Equal(t, network.Name, decoded.Name)
-	assert.Equal(t, network.IPRange.String(), decoded.IPRange.String())
+	assert.Equal(t, network.NetworkIPRange.String(), decoded.NetworkIPRange.String())
 	assert.Equal(t, network.NetID, decoded.NetID)
 
 	assert.Equal(t, network.NodeID, decoded.NodeID)
