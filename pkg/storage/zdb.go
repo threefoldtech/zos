@@ -101,11 +101,6 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 		}
 	}
 
-	type candidate struct {
-		filesystem.Volume
-		Free uint64
-	}
-
 	targetMode := zdbpool.IndexModeKeyValue
 	if mode == pkg.ZDBModeSeq {
 		targetMode = zdbpool.IndexModeSequential
