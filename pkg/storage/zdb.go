@@ -101,7 +101,7 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 		}
 	}
 
-	type Candidate struct {
+	type candidate struct {
 		filesystem.Volume
 		Free uint64
 	}
@@ -164,13 +164,13 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 
 }
 
-type Candidate struct {
+type zdbcandidate struct {
 	filesystem.Volume
 	Free uint64
 }
 
-func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceType, mounted bool, targetMode zdbpool.IndexMode) ([]Candidate, error) {
-	var candidates []Candidate
+func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceType, mounted bool, targetMode zdbpool.IndexMode) ([]zdbcandidate, error) {
+	var candidates []zdbcandidate
 	for _, pool := range s.pools {
 		_, poolIsMounted := pool.Mounted()
 		if mounted != poolIsMounted {
@@ -234,7 +234,7 @@ func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceTy
 
 			candidates = append(
 				candidates,
-				Candidate{
+				zdbcandidate{
 					Volume: volume,
 					Free:   usage.Size - (volumeUsage.Size + size),
 				})
