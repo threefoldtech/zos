@@ -294,17 +294,16 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 
 func (s *storageModule) shutdownUnusedPools() error {
 	for _, pool := range s.pools {
-		volumes, err := pool.Volumes()
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed to retrieve subvolumes on pool %s", pool.Name())
-		}
-		log.Debug().Msgf("Pool %s has: %d subvolumes", pool.Name(), len(volumes))
-
-		if len(volumes) > 0 {
-			continue
-		}
-
 		if _, mounted := pool.Mounted(); mounted {
+			volumes, err := pool.Volumes()
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed to retrieve subvolumes on pool %s", pool.Name())
+			}
+			log.Debug().Msgf("Pool %s has: %d subvolumes", pool.Name(), len(volumes))
+
+			if len(volumes) > 0 {
+				continue
+			}
 			err = pool.UnMount()
 			if err != nil {
 				log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
@@ -313,7 +312,6 @@ func (s *storageModule) shutdownUnusedPools() error {
 		if err := pool.Shutdown(); err != nil {
 			log.Error().Err(err).Msgf("Error shutting down pool %s", pool.Name())
 		}
-
 	}
 	return nil
 }

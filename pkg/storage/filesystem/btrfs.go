@@ -94,7 +94,7 @@ func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile,
 		dev.Filesystem = BtrfsFSType
 	}
 
-	return newBtrfsPool(name, devices, &b.utils, nil), nil
+	return newBtrfsPool(name, devices, &b.utils), nil
 }
 
 func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
@@ -118,7 +118,7 @@ func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
 			return nil, err
 		}
 
-		pool := newBtrfsPool(fs.Label, devices, &b.utils, &fs)
+		pool := newBtrfsPool(fs.Label, devices, &b.utils)
 
 		if !filter(pool) {
 			continue
@@ -139,15 +139,13 @@ type btrfsPool struct {
 	name    string
 	devices []*Device
 	utils   *BtrfsUtil
-	btrfs   *Btrfs
 }
 
-func newBtrfsPool(name string, devices []*Device, utils *BtrfsUtil, btrfs *Btrfs) *btrfsPool {
+func newBtrfsPool(name string, devices []*Device, utils *BtrfsUtil) *btrfsPool {
 	return &btrfsPool{
 		name:    name,
 		devices: devices,
 		utils:   utils,
-		btrfs:   btrfs,
 	}
 }
 
@@ -224,18 +222,17 @@ func (p *btrfsPool) Mount() (string, error) {
 }
 
 // Mount mounts the pool in it's default mount location under /mnt/name
+// This wont trigger a btrfs filesystem scan and leaves unused disks in standby mode
+// We mount the pool based on the path and the device it has saved
 func (p *btrfsPool) MountWithoutScan() (string, error) {
 	ctx := context.Background()
-	if mnt, mounted := p.mounted(p.btrfs); mounted {
-		return mnt, nil
-	}
 
 	mnt := p.Path()
 	if err := os.MkdirAll(mnt, 0755); err != nil {
 		return "", err
 	}
 
-	if err := syscall.Mount(p.btrfs.Devices[0].Path, mnt, "btrfs", 0, ""); err != nil {
+	if err := syscall.Mount(p.devices[0].Path, mnt, "btrfs", 0, ""); err != nil {
 		return "", err
 	}
 
