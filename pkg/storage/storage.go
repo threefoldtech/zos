@@ -163,28 +163,9 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	}
 
 	for _, pool := range existingPools {
-		if _, mounted := pool.Mounted(); mounted {
-			log.Debug().Msgf("pool %s already mounted", pool.Name())
-			// pool is already mounted, skip mounting it again, make sure it is
-			// in the list of available pools. Since we are in the initialize method,
-			// we can safely assume the pool has not been added before, so no need
-			// to check for duplicate entries.
-
-			volumes, err := pool.Volumes()
-			if err != nil {
-				log.Error().Err(err).Msgf("Failed to retrieve reserved space on pool %s", pool.Name())
-			}
-
-			log.Debug().Msgf("Pool %s has: %d subpools", pool.Name(), len(volumes))
-
-			if len(volumes) > 0 {
-				continue
-			}
-
-			err = pool.UnMount()
-			if err != nil {
-				log.Error().Err(err).Msgf("Failed to unmount pool %s", pool.Name())
-			}
+		_, err := pool.Mount()
+		if err != nil {
+			return err
 		}
 		s.pools = append(s.pools, pool)
 	}
@@ -277,11 +258,20 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	}
 
 	// make sure new pools are added to the list
-	for idx := range newPools {
-		s.pools = append(s.pools, newPools[idx])
+	for _, pool := range newPools {
+		_, err := pool.Mount()
+		if err != nil {
+			return err
+		}
+		s.pools = append(s.pools, pool)
 	}
 
 	if err := filesystem.Partprobe(ctx); err != nil {
+		return err
+	}
+
+	if err := s.ensureCache(); err != nil {
+		log.Error().Err(err).Msg("Error ensuring cache")
 		return err
 	}
 
@@ -289,7 +279,7 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		log.Error().Err(err).Msg("Error shutting down unused pools")
 	}
 
-	return s.ensureCache()
+	return nil
 }
 
 func (s *storageModule) shutdownUnusedPools() error {
