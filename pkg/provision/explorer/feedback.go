@@ -30,12 +30,12 @@ func (e *Feedback) Feedback(nodeID string, r *provision.Result) error {
 		return fmt.Errorf("failed to convert result into schema type: %w", err)
 	}
 
-	return e.client.Workloads.WorkloadPutResult(nodeID, r.ID, *wr)
+	return e.client.Workloads.NodeWorkloadPutResult(nodeID, r.ID, *wr)
 }
 
 // Deleted implements provision.Feedbacker
 func (e *Feedback) Deleted(nodeID, id string) error {
-	return e.client.Workloads.WorkloadPutDeleted(nodeID, id)
+	return e.client.Workloads.NodeWorkloadPutDeleted(nodeID, id)
 }
 
 // UpdateStats implements provision.Feedbacker
