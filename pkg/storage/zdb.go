@@ -112,16 +112,6 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 		log.Error().Err(err).Msgf("failed to search on mounted pools")
 	}
 
-	// If no candidates or found in mounted pools, we check the unmounted pools and get the first one that fits
-	if len(candidates) == 0 {
-		log.Debug().Msg("Checking unmounted pools")
-		candidates, err = s.checkForZDBCandidates(size, diskType, false, targetMode)
-		if err != nil {
-			log.Error().Err(err).Msgf("failed to search on unmounted pools")
-		}
-		log.Debug().Msgf("Found %d candidates in unmounted pools", len(candidates))
-	}
-
 	var volume filesystem.Volume
 	if len(candidates) > 0 {
 		// reverse sort by free space
@@ -181,7 +171,7 @@ func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceTy
 		if !poolIsMounted && !mounted {
 			log.Debug().Msgf("Mounting pool %s...", pool.Name())
 			// if the pool is not mounted, and we are looking for not mounted pools, mount it first
-			_, err := pool.Mount()
+			_, err := pool.MountWithoutScan()
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to mount pool %s", pool.Name())
 			}
