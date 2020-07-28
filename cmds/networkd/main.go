@@ -329,8 +329,8 @@ func buildNDMZ(nodeID string) (ndmz.DMZ, error) {
 
 	bo := backoff.NewExponentialBackOff()
 	// wait for 2 minute for public ipv6
-	bo.MaxElapsedTime = time.Minute * 2
-	bo.MaxInterval = time.Second * 10
+	bo.MaxElapsedTime = time.Second * 10
+	bo.MaxInterval = time.Second * 3
 	err := backoff.RetryNotify(findMaster, bo, notify)
 
 	// if ipv6 found, use dual stack ndmz
