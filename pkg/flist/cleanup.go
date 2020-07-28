@@ -26,7 +26,7 @@ var _ Cleaner = (*flistModule)(nil)
 func (f *flistModule) listMounts() (map[string]int64, error) {
 	infos, err := ioutil.ReadDir(f.run)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list g8ufs proccess pids: {}", f.pid)
+		return nil, errors.Wrapf(err, "failed to list g8ufs process pids: %s", f.pid)
 	}
 
 	data := make(map[string]int64)
@@ -117,6 +117,8 @@ func (f *flistModule) cleanupAll() error {
 	return nil
 }
 
+// Cleaner runs forever, checks the tracker files for filesystem processes
+// that requires cleanup
 func (f *flistModule) Cleaner(ctx context.Context, every time.Duration) {
 	for {
 		select {
