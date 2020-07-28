@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -37,18 +36,15 @@ func (f *flistModule) listMounts() (map[string]int64, error) {
 			continue
 		}
 
-		if !strings.HasSuffix(info.Name(), ".pid") {
-			// also what is that doing here!
-			continue
-		}
-
 		path := filepath.Join(f.run, info.Name())
 		pid, err := f.getPid(path)
-		if err != nil {
+		if os.IsNotExist(err) {
+			pid = -1
+		} else if err != nil {
 			log.Error().Err(err).Str("pid-file", path).Msg("invalid pid file")
 		}
 
-		data[strings.TrimSuffix(info.Name(), ".pid")] = pid
+		data[info.Name()] = pid
 	}
 
 	return data, nil
@@ -76,6 +72,16 @@ func (f *flistModule) cleanupMount(name string) error {
 		log.Warn().Err(err).Str("subvolume", name).Msg("failed to clean up subvolume")
 	}
 
+	for _, file := range []string{
+		filepath.Join(f.pid, fmt.Sprintf("%s.pid", name)),
+		filepath.Join(f.run, name),
+		filepath.Join(f.log, fmt.Sprintf("%s.log", name)),
+	} {
+		if err := os.Remove(file); err != nil {
+			log.Warn().Err(err).Str("file", file).Msg("failed to delete pid file")
+		}
+	}
+
 	return nil
 }
 
@@ -86,22 +92,25 @@ func (f *flistModule) cleanupAll() error {
 	}
 
 	for name, pid := range mounts {
-		_, err := f.getMountOptionsForPID(pid)
-		if err != nil {
-			// this is only possible if process does not exist.
-			// hence we need to clean up.
+		switch pid {
+		case -1:
+			// process has shutdown gracefully
 			log.Debug().Str("name", name).Int64("pid", pid).Msg("attempt to clean up mount")
-
 			f.cleanupMount(name)
-			for _, file := range []string{
-				filepath.Join(f.pid, fmt.Sprintf("%s.pid", name)),
-				filepath.Join(f.run, name),
-				filepath.Join(f.log, fmt.Sprintf("%s.log", name)),
-			} {
-				if err := os.Remove(file); err != nil {
-					log.Error().Err(err).Str("file", file).Msg("failed to delete pid file")
-				}
+		case 0:
+			// the file exists, but we can't read the file content
+			// for some reason!
+			// TODO: ?
+		default:
+			// valid PID.
+			_, err := f.getMountOptionsForPID(pid)
+			if err != nil {
+				// this is only possible if process does not exist.
+				// hence we need to clean up.
+				log.Debug().Str("name", name).Int64("pid", pid).Msg("attempt to clean up mount")
+				f.cleanupMount(name)
 			}
+			// nothing to do
 		}
 	}
 

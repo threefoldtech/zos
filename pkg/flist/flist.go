@@ -264,19 +264,14 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		return "", err
 	}
 
-	var pid int64
-	pid, err = f.getPid(pidPath)
-	if err != nil {
-		sublog.Error().Err(err).Msg("failed to get fs pid")
-		return "", err
-	}
-
-	// this run file is used for tracking and SHOULD be only deleted by flistd
-	// unlike the pid file which is deleted by the filesystem process. this gives
-	// a chance to flister to detect that a mount has ended unexpectedly and needs
-	// a cleanup.
-	if err = ioutil.WriteFile(filepath.Join(f.run, name), []byte(fmt.Sprint(pid)), 0644); err != nil {
-		return "", errors.Wrap(err, "failed to write fs run file")
+	// the track file is a symlink to the process pid
+	// if the link is broken, then the fs has exited gracefully
+	// otherwise we can get the fs pid from the track path
+	// if the pid does not exist of the target does not exist
+	// we can clean up the named mount
+	trackPath := filepath.Join(f.run, name)
+	if err = os.Symlink(pidPath, trackPath); err != nil {
+		sublog.Error().Err(err).Msg("failed track fs pid")
 	}
 
 	// and scan the logs after "mount ready"
@@ -291,7 +286,7 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 func (f *flistModule) getPid(pidPath string) (int64, error) {
 	pid, err := ioutil.ReadFile(pidPath)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to open pid file: %s", pidPath)
+		return 0, err
 	}
 
 	value, err := strconv.ParseInt(string(pid), 10, 64)
