@@ -195,7 +195,7 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 	}
 
 	var backend string
-
+	var newAllocation bool
 	var args []string
 	if !opts.ReadOnly {
 		sublog.Info().Msgf("check if subvolume %s already exists", name)
@@ -208,7 +208,7 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 				// sanity check in case type is not set always use hdd
 				return "", fmt.Errorf("invalid mount option, missing disk type and/or size")
 			}
-
+			newAllocation = true
 			backend, err = f.storage.CreateFilesystem(name, opts.Limit*mib, opts.Type)
 			if err != nil {
 				return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
@@ -221,7 +221,7 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		// in case of an error (mount is never fully completed)
 		// we need to deallocate the filesystem
 		defer func() {
-			if err != nil {
+			if newAllocation && err != nil {
 				f.storage.ReleaseFilesystem(name)
 			}
 		}()
