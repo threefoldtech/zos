@@ -172,6 +172,13 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		return "", err
 	}
 
+	err = f.valid(mountpoint)
+	if errors.Is(err, ErrAlreadyMounted) {
+		// if everything is already in place, just early return
+		log.Info().Msgf("flist is already mounted at %s, nothing more to do", mountpoint)
+		return mountpoint, nil
+	}
+
 	env, err := environment.Get()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse node environment")
@@ -220,13 +227,6 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		}()
 	} else {
 		args = append(args, "-ro")
-	}
-
-	err = f.valid(mountpoint)
-	if errors.Is(err, ErrAlreadyMounted) {
-		// if everything is already in place, just early return
-		log.Info().Msgf("flist is already mounted at %s, nothing more to do", mountpoint)
-		return mountpoint, nil
 	}
 
 	if err != nil {
