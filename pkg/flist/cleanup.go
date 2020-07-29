@@ -57,6 +57,18 @@ func (f *flistModule) cleanupMount(name string) error {
 		return err
 	}
 
+	// always clean up files
+	defer func() {
+		for _, file := range []string{
+			filepath.Join(f.pid, fmt.Sprintf("%s.pid", name)),
+			filepath.Join(f.run, name),
+			filepath.Join(f.log, fmt.Sprintf("%s.log", name)),
+		} {
+			if err := os.Remove(file); err != nil {
+				log.Warn().Err(err).Str("file", file).Msg("failed to delete pid file")
+			}
+		}
+	}()
 	// the following procedure will ignore errors
 	// because the only point of this is to force
 	// clean the entire mount.
@@ -66,20 +78,15 @@ func (f *flistModule) cleanupMount(name string) error {
 		log.Warn().Err(err).Str("path", path).Msg("fail to unmount flist")
 	}
 
-	// we don't know if this even exists, but if it does, it need to be deleted
-	// so we try to delete it and just log a warning.
-	if err := f.storage.ReleaseFilesystem(name); err != nil {
-		log.Warn().Err(err).Str("subvolume", name).Msg("failed to clean up subvolume")
+	volume, err := f.storage.Path(name)
+	if err != nil {
+		log.Warn().Err(err).Str("subvolume", name).Msg("subvolume does not exist")
+		return nil
 	}
 
-	for _, file := range []string{
-		filepath.Join(f.pid, fmt.Sprintf("%s.pid", name)),
-		filepath.Join(f.run, name),
-		filepath.Join(f.log, fmt.Sprintf("%s.log", name)),
-	} {
-		if err := os.Remove(file); err != nil {
-			log.Warn().Err(err).Str("file", file).Msg("failed to delete pid file")
-		}
+	ro := filepath.Join(volume, "ro")
+	if err := syscall.Unmount(ro, syscall.MNT_DETACH); err != nil {
+		log.Warn().Err(err).Str("path", ro).Msg("fail to unmount ro layer")
 	}
 
 	return nil
