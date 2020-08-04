@@ -87,13 +87,18 @@ func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
 	defer s.mu.RUnlock()
 	var total uint64
 
-	for idx := range s.pools {
-		// ignore pools which don't have the right device type
-		if s.pools[idx].Type() != kind {
+	for _, pool := range s.pools {
+		// if pool is not mounted, we can't check total amount of storage
+		if _, mounted := pool.Mounted(); !mounted {
 			continue
 		}
 
-		usage, err := s.pools[idx].Usage()
+		// ignore pools which don't have the right device type
+		if pool.Type() != kind {
+			continue
+		}
+
+		usage, err := pool.Usage()
 		if err != nil {
 			log.Error().Msgf("Failed to get current volume usage: %v", err)
 			return 0, err
