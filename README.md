@@ -36,8 +36,8 @@ source, and once this reservation is available, the node will actually apply it 
 
 [@zaibon](https://github.com/zaibon) [@maxux](https://github.com/maxux) [@muhamadazmy](https://github.com/muhamadazmy) [@delandtj](https://github.com/delandtj) [@leesmet](https://github.com/leesmet)
 
-## Meetings
+## Community
 
-The team holds a update meeting twice a week, on monday and thursday at 10AM.
-
-Zoom URL: https://tinyurl.com/zosupdate
+If you have some questions or just want to hang out, you can find us on:
+- telegram: https://t.me/zero_os_tech
+- Matrix: #zero-os:matrix.org
