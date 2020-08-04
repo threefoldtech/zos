@@ -1,6 +1,7 @@
 package provision
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -136,10 +137,23 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		return fmt.Errorf("type of reservation not supported: %s", r.Type)
 	}
 
+	if r.Reference != "" {
+		if err := e.migrateToPool(ctx, r); err != nil {
+			return err
+		}
+	}
+
 	_, err := e.cache.Get(r.ID)
 	if err == nil {
 		log.Info().Str("id", r.ID).Msg("reservation already deployed")
 		return nil
+	}
+
+	// to ensure old reservation workload that are already running
+	// keeps running as it is, we use the reference as new workload ID
+	realID := r.ID
+	if r.Reference != "" {
+		r.ID = r.Reference
 	}
 
 	result, err := fn(ctx, r)
@@ -153,6 +167,8 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 			Str("result", fmt.Sprintf("%v", result)).
 			Msgf("workload deployed")
 	}
+
+	r.ID = realID
 
 	if replyErr := e.reply(ctx, r, err, result); replyErr != nil {
 		log.Error().Err(replyErr).Msg("failed to send result to BCDB")
@@ -192,10 +208,19 @@ func (e *Engine) decommission(ctx context.Context, r *Reservation) error {
 		return nil
 	}
 
+	// to ensure old reservation can be deleted
+	// we use the reference as workload ID
+	realID := r.ID
+	if r.Reference != "" {
+		r.ID = r.Reference
+	}
+
 	err = fn(ctx, r)
 	if err != nil {
 		return errors.Wrap(err, "decommissioning of reservation failed")
 	}
+
+	r.ID = realID
 
 	if err := e.cache.Remove(r.ID); err != nil {
 		return errors.Wrapf(err, "failed to remove reservation %s from cache", r.ID)
@@ -233,6 +258,15 @@ func (e *Engine) reply(ctx context.Context, r *Reservation, err error, info inte
 	}
 	result.Data = br
 
+	if err := e.signResult(result); err != nil {
+		return err
+	}
+
+	return e.feedback.Feedback(e.nodeID, result)
+}
+
+func (e *Engine) signResult(result *Result) error {
+
 	b, err := result.Bytes()
 	if err != nil {
 		return errors.Wrap(err, "failed to convert the result to byte for signature")
@@ -244,7 +278,7 @@ func (e *Engine) reply(ctx context.Context, r *Reservation, err error, info inte
 	}
 	result.Signature = hex.EncodeToString(sig)
 
-	return e.feedback.Feedback(e.nodeID, result)
+	return nil
 }
 
 func (e *Engine) updateStats() error {
@@ -297,4 +331,45 @@ func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
 	}()
 
 	return ch
+}
+
+func (e *Engine) migrateToPool(ctx context.Context, r *Reservation) error {
+
+	oldRes, err := e.cache.Get(r.Reference)
+	if err == nil && oldRes.ID == r.Reference {
+		// we have received a reservation that reference another one.
+		// This is the sign user is trying to migrate his workloads to the new capacity pool system
+
+		log.Info().Str("reference", r.Reference).Msg("reservation referencing another one")
+
+		if string(oldRes.Type) != "network" { //we skip network cause its a PITA
+			// first let make sure both are the same
+			if !bytes.Equal(oldRes.Data, r.Data) {
+				return fmt.Errorf("trying to upgrade workloads to new version. new workload content is different from the old one. upgrade refused")
+			}
+		}
+
+		// remove the old one from the cache and store the new one
+		log.Info().Msgf("migration: remove %v from cache", oldRes.ID)
+		if err := e.cache.Remove(oldRes.ID); err != nil {
+			return err
+		}
+		log.Info().Msgf("migration: add %v to cache", r.ID)
+		if err := e.cache.Add(r); err != nil {
+			return err
+		}
+
+		r.Result.ID = r.ID
+		if err := e.signResult(&r.Result); err != nil {
+			return errors.Wrap(err, "error while signing reservation result")
+		}
+
+		if err := e.feedback.Feedback(e.nodeID, &r.Result); err != nil {
+			return err
+		}
+
+		log.Info().Str("old_id", oldRes.ID).Str("new_id", r.ID).Msg("reservation upgraded to new system")
+	}
+
+	return nil
 }

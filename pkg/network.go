@@ -25,9 +25,9 @@ type Networker interface {
 	Ready() error
 
 	// Create a new network resource
-	CreateNR(Network) (string, error)
+	CreateNR(NetResource) (string, error)
 	// Delete a network resource
-	DeleteNR(Network) error
+	DeleteNR(NetResource) error
 
 	// Join a network (with network id) will create a new isolated namespace
 	// that is hooked to the network bridge with a veth pair, and assign it a
@@ -89,8 +89,14 @@ type Network struct {
 
 // NetResource is the description of a part of a network local to a specific node
 type NetResource struct {
+	Name string
+	//unique id inside the reservation is an autoincrement (USE AS NET_ID)
+	NetID NetID `json:"net_id"`
+	// IP range of the network, must be an IPv4 /16
+	NetworkIPRange types.IPNet `json:"ip_range"`
+
 	NodeID string `json:"node_id"`
-	// IPV4 subnet from network IPRange
+	// IPV4 subnet for this network resource
 	Subnet types.IPNet `json:"subnet"`
 
 	WGPrivateKey string `json:"wg_private_key"`
@@ -113,9 +119,10 @@ type Peer struct {
 // NetID is a type defining the ID of a network
 type NetID string
 
+// Version of the network workloads keep in cache by networkd
 var (
-	// NetworkSchemaV1 network object schema version 1.0.0
 	NetworkSchemaV1 = versioned.MustParse("1.0.0")
+	NetworkSchemaV2 = versioned.MustParse("2.0.0")
 	// NetworkSchemaLatestVersion network object latest version
-	NetworkSchemaLatestVersion = NetworkSchemaV1
+	NetworkSchemaLatestVersion = NetworkSchemaV2
 )

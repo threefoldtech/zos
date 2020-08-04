@@ -65,6 +65,9 @@ type ContainerModule interface {
 	// data: Container info
 	Run(ns string, data Container) (ContainerID, error)
 
+	//List all the existing container IDs from a certain namespace ns
+	List(ns string) ([]ContainerID, error)
+
 	// Inspect, return information about the container, given its container id
 	Inspect(ns string, id ContainerID) (Container, error)
 	Delete(ns string, id ContainerID) error
