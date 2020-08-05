@@ -83,6 +83,9 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	cReservation := e.source.Reservations(ctx)
 
+	tick := time.Tick(1 * time.Hour)
+	canCleanup := true
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -94,6 +97,7 @@ func (e *Engine) Run(ctx context.Context) error {
 				log.Info().Msg("reservation source is emptied. stopping engine")
 				return nil
 			}
+			canCleanup = false
 
 			expired := reservation.Expired()
 			slog := log.With().
@@ -109,12 +113,14 @@ func (e *Engine) Run(ctx context.Context) error {
 				slog.Info().Msg("start decommissioning reservation")
 				if err := e.decommission(ctx, reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to decommission reservation %s", reservation.ID)
+					canCleanup = true
 					continue
 				}
 			} else {
 				slog.Info().Msg("start provisioning reservation")
 				if err := e.provision(ctx, reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to provision reservation %s", reservation.ID)
+					canCleanup = true
 					continue
 				}
 			}
@@ -122,8 +128,30 @@ func (e *Engine) Run(ctx context.Context) error {
 			if err := e.updateStats(); err != nil {
 				log.Error().Err(err).Msg("failed to updated the capacity counters")
 			}
+			canCleanup = true
 
+		case <-tick:
+			// We schedule a cleanup between 23pm and 24pm
+			hr, _, _ := time.Now().Clock()
+			if hr >= 23 && hr <= 24 && canCleanup {
+				log.Info().Msg("start cleaning up resources")
+				if err := CleanupResources(); err != nil {
+					log.Error().Err(err).Msg("failed to cleanup resources")
+					continue
+				}
+			}
+
+		// 5 minutes after provisiond start we do an initial clean up
+		case <-time.After(5 * time.Minute):
+			log.Info().Msg("start cleaning up resources")
+			if canCleanup {
+				if err := CleanupResources(); err != nil {
+					log.Error().Err(err).Msg("failed to cleanup resources")
+					continue
+				}
+			}
 		}
+
 	}
 }
 
