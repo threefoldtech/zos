@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
+	"github.com/threefoldtech/zos/pkg/zdb"
 	"golang.org/x/net/context"
 )
 
@@ -43,6 +44,7 @@ func must(input []byte, err error) []byte {
 }
 
 type container struct {
+	ID   string `json:"ID"`
 	Spec struct {
 		Root struct {
 			Path string `json:"path"`
@@ -51,6 +53,17 @@ type container struct {
 			Source string `json:"source"`
 		} `json:"mounts"`
 	} `json:"Spec"`
+}
+
+// we declare this method as a variable so we can
+// mock it in testing.
+var zdbConnection = func(id string) zdb.Client {
+	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir(id))
+	return zdb.New(socket)
+}
+
+func socketDir(containerID string) string {
+	return fmt.Sprintf("/var/run/zdb_%s", containerID)
 }
 
 // CleanupResources cleans up unused resources
@@ -65,10 +78,26 @@ func CleanupResources() error {
 				panic(err)
 			}
 
+			zdbCl := zdbConnection(container.ID)
+			defer zdbCl.Close()
+			if err := zdbCl.Connect(); err != nil {
+				return errors.Wrapf(err, "failed to connect to 0-db: %s", container.ID)
+			}
+
+			ns, err := zdbCl.Namespaces()
+			if err != nil {
+				return errors.Wrap(err, "failed to retrieve zdb namespaces")
+			}
+
+			log.Info().Msgf("ZDB namespaces length: %d", len(ns))
+
 			toSave[filepath.Base(container.Spec.Root.Path)] = struct{}{}
 			for _, mnt := range container.Spec.Mounts {
 				if strings.HasPrefix(mnt.Source, "/mnt/") {
-					toSave[filepath.Base(mnt.Source)] = struct{}{}
+					// If there are namespaces, save this subvolume
+					if len(ns) != 0 {
+						toSave[filepath.Base(mnt.Source)] = struct{}{}
+					}
 				}
 			}
 		}
