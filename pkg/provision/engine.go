@@ -83,7 +83,7 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	cReservation := e.source.Reservations(ctx)
 
-	tick := time.Tick(1 * time.Hour)
+	timer := time.NewTimer(5 * time.Minute)
 	canCleanup := true
 
 	for {
@@ -130,7 +130,7 @@ func (e *Engine) Run(ctx context.Context) error {
 			}
 			canCleanup = true
 
-		case <-tick:
+		case <-time.After(1 * time.Hour):
 			// We schedule a cleanup between 23pm and 24pm
 			hr, _, _ := time.Now().Clock()
 			if hr >= 23 && hr <= 24 && canCleanup {
@@ -142,13 +142,16 @@ func (e *Engine) Run(ctx context.Context) error {
 			}
 
 		// 5 minutes after provisiond start we do an initial clean up
-		case <-time.After(5 * time.Minute):
+		case <-timer.C:
 			log.Info().Msg("start cleaning up resources")
 			if canCleanup {
 				if err := CleanupResources(); err != nil {
 					log.Error().Err(err).Msg("failed to cleanup resources")
 					continue
 				}
+			}
+			if !timer.Stop() {
+				<-timer.C
 			}
 		}
 
