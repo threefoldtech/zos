@@ -161,12 +161,12 @@ func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceTy
 		if mounted != poolIsMounted {
 			continue
 		}
-		log.Debug().Msgf("checking pool %s for space", pool.Name())
 
 		// ignore pools which don't have the right device type
 		if pool.Type() != poolType {
 			continue
 		}
+		log.Debug().Msgf("checking pool %s for space", pool.Name())
 
 		if !poolIsMounted && !mounted {
 			log.Debug().Msgf("Mounting pool %s...", pool.Name())
@@ -174,17 +174,20 @@ func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceTy
 			_, err := pool.MountWithoutScan()
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to mount pool %s", pool.Name())
+				return nil, err
 			}
 		}
 
 		usage, err := pool.Usage()
 		if err != nil {
 			log.Error().Err(err).Msgf("failed to read usage of pool %s", pool.Name())
+			return nil, err
 		}
 
 		volumes, err := pool.Volumes()
 		if err != nil {
 			log.Error().Err(err).Msgf("failed to list volume on pool %s", pool.Name())
+			return nil, err
 		}
 
 		for _, volume := range volumes {
@@ -196,6 +199,7 @@ func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceTy
 			volumeUsage, err := volume.Usage()
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to list namespaces from volume '%s'", volume.Path())
+				return nil, err
 			}
 
 			if volumeUsage.Size+size > usage.Size {
@@ -230,6 +234,19 @@ func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceTy
 			}
 		}
 
+		if len(candidates) == 0 {
+			log.Info().Msgf("Disk does not have enough space left to hold filesystem, shutting down again")
+			err = pool.UnMount()
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to unmount pool %s", pool.Name())
+				return nil, err
+			}
+			err = pool.Shutdown()
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to shutdown pool %s", pool.Name())
+				return nil, err
+			}
+		}
 	}
 	return candidates, nil
 }

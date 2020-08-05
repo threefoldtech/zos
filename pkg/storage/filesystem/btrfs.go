@@ -221,7 +221,7 @@ func (p *btrfsPool) Mount() (string, error) {
 	return mnt, p.utils.QGroupEnable(ctx, mnt)
 }
 
-// Mount mounts the pool in it's default mount location under /mnt/name
+// MountWithoutScan mounts the pool in it's default mount location under /mnt/name
 // This wont trigger a btrfs filesystem scan and leaves unused disks in standby mode
 // We mount the pool based on the path and the device it has saved
 func (p *btrfsPool) MountWithoutScan() (string, error) {
@@ -480,8 +480,6 @@ func (p *btrfsPool) Shutdown() error {
 	for _, device := range p.Devices() {
 		log.Info().Msgf("Shutting down disk %s ...", device.Path)
 		cmd := exec.Command("hdparm", "-y", device.Path)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
 
 		err := cmd.Run()
 		if err != nil {

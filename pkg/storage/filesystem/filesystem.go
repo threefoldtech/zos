@@ -37,7 +37,8 @@ type Pool interface {
 	Mounted() (string, bool)
 	// Mount the pool, the mountpoint is returned
 	Mount() (string, error)
-	// Mount the pool, the mountpoint is returned
+	// MountWithoutScan the pool, the mountpoint is returned.
+	// Does not scan for btrfs
 	MountWithoutScan() (string, error)
 	// UnMount the pool
 	UnMount() error

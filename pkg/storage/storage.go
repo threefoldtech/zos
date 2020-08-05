@@ -170,7 +170,9 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	for _, pool := range existingPools {
 		_, err := pool.Mount()
 		if err != nil {
-			return err
+			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: pool.Name(), Err: err})
+			log.Warn().Msgf("Failed to mount pool %v", pool.Name())
+			continue
 		}
 		s.pools = append(s.pools, pool)
 	}
@@ -293,6 +295,7 @@ func (s *storageModule) shutdownUnusedPools() error {
 			volumes, err := pool.Volumes()
 			if err != nil {
 				log.Error().Err(err).Msgf("Failed to retrieve subvolumes on pool %s", pool.Name())
+				return err
 			}
 			log.Debug().Msgf("Pool %s has: %d subvolumes", pool.Name(), len(volumes))
 
@@ -302,6 +305,7 @@ func (s *storageModule) shutdownUnusedPools() error {
 			err = pool.UnMount()
 			if err != nil {
 				log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
+				return err
 			}
 		}
 		if err := pool.Shutdown(); err != nil {
@@ -359,25 +363,26 @@ func (s *storageModule) ReleaseFilesystem(name string) error {
 			continue
 		}
 
-		filesystems, err := pool.Volumes()
+		volumes, err := pool.Volumes()
 		if err != nil {
 			return err
 		}
-		for _, fs := range filesystems {
-			if fs.Name() == name {
-				log.Debug().Msgf("Removing filesystem %v in volume %v", fs.Name(), pool.Name())
-				err = pool.RemoveVolume(fs.Name())
+		for _, vol := range volumes {
+			if vol.Name() == name {
+				log.Debug().Msgf("Removing filesystem %v in volume %v", vol.Name(), pool.Name())
+				err = pool.RemoveVolume(vol.Name())
 				if err != nil {
+					log.Err(err).Msgf("Error removing volume %s", vol.Name())
 					return err
 				}
+				if len(volumes) == 1 {
+					err = pool.Shutdown()
+					if err != nil {
+						log.Err(err).Msgf("Error shutting down pool %s", pool.Name())
+						return err
+					}
+				}
 			}
-		}
-
-		// After releasing a filesystem by name, there is a chance there is going to be
-		// no reserved space on a volume, in this case we want to shutdown the disk in order to save power
-		if err := s.shutdownUnusedPools(); err != nil {
-			log.Error().Err(err).Msg("Error shutting down unused pools")
-			return err
 		}
 	}
 
@@ -492,7 +497,8 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 	// Look for candidates in mounted pools first
 	candidates, err := s.checkForCandidates(size, poolType, true)
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to search conditation on unmounted pools")
+		log.Error().Err(err).Msgf("failed to search candidates on mounted pools")
+		return nil, err
 	}
 
 	log.Debug().Msgf("Found %d candidates in mounted pools", len(candidates))
@@ -502,7 +508,7 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 		log.Debug().Msg("Checking unmounted pools")
 		candidates, err = s.checkForCandidates(size, poolType, false)
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to search conditation on unmounted pools")
+			log.Error().Err(err).Msgf("failed to search candidates on unmounted pools")
 		}
 		log.Debug().Msgf("Found %d candidates in unmounted pools", len(candidates))
 	}
@@ -547,12 +553,12 @@ func (s *storageModule) checkForCandidates(size uint64, poolType pkg.DeviceType,
 		if mounted != poolIsMounted {
 			continue
 		}
-		log.Debug().Msgf("checking pool %s for space", pool.Name())
 
 		// ignore pools which don't have the right device type
 		if pool.Type() != poolType {
 			continue
 		}
+		log.Debug().Msgf("checking pool %s for space", pool.Name())
 
 		if !poolIsMounted && !mounted {
 			log.Debug().Msgf("Mounting pool %s...", pool.Name())
@@ -560,6 +566,7 @@ func (s *storageModule) checkForCandidates(size uint64, poolType pkg.DeviceType,
 			_, err := pool.MountWithoutScan()
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to mount pool %s", pool.Name())
+				return nil, err
 			}
 		}
 
@@ -582,13 +589,23 @@ func (s *storageModule) checkForCandidates(size uint64, poolType pkg.DeviceType,
 			Msgf("usage of pool %s", pool.Name())
 		// Make sure adding this filesystem would not bring us over the disk limit
 		if reserved+size > usage.Size {
-			log.Info().Msgf("Disk does not have enough space left to hold filesystem")
+			log.Info().Msgf("Disk does not have enough space left to hold filesystem, shutting down again")
+			err = pool.UnMount()
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to unmount pool %s", pool.Name())
+				return nil, err
+			}
+			err = pool.Shutdown()
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to shutdown pool %s", pool.Name())
+				return nil, err
+			}
 			continue
 		}
 
 		candidates = append(candidates, candidate{
 			Pool:      pool,
-			Available: usage.Size - (reserved + size), // available after new subvolume
+			Available: usage.Size,
 		})
 
 		// if we are looking for not mounted pools, break here
