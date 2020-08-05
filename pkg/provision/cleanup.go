@@ -115,12 +115,12 @@ func CleanupResources() error {
 			}
 
 			// delete the subvolume
-			log.Info().Msgf("deleting subvolume", subvol.Path)
+			log.Info().Msgf("deleting subvolume %s", subvol.Path)
 			if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
-				log.Info().Msgf("failed to delete subvol '%s': %s", subvol.Path, err)
+				log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
 			}
 			if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
-				log.Info().Msgf("failed to delete qgroup: '%s': %s", qgroup.ID, err)
+				log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
 			}
 		}
 	}
