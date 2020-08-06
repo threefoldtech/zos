@@ -175,7 +175,7 @@ func TestCreateSubvol(t *testing.T) {
 		name: "sub",
 	}
 
-	pool2.On("AddVolume", "sub").Return(sub, nil)
+	pool1.On("AddVolume", "sub").Return(sub, nil)
 	sub.On("Limit", uint64(500)).Return(nil)
 
 	pool1.On("Volumes").Return([]filesystem.Volume{}, nil)
