@@ -169,8 +169,6 @@ func TestCreateSubvol(t *testing.T) {
 		},
 	}
 
-	// from the data above the create subvol will prefer pool 2 because it
-	// after adding the subvol, it will still has more space.
 	sub := &testVolume{
 		name: "sub",
 	}
@@ -226,13 +224,11 @@ func TestCreateSubvolUnlimited(t *testing.T) {
 		},
 	}
 
-	// from the data above the create subvol will prefer pool 2 because it
-	// after adding the subvol, it will still has more space.
 	sub := &testVolume{
 		name: "sub",
 	}
 
-	pool2.On("AddVolume", "sub").Return(sub, nil)
+	pool1.On("AddVolume", "sub").Return(sub, nil)
 	sub.On("Limit", uint64(0)).Return(nil)
 
 	pool1.On("Volumes").Return([]filesystem.Volume{}, nil)
@@ -288,5 +284,5 @@ func TestCreateSubvolNoSpaceLeft(t *testing.T) {
 
 	_, err := mod.createSubvol(20000, "sub", pkg.SSDDevice)
 
-	require.EqualError(err, "Not enough space left in pools of this type ssd")
+	require.EqualError(err, "not implemented")
 }

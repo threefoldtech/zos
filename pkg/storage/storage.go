@@ -494,7 +494,8 @@ func (s *storageModule) createSubvol(size uint64, name string, poolType pkg.Devi
 		log.Debug().Msg("Checking unmounted pools")
 		candidates, err = s.checkForCandidates(size, poolType, false)
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to search candidates on unmounted pools")
+			log.Error().Err(err).Msgf("failed to search candidates on mounted pools")
+			return nil, err
 		}
 		log.Debug().Msgf("Found %d candidates in unmounted pools", len(candidates))
 	}
