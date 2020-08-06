@@ -84,14 +84,19 @@ func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
 	var total uint64
 
 	for _, pool := range s.pools {
-		// if pool is not mounted, we can't check total amount of storage
-		if _, mounted := pool.Mounted(); !mounted {
-			continue
-		}
-
 		// ignore pools which don't have the right device type
 		if pool.Type() != kind {
 			continue
+		}
+
+		unmountAfter := false
+		if _, mounted := pool.Mounted(); !mounted {
+			_, err := pool.MountWithoutScan()
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed to mount pool %s", pool.Name())
+				return 0, err
+			}
+			unmountAfter = true
 		}
 
 		usage, err := pool.Usage()
@@ -101,6 +106,14 @@ func (s *storageModule) Total(kind pkg.DeviceType) (uint64, error) {
 		}
 
 		total += usage.Size
+
+		if unmountAfter {
+			err := pool.UnMount()
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed to unmount pool %s", pool.Name())
+				return 0, err
+			}
+		}
 	}
 	return total, nil
 }
