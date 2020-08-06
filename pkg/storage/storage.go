@@ -576,16 +576,20 @@ func (s *storageModule) checkForCandidates(size uint64, poolType pkg.DeviceType,
 			Msgf("usage of pool %s", pool.Name())
 		// Make sure adding this filesystem would not bring us over the disk limit
 		if reserved+size > usage.Size {
-			log.Info().Msgf("Disk does not have enough space left to hold filesystem, shutting down again")
-			err = pool.UnMount()
-			if err != nil {
-				log.Error().Err(err).Msgf("failed to unmount pool %s", pool.Name())
-				return nil, err
-			}
-			err = pool.Shutdown()
-			if err != nil {
-				log.Error().Err(err).Msgf("failed to shutdown pool %s", pool.Name())
-				return nil, err
+			log.Info().Msgf("Disk does not have enough space left to hold filesystem")
+
+			if !poolIsMounted && !mounted {
+				log.Info().Msgf("Previously unmounted pool shutting down again..")
+				err = pool.UnMount()
+				if err != nil {
+					log.Error().Err(err).Msgf("failed to unmount pool %s", pool.Name())
+					return nil, err
+				}
+				err = pool.Shutdown()
+				if err != nil {
+					log.Error().Err(err).Msgf("failed to shutdown pool %s", pool.Name())
+					return nil, err
+				}
 			}
 			continue
 		}

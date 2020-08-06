@@ -63,6 +63,8 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 
 	log.Info().Msg("try to allocation space for 0-DB")
 
+	// Initially check if the namespace already exists
+	// if so, return the allocation
 	for _, pool := range s.pools {
 		if _, mounted := pool.Mounted(); !mounted {
 			continue
@@ -107,10 +109,13 @@ func (s *storageModule) Allocate(nsID string, diskType pkg.DeviceType, size uint
 	}
 
 	// check for candidates in mounted pools first
-	candidates, err := s.checkForZDBCandidates(size, diskType, true, targetMode)
+	candidates, err := s.checkForZDBCandidateVolumes(size, diskType, targetMode)
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to search on mounted pools")
+		log.Error().Err(err).Msgf("failed to search volumes on mounted pools")
+		return allocation, err
 	}
+
+	log.Debug().Msgf("Found %d candidate volumes in mounted pools", len(candidates))
 
 	var volume filesystem.Volume
 	if len(candidates) > 0 {
@@ -154,11 +159,11 @@ type zdbcandidate struct {
 	Free uint64
 }
 
-func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceType, mounted bool, targetMode zdbpool.IndexMode) ([]zdbcandidate, error) {
+func (s *storageModule) checkForZDBCandidateVolumes(size uint64, poolType pkg.DeviceType, targetMode zdbpool.IndexMode) ([]zdbcandidate, error) {
 	var candidates []zdbcandidate
 	for _, pool := range s.pools {
-		_, poolIsMounted := pool.Mounted()
-		if mounted != poolIsMounted {
+		// ignore pools that are not mounted for now
+		if _, mounted := pool.Mounted(); !mounted {
 			continue
 		}
 
@@ -167,16 +172,6 @@ func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceTy
 			continue
 		}
 		log.Debug().Msgf("checking pool %s for space", pool.Name())
-
-		if !poolIsMounted && !mounted {
-			log.Debug().Msgf("Mounting pool %s...", pool.Name())
-			// if the pool is not mounted, and we are looking for not mounted pools, mount it first
-			_, err := pool.MountWithoutScan()
-			if err != nil {
-				log.Error().Err(err).Msgf("failed to mount pool %s", pool.Name())
-				return nil, err
-			}
-		}
 
 		usage, err := pool.Usage()
 		if err != nil {
@@ -227,25 +222,6 @@ func (s *storageModule) checkForZDBCandidates(size uint64, poolType pkg.DeviceTy
 					Volume: volume,
 					Free:   usage.Size - (volumeUsage.Size + size),
 				})
-
-			// if we are looking for not mounted pools, break here
-			if !mounted {
-				return candidates, nil
-			}
-		}
-
-		if len(candidates) == 0 {
-			log.Info().Msgf("Disk does not have enough space left to hold filesystem, shutting down again")
-			err = pool.UnMount()
-			if err != nil {
-				log.Error().Err(err).Msgf("failed to unmount pool %s", pool.Name())
-				return nil, err
-			}
-			err = pool.Shutdown()
-			if err != nil {
-				log.Error().Err(err).Msgf("failed to shutdown pool %s", pool.Name())
-				return nil, err
-			}
 		}
 	}
 	return candidates, nil
