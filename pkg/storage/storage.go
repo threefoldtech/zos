@@ -74,10 +74,6 @@ func New() (pkg.StorageModule, error) {
 		log.Info().Msgf("Finished initializing storage module")
 	}
 
-	if err := s.Maintenance(); err != nil {
-		log.Error().Err(err).Msg("storage devices maintenance failed")
-	}
-
 	return s, err
 }
 
@@ -311,29 +307,6 @@ func (s *storageModule) shutdownUnusedPools() error {
 		if err := pool.Shutdown(); err != nil {
 			log.Error().Err(err).Msgf("Error shutting down pool %s", pool.Name())
 		}
-	}
-	return nil
-}
-
-func (s *storageModule) Maintenance() error {
-	for _, pool := range s.pools {
-		// no need to run maintenance on unmounted pools
-		if _, mounted := pool.Mounted(); !mounted {
-			continue
-		}
-		log.Info().
-			Str("pool", pool.Name()).
-			Msg("start storage pool maintained")
-		if err := pool.Maintenance(); err != nil {
-			log.Error().
-				Err(err).
-				Str("pool", pool.Name()).
-				Msg("error during maintainace")
-			return err
-		}
-		log.Info().
-			Str("pool", pool.Name()).
-			Msg("finished storage pool maintained")
 	}
 	return nil
 }

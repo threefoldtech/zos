@@ -107,10 +107,6 @@ func (p *testPool) Reserved() (uint64, error) {
 	return p.reserved, nil
 }
 
-func (p *testPool) Maintenance() error {
-	return nil
-}
-
 func (p *testPool) Volumes() ([]filesystem.Volume, error) {
 	args := p.Called()
 	return args.Get(0).([]filesystem.Volume), args.Error(1)

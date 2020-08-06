@@ -50,13 +50,6 @@ type Pool interface {
 	Type() pkg.DeviceType
 	// Reserved is reserved size of the devices in bytes
 	Reserved() (uint64, error)
-	// Maintenance is a routine that is called at boot
-	// and that all implementer can use to do some clean up and
-	// other maintenance on the pool
-	Maintenance() error
-
-	// Health() ?
-
 	// Volumes are all subvolumes of this volume
 	Volumes() ([]Volume, error)
 	// AddVolume adds a new subvolume with the given name

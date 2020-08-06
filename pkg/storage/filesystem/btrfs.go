@@ -218,6 +218,10 @@ func (p *btrfsPool) Mount() (string, error) {
 		return "", err
 	}
 
+	if err := p.maintenance(); err != nil {
+		return "", err
+	}
+
 	return mnt, p.utils.QGroupEnable(ctx, mnt)
 }
 
@@ -233,6 +237,10 @@ func (p *btrfsPool) MountWithoutScan() (string, error) {
 	}
 
 	if err := syscall.Mount(p.devices[0].Path, mnt, "btrfs", 0, ""); err != nil {
+		return "", err
+	}
+
+	if err := p.maintenance(); err != nil {
 		return "", err
 	}
 
@@ -441,7 +449,7 @@ func (p *btrfsPool) Reserved() (uint64, error) {
 	return total, nil
 }
 
-func (p *btrfsPool) Maintenance() error {
+func (p *btrfsPool) maintenance() error {
 	// this method cleans up all the unused
 	// qgroups that could exists on a filesystem
 
