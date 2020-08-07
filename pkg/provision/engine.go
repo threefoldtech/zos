@@ -83,7 +83,7 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	cReservation := e.source.Reservations(ctx)
 
-	timer := time.NewTimer(5 * time.Minute)
+	after := time.After(5 * time.Minute)
 	canCleanup := true
 
 	for {
@@ -142,16 +142,13 @@ func (e *Engine) Run(ctx context.Context) error {
 			}
 
 		// 5 minutes after provisiond start we do an initial clean up
-		case <-timer.C:
+		case <-after:
 			log.Info().Msg("start cleaning up resources")
 			if canCleanup {
 				if err := CleanupResources(); err != nil {
 					log.Error().Err(err).Msg("failed to cleanup resources")
 					continue
 				}
-			}
-			if !timer.Stop() {
-				<-timer.C
 			}
 		}
 
