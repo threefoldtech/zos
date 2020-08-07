@@ -361,7 +361,13 @@ func (s *storageModule) ReleaseFilesystem(name string) error {
 					log.Err(err).Msgf("Error removing volume %s", vol.Name())
 					return err
 				}
+				// if there is only 1 volume, unmount and shutdown pool
 				if len(volumes) == 1 {
+					err = pool.UnMount()
+					if err != nil {
+						log.Err(err).Msgf("Error unmounting pool %s", pool.Name())
+						return err
+					}
 					err = pool.Shutdown()
 					if err != nil {
 						log.Err(err).Msgf("Error shutting down pool %s", pool.Name())
