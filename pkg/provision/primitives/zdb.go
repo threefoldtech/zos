@@ -384,11 +384,57 @@ func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *provisio
 		return errors.Wrap(err, "failed to retrieve zdb namespaces")
 	}
 
-	// If there are no more namespaces left, we can delete this subvolume
-	if len(ns) == 0 {
-		return storageClient.ReleaseFilesystem(reservation.ID)
+	log.Info().Msgf("zdb has %d namespaces left", len(ns))
+
+	// If there are no more namespaces left except for the default namespace, we can delete this subvolume
+	if len(ns) == 1 {
+		log.Info().Msg("decommissioning zdb container because there are no more namespaces left")
+		err = p.deleteZdbContainer(containerID)
+		if err != nil {
+			return errors.Wrap(err, "failed to decommission zdb container")
+		}
+
+		log.Info().Msgf("deleting subvolumes of reservation: %s", allocation.VolumeID)
+		// we also need to delete the flist volume
+		return storageClient.ReleaseFilesystem(allocation.VolumeID)
 	}
 
+	return nil
+}
+
+func (p *Provisioner) deleteZdbContainer(containerID pkg.ContainerID) error {
+	container := stubs.NewContainerModuleStub(p.zbus)
+	flist := stubs.NewFlisterStub(p.zbus)
+	// networkMgr := stubs.NewNetworkerStub(p.zbus)
+
+	info, err := container.Inspect("zdb", containerID)
+	if err == nil {
+		if err := container.Delete("zdb", containerID); err != nil {
+			return errors.Wrapf(err, "failed to delete container %s", containerID)
+		}
+
+		rootFS := info.RootFS
+		if info.Interactive {
+			rootFS, err = findRootFS(info.Mounts)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := flist.Umount(rootFS); err != nil {
+			return errors.Wrapf(err, "failed to unmount flist at %s", rootFS)
+		}
+
+	} else {
+		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
+	}
+
+	// netID := networkID(user, string(config.Network.NetworkID))
+	// if _, err := networkMgr.GetSubnet(netID); err == nil { // simple check to make sure the network still exists on the node
+	// 	if err := networkMgr.Leave(netID, string(containerID)); err != nil {
+	// 		return errors.Wrap(err, "failed to delete container network namespace")
+	// 	}
+	// }
 	return nil
 }
 

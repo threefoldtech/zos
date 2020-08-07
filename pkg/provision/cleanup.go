@@ -71,6 +71,7 @@ func CleanupResources() error {
 	toSave := make(map[string]struct{})
 
 	for _, ns := range lines(must(execute("ctr", "namespace", "ls", "-q"))) {
+		log.Info().Msgf("Checking namespace %s", ns)
 		for _, cnt := range lines(must(execute("ctr", "-n", ns, "container", "ls", "-q"))) {
 			bytes := must(execute("ctr", "-n", ns, "container", "info", cnt))
 			var container container
@@ -94,10 +95,7 @@ func CleanupResources() error {
 			toSave[filepath.Base(container.Spec.Root.Path)] = struct{}{}
 			for _, mnt := range container.Spec.Mounts {
 				if strings.HasPrefix(mnt.Source, "/mnt/") {
-					// If there are namespaces, save this subvolume
-					if len(ns) != 0 {
-						toSave[filepath.Base(mnt.Source)] = struct{}{}
-					}
+					toSave[filepath.Base(mnt.Source)] = struct{}{}
 				}
 			}
 		}
