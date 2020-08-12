@@ -342,6 +342,45 @@ func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID strin
 	return nil
 }
 
+func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *provision.Reservation) error {
+	var (
+		storage = stubs.NewZDBAllocaterStub(p.zbus)
+
+		config ZDB
+		nsID   = reservation.ID
+	)
+
+	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+		return errors.Wrap(err, "failed to decode reservation schema")
+	}
+
+	allocation, err := storage.Find(reservation.ID)
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	_, err = p.ensureZdbContainer(ctx, allocation, config.Mode)
+	if err != nil {
+		return errors.Wrap(err, "failed to find namespace zdb container")
+	}
+
+	containerID := pkg.ContainerID(allocation.VolumeID)
+
+	zdbCl := zdbConnection(containerID)
+	defer zdbCl.Close()
+	if err := zdbCl.Connect(); err != nil {
+		return errors.Wrapf(err, "failed to connect to 0-db: %s", containerID)
+	}
+
+	if err := zdbCl.DeleteNamespace(nsID); err != nil {
+		return errors.Wrapf(err, "failed to delete namespace in 0-db: %s", containerID)
+	}
+
+	return nil
+}
+
 func socketDir(containerID pkg.ContainerID) string {
 	return fmt.Sprintf("/var/run/zdb_%s", containerID)
 }
