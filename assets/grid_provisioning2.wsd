@@ -11,32 +11,23 @@ boundary Node as node
 == Price definition ==
 farmer -> explorer: Farmer set the price of its Resource units
 == Resource research ==
-activate explorer
-user -> explorer: User look where to deploy the workload
+user -> explorer: User look where to reserve some capacity
 user <- explorer: Gives detail about the farmer owning the node selected
-== Resource reservation  ==
-user -> explorer: write description of the workload
+== Capacity pool creation  ==
+user -> explorer: create a new capacity pool
 explorer -> user: return a list of transaction to execute on the blockchain
-== Reservation processing  ==
+== Capacity pool payment  ==
 user -> blockchain: execute transactions
 explorer <-> blockchain: verify transactions are done
-explorer -> explorer: reservation status changed to `deploy`
-== Resource provisioning  ==
-node <-> explorer: read description of the workloads
+blockchain -> farmer: forward the payed token to the farmer account
+explorer -> explorer: fund the capacity pool
+== Workload provisioning  ==
+user -> explorer: sends workload definition
+node <-> explorer: read workload definition
 node -> node: provision workload
-alt provision successfull
-    node -> explorer: write result of the provisining
-    explorer -> blockchain: forward token to the farmer
-    blockchain -> farmer: tokens are available to the farmer
-    user <- explorer: read the connection information to his workload
-else provision error
-    node -> explorer: write result of the provisining
-    explorer -> explorer: cancel reservation
-    node -> node: free up capacity
-    explorer -> blockchain: token refunded to user 
-    blockchain <-> user: tokens are available to the user again
-end
-deactivate explorer
+node -> explorer: write result of the provisining
+explorer -> explorer: attached active workload to the capacity pool
+user <- explorer: read the connection information to his workloa
 == Resource monitoring ==
 user <-> node: use / monitor workload
 @enduml

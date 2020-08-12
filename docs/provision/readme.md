@@ -31,7 +31,3 @@ schema for each type of workload
 ## Provisioning flows
 
 See the [IT contract documentation](it_contract.md)
-
-## Payment of the reservations
-
-See the [reservation payment documentation](reservation_payment.md)

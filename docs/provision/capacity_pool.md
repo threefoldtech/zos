@@ -64,7 +64,7 @@ can then deploy workloads on the pool.
 this field can be omitted (or set to the default of 0)
 - **CUs**: the amount of `CUs` to add to the pool
 - **SUs**: the amount of `SUs` to add to the pool
-- NodeIDs: the ids of the nodes in this pool. After the pool is created, workloads
+- **NodeIDs**: the ids of the nodes in this pool. After the pool is created, workloads
 can be created on any of these nodes tied to this pool. Note that it is currently
 only possible to select nodes belonging to the same farm.
 - **Currencies**: the currencies the client wants to pay in. If no currency is
@@ -76,7 +76,7 @@ will fail.
 Once the capacity reservation has been created, payment information will be returned.
 This information will return the id of the reservation in the system. If a new pool
 is created, this id will also be the id of the pool. To deploy a workload with
-your newly reserved capacity, you simpley need to set the `PoolID` field of the
+your newly reserved capacity, you simply need to set the `PoolID` field of the
 workload reservation to this ID. If you top up a pool, the id will stay the same.
 Note that a new id will be returned as well since the id is also used for the payment.
 
