@@ -11,7 +11,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zbus"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
+	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zdb"
 	"golang.org/x/net/context"
 )
@@ -69,6 +72,7 @@ func socketDir(containerID string) string {
 // CleanupResources cleans up unused resources
 func CleanupResources() error {
 	toSave := make(map[string]struct{})
+	toDelete := make(map[string]struct{})
 
 	for _, ns := range lines(must(execute("ctr", "namespace", "ls", "-q"))) {
 		log.Info().Msgf("Checking namespace %s", ns)
@@ -90,12 +94,19 @@ func CleanupResources() error {
 				return errors.Wrap(err, "failed to retrieve zdb namespaces")
 			}
 
-			log.Info().Msgf("ZDB namespaces length: %d", len(ns))
-
 			toSave[filepath.Base(container.Spec.Root.Path)] = struct{}{}
 			for _, mnt := range container.Spec.Mounts {
 				if strings.HasPrefix(mnt.Source, "/mnt/") {
-					toSave[filepath.Base(mnt.Source)] = struct{}{}
+					log.Info().Msgf("ZDB namespaces length: %d in path", len(ns), mnt.Source)
+					if len(ns) == 1 && ns[0] == "default" {
+						err := deleteZdbContainer(pkg.ContainerID(container.ID))
+						if err != nil {
+							return errors.Wrapf(err, "failed to delete zdb container %s", container.ID)
+						}
+						toDelete[filepath.Base(mnt.Source)] = struct{}{}
+					} else {
+						toSave[filepath.Base(mnt.Source)] = struct{}{}
+					}
 				}
 			}
 		}
@@ -115,17 +126,33 @@ func CleanupResources() error {
 		path := filepath.Join("/mnt", pool.Name())
 		subvols, err := utils.SubvolumeList(ctx, path)
 		if err != nil {
-			return errors.Wrapf(err, "failed to list available subvolumes in: %s", path)
+			// A Pool might not be mounted here, skip it
+			log.Error().Err(err).Msgf("failed to list available subvolumes in: %s", path)
+			continue
 		}
 
 		qgroups, err := utils.QGroupList(ctx, path)
 		if err != nil {
 			return errors.Wrapf(err, "failed to list available cgroups in: %s", path)
 		}
+
 		for _, subvol := range subvols {
 			qgroup, ok := qgroups[fmt.Sprintf("0/%d", subvol.ID)]
 			if !ok {
 				log.Info().Msgf("skipping volume '%s' has no assigned quota", subvol.Path)
+				continue
+			}
+
+			// now, is this subvol in one of the toDelete ?
+			if _, ok := toDelete[filepath.Base(subvol.Path)]; ok {
+				// delete the subvolume
+				log.Info().Msgf("deleting subvolume %s", subvol.Path)
+				if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
+					log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
+				}
+				if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
+					log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
+				}
 				continue
 			}
 
@@ -153,4 +180,48 @@ func CleanupResources() error {
 	}
 
 	return nil
+}
+
+func deleteZdbContainer(containerID pkg.ContainerID) error {
+	zbusCl, err := zbus.NewRedisClient("unix:///var/run/redis.sock")
+	if err != nil {
+		log.Fatal().Err(err).Msg("fail to connect to message broker server")
+	}
+
+	container := stubs.NewContainerModuleStub(zbusCl)
+	flist := stubs.NewFlisterStub(zbusCl)
+
+	info, err := container.Inspect("zdb", containerID)
+	if err == nil {
+		if err := container.Delete("zdb", containerID); err != nil {
+			return errors.Wrapf(err, "failed to delete container %s", containerID)
+		}
+
+		rootFS := info.RootFS
+		if info.Interactive {
+			rootFS, err = findRootFS(info.Mounts)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := flist.Umount(rootFS); err != nil {
+			return errors.Wrapf(err, "failed to unmount flist at %s", rootFS)
+		}
+
+	} else {
+		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
+	}
+
+	return nil
+}
+
+func findRootFS(mounts []pkg.MountInfo) (string, error) {
+	for _, m := range mounts {
+		if m.Target == "/sandbox" {
+			return m.Source, nil
+		}
+	}
+
+	return "", fmt.Errorf("rootfs flist mountpoint not found")
 }

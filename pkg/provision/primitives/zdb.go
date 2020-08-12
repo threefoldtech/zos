@@ -387,7 +387,7 @@ func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *provisio
 	log.Info().Msgf("zdb has %d namespaces left", len(ns))
 
 	// If there are no more namespaces left except for the default namespace, we can delete this subvolume
-	if len(ns) == 1 {
+	if len(ns) == 1 && ns[0] == "default" {
 		log.Info().Msg("decommissioning zdb container because there are no more namespaces left")
 		err = p.deleteZdbContainer(containerID)
 		if err != nil {
