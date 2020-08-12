@@ -97,7 +97,7 @@ func CleanupResources() error {
 			toSave[filepath.Base(container.Spec.Root.Path)] = struct{}{}
 			for _, mnt := range container.Spec.Mounts {
 				if strings.HasPrefix(mnt.Source, "/mnt/") {
-					log.Info().Msgf("ZDB namespaces length: %d in path", len(ns), mnt.Source)
+					log.Info().Msgf("ZDB namespaces length: %d in path %s", len(ns), mnt.Source)
 					if len(ns) == 1 && ns[0] == "default" {
 						err := deleteZdbContainer(pkg.ContainerID(container.ID))
 						if err != nil {
