@@ -10,6 +10,8 @@ import (
 
 	"github.com/threefoldtech/zos/pkg"
 
+	"gopkg.in/robfig/cron.v2"
+
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -86,6 +88,22 @@ func (e *Engine) Run(ctx context.Context) error {
 	after := time.After(5 * time.Minute)
 	canCleanup := true
 
+	// run a cron task that will fire the cleanup at midnight
+	c := cron.New()
+	_, err := c.AddFunc("@midnight", func() {
+		log.Info().Msg("start cleaning up resources")
+		if canCleanup {
+			if err := CleanupResources(); err != nil {
+				log.Error().Err(err).Msg("failed to cleanup resources")
+			}
+		}
+	})
+	if err != nil {
+		return fmt.Errorf("failed to setup cron task: %w", err)
+	}
+
+	defer c.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -129,17 +147,6 @@ func (e *Engine) Run(ctx context.Context) error {
 				log.Error().Err(err).Msg("failed to updated the capacity counters")
 			}
 			canCleanup = true
-
-		case <-time.After(1 * time.Hour):
-			// We schedule a cleanup between 23pm and 24pm
-			hr, _, _ := time.Now().Clock()
-			if hr >= 23 && hr <= 24 && canCleanup {
-				log.Info().Msg("start cleaning up resources")
-				if err := CleanupResources(); err != nil {
-					log.Error().Err(err).Msg("failed to cleanup resources")
-					continue
-				}
-			}
 
 		// 5 minutes after provisiond start we do an initial clean up
 		case <-after:
