@@ -158,8 +158,11 @@ func CleanupResources() error {
 
 			// we only handle volumes that are 256MiB or 10MiB
 			if qgroup.MaxRfer != 268435456 && qgroup.MaxRfer != 10485760 {
-				log.Info().Msgf("skipping volume '%s' is of size: %d", subvol.Path, qgroup.MaxRfer)
-				continue
+				// if the subvolume is a zdb and has 0 maxRfer, don't skip here. It might need to be deleted
+				if !strings.HasPrefix(subvol.Path, "zdb") && qgroup.MaxRfer != 0 {
+					log.Info().Msgf("skipping volume '%s' is of size: %d", subvol.Path, qgroup.MaxRfer)
+					continue
+				}
 			}
 
 			// now, is this subvol in one of the toSave ?
