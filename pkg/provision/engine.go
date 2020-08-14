@@ -27,6 +27,7 @@ type Engine struct {
 	decomissioners map[ReservationType]DecomissionerFunc
 	signer         Signer
 	statser        Statser
+	msgBrokerCon   string
 }
 
 // EngineOps are the configuration of the engine
@@ -53,6 +54,8 @@ type EngineOps struct {
 	// are reserved on the system running the engine
 	// After each provision/decomission the engine sends statistics update to the staster
 	Statser Statser
+	// msgBrokerCon is the connectionstring to the message broker
+	msgBrokerCon string
 }
 
 // New creates a new engine. Once started, the engine
@@ -71,6 +74,7 @@ func New(opts EngineOps) *Engine {
 		decomissioners: opts.Decomissioners,
 		signer:         opts.Signer,
 		statser:        opts.Statser,
+		msgBrokerCon:   opts.msgBrokerCon,
 	}
 }
 
@@ -85,24 +89,25 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	cReservation := e.source.Reservations(ctx)
 
-	after := time.After(5 * time.Minute)
+	cleanUp := make(chan struct{})
+
 	canCleanup := true
 
 	// run a cron task that will fire the cleanup at midnight
 	c := cron.New()
 	_, err := c.AddFunc("@midnight", func() {
-		log.Info().Msg("start cleaning up resources")
-		if canCleanup {
-			if err := CleanupResources(); err != nil {
-				log.Error().Err(err).Msg("failed to cleanup resources")
-			}
-		}
+		cleanUp <- struct{}{}
 	})
 	if err != nil {
 		return fmt.Errorf("failed to setup cron task: %w", err)
 	}
 
 	defer c.Stop()
+
+	go func() {
+		<-time.After(1 * time.Minute)
+		cleanUp <- struct{}{}
+	}()
 
 	for {
 		select {
@@ -148,17 +153,15 @@ func (e *Engine) Run(ctx context.Context) error {
 			}
 			canCleanup = true
 
-		// 5 minutes after provisiond start we do an initial clean up
-		case <-after:
+		case <-cleanUp:
 			log.Info().Msg("start cleaning up resources")
 			if canCleanup {
-				if err := CleanupResources(); err != nil {
+				if err := CleanupResources(e.msgBrokerCon); err != nil {
 					log.Error().Err(err).Msg("failed to cleanup resources")
 					continue
 				}
 			}
 		}
-
 	}
 }
 
