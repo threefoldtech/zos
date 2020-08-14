@@ -1,13 +1,13 @@
 package provision
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/namespaces"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -19,44 +19,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func execute(cmd string, args ...string) ([]byte, error) {
-	exe := exec.Command(cmd, args...)
-	output, err := exe.CombinedOutput()
-	if err != nil {
-		return nil, errors.Wrapf(err, "execute '%v %+v': %v", cmd, args, string(output))
-	}
-
-	return output, nil
-}
-
-func lines(input []byte) []string {
-	input = bytes.TrimSpace(input)
-	if len(input) == 0 {
-		return nil
-	}
-
-	return strings.Split(string(input), "\n")
-}
-
-func must(input []byte, err error) []byte {
-	if err != nil {
-		panic(err)
-	}
-
-	return input
-}
-
-type container struct {
-	ID   string `json:"ID"`
-	Spec struct {
-		Root struct {
-			Path string `json:"path"`
-		} `json:"root"`
-		Mounts []struct {
-			Source string `json:"source"`
-		} `json:"mounts"`
-	} `json:"Spec"`
-}
+const (
+	containerdSock = "/run/containerd/containerd.sock"
+)
 
 // we declare this method as a variable so we can
 // mock it in testing.
@@ -122,7 +87,7 @@ func CleanupResources(msgBrokerCon string) error {
 			}
 
 			// if the subvolume is a zdb and has 0 maxRfer, don't skip here. It might need to be deleted
-			zdbVolume := strings.HasPrefix(subvol.Path, "zdb") && qgroup.MaxRfer != 0
+			zdbVolume := strings.HasPrefix(subvol.Path, "zdb") && qgroup.MaxRfer == 0
 
 			// we only handle volumes that are 256MiB or 10MiB
 			if qgroup.MaxRfer != 268435456 && qgroup.MaxRfer != 10485760 && !zdbVolume {
@@ -156,43 +121,62 @@ func checkContainers(msgBrokerCon string) (map[string]struct{}, map[string]struc
 	toSave := make(map[string]struct{})
 	toDelete := make(map[string]struct{})
 
-	for _, ns := range lines(must(execute("ctr", "namespace", "ls", "-q"))) {
+	client, err := containerd.New(containerdSock)
+	if err != nil {
+		log.Err(err).Msgf("failed to create containerd connection")
+		return nil, nil, err
+	}
+
+	ns, err := client.NamespaceService().List(context.Background())
+	if err != nil {
+		log.Err(err).Msgf("failed to list namespaces")
+		return nil, nil, err
+	}
+
+	for _, ns := range ns {
 		log.Info().Msgf("Checking namespace %s", ns)
-		for _, cnt := range lines(must(execute("ctr", "-n", ns, "container", "ls", "-q"))) {
-			bytes := must(execute("ctr", "-n", ns, "container", "info", cnt))
-			var container container
-			if err := json.Unmarshal(bytes, &container); err != nil {
-				panic(err)
-			}
+		ctx := namespaces.WithNamespace(context.Background(), ns)
+		crts, err := client.Containers(ctx, "")
+		if err != nil {
+			log.Err(err).Msgf("failed to list containers")
+			return nil, nil, err
+		}
 
-			var namespaces []string
-			var err error
+		var zdbNamespaces []string
 
+		for _, ctr := range crts {
+			log.Info().Msgf("container ID %s", ctr.ID())
 			if ns == "zdb" {
-				zdbCl := initZdbConnection(container.ID)
+				zdbCl := initZdbConnection(ctr.ID())
 				defer zdbCl.Close()
 				if err := zdbCl.Connect(); err != nil {
-					log.Err(err).Msgf("failed to connect to 0-db: %s", container.ID)
+					log.Err(err).Msgf("failed to connect to 0-db: %s", ctr.ID())
 					continue
 				}
 
-				namespaces, err = zdbCl.Namespaces()
+				zdbNamespaces, err = zdbCl.Namespaces()
 				if err != nil {
 					log.Err(err).Msg("failed to retrieve zdb namespaces")
 					continue
 				}
 			}
 
-			toSave[filepath.Base(container.Spec.Root.Path)] = struct{}{}
-			for _, mnt := range container.Spec.Mounts {
+			spec, _ := ctr.Spec(ctx)
+			if err != nil {
+				log.Err(err).Msg("failed to container spec")
+				continue
+			}
+
+			toSave[filepath.Base(spec.Root.Path)] = struct{}{}
+			for _, mnt := range spec.Mounts {
 				if !strings.HasPrefix(mnt.Source, "/mnt/") {
 					continue
 				}
 
-				if len(ns) == 1 && namespaces[0] == "default" {
-					err := deleteZdbContainer(msgBrokerCon, pkg.ContainerID(container.ID))
+				if len(ns) == 1 && zdbNamespaces[0] == "default" {
+					err := deleteZdbContainer(msgBrokerCon, pkg.ContainerID(ctr.ID()))
 					if err != nil {
-						log.Err(err).Msgf("failed to delete zdb container %s", container.ID)
+						log.Err(err).Msgf("failed to delete zdb container %s", ctr.ID())
 						continue
 					}
 					toDelete[filepath.Base(mnt.Source)] = struct{}{}
@@ -202,6 +186,7 @@ func checkContainers(msgBrokerCon string) (map[string]struct{}, map[string]struc
 			}
 		}
 	}
+
 	return toSave, toDelete, nil
 }
 

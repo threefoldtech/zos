@@ -91,8 +91,6 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	cleanUp := make(chan struct{})
 
-	canCleanup := true
-
 	// run a cron task that will fire the cleanup at midnight
 	c := cron.New()
 	_, err := c.AddFunc("@midnight", func() {
@@ -120,7 +118,6 @@ func (e *Engine) Run(ctx context.Context) error {
 				log.Info().Msg("reservation source is emptied. stopping engine")
 				return nil
 			}
-			canCleanup = false
 
 			expired := reservation.Expired()
 			slog := log.With().
@@ -136,14 +133,12 @@ func (e *Engine) Run(ctx context.Context) error {
 				slog.Info().Msg("start decommissioning reservation")
 				if err := e.decommission(ctx, reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to decommission reservation %s", reservation.ID)
-					canCleanup = true
 					continue
 				}
 			} else {
 				slog.Info().Msg("start provisioning reservation")
 				if err := e.provision(ctx, reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to provision reservation %s", reservation.ID)
-					canCleanup = true
 					continue
 				}
 			}
@@ -151,15 +146,12 @@ func (e *Engine) Run(ctx context.Context) error {
 			if err := e.updateStats(); err != nil {
 				log.Error().Err(err).Msg("failed to updated the capacity counters")
 			}
-			canCleanup = true
 
 		case <-cleanUp:
 			log.Info().Msg("start cleaning up resources")
-			if canCleanup {
-				if err := CleanupResources(e.msgBrokerCon); err != nil {
-					log.Error().Err(err).Msg("failed to cleanup resources")
-					continue
-				}
+			if err := CleanupResources(e.msgBrokerCon); err != nil {
+				log.Error().Err(err).Msg("failed to cleanup resources")
+				continue
 			}
 		}
 	}
