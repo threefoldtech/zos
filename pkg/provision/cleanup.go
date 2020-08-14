@@ -35,7 +35,7 @@ func socketDir(containerID string) string {
 }
 
 // CleanupResources cleans up unused resources
-func CleanupResources(msgBrokerCon string) error {
+func cleanupResources(msgBrokerCon string) error {
 	toSave, toDelete, err := checkContainers(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "failed to check containers")
