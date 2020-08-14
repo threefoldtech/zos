@@ -105,7 +105,7 @@ func (e *Engine) Run(ctx context.Context) error {
 	defer c.Stop()
 
 	go func() {
-		<-time.After(1 * time.Minute)
+		<-time.After(5 * time.Minute)
 		cleanUp <- struct{}{}
 	}()
 
