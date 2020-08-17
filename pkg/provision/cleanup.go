@@ -86,15 +86,6 @@ func cleanupResources(msgBrokerCon string) error {
 				continue
 			}
 
-			// if the subvolume is a zdb and has 0 maxRfer, don't skip here. It might need to be deleted
-			zdbVolume := strings.HasPrefix(subvol.Path, "zdb") && qgroup.MaxRfer == 0
-
-			// we only handle volumes that are 256MiB or 10MiB
-			if qgroup.MaxRfer != 268435456 && qgroup.MaxRfer != 10485760 && !zdbVolume {
-				log.Info().Msgf("skipping volume '%s' is of size: %d", subvol.Path, qgroup.MaxRfer)
-				continue
-			}
-
 			// now, is this subvol in one of the toSave ?
 			if _, ok := toSave[filepath.Base(subvol.Path)]; ok {
 				log.Info().Msgf("skipping volume '%s' is used", subvol.Path)
