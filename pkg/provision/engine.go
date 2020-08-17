@@ -182,6 +182,19 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		return errors.Wrapf(err, "failed to cache reservation %s locally", r.ID)
 	}
 
+	// If an update occurs on the network we don't increment the counter
+	if r.Type == "network" {
+		nr := pkg.NetResource{}
+		if err := json.Unmarshal(r.Data, &nr); err != nil {
+			return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
+		}
+
+		exists, _ := e.cache.NetworkExists(nr.Name)
+		if exists {
+			return nil
+		}
+	}
+
 	if err := e.statser.Increment(r); err != nil {
 		log.Err(err).Str("reservation_id", r.ID).Msg("failed to increment workloads statistics")
 	}

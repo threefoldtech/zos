@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/provision/primitives"
@@ -119,7 +120,7 @@ func (s *Fs) Sync(statser provision.Statser) error {
 		}
 
 		if !r.Expired() {
-			if err := statser.Increment(r); err != nil {
+			if err := s.incrementCounters(statser); err != nil {
 				return fmt.Errorf("fail to update stats:%w", err)
 			}
 		}
@@ -246,6 +247,90 @@ func (s *Fs) Exists(id string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+// NetworkExists exists checks if a network exists in cache already
+func (s *Fs) NetworkExists(name string) (bool, error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	infos, err := ioutil.ReadDir(s.root)
+	if err != nil {
+		return false, err
+	}
+
+	for _, info := range infos {
+		if info.IsDir() {
+			continue
+		}
+
+		r, err := s.get(info.Name())
+		if err != nil {
+			return false, fmt.Errorf("failed get reservation: %w", err)
+		}
+
+		if r.Type == primitives.NetworkReservation {
+			nr := pkg.NetResource{}
+			if err := json.Unmarshal(r.Data, &nr); err != nil {
+				return false, fmt.Errorf("failed to unmarshal network from reservation: %w", err)
+			}
+
+			if nr.Name == name {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+// incrementCounters will increment counters for all workloads
+// for network workloads it will only increment those that have a unique name
+func (s *Fs) incrementCounters(statser provision.Statser) error {
+	s.RLock()
+	defer s.RUnlock()
+
+	uniqueNetworks := make(map[string]*provision.Reservation)
+
+	infos, err := ioutil.ReadDir(s.root)
+	if err != nil {
+		return err
+	}
+
+	for _, info := range infos {
+		if info.IsDir() {
+			continue
+		}
+
+		r, err := s.get(info.Name())
+		if err != nil {
+			return fmt.Errorf("failed get reservation: %w", err)
+		}
+
+		if r.Type == primitives.NetworkReservation {
+			nr := pkg.NetResource{}
+			if err := json.Unmarshal(r.Data, &nr); err != nil {
+				return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
+			}
+
+			if _, ok := uniqueNetworks[nr.Name]; ok {
+				continue
+			}
+
+			uniqueNetworks[nr.Name] = r
+			continue
+		}
+
+		if err := statser.Increment(r); err != nil {
+			return fmt.Errorf("fail to update stats:%w", err)
+		}
+	}
+
+	for _, nr := range uniqueNetworks {
+		if err := statser.Increment(nr); err != nil {
+			return fmt.Errorf("fail to update stats:%w", err)
+		}
+	}
+	return nil
 }
 
 func (s *Fs) get(id string) (*provision.Reservation, error) {
