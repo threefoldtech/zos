@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
@@ -253,12 +252,13 @@ func (s *Fs) Exists(id string) (bool, error) {
 }
 
 // NetworkExists exists checks if a network exists in cache already
-func (s *Fs) NetworkExists(netID pkg.NetID, user string) (bool, error) {
+func (s *Fs) NetworkExists(name, user string) (bool, error) {
 	reservations, err := s.list()
 	if err != nil {
 		return false, err
 	}
 
+	id := uniqueID(user, name)
 	for _, r := range reservations {
 		if r.Type == primitives.NetworkReservation {
 			nr := pkg.NetResource{}
@@ -267,7 +267,7 @@ func (s *Fs) NetworkExists(netID pkg.NetID, user string) (bool, error) {
 			}
 
 			// Check if the combination of network id and user is the same
-			if networkID(r.User, string(nr.NetID)) == networkID(user, string(netID)) {
+			if uniqueID(r.User, name) == id {
 				return true, nil
 			}
 		}
@@ -304,7 +304,7 @@ func (s *Fs) list() ([]*provision.Reservation, error) {
 // incrementCounters will increment counters for all workloads
 // for network workloads it will only increment those that have a unique name
 func (s *Fs) incrementCounters(statser provision.Statser) error {
-	uniqueNetworkReservations := make(map[pkg.NetID]*provision.Reservation)
+	uniqueNetworkReservations := make(map[string]*provision.Reservation)
 
 	reservations, err := s.list()
 	if err != nil {
@@ -318,7 +318,7 @@ func (s *Fs) incrementCounters(statser provision.Statser) error {
 				return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 			}
 
-			netID := networkID(r.User, string(nr.NetID))
+			netID := uniqueID(r.User, nr.Name)
 			// if the network name + user exsists in the list, we skip it.
 			// else we add it to the list
 			if _, ok := uniqueNetworkReservations[netID]; ok {
@@ -378,14 +378,14 @@ func (s *Fs) Close() error {
 	return nil
 }
 
-func networkID(userID, name string) pkg.NetID {
+func uniqueID(userID, name string) string {
 	buf := bytes.Buffer{}
-	buf.WriteString(userID)
-	buf.WriteString(name)
-	h := md5.Sum(buf.Bytes())
-	b := base58.Encode(h[:])
-	if len(b) > 13 {
-		b = b[:13]
-	}
-	return pkg.NetID(string(b))
+
+	h := md5.Sum([]byte(userID))
+	buf.Write(h[:])
+	h = md5.Sum([]byte(name))
+	buf.Write(h[:])
+
+	h = md5.Sum(buf.Bytes())
+	return fmt.Sprint("%x", h)
 }

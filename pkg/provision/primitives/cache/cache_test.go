@@ -26,7 +26,7 @@ func TestLocalStore(t *testing.T) {
 	}
 
 	network := pkg.NetResource{
-		NetID: pkg.NetID("tf_devnet"),
+		Name: "tf_devnet",
 	}
 
 	json, _ := json.Marshal(network)
@@ -88,11 +88,11 @@ func TestLocalStore(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, len(reservations), 1)
 
-			exists, err := s.NetworkExists(pkg.NetID("tf_devnet"), "1")
+			exists, err := s.NetworkExists("tf_devnet", "1")
 			require.NoError(t, err)
 			assert.Equal(t, exists, true)
 
-			exists, err = s.NetworkExists(pkg.NetID("tf_mainnet"), "1")
+			exists, err = s.NetworkExists("tf_mainnet", "1")
 			require.NoError(t, err)
 			assert.Equal(t, exists, false)
 
