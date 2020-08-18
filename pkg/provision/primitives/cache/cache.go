@@ -281,7 +281,7 @@ func (s *Fs) list() ([]*provision.Reservation, error) {
 	if err != nil {
 		return nil, err
 	}
-	reservations := make([]*provision.Reservation, len(infos))
+	reservations := make([]*provision.Reservation, 0, len(infos))
 
 	for _, info := range infos {
 		if info.IsDir() {
@@ -301,7 +301,7 @@ func (s *Fs) list() ([]*provision.Reservation, error) {
 // incrementCounters will increment counters for all workloads
 // for network workloads it will only increment those that have a unique name
 func (s *Fs) incrementCounters(statser provision.Statser) error {
-	uniqueNetworks := make(map[string]*provision.Reservation)
+	uniqueNetworkReservations := make(map[string]*provision.Reservation)
 
 	reservations, err := s.list()
 	if err != nil {
@@ -315,17 +315,19 @@ func (s *Fs) incrementCounters(statser provision.Statser) error {
 				return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 			}
 
-			if _, ok := uniqueNetworks[nr.Name]; ok {
+			// if the network name + user exsists in the list, we skip it.
+			// else we add it to the list
+			if _, ok := uniqueNetworkReservations[nr.Name+r.User]; ok {
 				continue
 			}
 
-			uniqueNetworks[nr.Name] = r
+			uniqueNetworkReservations[nr.Name+r.User] = r
 			continue
 		}
 	}
 
-	for _, nr := range uniqueNetworks {
-		if err := statser.Increment(nr); err != nil {
+	for _, r := range uniqueNetworkReservations {
+		if err := statser.Increment(r); err != nil {
 			return fmt.Errorf("fail to update stats:%w", err)
 		}
 	}
