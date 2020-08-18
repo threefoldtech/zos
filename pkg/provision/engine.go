@@ -189,7 +189,7 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 			return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 		}
 
-		exists, _ := e.cache.NetworkExists(nr.Name)
+		exists, _ := e.cache.NetworkExists(nr.Name, r.User)
 		if exists {
 			return nil
 		}

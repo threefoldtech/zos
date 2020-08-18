@@ -250,51 +250,38 @@ func (s *Fs) Exists(id string) (bool, error) {
 }
 
 // NetworkExists exists checks if a network exists in cache already
-func (s *Fs) NetworkExists(name string) (bool, error) {
-	s.RLock()
-	defer s.RUnlock()
-
-	infos, err := ioutil.ReadDir(s.root)
+func (s *Fs) NetworkExists(name string, user string) (bool, error) {
+	reservations, err := s.list()
 	if err != nil {
 		return false, err
 	}
 
-	for _, info := range infos {
-		if info.IsDir() {
-			continue
-		}
-
-		r, err := s.get(info.Name())
-		if err != nil {
-			return false, fmt.Errorf("failed get reservation: %w", err)
-		}
-
+	for _, r := range reservations {
 		if r.Type == primitives.NetworkReservation {
 			nr := pkg.NetResource{}
 			if err := json.Unmarshal(r.Data, &nr); err != nil {
 				return false, fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 			}
 
-			if nr.Name == name {
+			// Check if the combination of network name and user is the same
+			if nr.Name == name && r.User == user {
 				return true, nil
 			}
 		}
 	}
+
 	return false, nil
 }
 
-// incrementCounters will increment counters for all workloads
-// for network workloads it will only increment those that have a unique name
-func (s *Fs) incrementCounters(statser provision.Statser) error {
+func (s *Fs) list() ([]*provision.Reservation, error) {
 	s.RLock()
 	defer s.RUnlock()
 
-	uniqueNetworks := make(map[string]*provision.Reservation)
-
 	infos, err := ioutil.ReadDir(s.root)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	reservations := make([]*provision.Reservation, len(infos))
 
 	for _, info := range infos {
 		if info.IsDir() {
@@ -303,9 +290,25 @@ func (s *Fs) incrementCounters(statser provision.Statser) error {
 
 		r, err := s.get(info.Name())
 		if err != nil {
-			return fmt.Errorf("failed get reservation: %w", err)
+			return nil, fmt.Errorf("failed get reservation: %w", err)
 		}
 
+		reservations = append(reservations, r)
+	}
+	return reservations, nil
+}
+
+// incrementCounters will increment counters for all workloads
+// for network workloads it will only increment those that have a unique name
+func (s *Fs) incrementCounters(statser provision.Statser) error {
+	uniqueNetworks := make(map[string]*provision.Reservation)
+
+	reservations, err := s.list()
+	if err != nil {
+		return err
+	}
+
+	for _, r := range reservations {
 		if r.Type == primitives.NetworkReservation {
 			nr := pkg.NetResource{}
 			if err := json.Unmarshal(r.Data, &nr); err != nil {
@@ -318,10 +321,6 @@ func (s *Fs) incrementCounters(statser provision.Statser) error {
 
 			uniqueNetworks[nr.Name] = r
 			continue
-		}
-
-		if err := statser.Increment(r); err != nil {
-			return fmt.Errorf("fail to update stats:%w", err)
 		}
 	}
 

@@ -35,7 +35,7 @@ type ReservationCache interface {
 	Get(id string) (*Reservation, error)
 	Remove(id string) error
 	Exists(id string) (bool, error)
-	NetworkExists(name string) (bool, error)
+	NetworkExists(name string, user string) (bool, error)
 	Sync(Statser) error
 }
 
