@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
@@ -22,6 +24,13 @@ func TestLocalStore(t *testing.T) {
 	type args struct {
 		r *provision.Reservation
 	}
+
+	network := pkg.NetResource{
+		Name: "tf_devnet",
+	}
+
+	json, _ := json.Marshal(network)
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -38,6 +47,9 @@ func TestLocalStore(t *testing.T) {
 					ID:       "r-1",
 					Created:  time.Now().UTC().Add(-time.Minute).Round(time.Second),
 					Duration: time.Second * 10,
+					Data:     json,
+					Type:     "network",
+					User:     "1",
 				},
 			},
 		},
@@ -71,6 +83,18 @@ func TestLocalStore(t *testing.T) {
 			assert.Equal(t, tt.args.r.Duration, expired[0].Duration)
 			assert.Equal(t, tt.args.r.Created, expired[0].Created)
 			assert.Equal(t, tt.args.r.ID, expired[0].ID)
+
+			reservations, err := s.list()
+			require.NoError(t, err)
+			assert.Equal(t, len(reservations), 1)
+
+			exists, err := s.NetworkExists("tf_devnet", "1")
+			require.NoError(t, err)
+			assert.Equal(t, exists, true)
+
+			exists, err = s.NetworkExists("tf_mainnet", "1")
+			require.NoError(t, err)
+			assert.Equal(t, exists, false)
 
 			err = s.Remove(actual.ID)
 			assert.NoError(t, err)
