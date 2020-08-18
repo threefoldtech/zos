@@ -267,7 +267,7 @@ func (s *Fs) NetworkExists(name, user string) (bool, error) {
 			}
 
 			// Check if the combination of network id and user is the same
-			if uniqueID(r.User, name) == id {
+			if uniqueID(r.User, nr.Name) == id {
 				return true, nil
 			}
 		}
@@ -387,5 +387,5 @@ func uniqueID(userID, name string) string {
 	buf.Write(h[:])
 
 	h = md5.Sum(buf.Bytes())
-	return fmt.Sprint("%x", h)
+	return fmt.Sprintf("%x", h)
 }
