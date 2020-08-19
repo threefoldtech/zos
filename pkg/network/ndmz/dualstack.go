@@ -191,10 +191,9 @@ func waitIP4() error {
 	// run DHCP to interface public in ndmz
 	probe := dhcp.NewProbe()
 
-	if err := probe.Start(DMZPub4); err != nil {
+	if err := probe.Run(DMZPub4); err != nil {
 		return err
 	}
-	defer probe.Stop()
 
 	link, err := netlink.LinkByName(DMZPub4)
 	if err != nil {
