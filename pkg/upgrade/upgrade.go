@@ -11,6 +11,10 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/threefoldtech/tfexplorer/client"
+	"github.com/threefoldtech/tfexplorer/schema"
+	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
@@ -43,7 +47,14 @@ type Upgrader struct {
 // on a successfully update, upgrade WILL NOT RETURN
 // instead the upgraded daemon will be completely stopped
 func (u *Upgrader) Upgrade(from, to FListEvent) error {
-	return u.applyUpgrade(from, to)
+	upgrade, err := canUpgrade()
+	if err != nil {
+		return err
+	}
+	if upgrade {
+		return u.applyUpgrade(from, to)
+	}
+	return nil
 }
 
 // InstallBinary from a single flist.
@@ -445,4 +456,32 @@ func copyFile(dst, src string) error {
 		return os.Remove(dstOld)
 	}
 	return nil
+}
+
+// instantiate the proper client based on the running mode
+func bcdbClient() (client.Directory, error) {
+	client, err := app.ExplorerClient()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Directory, nil
+}
+
+func canUpgrade() (bool, error) {
+	env, err := environment.Get()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to parse node environment")
+	}
+	cl, err := bcdbClient()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to instantiate bcdb client")
+	}
+
+	farm, err := cl.FarmGet(schema.ID(env.FarmerID))
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get farm")
+	}
+
+	return farm.AutomaticUpgrades, nil
 }
