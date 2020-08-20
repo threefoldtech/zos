@@ -189,9 +189,22 @@ func (d *DualStack) IP6PublicIface() string {
 // waitIPS waits to receives some IP from DHCP and Router advertisement
 func waitIP4() error {
 	// run DHCP to interface public in ndmz
-	probe := dhcp.NewProbe()
+	probe, err := dhcp.NewBackgroundProbe()
+	if err != nil {
+		return err
+	}
 
-	if err := probe.Run(DMZPub4); err != nil {
+	running, err := probe.IsRunning(DMZPub4)
+	if err != nil {
+		return nil
+	}
+
+	// this means this process is already running, stop here
+	if running {
+		return nil
+	}
+
+	if err := probe.Start(DMZPub4); err != nil {
 		return err
 	}
 
