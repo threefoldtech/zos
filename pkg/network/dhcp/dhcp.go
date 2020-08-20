@@ -17,8 +17,7 @@ type Probe struct {
 
 // BackgroundProbe is used to do some DHCP request on a interface controlled by zinit
 type BackgroundProbe struct {
-	cmd *exec.Cmd
-	z   *zinit.Client
+	z *zinit.Client
 }
 
 // NewProbe returns a Probe

@@ -92,10 +92,16 @@ func (d *DualStack) Create() error {
 // Delete deletes the NDMZ network namespace
 func (d *DualStack) Delete() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
-	if err == nil {
-		if err := namespace.Delete(netNS); err != nil {
-			return errors.Wrap(err, "failed to delete ndmz network namespace")
-		}
+	if err != nil {
+		return err
+	}
+
+	if err := stopBackgroundProbe(DMZPub4); err != nil {
+		return errors.Wrap(err, "failed to stop dmz pub4 background probe")
+	}
+
+	if err := namespace.Delete(netNS); err != nil {
+		return errors.Wrap(err, "failed to delete ndmz network namespace")
 	}
 
 	return nil
@@ -278,4 +284,23 @@ func waitIP6() error {
 		}
 	}
 	return nil
+}
+
+func stopBackgroundProbe(service string) error {
+	// run DHCP to interface public in ndmz
+	probe, err := dhcp.NewBackgroundProbe()
+	if err != nil {
+		return err
+	}
+
+	running, err := probe.IsRunning(service)
+	if err != nil {
+		return nil
+	}
+
+	// this means this process is already running, stop here
+	if running {
+		return nil
+	}
+	return probe.Stop(service)
 }
