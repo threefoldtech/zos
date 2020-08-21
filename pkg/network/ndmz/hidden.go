@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/threefoldtech/zos/pkg/network/dhcp"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/types"
 
@@ -23,7 +24,8 @@ import (
 
 // Hidden implement DMZ interface using ipv4 only
 type Hidden struct {
-	nodeID string
+	nodeID          string
+	backgroundProbe *dhcp.BackgroundProbe
 }
 
 // NewHidden creates a new DMZ Hidden
@@ -65,7 +67,12 @@ func (d *Hidden) Create() error {
 			return errors.Wrapf(err, "failed to enable forwarding in ndmz")
 		}
 
-		return waitIP4()
+		probe, err := waitIP4()
+		if err != nil {
+			return err
+		}
+		d.backgroundProbe = probe
+		return nil
 	})
 }
 
@@ -73,6 +80,10 @@ func (d *Hidden) Create() error {
 func (d *Hidden) Delete() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err == nil {
+		if err := stopBackgroundProbe(d.backgroundProbe); err != nil {
+			return errors.Wrap(err, "failed to stop dmz pub4 background probe")
+		}
+
 		if err := namespace.Delete(netNS); err != nil {
 			return errors.Wrap(err, "failed to delete ndmz network namespace")
 		}

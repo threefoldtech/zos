@@ -25,8 +25,9 @@ import (
 
 // DualStack implement DMZ interface using dual stack ipv4/ipv6
 type DualStack struct {
-	nodeID     string
-	ipv6Master string
+	nodeID          string
+	ipv6Master      string
+	backgroundProbe *dhcp.BackgroundProbe
 }
 
 // NewDualStack creates a new DMZ DualStack
@@ -79,9 +80,12 @@ func (d *DualStack) Create() error {
 			return errors.Wrapf(err, "failed to enable forwarding in ndmz")
 		}
 
-		if err := waitIP4(); err != nil {
+		probe, err := waitIP4()
+		if err != nil {
 			return err
 		}
+		d.backgroundProbe = probe
+
 		if err := waitIP6(); err != nil {
 			return err
 		}
@@ -92,16 +96,14 @@ func (d *DualStack) Create() error {
 // Delete deletes the NDMZ network namespace
 func (d *DualStack) Delete() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
-	if err != nil {
-		return err
-	}
+	if err == nil {
+		if err := stopBackgroundProbe(d.backgroundProbe); err != nil {
+			return errors.Wrap(err, "failed to stop dmz pub4 background probe")
+		}
 
-	if err := stopBackgroundProbe(DMZPub4); err != nil {
-		return errors.Wrap(err, "failed to stop dmz pub4 background probe")
-	}
-
-	if err := namespace.Delete(netNS); err != nil {
-		return errors.Wrap(err, "failed to delete ndmz network namespace")
+		if err := namespace.Delete(netNS); err != nil {
+			return errors.Wrap(err, "failed to delete ndmz network namespace")
+		}
 	}
 
 	return nil
@@ -193,47 +195,47 @@ func (d *DualStack) IP6PublicIface() string {
 }
 
 // waitIPS waits to receives some IP from DHCP and Router advertisement
-func waitIP4() error {
+func waitIP4() (*dhcp.BackgroundProbe, error) {
 	// run DHCP to interface public in ndmz
-	probe, err := dhcp.NewBackgroundProbe()
+	probe, err := dhcp.NewBackgroundProbe(DMZPub4)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	running, err := probe.IsRunning(DMZPub4)
+	running, err := probe.IsRunning()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	// this means this process is already running, stop here
 	if running {
-		return nil
+		return nil, nil
 	}
 
-	if err := probe.Start(DMZPub4); err != nil {
-		return err
+	if err := probe.Start(); err != nil {
+		return nil, err
 	}
 
 	link, err := netlink.LinkByName(DMZPub4)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	cTimeout := time.After(time.Second * 30)
 	for {
 		select {
 		case <-cTimeout:
-			return errors.Errorf("public interface in ndmz did not received an IP. make sure DHCP is working")
+			return nil, errors.Errorf("public interface in ndmz did not received an IP. make sure DHCP is working")
 		default:
 			hasGW, _, err := ifaceutil.HasDefaultGW(link, netlink.FAMILY_V4)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if !hasGW {
 				time.Sleep(time.Second)
 				continue
 			}
-			return nil
+			return probe, nil
 		}
 	}
 }
@@ -286,14 +288,12 @@ func waitIP6() error {
 	return nil
 }
 
-func stopBackgroundProbe(service string) error {
-	// run DHCP to interface public in ndmz
-	probe, err := dhcp.NewBackgroundProbe()
-	if err != nil {
-		return err
+func stopBackgroundProbe(probe *dhcp.BackgroundProbe) error {
+	if probe == nil {
+		return nil
 	}
 
-	running, err := probe.IsRunning(service)
+	running, err := probe.IsRunning()
 	if err != nil {
 		return nil
 	}
@@ -302,5 +302,5 @@ func stopBackgroundProbe(service string) error {
 	if running {
 		return nil
 	}
-	return probe.Stop(service)
+	return probe.Stop()
 }

@@ -17,7 +17,8 @@ type Probe struct {
 
 // BackgroundProbe is used to do some DHCP request on a interface controlled by zinit
 type BackgroundProbe struct {
-	z *zinit.Client
+	z   *zinit.Client
+	inf string
 }
 
 // NewProbe returns a Probe
@@ -26,14 +27,15 @@ func NewProbe() *Probe {
 }
 
 // NewBackgroundProbe return a new background Probe that can be controlled with zinit
-func NewBackgroundProbe() (*BackgroundProbe, error) {
+func NewBackgroundProbe(inf string) (*BackgroundProbe, error) {
 	z, err := zinit.New("")
 	if err != nil {
 		log.Error().Err(err).Msg("failed to connect to zinit")
 		return nil, err
 	}
 	return &BackgroundProbe{
-		z: z,
+		z:   z,
+		inf: inf,
 	}, nil
 }
 
@@ -59,15 +61,15 @@ func (d *Probe) Start(inf string) error {
 }
 
 // Start runs the DHCP client process and registers it to zinit
-func (d *BackgroundProbe) Start(inf string) error {
-	serviceName := fmt.Sprintf("dhcp-%s", inf)
+func (d *BackgroundProbe) Start() error {
+	serviceName := fmt.Sprintf("dhcp-%s", d.inf)
 
 	ns, err := exec.Command("ip", "netns", "identify").Output()
 	if err != nil {
 		return errors.Wrap(err, "failed to identify namespace")
 	}
 
-	exec := fmt.Sprintf("/sbin/udhcpc -v -f -i %s -t 20 -T 1 -s /usr/share/udhcp/simple.script", inf)
+	exec := fmt.Sprintf("/sbin/udhcpc -v -f -i %s -t 20 -T 1 -s /usr/share/udhcp/simple.script", d.inf)
 
 	if strings.Trim(string(ns), " ") != "" {
 		exec = fmt.Sprintf("ip netns exec %s %s", ns, exec)
@@ -93,8 +95,8 @@ func (d *BackgroundProbe) Start(inf string) error {
 }
 
 // IsRunning checks if a background process is running in zinit
-func (d *BackgroundProbe) IsRunning(inf string) (bool, error) {
-	serviceName := fmt.Sprintf("dhcp-%s", inf)
+func (d *BackgroundProbe) IsRunning() (bool, error) {
+	serviceName := fmt.Sprintf("dhcp-%s", d.inf)
 
 	services, err := d.z.List()
 	if err != nil {
@@ -109,9 +111,8 @@ func (d *BackgroundProbe) IsRunning(inf string) (bool, error) {
 }
 
 // Stop stops a zinit background process
-func (d *BackgroundProbe) Stop(inf string) error {
-	serviceName := fmt.Sprintf("dhcp-%s", inf)
-	return d.z.Stop(serviceName)
+func (d *BackgroundProbe) Stop() error {
+	return d.z.Stop(fmt.Sprintf("dhcp-%s", d.inf))
 }
 
 // Stop kills the DHCP client process
