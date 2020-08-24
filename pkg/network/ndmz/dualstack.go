@@ -25,9 +25,8 @@ import (
 
 // DualStack implement DMZ interface using dual stack ipv4/ipv6
 type DualStack struct {
-	nodeID          string
-	ipv6Master      string
-	backgroundProbe *dhcp.BackgroundProbe
+	nodeID     string
+	ipv6Master string
 }
 
 // NewDualStack creates a new DMZ DualStack
@@ -80,11 +79,9 @@ func (d *DualStack) Create() error {
 			return errors.Wrapf(err, "failed to enable forwarding in ndmz")
 		}
 
-		probe, err := waitIP4()
-		if err != nil {
+		if err := waitIP4(); err != nil {
 			return err
 		}
-		d.backgroundProbe = probe
 
 		if err := waitIP6(); err != nil {
 			return err
@@ -97,7 +94,7 @@ func (d *DualStack) Create() error {
 func (d *DualStack) Delete() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err == nil {
-		if err := stopBackgroundProbe(d.backgroundProbe); err != nil {
+		if err := stopBackgroundProbe(); err != nil {
 			return errors.Wrap(err, "failed to stop dmz pub4 background probe")
 		}
 
@@ -195,47 +192,47 @@ func (d *DualStack) IP6PublicIface() string {
 }
 
 // waitIPS waits to receives some IP from DHCP and Router advertisement
-func waitIP4() (*dhcp.BackgroundProbe, error) {
+func waitIP4() error {
 	// run DHCP to interface public in ndmz
 	probe, err := dhcp.NewBackgroundProbe(DMZPub4)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	running, err := probe.IsRunning()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// this means this process is already running, stop here
 	if running {
-		return nil, nil
+		return nil
 	}
 
 	if err := probe.Start(); err != nil {
-		return nil, err
+		return err
 	}
 
 	link, err := netlink.LinkByName(DMZPub4)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	cTimeout := time.After(time.Second * 30)
 	for {
 		select {
 		case <-cTimeout:
-			return nil, errors.Errorf("public interface in ndmz did not received an IP. make sure DHCP is working")
+			return errors.Errorf("public interface in ndmz did not received an IP. make sure DHCP is working")
 		default:
 			hasGW, _, err := ifaceutil.HasDefaultGW(link, netlink.FAMILY_V4)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if !hasGW {
 				time.Sleep(time.Second)
 				continue
 			}
-			return probe, nil
+			return nil
 		}
 	}
 }
@@ -288,9 +285,10 @@ func waitIP6() error {
 	return nil
 }
 
-func stopBackgroundProbe(probe *dhcp.BackgroundProbe) error {
-	if probe == nil {
-		return nil
+func stopBackgroundProbe() error {
+	probe, err := dhcp.NewBackgroundProbe(DMZPub4)
+	if err != nil {
+		return err
 	}
 
 	running, err := probe.IsRunning()
