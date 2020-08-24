@@ -327,6 +327,10 @@ func (s *Fs) incrementCounters(statser provision.Statser) error {
 
 			uniqueNetworkReservations[netID] = r
 			continue
+		} else {
+			if err := statser.Increment(r); err != nil {
+				return fmt.Errorf("fail to update stats:%w", err)
+			}
 		}
 	}
 

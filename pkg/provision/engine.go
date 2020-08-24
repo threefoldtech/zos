@@ -183,13 +183,17 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 	}
 
 	// If an update occurs on the network we don't increment the counter
-	if r.Type == "network" {
+	if r.Type == "network_resource" {
 		nr := pkg.NetResource{}
 		if err := json.Unmarshal(r.Data, &nr); err != nil {
 			return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 		}
 
-		exists, _ := e.cache.NetworkExists(nr.Name, r.User)
+		exists, err := e.cache.NetworkExists(nr.Name, r.User)
+		if err == nil {
+			log.Error().Err(err).Msg("failed to check if network exists")
+			return err
+		}
 		if exists {
 			return nil
 		}
