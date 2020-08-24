@@ -322,6 +322,17 @@ func (n *networker) SetupTap(networkID pkg.NetID) (string, error) {
 	return tapIface, err
 }
 
+func (n *networker) TapExists(networkID pkg.NetID) (bool, error) {
+	log.Info().Str("network-id", string(networkID)).Msg("Checking if tap interface exists")
+
+	tapIface, err := tapName(networkID)
+	if err != nil {
+		return false, errors.Wrap(err, "could not get network namespace tap device name")
+	}
+
+	return ifaceutil.Exists(tapIface, nil), nil
+}
+
 // RemoveTap in the network resource.
 func (n *networker) RemoveTap(networkID pkg.NetID) error {
 	log.Info().Str("network-id", string(networkID)).Msg("Removing tap interface")

@@ -2,9 +2,10 @@ package stubs
 
 import (
 	"context"
+	"net"
+
 	zbus "github.com/threefoldtech/zbus"
 	pkg "github.com/threefoldtech/zos/pkg"
-	"net"
 )
 
 type NetworkerStub struct {
@@ -189,6 +190,22 @@ func (s *NetworkerStub) RemoveTap(arg0 pkg.NetID) (ret0 error) {
 	}
 	ret0 = new(zbus.RemoteError)
 	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerStub) TapExists(arg0 pkg.NetID) (ret0 bool, ret1 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "TapExists", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
 		panic(err)
 	}
 	return

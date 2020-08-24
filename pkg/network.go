@@ -49,6 +49,9 @@ type Networker interface {
 	// to the network bridge. The name of the tap interface is returned
 	SetupTap(networkID NetID) (string, error)
 
+	// TapExists checks if the tap device exists already
+	TapExists(networkID NetID) (bool, error)
+
 	// RemoveTap removes the tap device from the network namespace
 	// of the networkID
 	RemoveTap(networkID NetID) error
