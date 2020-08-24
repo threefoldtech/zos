@@ -257,13 +257,6 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		return "", err
 	}
 
-	// wait for the daemon to be ready
-	// we check the pid file is created
-	if err = waitPidFile(time.Second*5, pidPath, true); err != nil {
-		sublog.Error().Err(err).Msg("pid file of 0-fs daemon not created")
-		return "", err
-	}
-
 	// the track file is a symlink to the process pid
 	// if the link is broken, then the fs has exited gracefully
 	// otherwise we can get the fs pid from the track path
@@ -272,12 +265,6 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 	trackPath := filepath.Join(f.run, name)
 	if err = os.Symlink(pidPath, trackPath); err != nil {
 		sublog.Error().Err(err).Msg("failed track fs pid")
-	}
-
-	// and scan the logs after "mount ready"
-	if err = waitMountedLog(time.Second*5, logPath); err != nil {
-		sublog.Error().Err(err).Msg("0-fs daemon did not start properly")
-		return "", err
 	}
 
 	return mountpoint, nil
