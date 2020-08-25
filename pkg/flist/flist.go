@@ -1,7 +1,6 @@
 package flist
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -516,50 +515,6 @@ func waitPidFile(timeout time.Duration, path string, exists bool) error {
 			}
 		}
 	}
-}
-
-func waitMountedLog(timeout time.Duration, logfile string) error {
-	const target = "mount ready"
-	const delay = time.Millisecond * 500
-
-	f, err := os.Open(logfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	br := bufio.NewReader(f)
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	// this goroutine looks for "mount ready"
-	// in the logs of the 0-fs
-	cErr := make(chan error)
-	go func(ctx context.Context, r io.Reader, cErr chan<- error) {
-		for {
-			select {
-			case <-ctx.Done():
-				// ensure we don't leak the goroutine
-				cErr <- ctx.Err()
-			default:
-				line, err := br.ReadString('\n')
-				if err != nil {
-					time.Sleep(delay)
-					continue
-				}
-
-				if !strings.Contains(line, target) {
-					time.Sleep(delay)
-					continue
-				}
-				// found
-				cErr <- nil
-				return
-			}
-		}
-	}(ctx, br, cErr)
-
-	return <-cErr
 }
 
 var _ pkg.Flister = (*flistModule)(nil)
