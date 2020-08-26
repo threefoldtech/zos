@@ -100,12 +100,12 @@ func (d *BackgroundProbe) IsRunning() (bool, error) {
 	serviceName := fmt.Sprintf("dhcp-%s", d.inf)
 
 	status, err := d.z.Status(serviceName)
-	if err != nil {
-		if err == zinit.ErrUnknownService {
-			return false, nil
-		}
+	if err == zinit.ErrUnknownService {
+		return false, nil
+	} else if err != nil {
 		return false, err
 	}
+
 	return !status.State.Exited(), nil
 }
 
