@@ -68,7 +68,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	netID := networkID(reservation.User, string(config.NetworkID))
+	netID := provision.NetworkID(reservation.User, string(config.NetworkID))
 
 	// check if the network tap already exists
 	// if it does, it's most likely that a vm with the same network id and node id already exists
@@ -135,7 +135,6 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	}()
 
 	var iface string
-	netID := provision.NetworkID(reservation.User, string(config.NetworkID))
 	iface, err = network.SetupTap(netID)
 	if err != nil {
 		return result, errors.Wrap(err, "could not set up tap device")
