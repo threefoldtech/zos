@@ -65,10 +65,7 @@ func (d *Hidden) Create() error {
 			return errors.Wrapf(err, "failed to enable forwarding in ndmz")
 		}
 
-		if err := waitIP4(); err != nil {
-			return err
-		}
-		return nil
+		return waitIP4()
 	})
 }
 

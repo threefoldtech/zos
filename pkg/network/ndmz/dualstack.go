@@ -293,11 +293,10 @@ func stopBackgroundProbe() error {
 
 	running, err := probe.IsRunning()
 	if err != nil {
-		return nil
+		return err
 	}
 
-	// this means this process is already running, stop here
-	if running {
+	if !running {
 		return nil
 	}
 	return probe.Stop()

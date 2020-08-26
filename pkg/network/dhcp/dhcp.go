@@ -71,8 +71,9 @@ func (d *BackgroundProbe) Start() error {
 
 	exec := fmt.Sprintf("/sbin/udhcpc -v -f -i %s -t 20 -T 1 -s /usr/share/udhcp/simple.script", d.inf)
 
-	if strings.Trim(string(ns), " ") != "" {
-		exec = fmt.Sprintf("ip netns exec %s %s", ns, exec)
+	cleanedNs := strings.TrimSpace(string(ns))
+	if cleanedNs != "" {
+		exec = fmt.Sprintf("ip netns exec %s %s", cleanedNs, exec)
 	}
 
 	err = zinit.AddService(serviceName, zinit.InitService{
@@ -100,8 +101,7 @@ func (d *BackgroundProbe) IsRunning() (bool, error) {
 
 	services, err := d.z.List()
 	if err != nil {
-		log.Error().Err(err).Msg("fail to create dhcp-zos zinit service")
-		return false, err
+		return false, errors.Wrap(err, "failed to list zinit services")
 	}
 
 	if _, ok := services[serviceName]; ok {
