@@ -101,7 +101,10 @@ func (d *BackgroundProbe) IsRunning() (bool, error) {
 
 	status, err := d.z.Status(serviceName)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to get status for background probe zinit service")
+		if err == zinit.ErrUnknownService {
+			return false, nil
+		}
+		return false, err
 	}
 	return !status.State.Exited(), nil
 }
