@@ -3,6 +3,7 @@ package provision
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -189,7 +190,8 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 			return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 		}
 
-		exists, err := e.cache.NetworkExists(nr.Name, r.User)
+		uniqueID := UniqueID(r.User, nr.Name)
+		exists, err := e.cache.NetworkExists(uniqueID)
 		if err == nil {
 			log.Error().Err(err).Msg("failed to check if network exists")
 			return err
@@ -389,4 +391,18 @@ func (e *Engine) migrateToPool(ctx context.Context, r *Reservation) error {
 	}
 
 	return nil
+}
+
+// UniqueID defines a unique id for a network
+// it's defined here in order to avoid import cycle
+func UniqueID(userID, name string) pkg.NetID {
+	buf := bytes.Buffer{}
+
+	h := md5.Sum([]byte(userID))
+	buf.Write(h[:])
+	h = md5.Sum([]byte(name))
+	buf.Write(h[:])
+
+	h = md5.Sum(buf.Bytes())
+	return pkg.NetID(fmt.Sprintf("%x", h))
 }

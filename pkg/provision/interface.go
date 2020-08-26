@@ -5,6 +5,7 @@ import (
 
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 // ReservationSource interface. The source
@@ -35,7 +36,7 @@ type ReservationCache interface {
 	Get(id string) (*Reservation, error)
 	Remove(id string) error
 	Exists(id string) (bool, error)
-	NetworkExists(name, user string) (bool, error)
+	NetworkExists(id pkg.NetID) (bool, error)
 	Sync(Statser) error
 }
 

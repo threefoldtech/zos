@@ -1,8 +1,6 @@
 package cache
 
 import (
-	"bytes"
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -252,13 +250,12 @@ func (s *Fs) Exists(id string) (bool, error) {
 }
 
 // NetworkExists exists checks if a network exists in cache already
-func (s *Fs) NetworkExists(name, user string) (bool, error) {
+func (s *Fs) NetworkExists(id pkg.NetID) (bool, error) {
 	reservations, err := s.list()
 	if err != nil {
 		return false, err
 	}
 
-	id := uniqueID(user, name)
 	for _, r := range reservations {
 		if r.Type == primitives.NetworkReservation {
 			nr := pkg.NetResource{}
@@ -267,7 +264,7 @@ func (s *Fs) NetworkExists(name, user string) (bool, error) {
 			}
 
 			// Check if the combination of network id and user is the same
-			if uniqueID(r.User, nr.Name) == id {
+			if provision.UniqueID(r.User, nr.Name) == id {
 				return true, nil
 			}
 		}
@@ -304,7 +301,7 @@ func (s *Fs) list() ([]*provision.Reservation, error) {
 // incrementCounters will increment counters for all workloads
 // for network workloads it will only increment those that have a unique name
 func (s *Fs) incrementCounters(statser provision.Statser) error {
-	uniqueNetworkReservations := make(map[string]*provision.Reservation)
+	uniqueNetworkReservations := make(map[pkg.NetID]*provision.Reservation)
 
 	reservations, err := s.list()
 	if err != nil {
@@ -318,7 +315,7 @@ func (s *Fs) incrementCounters(statser provision.Statser) error {
 				return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 			}
 
-			netID := uniqueID(r.User, nr.Name)
+			netID := provision.UniqueID(r.User, nr.Name)
 			// if the network name + user exsists in the list, we skip it.
 			// else we add it to the list
 			if _, ok := uniqueNetworkReservations[netID]; ok {
@@ -380,16 +377,4 @@ func (s *Fs) get(id string) (*provision.Reservation, error) {
 // Close makes sure the backend of the store is closed properly
 func (s *Fs) Close() error {
 	return nil
-}
-
-func uniqueID(userID, name string) string {
-	buf := bytes.Buffer{}
-
-	h := md5.Sum([]byte(userID))
-	buf.Write(h[:])
-	h = md5.Sum([]byte(name))
-	buf.Write(h[:])
-
-	h = md5.Sum(buf.Bytes())
-	return fmt.Sprintf("%x", h)
 }
