@@ -394,6 +394,7 @@ func (e *Engine) migrateToPool(ctx context.Context, r *Reservation) error {
 	return nil
 }
 
+// NetworkID construct a network ID based on a userID and network name
 func NetworkID(userID, name string) pkg.NetID {
 	buf := bytes.Buffer{}
 	buf.WriteString(userID)
