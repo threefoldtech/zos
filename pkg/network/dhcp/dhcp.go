@@ -99,20 +99,21 @@ func (d *BackgroundProbe) Start() error {
 func (d *BackgroundProbe) IsRunning() (bool, error) {
 	serviceName := fmt.Sprintf("dhcp-%s", d.inf)
 
-	services, err := d.z.List()
+	status, err := d.z.Status(serviceName)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to list zinit services")
+		return false, errors.Wrap(err, "failed to get status for background probe zinit service")
 	}
-
-	if _, ok := services[serviceName]; ok {
-		return true, nil
-	}
-	return false, nil
+	return !status.State.Exited(), nil
 }
 
 // Stop stops a zinit background process
 func (d *BackgroundProbe) Stop() error {
-	return d.z.Stop(fmt.Sprintf("dhcp-%s", d.inf))
+	serviceName := fmt.Sprintf("dhcp-%s", d.inf)
+	err := d.z.Stop(serviceName)
+	if err != nil {
+		return errors.Wrap(err, "failed to stop background probe zinit service")
+	}
+	return d.z.Forget(serviceName)
 }
 
 // Stop kills the DHCP client process
