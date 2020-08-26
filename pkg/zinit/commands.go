@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	statusRegex       = regexp.MustCompile(`^(\w+)(?:\((.+)\))?$`)
+	statusRegex = regexp.MustCompile(`^(\w+)(?:\((.+)\))?$`)
+	// ErrUnknownService is an error that is returned when a service is unknown to zinit
 	ErrUnknownService = errors.New("unknown service")
 )
 
