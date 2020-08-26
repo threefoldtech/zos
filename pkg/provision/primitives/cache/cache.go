@@ -250,7 +250,7 @@ func (s *Fs) Exists(id string) (bool, error) {
 }
 
 // NetworkExists exists checks if a network exists in cache already
-func (s *Fs) NetworkExists(id pkg.NetID) (bool, error) {
+func (s *Fs) NetworkExists(id string) (bool, error) {
 	reservations, err := s.list()
 	if err != nil {
 		return false, err
@@ -264,7 +264,7 @@ func (s *Fs) NetworkExists(id pkg.NetID) (bool, error) {
 			}
 
 			// Check if the combination of network id and user is the same
-			if provision.NetworkID(r.User, nr.Name) == id {
+			if string(provision.NetworkID(r.User, nr.Name)) == id {
 				return true, nil
 			}
 		}

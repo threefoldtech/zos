@@ -192,7 +192,7 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		}
 
 		uniqueID := NetworkID(r.User, nr.Name)
-		exists, err := e.cache.NetworkExists(uniqueID)
+		exists, err := e.cache.NetworkExists(string(uniqueID))
 		if err == nil {
 			log.Error().Err(err).Msg("failed to check if network exists")
 			return err
