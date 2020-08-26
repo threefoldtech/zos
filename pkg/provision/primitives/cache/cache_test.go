@@ -88,12 +88,12 @@ func TestLocalStore(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, len(reservations), 1)
 
-			id1 := provision.UniqueID("1", "tf_devnet")
+			id1 := provision.NetworkID("1", "tf_devnet")
 			exists, err := s.NetworkExists(id1)
 			require.NoError(t, err)
 			assert.Equal(t, exists, true)
 
-			id2 := provision.UniqueID("1", "tf_mainnet")
+			id2 := provision.NetworkID("1", "tf_mainnet")
 			exists, err = s.NetworkExists(id2)
 			require.NoError(t, err)
 			assert.Equal(t, exists, false)

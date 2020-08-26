@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jbenet/go-base58"
 	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/pkg/errors"
@@ -190,7 +191,7 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 			return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 		}
 
-		uniqueID := UniqueID(r.User, nr.Name)
+		uniqueID := NetworkID(r.User, nr.Name)
 		exists, err := e.cache.NetworkExists(uniqueID)
 		if err == nil {
 			log.Error().Err(err).Msg("failed to check if network exists")
@@ -393,16 +394,14 @@ func (e *Engine) migrateToPool(ctx context.Context, r *Reservation) error {
 	return nil
 }
 
-// UniqueID defines a unique id for a network
-// it's defined here in order to avoid import cycle
-func UniqueID(userID, name string) pkg.NetID {
+func NetworkID(userID, name string) pkg.NetID {
 	buf := bytes.Buffer{}
-
-	h := md5.Sum([]byte(userID))
-	buf.Write(h[:])
-	h = md5.Sum([]byte(name))
-	buf.Write(h[:])
-
-	h = md5.Sum(buf.Bytes())
-	return pkg.NetID(fmt.Sprintf("%x", h))
+	buf.WriteString(userID)
+	buf.WriteString(name)
+	h := md5.Sum(buf.Bytes())
+	b := base58.Encode(h[:])
+	if len(b) > 13 {
+		b = b[:13]
+	}
+	return pkg.NetID(string(b))
 }

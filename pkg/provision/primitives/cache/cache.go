@@ -264,7 +264,7 @@ func (s *Fs) NetworkExists(id pkg.NetID) (bool, error) {
 			}
 
 			// Check if the combination of network id and user is the same
-			if provision.UniqueID(r.User, nr.Name) == id {
+			if provision.NetworkID(r.User, nr.Name) == id {
 				return true, nil
 			}
 		}
@@ -315,7 +315,7 @@ func (s *Fs) incrementCounters(statser provision.Statser) error {
 				return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 			}
 
-			netID := provision.UniqueID(r.User, nr.Name)
+			netID := provision.NetworkID(r.User, nr.Name)
 			// if the network name + user exsists in the list, we skip it.
 			// else we add it to the list
 			if _, ok := uniqueNetworkReservations[netID]; ok {
