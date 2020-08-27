@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/threefoldtech/tfexplorer/models/generated/directory"
+	"github.com/threefoldtech/tfexplorer/models/directory"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
 )

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
+	"github.com/threefoldtech/tfexplorer/models/workloads"
 	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
@@ -115,7 +115,7 @@ func ContainerToProvisionType(w workloads.Workloader, reservationID string) (Con
 		}
 	}
 
-	return container, c.NodeId, nil
+	return container, c.GetContract().NodeID, nil
 }
 
 // VolumeToProvisionType converts TfgridReservationVolume1 to Volume
@@ -124,7 +124,7 @@ func VolumeToProvisionType(w workloads.Workloader) (Volume, string, error) {
 	if !ok {
 		return Volume{}, "", fmt.Errorf("failed to convert volume workload, wrong format")
 	}
-
+	c := v.GetContract()
 	volume := Volume{
 		Size: uint64(v.Size),
 	}
@@ -134,9 +134,9 @@ func VolumeToProvisionType(w workloads.Workloader) (Volume, string, error) {
 	case "ssd":
 		volume.Type = pkg.SSDDevice
 	default:
-		return volume, v.NodeId, fmt.Errorf("disk type %s not supported", v.Type.String())
+		return volume, c.NodeID, fmt.Errorf("disk type %s not supported", v.Type.String())
 	}
-	return volume, v.NodeId, nil
+	return volume, c.NodeID, nil
 }
 
 //ZDBToProvisionType converts TfgridReservationZdb1 to ZDB
@@ -146,6 +146,7 @@ func ZDBToProvisionType(w workloads.Workloader) (ZDB, string, error) {
 		return ZDB{}, "", fmt.Errorf("failed to convert zdb workload, wrong format")
 	}
 
+	c := z.GetContract()
 	zdb := ZDB{
 		Size:     uint64(z.Size),
 		Password: z.Password,
@@ -157,7 +158,7 @@ func ZDBToProvisionType(w workloads.Workloader) (ZDB, string, error) {
 	case "ssd":
 		zdb.DiskType = pkg.SSDDevice
 	default:
-		return zdb, z.NodeId, fmt.Errorf("device type %s not supported", z.DiskType.String())
+		return zdb, c.NodeID, fmt.Errorf("device type %s not supported", z.DiskType.String())
 	}
 
 	switch z.Mode.String() {
@@ -166,10 +167,10 @@ func ZDBToProvisionType(w workloads.Workloader) (ZDB, string, error) {
 	case "user":
 		zdb.Mode = pkg.ZDBModeUser
 	default:
-		return zdb, z.NodeId, fmt.Errorf("0-db mode %s not supported", z.Mode.String())
+		return zdb, c.NodeID, fmt.Errorf("0-db mode %s not supported", z.Mode.String())
 	}
 
-	return zdb, z.NodeId, nil
+	return zdb, c.NodeID, nil
 }
 
 // K8SToProvisionType converts type to internal provision type
@@ -188,7 +189,7 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 		SSHKeys:       k.SshKeys,
 	}
 
-	return k8s, k.NodeId, nil
+	return k8s, k.GetContract().NodeID, nil
 }
 
 // NetworkResourceToProvisionType converts type to internal provision type
@@ -203,7 +204,7 @@ func NetworkResourceToProvisionType(w workloads.Workloader) (pkg.NetResource, er
 		NetID:          pkg.NetID(n.Name),
 		NetworkIPRange: types.NewIPNetFromSchema(n.NetworkIprange),
 
-		NodeID:       n.GetNodeID(),
+		NodeID:       n.GetContract().NodeID,
 		Subnet:       types.NewIPNetFromSchema(n.Iprange),
 		WGPrivateKey: n.WireguardPrivateKeyEncrypted,
 		WGPublicKey:  n.WireguardPublicKey,
@@ -239,17 +240,18 @@ func WireguardToProvisionType(p workloads.WireguardPeer) (pkg.Peer, error) {
 
 // WorkloadToProvisionType converts from the explorer type to the internal provision.Reservation
 func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, error) {
-
+	c := w.GetContract()
+	s := w.GetState()
 	reservation := &provision.Reservation{
-		ID:        fmt.Sprintf("%d-%d", w.GetID(), w.WorkloadID()),
-		User:      fmt.Sprintf("%d", w.GetCustomerTid()),
-		Type:      provision.ReservationType(w.GetWorkloadType().String()),
-		Created:   w.GetEpoch().Time,
+		ID:        c.UniqueWorkloadID(),
+		User:      fmt.Sprintf("%d", c.CustomerTid),
+		Type:      provision.ReservationType(c.WorkloadType.String()),
+		Created:   c.Epoch.Time,
 		Duration:  math.MaxInt64, //ensure we never decomission based on expiration time. Since the capacity pool introduction this is not needed anymore
-		Signature: []byte(w.GetCustomerSignature()),
-		ToDelete:  w.GetNextAction() == workloads.NextActionDelete,
-		Reference: w.GetReference(),
-		Result:    resultFromSchemaType(w.GetResult()),
+		Signature: []byte(s.CustomerSignature),
+		ToDelete:  s.NextAction == workloads.NextActionDelete,
+		Reference: c.Reference,
+		Result:    resultFromSchemaType(s.Result),
 	}
 
 	var (
@@ -257,7 +259,7 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 		err  error
 	)
 
-	switch w.GetWorkloadType() {
+	switch c.WorkloadType {
 	case workloads.WorkloadTypeZDB:
 		data, reservation.NodeID, err = ZDBToProvisionType(w)
 		if err != nil {
@@ -285,7 +287,7 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("%w (%s) (%T)", ErrUnsupportedWorkload, w.GetWorkloadType().String(), w)
+		return nil, fmt.Errorf("%w (%s) (%T)", ErrUnsupportedWorkload, c.WorkloadType.String(), w)
 	}
 
 	reservation.Data, err = json.Marshal(data)

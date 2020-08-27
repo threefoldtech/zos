@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
+	"github.com/threefoldtech/tfexplorer/models/workloads"
 	"github.com/threefoldtech/zos/pkg/network/types"
 
 	"github.com/threefoldtech/zos/pkg"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/threefoldtech/tfexplorer/client"
-	"github.com/threefoldtech/tfexplorer/models/generated/directory"
+	"github.com/threefoldtech/tfexplorer/models/directory"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 

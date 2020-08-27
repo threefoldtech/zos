@@ -3,8 +3,8 @@ package provision
 import (
 	"context"
 
-	"github.com/threefoldtech/tfexplorer/models/generated/directory"
-	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
+	"github.com/threefoldtech/tfexplorer/models/directory"
+	"github.com/threefoldtech/tfexplorer/models/workloads"
 )
 
 // ReservationSource interface. The source
