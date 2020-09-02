@@ -200,8 +200,15 @@ func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.All
 	}
 
 	socketDir := socketDir(name)
-	if err := os.MkdirAll(socketDir, 0550); err != nil {
+	if err := os.MkdirAll(socketDir, 0550); err != nil && !os.IsExist(err) {
 		return errors.Wrapf(err, "failed to create directory: %s", socketDir)
+	}
+
+	cl := zdbConnection(name)
+	if err := cl.Connect(); err == nil {
+		// it seems there is a running container already
+		cl.Close()
+		return nil
 	}
 
 	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data --mode %s  --listen :: --port %d --socket /socket/zdb.sock --dualnet", string(mode), zdbPort)
@@ -212,7 +219,7 @@ func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.All
 		return errors.Wrap(err, "failed to create container")
 	}
 
-	cl := zdbConnection(name)
+	cl = zdbConnection(name)
 	defer cl.Close()
 
 	bo := backoff.NewExponentialBackOff()

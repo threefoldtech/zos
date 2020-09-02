@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/termie/go-shutil"
@@ -266,10 +267,10 @@ func (n *networker) Leave(networkdID pkg.NetID, containerID string) error {
 // ZDBPrepare sends a macvlan interface into the
 // network namespace of a ZDB container
 func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
-	netNSName, err := ifaceutil.RandomName("zdb-ns-")
-	if err != nil {
-		return "", err
-	}
+	netNSName := fmt.Sprintf(
+		"zdb-ns-%s",
+		strings.Replace(hw.String(), ":", "", -1),
+	)
 
 	netNs, err := createNetNS(netNSName)
 	if err != nil {
@@ -317,9 +318,17 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 }
 
 func (n networker) createMacVlan(iface string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {
-	macVlan, err := macvlan.Create(iface, n.ndmz.IP6PublicIface(), netNs)
-	if err != nil {
-		return errors.Wrap(err, "failed to create public mac vlan interface")
+	var macVlan *netlink.Macvlan
+	err := netNs.Do(func(_ ns.NetNS) error {
+		var err error
+		macVlan, err = macvlan.GetByName(iface)
+		return err
+	})
+
+	if _, ok := err.(netlink.LinkNotFoundError); ok {
+		macVlan, err = macvlan.Create(iface, n.ndmz.IP6PublicIface(), netNs)
+	} else if err != nil {
+		return err
 	}
 
 	log.Debug().Str("HW", hw.String()).Str("macvlan", macVlan.Name).Msg("setting hw address on link")
@@ -843,8 +852,14 @@ func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 
 // createNetNS create a network namespace and set lo interface up
 func createNetNS(name string) (ns.NetNS, error) {
+	var netNs ns.NetNS
+	var err error
+	if namespace.Exists(name) {
+		netNs, err = namespace.GetByName(name)
+	} else {
+		netNs, err = namespace.Create(name)
+	}
 
-	netNs, err := namespace.Create(name)
 	if err != nil {
 		return nil, err
 	}
@@ -852,6 +867,7 @@ func createNetNS(name string) (ns.NetNS, error) {
 	err = netNs.Do(func(_ ns.NetNS) error {
 		return ifaceutil.SetLoUp()
 	})
+
 	if err != nil {
 		namespace.Delete(netNs)
 		return nil, err
