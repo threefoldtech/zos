@@ -327,6 +327,10 @@ func (n networker) createMacVlan(iface string, hw net.HardwareAddr, ips []*net.I
 
 	if _, ok := err.(netlink.LinkNotFoundError); ok {
 		macVlan, err = macvlan.Create(iface, n.ndmz.IP6PublicIface(), netNs)
+
+		if err != nil {
+			return err
+		}
 	} else if err != nil {
 		return err
 	}
