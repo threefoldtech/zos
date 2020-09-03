@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -209,6 +210,11 @@ func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.All
 		// it seems there is a running container already
 		cl.Close()
 		return nil
+	}
+
+	// make sure the file does not exist otherwise we get the address already in use error
+	if err := os.Remove(socketFile(name)); err != nil && !os.IsNotExist(err) {
+		return err
 	}
 
 	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data --mode %s  --listen :: --port %d --socket /socket/zdb.sock --dualnet", string(mode), zdbPort)
@@ -445,10 +451,14 @@ func socketDir(containerID pkg.ContainerID) string {
 	return fmt.Sprintf("/var/run/zdb_%s", containerID)
 }
 
+func socketFile(containerID pkg.ContainerID) string {
+	return filepath.Join(socketDir(containerID), "zdb.sock")
+}
+
 // we declare this method as a variable so we can
 // mock it in testing.
 var zdbConnection = func(id pkg.ContainerID) zdb.Client {
-	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir(id))
+	socket := fmt.Sprintf("unix://%s", socketFile(id))
 	return zdb.New(socket)
 }
 
