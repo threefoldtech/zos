@@ -92,6 +92,11 @@ func cleanupResources(msgBrokerCon string) error {
 				continue
 			}
 
+			// Don't delete zos-cache!
+			if subvol.Path == "zos-cache" {
+				continue
+			}
+
 			// delete the subvolume
 			log.Info().Msgf("deleting subvolume %s", subvol.Path)
 			if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
