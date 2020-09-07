@@ -286,7 +286,7 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 	if n.ygg != nil {
 		ip, err := n.ygg.SubnetFor(hw)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to generate ygg subnet IP: %w", err)
 		}
 
 		ips = []*net.IPNet{
@@ -298,7 +298,7 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 
 		gw, err := n.ygg.Gateway()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to get ygg gateway IP: %w", err)
 		}
 
 		routes = []*netlink.Route{
@@ -865,7 +865,7 @@ func createNetNS(name string) (ns.NetNS, error) {
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to create network namespace %s: %w", name, err)
 	}
 
 	err = netNs.Do(func(_ ns.NetNS) error {
@@ -874,7 +874,7 @@ func createNetNS(name string) (ns.NetNS, error) {
 
 	if err != nil {
 		namespace.Delete(netNs)
-		return nil, err
+		return nil, fmt.Errorf("failed to bring lo interface up in namespace %s: %w", name, err)
 	}
 
 	return netNs, nil
