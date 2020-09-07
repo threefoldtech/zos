@@ -159,7 +159,7 @@ func Exists(name string) bool {
 
 	if !mounted {
 		//the file shouldn't be there
-		os.Remove(nsPath)
+		_ = os.Remove(nsPath)
 	}
 
 	return mounted
