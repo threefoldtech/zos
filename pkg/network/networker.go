@@ -317,6 +317,27 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 	return netNSName, n.createMacVlan(ZDBIface, hw, ips, routes, netNs)
 }
 
+// ZDBDestroy is the opposite of ZDPrepare, it makes sure network setup done
+// for zdb is rewind. ns param is the namespace return by the ZDBPrepare
+func (n networker) ZDBDestroy(ns string) error {
+	if !strings.HasPrefix(ns, "zdb-ns-") {
+		return fmt.Errorf("invalid zdb namespace name '%s'", ns)
+	}
+
+	if !namespace.Exists(ns) {
+		return nil
+	}
+
+	nSpace, err := namespace.GetByName(ns)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return errors.Wrapf(err, "failed to get namespace '%s'", ns)
+	}
+
+	return namespace.Delete(nSpace)
+}
+
 func (n networker) createMacVlan(iface string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {
 	var macVlan *netlink.Macvlan
 	err := netNs.Do(func(_ ns.NetNS) error {
