@@ -436,16 +436,8 @@ func (p *Provisioner) deleteZdbContainer(containerID pkg.ContainerID) error {
 		return errors.Wrapf(err, "failed to destroy zdb network namespace")
 	}
 
-	rootFS := info.RootFS
-	if info.Interactive {
-		rootFS, err = findRootFS(info.Mounts)
-		if err != nil {
-			return err
-		}
-	}
-
-	if err := flist.Umount(rootFS); err != nil {
-		return errors.Wrapf(err, "failed to unmount flist at %s", rootFS)
+	if err := flist.Umount(info.RootFS); err != nil {
+		return errors.Wrapf(err, "failed to unmount flist at %s", info.RootFS)
 	}
 
 	return nil
