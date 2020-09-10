@@ -685,7 +685,8 @@ func (s *storageModule) verifyShutdown() {
 						log.Debug().Msgf("checking device: %s", device.Path)
 						on, err := checkDiskPowerStatus(device.Path)
 						if err != nil {
-							if _, ok := err.(*exec.ExitError); ok {
+							if err, ok := err.(*exec.ExitError); ok {
+								log.Err(err).Msgf("skipping device")
 								// if cmd exits with exit error the device is shutdown
 								continue
 							}
