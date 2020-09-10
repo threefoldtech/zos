@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"sync"
@@ -294,6 +295,8 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	if err := s.shutdownUnusedPools(); err != nil {
 		log.Error().Err(err).Msg("Error shutting down unused pools")
 	}
+
+	s.verifyShutdown()
 
 	return nil
 }
@@ -667,4 +670,65 @@ func (s *storageModule) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 	}()
 
 	return ch
+}
+
+func (s *storageModule) verifyShutdown() {
+	ticker := time.NewTicker(5 * time.Minute)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				log.Info().Msg("Checking pools for disks that should be shutdown...")
+				for _, pool := range s.pools {
+					for _, device := range pool.Devices() {
+						log.Debug().Msgf("checking device: %s", device.Path)
+						on, err := checkDiskPowerStatus(device.Path)
+						if err != nil {
+							if _, ok := err.(*exec.ExitError); ok {
+								// if cmd exits with exit error the device is shutdown
+								continue
+							}
+						}
+
+						_, mounted := pool.Mounted()
+						if mounted {
+							continue
+						}
+
+						if on {
+							log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path)
+							err := pool.Shutdown()
+							if err != nil {
+								log.Err(err).Msgf("failed to shutdown device %s", device.Path)
+								return
+							}
+						}
+					}
+				}
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+}
+
+func checkDiskPowerStatus(path string) (bool, error) {
+	output, err := exec.Command("smartctl", "-i", "-n", "standby", path).Output()
+	if err != nil {
+		return false, err
+	}
+
+	blocks := strings.Split(string(output), "\n\n")
+	for _, block := range blocks {
+		if strings.TrimSpace(block) == "" {
+			continue
+		}
+		if strings.Contains(block, "ACTIVE") {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
