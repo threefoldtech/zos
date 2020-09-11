@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 
 	"github.com/rs/zerolog/log"
@@ -25,11 +26,13 @@ func main() {
 	var (
 		msgBrokerCon string
 		workerNr     uint
+		expvarPort   uint
 		ver          bool
 	)
 
 	flag.StringVar(&msgBrokerCon, "broker", redisSocket, "Connection string to the message broker")
 	flag.UintVar(&workerNr, "workers", 1, "Number of workers")
+	flag.UintVar(&expvarPort, "expvarPort", 28682, "Port to host expvar variables on")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
 
 	flag.Parse()
@@ -67,7 +70,7 @@ func main() {
 	})
 
 	go func() {
-		if err := http.ListenAndServe(":8081", http.DefaultServeMux); err != nil {
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", expvarPort), http.DefaultServeMux); err != nil {
 			log.Error().Err(err).Msg("Error starting http server")
 		}
 	}()
