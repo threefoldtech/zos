@@ -67,7 +67,7 @@ func main() {
 	})
 
 	go func() {
-		if err := http.ListenAndServe(":8080", http.DefaultServeMux); err != nil {
+		if err := http.ListenAndServe(":8081", http.DefaultServeMux); err != nil {
 			log.Error().Err(err).Msg("Error starting http server")
 		}
 	}()
