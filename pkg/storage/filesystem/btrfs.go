@@ -494,6 +494,8 @@ func (p *btrfsPool) Shutdown() error {
 			log.Error().Err(err).Msgf("Error shutting down device %s", device.Path)
 			return err
 		}
+
+		device.ShutdownCount.Add(1)
 		log.Info().Msgf("Disk %s is shutdown", device.Path)
 	}
 	return nil

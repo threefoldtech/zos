@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"expvar"
 	"fmt"
 	"os"
 	"os/exec"
@@ -281,6 +282,13 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 			return err
 		}
 		s.pools = append(s.pools, pool)
+	}
+
+	// add expvar variables
+	for _, pool := range s.pools {
+		for _, device := range pool.Devices() {
+			device.ShutdownCount = expvar.NewInt(device.Path)
+		}
 	}
 
 	if err := filesystem.Partprobe(ctx); err != nil {

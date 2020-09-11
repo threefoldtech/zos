@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 
 	"github.com/rs/zerolog/log"
 
@@ -64,6 +65,12 @@ func main() {
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("shutting down")
 	})
+
+	go func() {
+		if err := http.ListenAndServe(":8080", http.DefaultServeMux); err != nil {
+			log.Error().Err(err).Msg("Error starting http server")
+		}
+	}()
 
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatal().Err(err).Msg("unexpected error")
