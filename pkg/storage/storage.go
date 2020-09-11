@@ -304,7 +304,7 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		log.Error().Err(err).Msg("Error shutting down unused pools")
 	}
 
-	s.verifyShutdown()
+	s.periodicallyCheckDiskShutdown()
 
 	return nil
 }
@@ -680,7 +680,7 @@ func (s *storageModule) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 	return ch
 }
 
-func (s *storageModule) verifyShutdown() {
+func (s *storageModule) periodicallyCheckDiskShutdown() {
 	ticker := time.NewTicker(5 * time.Minute)
 	quit := make(chan struct{})
 	go func() {
@@ -688,39 +688,45 @@ func (s *storageModule) verifyShutdown() {
 			select {
 			case <-ticker.C:
 				log.Info().Msg("Checking pools for disks that should be shutdown...")
-				for _, pool := range s.pools {
-					for _, device := range pool.Devices() {
-						log.Debug().Msgf("checking device: %s", device.Path)
-						on, err := checkDiskPowerStatus(device.Path)
-						if err != nil {
-							if err, ok := err.(*exec.ExitError); ok {
-								log.Err(err).Msgf("skipping device")
-								// if cmd exits with exit error the device is shutdown
-								continue
-							}
-						}
-
-						_, mounted := pool.Mounted()
-						if mounted {
-							continue
-						}
-
-						if on {
-							log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path)
-							err := pool.Shutdown()
-							if err != nil {
-								log.Err(err).Msgf("failed to shutdown device %s", device.Path)
-								return
-							}
-						}
-					}
-				}
+				s.shutdownDisks()
 			case <-quit:
 				ticker.Stop()
 				return
 			}
 		}
 	}()
+}
+
+// shutdownDisks will check the disks power status.
+// If a disk is on and it is not mounted then it is not supposed to be on, turn it off
+func (s *storageModule) shutdownDisks() {
+	for _, pool := range s.pools {
+		for _, device := range pool.Devices() {
+			log.Debug().Msgf("checking device: %s", device.Path)
+			on, err := checkDiskPowerStatus(device.Path)
+			if err != nil {
+				if err, ok := err.(*exec.ExitError); ok {
+					log.Err(err).Msgf("skipping device")
+					// if cmd exits with exit error the device is shutdown
+					continue
+				}
+			}
+
+			_, mounted := pool.Mounted()
+			if mounted {
+				continue
+			}
+
+			if on {
+				log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path)
+				err := pool.Shutdown()
+				if err != nil {
+					log.Err(err).Msgf("failed to shutdown device %s", device.Path)
+					return
+				}
+			}
+		}
+	}
 }
 
 func checkDiskPowerStatus(path string) (bool, error) {
