@@ -682,17 +682,12 @@ func (s *storageModule) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 
 func (s *storageModule) periodicallyCheckDiskShutdown() {
 	ticker := time.NewTicker(5 * time.Minute)
-	quit := make(chan struct{})
+
 	go func() {
 		for {
-			select {
-			case <-ticker.C:
-				log.Info().Msg("Checking pools for disks that should be shutdown...")
-				s.shutdownDisks()
-			case <-quit:
-				ticker.Stop()
-				return
-			}
+			<-ticker.C
+			log.Info().Msg("Checking pools for disks that should be shutdown...")
+			s.shutdownDisks()
 		}
 	}()
 }
@@ -706,7 +701,7 @@ func (s *storageModule) shutdownDisks() {
 			on, err := checkDiskPowerStatus(device.Path)
 			if err != nil {
 				log.Err(err).Msgf("error occurred while checking disk power status")
-				return
+				continue
 			}
 
 			_, mounted := pool.Mounted()
@@ -718,7 +713,7 @@ func (s *storageModule) shutdownDisks() {
 			err = pool.Shutdown()
 			if err != nil {
 				log.Err(err).Msgf("failed to shutdown device %s", device.Path)
-				return
+				continue
 			}
 		}
 	}
