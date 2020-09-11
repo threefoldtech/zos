@@ -705,25 +705,20 @@ func (s *storageModule) shutdownDisks() {
 			log.Debug().Msgf("checking device: %s", device.Path)
 			on, err := checkDiskPowerStatus(device.Path)
 			if err != nil {
-				if err, ok := err.(*exec.ExitError); ok {
-					log.Err(err).Msgf("skipping device")
-					// if cmd exits with exit error the device is shutdown
-					continue
-				}
+				log.Err(err).Msgf("error occured while checking disk power status")
+				return
 			}
 
 			_, mounted := pool.Mounted()
-			if mounted {
+			if mounted || !on {
 				continue
 			}
 
-			if on {
-				log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path)
-				err := pool.Shutdown()
-				if err != nil {
-					log.Err(err).Msgf("failed to shutdown device %s", device.Path)
-					return
-				}
+			log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path)
+			err = pool.Shutdown()
+			if err != nil {
+				log.Err(err).Msgf("failed to shutdown device %s", device.Path)
+				return
 			}
 		}
 	}
@@ -732,6 +727,10 @@ func (s *storageModule) shutdownDisks() {
 func checkDiskPowerStatus(path string) (bool, error) {
 	output, err := exec.Command("smartctl", "-i", "-n", "standby", path).Output()
 	if err != nil {
+		if err, ok := err.(*exec.ExitError); ok {
+			log.Err(err).Msgf("skipping device")
+			return false, nil
+		}
 		return false, err
 	}
 
