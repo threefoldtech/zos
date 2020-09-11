@@ -705,7 +705,7 @@ func (s *storageModule) shutdownDisks() {
 			log.Debug().Msgf("checking device: %s", device.Path)
 			on, err := checkDiskPowerStatus(device.Path)
 			if err != nil {
-				log.Err(err).Msgf("error occured while checking disk power status")
+				log.Err(err).Msgf("error occurred while checking disk power status")
 				return
 			}
 
