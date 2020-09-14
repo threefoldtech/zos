@@ -63,7 +63,7 @@ func TestBtrfsCreateSingle(t *testing.T) {
 		Return([]byte{}, nil)
 
 	fs := newBtrfs(mgr, &exec)
-	_, err := fs.Create(context.Background(), "test-single", pkg.Single, false, &mgr.devices[0])
+	_, err := fs.Create(context.Background(), "test-single", pkg.Single, &mgr.devices[0])
 	require.NoError(err)
 
 	require.Equal("test-single", mgr.devices[0].Label)
@@ -88,7 +88,7 @@ func TestBtrfsCreateRaid1(t *testing.T) {
 		"/tmp/dev1", "/tmp/dev2").Return([]byte{}, nil)
 
 	fs := newBtrfs(mgr, &exec)
-	_, err := fs.Create(context.Background(), "test-raid1", pkg.Raid1, false, &mgr.devices[0], &mgr.devices[1])
+	_, err := fs.Create(context.Background(), "test-raid1", pkg.Raid1, &mgr.devices[0], &mgr.devices[1])
 	require.NoError(err)
 
 	require.Equal("test-raid1", mgr.devices[0].Label)

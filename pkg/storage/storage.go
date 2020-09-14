@@ -256,7 +256,7 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 				poolDevices = append(poolDevices, &fdisks[idx][i*int(policy.Disks)+j])
 			}
 
-			pool, err := fs.Create(ctx, uuid.New().String(), policy.Raid, true, poolDevices...)
+			pool, err := fs.CreateForce(ctx, uuid.New().String(), policy.Raid, poolDevices...)
 			if err != nil {
 				log.Info().Err(err).Msg("create filesystem")
 

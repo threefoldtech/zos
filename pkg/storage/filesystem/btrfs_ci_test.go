@@ -202,7 +202,7 @@ func TestBtrfsSingleCI(t *testing.T) {
 	loops := devices.Loops()
 
 	fs := NewBtrfs(&TestDeviceManager{loops})
-	pool, err := fs.Create(context.Background(), "test-single", pkg.Single, false, &loops[0])
+	pool, err := fs.Create(context.Background(), "test-single", pkg.Single, &loops[0])
 	require.NoError(t, err)
 
 	basePoolTest(t, pool)
@@ -220,7 +220,7 @@ func TestBtrfsRaid1CI(t *testing.T) {
 	loops := devices.Loops()
 	fs := NewBtrfs(&TestDeviceManager{loops})
 
-	pool, err := fs.Create(context.Background(), "test-raid1", pkg.Raid1, false, &loops[0], &loops[1]) //use the first 2 disks
+	pool, err := fs.Create(context.Background(), "test-raid1", pkg.Raid1, &loops[0], &loops[1]) //use the first 2 disks
 
 	require.NoError(t, err)
 
@@ -271,7 +271,7 @@ func TestBtrfsListCI(t *testing.T) {
 		loop := &loops[idx]
 		name := fmt.Sprintf("test-list-%d", idx)
 		names[name] = struct{}{}
-		_, err := fs.Create(context.Background(), name, pkg.Single, false, loop)
+		_, err := fs.Create(context.Background(), name, pkg.Single, loop)
 		require.NoError(t, err)
 	}
 	pools, err := fs.List(context.Background(), func(p Pool) bool {
@@ -312,7 +312,7 @@ func TestCLeanUpQgroupsCI(t *testing.T) {
 		loop := &loops[idx]
 		name := fmt.Sprintf("test-list-%d", idx)
 		names[name] = struct{}{}
-		_, err := fs.Create(context.Background(), name, pkg.Single, false, loop)
+		_, err := fs.Create(context.Background(), name, pkg.Single, loop)
 		require.NoError(t, err)
 	}
 	pools, err := fs.List(context.Background(), func(p Pool) bool {

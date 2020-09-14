@@ -53,7 +53,15 @@ func NewBtrfs(manager DeviceManager) Filesystem {
 	return newBtrfs(manager, executerFunc(run))
 }
 
-func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, force bool, devices ...*Device) (Pool, error) {
+func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*Device) (Pool, error) {
+	return b.create(ctx, name, policy, false, devices)
+}
+
+func (b *btrfs) CreateForce(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*Device) (Pool, error) {
+	return b.create(ctx, name, policy, true, devices)
+}
+
+func (b *btrfs) create(ctx context.Context, name string, policy pkg.RaidProfile, force bool, devices []*Device) (Pool, error) {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {
 		return nil, fmt.Errorf("invalid name")
