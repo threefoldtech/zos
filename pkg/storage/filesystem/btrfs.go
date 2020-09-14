@@ -89,6 +89,7 @@ func (b *btrfs) create(ctx context.Context, name string, policy pkg.RaidProfile,
 		"-L", name,
 		"-d", string(policy),
 		"-m", string(policy),
+		"-f",
 	}
 
 	if force {
