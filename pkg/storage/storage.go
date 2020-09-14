@@ -722,8 +722,7 @@ func (s *storageModule) shutdownDisks() {
 func checkDiskPowerStatus(path string) (bool, error) {
 	output, err := exec.Command("smartctl", "-i", "-n", "standby", path).Output()
 	if err != nil {
-		if err, ok := err.(*exec.ExitError); ok {
-			log.Err(err).Msgf("skipping device")
+		if _, ok := err.(*exec.ExitError); ok {
 			return false, nil
 		}
 		return false, err
