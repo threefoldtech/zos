@@ -81,6 +81,7 @@ func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile,
 		"-L", name,
 		"-d", string(policy),
 		"-m", string(policy),
+		"-f",
 	}
 
 	args = append(args, paths...)
