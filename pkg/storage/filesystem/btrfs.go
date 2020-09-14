@@ -53,7 +53,7 @@ func NewBtrfs(manager DeviceManager) Filesystem {
 	return newBtrfs(manager, executerFunc(run))
 }
 
-func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*Device) (Pool, error) {
+func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, force bool, devices ...*Device) (Pool, error) {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {
 		return nil, fmt.Errorf("invalid name")
@@ -83,49 +83,8 @@ func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile,
 		"-m", string(policy),
 	}
 
-	args = append(args, paths...)
-	if _, err := b.utils.run(ctx, "mkfs.btrfs", args...); err != nil {
-		return nil, err
-	}
-
-	// update cached devices
-	for _, dev := range devices {
-		dev.Label = name
-		dev.Filesystem = BtrfsFSType
-	}
-
-	return newBtrfsPool(name, devices, &b.utils), nil
-}
-
-func (b *btrfs) CreateForce(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*Device) (Pool, error) {
-	name = strings.TrimSpace(name)
-	if len(name) == 0 {
-		return nil, fmt.Errorf("invalid name")
-	}
-
-	block, err := b.devices.ByLabel(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(block) != 0 {
-		return nil, fmt.Errorf("unique name is required")
-	}
-
-	paths := []string{}
-	for _, device := range devices {
-		if device.Used() {
-			return nil, fmt.Errorf("device '%v' is already used", device.Path)
-		}
-
-		paths = append(paths, device.Path)
-	}
-
-	args := []string{
-		"-L", name,
-		"-d", string(policy),
-		"-m", string(policy),
-		"-f",
+	if force {
+		args = append(args, "-f")
 	}
 
 	args = append(args, paths...)
