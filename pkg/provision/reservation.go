@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -171,12 +170,22 @@ type Result struct {
 
 // IsNil checks if Result is the zero values
 func (r *Result) IsNil() bool {
-	return reflect.DeepEqual(r, &emptyResult)
+	// ideally this should be implemented like this
+	// emptyResult := Result{}
+	// return reflect.DeepEqual(r, &emptyResult)
+	//
+	// but unfortunately, the empty Result coming from the explorer already have some fields set
+	// (like the type)
+	// so instead we gonna check the Data and the Created filed
+
+	return (r.Created.Equal(epoch) || r.Created.Equal(nullTime)) && (len(r.Data) == 0 || bytes.Equal(r.Data, nullRaw))
 }
 
 var (
 	//emptyResult is the Result zero value
-	emptyResult = Result{}
+	epoch      = time.Unix(0, 0)
+	nullTime   = time.Time{}
+	nullRaw, _ = json.Marshal(nil)
 )
 
 // Bytes returns a slice of bytes container all the information
