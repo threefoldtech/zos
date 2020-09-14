@@ -59,7 +59,7 @@ func TestBtrfsCreateSingle(t *testing.T) {
 
 	var exec TestExecuter
 
-	exec.On("run", mock.Anything, "mkfs.btrfs", "-L", "test-single", "-d", "single", "-m", "single", "-f", "/tmp/dev1").
+	exec.On("run", mock.Anything, "mkfs.btrfs", "-L", "test-single", "-d", "single", "-m", "single", "/tmp/dev1").
 		Return([]byte{}, nil)
 
 	fs := newBtrfs(mgr, &exec)
@@ -84,7 +84,7 @@ func TestBtrfsCreateRaid1(t *testing.T) {
 	var exec TestExecuter
 
 	exec.On("run", mock.Anything, "mkfs.btrfs", "-L", "test-raid1",
-		"-d", "raid1", "-m", "raid1", "-f",
+		"-d", "raid1", "-m", "raid1",
 		"/tmp/dev1", "/tmp/dev2").Return([]byte{}, nil)
 
 	fs := newBtrfs(mgr, &exec)
