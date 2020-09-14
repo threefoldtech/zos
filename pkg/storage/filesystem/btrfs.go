@@ -231,11 +231,11 @@ func (p *btrfsPool) Mount() (string, error) {
 		return "", err
 	}
 
-	if err := p.maintenance(); err != nil {
-		return "", err
+	if err := p.utils.QGroupEnable(ctx, mnt); err != nil {
+		return "", fmt.Errorf("failed to enable qgroup: %w", err)
 	}
 
-	return mnt, p.utils.QGroupEnable(ctx, mnt)
+	return mnt, p.maintenance()
 }
 
 // MountWithoutScan mounts the pool in it's default mount location under /mnt/name
@@ -253,11 +253,11 @@ func (p *btrfsPool) MountWithoutScan() (string, error) {
 		return "", err
 	}
 
-	if err := p.maintenance(); err != nil {
-		return "", err
+	if err := p.utils.QGroupEnable(ctx, mnt); err != nil {
+		return "", fmt.Errorf("failed to enable qgroup: %w", err)
 	}
 
-	return mnt, p.utils.QGroupEnable(ctx, mnt)
+	return mnt, p.maintenance()
 }
 
 func (p *btrfsPool) UnMount() error {
