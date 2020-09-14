@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -167,6 +168,16 @@ type Result struct {
 	// and hex
 	Signature string `json:"signature"`
 }
+
+// IsNil checks if Result is the zero values
+func (r *Result) IsNil() bool {
+	return reflect.DeepEqual(r, &emptyResult)
+}
+
+var (
+	//emptyResult is the Result zero value
+	emptyResult = Result{}
+)
 
 // Bytes returns a slice of bytes container all the information
 // used to sign the Result object
