@@ -176,6 +176,8 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		// if everything is already in place, just early return
 		log.Info().Msgf("flist is already mounted at %s, nothing more to do", mountpoint)
 		return mountpoint, nil
+	} else if err != nil {
+		return "", err
 	}
 
 	env, err := environment.Get()
