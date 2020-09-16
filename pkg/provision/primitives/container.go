@@ -24,8 +24,9 @@ import (
 type Network struct {
 	NetworkID pkg.NetID `json:"network_id"`
 	// IP to give to the container
-	IPs       []net.IP `json:"ips"`
-	PublicIP6 bool     `json:"public_ip6"`
+	IPs         []net.IP `json:"ips"`
+	PublicIP6   bool     `json:"public_ip6"`
+	YggdrasilIP bool     `json:"yggdrasil_ip"`
 }
 
 // Mount defines a container volume mounted inside the container
@@ -65,9 +66,10 @@ type Container struct {
 // ContainerResult is the information return to the BCDB
 // after deploying a container
 type ContainerResult struct {
-	ID   string `json:"id"`
-	IPv6 string `json:"ipv6"`
-	IPv4 string `json:"ipv4"`
+	ID    string `json:"id"`
+	IPv6  string `json:"ipv6"`
+	IPv4  string `json:"ipv4"`
+	IPYgg string `json:"yggdrasil"`
 }
 
 // ContainerCapacity is the amount of resource to allocate to the container
@@ -116,7 +118,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 		return ContainerResult{}, errors.Wrap(err, "container provision schema not valid")
 	}
 
-	netID := networkID(reservation.User, string(config.Network.NetworkID))
+	netID := provision.NetworkID(reservation.User, string(config.Network.NetworkID))
 	log.Debug().
 		Str("network-id", string(netID)).
 		Str("config", fmt.Sprintf("%+v", config)).
@@ -159,12 +161,17 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 		ips[i] = ip.String()
 	}
 	var join pkg.Member
-	join, err = networkMgr.Join(netID, containerID, ips, config.Network.PublicIP6)
+	join, err = networkMgr.Join(netID, containerID, pkg.ContainerNetworkConfig{
+		IPs:         ips,
+		PublicIP6:   config.Network.PublicIP6,
+		YggdrasilIP: config.Network.YggdrasilIP,
+	})
 	if err != nil {
 		return ContainerResult{}, err
 	}
 	log.Info().
 		Str("ipv6", join.IPv6.String()).
+		Str("ygg", join.YggdrasilIP.String()).
 		Str("ipv4", join.IPv4.String()).
 		Str("container", reservation.ID).
 		Msg("assigned an IP")
@@ -266,9 +273,10 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 
 	log.Info().Msgf("container created with id: '%s'", id)
 	return ContainerResult{
-		ID:   string(id),
-		IPv6: join.IPv6.String(),
-		IPv4: join.IPv4.String(),
+		ID:    string(id),
+		IPv6:  join.IPv6.String(),
+		IPv4:  join.IPv4.String(),
+		IPYgg: join.YggdrasilIP.String(),
 	}, nil
 }
 
@@ -307,7 +315,7 @@ func (p *Provisioner) containerDecommission(ctx context.Context, reservation *pr
 		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
 	}
 
-	netID := networkID(reservation.User, string(config.Network.NetworkID))
+	netID := provision.NetworkID(reservation.User, string(config.Network.NetworkID))
 	if _, err := networkMgr.GetSubnet(netID); err == nil { // simple check to make sure the network still exists on the node
 		if err := networkMgr.Leave(netID, string(containerID)); err != nil {
 			return errors.Wrap(err, "failed to delete container network namespace")

@@ -120,8 +120,8 @@ func (s *NetworkerStub) GetSubnet(arg0 pkg.NetID) (ret0 net.IPNet, ret1 error) {
 	return
 }
 
-func (s *NetworkerStub) Join(arg0 pkg.NetID, arg1 string, arg2 []string, arg3 bool) (ret0 pkg.Member, ret1 error) {
-	args := []interface{}{arg0, arg1, arg2, arg3}
+func (s *NetworkerStub) Join(arg0 pkg.NetID, arg1 string, arg2 pkg.ContainerNetworkConfig) (ret0 pkg.Member, ret1 error) {
+	args := []interface{}{arg0, arg1, arg2}
 	result, err := s.client.Request(s.module, s.object, "Join", args...)
 	if err != nil {
 		panic(err)
@@ -210,6 +210,22 @@ func (s *NetworkerStub) SetupTap(arg0 pkg.NetID) (ret0 string, ret1 error) {
 	return
 }
 
+func (s *NetworkerStub) TapExists(arg0 pkg.NetID) (ret0 bool, ret1 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "TapExists", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerStub) YggAddresses(ctx context.Context) (<-chan pkg.NetlinkAddresses, error) {
 	ch := make(chan pkg.NetlinkAddresses)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "YggAddresses")
@@ -227,6 +243,19 @@ func (s *NetworkerStub) YggAddresses(ctx context.Context) (<-chan pkg.NetlinkAdd
 		}
 	}()
 	return ch, nil
+}
+
+func (s *NetworkerStub) ZDBDestroy(arg0 string) (ret0 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "ZDBDestroy", args...)
+	if err != nil {
+		panic(err)
+	}
+	ret0 = new(zbus.RemoteError)
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
 }
 
 func (s *NetworkerStub) ZDBPrepare(arg0 []uint8) (ret0 string, ret1 error) {
