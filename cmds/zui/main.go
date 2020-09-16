@@ -60,78 +60,44 @@ func main() {
 
 	defer ui.Close()
 
-	width, height := ui.TerminalDimensions()
+	width, _ := ui.TerminalDimensions()
+
 	header := widgets.NewParagraph()
-	header.Border = false
-	grid := ui.NewGrid()
+	header.Border = true
+	header.SetRect(0, 0, width, 6)
 
-	headerHeight := 3
-	header.SetRect(0, -1, width, headerHeight)
-	//header.Text = "ZeroOS"
-	header.TextStyle = ui.Style{
-		Fg:       ui.ColorBlue,
-		Bg:       ui.ColorClear,
-		Modifier: ui.ModifierBold,
-	}
-	grid.Title = "System"
+	netgrid := ui.NewGrid()
+	netgrid.Title = "Network"
+	netgrid.SetRect(0, 6, width, 12)
 
-	grid.SetRect(0, headerHeight-2, width, height)
-
-	cpu := ui.NewGrid()
-	cpu.Title = "CPU"
-	cpu.Border = true
-
-	mem := ui.NewGrid()
-	mem.Title = "Memory"
-	mem.Border = true
-
-	net := ui.NewGrid()
-	net.Title = "Network"
-	net.Border = true
-
-	disk := ui.NewGrid()
-	disk.Title = "Disk"
-	disk.Border = true
+	diskgrid := ui.NewGrid()
+	diskgrid.Title = "Disk"
+	diskgrid.SetRect(0, 12, width, 18)
 
 	provision := ui.NewGrid()
-	// split in 10 parts
-	cell := ui.NewGrid()
-
-	cell.Set(
-		ui.NewRow(4.5/6, disk),
-		ui.NewRow(1.5/6, provision),
-	)
-
-	grid.Set(
-		ui.NewRow(2.0/10,
-			ui.NewCol(1, cpu),
-		),
-		ui.NewRow(1.0/10,
-			ui.NewCol(1, mem),
-		),
-		ui.NewRow(7.0/10,
-			ui.NewCol(1.0/2, net),
-			ui.NewCol(1.0/2, cell),
-		),
-	)
+	provision.Title = "Provision"
+	provision.SetRect(0, 18, width, 24)
+	provision.Border = false
 
 	var flag Flag
 
 	if err := headerRenderer(client, header, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start header renderer")
 	}
-	if err := cpuRender(client, cpu, &flag); err != nil {
-		log.Error().Err(err).Msg("failed to start cpu renderer")
-	}
-	if err := memRender(client, mem, &flag); err != nil {
-		log.Error().Err(err).Msg("failed to start mem renderer")
-	}
+	/*
+		if err := cpuRender(client, cpu, &flag); err != nil {
+			log.Error().Err(err).Msg("failed to start cpu renderer")
+		}
+		if err := memRender(client, mem, &flag); err != nil {
+			log.Error().Err(err).Msg("failed to start mem renderer")
+		}
+	*/
 
-	if err := netRender(client, net, &flag); err != nil {
+	if err := netRender(client, netgrid, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start net renderer")
 	}
 
-	if err := diskRender(client, disk, &flag); err != nil {
+	if err := diskRender(client, diskgrid, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start net renderer")
 	}
 
@@ -140,10 +106,10 @@ func main() {
 	}
 
 	render := func() {
-		ui.Render(header, grid)
+		ui.Render(header, netgrid, diskgrid, provision)
 	}
 
-	ui.Clear()
+	// ui.Clear()
 	render()
 
 	uiEvents := ui.PollEvents()
@@ -155,8 +121,8 @@ func main() {
 				return
 			case "<Resize>":
 				payload := e.Payload.(ui.Resize)
-				header.SetRect(0, 0, payload.Width, headerHeight)
-				grid.SetRect(0, headerHeight, payload.Width, payload.Height-headerHeight)
+				header.SetRect(0, 0, payload.Width, 3)
+				// grid.SetRect(0, 3, payload.Width, payload.Height)
 				ui.Clear()
 				render()
 			}

@@ -14,16 +14,14 @@ import (
 func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 
 	prov := widgets.NewTable()
-	prov.Title = "Workloads"
+	prov.Title = "System Load"
 	prov.RowSeparator = false
 
 	prov.Rows = [][]string{
-		{"Containers", ""},
-		{"Volumes", ""},
-		{"Networks", ""},
-		{"VMs", ""},
-		{"ZDB Namespaces", ""},
-		{"Debug", ""},
+		{"CPU Usage", "", "Memory Usage", ""},
+		{"Containers", "", "Volumes", ""},
+		{"Networks", "", "VMs", ""},
+		{"ZDB NS", "", "Debug", ""},
 	}
 
 	grid.Set(
@@ -43,12 +41,14 @@ func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	go func() {
 		for counter := range counters {
 			rows := prov.Rows
-			rows[0][1] = fmt.Sprint(counter.Container)
-			rows[1][1] = fmt.Sprint(counter.Volume)
-			rows[2][1] = fmt.Sprint(counter.Network)
-			rows[3][1] = fmt.Sprint(counter.VM)
-			rows[4][1] = fmt.Sprint(counter.ZDB)
-			rows[5][1] = fmt.Sprint(counter.Debug)
+			rows[0][1] = "42"
+			rows[1][1] = "21"
+			rows[2][1] = fmt.Sprint(counter.Container)
+			rows[3][1] = fmt.Sprint(counter.Volume)
+			rows[4][1] = fmt.Sprint(counter.Network)
+			rows[5][1] = fmt.Sprint(counter.VM)
+			rows[6][1] = fmt.Sprint(counter.ZDB)
+			rows[7][1] = fmt.Sprint(counter.Debug)
 
 			render.Signal()
 		}
