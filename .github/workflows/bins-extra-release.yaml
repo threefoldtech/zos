@@ -439,6 +439,6 @@ jobs:
       with:
         token: ${{ secrets.HUB_JWT }}
         action: crosslink
-        user: tf-zos-bins.test
+        user: tf-zos-bins
         name: 0-fs.flist
         target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
