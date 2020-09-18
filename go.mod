@@ -3,7 +3,6 @@ module github.com/threefoldtech/zos
 go 1.13
 
 require (
-	bitbucket.org/ww/goautoneg v0.0.0-20120707110453-75cd24fc2f2c // indirect
 	github.com/BurntSushi/toml v0.3.1
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
