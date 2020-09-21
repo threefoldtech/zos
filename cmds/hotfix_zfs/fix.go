@@ -9,16 +9,20 @@ import (
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/app"
 )
 
 func download(url, output string) error {
+	log.Info().Str("file", output).Str("url", url).Msg("downloading file")
 	bf := backoff.NewExponentialBackOff()
 
 	err := backoff.Retry(func() error {
+		log.Info().Str("url", url).Msg("requesting url")
 		response, err := http.Get(url)
 		if err != nil {
 			return err
 		}
+
 		defer response.Body.Close()
 		if response.StatusCode != http.StatusOK {
 			return fmt.Errorf("invalid status code")
@@ -28,6 +32,7 @@ func download(url, output string) error {
 		if err != nil {
 			return err
 		}
+
 		defer file.Close()
 
 		_, err = io.Copy(file, response.Body)
@@ -86,6 +91,7 @@ func copyFile(dst, src string) error {
 }
 
 func main() {
+	app.Initialize()
 	target := "/bin"
 
 	for name, url := range map[string]string{
