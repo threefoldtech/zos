@@ -34,7 +34,7 @@ jobs:
         cd bins
         sudo ./bins-extra.sh --package basesystem
 
-    - name: Build package
+    - name: Build package (containerd)
       id: package
       run: |
         cd bins
