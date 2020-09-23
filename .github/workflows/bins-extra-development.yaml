@@ -43,7 +43,6 @@ jobs:
     - name: Merging packages
       id: packages
       run: |
-        cd bins
         mkdir /tmp/root
         sudo cp -av bins/releases/containerd/* /tmp/root/
         sudo cp -av bins/releases/runc/* /tmp/root/
