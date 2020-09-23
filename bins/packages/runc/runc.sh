@@ -50,7 +50,6 @@ compile_runc() {
 
 install_runc() {
     echo "[+] install runc"
-
     mkdir -p "${ROOTDIR}/usr/bin"
     cp -av runc "${ROOTDIR}/usr/bin/"
 }
