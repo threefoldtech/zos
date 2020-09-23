@@ -46,7 +46,7 @@ func ContainerToProvisionType(w workloads.Workloader, reservationID string) (Con
 		Entrypoint:      c.Entrypoint,
 		Interactive:     c.Interactive,
 		Mounts:          make([]Mount, len(c.Volumes)),
-		Logs:            make([]logger.Logs, len(c.Logs)),
+		Logs:            make([]Logs, len(c.Logs)),
 		StatsAggregator: make([]stats.Aggregator, len(c.StatsAggregator)),
 		Capacity: ContainerCapacity{
 			CPU:      uint(c.Capacity.Cpu),
@@ -78,20 +78,18 @@ func ContainerToProvisionType(w workloads.Workloader, reservationID string) (Con
 	for i, lg := range c.Logs {
 		// Only support redis for now
 		if lg.Type != logger.RedisType {
-			container.Logs[i] = logger.Logs{
+			container.Logs[i] = Logs{
 				Type: "unknown",
-				Data: logger.LogsRedis{
-					Stdout: "",
-					Stderr: "",
-				},
 			}
 		}
 
-		container.Logs[i] = logger.Logs{
+		container.Logs[i] = Logs{
 			Type: lg.Type,
-			Data: logger.LogsRedis{
-				Stdout: lg.Data.Stdout,
-				Stderr: lg.Data.Stderr,
+			Data: LogsData{
+				Stdout:       lg.Data.Stdout,
+				Stderr:       lg.Data.Stderr,
+				SecretStdout: lg.Data.SecretStdout,
+				SecretStderr: lg.Data.SecretStderr,
 			},
 		}
 	}

@@ -432,7 +432,7 @@ jobs:
         root: bins/releases/zufs
         name: ${{ steps.package.outputs.name }}.flist
 
-    - name: Crosslink flist (tf-zos-bins.dev)
+    - name: Crosslink flist (tf-zos-bins.test)
       if: success()
       uses: threefoldtech/publish-flist@master
       with:
