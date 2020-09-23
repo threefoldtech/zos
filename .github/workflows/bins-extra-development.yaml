@@ -29,19 +29,19 @@ jobs:
         sudo ./bins-extra.sh --package basesystem
 
     - name: Build package (containerd)
-      id: package
+      id: package-1
       run: |
         cd bins
         sudo ./bins-extra.sh --package containerd
 
     - name: Build package (runc)
-      id: package
+      id: package-2
       run: |
         cd bins
         sudo ./bins-extra.sh --package runc
 
     - name: Merging packages
-      id: package
+      id: packages
       run: |
         cd bins
         mkdir /tmp/root
