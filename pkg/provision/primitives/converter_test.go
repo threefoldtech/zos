@@ -12,7 +12,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	schema "github.com/threefoldtech/tfexplorer/schema"
-	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
 	"gotest.tools/assert"
 )
@@ -81,7 +80,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 				Interactive:     false,
 				Mounts:          []Mount{},
 				Network:         Network{},
-				Logs:            []logger.Logs{},
+				Logs:            []Logs{},
 				StatsAggregator: []stats.Aggregator{},
 				Capacity: ContainerCapacity{
 					CPU:      2,
@@ -146,7 +145,7 @@ func TestTfgridReservationContainer1_ToProvisionType(t *testing.T) {
 					NetworkID: "net1",
 					IPs:       []net.IP{net.ParseIP("10.0.0.1")},
 				},
-				Logs:            []logger.Logs{},
+				Logs:            []Logs{},
 				StatsAggregator: []stats.Aggregator{},
 				Capacity: ContainerCapacity{
 					CPU:      2,
