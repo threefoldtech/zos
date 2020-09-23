@@ -88,8 +88,8 @@ func ContainerToProvisionType(w workloads.Workloader, reservationID string) (Con
 			Data: LogsData{
 				Stdout:       lg.Data.Stdout,
 				Stderr:       lg.Data.Stderr,
-				SecureStdout: lg.Data.SecretStdout,
-				SecureStderr: lg.Data.SecretStderr,
+				SecretStdout: lg.Data.SecretStdout,
+				SecretStderr: lg.Data.SecretStderr,
 			},
 		}
 	}
