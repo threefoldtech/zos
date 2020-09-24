@@ -28,7 +28,7 @@ type Metrics struct {
 }
 
 // Aggregator defines a stats backend
-type Aggregator struct {
+type Stats struct {
 	Type string `bson:"type" json:"type"`
 	Data Redis  `bson:"data" json:"data"`
 }
