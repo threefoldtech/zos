@@ -27,7 +27,7 @@ type Metrics struct {
 	PidsCurrent uint64 `json:"pids_current"`
 }
 
-// Aggregator defines a stats backend
+// Stats defines a stats backend
 type Stats struct {
 	Type string `bson:"type" json:"type"`
 	Data Redis  `bson:"data" json:"data"`
