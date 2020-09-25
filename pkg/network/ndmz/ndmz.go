@@ -2,6 +2,7 @@ package ndmz
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -45,7 +46,7 @@ const (
 // DMZ is an interface used to create an DMZ network namespace
 type DMZ interface {
 	// create the ndmz network namespace and all requires network interfaces
-	Create() error
+	Create(ctx context.Context) error
 	// delete the ndmz network namespace and clean up all network interfaces
 	Delete() error
 	// link a network resource from a user network to ndmz
