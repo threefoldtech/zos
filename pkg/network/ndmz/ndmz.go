@@ -230,9 +230,12 @@ func configureYggdrasil(subnetIP net.IPNet) error {
 		if err != nil {
 			return err
 		}
-		return netlink.AddrAdd(link, &netlink.Addr{
+		if err := netlink.AddrAdd(link, &netlink.Addr{
 			IPNet: &subnetIP,
-		})
+		}); err != nil && !os.IsExist(err) {
+			return err
+		}
+		return nil
 	})
 	return err
 }
