@@ -97,15 +97,7 @@ func createPubIface6(name, master, nodeID string, netNS ns.NetNS) error {
 			Str("interface", name).
 			Msg("set mac on ipv6 ndmz public iface")
 
-		if err := ifaceutil.SetMAC(name, mac, nil); err != nil {
-			return err
-		}
-
-		link, err := netlink.LinkByName(name)
-		if err != nil {
-			return err
-		}
-		return netlink.LinkSetUp(link)
+		return ifaceutil.SetMAC(name, mac, nil)
 	})
 }
 
