@@ -109,7 +109,7 @@ func ContainerToProvisionType(w workloads.Workloader, reservationID string) (Con
 		}
 
 		data := stats.Redis{}
-		err := json.Unmarshal(s.Data, data)
+		err := json.Unmarshal(s.Data, &data)
 		if err != nil {
 			container.Stats[i] = unknstats
 			continue
