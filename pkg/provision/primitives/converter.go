@@ -94,21 +94,31 @@ func ContainerToProvisionType(w workloads.Workloader, reservationID string) (Con
 		}
 	}
 
+	unknstats := stats.Stats{
+		Type: "unknown",
+		Data: stats.Redis{
+			Endpoint: "",
+		},
+	}
+
 	for i, s := range c.Stats {
 		// Only support redis for now
 		if s.Type != stats.RedisType {
-			container.Stats[i] = stats.Stats{
-				Type: "unknown",
-				Data: stats.Redis{
-					Endpoint: "",
-				},
-			}
+			container.Stats[i] = unknstats
+			continue
+		}
+
+		data := stats.Redis{}
+		err := json.Unmarshal(s.Data, data)
+		if err != nil {
+			container.Stats[i] = unknstats
+			continue
 		}
 
 		container.Stats[i] = stats.Stats{
 			Type: s.Type,
 			Data: stats.Redis{
-				Endpoint: s.Data.Endpoint,
+				Endpoint: data.Endpoint,
 			},
 		}
 	}
