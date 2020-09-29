@@ -66,8 +66,8 @@ func cleanupResources(msgBrokerCon string) error {
 		}
 
 		for _, subvol := range subvols {
-
-			qgroup, ok := qgroups[fmt.Sprintf("0/%d", subvol.ID)]
+			log.Info().Msgf("checking subvol %s", subvol.Path)
+			_, ok := qgroups[fmt.Sprintf("0/%d", subvol.ID)]
 			if !ok {
 				log.Info().Msgf("skipping volume '%s' has no assigned quota", subvol.Path)
 				continue
@@ -77,12 +77,12 @@ func cleanupResources(msgBrokerCon string) error {
 			if _, ok := toDelete[filepath.Base(subvol.Path)]; ok {
 				// delete the subvolume
 				log.Info().Msgf("deleting subvolume %s", subvol.Path)
-				if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
-					log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
-				}
-				if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
-					log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
-				}
+				// if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
+				// 	log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
+				// }
+				// if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
+				// 	log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
+				// }
 				continue
 			}
 
@@ -99,12 +99,12 @@ func cleanupResources(msgBrokerCon string) error {
 
 			// delete the subvolume
 			log.Info().Msgf("deleting subvolume %s", subvol.Path)
-			if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
-				log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
-			}
-			if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
-				log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
-			}
+			// if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
+			// 	log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
+			// }
+			// if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
+			// 	log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
+			// }
 		}
 	}
 

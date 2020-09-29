@@ -34,7 +34,7 @@ func TestHTTPReservationSource(t *testing.T) {
 			&Reservation{ID: "1-2"},
 		}, 1, ErrPollEOS)
 
-	reservations := []*Reservation{}
+	reservations := []*ReservationFromSource{}
 	for res := range chn {
 		reservations = append(reservations, res)
 	}
@@ -68,7 +68,7 @@ func TestHTTPReservationSourceMultiple(t *testing.T) {
 			&Reservation{ID: "4-1"},
 		}, 6, ErrPollEOS)
 
-	reservations := []*Reservation{}
+	reservations := []*ReservationFromSource{}
 	for res := range chn {
 		reservations = append(reservations, res)
 	}
@@ -118,7 +118,7 @@ func TestHTTPReservationSourceSleep(t *testing.T) {
 
 	chn := source.Reservations(context.Background())
 
-	reservations := []*Reservation{}
+	reservations := []*ReservationFromSource{}
 	for res := range chn {
 		reservations = append(reservations, res)
 	}

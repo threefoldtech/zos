@@ -100,11 +100,6 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	defer c.Stop()
 
-	go func() {
-		<-time.After(5 * time.Minute)
-		cleanUp <- struct{}{}
-	}()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -129,13 +124,13 @@ func (e *Engine) Run(ctx context.Context) error {
 
 			if expired || reservation.ToDelete {
 				slog.Info().Msg("start decommissioning reservation")
-				if err := e.decommission(ctx, reservation); err != nil {
+				if err := e.decommission(ctx, reservation.Reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to decommission reservation %s", reservation.ID)
 					continue
 				}
 			} else {
 				slog.Info().Msg("start provisioning reservation")
-				if err := e.provision(ctx, reservation); err != nil {
+				if err := e.provision(ctx, reservation.Reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to provision reservation %s", reservation.ID)
 					continue
 				}
@@ -143,6 +138,14 @@ func (e *Engine) Run(ctx context.Context) error {
 
 			if err := e.updateStats(); err != nil {
 				log.Error().Err(err).Msg("failed to updated the capacity counters")
+			}
+
+			if reservation.last {
+				log.Info().Msg("start cleaning up resources")
+				if err := cleanupResources(e.msgBrokerCon); err != nil {
+					log.Error().Err(err).Msg("failed to cleanup resources")
+					continue
+				}
 			}
 
 		case <-cleanUp:
