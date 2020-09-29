@@ -24,14 +24,36 @@ import (
 type Network struct {
 	NetworkID pkg.NetID `json:"network_id"`
 	// IP to give to the container
-	IPs       []net.IP `json:"ips"`
-	PublicIP6 bool     `json:"public_ip6"`
+	IPs         []net.IP `json:"ips"`
+	PublicIP6   bool     `json:"public_ip6"`
+	YggdrasilIP bool     `json:"yggdrasil_ip"`
 }
 
 // Mount defines a container volume mounted inside the container
 type Mount struct {
 	VolumeID   string `json:"volume_id"`
 	Mountpoint string `json:"mountpoint"`
+}
+
+// Logs defines a custom backend with variable settings
+type Logs struct {
+	Type string   `json:"type"`
+	Data LogsData `json:"data"`
+}
+
+// LogsData structure
+type LogsData struct {
+	// Stdout is the redis url for stdout (redis://host/channel)
+	Stdout string `json:"stdout"`
+
+	// Stderr is the redis url for stderr (redis://host/channel)
+	Stderr string `json:"stderr"`
+
+	// SecretStdout like stdout but encrypted with node public key
+	SecretStdout string `json:"secret_stdout"`
+
+	// SecretStderr like stderr but encrypted with node public key
+	SecretStderr string `json:"secret_stderr"`
 }
 
 //Container creation info
@@ -57,17 +79,18 @@ type Container struct {
 	// ContainerCapacity is the amount of resource to allocate to the container
 	Capacity ContainerCapacity `json:"capacity"`
 	// Logs contains a list of endpoint where to send containerlogs
-	Logs []logger.Logs `json:"logs,omitempty"`
-	// StatsAggregator container metrics backend
-	StatsAggregator []stats.Aggregator
+	Logs []Logs `json:"logs,omitempty"`
+	// Stats container metrics backend
+	Stats []stats.Stats `json:"stats,omitempty"`
 }
 
 // ContainerResult is the information return to the BCDB
 // after deploying a container
 type ContainerResult struct {
-	ID   string `json:"id"`
-	IPv6 string `json:"ipv6"`
-	IPv4 string `json:"ipv4"`
+	ID    string `json:"id"`
+	IPv6  string `json:"ipv6"`
+	IPv4  string `json:"ipv4"`
+	IPYgg string `json:"yggdrasil"`
 }
 
 // ContainerCapacity is the amount of resource to allocate to the container
@@ -116,7 +139,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 		return ContainerResult{}, errors.Wrap(err, "container provision schema not valid")
 	}
 
-	netID := networkID(reservation.User, string(config.Network.NetworkID))
+	netID := provision.NetworkID(reservation.User, string(config.Network.NetworkID))
 	log.Debug().
 		Str("network-id", string(netID)).
 		Str("config", fmt.Sprintf("%+v", config)).
@@ -153,18 +176,50 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
+	var logs []logger.Logs
+	for _, log := range config.Logs {
+		stdout := log.Data.Stdout
+		stderr := log.Data.Stderr
+
+		if len(log.Data.SecretStdout) > 0 {
+			stdout, err = decryptSecret(p.zbus, log.Data.SecretStdout)
+			if err != nil {
+				return ContainerResult{}, errors.Wrap(err, "failed to decrypt log.secret_stdout var")
+			}
+		}
+
+		if len(log.Data.SecretStderr) > 0 {
+			stderr, err = decryptSecret(p.zbus, log.Data.SecretStderr)
+			if err != nil {
+				return ContainerResult{}, errors.Wrap(err, "failed to decrypt log.secret_stdout var")
+			}
+		}
+		logs = append(logs, logger.Logs{
+			Type: log.Type,
+			Data: logger.LogsRedis{
+				Stdout: stdout,
+				Stderr: stderr,
+			},
+		})
+	}
+
 	// prepare container network
 	ips := make([]string, len(config.Network.IPs))
 	for i, ip := range config.Network.IPs {
 		ips[i] = ip.String()
 	}
 	var join pkg.Member
-	join, err = networkMgr.Join(netID, containerID, ips, config.Network.PublicIP6)
+	join, err = networkMgr.Join(netID, containerID, pkg.ContainerNetworkConfig{
+		IPs:         ips,
+		PublicIP6:   config.Network.PublicIP6,
+		YggdrasilIP: config.Network.YggdrasilIP,
+	})
 	if err != nil {
 		return ContainerResult{}, err
 	}
 	log.Info().
 		Str("ipv6", join.IPv6.String()).
+		Str("ygg", join.YggdrasilIP.String()).
 		Str("ipv4", join.IPv4.String()).
 		Str("container", reservation.ID).
 		Msg("assigned an IP")
@@ -240,13 +295,13 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 			Network: pkg.NetworkInfo{
 				Namespace: join.Namespace,
 			},
-			Mounts:          mounts,
-			Entrypoint:      config.Entrypoint,
-			Interactive:     config.Interactive,
-			CPU:             config.Capacity.CPU,
-			Memory:          config.Capacity.Memory * mib,
-			Logs:            config.Logs,
-			StatsAggregator: config.StatsAggregator,
+			Mounts:      mounts,
+			Entrypoint:  config.Entrypoint,
+			Interactive: config.Interactive,
+			CPU:         config.Capacity.CPU,
+			Memory:      config.Capacity.Memory * mib,
+			Logs:        logs,
+			Stats:       config.Stats,
 		},
 	)
 	if err != nil {
@@ -266,9 +321,10 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 
 	log.Info().Msgf("container created with id: '%s'", id)
 	return ContainerResult{
-		ID:   string(id),
-		IPv6: join.IPv6.String(),
-		IPv4: join.IPv4.String(),
+		ID:    string(id),
+		IPv6:  join.IPv6.String(),
+		IPv4:  join.IPv4.String(),
+		IPYgg: join.YggdrasilIP.String(),
 	}, nil
 }
 
@@ -307,7 +363,7 @@ func (p *Provisioner) containerDecommission(ctx context.Context, reservation *pr
 		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
 	}
 
-	netID := networkID(reservation.User, string(config.Network.NetworkID))
+	netID := provision.NetworkID(reservation.User, string(config.Network.NetworkID))
 	if _, err := networkMgr.GetSubnet(netID); err == nil { // simple check to make sure the network still exists on the node
 		if err := networkMgr.Leave(netID, string(containerID)); err != nil {
 			return errors.Wrap(err, "failed to delete container network namespace")

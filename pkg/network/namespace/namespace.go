@@ -1,7 +1,9 @@
 package namespace
 
 import (
+	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/unix"
 )
 
@@ -146,11 +149,78 @@ func Delete(ns ns.NetNS) error {
 func Exists(name string) bool {
 	nsPath := filepath.Join(netNSPath, name)
 	_, err := os.Stat(nsPath)
-	return err == nil
+	if err != nil {
+		return false
+	}
+	mounted, err := isNamespaceMounted(name)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to check if namespace is mounted")
+		return false
+	}
+
+	if !mounted {
+		//the file shouldn't be there
+		_ = os.Remove(nsPath)
+	}
+
+	return mounted
 }
 
 // GetByName return a namespace by its name
 func GetByName(name string) (ns.NetNS, error) {
 	nsPath := filepath.Join(netNSPath, name)
 	return ns.GetNS(nsPath)
+}
+
+// List returns a list of all the names of the network namespaces
+func List(prefix string) ([]string, error) {
+	infos, err := ioutil.ReadDir(netNSPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read network namespace directory: %w", err)
+	}
+
+	names := make([]string, 0, len(infos))
+	for _, info := range infos {
+		if info.IsDir() {
+			continue
+		}
+
+		if prefix != "" && !strings.HasPrefix(info.Name(), prefix) {
+			continue
+		}
+
+		names = append(names, info.Name())
+	}
+
+	return names, nil
+}
+
+func isNamespaceMounted(name string) (bool, error) {
+	file, err := os.Open("/proc/mounts")
+	if err != nil {
+		return false, errors.Wrap(err, "failed to list mounts")
+	}
+	defer file.Close()
+
+	path := filepath.Join(netNSPath, name)
+	mounts := bufio.NewScanner(file)
+	for mounts.Scan() {
+		line := mounts.Text()
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		// we are looking for line that looks like
+		// nsfs /var/run/netns/<name> nsfs rw 0 0
+		if parts[0] != "nsfs" {
+			// we searching for nsfs type only
+			continue
+		}
+
+		if parts[1] == path {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
