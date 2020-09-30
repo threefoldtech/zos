@@ -146,7 +146,7 @@ func (e *Engine) Run(ctx context.Context) error {
 
 			if reservation.last && !triggeredCleanupOnBoot {
 				log.Info().Msg("start cleaning up resources")
-				if err := cleanupResources(e.msgBrokerCon); err != nil {
+				if err := CleanupResources(e.msgBrokerCon); err != nil {
 					log.Error().Err(err).Msg("failed to cleanup resources")
 					continue
 				}
@@ -157,7 +157,7 @@ func (e *Engine) Run(ctx context.Context) error {
 
 		case <-cleanUp:
 			log.Info().Msg("start cleaning up resources")
-			if err := cleanupResources(e.msgBrokerCon); err != nil {
+			if err := CleanupResources(e.msgBrokerCon); err != nil {
 				log.Error().Err(err).Msg("failed to cleanup resources")
 				continue
 			}

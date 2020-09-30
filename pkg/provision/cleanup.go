@@ -39,7 +39,7 @@ func socketDir(containerID string) string {
 }
 
 // CleanupResources cleans up unused resources
-func cleanupResources(msgBrokerCon string) error {
+func CleanupResources(msgBrokerCon string) error {
 	client, err := app.ExplorerClient()
 	if err != nil {
 		return err
@@ -131,13 +131,19 @@ func cleanupResources(msgBrokerCon string) error {
 	return nil
 }
 
-func checkReservationToDelete(path string, client *client.Client) bool {
+func checkReservationToDelete(path string, cl *client.Client) bool {
 	log.Info().Msgf("checking explorer for reservation: %s", path)
-	reservation, err := client.Workloads.NodeWorkloadGet(path)
+	reservation, err := cl.Workloads.NodeWorkloadGet(path)
 	if err != nil {
-		log.Err(err).Msg("error occurred")
-		// return true because the reservation is not found, hence it must be deleted
-		return true
+		var hErr client.HTTPError
+		if ok := errors.As(err, &hErr); ok {
+			// retry for any response out of 2XX range
+			resp := hErr.Response()
+			if resp.StatusCode == 404 {
+				return true
+			}
+		}
+		return false
 	}
 
 	if reservation.GetNextAction() == workloads.NextActionDelete {
@@ -224,45 +230,34 @@ func checkContainers(msgBrokerCon string) (map[string]struct{}, map[string]struc
 }
 
 func deleteZdbContainer(msgBrokerCon string, containerID pkg.ContainerID) error {
-	zbusCl, err := zbus.NewRedisClient(msgBrokerCon)
+	zbus, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		log.Fatal().Err(err).Msg("fail to connect to message broker server")
 	}
 
-	container := stubs.NewContainerModuleStub(zbusCl)
-	flist := stubs.NewFlisterStub(zbusCl)
+	container := stubs.NewContainerModuleStub(zbus)
+	flist := stubs.NewFlisterStub(zbus)
+	// networkMgr := stubs.NewNetworkerStub(zbus)
 
 	info, err := container.Inspect("zdb", containerID)
-	if err != nil {
-		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
-		return err
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		return nil
+	} else if err != nil {
+		return errors.Wrapf(err, "failed to inspect container '%s'", containerID)
 	}
 
 	if err := container.Delete("zdb", containerID); err != nil {
 		return errors.Wrapf(err, "failed to delete container %s", containerID)
 	}
 
-	rootFS := info.RootFS
-	if info.Interactive {
-		rootFS, err = findRootFS(info.Mounts)
-		if err != nil {
-			return err
-		}
+	network := stubs.NewNetworkerStub(zbus)
+	if err := network.ZDBDestroy(info.Network.Namespace); err != nil {
+		return errors.Wrapf(err, "failed to destroy zdb network namespace")
 	}
 
-	if err := flist.Umount(rootFS); err != nil {
-		return errors.Wrapf(err, "failed to unmount flist at %s", rootFS)
+	if err := flist.Umount(info.RootFS); err != nil {
+		return errors.Wrapf(err, "failed to unmount flist at %s", info.RootFS)
 	}
 
 	return nil
-}
-
-func findRootFS(mounts []pkg.MountInfo) (string, error) {
-	for _, m := range mounts {
-		if m.Target == "/sandbox" {
-			return m.Source, nil
-		}
-	}
-
-	return "", fmt.Errorf("rootfs flist mountpoint not found")
 }
