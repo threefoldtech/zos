@@ -11,8 +11,11 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/tfexplorer/client"
+	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zdb"
@@ -36,6 +39,11 @@ func socketDir(containerID string) string {
 
 // CleanupResources cleans up unused resources
 func cleanupResources(msgBrokerCon string) error {
+	client, err := app.ExplorerClient()
+	if err != nil {
+		return err
+	}
+
 	toSave, toDelete, err := checkContainers(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "failed to check containers")
@@ -67,48 +75,79 @@ func cleanupResources(msgBrokerCon string) error {
 
 		for _, subvol := range subvols {
 			log.Info().Msgf("checking subvol %s", subvol.Path)
-			_, ok := qgroups[fmt.Sprintf("0/%d", subvol.ID)]
-			if !ok {
-				log.Info().Msgf("skipping volume '%s' has no assigned quota", subvol.Path)
-				continue
-			}
-
-			// now, is this subvol in one of the toDelete ?
-			if _, ok := toDelete[filepath.Base(subvol.Path)]; ok {
-				// delete the subvolume
-				log.Info().Msgf("deleting subvolume %s", subvol.Path)
-				// if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
-				// 	log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
-				// }
-				// if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
-				// 	log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
-				// }
-				continue
-			}
-
-			// now, is this subvol in one of the toSave ?
-			if _, ok := toSave[filepath.Base(subvol.Path)]; ok {
-				log.Info().Msgf("skipping volume '%s' is used", subvol.Path)
-				continue
-			}
-
 			// Don't delete zos-cache!
 			if subvol.Path == "zos-cache" {
 				continue
 			}
 
-			// delete the subvolume
-			log.Info().Msgf("deleting subvolume %s", subvol.Path)
-			// if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
-			// 	log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
-			// }
-			// if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
-			// 	log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
-			// }
+			qgroup, ok := qgroups[fmt.Sprintf("0/%d", subvol.ID)]
+			if !ok {
+				log.Info().Msgf("skipping volume '%s' has no assigned quota", subvol.Path)
+				continue
+			}
+
+			// Now, is this subvol in one of the toDelete ?
+			if _, ok := toDelete[filepath.Base(subvol.Path)]; ok {
+				// delete the subvolume
+				delete := checkReservationToDelete(subvol.Path, client)
+				if delete {
+					log.Info().Msgf("deleting subvolume %s", subvol.Path)
+					continue
+				}
+
+				log.Info().Msgf("skipping subvolume %s", subvol.Path)
+
+				if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
+					log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
+				}
+				if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
+					log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
+				}
+				continue
+			}
+
+			// Now, is this subvol in one of the toSave ?
+			if _, ok := toSave[filepath.Base(subvol.Path)]; ok {
+				log.Info().Msgf("skipping volume '%s' is used", subvol.Path)
+				continue
+			}
+
+			// Is this subvol not in toDelete and not in toSave?
+			// Check the explorer if it needs to be deleted
+			delete := checkReservationToDelete(subvol.Path, client)
+			if delete {
+				log.Info().Msgf("deleting subvolume %s", subvol.Path)
+				if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
+					log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
+				}
+				if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
+					log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
+				}
+				continue
+			}
+
+			log.Info().Msgf("skipping subvolume %s", subvol.Path)
 		}
 	}
 
 	return nil
+}
+
+func checkReservationToDelete(path string, client *client.Client) bool {
+	log.Info().Msgf("checking explorer for reservation: %s", path)
+	reservation, err := client.Workloads.NodeWorkloadGet(path)
+	if err != nil {
+		log.Err(err).Msg("error occured")
+		// return true because the reservation is not found, hence it must be deleted
+		return true
+	}
+
+	if reservation.GetNextAction() == workloads.NextActionDelete {
+		log.Info().Msgf("subvolume with path %s has next action to delete", path)
+		return true
+	}
+
+	return false
 }
 
 // checks running containers for subvolumes that might need to be saved because they are used
