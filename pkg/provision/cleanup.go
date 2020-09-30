@@ -16,6 +16,7 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/storage"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zdb"
@@ -76,7 +77,7 @@ func cleanupResources(msgBrokerCon string) error {
 		for _, subvol := range subvols {
 			log.Info().Msgf("checking subvol %s", subvol.Path)
 			// Don't delete zos-cache!
-			if subvol.Path == "zos-cache" {
+			if subvol.Path == storage.CacheLabel {
 				continue
 			}
 
@@ -86,29 +87,27 @@ func cleanupResources(msgBrokerCon string) error {
 				continue
 			}
 
+			// Now, is this subvol in one of the toSave ?
+			if _, ok := toSave[filepath.Base(subvol.Path)]; ok {
+				log.Info().Msgf("skipping volume '%s' is used", subvol.Path)
+				continue
+			}
+
 			// Now, is this subvol in one of the toDelete ?
 			if _, ok := toDelete[filepath.Base(subvol.Path)]; ok {
 				// delete the subvolume
 				delete := checkReservationToDelete(subvol.Path, client)
 				if delete {
 					log.Info().Msgf("deleting subvolume %s", subvol.Path)
+					if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
+						log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
+					}
+					if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
+						log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
+					}
 					continue
 				}
-
 				log.Info().Msgf("skipping subvolume %s", subvol.Path)
-
-				if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
-					log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
-				}
-				if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
-					log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
-				}
-				continue
-			}
-
-			// Now, is this subvol in one of the toSave ?
-			if _, ok := toSave[filepath.Base(subvol.Path)]; ok {
-				log.Info().Msgf("skipping volume '%s' is used", subvol.Path)
 				continue
 			}
 
@@ -125,7 +124,6 @@ func cleanupResources(msgBrokerCon string) error {
 				}
 				continue
 			}
-
 			log.Info().Msgf("skipping subvolume %s", subvol.Path)
 		}
 	}
@@ -196,7 +194,7 @@ func checkContainers(msgBrokerCon string) (map[string]struct{}, map[string]struc
 				}
 			}
 
-			spec, _ := ctr.Spec(ctx)
+			spec, err := ctr.Spec(ctx)
 			if err != nil {
 				log.Err(err).Msg("failed to container spec")
 				continue

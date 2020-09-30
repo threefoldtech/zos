@@ -30,10 +30,10 @@ type ReservationPoller interface {
 	Poll(nodeID pkg.Identifier, from uint64) (reservations []*Reservation, lastID uint64, err error)
 }
 
-// ReservationFromSource wraps a reservation type and has
+// ProvisionJob wraps a reservation type and has
 // a boolean to indicate it is the last reservation
-type ReservationFromSource struct {
-	*Reservation
+type ProvisionJob struct {
+	Reservation
 	last bool
 }
 
@@ -55,12 +55,10 @@ type pollSource struct {
 	maxSleep time.Duration
 }
 
-func (s *pollSource) Reservations(ctx context.Context) <-chan *ReservationFromSource {
-	ch := make(chan *ReservationFromSource)
-	// on the first run we will get all the reservation
-	// ever made to this know, to make sure we provision
-	// everything at boot
-	// after that, we only ask for the new reservations
+func (s *pollSource) Reservations(ctx context.Context) <-chan *ProvisionJob {
+	ch := make(chan *ProvisionJob)
+	// On the first run we will get all the reservation ever made to this node to make sure we provision everything at boot.
+	// After that, we only ask for the new reservations.
 	go func() {
 		defer close(ch)
 		var next uint64
@@ -91,8 +89,8 @@ func (s *pollSource) Reservations(ctx context.Context) <-chan *ReservationFromSo
 				return
 			default:
 				for idx, r := range res {
-					reservation := ReservationFromSource{
-						r,
+					reservation := ProvisionJob{
+						*r,
 						false,
 					}
 					if idx == len(res)-1 {
@@ -131,9 +129,9 @@ func NewDecommissionSource(store ReservationExpirer) ReservationSource {
 	}
 }
 
-func (s *decommissionSource) Reservations(ctx context.Context) <-chan *ReservationFromSource {
+func (s *decommissionSource) Reservations(ctx context.Context) <-chan *ProvisionJob {
 	log.Info().Msg("start decommission source")
-	c := make(chan *ReservationFromSource)
+	c := make(chan *ProvisionJob)
 
 	go func() {
 		defer close(c)
@@ -160,8 +158,8 @@ func (s *decommissionSource) Reservations(ctx context.Context) <-chan *Reservati
 						Str("duration", fmt.Sprintf("%v", r.Duration)).
 						Msg("reservation expired")
 
-					reservation := ReservationFromSource{
-						r,
+					reservation := ProvisionJob{
+						*r,
 						false,
 					}
 					c <- &reservation
@@ -184,14 +182,14 @@ func CombinedSource(sources ...ReservationSource) ReservationSource {
 	}
 }
 
-func (s *combinedSource) Reservations(ctx context.Context) <-chan *ReservationFromSource {
+func (s *combinedSource) Reservations(ctx context.Context) <-chan *ProvisionJob {
 	var wg sync.WaitGroup
 
-	out := make(chan *ReservationFromSource)
+	out := make(chan *ProvisionJob)
 
 	// Start an send goroutine for each input channel in cs. send
 	// copies values from c to out until c is closed, then calls wg.Done.
-	send := func(c <-chan *ReservationFromSource) {
+	send := func(c <-chan *ProvisionJob) {
 		for n := range c {
 			out <- n
 		}

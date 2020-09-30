@@ -24,7 +24,7 @@ import (
 const (
 	// CacheTarget is the path where the cache disk is mounted
 	CacheTarget = "/var/cache"
-	cacheLabel  = "zos-cache"
+	CacheLabel  = "zos-cache"
 	gib         = 1024 * 1024 * 1024
 	cacheSize   = 100 * gib
 )
@@ -426,7 +426,7 @@ func (s *storageModule) ensureCache() error {
 			return err
 		}
 		for jdx := range filesystems {
-			if filesystems[jdx].Name() == cacheLabel {
+			if filesystems[jdx].Name() == CacheLabel {
 				log.Debug().Msgf("Found existing cache at %v", filesystems[jdx].Path())
 				cacheFs = filesystems[jdx]
 				break
@@ -441,7 +441,7 @@ func (s *storageModule) ensureCache() error {
 		log.Debug().Msgf("No cache found, try to create new cache")
 
 		log.Debug().Msgf("Trying to create new cache on SSD")
-		fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
+		fs, err := s.createSubvol(cacheSize, CacheLabel, pkg.SSDDevice)
 
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to create new cache on SSD")
@@ -452,7 +452,7 @@ func (s *storageModule) ensureCache() error {
 
 	if cacheFs == nil {
 		log.Debug().Msgf("Trying to create new cache on HDD")
-		fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
+		fs, err := s.createSubvol(cacheSize, CacheLabel, pkg.HDDDevice)
 
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to create new cache on HDD")

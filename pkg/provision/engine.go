@@ -87,6 +87,10 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	cReservation := e.source.Reservations(ctx)
 
+	// Indicates wether provisiond cleaned up resources after
+	// booting and provisioning all reservations
+	triggeredCleanupOnBoot := false
+
 	cleanUp := make(chan struct{})
 
 	// run a cron task that will fire the cleanup at midnight
@@ -124,13 +128,13 @@ func (e *Engine) Run(ctx context.Context) error {
 
 			if expired || reservation.ToDelete {
 				slog.Info().Msg("start decommissioning reservation")
-				if err := e.decommission(ctx, reservation.Reservation); err != nil {
+				if err := e.decommission(ctx, &reservation.Reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to decommission reservation %s", reservation.ID)
 					continue
 				}
 			} else {
 				slog.Info().Msg("start provisioning reservation")
-				if err := e.provision(ctx, reservation.Reservation); err != nil {
+				if err := e.provision(ctx, &reservation.Reservation); err != nil {
 					log.Error().Err(err).Msgf("failed to provision reservation %s", reservation.ID)
 					continue
 				}
@@ -140,12 +144,15 @@ func (e *Engine) Run(ctx context.Context) error {
 				log.Error().Err(err).Msg("failed to updated the capacity counters")
 			}
 
-			if reservation.last {
+			if reservation.last && !triggeredCleanupOnBoot {
 				log.Info().Msg("start cleaning up resources")
 				if err := cleanupResources(e.msgBrokerCon); err != nil {
 					log.Error().Err(err).Msg("failed to cleanup resources")
 					continue
 				}
+
+				// Set this value to true so we don't cleanup everytime a new reservation comes in
+				triggeredCleanupOnBoot = true
 			}
 
 		case <-cleanUp:
