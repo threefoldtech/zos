@@ -137,7 +137,7 @@ func checkReservationToDelete(path string, client *client.Client) bool {
 	log.Info().Msgf("checking explorer for reservation: %s", path)
 	reservation, err := client.Workloads.NodeWorkloadGet(path)
 	if err != nil {
-		log.Err(err).Msg("error occured")
+		log.Err(err).Msg("error occurred")
 		// return true because the reservation is not found, hence it must be deleted
 		return true
 	}
