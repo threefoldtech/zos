@@ -208,8 +208,7 @@ func TestDownloadFlist(t *testing.T) {
 
 	root, err := ioutil.TempDir("", "flist_root")
 	require.NoError(err)
-
-	//defer os.RemoveAll(root)
+	defer os.RemoveAll(root)
 
 	x := newFlister(root, strg, cmder)
 
@@ -231,6 +230,17 @@ func TestDownloadFlist(t *testing.T) {
 	info2, err := os.Stat(path2)
 	require.NoError(err)
 	assert.Equal(info1.ModTime(), info2.ModTime())
+
+	// now corrupt the flist
+	err = os.Truncate(path1, 512)
+	require.NoError(err)
+
+	path3, err := f.downloadFlist("https://hub.grid.tf/thabet/redis.flist")
+	require.NoError(err)
+
+	info3, err := os.Stat(path3)
+	require.NoError(err)
+	assert.NotEqual(info2.ModTime(), info3.ModTime())
 }
 
 func TestWaitPIDFileExists(t *testing.T) {
