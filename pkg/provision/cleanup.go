@@ -16,9 +16,9 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/provision/common"
 	"github.com/threefoldtech/zos/pkg/storage"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
-	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zdb"
 	"golang.org/x/net/context"
 )
@@ -159,6 +159,10 @@ func checkReservationToDelete(path string, cl *client.Client) bool {
 func checkContainers(msgBrokerCon string) (map[string]struct{}, map[string]struct{}, error) {
 	toSave := make(map[string]struct{})
 	toDelete := make(map[string]struct{})
+	zbus, err := zbus.NewRedisClient(msgBrokerCon)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	client, err := containerd.New(containerdSock)
 	if err != nil {
@@ -213,7 +217,7 @@ func checkContainers(msgBrokerCon string) (map[string]struct{}, map[string]struc
 				}
 
 				if len(ns) == 1 && zdbNamespaces[0] == "default" {
-					err := deleteZdbContainer(msgBrokerCon, pkg.ContainerID(ctr.ID()))
+					err := common.DeleteZdbContainer(pkg.ContainerID(ctr.ID()), zbus)
 					if err != nil {
 						log.Err(err).Msgf("failed to delete zdb container %s", ctr.ID())
 						continue
@@ -227,36 +231,4 @@ func checkContainers(msgBrokerCon string) (map[string]struct{}, map[string]struc
 	}
 
 	return toSave, toDelete, nil
-}
-
-func deleteZdbContainer(msgBrokerCon string, containerID pkg.ContainerID) error {
-	zbus, err := zbus.NewRedisClient(msgBrokerCon)
-	if err != nil {
-		log.Fatal().Err(err).Msg("fail to connect to message broker server")
-	}
-
-	container := stubs.NewContainerModuleStub(zbus)
-	flist := stubs.NewFlisterStub(zbus)
-	network := stubs.NewNetworkerStub(zbus)
-
-	info, err := container.Inspect("zdb", containerID)
-	if err != nil && strings.Contains(err.Error(), "not found") {
-		return nil
-	} else if err != nil {
-		return errors.Wrapf(err, "failed to inspect container '%s'", containerID)
-	}
-
-	if err := container.Delete("zdb", containerID); err != nil {
-		return errors.Wrapf(err, "failed to delete container %s", containerID)
-	}
-
-	if err := network.ZDBDestroy(info.Network.Namespace); err != nil {
-		return errors.Wrapf(err, "failed to destroy zdb network namespace")
-	}
-
-	if err := flist.Umount(info.RootFS); err != nil {
-		return errors.Wrapf(err, "failed to unmount flist at %s", info.RootFS)
-	}
-
-	return nil
 }
