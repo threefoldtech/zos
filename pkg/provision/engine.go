@@ -56,8 +56,8 @@ type EngineOps struct {
 	// are reserved on the system running the engine
 	// After each provision/decomission the engine sends statistics update to the staster
 	Statser Statser
-	// msgBrokerCon is the connectionstring to the message broker
-	msgBrokerCon string
+	// MsgBrokerCon is the connectionstring to the message broker
+	MsgBrokerCon string
 }
 
 // New creates a new engine. Once started, the engine
@@ -76,7 +76,7 @@ func New(opts EngineOps) *Engine {
 		decomissioners: opts.Decomissioners,
 		signer:         opts.Signer,
 		statser:        opts.Statser,
-		msgBrokerCon:   opts.msgBrokerCon,
+		msgBrokerCon:   opts.MsgBrokerCon,
 	}
 }
 
