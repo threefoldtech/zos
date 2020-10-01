@@ -438,18 +438,29 @@ func (f *flistModule) downloadFlist(url string) (string, error) {
 	hash, err := f.FlistHash(url)
 	if err == nil {
 		flistPath := filepath.Join(f.flist, strings.TrimSpace(string(hash)))
-		_, err = os.Stat(flistPath)
+		f, err := os.Open(flistPath)
 		if err != nil && !os.IsNotExist(err) {
 			return "", err
 		}
+		defer f.Close()
+
 		if err == nil {
-			log.Info().Str("url", url).Msg("flist already in cache")
-			// flist is already present locally, just return its path
-			return flistPath, nil
+			log.Info().Str("url", url).Msg("flist already in on the filesystem")
+			// flist is already present locally, verify it's still valid
+			equal, err := md5Compare(hash, f)
+			if err != nil {
+				return "", err
+			}
+			if equal {
+				return flistPath, nil
+			}
+			log.Info().Str("url", url).Msg("flist on filesystem is corrupted, re-downloading it")
+			// if not equal the rest of the function will overwrite the faulty flist
+		} else {
+			log.Info().Str("url", url).Msg("flist not in cache, downloading")
 		}
 	}
 
-	log.Info().Str("url", url).Msg("flist not in cache, downloading")
 	// we don't have the flist locally yet, let's download it
 	resp, err := http.Get(url)
 	if err != nil {
@@ -493,6 +504,15 @@ func (f *flistModule) saveFlist(r io.Reader) (string, error) {
 	}
 
 	return path, nil
+}
+
+func md5Compare(hash string, r io.Reader) (bool, error) {
+	h := md5.New()
+	_, err := io.Copy(h, r)
+	if err != nil {
+		return false, err
+	}
+	return strings.Compare(fmt.Sprintf("%x", h.Sum(nil)), hash) == 0, nil
 }
 
 func random() (string, error) {
