@@ -88,12 +88,19 @@ func (s *pollSource) Reservations(ctx context.Context) <-chan *ReservationJob {
 			case <-ctx.Done():
 				return
 			default:
-				for idx, r := range res {
+				for _, r := range res {
 					reservation := ReservationJob{
 						*r,
 						false,
 					}
-					if idx == len(res)-1 {
+
+					id, _, err := r.SplitID()
+					if err != nil {
+						log.Error().Msg("failed to split reservation ID")
+						return
+					}
+
+					if id == lastID {
 						reservation.last = true
 					}
 					ch <- &reservation
