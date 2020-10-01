@@ -137,8 +137,8 @@ func checkReservationToDelete(path string, cl *client.Client) bool {
 	if err != nil {
 		var hErr client.HTTPError
 		if ok := errors.As(err, &hErr); ok {
-			// retry for any response out of 2XX range
 			resp := hErr.Response()
+			// If reservation is not found it should be deleted
 			if resp.StatusCode == 404 {
 				return true
 			}
@@ -237,7 +237,7 @@ func deleteZdbContainer(msgBrokerCon string, containerID pkg.ContainerID) error 
 
 	container := stubs.NewContainerModuleStub(zbus)
 	flist := stubs.NewFlisterStub(zbus)
-	// networkMgr := stubs.NewNetworkerStub(zbus)
+	network := stubs.NewNetworkerStub(zbus)
 
 	info, err := container.Inspect("zdb", containerID)
 	if err != nil && strings.Contains(err.Error(), "not found") {
@@ -250,7 +250,6 @@ func deleteZdbContainer(msgBrokerCon string, containerID pkg.ContainerID) error 
 		return errors.Wrapf(err, "failed to delete container %s", containerID)
 	}
 
-	network := stubs.NewNetworkerStub(zbus)
 	if err := network.ZDBDestroy(info.Network.Namespace); err != nil {
 		return errors.Wrapf(err, "failed to destroy zdb network namespace")
 	}

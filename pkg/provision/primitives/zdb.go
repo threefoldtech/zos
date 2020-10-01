@@ -402,7 +402,7 @@ func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *provisio
 	// If there are no more namespaces left except for the default namespace, we can delete this subvolume
 	if len(ns) == 1 && ns[0] == "default" {
 		log.Info().Msg("decommissioning zdb container because there are no more namespaces left")
-		err = p.DeleteZdbContainer(containerID)
+		err = p.deleteZdbContainer(containerID)
 		if err != nil {
 			return errors.Wrap(err, "failed to decommission zdb container")
 		}
@@ -415,7 +415,7 @@ func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *provisio
 	return nil
 }
 
-func (p *Provisioner) DeleteZdbContainer(containerID pkg.ContainerID) error {
+func (p *Provisioner) deleteZdbContainer(containerID pkg.ContainerID) error {
 	container := stubs.NewContainerModuleStub(p.zbus)
 	flist := stubs.NewFlisterStub(p.zbus)
 	// networkMgr := stubs.NewNetworkerStub(p.zbus)

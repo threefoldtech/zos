@@ -24,9 +24,10 @@ import (
 const (
 	// CacheTarget is the path where the cache disk is mounted
 	CacheTarget = "/var/cache"
-	CacheLabel  = "zos-cache"
-	gib         = 1024 * 1024 * 1024
-	cacheSize   = 100 * gib
+	// CacheLabel is the name of the cache
+	CacheLabel = "zos-cache"
+	gib        = 1024 * 1024 * 1024
+	cacheSize  = 100 * gib
 )
 
 var (
