@@ -43,7 +43,7 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 		return err
 	}
 
-	toSave, toDelete, err := checkContainers(ctx, zbus)
+	toSave, err := checkContainers(ctx, zbus)
 	if err != nil {
 		return errors.Wrap(err, "failed to check containers")
 	}
@@ -90,25 +90,7 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 				continue
 			}
 
-			// Now, is this subvol in one of the toDelete ?
-			if _, ok := toDelete[filepath.Base(subvol.Path)]; ok {
-				// delete the subvolume
-				delete := checkReservationToDelete(subvol.Path, client)
-				if delete {
-					log.Info().Msgf("deleting subvolume %s", subvol.Path)
-					if err := utils.SubvolumeRemove(ctx, filepath.Join(path, subvol.Path)); err != nil {
-						log.Err(err).Msgf("failed to delete subvol '%s'", subvol.Path)
-					}
-					if err := utils.QGroupDestroy(ctx, qgroup.ID, path); err != nil {
-						log.Err(err).Msgf("failed to delete qgroup: '%s'", qgroup.ID)
-					}
-					continue
-				}
-				log.Info().Msgf("skipping subvolume %s", subvol.Path)
-				continue
-			}
-
-			// Is this subvol not in toDelete and not in toSave?
+			// Is this subvol not in toSave?
 			// Check the explorer if it needs to be deleted
 			delete := checkReservationToDelete(subvol.Path, client)
 			if delete {
@@ -153,20 +135,19 @@ func checkReservationToDelete(path string, cl *client.Client) bool {
 
 // checks running containers for subvolumes that might need to be saved because they are used
 // and subvolumes that might need to be deleted because they have no attached container anymore
-func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}, map[string]struct{}, error) {
+func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}, error) {
 	toSave := make(map[string]struct{})
-	toDelete := make(map[string]struct{})
 
 	client, err := containerd.New(containerdSock)
 	if err != nil {
 		log.Err(err).Msgf("failed to create containerd connection")
-		return nil, nil, err
+		return nil, err
 	}
 
 	ns, err := client.NamespaceService().List(ctx)
 	if err != nil {
 		log.Err(err).Msgf("failed to list namespaces")
-		return nil, nil, err
+		return nil, err
 	}
 
 	for _, ns := range ns {
@@ -175,12 +156,11 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 		crts, err := client.Containers(ctx, "")
 		if err != nil {
 			log.Err(err).Msgf("failed to list containers")
-			return nil, nil, err
+			return nil, err
 		}
 
-		var zdbNamespaces []string
-
 		for _, ctr := range crts {
+			var zdbNamespaces []string
 			log.Info().Msgf("container ID %s", ctr.ID())
 			if ns == "zdb" {
 				zdbNamespaces, err = listNamespaces(ctr.ID())
@@ -208,7 +188,6 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 						log.Err(err).Msgf("failed to delete zdb container %s", ctr.ID())
 						continue
 					}
-					toDelete[filepath.Base(mnt.Source)] = struct{}{}
 				} else {
 					toSave[filepath.Base(mnt.Source)] = struct{}{}
 				}
@@ -216,7 +195,7 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 		}
 	}
 
-	return toSave, toDelete, nil
+	return toSave, nil
 }
 
 func listNamespaces(containterID string) ([]string, error) {
