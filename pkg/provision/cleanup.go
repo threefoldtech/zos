@@ -43,7 +43,7 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 		return err
 	}
 
-	toSave, toDelete, err := checkContainers(zbus, ctx)
+	toSave, toDelete, err := checkContainers(ctx, zbus)
 	if err != nil {
 		return errors.Wrap(err, "failed to check containers")
 	}
@@ -153,7 +153,7 @@ func checkReservationToDelete(path string, cl *client.Client) bool {
 
 // checks running containers for subvolumes that might need to be saved because they are used
 // and subvolumes that might need to be deleted because they have no attached container anymore
-func checkContainers(zbus zbus.Client, ctx context.Context) (map[string]struct{}, map[string]struct{}, error) {
+func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}, map[string]struct{}, error) {
 	toSave := make(map[string]struct{})
 	toDelete := make(map[string]struct{})
 
@@ -183,16 +183,9 @@ func checkContainers(zbus zbus.Client, ctx context.Context) (map[string]struct{}
 		for _, ctr := range crts {
 			log.Info().Msgf("container ID %s", ctr.ID())
 			if ns == "zdb" {
-				zdbCl := initZdbConnection(ctr.ID())
-				defer zdbCl.Close()
-				if err := zdbCl.Connect(); err != nil {
-					log.Err(err).Msgf("failed to connect to 0-db: %s", ctr.ID())
-					continue
-				}
-
-				zdbNamespaces, err = zdbCl.Namespaces()
+				zdbNamespaces, err = listNamespaces(ctr.ID())
 				if err != nil {
-					log.Err(err).Msg("failed to retrieve zdb namespaces")
+					log.Err(err).Msg("failed to list container namespaces")
 					continue
 				}
 			}
@@ -224,4 +217,21 @@ func checkContainers(zbus zbus.Client, ctx context.Context) (map[string]struct{}
 	}
 
 	return toSave, toDelete, nil
+}
+
+func listNamespaces(containterID string) ([]string, error) {
+	zdbCl := initZdbConnection(containterID)
+	if err := zdbCl.Connect(); err != nil {
+		log.Err(err).Msgf("failed to connect to 0-db: %s", containterID)
+		return nil, err
+	}
+
+	zdbNamespaces, err := zdbCl.Namespaces()
+	if err != nil {
+		log.Err(err).Msg("failed to retrieve zdb namespaces")
+		return nil, err
+	}
+	defer zdbCl.Close()
+
+	return zdbNamespaces, nil
 }
