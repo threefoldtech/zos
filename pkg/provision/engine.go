@@ -82,18 +82,10 @@ func New(opts EngineOps) *Engine {
 
 // Run starts reader reservation from the Source and handle them
 func (e *Engine) Run(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	cReservation := e.source.Reservations(ctx)
 
-	// Indicates wether provisiond cleaned up resources after
-	// booting and provisioning all reservations
-	triggeredCleanupOnBoot := false
-
-	cleanUp := make(chan struct{}, 2)
-
 	// run a cron task that will fire the cleanup at midnight
+	cleanUp := make(chan struct{}, 2)
 	c := cron.New()
 	_, err := c.AddFunc("@midnight", func() {
 		cleanUp <- struct{}{}
@@ -101,7 +93,6 @@ func (e *Engine) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to setup cron task: %w", err)
 	}
-
 	defer c.Stop()
 
 	for {
@@ -114,6 +105,12 @@ func (e *Engine) Run(ctx context.Context) error {
 			if !ok {
 				log.Info().Msg("reservation source is emptied. stopping engine")
 				return nil
+			}
+
+			if reservation.last {
+				// Trigger cleanup by sending a struct onto the channel
+				cleanUp <- struct{}{}
+				continue
 			}
 
 			expired := reservation.Expired()
@@ -142,13 +139,6 @@ func (e *Engine) Run(ctx context.Context) error {
 
 			if err := e.updateStats(); err != nil {
 				log.Error().Err(err).Msg("failed to updated the capacity counters")
-			}
-
-			if reservation.last && !triggeredCleanupOnBoot {
-				// Trigger cleanup by sending a struct onto the channel
-				cleanUp <- struct{}{}
-				// Set this value to true so we don't cleanup everytime a new reservation comes in
-				triggeredCleanupOnBoot = true
 			}
 
 		case <-cleanUp:

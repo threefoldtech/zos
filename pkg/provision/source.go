@@ -62,6 +62,8 @@ func (s *pollSource) Reservations(ctx context.Context) <-chan *ReservationJob {
 	go func() {
 		defer close(ch)
 		var next uint64
+		var previousLastID uint64
+		var triggerCleanup = true
 		on := time.Now()
 		log.Info().Msg("Started polling for reservations")
 		for {
@@ -93,19 +95,22 @@ func (s *pollSource) Reservations(ctx context.Context) <-chan *ReservationJob {
 						*r,
 						false,
 					}
-
-					id, _, err := r.SplitID()
-					if err != nil {
-						log.Error().Msg("failed to split reservation ID")
-						return
-					}
-
-					if id == lastID {
-						reservation.last = true
-					}
 					ch <- &reservation
 				}
+
+				// if the explorer return twice the same last ID
+				// it means we have processed all the existing reservation for now
+				// it is safe to trigger a cleanup
+				if triggerCleanup && previousLastID == lastID {
+					ch <- &ReservationJob{
+						Reservation: Reservation{},
+						last:        true,
+					}
+					triggerCleanup = false
+				}
 			}
+
+			previousLastID = lastID
 
 			if err == ErrPollEOS {
 				return
