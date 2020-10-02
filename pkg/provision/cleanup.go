@@ -37,18 +37,17 @@ func socketDir(containerID string) string {
 }
 
 // CleanupResources cleans up unused resources
-func CleanupResources(zbus zbus.Client) error {
+func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 	client, err := app.ExplorerClient()
 	if err != nil {
 		return err
 	}
 
-	toSave, toDelete, err := checkContainers(zbus)
+	toSave, toDelete, err := checkContainers(zbus, ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to check containers")
 	}
 
-	ctx := context.TODO()
 	utils := filesystem.NewUtils()
 	pools, err := ioutil.ReadDir("/mnt")
 	if err != nil {
@@ -154,7 +153,7 @@ func checkReservationToDelete(path string, cl *client.Client) bool {
 
 // checks running containers for subvolumes that might need to be saved because they are used
 // and subvolumes that might need to be deleted because they have no attached container anymore
-func checkContainers(zbus zbus.Client) (map[string]struct{}, map[string]struct{}, error) {
+func checkContainers(zbus zbus.Client, ctx context.Context) (map[string]struct{}, map[string]struct{}, error) {
 	toSave := make(map[string]struct{})
 	toDelete := make(map[string]struct{})
 
@@ -164,7 +163,7 @@ func checkContainers(zbus zbus.Client) (map[string]struct{}, map[string]struct{}
 		return nil, nil, err
 	}
 
-	ns, err := client.NamespaceService().List(context.Background())
+	ns, err := client.NamespaceService().List(ctx)
 	if err != nil {
 		log.Err(err).Msgf("failed to list namespaces")
 		return nil, nil, err
@@ -172,7 +171,7 @@ func checkContainers(zbus zbus.Client) (map[string]struct{}, map[string]struct{}
 
 	for _, ns := range ns {
 		log.Info().Msgf("Checking namespace %s", ns)
-		ctx := namespaces.WithNamespace(context.Background(), ns)
+		ctx := namespaces.WithNamespace(ctx, ns)
 		crts, err := client.Containers(ctx, "")
 		if err != nil {
 			log.Err(err).Msgf("failed to list containers")

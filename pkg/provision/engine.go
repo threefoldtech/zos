@@ -154,7 +154,7 @@ func (e *Engine) Run(ctx context.Context) error {
 
 		case <-cleanUp:
 			log.Info().Msg("start cleaning up resources")
-			if err := CleanupResources(e.zbusCl); err != nil {
+			if err := CleanupResources(ctx, e.zbusCl); err != nil {
 				log.Error().Err(err).Msg("failed to cleanup resources")
 				continue
 			}
