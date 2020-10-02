@@ -136,7 +136,7 @@ func main() {
 		Feedback:       explorer.NewFeedback(e, primitives.ResultToSchemaType),
 		Signer:         identity,
 		Statser:        statser,
-		MsgBrokerCon:   msgBrokerCon,
+		ZbusCl:         zbusCl,
 	})
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.ProvisionMonitor(engine))

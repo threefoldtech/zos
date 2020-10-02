@@ -27,8 +27,6 @@ const (
 	containerdSock = "/run/containerd/containerd.sock"
 )
 
-// we declare this method as a variable so we can
-// mock it in testing.
 func initZdbConnection(id string) zdb.Client {
 	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir(id))
 	return zdb.New(socket)
@@ -39,13 +37,13 @@ func socketDir(containerID string) string {
 }
 
 // CleanupResources cleans up unused resources
-func CleanupResources(msgBrokerCon string) error {
+func CleanupResources(zbus zbus.Client) error {
 	client, err := app.ExplorerClient()
 	if err != nil {
 		return err
 	}
 
-	toSave, toDelete, err := checkContainers(msgBrokerCon)
+	toSave, toDelete, err := checkContainers(zbus)
 	if err != nil {
 		return errors.Wrap(err, "failed to check containers")
 	}
@@ -156,13 +154,9 @@ func checkReservationToDelete(path string, cl *client.Client) bool {
 
 // checks running containers for subvolumes that might need to be saved because they are used
 // and subvolumes that might need to be deleted because they have no attached container anymore
-func checkContainers(msgBrokerCon string) (map[string]struct{}, map[string]struct{}, error) {
+func checkContainers(zbus zbus.Client) (map[string]struct{}, map[string]struct{}, error) {
 	toSave := make(map[string]struct{})
 	toDelete := make(map[string]struct{})
-	zbus, err := zbus.NewRedisClient(msgBrokerCon)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	client, err := containerd.New(containerdSock)
 	if err != nil {

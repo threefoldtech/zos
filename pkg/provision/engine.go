@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jbenet/go-base58"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 
 	"gopkg.in/robfig/cron.v2"
@@ -29,7 +30,7 @@ type Engine struct {
 	decomissioners map[ReservationType]DecomissionerFunc
 	signer         Signer
 	statser        Statser
-	msgBrokerCon   string
+	zbusCl         zbus.Client
 }
 
 // EngineOps are the configuration of the engine
@@ -56,8 +57,8 @@ type EngineOps struct {
 	// are reserved on the system running the engine
 	// After each provision/decomission the engine sends statistics update to the staster
 	Statser Statser
-	// MsgBrokerCon is the connectionstring to the message broker
-	MsgBrokerCon string
+	// ZbusCl is a client to Zbus
+	ZbusCl zbus.Client
 }
 
 // New creates a new engine. Once started, the engine
@@ -76,7 +77,7 @@ func New(opts EngineOps) *Engine {
 		decomissioners: opts.Decomissioners,
 		signer:         opts.Signer,
 		statser:        opts.Statser,
-		msgBrokerCon:   opts.MsgBrokerCon,
+		zbusCl:         opts.ZbusCl,
 	}
 }
 
@@ -153,7 +154,7 @@ func (e *Engine) Run(ctx context.Context) error {
 
 		case <-cleanUp:
 			log.Info().Msg("start cleaning up resources")
-			if err := CleanupResources(e.msgBrokerCon); err != nil {
+			if err := CleanupResources(e.zbusCl); err != nil {
 				log.Error().Err(err).Msg("failed to cleanup resources")
 				continue
 			}
