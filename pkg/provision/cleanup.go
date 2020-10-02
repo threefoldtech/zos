@@ -2,7 +2,6 @@ package provision
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -39,7 +38,7 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 	for _, fs := range fss {
 		log.Info().Msgf("checking subvol %s", fs.Path)
 		// Don't delete zos-cache!
-		if filepath.Base(fs.Path) == storage.CacheLabel {
+		if fs.Name == storage.CacheLabel {
 			log.Info().Msgf("skipping cache at %s", fs.Path)
 			continue
 		}
@@ -52,10 +51,10 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 
 		// Is this subvol not in toSave?
 		// Check the explorer if it needs to be deleted
-		delete := checkReservationToDelete(fs.Path, explorer)
+		delete := checkReservationToDelete(fs.Name, explorer)
 		if delete {
 			log.Info().Msgf("deleting subvolume %s", fs.Path)
-			if err := storaged.ReleaseFilesystem(fs.Path); err != nil {
+			if err := storaged.ReleaseFilesystem(fs.Name); err != nil {
 				log.Err(err).Msgf("failed to delete subvol '%s'", fs.Path)
 			}
 			continue
@@ -66,8 +65,8 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 	return nil
 }
 
-func checkReservationToDelete(path string, cl *client.Client) bool {
-	wid := strings.SplitN(filepath.Base(path), "-", 2)[0]
+func checkReservationToDelete(name string, cl *client.Client) bool {
+	wid := strings.SplitN(name, "-", 2)[0]
 	log.Info().Msgf("checking explorer for reservation: %s", wid)
 	reservation, err := cl.Workloads.NodeWorkloadGet(wid)
 	if err != nil {
