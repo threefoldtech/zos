@@ -91,7 +91,7 @@ func (e *Engine) Run(ctx context.Context) error {
 	// booting and provisioning all reservations
 	triggeredCleanupOnBoot := false
 
-	cleanUp := make(chan struct{})
+	cleanUp := make(chan struct{}, 2)
 
 	// run a cron task that will fire the cleanup at midnight
 	c := cron.New()
@@ -151,7 +151,7 @@ func (e *Engine) Run(ctx context.Context) error {
 				triggeredCleanupOnBoot = true
 			}
 
-		case <-cleanUp:
+		case v := <-cleanUp:
 			log.Info().Msg("start cleaning up resources")
 			if err := CleanupResources(e.msgBrokerCon); err != nil {
 				log.Error().Err(err).Msg("failed to cleanup resources")
