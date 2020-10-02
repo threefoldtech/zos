@@ -394,6 +394,42 @@ func (s *storageModule) ReleaseFilesystem(name string) error {
 	return nil
 }
 
+// ListFilesystems return all the filesystem managed by storeaged present on the nodes
+func (s *storageModule) ListFilesystems() ([]pkg.Filesystem, error) {
+	fss := make([]pkg.Filesystem, 0, 10)
+
+	for _, pool := range s.pools {
+		if _, mounted := pool.Mounted(); !mounted {
+			continue
+		}
+
+		volumes, err := pool.Volumes()
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range volumes {
+
+			usage, err := v.Usage()
+			if err != nil {
+				return nil, err
+			}
+
+			fss = append(fss, pkg.Filesystem{
+				ID:     v.ID(),
+				FsType: v.FsType(),
+				Name:   v.Name(),
+				Path:   v.Path(),
+				Usage: pkg.Usage{
+					Size: usage.Size,
+					Used: usage.Used,
+				},
+			})
+		}
+	}
+
+	return fss, nil
+}
+
 // Path return the path of the mountpoint of the named filesystem
 // if no volume with name exists, an empty path and an error is returned
 func (s *storageModule) Path(name string) (string, error) {

@@ -112,6 +112,26 @@ type StoragePolicy struct {
 	MaxPools uint8
 }
 
+// Usage struct
+type Usage struct {
+	Size uint64
+	Used uint64
+}
+
+// Filesystem represents a storage space that can be used as a filesystem
+type Filesystem struct {
+	// Filesystem ID
+	ID int
+	// Path of the Filesystem
+	Path string
+	// Usage reports the current usage of the Filesystem
+	Usage Usage
+	// Name of the Filesystem
+	Name string
+	// FsType of the Filesystem
+	FsType string
+}
+
 // VolumeAllocater is the zbus interface of the storage module responsible
 // for volume allocation
 type VolumeAllocater interface {
@@ -128,6 +148,11 @@ type VolumeAllocater interface {
 	// All data contained in the filesystem will be lost, and the
 	// space which has been reserved for this filesystem will be reclaimed.
 	ReleaseFilesystem(name string) error
+
+	// ListFilesystems return all the filesystem managed by storeaged present on the nodes
+	// this can be an expensive call on server with a lot of disk, don't use it in a
+	// intensive loop
+	ListFilesystems() ([]Filesystem, error)
 
 	// Path return the path of the mountpoint of the named filesystem
 	// if no volume with name exists, an empty path and an error is returned
