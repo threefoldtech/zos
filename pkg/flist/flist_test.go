@@ -42,6 +42,12 @@ func (s *StorageMock) ReleaseFilesystem(name string) error {
 	return args.Error(0)
 }
 
+// ReleaseFilesystem releases filesystem mock
+func (s *StorageMock) ListFilesystems() ([]pkg.Filesystem, error) {
+	args := s.Called()
+	return nil, args.Error(1)
+}
+
 // Path implements the pkg.StorageModules interfaces
 func (s *StorageMock) Path(name string) (path string, err error) {
 	args := s.Called(name)
