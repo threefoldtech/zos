@@ -3,6 +3,7 @@ package provision
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -38,12 +39,13 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 	for _, fs := range fss {
 		log.Info().Msgf("checking subvol %s", fs.Path)
 		// Don't delete zos-cache!
-		if fs.Path == storage.CacheLabel {
+		if filepath.Base(fs.Path) == storage.CacheLabel {
+			log.Info().Msgf("skipping cache at %s", fs.Path)
 			continue
 		}
 
 		// Now, is this subvol in one of the toSave ?
-		if _, ok := toSave[filepath.Base(fs.Path)]; ok {
+		if _, ok := toSave[fs.Path]; ok {
 			log.Info().Msgf("skipping volume '%s' is used", fs.Path)
 			continue
 		}
@@ -65,8 +67,9 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 }
 
 func checkReservationToDelete(path string, cl *client.Client) bool {
-	log.Info().Msgf("checking explorer for reservation: %s", path)
-	reservation, err := cl.Workloads.NodeWorkloadGet(path)
+	wid := strings.SplitN(filepath.Base(path), "-", 2)[0]
+	log.Info().Msgf("checking explorer for reservation: %s", wid)
+	reservation, err := cl.Workloads.NodeWorkloadGet(wid)
 	if err != nil {
 		var hErr client.HTTPError
 		if ok := errors.As(err, &hErr); ok {
@@ -80,7 +83,7 @@ func checkReservationToDelete(path string, cl *client.Client) bool {
 	}
 
 	if reservation.GetNextAction() == workloads.NextActionDelete {
-		log.Info().Msgf("subvolume with path %s has next action to delete", path)
+		log.Info().Msgf("workload %s has next action to delete", wid)
 		return true
 	}
 
@@ -125,7 +128,7 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 			}
 
 			// avoid to remove any used subvolume used by flistd for root container fs
-			toSave[filepath.Base(ctr.RootFS)] = struct{}{}
+			toSave[ctr.RootFS] = struct{}{}
 
 			for _, mnt := range ctr.Mounts {
 				// TODO: do we need this check ?
@@ -139,7 +142,7 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 						continue
 					}
 				} else {
-					toSave[filepath.Base(mnt.Source)] = struct{}{}
+					toSave[mnt.Source] = struct{}{}
 				}
 
 			}
