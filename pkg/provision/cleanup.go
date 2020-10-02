@@ -2,12 +2,14 @@ package provision
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
+	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/provision/common"
@@ -67,8 +69,16 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 
 func checkReservationToDelete(name string, cl *client.Client) bool {
 	wid := strings.SplitN(name, "-", 2)[0]
+
+	// Parse wid to integer
+	id, err := strconv.ParseInt(wid, 10, 64)
+	if err != nil {
+		log.Err(err).Msgf("failed to convert workload id %s", wid)
+		return false
+	}
+
 	log.Info().Msgf("checking explorer for reservation: %s", wid)
-	reservation, err := cl.Workloads.NodeWorkloadGet(wid)
+	reservation, err := cl.Workloads.Get(schema.ID(id))
 	if err != nil {
 		var hErr client.HTTPError
 		if ok := errors.As(err, &hErr); ok {
@@ -82,7 +92,7 @@ func checkReservationToDelete(name string, cl *client.Client) bool {
 	}
 
 	if reservation.GetNextAction() == workloads.NextActionDelete {
-		log.Info().Msgf("workload %s has next action to delete", wid)
+		log.Info().Msgf("workload %s has next action to delete", id)
 		return true
 	}
 
