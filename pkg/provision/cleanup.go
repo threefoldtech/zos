@@ -13,7 +13,6 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/provision/common"
-	"github.com/threefoldtech/zos/pkg/storage"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zdb"
 	"golang.org/x/net/context"
@@ -32,6 +31,8 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 		return errors.Wrap(err, "failed to check containers")
 	}
 
+	// ListFilesystems do not return the special cache and vdisk filesystem
+	// so we are safe to process everything that is returned
 	fss, err := storaged.ListFilesystems()
 	if err != nil {
 		return err
@@ -39,11 +40,6 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 
 	for _, fs := range fss {
 		log.Info().Msgf("checking subvol %s", fs.Path)
-		// Don't delete zos-cache!
-		if fs.Name == storage.CacheLabel || fs.Name == storage.VdiskVolumeName {
-			log.Info().Msgf("skipping cache at %s", fs.Path)
-			continue
-		}
 
 		// Now, is this subvol in one of the toSave ?
 		if _, ok := toSave[fs.Path]; ok {

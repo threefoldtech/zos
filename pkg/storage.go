@@ -152,11 +152,19 @@ type VolumeAllocater interface {
 	// ListFilesystems return all the filesystem managed by storeaged present on the nodes
 	// this can be an expensive call on server with a lot of disk, don't use it in a
 	// intensive loop
+	// Special filesystem like internal cache and vdisk are not return by this function
+	// to access them use the GetCacheFS or GetVdiskFS
 	ListFilesystems() ([]Filesystem, error)
 
 	// Path return the filesystem named name
 	// if no filesystem with this name exists, an error is returned
 	Path(name string) (Filesystem, error)
+
+	// GetCacheFS return the special filesystem used by 0-OS to store internal state and flist cache
+	GetCacheFS() (Filesystem, error)
+
+	// GetVdiskFS return the filesystem used to store the vdisk file for the VM module
+	GetVdiskFS() (Filesystem, error)
 }
 
 // VDisk info returned by a call to inspect

@@ -58,6 +58,16 @@ func (s *StorageMock) Path(name string) (pkg.Filesystem, error) {
 	}, args.Error(1)
 }
 
+// GetCacheFS return the special filesystem used by 0-OS to store internal state and flist cache
+func (s *StorageMock) GetCacheFS() (pkg.Filesystem, error) {
+	return pkg.Filesystem{}, nil
+}
+
+// GetVdiskFS return the filesystem used to store the vdisk file for the VM module
+func (s *StorageMock) GetVdiskFS() (pkg.Filesystem, error) {
+	return pkg.Filesystem{}, nil
+}
+
 type testCommander struct {
 	*testing.T
 	m map[string]string

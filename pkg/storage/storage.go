@@ -24,8 +24,8 @@ import (
 const (
 	// CacheTarget is the path where the cache disk is mounted
 	CacheTarget = "/var/cache"
-	// CacheLabel is the name of the cache
-	CacheLabel = "zos-cache"
+	// cacheLabel is the name of the cache
+	cacheLabel = "zos-cache"
 	gib        = 1024 * 1024 * 1024
 	cacheSize  = 100 * gib
 )
@@ -424,6 +424,13 @@ func (s *storageModule) ListFilesystems() ([]pkg.Filesystem, error) {
 		}
 		for _, v := range volumes {
 
+			// Do not return "special" volumes here
+			// instead the GetCacheFS and GetVdiskFS to access them
+			if v.Name() == cacheLabel ||
+				v.Name() == vdiskVolumeName {
+				continue
+			}
+
 			usage, err := v.Usage()
 			if err != nil {
 				return nil, err
@@ -477,6 +484,16 @@ func (s *storageModule) Path(name string) (pkg.Filesystem, error) {
 	return pkg.Filesystem{}, errors.Wrapf(os.ErrNotExist, "subvolume '%s' not found", name)
 }
 
+// GetCacheFS return the special filesystem used by 0-OS to store internal state and flist cache
+func (s *storageModule) GetCacheFS() (pkg.Filesystem, error) {
+	return s.Path(cacheLabel)
+}
+
+// GetVdiskFS return the filesystem used to store the vdisk file for the VM module
+func (s *storageModule) GetVdiskFS() (pkg.Filesystem, error) {
+	return s.Path(vdiskVolumeName)
+}
+
 // ensureCache creates a "cache" subvolume and mounts it in /var
 func (s *storageModule) ensureCache() error {
 	log.Info().Msgf("Setting up cache")
@@ -492,7 +509,7 @@ func (s *storageModule) ensureCache() error {
 			return err
 		}
 		for jdx := range filesystems {
-			if filesystems[jdx].Name() == CacheLabel {
+			if filesystems[jdx].Name() == cacheLabel {
 				log.Debug().Msgf("Found existing cache at %v", filesystems[jdx].Path())
 				cacheFs = filesystems[jdx]
 				break
@@ -507,7 +524,7 @@ func (s *storageModule) ensureCache() error {
 		log.Debug().Msgf("No cache found, try to create new cache")
 
 		log.Debug().Msgf("Trying to create new cache on SSD")
-		fs, err := s.createSubvol(cacheSize, CacheLabel, pkg.SSDDevice)
+		fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.SSDDevice)
 
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to create new cache on SSD")
@@ -518,7 +535,7 @@ func (s *storageModule) ensureCache() error {
 
 	if cacheFs == nil {
 		log.Debug().Msgf("Trying to create new cache on HDD")
-		fs, err := s.createSubvol(cacheSize, CacheLabel, pkg.HDDDevice)
+		fs, err := s.createSubvol(cacheSize, cacheLabel, pkg.HDDDevice)
 
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to create new cache on HDD")
