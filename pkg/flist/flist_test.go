@@ -42,7 +42,7 @@ func (s *StorageMock) ReleaseFilesystem(name string) error {
 	return args.Error(0)
 }
 
-// ReleaseFilesystem releases filesystem mock
+// ListFilesystems list filesystem mock
 func (s *StorageMock) ListFilesystems() ([]pkg.Filesystem, error) {
 	args := s.Called()
 	return nil, args.Error(1)
