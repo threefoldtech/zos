@@ -85,6 +85,7 @@ func New(opts EngineOps) *Engine {
 func (e *Engine) Run(ctx context.Context) error {
 	cReservation := e.source.Reservations(ctx)
 
+	isAllWorkloadsProcessed := false
 	// run a cron task that will fire the cleanup at midnight
 	cleanUp := make(chan struct{}, 2)
 	c := cron.New()
@@ -109,6 +110,7 @@ func (e *Engine) Run(ctx context.Context) error {
 			}
 
 			if reservation.last {
+				isAllWorkloadsProcessed = true
 				// Trigger cleanup by sending a struct onto the channel
 				cleanUp <- struct{}{}
 				continue
@@ -143,6 +145,12 @@ func (e *Engine) Run(ctx context.Context) error {
 			}
 
 		case <-cleanUp:
+			if !isAllWorkloadsProcessed {
+				// only allow cleanup triggered by the cron to run once
+				// we are sure all the workloads from the cache/explorer have been processed
+				log.Info().Msg("all workloads not yet processed, delay cleanup")
+				continue
+			}
 			log.Info().Msg("start cleaning up resources")
 			if err := CleanupResources(ctx, e.zbusCl); err != nil {
 				log.Error().Err(err).Msg("failed to cleanup resources")
