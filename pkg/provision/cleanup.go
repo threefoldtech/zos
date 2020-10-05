@@ -40,7 +40,7 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 	for _, fs := range fss {
 		log.Info().Msgf("checking subvol %s", fs.Path)
 		// Don't delete zos-cache!
-		if fs.Name == storage.CacheLabel {
+		if fs.Name == storage.CacheLabel || fs.Name == storage.VdiskVolumeName {
 			log.Info().Msgf("skipping cache at %s", fs.Path)
 			continue
 		}

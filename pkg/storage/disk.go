@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	vdiskVolumeName = "vdisks"
+	// VdiskVolumeName is the name of the volume used to store vdisks
+	VdiskVolumeName = "vdisks"
 
 	mib = 1024 * 1024
 )
@@ -22,9 +23,9 @@ type vdiskModule struct {
 
 // NewVDiskModule creates a new disk allocator
 func NewVDiskModule(v pkg.VolumeAllocater) (pkg.VDiskModule, error) {
-	path, err := v.Path(vdiskVolumeName)
+	path, err := v.Path(VdiskVolumeName)
 	if errors.Is(err, os.ErrNotExist) {
-		path, err = v.CreateFilesystem(vdiskVolumeName, 0, pkg.SSDDevice)
+		path, err = v.CreateFilesystem(VdiskVolumeName, 0, pkg.SSDDevice)
 	}
 
 	if err != nil {
