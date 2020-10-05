@@ -98,7 +98,7 @@ func (s *TestTrackSource) Poll(nodeID pkg.Identifier, from uint64) ([]*Reservati
 	}()
 
 	return []*Reservation{
-		&Reservation{
+		{
 			ID: fmt.Sprint(s.ID, "-", "0"),
 		},
 	}, s.ID, nil

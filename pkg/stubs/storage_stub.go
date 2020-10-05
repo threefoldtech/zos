@@ -63,7 +63,7 @@ func (s *StorageModuleStub) BrokenPools() (ret0 []pkg.BrokenPool) {
 	return
 }
 
-func (s *StorageModuleStub) CreateFilesystem(arg0 string, arg1 uint64, arg2 pkg.DeviceType) (ret0 string, ret1 error) {
+func (s *StorageModuleStub) CreateFilesystem(arg0 string, arg1 uint64, arg2 pkg.DeviceType) (ret0 pkg.Filesystem, ret1 error) {
 	args := []interface{}{arg0, arg1, arg2}
 	result, err := s.client.Request(s.module, s.object, "CreateFilesystem", args...)
 	if err != nil {
@@ -130,7 +130,7 @@ func (s *StorageModuleStub) Monitor(ctx context.Context) (<-chan pkg.PoolsStats,
 	return ch, nil
 }
 
-func (s *StorageModuleStub) Path(arg0 string) (ret0 string, ret1 error) {
+func (s *StorageModuleStub) Path(arg0 string) (ret0 pkg.Filesystem, ret1 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.Request(s.module, s.object, "Path", args...)
 	if err != nil {

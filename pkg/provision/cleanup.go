@@ -92,7 +92,7 @@ func checkReservationToDelete(name string, cl *client.Client) bool {
 	}
 
 	if reservation.GetNextAction() == workloads.NextActionDelete {
-		log.Info().Msgf("workload %s has next action to delete", id)
+		log.Info().Msgf("workload %v has next action to delete", id)
 		return true
 	}
 

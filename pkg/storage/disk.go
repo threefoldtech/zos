@@ -23,16 +23,16 @@ type vdiskModule struct {
 
 // NewVDiskModule creates a new disk allocator
 func NewVDiskModule(v pkg.VolumeAllocater) (pkg.VDiskModule, error) {
-	path, err := v.Path(VdiskVolumeName)
+	fs, err := v.Path(VdiskVolumeName)
 	if errors.Is(err, os.ErrNotExist) {
-		path, err = v.CreateFilesystem(VdiskVolumeName, 0, pkg.SSDDevice)
+		fs, err = v.CreateFilesystem(VdiskVolumeName, 0, pkg.SSDDevice)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &vdiskModule{path: filepath.Clean(path)}, nil
+	return &vdiskModule{path: filepath.Clean(fs.Path)}, nil
 }
 
 // AllocateDisk with given size, return path to virtual disk (size in MB)

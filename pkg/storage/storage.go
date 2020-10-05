@@ -337,17 +337,32 @@ func (s *storageModule) shutdownUnusedPools() error {
 }
 
 // CreateFilesystem with the given size in a storage pool.
-func (s *storageModule) CreateFilesystem(name string, size uint64, poolType pkg.DeviceType) (string, error) {
+func (s *storageModule) CreateFilesystem(name string, size uint64, poolType pkg.DeviceType) (pkg.Filesystem, error) {
 	log.Info().Msgf("Creating new volume with size %d", size)
 	if strings.HasPrefix(name, "zdb") {
-		return "", fmt.Errorf("invalid volume name. zdb prefix is reserved")
+		return pkg.Filesystem{}, fmt.Errorf("invalid volume name. zdb prefix is reserved")
 	}
 
 	fs, err := s.createSubvol(size, name, poolType)
 	if err != nil {
-		return "", err
+		return pkg.Filesystem{}, err
 	}
-	return fs.Path(), nil
+
+	usage, err := fs.Usage()
+	if err != nil {
+		return pkg.Filesystem{}, err
+	}
+
+	return pkg.Filesystem{
+		ID:     fs.ID(),
+		FsType: fs.FsType(),
+		Name:   fs.Name(),
+		Path:   fs.Path(),
+		Usage: pkg.Usage{
+			Size: usage.Size,
+			Used: usage.Used,
+		},
+	}, nil
 }
 
 // ReleaseFilesystem with the given name, this will unmount and then delete
@@ -432,20 +447,34 @@ func (s *storageModule) ListFilesystems() ([]pkg.Filesystem, error) {
 
 // Path return the path of the mountpoint of the named filesystem
 // if no volume with name exists, an empty path and an error is returned
-func (s *storageModule) Path(name string) (string, error) {
+func (s *storageModule) Path(name string) (pkg.Filesystem, error) {
 	for idx := range s.pools {
 		filesystems, err := s.pools[idx].Volumes()
 		if err != nil {
-			return "", err
+			return pkg.Filesystem{}, err
 		}
 		for jdx := range filesystems {
 			if filesystems[jdx].Name() == name {
-				return filesystems[jdx].Path(), nil
+				usage, err := filesystems[jdx].Usage()
+				if err != nil {
+					return pkg.Filesystem{}, err
+				}
+
+				return pkg.Filesystem{
+					ID:     filesystems[jdx].ID(),
+					FsType: filesystems[jdx].FsType(),
+					Name:   filesystems[jdx].Name(),
+					Path:   filesystems[jdx].Path(),
+					Usage: pkg.Usage{
+						Size: usage.Size,
+						Used: usage.Used,
+					},
+				}, nil
 			}
 		}
 	}
 
-	return "", errors.Wrapf(os.ErrNotExist, "subvolume '%s' not found", name)
+	return pkg.Filesystem{}, errors.Wrapf(os.ErrNotExist, "subvolume '%s' not found", name)
 }
 
 // ensureCache creates a "cache" subvolume and mounts it in /var
