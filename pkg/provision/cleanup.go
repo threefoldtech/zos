@@ -2,8 +2,6 @@ package provision
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -11,6 +9,7 @@ import (
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zbus"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/provision/common"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -49,7 +48,7 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 
 		// Is this subvol not in toSave?
 		// Check the explorer if it needs to be deleted
-		delete := checkReservationToDelete(fs.Name, explorer)
+		delete := checkReservationToDelete(fs, explorer)
 		if delete {
 			log.Info().Msgf("deleting subvolume %s", fs.Path)
 			if err := storaged.ReleaseFilesystem(fs.Name); err != nil {
@@ -63,18 +62,15 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 	return nil
 }
 
-func checkReservationToDelete(name string, cl *client.Client) bool {
-	wid := strings.SplitN(name, "-", 2)[0]
-
-	// Parse wid to integer
-	id, err := strconv.ParseInt(wid, 10, 64)
+func checkReservationToDelete(fs pkg.Filesystem, cl *client.Client) bool {
+	wid, err := WorkloadIDFromFilesystem(fs)
 	if err != nil {
-		log.Err(err).Msgf("failed to convert workload id %s", wid)
+		log.Err(err).Msgf("failed to convert workload id %d", wid)
 		return false
 	}
 
-	log.Info().Msgf("checking explorer for reservation: %s", wid)
-	reservation, err := cl.Workloads.Get(schema.ID(id))
+	log.Info().Msgf("checking explorer for reservation: %d", wid)
+	reservation, err := cl.Workloads.Get(schema.ID(wid))
 	if err != nil {
 		var hErr client.HTTPError
 		if ok := errors.As(err, &hErr); ok {
@@ -88,7 +84,7 @@ func checkReservationToDelete(name string, cl *client.Client) bool {
 	}
 
 	if reservation.GetNextAction() == workloads.NextActionDelete {
-		log.Info().Msgf("workload %v has next action to delete", id)
+		log.Info().Msgf("workload %d has next action to delete", wid)
 		return true
 	}
 

@@ -244,7 +244,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 	}
 
 	var mnt string
-	mnt, err = flistClient.NamedMount(reservation.ID, config.FList, config.FlistStorage, rootfsMntOpt)
+	mnt, err = flistClient.NamedMount(provision.FilesystemName(*reservation), config.FList, config.FlistStorage, rootfsMntOpt)
 	if err != nil {
 		return ContainerResult{}, err
 	}
