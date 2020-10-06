@@ -31,9 +31,11 @@ type StorageMock struct {
 }
 
 // CreateFilesystem create filesystem mock
-func (s *StorageMock) CreateFilesystem(name string, size uint64, poolType pkg.DeviceType) (string, error) {
+func (s *StorageMock) CreateFilesystem(name string, size uint64, poolType pkg.DeviceType) (pkg.Filesystem, error) {
 	args := s.Called(name, size, poolType)
-	return args.String(0), args.Error(1)
+	return pkg.Filesystem{
+		Path: args.String(0),
+	}, args.Error(1)
 }
 
 // ReleaseFilesystem releases filesystem mock
@@ -42,10 +44,28 @@ func (s *StorageMock) ReleaseFilesystem(name string) error {
 	return args.Error(0)
 }
 
+// ListFilesystems list filesystem mock
+func (s *StorageMock) ListFilesystems() ([]pkg.Filesystem, error) {
+	args := s.Called()
+	return nil, args.Error(1)
+}
+
 // Path implements the pkg.StorageModules interfaces
-func (s *StorageMock) Path(name string) (path string, err error) {
+func (s *StorageMock) Path(name string) (pkg.Filesystem, error) {
 	args := s.Called(name)
-	return args.String(0), args.Error(1)
+	return pkg.Filesystem{
+		Path: args.String(0),
+	}, args.Error(1)
+}
+
+// GetCacheFS return the special filesystem used by 0-OS to store internal state and flist cache
+func (s *StorageMock) GetCacheFS() (pkg.Filesystem, error) {
+	return pkg.Filesystem{}, nil
+}
+
+// GetVdiskFS return the filesystem used to store the vdisk file for the VM module
+func (s *StorageMock) GetVdiskFS() (pkg.Filesystem, error) {
+	return pkg.Filesystem{}, nil
 }
 
 type testCommander struct {

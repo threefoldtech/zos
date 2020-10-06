@@ -196,7 +196,7 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		return "", err
 	}
 
-	var backend string
+	var backend pkg.Filesystem
 	var newAllocation bool
 	var args []string
 	if !opts.ReadOnly {
@@ -218,8 +218,8 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		}
 	}
 
-	if len(backend) != 0 {
-		args = append(args, "-backend", backend)
+	if len(backend.Path) != 0 {
+		args = append(args, "-backend", backend.Path)
 		// in case of an error (mount is never fully completed)
 		// we need to deallocate the filesystem
 		defer func() {
