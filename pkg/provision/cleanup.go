@@ -112,6 +112,9 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 		}
 
 		for _, id := range containerIDs {
+			if id == "" {
+				continue
+			}
 			ctr, err := contd.Inspect(ns, id)
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to inspect container %s", id)
