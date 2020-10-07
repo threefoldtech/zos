@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/app"
 )
 
 // Cleaner interface, implementer of this interface
@@ -127,6 +128,8 @@ func (f *flistModule) cleanupAll() error {
 // Cleaner runs forever, checks the tracker files for filesystem processes
 // that requires cleanup
 func (f *flistModule) Cleaner(ctx context.Context, every time.Duration) {
+	log := app.SampledLogger()
+
 	for {
 		select {
 		case <-ctx.Done():
