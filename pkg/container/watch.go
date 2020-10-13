@@ -2,6 +2,8 @@ package container
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/api/events"
@@ -12,7 +14,6 @@ import (
 )
 
 func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
-
 	log := log.With().
 		Str("namespace", ns).
 		Str("container", event.ContainerID).Logger()
@@ -32,22 +33,33 @@ func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
 
 	log.Debug().Int("count", count).Msg("recorded stops")
 
+	var reason error
 	if count < failuresBeforeDestroy {
-		return
+		log.Debug().Msg("trying to restart the container")
+		<-time.After(restartDelay) // wait for 2 seconds
+		reason = c.start(ns, event.ContainerID)
+	} else {
+		reason = fmt.Errorf("deleting container due to so many crashes")
 	}
 
-	log.Debug().Msg("deleting container due to so many crashes")
+	if reason != nil {
+		log.Debug().Msg("deleting container due to so many crashes")
 
-	stub := stubs.NewProvisionStub(c.client)
-	if err := stub.DecommissionCached(event.ContainerID, "deleting container due to so many crashes"); err != nil {
-		log.Error().Err(err).Msg("failed to decommission reservation")
+		stub := stubs.NewProvisionStub(c.client)
+		if err := stub.DecommissionCached(event.ContainerID, reason.Error()); err != nil {
+			log.Error().Err(err).Msg("failed to decommission reservation")
+		}
 	}
 }
 
 func (c *Module) handleEvent(ns string, event interface{}) {
 	switch event := event.(type) {
 	case *events.TaskExit:
-		c.handlerEventTaskExit(ns, event)
+		// we run this handler in a go routine because
+		// - we don't want the restarts to slow down the event stream processing
+		// - this method does not return any useful value anyway, so safe to run
+		//   it in the background.
+		go c.handlerEventTaskExit(ns, event)
 	default:
 		log.Debug().Msgf("unhandled event: %+v", event)
 	}

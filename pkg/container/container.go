@@ -20,6 +20,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/runtime/restart"
@@ -43,6 +44,7 @@ const (
 	defaultCPU    = 1
 
 	failuresBeforeDestroy = 4
+	restartDelay          = 2 * time.Second
 )
 
 var (
@@ -162,7 +164,6 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 		containerd.WithNewSpec(opts...),
 		// this ensure that the container/task will be restarted automatically
 		// if it gets killed for whatever reason (mostly OOM killer)
-		restart.WithStatus(containerd.Running),
 		restart.WithBinaryLogURI(binaryLogsShim, nil),
 	)
 
@@ -207,21 +208,6 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 		return id, err
 	}
 
-	// setting external logger process
-	uri, err := url.Parse("binary://" + binaryLogsShim)
-	if err != nil {
-		log.Error().Err(err).Msg("log uri")
-		return id, err
-	}
-
-	log.Info().Str("loguri", uri.String()).Msg("external logging process")
-
-	task, err := container.NewTask(ctx, cio.LogURI(uri))
-	if err != nil {
-		log.Error().Err(err).Msg("logger new task")
-		return id, err
-	}
-
 	// set user defined endpoint stats
 	for _, l := range data.Stats {
 		switch l.Type {
@@ -240,12 +226,56 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 		}
 	}
 
-	// call start on the task to execute the redis server
-	if err := task.Start(ctx); err != nil {
+	if err := c.ensureTask(ctx, container); err != nil {
 		return id, err
 	}
 
 	return pkg.ContainerID(container.ID()), nil
+}
+
+func (c *Module) ensureTask(ctx context.Context, container containerd.Container) error {
+	uri, err := url.Parse("binary://" + binaryLogsShim)
+	if err != nil {
+		return err
+	}
+
+	log.Info().Str("loguri", uri.String()).Msg("external logging process")
+	task, err := container.Task(ctx, nil)
+
+	if err != nil && !errdefs.IsNotFound(err) {
+		return err
+	} else if err == nil {
+		//task found, we have to stop that first
+		_, err := task.Delete(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	//and finally create a new task
+	task, err = container.NewTask(ctx, cio.LogURI(uri))
+	if err != nil {
+		return err
+	}
+
+	return task.Start(ctx)
+}
+
+func (c *Module) start(ns, id string) error {
+	client, err := containerd.New(c.containerd)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	ctx := namespaces.WithNamespace(context.Background(), ns)
+
+	container, err := client.LoadContainer(ctx, string(id))
+	if err != nil {
+		return err
+	}
+
+	return c.ensureTask(ctx, container)
 }
 
 // Inspect returns the detail about a running container
@@ -335,7 +365,7 @@ func (c *Module) List(ns string) ([]pkg.ContainerID, error) {
 	return ids, nil
 }
 
-// Deletes stops and remove a container
+// Delete stops and remove a container
 func (c *Module) Delete(ns string, id pkg.ContainerID) error {
 	client, err := containerd.New(c.containerd)
 	if err != nil {
