@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/typeurl"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
@@ -35,12 +35,13 @@ func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
 	if count < failuresBeforeDestroy {
 		return
 	}
-	log.Debug().Msg("deleting container due to so many crashes")
-	if err := c.Delete(ns, pkg.ContainerID(event.ContainerID)); err != nil {
-		log.Error().Err(err).Msg("failed to delete container")
-	}
 
-	//TODO: report to provisiond
+	log.Debug().Msg("deleting container due to so many crashes")
+
+	stub := stubs.NewProvisionStub(c.client)
+	if err := stub.DecommissionCached(event.ContainerID, "deleting container due to so many crashes"); err != nil {
+		log.Error().Err(err).Msg("failed to decommission reservation")
+	}
 }
 
 func (c *Module) handleEvent(ns string, event interface{}) {

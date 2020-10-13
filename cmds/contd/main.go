@@ -62,7 +62,12 @@ func main() {
 		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
 	}
 
-	containerd := container.New(moduleRoot, containerdCon)
+	client, err := zbus.NewRedisClient(msgBrokerCon)
+	if err != nil {
+		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
+	}
+
+	containerd := container.New(client, moduleRoot, containerdCon)
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, containerd)
 

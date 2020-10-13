@@ -25,6 +25,7 @@ import (
 	"github.com/containerd/containerd/runtime/restart"
 	"github.com/google/shlex"
 	"github.com/patrickmn/go-cache"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
@@ -65,12 +66,12 @@ var (
 type Module struct {
 	containerd string
 	root       string
-
-	failures *cache.Cache
+	client     zbus.Client
+	failures   *cache.Cache
 }
 
 // New return an new pkg.ContainerModule
-func New(root string, containerd string) *Module {
+func New(client zbus.Client, root string, containerd string) *Module {
 	if len(containerd) == 0 {
 		containerd = containerdSock
 	}
@@ -78,6 +79,7 @@ func New(root string, containerd string) *Module {
 	return &Module{
 		containerd: containerd,
 		root:       root,
+		client:     client,
 		// values are cached only for 1 minute. purge cache every 20 second
 		failures: cache.New(time.Minute, 20*time.Second),
 	}
