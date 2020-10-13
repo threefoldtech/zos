@@ -24,6 +24,7 @@ import (
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/runtime/restart"
 	"github.com/google/shlex"
+	"github.com/patrickmn/go-cache"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/container/stats"
@@ -39,6 +40,8 @@ const (
 const (
 	defaultMemory = 256 * 1024 * 1204 // 256MiB
 	defaultCPU    = 1
+
+	failuresBeforeDestroy = 4
 )
 
 var (
@@ -54,27 +57,34 @@ var (
 var (
 	// ErrEmptyRootFS is returned when RootFS field is empty when trying to create a container
 	ErrEmptyRootFS = errors.New("RootFS of the container creation data cannot be empty")
+
+	_ pkg.ContainerModule = (*Module)(nil)
 )
 
-type containerModule struct {
+// Module implements pkg.Module interface
+type Module struct {
 	containerd string
 	root       string
+
+	failures *cache.Cache
 }
 
 // New return an new pkg.ContainerModule
-func New(root string, containerd string) pkg.ContainerModule {
+func New(root string, containerd string) *Module {
 	if len(containerd) == 0 {
 		containerd = containerdSock
 	}
 
-	return &containerModule{
+	return &Module{
 		containerd: containerd,
 		root:       root,
+		// values are cached only for 1 minute. purge cache every 20 second
+		failures: cache.New(time.Minute, 20*time.Second),
 	}
 }
 
 // Run creates and starts a container
-func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID, err error) {
+func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err error) {
 	// create a new client connected to the default socket path for containerd
 	client, err := containerd.New(c.containerd)
 	if err != nil {
@@ -153,6 +163,7 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 		restart.WithStatus(containerd.Running),
 		restart.WithBinaryLogURI(binaryLogsShim, nil),
 	)
+
 	if err != nil {
 		return id, err
 	}
@@ -236,7 +247,7 @@ func (c *containerModule) Run(ns string, data pkg.Container) (id pkg.ContainerID
 }
 
 // Inspect returns the detail about a running container
-func (c *containerModule) Inspect(ns string, id pkg.ContainerID) (result pkg.Container, err error) {
+func (c *Module) Inspect(ns string, id pkg.ContainerID) (result pkg.Container, err error) {
 	client, err := containerd.New(c.containerd)
 	if err != nil {
 		return result, err
@@ -323,13 +334,12 @@ func (c *containerModule) List(ns string) ([]pkg.ContainerID, error) {
 }
 
 // Deletes stops and remove a container
-func (c *containerModule) Delete(ns string, id pkg.ContainerID) error {
+func (c *Module) Delete(ns string, id pkg.ContainerID) error {
 	client, err := containerd.New(c.containerd)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
-
 	ctx := namespaces.WithNamespace(context.Background(), ns)
 
 	container, err := client.LoadContainer(ctx, string(id))
@@ -372,7 +382,7 @@ func (c *containerModule) Delete(ns string, id pkg.ContainerID) error {
 	return container.Delete(ctx)
 }
 
-func (c *containerModule) ensureNamespace(ctx context.Context, client *containerd.Client, namespace string) error {
+func (c *Module) ensureNamespace(ctx context.Context, client *containerd.Client, namespace string) error {
 	service := client.NamespaceService()
 	namespaces, err := service.List(ctx)
 	if err != nil {

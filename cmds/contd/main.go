@@ -76,6 +76,9 @@ func main() {
 		log.Info().Msg("shutting down")
 	})
 
+	// start watching for events
+	go containerd.Watch(ctx)
+
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatal().Err(err).Msg("unexpected error")
 	}

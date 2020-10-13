@@ -320,6 +320,29 @@ func (e *Engine) reply(ctx context.Context, result *Result) error {
 	return e.feedback.Feedback(e.nodeID, result)
 }
 
+// DecommissionCached is used by other module to ask provisiond that
+// a certain reservation is dead beyond repair and owner must be informed
+// the decommission method will take care to update the reservation instance
+// and also decommission the reservation normally
+func (e *Engine) DecommissionCached(id string, reason string) error {
+	r, err := e.cache.Get(id)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	result, err := e.buildResult(id, r.Type, fmt.Errorf(reason), nil)
+	if err != nil {
+		return errors.Wrapf(err, "failed to build result object for reservation: %s", id)
+	}
+
+	if err := e.reply(ctx, result); err != nil {
+		log.Error().Err(err).Msgf("failed to update reservation result with failure: %s", id)
+	}
+
+	return e.decommission(ctx, r)
+}
+
 func (e *Engine) buildResult(id string, typ ReservationType, err error, info interface{}) (*Result, error) {
 	result := &Result{
 		Type:    typ,
