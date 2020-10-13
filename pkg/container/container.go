@@ -302,7 +302,7 @@ func (c *Module) Inspect(ns string, id pkg.ContainerID) (result pkg.Container, e
 }
 
 // ListNS list the name of all the container namespaces
-func (c *containerModule) ListNS() ([]string, error) {
+func (c *Module) ListNS() ([]string, error) {
 	client, err := containerd.New(c.containerd)
 	if err != nil {
 		return nil, err
@@ -313,7 +313,7 @@ func (c *containerModule) ListNS() ([]string, error) {
 }
 
 // List all the existing container IDs from a certain namespace ns
-func (c *containerModule) List(ns string) ([]pkg.ContainerID, error) {
+func (c *Module) List(ns string) ([]pkg.ContainerID, error) {
 	client, err := containerd.New(c.containerd)
 	if err != nil {
 		return nil, err
