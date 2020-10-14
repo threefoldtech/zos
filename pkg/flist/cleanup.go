@@ -17,9 +17,10 @@ import (
 // Cleaner interface, implementer of this interface
 // can start a cleaner job
 type Cleaner interface {
-	// Cleaner runs the clean process, Cleaner should be
-	// blocking. Caller then can do `go Cleaner()` to run it in the background
-	Cleaner(ctx context.Context, every time.Duration)
+	// MountsCleaner runs the clean process, MountsCleaner should be
+	// blocking. Caller then can do `go MountsCleaner()` to run it in the background
+	MountsCleaner(ctx context.Context, every time.Duration)
+	CacheCleaner(ctx context.Context, every time.Duration, age time.Duration)
 }
 
 var _ Cleaner = (*flistModule)(nil)
@@ -127,7 +128,7 @@ func (f *flistModule) cleanupAll() error {
 
 // Cleaner runs forever, checks the tracker files for filesystem processes
 // that requires cleanup
-func (f *flistModule) Cleaner(ctx context.Context, every time.Duration) {
+func (f *flistModule) MountsCleaner(ctx context.Context, every time.Duration) {
 	log := app.SampledLogger()
 
 	for {
@@ -140,4 +141,53 @@ func (f *flistModule) Cleaner(ctx context.Context, every time.Duration) {
 			}
 		}
 	}
+}
+
+func (f *flistModule) CacheCleaner(ctx context.Context, every time.Duration, age time.Duration) {
+	log := app.SampledLogger()
+
+	// we need to run it at least one time on
+	// entry
+	if err := f.cleanCache(age); err != nil {
+		log.Error().Err(err).Msg("failed to cleanup cache")
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+		case <-time.After(every):
+			log.Debug().Msg("running cache cleaner job")
+			if err := f.cleanCache(age); err != nil {
+				log.Error().Err(err).Msg("failed to clean cache")
+			}
+		}
+	}
+}
+
+func (f *flistModule) cleanCache(age time.Duration) error {
+	now := time.Now()
+	return filepath.Walk(f.cache, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+
+		sys := info.Sys()
+
+		if sys == nil {
+			log.Debug().Str("path", path).Msg("failed to check stat of cached file")
+			return nil
+		}
+
+		if sys, ok := sys.(*syscall.Stat_t); ok {
+			atime := time.Unix(sys.Atim.Sec, sys.Atim.Nsec)
+
+			if now.Sub(atime) > age {
+				if err := os.Remove(path); err != nil {
+					log.Error().Err(err).Msg("failed to delete cached file")
+				}
+			}
+		}
+
+		return nil
+	})
 }
