@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/jbenet/go-base58"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
@@ -336,11 +337,21 @@ func (e *Engine) DecommissionCached(id string, reason string) error {
 		return errors.Wrapf(err, "failed to build result object for reservation: %s", id)
 	}
 
-	if err := e.reply(ctx, result); err != nil {
+	if err := e.decommission(ctx, r); err != nil {
 		log.Error().Err(err).Msgf("failed to update reservation result with failure: %s", id)
 	}
 
-	return e.decommission(ctx, r)
+	bf := backoff.NewExponentialBackOff()
+	bf.MaxInterval = 10 * time.Second
+	bf.MaxElapsedTime = 1 * time.Minute
+
+	return backoff.Retry(func() error {
+		err := e.reply(ctx, result)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to update reservation result with failure: %s", id)
+		}
+		return err
+	}, bf)
 }
 
 func (e *Engine) buildResult(id string, typ ReservationType, err error, info interface{}) (*Result, error) {
