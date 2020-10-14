@@ -43,7 +43,7 @@ func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
 	}
 
 	if reason != nil {
-		log.Debug().Msg("deleting container due to so many crashes")
+		log.Debug().Err(reason).Msg("deleting container due to restart error")
 
 		stub := stubs.NewProvisionStub(c.client)
 		if err := stub.DecommissionCached(event.ContainerID, reason.Error()); err != nil {
