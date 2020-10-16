@@ -82,13 +82,55 @@ func New(client zbus.Client, root string, containerd string) *Module {
 		containerd = containerdSock
 	}
 
-	return &Module{
+	module := &Module{
 		containerd: containerd,
 		root:       root,
 		client:     client,
 		// values are cached only for 1 minute. purge cache every 20 second
 		failures: cache.New(time.Minute, 20*time.Second),
 	}
+
+	if err := module.upgrade(); err != nil {
+		log.Error().Err(err).Msg("failed to update containers configurations")
+	}
+
+	return module
+}
+
+// upgrade containers configurations. we make sure that any configuration changes apply
+// to the running containers..
+func (c *Module) upgrade() error {
+	// We make sure that ALL containers have auto-restart disabled since this is now
+	// managed completely by the watcher.
+	client, err := containerd.New(c.containerd)
+	if err != nil {
+		return err
+	}
+
+	defer client.Close()
+
+	ctx := context.Background()
+	nss, err := client.NamespaceService().List(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, ns := range nss {
+		ctx := namespaces.WithNamespace(context.Background(), ns)
+		containers, err := client.Containers(ctx)
+		if err != nil {
+			log.Error().Err(err).Str("namespace", ns).Msg("failed to list containers")
+			continue
+		}
+
+		for _, container := range containers {
+			if err := container.Update(ctx, restart.WithNoRestarts); err != nil { // mark this container as perminant down. so the watcher
+				log.Warn().Err(err).Msg("failed to clear up restart task status, continuing anyways") // does not try to restart it again
+			}
+		}
+	}
+
+	return nil
 }
 
 // Run creates and starts a container
