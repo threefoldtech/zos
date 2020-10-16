@@ -26,7 +26,7 @@ func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
 		c.failures.Set(event.ContainerID, int(0), cache.DefaultExpiration)
 	}
 
-	if marker == permenant {
+	if marker == permanent {
 		// if the marker is permenant. it means that this container
 		// is being deleted. we don't need to take any more action here
 		// (don't try to restart or delete)
