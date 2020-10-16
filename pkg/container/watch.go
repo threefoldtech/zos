@@ -20,15 +20,26 @@ func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
 
 	log.Debug().Msg("task exited")
 
-	if _, ok := c.failures.Get(event.ContainerID); !ok {
+	marker, ok := c.failures.Get(event.ContainerID)
+	if !ok {
+		// no previous value. so this is the first failure
 		c.failures.Set(event.ContainerID, int(0), cache.DefaultExpiration)
+	}
+
+	if marker == permenant {
+		// if the marker is permenant. it means that this container
+		// is being deleted. we don't need to take any more action here
+		// (don't try to restart or delete)
+		log.Debug().Msg("permenant delete marker is set")
+		return
 	}
 
 	count, err := c.failures.IncrementInt(event.ContainerID, 1)
 	if err != nil {
 		// this should never happen because we make sure value
 		// is set
-		panic(err)
+		log.Error().Err(err).Msg("error while checking number of failures")
+		return
 	}
 
 	log.Debug().Int("count", count).Msg("recorded stops")

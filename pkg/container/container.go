@@ -55,6 +55,10 @@ var (
 		"mqueue": {},
 		"sysfs":  {},
 	}
+
+	// a marker value we use in failure cache to let the watcher
+	// no that we don't want to try restarting this container
+	permenant = struct{}{}
 )
 
 var (
@@ -379,9 +383,9 @@ func (c *Module) Delete(ns string, id pkg.ContainerID) error {
 		return err
 	}
 
-	if err := container.Update(ctx, restart.WithNoRestarts); err != nil {
-		log.Warn().Err(err).Msg("failed to clear up restart task status, continuing anyways")
-	}
+	// mark this container as perminant down. so the watcher
+	// does not try to restart it again
+	c.failures.Set(string(id), permenant, cache.DefaultExpiration)
 
 	task, err := container.Task(ctx, nil)
 	if err == nil {
