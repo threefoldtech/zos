@@ -27,10 +27,10 @@ func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
 	}
 
 	if marker == permanent {
-		// if the marker is permenant. it means that this container
+		// if the marker is permanent. it means that this container
 		// is being deleted. we don't need to take any more action here
 		// (don't try to restart or delete)
-		log.Debug().Msg("permenant delete marker is set")
+		log.Debug().Msg("permanent delete marker is set")
 		return
 	}
 
