@@ -285,7 +285,7 @@ func (s *Fs) incrementCounters(statser provision.Statser) error {
 	}
 
 	for _, r := range reservations {
-		if r.Expired() {
+		if r.Expired() || r.Result.State != provision.StateOk {
 			continue
 		}
 		if r.Type == primitives.NetworkResourceReservation || r.Type == primitives.NetworkReservation {
