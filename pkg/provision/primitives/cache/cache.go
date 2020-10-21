@@ -84,7 +84,7 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 
 		result, err := client.Workloads.NodeWorkloadGet(reservation.ID)
 		if err != nil {
-			return errors.Wrapf(err, "error occured while requesting reservation result for %s", reservation.ID)
+			return errors.Wrapf(err, "error occurred while requesting reservation result for %s", reservation.ID)
 		}
 
 		provisionResult := result.GetResult()
