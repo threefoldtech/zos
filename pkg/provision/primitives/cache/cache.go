@@ -53,7 +53,67 @@ func NewFSStore(root string) (*Fs, error) {
 
 	log.Info().Msg("restart detected, keep reservation cache intact")
 
+	if err := store.updateReservationResults(root); err != nil {
+		log.Err(err).Msgf("error while updating reservation results")
+		// Don't return error, a cache is still valid even without the results
+		return nil, nil
+	}
+
 	return store, nil
+}
+
+// Updates reservation results for reservations in cache that don't have a result set.
+func (s *Fs) updateReservationResults(rootPath string) error {
+	log.Info().Msg("updating reservation results")
+	reservations, err := s.list()
+	if err != nil {
+		return err
+	}
+
+	client, err := app.ExplorerClient()
+	if err != nil {
+		return err
+	}
+
+	for _, reservation := range reservations {
+		if reservation.Result.IsNil() {
+			log.Info().Msgf("updating reservation result for %s", reservation.ID)
+
+			result, err := client.Workloads.NodeWorkloadGet(reservation.ID)
+			if err != nil {
+				return errors.Wrapf(err, "error occured while requesting reservation result for %s", reservation.ID)
+			}
+
+			provisionResult := result.GetResult()
+			reservation.Result = provision.Result{
+				Type:      reservation.Type,
+				Created:   provisionResult.Epoch.Time,
+				State:     provision.ResultState(provisionResult.State),
+				Data:      provisionResult.DataJson,
+				Error:     provisionResult.Message,
+				ID:        provisionResult.WorkloadId,
+				Signature: provisionResult.Signature,
+			}
+
+			// Open the reservation in cache file with write permission
+			f, err := os.OpenFile(filepath.Join(rootPath, reservation.ID), os.O_RDWR, 0644)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			writer, err := versioned.NewWriter(f, reservationSchemaLastVersion)
+			if err != nil {
+				return err
+			}
+
+			// Write new content to the reservation in cache file
+			if err := json.NewEncoder(writer).Encode(reservation); err != nil {
+				return errors.Wrapf(err, "error while writing new reservation content for %s", reservation.ID)
+			}
+		}
+	}
+
+	return nil
 }
 
 //TODO: i think both sync and removeAllButPersistent can be merged into
