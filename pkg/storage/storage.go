@@ -444,7 +444,7 @@ func (s *storageModule) ListFilesystems() ([]pkg.Filesystem, error) {
 					Size: usage.Size,
 					Used: usage.Used,
 				},
-				DiskType: string(pool.Type()),
+				DiskType: pool.Type(),
 			})
 		}
 	}
@@ -476,7 +476,7 @@ func (s *storageModule) Path(name string) (pkg.Filesystem, error) {
 						Size: usage.Size,
 						Used: usage.Used,
 					},
-					DiskType: string(pool.Type()),
+					DiskType: pool.Type(),
 				}, nil
 			}
 		}
