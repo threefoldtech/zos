@@ -98,20 +98,9 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 			Signature: provisionResult.Signature,
 		}
 
-		// Open the reservation in cache file with write permission
-		f, err := os.OpenFile(filepath.Join(rootPath, reservation.ID), os.O_RDWR, 0644)
+		err = s.add(reservation, true)
 		if err != nil {
-			return err
-		}
-		defer f.Close()
-		writer, err := versioned.NewWriter(f, reservationSchemaLastVersion)
-		if err != nil {
-			return err
-		}
-
-		// Write new content to the reservation in cache file
-		if err := json.NewEncoder(writer).Encode(reservation); err != nil {
-			return errors.Wrapf(err, "error while writing new reservation content for %s", reservation.ID)
+			return errors.Wrapf(err, "error while updating reservation in cache")
 		}
 	}
 
@@ -169,6 +158,11 @@ func (s *Fs) Sync(statser provision.Statser) error {
 
 // Add a reservation to the store
 func (s *Fs) Add(r *provision.Reservation) error {
+	return s.add(r, false)
+}
+
+// Add a reservation to the store
+func (s *Fs) add(r *provision.Reservation, update bool) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -177,7 +171,11 @@ func (s *Fs) Add(r *provision.Reservation) error {
 		return err
 	}
 
-	f, err := os.OpenFile(filepath.Join(s.root, r.ID), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0660)
+	flags := os.O_CREATE | os.O_WRONLY
+	if !update {
+		flags |= os.O_EXCL
+	}
+	f, err := os.OpenFile(filepath.Join(s.root, r.ID), flags, 0660)
 	if err != nil {
 		if os.IsExist(err) {
 			return fmt.Errorf("reservation %s already in the store", r.ID)
