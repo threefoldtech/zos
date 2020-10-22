@@ -407,9 +407,10 @@ func (e *Engine) updateStats() error {
 		return err
 	}
 
-	if cache.DiskType == "ssd" {
+	switch cache.DiskType {
+	case pkg.SSDDevice:
 		r.Sru += float64(cache.Usage.Size / gib)
-	} else {
+	case pkg.HDDDevice:
 		r.Hru += float64(cache.Usage.Size / gib)
 	}
 
