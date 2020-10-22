@@ -157,6 +157,12 @@ func (u *BtrfsUtil) QGroupEnable(ctx context.Context, root string) error {
 	return err
 }
 
+// QGroupCreate creates a qgroup
+func (u *BtrfsUtil) QGroupCreate(ctx context.Context, id string, path string) error {
+	_, err := u.run(ctx, "btrfs", "qgroup", "create", id, path)
+	return err
+}
+
 // QGroupList list available qgroups
 func (u *BtrfsUtil) QGroupList(ctx context.Context, path string) (map[string]BtrfsQGroup, error) {
 	output, err := u.run(ctx, "btrfs", "qgroup", "show", "-re", "--raw", path)

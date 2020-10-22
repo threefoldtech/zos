@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -590,6 +591,26 @@ func (v *btrfsVolume) Usage() (usage Usage, err error) {
 // Limit size of volume, setting size to 0 means unlimited
 func (v *btrfsVolume) Limit(size uint64) error {
 	ctx := context.Background()
+
+	info, err := v.utils.SubvolumeInfo(ctx, v.Path())
+	if err != nil {
+		return err
+	}
+
+	groups, err := v.utils.QGroupList(ctx, v.Path())
+	if err != nil {
+		return err
+	}
+
+	// Check if there is a qgroup for before we try to limit
+	_, ok := groups[fmt.Sprintf("0/%d", info.ID)]
+	if !ok {
+		log.Debug().Msgf("Creating qgroup 0/%d, at %v", info.ID, v.Path())
+		err = v.utils.QGroupCreate(ctx, strconv.Itoa(info.ID), v.Path())
+		if err != nil {
+			return err
+		}
+	}
 
 	return v.utils.QGroupLimit(ctx, size, v.Path())
 }
