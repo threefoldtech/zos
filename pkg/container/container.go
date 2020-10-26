@@ -443,12 +443,21 @@ func (c *Module) Delete(ns string, id pkg.ContainerID) error {
 			if trials <= 0 {
 				signal = syscall.SIGKILL
 			}
+
+			log.Debug().Str("id", string(id)).Int("signal", int(signal)).Msg("sending signal")
 			_ = task.Kill(ctx, signal)
 			trials--
+
 			select {
 			case <-exitC:
 				break loop
 			case <-time.After(1 * time.Second):
+			}
+
+			if trials < -5 {
+				msg := fmt.Errorf("cannot stop container, SIGTERM and SIGKILL ignored")
+				log.Error().Err(msg).Msg("stopping container failed")
+				break loop
 			}
 		}
 
