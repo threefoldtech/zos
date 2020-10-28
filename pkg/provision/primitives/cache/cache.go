@@ -54,7 +54,7 @@ func NewFSStore(root string) (*Fs, error) {
 	log.Info().Msg("restart detected, keep reservation cache intact")
 
 	if err := store.updateReservationResults(root); err != nil {
-		log.Err(err).Msgf("error while updating reservation results")
+		log.Error().Err(err).Msgf("error while updating reservation results")
 		return store, nil
 	}
 
@@ -83,7 +83,7 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 
 		result, err := client.Workloads.NodeWorkloadGet(reservation.ID)
 		if err != nil {
-			log.Err(err).Msgf("error occurred while requesting reservation result for %s", reservation.ID)
+			log.Error().Err(err).Msgf("error occurred while requesting reservation result for %s", reservation.ID)
 			continue
 		}
 
@@ -100,7 +100,7 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 
 		err = s.add(reservation, true)
 		if err != nil {
-			log.Err(err).Msg("error while updating reservation in cache")
+			log.Error().Err(err).Msg("error while updating reservation in cache")
 			continue
 		}
 	}
