@@ -457,6 +457,9 @@ func (s *storageModule) ListFilesystems() ([]pkg.Filesystem, error) {
 // if no volume with name exists, an empty path and an error is returned
 func (s *storageModule) Path(name string) (pkg.Filesystem, error) {
 	for _, pool := range s.pools {
+		if _, mounted := pool.Mounted(); !mounted {
+			continue
+		}
 		filesystems, err := pool.Volumes()
 		if err != nil {
 			return pkg.Filesystem{}, err
