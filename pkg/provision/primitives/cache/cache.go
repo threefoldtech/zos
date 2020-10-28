@@ -11,7 +11,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -70,7 +69,7 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 		return err
 	}
 
-	cl, err := app.ExplorerClient()
+	client, err := app.ExplorerClient()
 	if err != nil {
 		return err
 	}
@@ -82,16 +81,8 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 
 		log.Info().Msgf("updating reservation result for %s", reservation.ID)
 
-		result, err := cl.Workloads.NodeWorkloadGet(reservation.ID)
+		result, err := client.Workloads.NodeWorkloadGet(reservation.ID)
 		if err != nil {
-			var hErr client.HTTPError
-			if ok := errors.As(err, &hErr); ok {
-				resp := hErr.Response()
-				// If reservation is not found we continue to the next
-				if resp.StatusCode == 404 {
-					continue
-				}
-			}
 			log.Err(err).Msgf("error occurred while requesting reservation result for %s", reservation.ID)
 			continue
 		}
