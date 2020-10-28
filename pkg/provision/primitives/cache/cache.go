@@ -100,7 +100,8 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 
 		err = s.add(reservation, true)
 		if err != nil {
-			return errors.Wrapf(err, "error while updating reservation in cache")
+			log.Err(err).Msg("error while updating reservation in cache")
+			continue
 		}
 	}
 
