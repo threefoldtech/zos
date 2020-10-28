@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -55,8 +56,7 @@ func NewFSStore(root string) (*Fs, error) {
 
 	if err := store.updateReservationResults(root); err != nil {
 		log.Err(err).Msgf("error while updating reservation results")
-		// Don't return error, a cache is still valid even without the results
-		return nil, nil
+		return store, nil
 	}
 
 	return store, nil
@@ -70,7 +70,7 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 		return err
 	}
 
-	client, err := app.ExplorerClient()
+	cl, err := app.ExplorerClient()
 	if err != nil {
 		return err
 	}
@@ -82,9 +82,18 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 
 		log.Info().Msgf("updating reservation result for %s", reservation.ID)
 
-		result, err := client.Workloads.NodeWorkloadGet(reservation.ID)
+		result, err := cl.Workloads.NodeWorkloadGet(reservation.ID)
 		if err != nil {
-			return errors.Wrapf(err, "error occurred while requesting reservation result for %s", reservation.ID)
+			var hErr client.HTTPError
+			if ok := errors.As(err, &hErr); ok {
+				resp := hErr.Response()
+				// If reservation is not found we continue to the next
+				if resp.StatusCode == 404 {
+					continue
+				}
+			}
+			log.Err(err).Msgf("error occurred while requesting reservation result for %s", reservation.ID)
+			continue
 		}
 
 		provisionResult := result.GetResult()
