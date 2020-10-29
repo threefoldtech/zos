@@ -242,23 +242,8 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		return provisionError
 	}
 
-	// If an update occurs on the network we don't increment the counter
-	if r.Type == "network_resource" {
-		nr := pkg.NetResource{}
-		if err := json.Unmarshal(r.Data, &nr); err != nil {
-			return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
-		}
-
-		uniqueID := NetworkID(r.User, nr.Name)
-		exists, err := e.cache.NetworkExists(string(uniqueID))
-		if err != nil {
-			return errors.Wrap(err, "failed to check if network exists")
-		}
-		if exists {
-			return nil
-		}
-	}
-
+	// TODO: need to be able to decide if the increment or not...
+	// maybe this should be also moved into the cache ?
 	if err := e.statser.Increment(r); err != nil {
 		log.Err(err).Str("reservation_id", r.ID).Msg("failed to increment workloads statistics")
 	}

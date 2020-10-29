@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/provision/primitives"
 )
 
 func TestLocalStore(t *testing.T) {
@@ -84,20 +85,6 @@ func TestLocalStore(t *testing.T) {
 			assert.Equal(t, tt.args.r.Created, expired[0].Created)
 			assert.Equal(t, tt.args.r.ID, expired[0].ID)
 
-			reservations, err := s.list()
-			require.NoError(t, err)
-			assert.Equal(t, len(reservations), 1)
-
-			id1 := provision.NetworkID("1", "tf_devnet")
-			exists, err := s.NetworkExists(string(id1))
-			require.NoError(t, err)
-			assert.Equal(t, exists, true)
-
-			id2 := provision.NetworkID("1", "tf_mainnet")
-			exists, err = s.NetworkExists(string(id2))
-			require.NoError(t, err)
-			assert.Equal(t, exists, false)
-
 			err = s.Remove(actual.ID)
 			assert.NoError(t, err)
 
@@ -105,4 +92,82 @@ func TestLocalStore(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestUpdateNetwork(t *testing.T) {
+	root, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer os.RemoveAll(root)
+
+	s := &Fs{
+		root: root,
+	}
+
+	r1 := &provision.Reservation{
+		ID:      "r-1",
+		Created: time.Now().UTC().Add(-time.Minute).Round(time.Second),
+		Data: mustMarshal(pkg.NetResource{
+			Name: "tf_devnet",
+		}),
+		Type: primitives.NetworkResourceReservation,
+		User: "1",
+	}
+
+	r2 := &provision.Reservation{
+		ID:      "r-2",
+		Created: time.Now().UTC().Add(-time.Minute).Round(time.Second),
+		Data: mustMarshal(pkg.NetResource{
+			Name: "tf_devnet",
+		}),
+		Type: primitives.NetworkResourceReservation,
+		User: "1",
+	}
+
+	// same network name but different user
+	r3 := &provision.Reservation{
+		ID:      "r-3",
+		Created: time.Now().UTC().Add(-time.Minute).Round(time.Second),
+		Data: mustMarshal(pkg.NetResource{
+			Name: "tf_devnet",
+		}),
+		Type: primitives.NetworkResourceReservation,
+		User: "2",
+	}
+
+	err = s.Add(r1)
+	require.NoError(t, err)
+
+	exists, err := s.Exists(r1.ID)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	err = s.Add(r2)
+	require.NoError(t, err)
+
+	exists, err = s.Exists(r1.ID)
+	require.NoError(t, err)
+	require.False(t, exists)
+
+	exists, err = s.Exists(r2.ID)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	err = s.Add(r3)
+	require.NoError(t, err)
+
+	exists, err = s.Exists(r2.ID)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	exists, err = s.Exists(r3.ID)
+	require.NoError(t, err)
+	require.True(t, exists)
+}
+
+func mustMarshal(s interface{}) json.RawMessage {
+	json, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return json
 }
