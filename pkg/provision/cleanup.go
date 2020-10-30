@@ -110,7 +110,7 @@ func checkReservationToDelete(fs pkg.Filesystem, cl *client.Client) bool {
 
 	nextAction := reservation.GetNextAction()
 	if nextAction == workloads.NextActionDelete || nextAction == workloads.NextActionDeleted || nextAction == workloads.NextActionInvalid {
-		log.Info().Msgf("workload %d has next action to delete / deleted or invalid", fs.Name)
+		log.Info().Msgf("workload %s has next action to delete / deleted or invalid", fs.Name)
 		return true
 	}
 
