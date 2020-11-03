@@ -29,7 +29,7 @@ func TestInfo(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			var info flistInfo
+			var info FullFListInfo
 			err := json.Unmarshal([]byte(tc.input), &info)
 			require.NoError(t, err)
 

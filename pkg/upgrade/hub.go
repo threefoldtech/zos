@@ -22,11 +22,11 @@ const (
 	hubStorage = "zdb://hub.grid.tf:9900"
 )
 
-// hubClient API for f-list
-type hubClient struct{}
+// HubClient API for f-list
+type HubClient struct{}
 
 // MountURL returns the full url of given flist.
-func (h *hubClient) MountURL(flist string) string {
+func (h *HubClient) MountURL(flist string) string {
 	url, err := url.Parse(hubBaseURL)
 	if err != nil {
 		panic("invalid base url")
@@ -36,12 +36,12 @@ func (h *hubClient) MountURL(flist string) string {
 }
 
 // StorageURL return hub storage url
-func (h *hubClient) StorageURL() string {
+func (h *HubClient) StorageURL() string {
 	return hubStorage
 }
 
 // Info gets flist info from hub
-func (h *hubClient) Info(flist string) (info flistInfo, err error) {
+func (h *HubClient) Info(flist string) (info FullFListInfo, err error) {
 	u, err := url.Parse(hubBaseURL)
 	if err != nil {
 		panic("invalid base url")
@@ -69,7 +69,8 @@ func (h *hubClient) Info(flist string) (info flistInfo, err error) {
 	return info, err
 }
 
-func (h *hubClient) List(repo string) ([]listFListInfo, error) {
+// List list repo flists
+func (h *HubClient) List(repo string) ([]FListInfo, error) {
 	u, err := url.Parse(hubBaseURL)
 	if err != nil {
 		panic("invalid base url")
@@ -90,7 +91,7 @@ func (h *hubClient) List(repo string) ([]listFListInfo, error) {
 
 	dec := json.NewDecoder(response.Body)
 
-	var result []listFListInfo
+	var result []FListInfo
 	err = dec.Decode(&result)
 
 	for i := range result {
@@ -100,7 +101,8 @@ func (h *hubClient) List(repo string) ([]listFListInfo, error) {
 	return result, err
 }
 
-type listFListInfo struct {
+// FListInfo is information of flist as returned by repo list operation
+type FListInfo struct {
 	Name       string `json:"name"`
 	Target     string `json:"target"`
 	Type       string `json:"type"`
@@ -108,21 +110,21 @@ type listFListInfo struct {
 	Repository string `json:"-"`
 }
 
-// flistInfo reflects node boot information (flist + version)
-type flistInfo struct {
-	listFListInfo
+// FullFListInfo reflects node boot information (flist + version)
+type FullFListInfo struct {
+	FListInfo
 	Hash string `json:"hash"`
 	Size uint64 `json:"size"`
 }
 
-// fileInfo is the file of an flist
-type fileInfo struct {
+// FileInfo is the file of an flist
+type FileInfo struct {
 	Path string `json:"path"`
 	Size uint64 `json:"size"`
 }
 
 // Commit write version to version file
-func (b *flistInfo) Commit(path string) error {
+func (b *FullFListInfo) Commit(path string) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0400)
 	if err != nil {
 		return err
@@ -133,11 +135,12 @@ func (b *flistInfo) Commit(path string) error {
 	return enc.Encode(b)
 }
 
-func (b *listFListInfo) Fqdn() string {
+// Fqdn return the full flist name
+func (b *FListInfo) Fqdn() string {
 	return path.Join(b.Repository, b.Name)
 }
 
-func (b *listFListInfo) extractVersion(name string) (ver semver.Version, err error) {
+func (b *FListInfo) extractVersion(name string) (ver semver.Version, err error) {
 	// name is suppose to be as follows
 	// <name>:<version>.flist
 	parts := strings.Split(name, ":")
@@ -148,7 +151,7 @@ func (b *listFListInfo) extractVersion(name string) (ver semver.Version, err err
 }
 
 // Version returns the version of the flist
-func (b *listFListInfo) Version() (semver.Version, error) {
+func (b *FListInfo) Version() (semver.Version, error) {
 	// computing the version is tricky because it's part of the name
 	// of the flist (or the target) depends on the type of the flist
 
@@ -160,7 +163,7 @@ func (b *listFListInfo) Version() (semver.Version, error) {
 }
 
 // Absolute returns the actual flist name
-func (b *listFListInfo) Absolute() string {
+func (b *FListInfo) Absolute() string {
 	name := b.Name
 	if b.Type == "symlink" {
 		name = b.Target
@@ -170,14 +173,14 @@ func (b *listFListInfo) Absolute() string {
 }
 
 // Files gets the list of the files of an flist
-func (b *listFListInfo) Files() ([]fileInfo, error) {
+func (b *FListInfo) Files() ([]FileInfo, error) {
 	flist := b.Absolute()
 	if len(flist) == 0 {
 		return nil, fmt.Errorf("invalid flist info")
 	}
 
 	var content struct {
-		Content []fileInfo `json:"content"`
+		Content []FileInfo `json:"content"`
 	}
 
 	u, err := url.Parse(hubBaseURL)

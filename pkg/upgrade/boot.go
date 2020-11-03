@@ -128,7 +128,7 @@ func (b *Boot) MustVersion() semver.Version {
 }
 
 // loadInfo get boot info set by bootstrap process
-func loadInfo(fqn string, path string) (info flistInfo, err error) {
+func loadInfo(fqn string, path string) (info FullFListInfo, err error) {
 	info.Repository = filepath.Dir(fqn)
 	f, err := os.Open(path)
 	if err != nil {

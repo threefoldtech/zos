@@ -39,7 +39,7 @@ type Watcher interface {
 
 //FListEvent struct
 type FListEvent struct {
-	flistInfo
+	FullFListInfo
 }
 
 //EventType of the event
@@ -62,7 +62,7 @@ type FListSemverWatcher struct {
 	Duration time.Duration
 	Current  semver.Version
 
-	client hubClient
+	client HubClient
 }
 
 var _ Watcher = &FListSemverWatcher{}
@@ -89,7 +89,7 @@ func (w *FListSemverWatcher) Watch(ctx context.Context) (<-chan Event, error) {
 
 	if version.GT(w.Current) {
 		ch <- &FListEvent{
-			flistInfo: info,
+			FullFListInfo: info,
 		}
 		w.Current = version
 	}
@@ -124,7 +124,7 @@ func (w *FListSemverWatcher) Watch(ctx context.Context) (<-chan Event, error) {
 			if version.GT(w.Current) {
 				select {
 				case ch <- &FListEvent{
-					flistInfo: info,
+					FullFListInfo: info,
 				}:
 				case <-ctx.Done():
 					return
@@ -140,7 +140,7 @@ func (w *FListSemverWatcher) Watch(ctx context.Context) (<-chan Event, error) {
 
 //RepoFList holds information of flist from a repo list operation
 type RepoFList struct {
-	listFListInfo
+	FListInfo
 }
 
 //RepoEvent is returned by the repo watcher
@@ -161,7 +161,7 @@ type FListRepoWatcher struct {
 	Current  map[string]RepoFList
 	Duration time.Duration
 
-	client hubClient
+	client HubClient
 }
 
 func (w *FListRepoWatcher) list() (map[string]RepoFList, error) {

@@ -114,7 +114,7 @@ func (u *Upgrader) ensureRestarted(service ...string) error {
 
 // UninstallBinary  from a single flist.
 func (u *Upgrader) UninstallBinary(flist RepoFList) error {
-	return u.uninstall(flist.listFListInfo)
+	return u.uninstall(flist.FListInfo)
 }
 
 func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
@@ -225,7 +225,7 @@ func (u *Upgrader) upgradeSelf(root string) error {
 	return ErrRestartNeeded
 }
 
-func (u *Upgrader) uninstall(flist listFListInfo) error {
+func (u *Upgrader) uninstall(flist FListInfo) error {
 	files, err := flist.Files()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get list of current installed files for '%s'", flist.Absolute())
@@ -311,7 +311,7 @@ func (u *Upgrader) applyUpgrade(from, to FListEvent) error {
 		return err
 	}
 
-	if err := u.uninstall(from.listFListInfo); err != nil {
+	if err := u.uninstall(from.FListInfo); err != nil {
 		log.Error().Err(err).Msg("failed to unistall current flist. Upgraded anyway")
 	}
 
