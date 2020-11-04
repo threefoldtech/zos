@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/threefoldtech/0-fs/meta"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
@@ -34,7 +35,26 @@ type Upgrader struct {
 	FLister      pkg.Flister
 	Zinit        *zinit.Client
 	NoSelfUpdate bool
-	hub          hubClient
+	hub          HubClient
+
+	// Cache is a working directory for flists and temporary downloading files.
+	Cache string
+}
+
+func NewUpgrader(cache string, cl *zinit.Client, noSelfUpdate bool) *Upgrader {
+	return &Upgrader{
+		Cache:        cache,
+		Zinit:        cl,
+		NoSelfUpdate: noSelfUpdate,
+	}
+}
+
+func (u *Upgrader) flistCache() string {
+	return filepath.Join(u.Cache, "flist")
+}
+
+func (u *Upgrader) binCache() string {
+	return filepath.Join(u.Cache, "bins")
 }
 
 // Upgrade is the method that does a full upgrade flow
@@ -46,22 +66,37 @@ func (u *Upgrader) Upgrade(from, to FListEvent) error {
 	return u.applyUpgrade(from, to)
 }
 
-// InstallBinary from a single flist.
-func (u *Upgrader) InstallBinary(flist RepoFList) error {
-	log.Info().Str("flist", flist.Fqdn()).Msg("start applying upgrade")
-
-	flistRoot, err := u.FLister.Mount(u.hub.MountURL(flist.Fqdn()), u.hub.StorageURL(), pkg.ReadOnlyMountOptions)
+func (u *Upgrader) getFlist(flist FListInfo) (meta.Walker, error) {
+	db, err := u.hub.Download(u.flistCache(), flist.Fqdn())
 	if err != nil {
-		return err
+		return nil, errors.Wrap(err, "failed to download flist")
 	}
 
-	defer func() {
-		if err := u.FLister.Umount(flistRoot); err != nil {
-			log.Error().Err(err).Msgf("fail to umount flist at %s: %v", flistRoot, err)
-		}
-	}()
+	store, err := meta.NewStore(db)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load flist db")
+	}
 
-	if err := copyRecursive(flistRoot, "/"); err != nil {
+	walker, ok := store.(meta.Walker)
+	if !ok {
+		store.Close()
+		return nil, errors.Wrap(err, "flist database of unsupported type")
+	}
+
+	return walker, nil
+}
+
+// InstallBinary from a single flist.
+func (u *Upgrader) InstallBinary(flist FListInfo) error {
+	log.Info().Str("flist", flist.Fqdn()).Msg("start applying upgrade")
+
+	store, err := u.getFlist(flist)
+	if err != nil {
+		return errors.Wrapf(err, "failed to process flist: %s", flist.Fqdn())
+	}
+	defer store.Close()
+
+	if err := copyRecursive(store, "/"); err != nil {
 		return errors.Wrapf(err, "failed to install flist: %s", flist.Fqdn())
 	}
 
@@ -113,8 +148,8 @@ func (u *Upgrader) ensureRestarted(service ...string) error {
 }
 
 // UninstallBinary  from a single flist.
-func (u *Upgrader) UninstallBinary(flist RepoFList) error {
-	return u.uninstall(flist.FListInfo)
+func (u *Upgrader) UninstallBinary(flist FListInfo) error {
+	return u.uninstall(flist)
 }
 
 func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
@@ -357,7 +392,36 @@ func (u *Upgrader) applyUpgrade(from, to FListEvent) error {
 	return nil
 }
 
-func copyRecursive(source string, destination string, skip ...string) error {
+func copyRecursive(store meta.Walker, destination string, skip ...string) error {
+
+	return store.Walk("", func(path string, info meta.Meta) error {
+
+		dest := filepath.Join(destination, path)
+		if isIn(dest, skip) {
+			if info.IsDir() {
+				return meta.ErrSkipDir
+			}
+			log.Debug().Str("file", dest).Msg("skipping file")
+			return nil
+		}
+
+		if info.IsDir() {
+
+			if err := os.MkdirAll(dest, os.FileMode(info.Info().Access.Mode)); err != nil {
+				return err
+			}
+		} else if info.Info().Type == meta.RegularType {
+			// regular file (or other types that we don't handle)
+			if err := copyFile(dest, path); err != nil {
+				return err
+			}
+		} else {
+			log.Debug().Str("type", info.Mode().String()).Msg("ignoring not suppored file type")
+		}
+
+		return nil
+	})
+
 	return filepath.Walk(source, func(path string, info os.FileInfo, _ error) error {
 		rel, err := filepath.Rel(source, path)
 		if err != nil {
@@ -397,6 +461,10 @@ func isIn(target string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func downloadFile(info meta.Meta, dst string) error {
+	return nil
 }
 
 func copyFile(dst, src string) error {

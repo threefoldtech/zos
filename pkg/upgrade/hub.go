@@ -12,6 +12,9 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/0-fs/meta"
 )
 
 const (
@@ -101,6 +104,61 @@ func (h *HubClient) List(repo string) ([]FListInfo, error) {
 	return result, err
 }
 
+// Download downloads an flist (fqn: repo/name) to cache and return the full
+// path to the extraced meta data directory. the returned path is in format
+// {cache}/{hash}/
+func (h *HubClient) Download(cache, flist string) (string, error) {
+	var info FullFListInfo
+	for {
+		var err error
+		info, err = h.Info(flist)
+		if err != nil {
+			return "", err
+		}
+		if info.Type == "symlink" {
+			flist = filepath.Join(filepath.Base(flist), info.Target)
+		} else if info.Type == "regular" {
+			break
+		} else {
+			return "", fmt.Errorf("unknown flist type: %s", info.Type)
+		}
+	}
+
+	if info.Hash == "" {
+		return "", fmt.Errorf("invalid flist info returned")
+	}
+
+	const (
+		dbFileName = "flistdb.sqlite3"
+	)
+
+	// check if already downloaded
+	extracted := filepath.Join(cache, info.Hash)
+	if _, err := os.Stat(filepath.Join(extracted, dbFileName)); err == nil {
+		// already exists.
+		return extracted, nil
+	}
+
+	u, err := url.Parse(hubBaseURL)
+	if err != nil {
+		panic("invalid base url")
+	}
+
+	u.Path = flist
+	log.Debug().Str("url", u.String()).Msg("downloading flist")
+	response, err := http.Get(u.String())
+	if err != nil {
+		return extracted, errors.Wrap(err, "failed to download flist")
+	}
+
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return extracted, fmt.Errorf("failed to download flist: %s", response.Status)
+	}
+
+	return extracted, meta.Unpack(response.Body, extracted)
+}
+
 // FListInfo is information of flist as returned by repo list operation
 type FListInfo struct {
 	Name       string `json:"name"`
@@ -113,7 +171,7 @@ type FListInfo struct {
 // FullFListInfo reflects node boot information (flist + version)
 type FullFListInfo struct {
 	FListInfo
-	Hash string `json:"hash"`
+	Hash string `json:"md5"`
 	Size uint64 `json:"size"`
 }
 

@@ -44,7 +44,7 @@ func TestInfo(t *testing.T) {
 func TestInfoGet(t *testing.T) {
 	const flist = "tf-zos/zos:0.1.0-rc1.flist"
 
-	var hub hubClient
+	var hub HubClient
 	info, err := hub.Info(flist)
 	require.NoError(t, err)
 	require.Equal(t, flist, info.Absolute())

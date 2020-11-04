@@ -17,7 +17,6 @@ import (
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/flist"
 	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -200,17 +199,9 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to zinit")
 	}
 
-	// with volume allocation is set to nil this flister can be
-	// only used for RO mounts. Otherwise it will panic
-	flister := flist.New(root, nil)
+	upgrader := upgrade.NewUpgrader(root, zinit, debug)
 
-	upgrader := upgrade.Upgrader{
-		FLister:      flister,
-		Zinit:        zinit,
-		NoSelfUpdate: debug,
-	}
-
-	installBinaries(&boot, &upgrader)
+	installBinaries(&boot, upgrader)
 
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("received a termination signal")
@@ -228,7 +219,7 @@ func main() {
 	// 4. Start watcher for new version
 	log.Info().Msg("start upgrade daemon")
 
-	upgradeLoop(ctx, &boot, &upgrader, debug, monitor, register)
+	upgradeLoop(ctx, &boot, upgrader, debug, monitor, register)
 }
 
 // allow reinstall if receive signal USR1
