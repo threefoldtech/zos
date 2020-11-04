@@ -10,7 +10,6 @@ import (
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/provision/common"
 	"github.com/threefoldtech/zos/pkg/storage"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -18,15 +17,19 @@ import (
 	"golang.org/x/net/context"
 )
 
-// CleanupResources cleans up unused resources
-func CleanupResources(ctx context.Context, zbus zbus.Client) error {
-	explorer, err := app.ExplorerClient()
-	if err != nil {
-		return err
-	}
-	storaged := stubs.NewStorageModuleStub(zbus)
+type Janitor struct {
+	zbus zbus.Client
 
-	toSave, err := checkContainers(ctx, zbus)
+	cache    ReservationCache
+	explorer *client.Client
+}
+
+// CleanupResources cleans up unused resources
+func (j *Janitor) CleanupResources(ctx context.Context) error {
+
+	storaged := stubs.NewStorageModuleStub(j.zbus)
+
+	toSave, err := j.checkContainers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to check containers")
 	}
@@ -79,7 +82,10 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 
 		// Is this subvol not in toSave?
 		// Check the explorer if it needs to be deleted
-		delete := checkReservationToDelete(fs, explorer)
+		delete, err := j.checkToDeleteExplorer(fs.Name)
+		if err != nil {
+			//TODO: handle error here
+		}
 		if delete {
 			log.Info().Msgf("deleting subvolume %s", fs.Path)
 			if err := storaged.ReleaseFilesystem(fs.Name); err != nil {
@@ -93,36 +99,114 @@ func CleanupResources(ctx context.Context, zbus zbus.Client) error {
 	return nil
 }
 
-func checkReservationToDelete(fs pkg.Filesystem, cl *client.Client) bool {
-	log.Info().Msgf("checking explorer for reservation: %s", fs.Name)
-	reservation, err := cl.Workloads.NodeWorkloadGet(fs.Name)
+func (j *Janitor) checkToDelete(id string) (bool, error) {
+	reservation, err := j.cache.Get(id)
+	if err != nil {
+		// reservation not found in cache, so still a chance it's available on
+		// the explorer. so we make this one call
+		return j.checkToDeleteExplorer(id)
+	}
+
+	return reservation.Expired() || reservation.ToDelete, nil
+}
+
+func (j *Janitor) checkToDeleteExplorer(id string) (bool, error) {
+
+	log.Info().Msgf("checking explorer for reservation: %s", id)
+	reservation, err := j.explorer.Workloads.NodeWorkloadGet(id)
 	if err != nil {
 		var hErr client.HTTPError
 		if ok := errors.As(err, &hErr); ok {
 			resp := hErr.Response()
 			// If reservation is not found it should be deleted
 			if resp.StatusCode == 404 {
-				return true
+				return true, nil
 			}
 		}
-		return false
+		return false, err
 	}
 
 	nextAction := reservation.GetNextAction()
 	if nextAction == workloads.NextActionDelete || nextAction == workloads.NextActionDeleted || nextAction == workloads.NextActionInvalid {
-		log.Info().Msgf("workload %s has next action to delete / deleted or invalid", fs.Name)
-		return true
+		log.Info().Msgf("workload %s has next action to delete / deleted or invalid", id)
+		return true, nil
 	}
 
-	return false
+	return false, nil
+}
+
+func (j *Janitor) checkZdbContainer(ctx context.Context, id string) error {
+	con, err := newZdbConnection(id)
+	if err != nil {
+		return err
+	}
+
+	defer con.Close()
+	namespaces, err := con.Namespaces()
+	if err != nil {
+		// we need to skip this zdb container for now we are not sure
+		// if it has any used values.
+		return errors.Wrap(err, "failed to list zdb namespace")
+	}
+
+	mapped := make(map[string]struct{})
+	for _, namespace := range namespaces {
+		if namespace == "default" {
+			continue
+		}
+
+		mapped[namespace] = struct{}{}
+
+		toDelete, err := j.checkToDelete(namespace)
+		if err != nil {
+			log.Error().Err(err).Str("zdb-namespace", namespace).Msg("failed to check if we should keep namespace")
+			continue
+		}
+
+		if !toDelete {
+			continue
+		}
+
+		if err := con.DeleteNamespace(namespace); err != nil {
+			log.Error().Err(err).Str("zdb-namespace", namespace).Msg("failed to delete lingering zdb namespace")
+		}
+
+		delete(mapped, namespace)
+	}
+
+	if len(mapped) > 0 {
+		// not all namespaces are deleted so we need to keep this
+		// container instance
+		return nil
+	}
+
+	// no more namespace to keep, so container can also go
+	return common.DeleteZdbContainer(pkg.ContainerID(id), j.zbus)
+}
+
+func (j *Janitor) checkZdbContainers(ctx context.Context) error {
+	containerd := stubs.NewContainerModuleStub(j.zbus)
+
+	containers, err := containerd.List("zdb")
+	if err != nil {
+		return errors.Wrap(err, "failed to list zdb containers")
+	}
+
+	for _, containerID := range containers {
+		if err := j.checkZdbContainer(ctx, string(containerID)); err != nil {
+			log.Error().Err(err).Msg("failed to cleanup zdb container")
+		}
+	}
+
+	return nil
 }
 
 // checks running containers for subvolumes that might need to be saved because they are used
 // and subvolumes that might need to be deleted because they have no attached container anymore
-func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}, error) {
+func (j *Janitor) checkContainers(ctx context.Context) (map[string]struct{}, error) {
 	toSave := make(map[string]struct{})
 
-	contd := stubs.NewContainerModuleStub(zbus)
+	contd := stubs.NewContainerModuleStub(j.zbus)
 
 	cNamespaces, err := contd.ListNS()
 	if err != nil {
@@ -131,6 +215,7 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 	}
 
 	for _, ns := range cNamespaces {
+
 		containerIDs, err := contd.List(ns)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to list container IDs")
@@ -147,7 +232,7 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 			log.Info().Msgf("container ID %s", id)
 			var zdbNamespaces []string
 			if ns == "zdb" {
-				zdbNamespaces, err = listNamespaces(string(id))
+				zdbNamespaces, err = listZdbNamespaces(string(id))
 				if err != nil {
 					log.Err(err).Msg("failed to list container namespaces")
 					continue
@@ -163,7 +248,7 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 				// 	continue
 				// }
 				if len(zdbNamespaces) == 1 && zdbNamespaces[0] == "default" {
-					err := common.DeleteZdbContainer(id, zbus)
+					err := common.DeleteZdbContainer(id, j.zbus)
 					if err != nil {
 						log.Err(err).Msgf("failed to delete zdb container %s", string(id))
 						continue
@@ -171,7 +256,6 @@ func checkContainers(ctx context.Context, zbus zbus.Client) (map[string]struct{}
 				} else {
 					toSave[mnt.Source] = struct{}{}
 				}
-
 			}
 		}
 	}
@@ -183,24 +267,19 @@ func socketDir(containerID string) string {
 	return fmt.Sprintf("/var/run/zdb_%s", containerID)
 }
 
-func initZdbConnection(id string) zdb.Client {
+func newZdbConnection(id string) (zdb.Client, error) {
 	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir(id))
-	return zdb.New(socket)
+	cl := zdb.New(socket)
+	return cl, cl.Connect()
 }
 
-func listNamespaces(containterID string) ([]string, error) {
-	zdbCl := initZdbConnection(containterID)
-	if err := zdbCl.Connect(); err != nil {
-		log.Err(err).Msgf("failed to connect to 0-db: %s", containterID)
-		return nil, err
+func listZdbNamespaces(containterID string) ([]string, error) {
+	zdbCl, err := newZdbConnection(containterID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to connect to 0-db")
 	}
 
-	zdbNamespaces, err := zdbCl.Namespaces()
-	if err != nil {
-		log.Err(err).Msg("failed to retrieve zdb namespaces")
-		return nil, err
-	}
 	defer zdbCl.Close()
 
-	return zdbNamespaces, nil
+	return zdbCl.Namespaces()
 }

@@ -157,7 +157,9 @@ func (e *Engine) Run(ctx context.Context) error {
 				continue
 			}
 			log.Info().Msg("start cleaning up resources")
-			if err := CleanupResources(ctx, e.zbusCl); err != nil {
+			var janitor Janitor
+			// TODO: decently initialize janitor
+			if err := janitor.CleanupResources(ctx); err != nil {
 				log.Error().Err(err).Msg("failed to cleanup resources")
 				continue
 			}
