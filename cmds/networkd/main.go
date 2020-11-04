@@ -187,8 +187,8 @@ func waitYggdrasilBin() {
 }
 
 func fetchPeerList() yggdrasil.PeerList {
-	// Try to fetch public peer for 1 minute,
-	// if we failed to do so, use the fallback hardcoded peer list
+	// Try to fetch public peer
+	// If we failed to do so, use the fallback hardcoded peer list
 	var pl yggdrasil.PeerList
 
 	// Do not retry more than 4 times
