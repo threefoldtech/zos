@@ -78,3 +78,19 @@ func (s *VDiskModuleStub) Inspect(arg0 string) (ret0 pkg.VDisk, ret1 error) {
 	}
 	return
 }
+
+func (s *VDiskModuleStub) List() (ret0 []pkg.VDisk, ret1 error) {
+	args := []interface{}{}
+	result, err := s.client.Request(s.module, s.object, "List", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}

@@ -33,8 +33,6 @@ func NewJanitor(zbus zbus.Client, getter ReservationGetter) *Janitor {
 
 // CleanupResources cleans up unused resources
 func (j *Janitor) CleanupResources(ctx context.Context) error {
-	storaged := stubs.NewStorageModuleStub(j.zbus)
-
 	// - First remove all lingering zdb namespaces that has NO valid
 	// reservation. This will also decomission zdb containers that
 	// serves no namespaces anymore
@@ -46,7 +44,72 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 		// to clean what we can
 	}
 
-	// - Next, we get a list with ALL volumes, that are being
+	// - Second, we clean up all lingering volumes on the node
+	if err := j.cleanupVolumes(ctx); err != nil {
+		log.Error().Err(err).Msg("volume cleaner failed")
+	}
+
+	// - Third, we clean up any lingering vdisks that are not being
+	// used.
+	if err := j.cleanupVdisks(ctx); err != nil {
+		log.Error().Err(err).Msg("virtual disks cleaner failed")
+	}
+
+	return nil
+}
+
+func (j *Janitor) checkToDelete(id string) (bool, error) {
+	log.Debug().Str("id", id).Msg("checking explorer for reservation")
+
+	reservation, err := j.getter.Get(id)
+	if err != nil {
+		var hErr client.HTTPError
+		if ok := errors.As(err, &hErr); ok {
+			resp := hErr.Response()
+			// If reservation is not found it should be deleted
+			if resp.StatusCode == 404 {
+				return true, nil
+			}
+		}
+
+		return false, err
+	}
+
+	return reservation.ToDelete, nil
+}
+
+func (j *Janitor) cleanupVdisks(ctx context.Context) error {
+	stub := stubs.NewVDiskModuleStub(j.zbus)
+
+	vdisks, err := stub.List()
+	if err != nil {
+		return errors.Wrap(err, "failed to list virtual disks")
+	}
+	for _, vdisk := range vdisks {
+		clog := log.With().Str("vdisk", vdisk.ID()).Logger()
+
+		delete, err := j.checkToDelete(vdisk.ID())
+		if err != nil {
+			clog.Error().Err(err).Msg("failed to check vdisk reservation")
+			continue
+		}
+
+		if delete {
+			clog.Info().Str("reason", "no-associated-reservation").Msg("delete vdisk")
+			if err := stub.Deallocate(vdisk.ID()); err != nil {
+				clog.Error().Err(err).Msg("failed to deallocate vdisk")
+			}
+		} else {
+			clog.Info().Msg("skipping vdisk")
+		}
+	}
+
+	return nil
+}
+
+func (j *Janitor) cleanupVolumes(ctx context.Context) error {
+	storaged := stubs.NewStorageModuleStub(j.zbus)
+	// We get a list with ALL volumes, that are being
 	// used by active containers. Note we don't check if
 	// containers are valid or not. This code is only for
 	// storage cleanup (so far)
@@ -89,8 +152,6 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 		}
 
 		if strings.HasPrefix(volume.Name, storage.ZDBPoolPrefix) {
-			// we can safely delete this one because it is not used by any container
-			// this is ensured line 46
 			clog.Info().Str("reason", "unused-zdb").Msg("delete subvolume")
 			if err := storaged.ReleaseFilesystem(volume.Name); err != nil {
 				clog.Error().Err(err).Msg("failed to delete subvol")
@@ -113,44 +174,24 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 		// not matching any of the above criteria
 		// so we need to check if we can delete this reservation
 		// Check the explorer if it needs to be deleted
-		delete, err := j.checkToDeleteExplorer(volume.Name)
+		delete, err := j.checkToDelete(volume.Name)
 		if err != nil {
 			//TODO: handle error here
+			clog.Error().Err(err).Msg("failed to check volume reservation")
+			continue
 		}
 
 		if delete {
 			clog.Info().Str("reason", "no-associated-reservation").Msg("delete subvolume")
 			if err := storaged.ReleaseFilesystem(volume.Name); err != nil {
-				clog.Error().Err(err).Msg("failed to delete subvol")
+				clog.Error().Err(err).Msg("failed to delete subvolume")
 			}
-
-			continue
+		} else {
+			clog.Info().Msg("skipping subvolume")
 		}
-
-		log.Info().Msg("skipping subvolume")
 	}
 
 	return nil
-}
-
-func (j *Janitor) checkToDeleteExplorer(id string) (bool, error) {
-	log.Debug().Str("id", id).Msg("checking explorer for reservation")
-
-	reservation, err := j.getter.Get(id)
-	if err != nil {
-		var hErr client.HTTPError
-		if ok := errors.As(err, &hErr); ok {
-			resp := hErr.Response()
-			// If reservation is not found it should be deleted
-			if resp.StatusCode == 404 {
-				return true, nil
-			}
-		}
-
-		return false, err
-	}
-
-	return reservation.ToDelete, nil
 }
 
 func (j *Janitor) cleanupZdbContainer(ctx context.Context, id string) error {
@@ -175,7 +216,7 @@ func (j *Janitor) cleanupZdbContainer(ctx context.Context, id string) error {
 
 		mapped[namespace] = struct{}{}
 
-		toDelete, err := j.checkToDeleteExplorer(namespace)
+		toDelete, err := j.checkToDelete(namespace)
 		if err != nil {
 			log.Error().Err(err).Str("zdb-namespace", namespace).Msg("failed to check if we should keep namespace")
 			continue
