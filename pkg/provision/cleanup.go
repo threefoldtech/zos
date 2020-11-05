@@ -315,14 +315,3 @@ func newZdbConnection(id string) (zdb.Client, error) {
 	cl := zdb.New(socket)
 	return cl, cl.Connect()
 }
-
-func listZdbNamespaces(containterID string) ([]string, error) {
-	zdbCl, err := newZdbConnection(containterID)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to connect to 0-db")
-	}
-
-	defer zdbCl.Close()
-
-	return zdbCl.Namespaces()
-}
