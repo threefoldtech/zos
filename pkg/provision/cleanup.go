@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
-	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision/common"
@@ -17,103 +16,127 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Janitor structure
 type Janitor struct {
 	zbus zbus.Client
 
-	cache    ReservationCache
-	explorer *client.Client
+	getter ReservationGetter
+}
+
+// NewJanitor creates a new Janitor instance
+func NewJanitor(zbus zbus.Client, getter ReservationGetter) *Janitor {
+	return &Janitor{
+		zbus:   zbus,
+		getter: getter,
+	}
 }
 
 // CleanupResources cleans up unused resources
 func (j *Janitor) CleanupResources(ctx context.Context) error {
-
 	storaged := stubs.NewStorageModuleStub(j.zbus)
 
-	toSave, err := j.checkContainers(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to check containers")
+	// - First remove all lingering zdb namespaces that has NO valid
+	// reservation. This will also decomission zdb containers that
+	// serves no namespaces anymore
+	if err := j.cleanupZdbContainers(ctx); err != nil {
+		log.Error().Err(err).Msg("zdb cleaner failed")
+		// we don't stop here. if we failed to clean zdb containers
+		// any lingering zdb container will end up in the protected
+		// volumes so there is no harm of continuing the process
+		// to clean what we can
 	}
 
-	// ListFilesystems do not return the special cache and vdisk filesystem
-	// so we are safe to process everything that is returned
-	fss, err := storaged.ListFilesystems()
+	// - Next, we get a list with ALL volumes, that are being
+	// used by active containers. Note we don't check if
+	// containers are valid or not. This code is only for
+	// storage cleanup (so far)
+	protected, err := j.protectedVolumesFromContainers(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to list retrieve protected volumes")
+	}
+
+	// - The we list all volumes from storage.
+	// we need to go all each one and do the following checks
+	//  - Are they protected ?
+	//  - Do they belong to active reservation ?
+	//  - If not, delete!
+	volumes, err := storaged.ListFilesystems()
 	if err != nil {
 		return err
 	}
 
-	for _, fs := range fss {
-		log.Info().Msgf("checking subvol %s", fs.Path)
+	for _, volume := range volumes {
+		clog := log.With().Str("volume", volume.Path).Logger()
 
-		// Now, is this subvol in one of the toSave ?
-		if _, ok := toSave[fs.Path]; ok {
-			log.Info().Msgf("skipping volume '%s' is used", fs.Path)
+		clog.Debug().Msg("checking volume for clean up")
+
+		// - Is the volume protected
+		if _, ok := protected[volume.Path]; ok {
+			clog.Debug().Msg("volume is protected, skipping")
 			continue
 		}
 
-		if len(fs.Name) == 64 {
+		if len(volume.Name) == 64 {
 			// if the fs is not used by any container and its name is 64 character long
 			// they are left over of old containers when flistd used to generate random names
 			// for the container root flist subvolumes
-			log.Info().Msgf("delete root container flist subvolume '%s'", fs.Path)
-			if err := storaged.ReleaseFilesystem(fs.Name); err != nil {
-				log.Err(err).Msgf("failed to delete subvol '%s'", fs.Path)
+			clog.Info().Str("reason", "legacy-root-fs").Msg("delete subvolume")
+			if err := storaged.ReleaseFilesystem(volume.Name); err != nil {
+				clog.Error().Err(err).Msg("failed to delete subvol")
 			}
+
 			continue
 		}
 
-		if strings.HasPrefix(fs.Name, storage.ZDBPoolPrefix) {
+		if strings.HasPrefix(volume.Name, storage.ZDBPoolPrefix) {
 			// we can safely delete this one because it is not used by any container
 			// this is ensured line 46
-			log.Info().Msgf("delete left over 0-DB subvolume '%s'", fs.Path)
-			if err := storaged.ReleaseFilesystem(fs.Name); err != nil {
-				log.Err(err).Msgf("failed to delete subvol '%s'", fs.Path)
+			clog.Info().Str("reason", "unused-zdb").Msg("delete subvolume")
+			if err := storaged.ReleaseFilesystem(volume.Name); err != nil {
+				clog.Error().Err(err).Msg("failed to delete subvol")
 			}
+
 			continue
 		}
 
-		if fs.Name == "fcvms" {
+		if volume.Name == "fcvms" {
 			// left over from testing during vm module development
-			log.Info().Msgf("delete fcvm subvolume '%s'", fs.Path)
-			if err := storaged.ReleaseFilesystem(fs.Name); err != nil {
-				log.Err(err).Msgf("failed to delete subvol '%s'", fs.Path)
+			clog.Info().Str("reason", "legacy-vm-fs").Msg("delete subvolume")
+			if err := storaged.ReleaseFilesystem(volume.Name); err != nil {
+				clog.Error().Err(err).Msg("failed to delete subvol")
 			}
+
 			continue
 		}
 
-		// Is this subvol not in toSave?
+		// So this is NOT protected, and obviously
+		// not matching any of the above criteria
+		// so we need to check if we can delete this reservation
 		// Check the explorer if it needs to be deleted
-		delete, err := j.checkToDeleteExplorer(fs.Name)
+		delete, err := j.checkToDeleteExplorer(volume.Name)
 		if err != nil {
 			//TODO: handle error here
 		}
+
 		if delete {
-			log.Info().Msgf("deleting subvolume %s", fs.Path)
-			if err := storaged.ReleaseFilesystem(fs.Name); err != nil {
-				log.Err(err).Msgf("failed to delete subvol '%s'", fs.Path)
+			clog.Info().Str("reason", "no-associated-reservation").Msg("delete subvolume")
+			if err := storaged.ReleaseFilesystem(volume.Name); err != nil {
+				clog.Error().Err(err).Msg("failed to delete subvol")
 			}
+
 			continue
 		}
-		log.Info().Msgf("skipping subvolume %s", fs.Path)
+
+		log.Info().Msg("skipping subvolume")
 	}
 
 	return nil
 }
 
-func (j *Janitor) checkToDelete(id string) (bool, error) {
-	reservation, err := j.cache.Get(id)
-	if err != nil {
-		// reservation not found in cache, so still a chance it's available on
-		// the explorer. so we make this one call
-		return j.checkToDeleteExplorer(id)
-	}
-
-	return reservation.Expired() || reservation.ToDelete, nil
-}
-
 func (j *Janitor) checkToDeleteExplorer(id string) (bool, error) {
+	log.Debug().Str("id", id).Msg("checking explorer for reservation")
 
-	log.Info().Msgf("checking explorer for reservation: %s", id)
-	reservation, err := j.explorer.Workloads.NodeWorkloadGet(id)
+	reservation, err := j.getter.Get(id)
 	if err != nil {
 		var hErr client.HTTPError
 		if ok := errors.As(err, &hErr); ok {
@@ -123,19 +146,14 @@ func (j *Janitor) checkToDeleteExplorer(id string) (bool, error) {
 				return true, nil
 			}
 		}
+
 		return false, err
 	}
 
-	nextAction := reservation.GetNextAction()
-	if nextAction == workloads.NextActionDelete || nextAction == workloads.NextActionDeleted || nextAction == workloads.NextActionInvalid {
-		log.Info().Msgf("workload %s has next action to delete / deleted or invalid", id)
-		return true, nil
-	}
-
-	return false, nil
+	return reservation.ToDelete, nil
 }
 
-func (j *Janitor) checkZdbContainer(ctx context.Context, id string) error {
+func (j *Janitor) cleanupZdbContainer(ctx context.Context, id string) error {
 	con, err := newZdbConnection(id)
 	if err != nil {
 		return err
@@ -157,7 +175,7 @@ func (j *Janitor) checkZdbContainer(ctx context.Context, id string) error {
 
 		mapped[namespace] = struct{}{}
 
-		toDelete, err := j.checkToDelete(namespace)
+		toDelete, err := j.checkToDeleteExplorer(namespace)
 		if err != nil {
 			log.Error().Err(err).Str("zdb-namespace", namespace).Msg("failed to check if we should keep namespace")
 			continue
@@ -184,7 +202,7 @@ func (j *Janitor) checkZdbContainer(ctx context.Context, id string) error {
 	return common.DeleteZdbContainer(pkg.ContainerID(id), j.zbus)
 }
 
-func (j *Janitor) checkZdbContainers(ctx context.Context) error {
+func (j *Janitor) cleanupZdbContainers(ctx context.Context) error {
 	containerd := stubs.NewContainerModuleStub(j.zbus)
 
 	containers, err := containerd.List("zdb")
@@ -193,7 +211,7 @@ func (j *Janitor) checkZdbContainers(ctx context.Context) error {
 	}
 
 	for _, containerID := range containers {
-		if err := j.checkZdbContainer(ctx, string(containerID)); err != nil {
+		if err := j.cleanupZdbContainer(ctx, string(containerID)); err != nil {
 			log.Error().Err(err).Msg("failed to cleanup zdb container")
 		}
 	}
@@ -203,7 +221,7 @@ func (j *Janitor) checkZdbContainers(ctx context.Context) error {
 
 // checks running containers for subvolumes that might need to be saved because they are used
 // and subvolumes that might need to be deleted because they have no attached container anymore
-func (j *Janitor) checkContainers(ctx context.Context) (map[string]struct{}, error) {
+func (j *Janitor) protectedVolumesFromContainers(ctx context.Context) (map[string]struct{}, error) {
 	toSave := make(map[string]struct{})
 
 	contd := stubs.NewContainerModuleStub(j.zbus)
@@ -215,7 +233,6 @@ func (j *Janitor) checkContainers(ctx context.Context) (map[string]struct{}, err
 	}
 
 	for _, ns := range cNamespaces {
-
 		containerIDs, err := contd.List(ns)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to list container IDs")
@@ -223,39 +240,24 @@ func (j *Janitor) checkContainers(ctx context.Context) (map[string]struct{}, err
 		}
 
 		for _, id := range containerIDs {
-			ctr, err := contd.Inspect(ns, id)
+			info, err := contd.Inspect(ns, id)
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to inspect container %s", id)
-				return nil, err
-			}
-
-			log.Info().Msgf("container ID %s", id)
-			var zdbNamespaces []string
-			if ns == "zdb" {
-				zdbNamespaces, err = listZdbNamespaces(string(id))
-				if err != nil {
-					log.Err(err).Msg("failed to list container namespaces")
-					continue
-				}
+				continue
 			}
 
 			// avoid to remove any used subvolume used by flistd for root container fs
-			toSave[ctr.RootFS] = struct{}{}
+			toSave[info.RootFS] = struct{}{}
 
-			for _, mnt := range ctr.Mounts {
-				// TODO: do we need this check ?
-				// if !strings.HasPrefix(mnt.Source, "/mnt/") {
-				// 	continue
-				// }
-				if len(zdbNamespaces) == 1 && zdbNamespaces[0] == "default" {
-					err := common.DeleteZdbContainer(id, j.zbus)
-					if err != nil {
-						log.Err(err).Msgf("failed to delete zdb container %s", string(id))
-						continue
-					}
-				} else {
-					toSave[mnt.Source] = struct{}{}
+			for _, mnt := range info.Mounts {
+				// the container has many other things in info.Mounts
+				// that are not volumes so we are only interested
+				// to volumes from zos
+				if !strings.HasPrefix(mnt.Source, "/mnt/") {
+					continue
 				}
+
+				toSave[mnt.Source] = struct{}{}
 			}
 		}
 	}
