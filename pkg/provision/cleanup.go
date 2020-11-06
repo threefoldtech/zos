@@ -2,6 +2,7 @@ package provision
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zdb"
 	"golang.org/x/net/context"
+)
+
+var (
+	vdiskIdMatch = regexp.MustCompile(`^(\d+-\d+)`)
 )
 
 // Janitor structure
@@ -86,9 +91,15 @@ func (j *Janitor) cleanupVdisks(ctx context.Context) error {
 		return errors.Wrap(err, "failed to list virtual disks")
 	}
 	for _, vdisk := range vdisks {
-		clog := log.With().Str("vdisk", vdisk.ID()).Logger()
+		//fmt.Sscanf(str string, format string, a ...interface{})
+		gwid := vdiskIdMatch.FindString(vdisk.Name())
+		clog := log.With().Str("vdisk", vdisk.Name()).Str("id", gwid).Logger()
+		if len(gwid) == 0 {
+			clog.Warn().Msg("vdisk has invalid id, skipping")
+			continue
+		}
 
-		delete, err := j.checkToDelete(vdisk.ID())
+		delete, err := j.checkToDelete(gwid)
 		if err != nil {
 			clog.Error().Err(err).Msg("failed to check vdisk reservation")
 			continue
@@ -96,7 +107,7 @@ func (j *Janitor) cleanupVdisks(ctx context.Context) error {
 
 		if delete {
 			clog.Info().Str("reason", "no-associated-reservation").Msg("delete vdisk")
-			if err := stub.Deallocate(vdisk.ID()); err != nil {
+			if err := stub.Deallocate(vdisk.Name()); err != nil {
 				clog.Error().Err(err).Msg("failed to deallocate vdisk")
 			}
 		} else {

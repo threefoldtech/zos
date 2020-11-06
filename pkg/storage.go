@@ -178,8 +178,8 @@ type VDisk struct {
 	Size int64
 }
 
-// ID returns the ID part of the disk path
-func (d *VDisk) ID() string {
+// Name returns the Name part of the disk path
+func (d *VDisk) Name() string {
 	return filepath.Base(d.Path)
 }
 
