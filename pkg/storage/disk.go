@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -115,4 +116,25 @@ func (d *vdiskModule) Inspect(id string) (disk pkg.VDisk, err error) {
 
 	disk.Size = stat.Size()
 	return
+}
+
+func (d *vdiskModule) List() ([]pkg.VDisk, error) {
+	items, err := ioutil.ReadDir(d.path)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list virtual disks")
+	}
+
+	disks := make([]pkg.VDisk, 0, len(items))
+	for _, item := range items {
+		if item.IsDir() {
+			continue
+		}
+
+		disks = append(disks, pkg.VDisk{
+			Path: filepath.Join(d.path, item.Name()),
+			Size: item.Size(),
+		})
+	}
+
+	return disks, nil
 }
