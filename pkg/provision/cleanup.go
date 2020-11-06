@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	vdiskIdMatch = regexp.MustCompile(`^(\d+-\d+)`)
+	vdiskIDMatch = regexp.MustCompile(`^(\d+-\d+)`)
 )
 
 // Janitor structure
@@ -92,7 +92,7 @@ func (j *Janitor) cleanupVdisks(ctx context.Context) error {
 	}
 	for _, vdisk := range vdisks {
 		//fmt.Sscanf(str string, format string, a ...interface{})
-		gwid := vdiskIdMatch.FindString(vdisk.Name())
+		gwid := vdiskIDMatch.FindString(vdisk.Name())
 		clog := log.With().Str("vdisk", vdisk.Name()).Str("id", gwid).Logger()
 		if len(gwid) == 0 {
 			clog.Warn().Msg("vdisk has invalid id, skipping")
