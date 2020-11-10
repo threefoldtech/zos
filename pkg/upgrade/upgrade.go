@@ -2,8 +2,6 @@ package upgrade
 
 import (
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,11 +10,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/threefoldtech/0-fs/meta"
+	"github.com/threefoldtech/0-fs/rofs"
+	"github.com/threefoldtech/0-fs/storage"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
-
-	"github.com/threefoldtech/zos/pkg"
 )
 
 var (
@@ -29,32 +27,86 @@ var (
 	flistIdentityPath = "/bin/identityd"
 )
 
+const (
+	defaultHubStorage  = "zdb://hub.grid.tf:9900"
+	defaultZinitSocket = "/var/run/zinit.sock"
+)
+
 // Upgrader is the component that is responsible
 // to keep 0-OS up to date
 type Upgrader struct {
-	FLister      pkg.Flister
-	Zinit        *zinit.Client
-	NoSelfUpdate bool
+	zinit        *zinit.Client
+	cache        string
+	noSelfUpdate bool
 	hub          HubClient
-
-	// Cache is a working directory for flists and temporary downloading files.
-	Cache string
+	storage      storage.Storage
 }
 
-func NewUpgrader(cache string, cl *zinit.Client, noSelfUpdate bool) *Upgrader {
-	return &Upgrader{
-		Cache:        cache,
-		Zinit:        cl,
-		NoSelfUpdate: noSelfUpdate,
+// UpgraderOption interface
+type UpgraderOption func(u *Upgrader) error
+
+// NoSelfUpgrade option
+func NoSelfUpgrade(o bool) UpgraderOption {
+	return func(u *Upgrader) error {
+		u.noSelfUpdate = o
+
+		return nil
 	}
 }
 
-func (u *Upgrader) flistCache() string {
-	return filepath.Join(u.Cache, "flist")
+// Storage option
+func Storage(url string) func(u *Upgrader) error {
+	return func(u *Upgrader) error {
+		storage, err := storage.NewSimpleStorage(url)
+		if err != nil {
+			return errors.Wrap(err, "failed to initialize hub storage")
+		}
+		u.storage = storage
+		return nil
+	}
 }
 
-func (u *Upgrader) binCache() string {
-	return filepath.Join(u.Cache, "bins")
+func Zinit(socket string) func(u *Upgrader) error {
+	return func(u *Upgrader) error {
+		zinit, err := zinit.New(defaultZinitSocket)
+		if err != nil {
+			return errors.Wrap(err, "failed to initialize connection to zinit")
+		}
+		u.zinit = zinit
+		return nil
+	}
+}
+
+// NewUpgrader creates a new upgrader instance
+func NewUpgrader(cache string, opts ...UpgraderOption) (*Upgrader, error) {
+	u := &Upgrader{
+		cache: cache,
+	}
+
+	for _, opt := range opts {
+		if err := opt(u); err != nil {
+			return nil, err
+		}
+	}
+
+	if u.storage == nil {
+		// no storage option was set. use default
+		if err := Storage(defaultHubStorage)(u); err != nil {
+			return nil, err
+		}
+	}
+
+	if u.zinit == nil {
+		if err := Zinit(defaultZinitSocket)(u); err != nil {
+			return nil, err
+		}
+	}
+
+	return u, nil
+}
+
+func (u *Upgrader) flistCache() string {
+	return filepath.Join(u.cache, "flist")
 }
 
 // Upgrade is the method that does a full upgrade flow
@@ -66,8 +118,9 @@ func (u *Upgrader) Upgrade(from, to FListEvent) error {
 	return u.applyUpgrade(from, to)
 }
 
-func (u *Upgrader) getFlist(flist FListInfo) (meta.Walker, error) {
-	db, err := u.hub.Download(u.flistCache(), flist.Fqdn())
+// getFlist accepts fqdn of flist as `<repo>/<name>.flist`
+func (u *Upgrader) getFlist(flist string) (meta.Walker, error) {
+	db, err := u.hub.Download(u.flistCache(), flist)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to download flist")
 	}
@@ -90,37 +143,51 @@ func (u *Upgrader) getFlist(flist FListInfo) (meta.Walker, error) {
 func (u *Upgrader) InstallBinary(flist FListInfo) error {
 	log.Info().Str("flist", flist.Fqdn()).Msg("start applying upgrade")
 
-	store, err := u.getFlist(flist)
+	store, err := u.getFlist(flist.Fqdn())
 	if err != nil {
 		return errors.Wrapf(err, "failed to process flist: %s", flist.Fqdn())
 	}
 	defer store.Close()
 
-	if err := copyRecursive(store, "/"); err != nil {
+	if err := u.copyRecursive(store, "/"); err != nil {
 		return errors.Wrapf(err, "failed to install flist: %s", flist.Fqdn())
 	}
 
-	p := filepath.Join(flistRoot, "etc", "zinit")
-	log.Debug().Str("path", p).Msg("checking for zinit unit files")
-	files, err := ioutil.ReadDir(p)
-	if os.IsNotExist(err) {
-		log.Debug().Err(err).Msg("/etc/zinit not found on flist")
-		return nil
-	} else if err != nil {
-		return errors.Wrap(err, "failed to list package services")
-	}
-
-	var services []string
-	for _, file := range files {
-		if !strings.HasSuffix(file.Name(), ".yaml") {
-			continue
-		}
-
-		service := strings.TrimSuffix(file.Name(), ".yaml")
-		services = append(services, service)
+	services, err := u.servicesFromStore(store)
+	if err != nil {
+		return errors.Wrap(err, "failed to list services from flist")
 	}
 
 	return u.ensureRestarted(services...)
+}
+
+func (u *Upgrader) servicesFromStore(store meta.Walker) ([]string, error) {
+	const zinitPath = "/etc/zinit"
+
+	var services []string
+	err := store.Walk(zinitPath, func(path string, info meta.Meta) error {
+		if info.IsDir() {
+			return nil
+		}
+		dir := filepath.Dir(path)
+		if dir != zinitPath {
+			return nil
+		}
+
+		if !strings.HasSuffix(info.Name(), ".yaml") {
+			return nil
+		}
+
+		services = append(services,
+			strings.TrimSuffix(info.Name(), ".yaml"))
+		return nil
+	})
+
+	if err == meta.ErrNotFound {
+		return nil, nil
+	}
+
+	return services, err
 }
 
 func (u *Upgrader) ensureRestarted(service ...string) error {
@@ -135,11 +202,11 @@ func (u *Upgrader) ensureRestarted(service ...string) error {
 	}
 
 	for _, name := range service {
-		if err := u.Zinit.Forget(name); err != nil {
+		if err := u.zinit.Forget(name); err != nil {
 			log.Warn().Err(err).Str("service", name).Msg("could not forget service")
 		}
 
-		if err := u.Zinit.Monitor(name); err != nil {
+		if err := u.zinit.Monitor(name); err != nil {
 			log.Error().Err(err).Str("service", name).Msg("could not monitor service")
 		}
 	}
@@ -156,7 +223,7 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
 	services := make(map[string]struct{})
 	for _, name := range service {
 		log.Info().Str("service", name).Msg("stopping service")
-		if err := u.Zinit.Stop(name); err != nil {
+		if err := u.zinit.Stop(name); err != nil {
 			log.Debug().Str("service", name).Msg("service undefined")
 			continue
 		}
@@ -170,7 +237,7 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
 		var stopped []string
 		for service := range services {
 			log.Info().Str("service", service).Msg("check if service is stopped")
-			status, err := u.Zinit.Status(service)
+			status, err := u.zinit.Status(service)
 			if err != nil {
 				return err
 			}
@@ -202,7 +269,7 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
 		case <-deadline:
 			for service := range services {
 				log.Warn().Str("service", service).Msg("service didn't stop in time. use SIGKILL")
-				if err := u.Zinit.Kill(service, zinit.SIGKILL); err != nil {
+				if err := u.zinit.Kill(service, zinit.SIGKILL); err != nil {
 					log.Error().Err(err).Msgf("failed to send SIGKILL to service %s", service)
 				}
 			}
@@ -218,8 +285,8 @@ func (u Upgrader) stopMultiple(timeout time.Duration, service ...string) error {
 // it will copy the new binary and ask for a restart.
 // next time this method is called, it will match the flist
 // revision, and hence will continue updating all the other daemons
-func (u *Upgrader) upgradeSelf(root string) error {
-	if u.NoSelfUpdate {
+func (u *Upgrader) upgradeSelf(store meta.Walker) error {
+	if u.noSelfUpdate {
 		log.Debug().Msg("skipping self upgrade")
 		return nil
 	}
@@ -227,9 +294,10 @@ func (u *Upgrader) upgradeSelf(root string) error {
 	current := currentRevision()
 	log.Debug().Str("revision", current).Msg("current revision")
 
-	bin := filepath.Join(root, currentBinPath())
+	bin := currentBinPath()
+	info, exists := store.Get(bin)
 
-	if !exists(bin) {
+	if !exists {
 		// no bin for update daemon in the flist.
 		log.Debug().Str("bin", bin).Msg("binary file does not exist")
 		return nil
@@ -252,7 +320,7 @@ func (u *Upgrader) upgradeSelf(root string) error {
 		return nil
 	}
 
-	if err := copyFile(currentBinPath(), bin); err != nil {
+	if err := u.copyFile(bin, info); err != nil {
 		return err
 	}
 
@@ -297,7 +365,7 @@ func (u *Upgrader) uninstall(flist FListInfo) error {
 	// we do a forget so any changes of the zinit config
 	// themselves get reflected once monitored again
 	for _, name := range names {
-		if err := u.Zinit.Forget(name); err != nil {
+		if err := u.zinit.Forget(name); err != nil {
 			log.Error().Err(err).Str("service", name).Msg("error on zinit forget")
 		}
 	}
@@ -331,18 +399,14 @@ func (u *Upgrader) uninstall(flist FListInfo) error {
 func (u *Upgrader) applyUpgrade(from, to FListEvent) error {
 	log.Info().Str("flist", to.Fqdn()).Str("version", to.TryVersion().String()).Msg("start applying upgrade")
 
-	flistRoot, err := u.FLister.Mount(u.hub.MountURL(to.Fqdn()), u.hub.StorageURL(), pkg.ReadOnlyMountOptions)
+	store, err := u.getFlist(to.Fqdn())
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get flist store")
 	}
 
-	defer func() {
-		if err := u.FLister.Umount(flistRoot); err != nil {
-			log.Error().Err(err).Msgf("fail to umount flist at %s: %v", flistRoot, err)
-		}
-	}()
+	defer store.Close()
 
-	if err := u.upgradeSelf(flistRoot); err != nil {
+	if err := u.upgradeSelf(store); err != nil {
 		return err
 	}
 
@@ -351,49 +415,33 @@ func (u *Upgrader) applyUpgrade(from, to FListEvent) error {
 	}
 
 	log.Info().Msg("clean up complete, copying new files")
-	// once the flist is mounted we can inspect
-	// it for all zinit config files.
-	files, err := ioutil.ReadDir(filepath.Join(flistRoot, "etc", "zinit"))
+	services, err := u.servicesFromStore(store)
 	if err != nil {
-		return errors.Wrap(err, "invalid flist. no zinit services")
+		return err
 	}
-
-	var names []string
-	for _, service := range files {
-		name := service.Name()
-		if service.IsDir() || !strings.HasSuffix(name, ".yaml") {
-			continue
-		}
-
-		names = append(names, strings.TrimSuffix(name, ".yaml"))
-	}
-
-	log.Debug().Strs("services", names).Msg("new services")
-
-	if err := copyRecursive(flistRoot, "/", flistIdentityPath); err != nil {
+	if err := u.copyRecursive(store, "/", flistIdentityPath); err != nil {
 		return err
 	}
 
 	log.Debug().Msg("copying files complete")
 	// start all services in the flist
-	for _, name := range names {
-		if err := u.Zinit.Monitor(name); err != nil {
-			log.Error().Err(err).Str("service", name).Msg("error on zinit monitor")
+	for _, service := range services {
+		if err := u.zinit.Monitor(service); err != nil {
+			log.Error().Err(err).Str("service", service).Msg("error on zinit monitor")
 		}
 
 		// while we totally do not need to call start after monitor but
 		// monitor won't take an action on a monitored service if it's
 		// stopped (but not forgoten). So we call start just to be sure
-		if err := u.Zinit.Start(name); err != nil {
-			log.Error().Err(err).Str("service", name).Msg("error on zinit start")
+		if err := u.zinit.Start(service); err != nil {
+			log.Error().Err(err).Str("service", service).Msg("error on zinit start")
 		}
 	}
 
 	return nil
 }
 
-func copyRecursive(store meta.Walker, destination string, skip ...string) error {
-
+func (u *Upgrader) copyRecursive(store meta.Walker, destination string, skip ...string) error {
 	return store.Walk("", func(path string, info meta.Meta) error {
 
 		dest := filepath.Join(destination, path)
@@ -412,46 +460,16 @@ func copyRecursive(store meta.Walker, destination string, skip ...string) error 
 			}
 		} else if info.Info().Type == meta.RegularType {
 			// regular file (or other types that we don't handle)
-			if err := copyFile(dest, path); err != nil {
+			if err := u.copyFile(dest, info); err != nil {
 				return err
 			}
 		} else {
-			log.Debug().Str("type", info.Mode().String()).Msg("ignoring not suppored file type")
+			log.Debug().Str("type", info.Info().Type.String()).Msg("ignoring not suppored file type")
 		}
 
 		return nil
 	})
 
-	return filepath.Walk(source, func(path string, info os.FileInfo, _ error) error {
-		rel, err := filepath.Rel(source, path)
-		if err != nil {
-			return err
-		}
-
-		dest := filepath.Join(destination, rel)
-		if isIn(dest, skip) {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			log.Debug().Str("file", dest).Msg("skipping file")
-			return nil
-		}
-
-		if info.IsDir() {
-			if err := os.MkdirAll(dest, info.Mode()); err != nil {
-				return err
-			}
-		} else if info.Mode().IsRegular() {
-			// regular file (or other types that we don't handle)
-			if err := copyFile(dest, path); err != nil {
-				return err
-			}
-		} else {
-			log.Debug().Str("type", info.Mode().String()).Msg("ignoring not suppored file type")
-		}
-
-		return nil
-	})
 }
 
 func isIn(target string, list []string) bool {
@@ -467,8 +485,8 @@ func downloadFile(info meta.Meta, dst string) error {
 	return nil
 }
 
-func copyFile(dst, src string) error {
-	log.Info().Str("source", src).Str("destination", dst).Msg("copy file")
+func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
+	log.Info().Str("source", src.Name()).Str("destination", dst).Msg("copy file")
 
 	var (
 		isNew  = false
@@ -481,31 +499,35 @@ func copyFile(dst, src string) error {
 		isNew = true
 	}
 
+	var err error
 	if !isNew {
 		dstOld = dst + ".old"
 		if err := os.Rename(dst, dstOld); err != nil {
 			return err
 		}
+
+		defer func() {
+			if err == nil {
+				if err := os.Remove(dstOld); err != nil {
+					log.Error().Err(err).Str("file", dstOld).Msg("failed to clean up backup file")
+				}
+				return
+			}
+
+			if err := os.Rename(dstOld, dst); err != nil {
+				log.Error().Err(err).Str("file", dst).Msg("failed to restore file after a failed download")
+			}
+		}()
 	}
 
-	fSrc, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer fSrc.Close()
-
-	stat, err := fSrc.Stat()
-	if err != nil {
-		return err
-	}
-
-	fDst, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_SYNC, stat.Mode().Perm())
+	downloader := rofs.NewDownloader(u.storage, src)
+	fDst, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_SYNC, os.FileMode(src.Info().Access.Mode))
 	if err != nil {
 		return err
 	}
 	defer fDst.Close()
 
-	if _, err = io.Copy(fDst, fSrc); err != nil {
+	if err = downloader.Download(fDst); err != nil {
 		return err
 	}
 

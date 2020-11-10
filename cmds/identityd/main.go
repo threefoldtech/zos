@@ -39,7 +39,6 @@ import (
 
 const (
 	redisSocket = "unix:///var/run/redis.sock"
-	zinitSocket = "/var/run/zinit.sock"
 )
 
 const (
@@ -194,12 +193,10 @@ func main() {
 		}
 	}()
 
-	zinit, err := zinit.New(zinitSocket)
+	upgrader, err := upgrade.NewUpgrader(root, upgrade.NoSelfUpgrade(debug))
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to zinit")
+		log.Fatal().Err(err).Msg("failed to initialize upgrader")
 	}
-
-	upgrader := upgrade.NewUpgrader(root, zinit, debug)
 
 	installBinaries(&boot, upgrader)
 
