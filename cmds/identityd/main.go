@@ -354,6 +354,9 @@ func upgradeLoop(
 					return backoff.Permanent(err)
 				}
 
+				if err != nil {
+					log.Error().Err(err).Msg("update failure. retrying")
+				}
 				return err
 			}, exp)
 

@@ -62,7 +62,7 @@ func (h *HubClient) Info(flist string) (info FullFListInfo, err error) {
 	defer ioutil.ReadAll(response.Body)
 
 	if response.StatusCode != http.StatusOK {
-		return info, fmt.Errorf("failed to get flist info: %s", response.Status)
+		return info, fmt.Errorf("failed to get flist (%s) info: %s", flist, response.Status)
 	}
 	defer response.Body.Close()
 
@@ -116,7 +116,7 @@ func (h *HubClient) Download(cache, flist string) (string, error) {
 			return "", err
 		}
 		if info.Type == "symlink" {
-			flist = filepath.Join(filepath.Base(flist), info.Target)
+			flist = filepath.Join(filepath.Dir(flist), info.Target)
 		} else if info.Type == "regular" {
 			break
 		} else {

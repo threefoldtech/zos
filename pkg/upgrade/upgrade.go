@@ -531,8 +531,5 @@ func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 		return err
 	}
 
-	if !isNew {
-		return os.Remove(dstOld)
-	}
 	return nil
 }
