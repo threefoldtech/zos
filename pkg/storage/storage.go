@@ -18,6 +18,7 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
 )
 
@@ -302,11 +303,15 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 		return err
 	}
 
-	if err := s.shutdownUnusedPools(); err != nil {
-		log.Error().Err(err).Msg("Error shutting down unused pools")
-	}
+	hyperVisor, err := capacity.NewResourceOracle(nil).GetHypervisor()
+	// Only shutdown disks when we are not running in a vm.
+	if len(hyperVisor) == 0 {
+		if err := s.shutdownUnusedPools(); err != nil {
+			log.Error().Err(err).Msg("Error shutting down unused pools")
+		}
 
-	s.periodicallyCheckDiskShutdown()
+		s.periodicallyCheckDiskShutdown()
+	}
 
 	return nil
 }
