@@ -18,6 +18,7 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
 )
 
@@ -300,6 +301,14 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	if err := s.ensureCache(); err != nil {
 		log.Error().Err(err).Msg("Error ensuring cache")
 		return err
+	}
+
+	hyperVisor, err := capacity.NewResourceOracle(nil).GetHypervisor()
+	if err == nil {
+		// Disable disk shutdown when running in a VM
+		if len(hyperVisor) > 0 {
+			return nil
+		}
 	}
 
 	if err := s.shutdownUnusedPools(); err != nil {
