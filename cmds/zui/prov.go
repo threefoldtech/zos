@@ -12,7 +12,6 @@ import (
 )
 
 func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
-
 	prov := widgets.NewTable()
 	prov.Title = "System Load"
 	prov.RowSeparator = false
@@ -41,15 +40,44 @@ func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	go func() {
 		for counter := range counters {
 			rows := prov.Rows
-			rows[0][1] = "42"
-			rows[1][1] = "21"
-			rows[2][1] = fmt.Sprint(counter.Container)
-			rows[3][1] = fmt.Sprint(counter.Volume)
-			rows[0][3] = fmt.Sprint(counter.Network)
-			rows[1][3] = fmt.Sprint(counter.VM)
-			rows[2][3] = fmt.Sprint(counter.ZDB)
+			rows[1][1] = fmt.Sprint(counter.Container)
+			rows[1][3] = fmt.Sprint(counter.Volume)
+			rows[2][1] = fmt.Sprint(counter.Network)
+			rows[2][3] = fmt.Sprint(counter.VM)
+			rows[3][1] = fmt.Sprint(counter.ZDB)
 			rows[3][3] = fmt.Sprint(counter.Debug)
 
+			render.Signal()
+		}
+	}()
+
+	sysMonitor := stubs.NewSystemMonitorStub(client)
+	stream, err := sysMonitor.CPU(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to start cpu monitor stream")
+	}
+
+	go func() {
+		for point := range stream {
+			prov.Mutex.Lock()
+			for _, cpu := range point {
+				prov.Rows[0][1] = fmt.Sprintf("%0.00f%%", cpu.Percent)
+			}
+			prov.Mutex.Unlock()
+
+			render.Signal()
+		}
+	}()
+
+	memoryMonitor := stubs.NewSystemMonitorStub(client)
+	memStream, err := memoryMonitor.Memory(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to start mem monitor stream")
+	}
+
+	go func() {
+		for point := range memStream {
+			prov.Rows[0][3] = fmt.Sprintf("%0.00f%%", point.UsedPercent)
 			render.Signal()
 		}
 	}()

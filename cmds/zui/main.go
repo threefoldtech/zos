@@ -70,13 +70,9 @@ func main() {
 	netgrid.Title = "Network"
 	netgrid.SetRect(0, 6, width, 12)
 
-	diskgrid := ui.NewGrid()
-	diskgrid.Title = "Disk"
-	diskgrid.SetRect(0, 12, width, 18)
-
 	provision := ui.NewGrid()
 	provision.Title = "Provision"
-	provision.SetRect(0, 18, width, 24)
+	provision.SetRect(0, 12, width, 18)
 	provision.Border = false
 
 	var flag Flag
@@ -84,20 +80,8 @@ func main() {
 	if err := headerRenderer(client, header, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start header renderer")
 	}
-	/*
-		if err := cpuRender(client, cpu, &flag); err != nil {
-			log.Error().Err(err).Msg("failed to start cpu renderer")
-		}
-		if err := memRender(client, mem, &flag); err != nil {
-			log.Error().Err(err).Msg("failed to start mem renderer")
-		}
-	*/
 
 	if err := netRender(client, netgrid, &flag); err != nil {
-		log.Error().Err(err).Msg("failed to start net renderer")
-	}
-
-	if err := diskRender(client, diskgrid, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start net renderer")
 	}
 
@@ -106,10 +90,9 @@ func main() {
 	}
 
 	render := func() {
-		ui.Render(header, netgrid, diskgrid, provision)
+		ui.Render(header, netgrid, provision)
 	}
 
-	// ui.Clear()
 	render()
 
 	uiEvents := ui.PollEvents()
