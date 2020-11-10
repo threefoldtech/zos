@@ -304,14 +304,18 @@ func (s *storageModule) initialize(policy pkg.StoragePolicy) error {
 	}
 
 	hyperVisor, err := capacity.NewResourceOracle(nil).GetHypervisor()
-	// Only shutdown disks when we are not running in a vm.
-	if len(hyperVisor) == 0 {
-		if err := s.shutdownUnusedPools(); err != nil {
-			log.Error().Err(err).Msg("Error shutting down unused pools")
+	if err == nil {
+		// Disable disk shutdown when running in a VM
+		if len(hyperVisor) > 0 {
+			return nil
 		}
-
-		s.periodicallyCheckDiskShutdown()
 	}
+
+	if err := s.shutdownUnusedPools(); err != nil {
+		log.Error().Err(err).Msg("Error shutting down unused pools")
+	}
+
+	s.periodicallyCheckDiskShutdown()
 
 	return nil
 }
