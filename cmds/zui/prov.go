@@ -45,10 +45,10 @@ func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 			rows[1][1] = "21"
 			rows[2][1] = fmt.Sprint(counter.Container)
 			rows[3][1] = fmt.Sprint(counter.Volume)
-			rows[4][1] = fmt.Sprint(counter.Network)
-			rows[5][1] = fmt.Sprint(counter.VM)
-			rows[6][1] = fmt.Sprint(counter.ZDB)
-			rows[7][1] = fmt.Sprint(counter.Debug)
+			rows[0][3] = fmt.Sprint(counter.Network)
+			rows[1][3] = fmt.Sprint(counter.VM)
+			rows[2][3] = fmt.Sprint(counter.ZDB)
+			rows[3][3] = fmt.Sprint(counter.Debug)
 
 			render.Signal()
 		}
