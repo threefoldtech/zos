@@ -54,7 +54,7 @@ func NoSelfUpgrade(o bool) UpgraderOption {
 	}
 }
 
-// Storage option
+// Storage option overrides the default hub storage url
 func Storage(url string) func(u *Upgrader) error {
 	return func(u *Upgrader) error {
 		storage, err := storage.NewSimpleStorage(url)
@@ -66,6 +66,7 @@ func Storage(url string) func(u *Upgrader) error {
 	}
 }
 
+// Zinit option overrides the default zinit socket
 func Zinit(socket string) func(u *Upgrader) error {
 	return func(u *Upgrader) error {
 		zinit, err := zinit.New(defaultZinitSocket)
