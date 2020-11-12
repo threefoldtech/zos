@@ -119,7 +119,7 @@ type Usage struct {
 	Used uint64
 }
 
-// Filesystem represents a storage space that can be used as a filesystem`
+// Filesystem represents a storage space that can be used as a filesystem
 type Filesystem struct {
 	// Filesystem ID
 	ID int
