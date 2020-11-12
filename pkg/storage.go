@@ -119,7 +119,7 @@ type Usage struct {
 	Used uint64
 }
 
-// Filesystem represents a storage space that can be used as a filesystem
+// Filesystem represents a storage space that can be used as a filesystem`
 type Filesystem struct {
 	// Filesystem ID
 	ID int
@@ -168,6 +168,11 @@ type VolumeAllocater interface {
 
 	// GetVdiskFS return the filesystem used to store the vdisk file for the VM module
 	GetVdiskFS() (Filesystem, error)
+
+	// CanAllocate checks if the given subvolume name can use this given size
+	// it checks against physical disk space first if there is enough capacity
+	// to support this, and if okay, it checks against the subvolume quota limit if set
+	CanAllocate(name string, size uint64) (bool, error)
 }
 
 // VDisk info returned by a call to inspect
