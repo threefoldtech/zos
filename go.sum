@@ -623,6 +623,7 @@ github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG
 github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae h1:vgGSvdW5Lqg+I1aZOlG32uyE6xHpLdKhZzcTEktz5wM=
 github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae/go.mod h1:quDq6Se6jlGwiIKia/itDZxqC5rj6/8OdFyMMAwTxCs=
 github.com/threefoldtech/0-fs v1.3.0 h1:TOjfMNhLtQSDDUssTE6SZ/Zv2KfZNfWcfW7xyeviMVs=
+github.com/threefoldtech/0-fs v1.3.1-0.20201111155454-6f328c14703a h1:Lf8jNyiWM3eNECGMOQSZvkDWWMR2AaO9LfUFV+ddp5c=
 github.com/threefoldtech/0-fs v1.3.1-0.20201111155454-6f328c14703a/go.mod h1:OPPZiE/GthPR2IepjKSc8wa+t/7wl3dtHQyEdUcftZI=
 github.com/threefoldtech/0-fs v2.0.1+incompatible h1:4c3jorr06q8vTstdevhW2d0Qa/xaGMkhvFYizuZkhcA=
 github.com/threefoldtech/0-fs v2.0.1+incompatible/go.mod h1:Ftk02AVzIK1rbFhCgpJr/cY11WWNgIPQytO2cA+jemE=
