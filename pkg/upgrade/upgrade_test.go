@@ -24,7 +24,7 @@ func TestUpgraderDownload(t *testing.T) {
 
 	store, err := up.getFlist(flist)
 	require.NoError(err)
-	tmp, err := ioutil.TempDir("", "downlaod-*")
+	tmp, err := ioutil.TempDir("", "download-*")
 
 	require.NoError(err)
 	defer os.RemoveAll(tmp)
