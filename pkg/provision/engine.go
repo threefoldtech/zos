@@ -310,6 +310,18 @@ func (e *Engine) decommission(ctx context.Context, r *Reservation) error {
 		r.ID = r.Reference
 	}
 
+	if r.Result.State == StateError {
+		// this reservation already failed to deploy
+		// this code here shouldn't be executing because if
+		// the reservation has error-ed, it means is should
+		// not be in cache.
+		// BUT
+		// that was not always the case, so instead we
+		// will just return. here
+		log.Warn().Str("id", realID).Msg("skipping reservation because it is not provisioned")
+		return nil
+	}
+
 	err = fn(ctx, r)
 	if err != nil {
 		return errors.Wrap(err, "decommissioning of reservation failed")
