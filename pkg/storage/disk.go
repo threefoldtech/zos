@@ -57,7 +57,7 @@ func (d *vdiskModule) Allocate(id string, size int64) (string, error) {
 
 	base, err := d.module.VDiskFindCandidate(uint64(size))
 	if err != nil {
-		return "", errors.Wrap(err, "failed to find a candidate to host vdisk")
+		return "", errors.Wrapf(err, "failed to find a candidate to host vdisk of size '%d'", size)
 	}
 
 	path, err = d.safePath(base, id)
