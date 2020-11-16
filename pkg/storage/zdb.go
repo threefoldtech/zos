@@ -15,6 +15,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/storage/zdbpool"
 )
 
+// Find finds a zdb namespace allocation
 func (s *Module) Find(nsID string) (allocation pkg.Allocation, err error) {
 	for _, pool := range s.pools {
 		if _, mounted := pool.Mounted(); !mounted {
