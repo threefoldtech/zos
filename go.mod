@@ -47,9 +47,11 @@ require (
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/google/uuid v1.1.1
+	github.com/hanwen/go-fuse v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.9 // indirect
 	github.com/jbenet/go-base58 v0.0.0-20150317085156-6237cf65f3a6
 	github.com/nullstyle/go-xdr v0.0.0-20180726165426-f4c839f75077 // indirect
+	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/opencontainers/runc v0.1.1 // indirect
 	github.com/opencontainers/runtime-spec v1.0.1
@@ -63,6 +65,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
+	github.com/threefoldtech/0-fs v1.3.1-0.20201111155454-6f328c14703a
 	github.com/threefoldtech/tfexplorer v0.4.1-0.20201014110255-653c7314b944
 	github.com/threefoldtech/zbus v0.1.4
 	github.com/urfave/cli v1.22.4
@@ -71,18 +74,20 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/whs/nacl-sealed-box v0.0.0-20180930164530-92b9ba845d8d
 	github.com/xdg/stringprep v1.0.0 // indirect
+	github.com/xxtea/xxtea-go v0.0.0-20170828040851-35c4b17eecf6 // indirect
 	github.com/yggdrasil-network/yggdrasil-go v0.3.15-0.20200526002434-ed3bf5ef0736
 	go.etcd.io/bbolt v1.3.4 // indirect
-	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
-	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
+	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
+	golang.org/x/net v0.0.0-20200707034311-ab3426394381
+	golang.org/x/sys v0.0.0-20200802091954-4b90ce9b60b3
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20191219145116-fa6499c8e75f
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/grpc v1.29.1 // indirect
-	gopkg.in/yaml.v2 v2.2.7
+	gopkg.in/yaml.v2 v2.3.0
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.0.2 // indirect
+	zombiezen.com/go/capnproto2 v2.18.0+incompatible // indirect
 )
 
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
