@@ -83,24 +83,6 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 func netRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	addresses := widgets.NewTable()
 
-	/*
-		statistics := widgets.NewTable()
-		statistics.Title = "Traffic"
-		statistics.RowSeparator = false
-		statistics.Rows = [][]string{
-			{"NIC", "SENT", "RECV"},
-		}
-
-		grid.Set(
-			ui.NewRow(1./6,
-				ui.NewCol(1, addresses),
-			),
-			ui.NewRow(5.0/6,
-				ui.NewCol(1, statistics),
-			),
-		)
-	*/
-
 	grid.Set(
 		ui.NewRow(1,
 			ui.NewCol(1, addresses),
@@ -111,36 +93,6 @@ func netRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	if err := addressRender(ctx, addresses, client, render); err != nil {
 		return err
 	}
-
-	/*
-		monitor := stubs.NewSystemMonitorStub(client)
-		stats, err := monitor.Nics(ctx)
-		if err != nil {
-			return errors.Wrap(err, "failed to start net monitor stream")
-		}
-
-		go func() {
-			for s := range stats {
-				// keep the header
-				rows := statistics.Rows[:1]
-				for _, nic := range s {
-					if nic.Name == "lo" {
-						continue
-					}
-					rows = append(rows,
-						[]string{
-							nic.Name,
-							fmt.Sprintf("%d KB", nic.RateOut/1024),
-							fmt.Sprintf("%d KB", nic.RateIn/1024),
-						},
-					)
-				}
-
-				statistics.Rows = rows
-				render.Signal()
-			}
-		}()
-	*/
 
 	return nil
 }
