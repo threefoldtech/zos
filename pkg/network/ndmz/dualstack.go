@@ -88,6 +88,10 @@ func (d *DualStack) Create(ctx context.Context) error {
 		// this is the master now
 		master = publicBridge
 		d.hasPubBridge = true
+	} else if ifaceutil.Exists(publicBridge, nil) {
+		// existing bridge is the master
+		master = publicBridge
+		d.hasPubBridge = true
 	}
 
 	netNS, err := namespace.GetByName(NetNSNDMZ)
