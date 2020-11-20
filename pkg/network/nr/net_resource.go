@@ -489,6 +489,7 @@ func (nr *NetResource) applyFirewall() error {
 	return nil
 }
 
+// Convert4to6 converts a (private) ipv4 to the corresponding ipv6
 func Convert4to6(netID string, ip net.IP) net.IP {
 	h := md5.New()
 	md5NetID := h.Sum([]byte(netID))
