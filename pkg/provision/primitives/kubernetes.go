@@ -52,7 +52,8 @@ type Kubernetes struct {
 	PlainClusterSecret string `json:"-"`
 }
 
-const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
+// const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
+const k3osFlistURL = "https://hub.grid.tf/lee/k3os.flist"
 
 func (p *Provisioner) kubernetesProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.kubernetesProvisionImpl(ctx, reservation)
