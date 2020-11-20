@@ -399,7 +399,7 @@ func (n *networker) SetupTap(networkID pkg.NetID) (string, error) {
 		return "", errors.Wrap(err, "could not get network namespace bridge")
 	}
 
-	tapIface, err := tapName(networkID)
+	tapIface, err := tapName(networkID, false)
 	if err != nil {
 		return "", errors.Wrap(err, "could not get network namespace tap device name")
 	}
@@ -412,7 +412,7 @@ func (n *networker) SetupTap(networkID pkg.NetID) (string, error) {
 func (n *networker) TapExists(networkID pkg.NetID) (bool, error) {
 	log.Info().Str("network-id", string(networkID)).Msg("Checking if tap interface exists")
 
-	tapIface, err := tapName(networkID)
+	tapIface, err := tapName(networkID, false)
 	if err != nil {
 		return false, errors.Wrap(err, "could not get network namespace tap device name")
 	}
@@ -424,7 +424,57 @@ func (n *networker) TapExists(networkID pkg.NetID) (bool, error) {
 func (n *networker) RemoveTap(networkID pkg.NetID) error {
 	log.Info().Str("network-id", string(networkID)).Msg("Removing tap interface")
 
-	tapIface, err := tapName(networkID)
+	tapIface, err := tapName(networkID, false)
+	if err != nil {
+		return errors.Wrap(err, "could not get network namespace tap device name")
+	}
+
+	return ifaceutil.Delete(tapIface, nil)
+}
+
+func (n *networker) PublicIPv4Support() bool {
+	return n.ndmz.SupportsPubIPv4()
+}
+
+// SetupPubTap sets up a tap device in the host namespace for the networkID. It is hooked
+// to the public bridge. The name of the tap interface is returned
+func (n *networker) SetupPubTap(networkID pkg.NetID) (string, error) {
+	log.Info().Str("network-id", string(networkID)).Msg("Setting up tap interface")
+
+	if !n.ndmz.SupportsPubIPv4() {
+		return "", errors.New("can't create public tap on this node")
+	}
+
+	bridgeName := n.ndmz.IP6PublicIface()
+
+	tapIface, err := tapName(networkID, true)
+	if err != nil {
+		return "", errors.Wrap(err, "could not get network namespace tap device name")
+	}
+
+	_, err = tuntap.CreateTap(tapIface, bridgeName)
+
+	return tapIface, err
+}
+
+// PubTapExists checks if the tap device for the public network exists already
+func (n *networker) PubTapExists(networkID pkg.NetID) (bool, error) {
+	log.Info().Str("network-id", string(networkID)).Msg("Checking if public tap interface exists")
+
+	tapIface, err := tapName(networkID, true)
+	if err != nil {
+		return false, errors.Wrap(err, "could not get network namespace tap device name")
+	}
+
+	return ifaceutil.Exists(tapIface, nil), nil
+}
+
+// RemovePubTap removes the public tap device from the host namespace
+// of the networkID
+func (n *networker) RemovePubTap(networkID pkg.NetID) error {
+	log.Info().Str("network-id", string(networkID)).Msg("Removing public tap interface")
+
+	tapIface, err := tapName(networkID, true)
 	if err != nil {
 		return errors.Wrap(err, "could not get network namespace tap device name")
 	}
@@ -989,8 +1039,12 @@ func createNetNS(name string) (ns.NetNS, error) {
 }
 
 // tapName returns the name of the tap device for a network namespace
-func tapName(netID pkg.NetID) (string, error) {
-	name := fmt.Sprintf("t-%s", netID)
+func tapName(netID pkg.NetID, public bool) (string, error) {
+	ident := "t"
+	if public {
+		ident = "p"
+	}
+	name := fmt.Sprintf("%s-%s", ident, netID)
 	if len(name) > 15 {
 		return "", errors.Errorf("tap name too long %s", name)
 	}

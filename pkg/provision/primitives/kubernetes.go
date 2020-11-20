@@ -88,6 +88,11 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 		return result, errors.New("kubernetes vm with same network already exists")
 	}
 
+	// check if public ipv4 is supported, should this be requested
+	if config.PublicIP != 0 && !network.PublicIPv4Support() {
+		return result, errors.New("public ipv4 is requested, but not supported on this node")
+	}
+
 	result.ID = reservation.ID
 	result.IP = config.IP.String()
 
@@ -153,8 +158,16 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 		}
 	}()
 
+	var pubIface string
+	if config.PublicIP != 0 {
+		pubIface, err = network.SetupPubTap(netID)
+		if err != nil {
+			return result, errors.Wrap(err, "could not set up tap device for public network")
+		}
+	}
+
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = p.buildNetworkInfo(ctx, reservation.User, iface, config)
+	netInfo, err = p.buildNetworkInfo(ctx, reservation.User, iface, pubIface, config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
@@ -278,6 +291,12 @@ func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *pr
 		return errors.Wrap(err, "could not clean up tap device")
 	}
 
+	if cfg.PublicIP != 0 {
+		if err := network.RemovePubTap(netID); err != nil {
+			return errors.Wrap(err, "could not clean up public tap device")
+		}
+	}
+
 	if err := storage.Deallocate(fmt.Sprintf("%s-%s", reservation.ID, "vda")); err != nil {
 		return errors.Wrap(err, "could not remove vDisk")
 	}
@@ -290,7 +309,7 @@ func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *pr
 	return nil
 }
 
-func (p *Provisioner) buildNetworkInfo(ctx context.Context, userID string, iface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
+func (p *Provisioner) buildNetworkInfo(ctx context.Context, userID string, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 
 	netID := provision.NetworkID(userID, string(cfg.NetworkID))
@@ -342,26 +361,16 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, userID string, iface
 		// for it
 		// TODO: proper firewalling on the host
 
-		explorerClient, err := app.ExplorerClient()
+		pubIP, pubGw, err := p.getPubIPConfig(cfg.PublicIP)
 		if err != nil {
-			return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not create explorer client")
-		}
-
-		workloadDefinition, err := explorerClient.Workloads.Get(cfg.PublicIP)
-		if err != nil {
-			return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not load public ip reservation")
-		}
-		// load IP
-		ip, ok := workloadDefinition.(*workloads.PublicIP)
-		if !ok {
-			return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not decode ip reservation")
+			return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not get public ip config")
 		}
 
 		iface := pkg.VMIface{
-			// Tap: ,// TODO,
-			MAC:            "",                                                                      // super static stuff
-			IP4AddressCIDR: net.IPNet{IP: ip.IPaddress, Mask: net.IPv4Mask(0xff, 0xff, 0xff, 0xff)}, // TODO: get from networkd
-			IP4GatewayIP:   ip.IPaddress,                                                            // TODO: get from  reservation
+			Tap:            pubIface,
+			MAC:            "", // static ip is set so not important
+			IP4AddressCIDR: pubIP,
+			IP4GatewayIP:   pubGw,
 			// for now we get ipv6 from slaac, so leave ipv6 stuffs this empty
 			//
 			Public: true,
@@ -371,6 +380,48 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, userID string, iface
 	}
 
 	return networkInfo, nil
+}
+
+// Get the public ip, and the gateway from the reservation ID
+func (p *Provisioner) getPubIPConfig(rid schema.ID) (net.IPNet, net.IP, error) {
+	// TODO: check if there is a better way to do this
+	explorerClient, err := app.ExplorerClient()
+	if err != nil {
+		return net.IPNet{}, nil, errors.Wrap(err, "could not create explorer client")
+	}
+
+	workloadDefinition, err := explorerClient.Workloads.Get(rid)
+	if err != nil {
+		return net.IPNet{}, nil, errors.Wrap(err, "could not load public ip reservation")
+	}
+	// load IP
+	ip, ok := workloadDefinition.(*workloads.PublicIP)
+	if !ok {
+		return net.IPNet{}, nil, errors.Wrap(err, "could not decode ip reservation")
+	}
+	identity := stubs.NewIdentityManagerStub(p.zbus)
+	self := identity.NodeID().Identity()
+	selfDescription, err := explorerClient.Directory.NodeGet(self, false)
+	if err != nil {
+		return net.IPNet{}, nil, errors.Wrap(err, "could not get our own node description")
+	}
+	farm, err := explorerClient.Directory.FarmGet(schema.ID(selfDescription.FarmId))
+	if err != nil {
+		return net.IPNet{}, nil, errors.Wrap(err, "could not get our own farm")
+	}
+
+	var pubGw schema.IP
+	for _, ips := range farm.IPAddresses {
+		if ips.ReservationID == rid {
+			pubGw = ips.Gateway
+			break
+		}
+	}
+	if pubGw.IP == nil {
+		return net.IPNet{}, nil, errors.New("unable to identify public ip gateway")
+	}
+
+	return ip.IPaddress.IPNet, pubGw.IP, nil
 }
 
 // returns the vCpu's, memory, disksize for a vm size

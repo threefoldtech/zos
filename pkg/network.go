@@ -69,6 +69,20 @@ type Networker interface {
 	// of the networkID
 	RemoveTap(networkID NetID) error
 
+	// PublicIPv4Support enabled on this node for reservations
+	PublicIPv4Support() bool
+
+	// SetupPubTap sets up a tap device in the host namespace for the networkID. It is hooked
+	// to the public bridge. The name of the tap interface is returned
+	SetupPubTap(networkID NetID) (string, error)
+
+	// PubTapExists checks if the tap device for the public network exists already
+	PubTapExists(networkID NetID) (bool, error)
+
+	// RemovePubTap removes the public tap device from the host namespace
+	// of the networkID
+	RemovePubTap(networkID NetID) error
+
 	// GetSubnet of the network with the given ID on the local node
 	GetSubnet(networkID NetID) (net.IPNet, error)
 
