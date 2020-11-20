@@ -64,10 +64,18 @@ func (d *DualStack) Create(ctx context.Context) error {
 	// between, probably by enumerating every device in every namespace and verifying
 	// none has the phys iface as master.
 	if !namespace.Exists(NetNSNDMZ) {
-		// create bridge, this needs to happen on the host ns
-		masterBr, err := bridge.New(publicBridge)
-		if err != nil {
-			return errors.Wrap(err, "could not create public bridge")
+		var masterBr *netlink.Bridge
+		if !ifaceutil.Exists(publicBridge, nil) {
+			// create bridge, this needs to happen on the host ns
+			masterBr, err = bridge.New(publicBridge)
+			if err != nil {
+				return errors.Wrap(err, "could not create public bridge")
+			}
+		} else {
+			masterBr, err = bridge.Get(publicBridge)
+			if err != nil {
+				return errors.Wrap(err, "could not load public bridge")
+			}
 		}
 		physLink, err := netlink.LinkByName(master)
 		if err != nil {
@@ -76,6 +84,7 @@ func (d *DualStack) Create(ctx context.Context) error {
 		if err = bridge.AttachNic(physLink, masterBr); err != nil {
 			return errors.Wrap(err, "could not attach public physical iface to bridge")
 		}
+
 		// this is the master now
 		master = publicBridge
 		d.hasPubBridge = true
