@@ -91,7 +91,7 @@ type Networker interface {
 
 	// GetDefaultGwIP returns the IPs of the default gateways inside the network
 	// resource identified by the network ID on the local node, for IPv4 and IPv6
-	// repsectively
+	// respectively
 	GetDefaultGwIP(networkID NetID) (net.IP, net.IP, error)
 
 	// GetIPv6From4 generates an IPv6 address from a given IPv4 address in a NR
