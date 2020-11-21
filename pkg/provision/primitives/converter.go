@@ -194,6 +194,7 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 		ClusterSecret: k.ClusterSecret,
 		MasterIPs:     k.MasterIps,
 		SSHKeys:       k.SshKeys,
+		PublicIP:      k.PublicIP,
 	}
 
 	return k8s, k.NodeId, nil
