@@ -154,7 +154,6 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 
 	defer func() {
 		if err != nil {
-			_ = vm.Delete(reservation.ID)
 			_ = network.RemoveTap(netID)
 		}
 	}()
