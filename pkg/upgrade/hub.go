@@ -133,7 +133,9 @@ func (h *HubClient) Download(cache, flist string) (string, error) {
 	)
 
 	// check if already downloaded
-	extracted := filepath.Join(cache, info.Hash)
+	downloaded := filepath.Join(cache, info.Hash)
+	extracted := fmt.Sprintf("%s.d", downloaded)
+
 	if _, err := os.Stat(filepath.Join(extracted, dbFileName)); err == nil {
 		// already exists.
 		return extracted, nil
@@ -148,16 +150,15 @@ func (h *HubClient) Download(cache, flist string) (string, error) {
 	log.Debug().Str("url", u.String()).Msg("downloading flist")
 	response, err := http.Get(u.String())
 	if err != nil {
-		return extracted, errors.Wrap(err, "failed to download flist")
+		return "", errors.Wrap(err, "failed to download flist")
 	}
 
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return extracted, fmt.Errorf("failed to download flist: %s", response.Status)
+		return "", fmt.Errorf("failed to download flist: %s", response.Status)
 	}
 
-	db := fmt.Sprintf("%s.d", extracted)
-	return db, meta.Unpack(response.Body, db)
+	return extracted, meta.Unpack(response.Body, extracted)
 }
 
 // FListInfo is information of flist as returned by repo list operation

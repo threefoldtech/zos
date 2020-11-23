@@ -318,6 +318,7 @@ func (u *Upgrader) upgradeSelf(store meta.Walker) error {
 
 	// nothing to be done here.
 	if current == new {
+		log.Debug().Msg("skipping self upgrade because same revision")
 		return nil
 	}
 
