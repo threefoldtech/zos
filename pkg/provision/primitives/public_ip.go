@@ -2,9 +2,17 @@ package primitives
 
 import (
 	"context"
+	"net"
 
 	"github.com/threefoldtech/zos/pkg/provision"
 )
+
+// PublicIP structure
+type PublicIP struct {
+	// IP of the VM. The IP must be part of the subnet available in the network
+	// resource defined by the networkID on this node
+	IP net.IPNet `json:"ip"`
+}
 
 // PublicIPResult result returned by publicIP reservation
 type PublicIPResult struct {
