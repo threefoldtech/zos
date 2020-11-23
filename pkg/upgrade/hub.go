@@ -156,7 +156,8 @@ func (h *HubClient) Download(cache, flist string) (string, error) {
 		return extracted, fmt.Errorf("failed to download flist: %s", response.Status)
 	}
 
-	return extracted, meta.Unpack(response.Body, extracted)
+	db := fmt.Sprintf("%s.d", extracted)
+	return db, meta.Unpack(response.Body, db)
 }
 
 // FListInfo is information of flist as returned by repo list operation
