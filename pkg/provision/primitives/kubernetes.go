@@ -185,6 +185,11 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	}
 
 	err = p.kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
+	if err != nil {
+		// attempt to delete the vm, should the process still be lingering
+		vm.Delete(reservation.ID)
+	}
+
 	return result, err
 }
 
