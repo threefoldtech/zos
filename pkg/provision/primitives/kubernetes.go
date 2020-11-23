@@ -244,6 +244,9 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 		case <-time.After(time.Second * 3):
 			// retry after 3 secs
 		case <-deadline.Done():
+			//TODO: if node failed to start in 5 min we need to do
+			// clean up here to make sure we don't leave any trash
+			// behind.
 			return errors.New("failed to install vm in 5 minutes")
 		}
 	}
