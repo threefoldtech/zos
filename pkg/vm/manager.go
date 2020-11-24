@@ -343,7 +343,7 @@ func (m *Module) Inspect(name string) (pkg.VMInfo, error) {
 func (m *Module) Delete(name string) error {
 	defer m.cleanFs(name)
 
-	// before we do anything we set failures to perminant to pervent monitoring from trying
+	// before we do anything we set failures to permanent to prevent monitoring from trying
 	// to revive this machine
 	m.failures.Set(name, permanent, cache.DefaultExpiration)
 
