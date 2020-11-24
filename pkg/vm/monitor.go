@@ -50,7 +50,6 @@ func (m *Module) monitor(ctx context.Context) error {
 		return err
 	}
 
-	log.Debug().Int("machines", len(running)).Msg("machines running")
 	// list all configurations
 	root := filepath.Join(m.root, "firecracker")
 	items, err := ioutil.ReadDir(root)
@@ -106,7 +105,7 @@ func (m *Module) monitorID(ctx context.Context, running map[string]int, id strin
 
 	var reason error
 	if count < failuresBeforeDestroy {
-		log.Debug().Msg("trying to restart the container")
+		log.Debug().Msg("trying to restart the vm")
 		jailed, err := JailedFromPath(filepath.Join(m.root, "firecracker", id, "root"))
 		if err != nil {
 			return err
@@ -118,10 +117,14 @@ func (m *Module) monitorID(ctx context.Context, running map[string]int, id strin
 	}
 
 	if reason != nil {
-		log.Debug().Err(reason).Msg("deleting container due to restart error")
+		log.Debug().Err(reason).Msg("deleting vm due to restart error")
 
 		stub := stubs.NewProvisionStub(m.client)
 		if err := stub.DecommissionCached(id, reason.Error()); err != nil {
+			if err := m.cleanFs(id); err != nil {
+				log.Error().Err(err).Msg("failed to delete clean up unmanaged vm")
+			}
+
 			return errors.Wrapf(err, "failed to decommission reservation '%s'", id)
 		}
 	}
