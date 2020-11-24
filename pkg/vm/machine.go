@@ -233,6 +233,12 @@ func (j *Jailed) exec(ctx context.Context) error {
 	logFile := j.Log(base)
 
 	var cmd *exec.Cmd
+	// okay we use ash as a way to daemonize the firecracker process
+	// for somereason doing a cmd.Start() only will make the process
+	// killed if the vmd exits! which is a weird behavior not like
+	// what is expected (we also tried process.Release()) and also
+	// tried to use syscall.SysProcAttr with no luck.
+	// TODO:clean up hack use go-daemon
 	if !testing {
 		cmd = exec.CommandContext(ctx,
 			"ash", "-c",

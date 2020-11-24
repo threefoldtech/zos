@@ -1,14 +1,12 @@
 package vm
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -83,7 +81,7 @@ func (m *Module) socket(id string) string {
 
 // Exists checks if firecracker process running for this machine
 func (m *Module) Exists(id string) bool {
-	_, err := m.find(id)
+	_, err := find(id)
 	return err == nil
 }
 
@@ -280,12 +278,20 @@ func (m *Module) Run(vm pkg.VM) error {
 		return m.withLogs(logFile, err)
 	}
 
+	if err := m.waitAndAdjOom(ctx, jailed.ID); err != nil {
+		return m.withLogs(logFile, err)
+	}
+
+	return nil
+}
+
+func (m *Module) waitAndAdjOom(ctx context.Context, id string) error {
 	check := func() error {
-		if !m.Exists(machine.ID) {
-			return fmt.Errorf("failed to spawn vm machine process '%s'", machine.ID)
+		if !m.Exists(id) {
+			return fmt.Errorf("failed to spawn vm machine process '%s'", id)
 		}
 		//TODO: check unix connection
-		socket := m.socket(machine.ID)
+		socket := m.socket(id)
 		con, err := net.Dial("unix", socket)
 		if err != nil {
 			return err
@@ -298,9 +304,17 @@ func (m *Module) Run(vm pkg.VM) error {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 
-	// wait for the machine to answer
-	if err = backoff.Retry(check, backoff.WithContext(backoff.NewConstantBackOff(2*time.Second), ctx)); err != nil {
-		return m.withLogs(logFile, err)
+	if err := backoff.Retry(check, backoff.WithContext(backoff.NewConstantBackOff(2*time.Second), ctx)); err != nil {
+		return err
+	}
+
+	pid, err := find(id)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find vm with id '%s'", id)
+	}
+
+	if err := ioutil.WriteFile(filepath.Join("/proc/", fmt.Sprint(pid), "oom_adj"), []byte("-17"), 0644); err != nil {
+		return errors.Wrapf(err, "failed to update oom priority for machine '%s' (PID: %d)", id, pid)
 	}
 
 	return nil
@@ -325,80 +339,6 @@ func (m *Module) Inspect(name string) (pkg.VMInfo, error) {
 	}, nil
 }
 
-func (m *Module) findAll() (map[string]int, error) {
-	const (
-		proc   = "/proc"
-		search = "/firecracker"
-		idFlag = "--id"
-	)
-
-	found := make(map[string]int)
-	err := filepath.Walk(proc, func(path string, info os.FileInfo, _ error) error {
-		if path == proc {
-			// assend into /proc
-			return nil
-		}
-
-		dir, name := filepath.Split(path)
-
-		if filepath.Clean(dir) != proc {
-			// this to make sure we only scan first level
-			return filepath.SkipDir
-		}
-
-		pid, err := strconv.Atoi(name)
-		if err != nil {
-			//not a number
-			return nil //continue scan
-		}
-		cmd, err := ioutil.ReadFile(filepath.Join(path, "cmdline"))
-		if os.IsNotExist(err) {
-			return nil
-		} else if err != nil {
-			return err
-		}
-
-		parts := bytes.Split(cmd, []byte{0})
-		if string(parts[0]) != search {
-			return nil
-		}
-
-		// a firecracker instance, now find id
-		for i, part := range parts {
-			if string(part) == idFlag {
-				// a hit
-				if i == len(parts)-1 {
-					// --id some how is last element of the array
-					// so avoid a panic by skipping this
-					return nil
-				}
-				id := parts[i+1]
-				found[string(id)] = pid
-				// this is to stop the scan.
-				return nil
-			}
-		}
-
-		return nil
-	})
-
-	return found, err
-}
-
-func (m *Module) find(name string) (int, error) {
-	machines, err := m.findAll()
-	if err != nil {
-		return 0, err
-	}
-
-	pid, ok := machines[name]
-	if !ok {
-		return 0, fmt.Errorf("vm '%s' not found", name)
-	}
-
-	return pid, nil
-}
-
 // Delete deletes a machine by name (id)
 func (m *Module) Delete(name string) error {
 	defer m.cleanFs(name)
@@ -407,7 +347,7 @@ func (m *Module) Delete(name string) error {
 	// to revive this machine
 	m.failures.Set(name, permanent, cache.DefaultExpiration)
 
-	pid, err := m.find(name)
+	pid, err := find(name)
 	if err != nil {
 		// machine already gone
 		return nil

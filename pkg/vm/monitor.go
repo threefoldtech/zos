@@ -45,7 +45,7 @@ func (m *Module) monitor(ctx context.Context) error {
 	defer m.lock.Unlock()
 
 	// list all machines available under `{root}/firecracker`
-	running, err := m.findAll()
+	running, err := findAll()
 	if err != nil {
 		return err
 	}
@@ -112,6 +112,10 @@ func (m *Module) monitorID(ctx context.Context, running map[string]int, id strin
 		}
 
 		reason = jailed.Start(ctx)
+		if reason == nil {
+			reason = m.waitAndAdjOom(ctx, id)
+		}
+
 	} else {
 		reason = fmt.Errorf("deleting vm due to so many crashes")
 	}
