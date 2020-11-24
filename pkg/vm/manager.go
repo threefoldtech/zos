@@ -10,14 +10,17 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 )
 
@@ -28,29 +31,33 @@ const (
 	defaultKernelArgs = "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules"
 )
 
-// vmModuleImpl implements the VMModule interface
-type vmModuleImpl struct {
-	root string
+// Module implements the VMModule interface
+type Module struct {
+	root     string
+	client   zbus.Client
+	lock     sync.Mutex
+	failures *cache.Cache
 }
 
 var (
-	_ pkg.VMModule = (*vmModuleImpl)(nil)
-
-	errScanFound = fmt.Errorf("found")
+	_ pkg.VMModule = (*Module)(nil)
 )
 
 // NewVMModule creates a new instance of vm manager
-func NewVMModule(root string) (pkg.VMModule, error) {
+func NewVMModule(cl zbus.Client, root string) (*Module, error) {
 	if err := os.MkdirAll(FCSockDir, 0755); err != nil {
 		return nil, err
 	}
 
-	return &vmModuleImpl{
-		root: root,
+	return &Module{
+		root:   root,
+		client: cl,
+		// values are cached only for 1 minute. purge cache every 20 second
+		failures: cache.New(time.Minute, 20*time.Second),
 	}, nil
 }
 
-func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]Drive, error) {
+func (m *Module) makeDevices(vm *pkg.VM) ([]Drive, error) {
 	var drives []Drive
 	for i, disk := range vm.Disks {
 		id := fmt.Sprintf("%d", i+2)
@@ -66,20 +73,21 @@ func (m *vmModuleImpl) makeDevices(vm *pkg.VM) ([]Drive, error) {
 	return drives, nil
 }
 
-func (m *vmModuleImpl) machineRoot(id string) string {
+func (m *Module) machineRoot(id string) string {
 	return filepath.Join(m.root, "firecracker", id)
 }
 
-func (m *vmModuleImpl) socket(id string) string {
+func (m *Module) socket(id string) string {
 	return filepath.Join(m.machineRoot(id), "root", "api.socket")
 }
 
-func (m *vmModuleImpl) Exists(id string) bool {
+// Exists checks if firecracker process running for this machine
+func (m *Module) Exists(id string) bool {
 	_, err := m.find(id)
 	return err == nil
 }
 
-func (m *vmModuleImpl) cleanFs(id string) error {
+func (m *Module) cleanFs(id string) error {
 	root := filepath.Join(m.machineRoot(id), "root")
 
 	files, err := ioutil.ReadDir(root)
@@ -111,7 +119,7 @@ func (m *vmModuleImpl) cleanFs(id string) error {
 	return os.RemoveAll(m.machineRoot(id))
 }
 
-func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) (iface Interface, cmdline string, err error) {
+func (m *Module) makeNetwork(vm *pkg.VM) (iface Interface, cmdline string, err error) {
 	netIP := vm.Network.AddressCIDR
 
 	nic := Interface{
@@ -140,7 +148,7 @@ func (m *vmModuleImpl) makeNetwork(vm *pkg.VM) (iface Interface, cmdline string,
 	return nic, cmdline, nil
 }
 
-func (m *vmModuleImpl) tail(path string) (string, error) {
+func (m *Module) tail(path string) (string, error) {
 	// fetch 2k of bytes from the path ?
 	// TODO: implement a better tail algo.
 
@@ -178,7 +186,7 @@ func (m *vmModuleImpl) tail(path string) (string, error) {
 	return string(logs), nil
 }
 
-func (m *vmModuleImpl) withLogs(path string, err error) error {
+func (m *Module) withLogs(path string, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -192,7 +200,10 @@ func (m *vmModuleImpl) withLogs(path string, err error) error {
 }
 
 // Run vm
-func (m *vmModuleImpl) Run(vm pkg.VM) error {
+func (m *Module) Run(vm pkg.VM) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	if err := vm.Validate(); err != nil {
 		return errors.Wrap(err, "machine configuration validation failed")
 	}
@@ -254,9 +265,18 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 		}
 	}()
 
-	logFile := machine.Log(m.root)
+	jailed, err := machine.Jail(m.root)
+	if err != nil {
+		return err
+	}
 
-	if err = machine.Start(ctx, m.root); err != nil {
+	if err = jailed.Save(); err != nil {
+		return err
+	}
+
+	logFile := jailed.Log(m.root)
+
+	if err = jailed.Start(ctx); err != nil {
 		return m.withLogs(logFile, err)
 	}
 
@@ -286,7 +306,8 @@ func (m *vmModuleImpl) Run(vm pkg.VM) error {
 	return nil
 }
 
-func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
+// Inspect a machine by name
+func (m *Module) Inspect(name string) (pkg.VMInfo, error) {
 	if !m.Exists(name) {
 		return pkg.VMInfo{}, fmt.Errorf("machine '%s' does not exist", name)
 	}
@@ -304,13 +325,14 @@ func (m *vmModuleImpl) Inspect(name string) (pkg.VMInfo, error) {
 	}, nil
 }
 
-func (m *vmModuleImpl) find(name string) (int, error) {
+func (m *Module) findAll() (map[string]int, error) {
 	const (
 		proc   = "/proc"
 		search = "/firecracker"
+		idFlag = "--id"
 	)
-	idArg := name
-	result := 0
+
+	found := make(map[string]int)
 	err := filepath.Walk(proc, func(path string, info os.FileInfo, _ error) error {
 		if path == proc {
 			// assend into /proc
@@ -342,29 +364,48 @@ func (m *vmModuleImpl) find(name string) (int, error) {
 		}
 
 		// a firecracker instance, now find id
-		for _, part := range parts {
-			if string(part) == idArg {
+		for i, part := range parts {
+			if string(part) == idFlag {
 				// a hit
-				result = pid
+				if i == len(parts)-1 {
+					// --id some how is last element of the array
+					// so avoid a panic by skipping this
+					return nil
+				}
+				id := parts[i+1]
+				found[string(id)] = pid
 				// this is to stop the scan.
-				return errScanFound
+				return nil
 			}
 		}
 
 		return nil
 	})
 
-	if err == errScanFound {
-		return result, nil
-	} else if err != nil {
+	return found, err
+}
+
+func (m *Module) find(name string) (int, error) {
+	machines, err := m.findAll()
+	if err != nil {
 		return 0, err
 	}
 
-	return 0, fmt.Errorf("vm '%s' not found", name)
+	pid, ok := machines[name]
+	if !ok {
+		return 0, fmt.Errorf("vm '%s' not found", name)
+	}
+
+	return pid, nil
 }
 
-func (m *vmModuleImpl) Delete(name string) error {
+// Delete deletes a machine by name (id)
+func (m *Module) Delete(name string) error {
 	defer m.cleanFs(name)
+
+	// before we do anything we set failures to perminant to pervent monitoring from trying
+	// to revive this machine
+	m.failures.Set(name, permanent, cache.DefaultExpiration)
 
 	pid, err := m.find(name)
 	if err != nil {
