@@ -53,7 +53,7 @@ func NewVMModule(cl zbus.Client, root string) (*Module, error) {
 		root:   root,
 		client: cl,
 		// values are cached only for 1 minute. purge cache every 20 second
-		failures: cache.New(time.Minute, 20*time.Second),
+		failures: cache.New(2*time.Minute, 20*time.Second),
 	}, nil
 }
 
