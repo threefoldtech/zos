@@ -365,6 +365,15 @@ func vmSize(size uint8) (cpu uint8, memory uint64, storage uint64, err error) {
 	case 14:
 		//1 vCpu, 64 GiB RAM, 800 GB disk
 		return 1, 64 * 1024, 800 * 1024, nil
+	case 15:
+		//1 vCpu, 2 GiB RAM, 25 GB disk
+		return 1, 2 * 1024, 25 * 1024, nil
+	case 16:
+		//2 vCpu, 4 GiB RAM, 50 GB disk
+		return 2, 4 * 1024, 50 * 1024, nil
+	case 17:
+		//4 vCpu, 8 GiB RAM, 50 GB disk
+		return 4, 8 * 1024, 50 * 1024, nil
 	}
 
 	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size 1 and 2 are supported", size)
