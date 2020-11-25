@@ -274,6 +274,10 @@ func (m *Module) Run(vm pkg.VM) error {
 
 	logFile := jailed.Log(m.root)
 
+	if vm.NoKeepAlive {
+		m.failures.Set(jailed.ID, permanent, cache.NoExpiration)
+	}
+
 	if err = jailed.Start(ctx); err != nil {
 		return m.withLogs(logFile, err)
 	}
@@ -342,10 +346,11 @@ func (m *Module) Inspect(name string) (pkg.VMInfo, error) {
 // Delete deletes a machine by name (id)
 func (m *Module) Delete(name string) error {
 	defer m.cleanFs(name)
+	defer m.failures.Delete(name)
 
 	// before we do anything we set failures to permanent to prevent monitoring from trying
 	// to revive this machine
-	m.failures.Set(name, permanent, cache.DefaultExpiration)
+	m.failures.Set(name, permanent, cache.NoExpiration)
 
 	pid, err := find(name)
 	if err != nil {

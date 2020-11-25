@@ -48,6 +48,11 @@ type VM struct {
 	// Disks are a list of disks that are going to
 	// be auto allocated on the provided storage path
 	Disks []VMDisk
+	// If this flag is set, the VM module will not auto start
+	// this machine hence, also no auto clean up when it exits
+	// it's up to the caller to check for the machine status
+	// and do clean up (module.Delete(vm)) when needed
+	NoKeepAlive bool
 }
 
 // Validate vm data
