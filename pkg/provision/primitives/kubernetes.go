@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
@@ -201,30 +202,38 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
 		KernelArgs:  cmdline,
 		Disks:       disks,
-		NoKeepAlive: true, //machine will not restarted automatically when it exists
+		// machine will not restarted automatically when it exists
+		// because it's part of the installation that the machine
+		// exits after installation is complete. we don't need
+		// vmd to auto start it.
+		NoKeepAlive: true,
 	}
 
 	if err := vm.Run(installVM); err != nil {
 		return errors.Wrap(err, "could not run vm")
 	}
 
-	deadline, cancel := context.WithTimeout(ctx, time.Minute*5)
+	deadline, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
-	for {
-		if !vm.Exists(name) {
-			// install is done
-			break
+
+	strategy := backoff.NewConstantBackOff(3 * time.Second)
+	err := backoff.Retry(func() error {
+		if vm.Exists(name) {
+			return fmt.Errorf("vm is still running")
 		}
-		select {
-		case <-time.After(time.Second * 3):
-			// retry after 3 secs
-		case <-deadline.Done():
-			return errors.New("failed to install vm in 5 minutes")
-		}
+
+		return nil
+	}, backoff.WithContext(strategy, deadline))
+
+	// we need to delete the vm anyway (even if installation succeeded)
+	// so we call vm.Delete now.
+	delErr := vm.Delete(name)
+
+	if err != nil {
+		return errors.Wrapf(err, "failed to install vm '%s' in time (other errors: %s)", name, delErr)
 	}
 
-	// Delete the VM, the disk will be installed now
-	return vm.Delete(name)
+	return delErr
 }
 
 func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
