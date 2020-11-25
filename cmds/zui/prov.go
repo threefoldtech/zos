@@ -59,12 +59,10 @@ func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 
 	go func() {
 		for point := range stream {
-			for _, cpu := range point {
-				prov.Mutex.Lock()
-				prov.Rows[0][1] = fmt.Sprintf("%0.00f%%", cpu.Percent)
-				render.Signal()
-				prov.Mutex.Unlock()
-			}
+			prov.Mutex.Lock()
+			prov.Rows[0][1] = fmt.Sprintf("%0.00f%%", point.Percent)
+			render.Signal()
+			prov.Mutex.Unlock()
 		}
 	}()
 

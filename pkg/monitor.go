@@ -48,7 +48,7 @@ func (s *TimesStat) String() string {
 }
 
 // CPUTimesStat alias for []TimesStat required by zbus
-type CPUTimesStat []TimesStat
+type CPUTimesStat TimesStat
 
 // DisksIOCountersStat alias for map[string]IOCountersStat required by zbus
 type DisksIOCountersStat map[string]DiskIOCountersStat
