@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/pkg/errors"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -182,6 +184,35 @@ type resourceUnits struct {
 	HRU uint64 `json:"hru,omitempty"`
 	MRU uint64 `json:"mru,omitempty"`
 	CRU uint64 `json:"cru,omitempty"`
+}
+
+// CheckMemoryRequirements checks memory requirements for a reservation and compares it to whats in the counters
+// and what is the total memory on this node
+func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, memStats *mem.VirtualMemoryStat) error {
+	switch r.Type {
+	case ContainerReservation:
+		requestedUnits, err := processContainer(r)
+		if err != nil {
+			return err
+		}
+
+		// If current MRU + requested MRU exceeds total, return an error
+		if uint64(c.CurrentUnits().Mru)+requestedUnits.HRU > memStats.Total {
+			return errors.New("reservation requested memory is to high")
+		}
+	case KubernetesReservation:
+		requestedUnits, err := processKubernetes(r)
+		if err != nil {
+			return err
+		}
+
+		// If current MRU + requested MRU exceeds total, return an error
+		if uint64(c.CurrentUnits().Mru)+requestedUnits.HRU > memStats.Total {
+			return errors.New("reservation requested memory is to high")
+		}
+	}
+
+	return nil
 }
 
 func processVolume(r *provision.Reservation) (u resourceUnits, err error) {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/jbenet/go-base58"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -36,6 +37,7 @@ type Engine struct {
 	statser        Statser
 	zbusCl         zbus.Client
 	janitor        *Janitor
+	memStats       *mem.VirtualMemoryStat
 }
 
 // EngineOps are the configuration of the engine
@@ -68,6 +70,8 @@ type EngineOps struct {
 	// Janitor is used to clean up some of the resources that might be lingering on the node
 	// if not set, no cleaning up will be done
 	Janitor *Janitor
+
+	MemStats *mem.VirtualMemoryStat
 }
 
 // New creates a new engine. Once started, the engine
@@ -88,6 +92,7 @@ func New(opts EngineOps) *Engine {
 		statser:        opts.Statser,
 		zbusCl:         opts.ZbusCl,
 		janitor:        opts.Janitor,
+		memStats:       opts.MemStats,
 	}
 }
 
@@ -180,6 +185,10 @@ func (e *Engine) Run(ctx context.Context) error {
 func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 	if err := r.validate(); err != nil {
 		return errors.Wrapf(err, "failed validation of reservation")
+	}
+
+	if err := e.statser.CheckMemoryRequirements(r, e.memStats); err != nil {
+		return errors.Wrapf(err, "failed to apply provision")
 	}
 
 	fn, ok := e.provisioners[r.Type]

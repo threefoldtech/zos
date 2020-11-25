@@ -3,6 +3,7 @@ package provision
 import (
 	"context"
 
+	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 )
@@ -67,4 +68,5 @@ type Statser interface {
 	Decrement(r *Reservation) error
 	CurrentUnits() directory.ResourceAmount
 	CurrentWorkloads() directory.WorkloadAmount
+	CheckMemoryRequirements(r *Reservation, memStats *mem.VirtualMemoryStat) error
 }
