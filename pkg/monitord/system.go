@@ -60,8 +60,8 @@ func (m *systemMonitor) Memory(ctx context.Context) <-chan pkg.VirtualMemoryStat
 }
 
 // CPU starts cpu monitor stream
-func (m *systemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
-	ch := make(chan pkg.CPUTimesStat)
+func (m *systemMonitor) CPU(ctx context.Context) <-chan pkg.TimesStat {
+	ch := make(chan pkg.TimesStat)
 	go func() {
 		defer close(ch)
 
@@ -82,7 +82,7 @@ func (m *systemMonitor) CPU(ctx context.Context) <-chan pkg.CPUTimesStat {
 					log.Error().Err(err).Msg("failed to read cpu usage times")
 					continue
 				}
-				for i, time := range times {
+				for _, time := range times {
 					result = pkg.TimesStat{
 						TimesStat: time,
 						Percent:   percents[0],
