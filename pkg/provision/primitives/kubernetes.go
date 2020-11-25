@@ -173,7 +173,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	}
 
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = p.buildNetworkInfo(ctx, reservation.User, iface, pubIface, config)
+	netInfo, err = p.buildNetworkInfo(ctx, reservation.Version, reservation.User, iface, pubIface, config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
@@ -327,7 +327,7 @@ func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *pr
 	return nil
 }
 
-func (p *Provisioner) buildNetworkInfo(ctx context.Context, userID string, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
+func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID string, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 
 	netID := provision.NetworkID(userID, string(cfg.NetworkID))
@@ -372,6 +372,11 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, userID string, iface
 			Public:         false,
 		}},
 		Nameservers: []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("1.1.1.1"), net.ParseIP("2001:4860:4860::8888")},
+	}
+
+	// from this reservation version on we deploy new VM's with the custom boot script for IP
+	if rversion >= 2 {
+		networkInfo.NewStyle = true
 	}
 
 	if cfg.PublicIP != 0 {
