@@ -202,7 +202,7 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
 		KernelArgs:  cmdline,
 		Disks:       disks,
-		NoKeepAlive: true, //machine will not restart automatically when it exists
+		NoKeepAlive: true, //machine will not restart automatically when it exits
 	}
 
 	if err := vm.Run(installVM); err != nil {
