@@ -58,17 +58,13 @@ func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
 	}
 
 	go func() {
-		var aggregatedValue float64
 		for point := range stream {
-			aggregatedValue = 0
 			for _, cpu := range point {
-				aggregatedValue += cpu.Percent
+				prov.Mutex.Lock()
+				prov.Rows[0][1] = fmt.Sprintf("%0.00f%%", cpu.Percent)
+				render.Signal()
+				prov.Mutex.Unlock()
 			}
-			aggregatedValue = aggregatedValue / float64(len(point))
-			prov.Mutex.Lock()
-			prov.Rows[0][1] = fmt.Sprintf("%0.00f%%", aggregatedValue)
-			render.Signal()
-			prov.Mutex.Unlock()
 		}
 	}()
 
