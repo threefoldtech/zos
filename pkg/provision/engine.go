@@ -81,17 +81,23 @@ type EngineOps struct {
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
 func New(opts EngineOps) *Engine {
+	memStats, err := mem.VirtualMemory()
+	if err != nil {
+		log.Error().Err(err).Msg("failed retrieve memory stats")
+	}
+
 	return &Engine{
-		nodeID:         opts.NodeID,
-		source:         opts.Source,
-		cache:          opts.Cache,
-		feedback:       opts.Feedback,
-		provisioners:   opts.Provisioners,
-		decomissioners: opts.Decomissioners,
-		signer:         opts.Signer,
-		statser:        opts.Statser,
-		zbusCl:         opts.ZbusCl,
-		janitor:        opts.Janitor,
+		nodeID:            opts.NodeID,
+		source:            opts.Source,
+		cache:             opts.Cache,
+		feedback:          opts.Feedback,
+		provisioners:      opts.Provisioners,
+		decomissioners:    opts.Decomissioners,
+		signer:            opts.Signer,
+		statser:           opts.Statser,
+		zbusCl:            opts.ZbusCl,
+		janitor:           opts.Janitor,
+		totalMemAvailable: memStats.Total - minimunZosMemory,
 	}
 }
 
@@ -99,17 +105,11 @@ func New(opts EngineOps) *Engine {
 func (e *Engine) Run(ctx context.Context) error {
 	cReservation := e.source.Reservations(ctx)
 
-	memStats, err := mem.VirtualMemory()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed retrieve memory stats")
-	}
-	e.totalMemAvailable = memStats.Total - minimunZosMemory
-
 	isAllWorkloadsProcessed := false
 	// run a cron task that will fire the cleanup at midnight
 	cleanUp := make(chan struct{}, 2)
 	c := cron.New()
-	_, err = c.AddFunc("@midnight", func() {
+	_, err := c.AddFunc("@midnight", func() {
 		cleanUp <- struct{}{}
 	})
 	if err != nil {
@@ -192,10 +192,6 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		return errors.Wrapf(err, "failed validation of reservation")
 	}
 
-	if err := e.statser.CheckMemoryRequirements(r, e.totalMemAvailable); err != nil {
-		return errors.Wrapf(err, "failed to apply provision")
-	}
-
 	fn, ok := e.provisioners[r.Type]
 	if !ok {
 		return fmt.Errorf("type of reservation not supported: %s", r.Type)
@@ -232,17 +228,7 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		r.ID = r.Reference
 	}
 
-	returned, provisionError := fn(ctx, r)
-	if provisionError != nil {
-		log.Error().
-			Err(provisionError).
-			Str("id", r.ID).
-			Msgf("failed to apply provision")
-	} else {
-		log.Info().
-			Str("result", fmt.Sprintf("%v", returned)).
-			Msgf("workload deployed")
-	}
+	returned, provisionError := e.provisionForward(ctx, fn, r)
 
 	result, err := e.buildResult(realID, r.Type, provisionError, returned)
 	if err != nil {
@@ -296,6 +282,27 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 	}
 
 	return nil
+}
+
+func (e *Engine) provisionForward(ctx context.Context, fn ProvisionerFunc, r *Reservation) (interface{}, error) {
+	if err := e.statser.CheckMemoryRequirements(r, e.totalMemAvailable); err != nil {
+		return nil, errors.Wrapf(err, "failed to apply provision")
+	}
+
+	returned, provisionError := fn(ctx, r)
+	if provisionError != nil {
+		log.Error().
+			Err(provisionError).
+			Str("id", r.ID).
+			Msgf("failed to apply provision")
+		return nil, provisionError
+	}
+
+	log.Info().
+		Str("result", fmt.Sprintf("%v", returned)).
+		Msgf("workload deployed")
+
+	return nil, nil
 }
 
 func (e *Engine) decommission(ctx context.Context, r *Reservation) error {
