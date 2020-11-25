@@ -1,8 +1,6 @@
 name: Chatflows Tests
 
-on:
-  release:
-    types: [ prereleased ]
+on: workflow_dispatch
 
 jobs:
   build:
