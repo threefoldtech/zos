@@ -109,7 +109,7 @@ func (e *Engine) Run(ctx context.Context) error {
 	// run a cron task that will fire the cleanup at midnight
 	cleanUp := make(chan struct{}, 2)
 	c := cron.New()
-	_, err := c.AddFunc("@midnight", func() {
+	_, err = c.AddFunc("@midnight", func() {
 		cleanUp <- struct{}{}
 	})
 	if err != nil {
