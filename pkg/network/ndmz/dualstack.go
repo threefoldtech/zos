@@ -257,6 +257,12 @@ func (d *DualStack) SupportsPubIPv4() bool {
 	return d.hasPubBridge
 }
 
+// EnsureRoutable implements DMZ interface
+func (d *DualStack) EnsureRoutable() error {
+	// dualstack nodes have a dedicated physical interface so this is a no op
+	return nil
+}
+
 // waitIP4 waits to receives some IPv4 from DHCP
 // it returns the pid of the dhcp process or an error
 func waitIP4() error {
