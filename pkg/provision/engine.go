@@ -24,20 +24,22 @@ import (
 
 const gib = 1024 * 1024 * 1024
 
+const minimunZosMemory = 2 * gib
+
 // Engine is the core of this package
 // The engine is responsible to manage provision and decomission of workloads on the system
 type Engine struct {
-	nodeID         string
-	source         ReservationSource
-	cache          ReservationCache
-	feedback       Feedbacker
-	provisioners   map[ReservationType]ProvisionerFunc
-	decomissioners map[ReservationType]DecomissionerFunc
-	signer         Signer
-	statser        Statser
-	zbusCl         zbus.Client
-	janitor        *Janitor
-	memStats       *mem.VirtualMemoryStat
+	nodeID            string
+	source            ReservationSource
+	cache             ReservationCache
+	feedback          Feedbacker
+	provisioners      map[ReservationType]ProvisionerFunc
+	decomissioners    map[ReservationType]DecomissionerFunc
+	signer            Signer
+	statser           Statser
+	zbusCl            zbus.Client
+	janitor           *Janitor
+	totalMemAvailable uint64
 }
 
 // EngineOps are the configuration of the engine
@@ -70,8 +72,6 @@ type EngineOps struct {
 	// Janitor is used to clean up some of the resources that might be lingering on the node
 	// if not set, no cleaning up will be done
 	Janitor *Janitor
-
-	MemStats *mem.VirtualMemoryStat
 }
 
 // New creates a new engine. Once started, the engine
@@ -92,13 +92,18 @@ func New(opts EngineOps) *Engine {
 		statser:        opts.Statser,
 		zbusCl:         opts.ZbusCl,
 		janitor:        opts.Janitor,
-		memStats:       opts.MemStats,
 	}
 }
 
 // Run starts reader reservation from the Source and handle them
 func (e *Engine) Run(ctx context.Context) error {
 	cReservation := e.source.Reservations(ctx)
+
+	memStats, err := mem.VirtualMemory()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed retrieve memory stats")
+	}
+	e.totalMemAvailable = memStats.Total - minimunZosMemory
 
 	isAllWorkloadsProcessed := false
 	// run a cron task that will fire the cleanup at midnight
@@ -187,7 +192,7 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		return errors.Wrapf(err, "failed validation of reservation")
 	}
 
-	if err := e.statser.CheckMemoryRequirements(r, e.memStats); err != nil {
+	if err := e.statser.CheckMemoryRequirements(r, e.totalMemAvailable); err != nil {
 		return errors.Wrapf(err, "failed to apply provision")
 	}
 

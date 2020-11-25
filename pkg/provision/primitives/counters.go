@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/pkg/errors"
-	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -188,27 +187,28 @@ type resourceUnits struct {
 
 // CheckMemoryRequirements checks memory requirements for a reservation and compares it to whats in the counters
 // and what is the total memory on this node
-func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, memStats *mem.VirtualMemoryStat) error {
+func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, totalMemAvailable uint64) error {
+	var requestedUnits resourceUnits
+	var err error
+
 	switch r.Type {
 	case ContainerReservation:
-		requestedUnits, err := processContainer(r)
+		requestedUnits, err = processContainer(r)
 		if err != nil {
 			return err
 		}
 
-		// If current MRU + requested MRU exceeds total, return an error
-		if uint64(c.CurrentUnits().Mru)+requestedUnits.HRU > memStats.Total {
-			return errors.New("reservation requested memory is to high")
-		}
 	case KubernetesReservation:
-		requestedUnits, err := processKubernetes(r)
+		requestedUnits, err = processKubernetes(r)
 		if err != nil {
 			return err
 		}
+	}
 
+	if requestedUnits.MRU != 0 {
 		// If current MRU + requested MRU exceeds total, return an error
-		if uint64(c.CurrentUnits().Mru)+requestedUnits.HRU > memStats.Total {
-			return errors.New("reservation requested memory is to high")
+		if uint64(c.CurrentUnits().Mru)+requestedUnits.MRU > totalMemAvailable {
+			return errors.New("not enough free resources to support this memory size")
 		}
 	}
 

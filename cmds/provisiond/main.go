@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
@@ -125,11 +124,6 @@ func main() {
 
 	provisioner := primitives.NewProvisioner(localStore, zbusCl)
 
-	memStats, err := mem.VirtualMemory()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed retrieve memory stats")
-	}
-
 	puller := explorer.NewPoller(e, primitives.WorkloadToProvisionType, primitives.ProvisionOrder)
 	engine := provision.New(provision.EngineOps{
 		NodeID: nodeID.Identity(),
@@ -145,7 +139,6 @@ func main() {
 		Statser:        statser,
 		ZbusCl:         zbusCl,
 		Janitor:        provision.NewJanitor(zbusCl, puller),
-		MemStats:       memStats,
 	})
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.Provision(engine))
