@@ -60,9 +60,6 @@ func (d *DualStack) Create(ctx context.Context) error {
 	// The second option is used by default, and the first one is now legacy.
 	// However to not break existing containers, we keep the old one if networkd
 	// is restarted but the node is not. In this case, ndmz will already be present.
-	// TODO: properly check if we can switch from a phys iface to a bridge in
-	// between, probably by enumerating every device in every namespace and verifying
-	// none has the phys iface as master.
 	if !namespace.Exists(NetNSNDMZ) {
 		var masterBr *netlink.Bridge
 		if !ifaceutil.Exists(publicBridge, nil) {
@@ -108,8 +105,12 @@ func (d *DualStack) Create(ctx context.Context) error {
 
 	defer netNS.Close()
 
-	if err := createRoutingBridge(BridgeNDMZ, netNS); err != nil {
-		return errors.Wrapf(err, "ndmz: createRoutingBride error")
+	// br-ndmz is legacy in dual stack mode - only run this function if we don't
+	// have a br-pub
+	if !d.hasPubBridge {
+		if err := createRoutingBridge(BridgeNDMZ, netNS); err != nil {
+			return errors.Wrapf(err, "ndmz: createRoutingBride error")
+		}
 	}
 
 	log.Info().Msgf("set ndmz ipv6 master to %s", master)
@@ -180,7 +181,13 @@ func (d *DualStack) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir 
 	}
 
 	if !ifaceutil.Exists(nrPubIface, nrNS) {
-		if _, err = macvlan.Create(nrPubIface, BridgeNDMZ, nrNS); err != nil {
+		// br-pub replaced ndmz bridge, but we need to keep the old flow
+		// for nodes which did not get rebooted (and thus did not migrate) yet
+		ndmzBr := BridgeNDMZ
+		if d.hasPubBridge {
+			ndmzBr = publicBridge
+		}
+		if _, err = macvlan.Create(nrPubIface, ndmzBr, nrNS); err != nil {
 			return err
 		}
 	}
