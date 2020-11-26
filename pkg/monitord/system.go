@@ -75,20 +75,18 @@ func (m *systemMonitor) CPU(ctx context.Context) <-chan pkg.TimesStat {
 					log.Error().Err(err).Msg("failed to read cpu usage percentage")
 					continue
 				}
-				var result pkg.TimesStat
-				now := time.Now()
-				times, err := cpu.Times(true)
+				times, err := cpu.Times(false)
 				if err != nil {
 					log.Error().Err(err).Msg("failed to read cpu usage times")
 					continue
 				}
-				for _, time := range times {
-					result = pkg.TimesStat{
-						TimesStat: time,
-						Percent:   percents[0],
-						Time:      now,
-					}
+
+				result := pkg.TimesStat{
+					TimesStat: times[0],
+					Percent:   percents[0],
+					Time:      time.Now(),
 				}
+
 				select {
 				case ch <- result:
 				case <-ctx.Done():
