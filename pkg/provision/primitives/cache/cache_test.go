@@ -60,7 +60,7 @@ func TestLocalStore(t *testing.T) {
 				root: tt.fields.root,
 			}
 
-			err = s.Add(tt.args.r)
+			err = s.Add(tt.args.r, false)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

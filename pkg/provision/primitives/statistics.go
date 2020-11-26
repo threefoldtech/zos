@@ -23,7 +23,7 @@ func NewStatisticsProvisioner(inner provision.Provisioner, initial Counters) pro
 	return &statsProvisioner{inner: inner, counters: initial}
 }
 
-func (s *statsProvisioner) Provision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (s *statsProvisioner) Provision(ctx context.Context, reservation *provision.Reservation) (*provision.Result, error) {
 	result, err := s.inner.Provision(ctx, reservation)
 	if err != nil {
 		return result, err

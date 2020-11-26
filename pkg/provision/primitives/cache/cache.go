@@ -56,7 +56,7 @@ var (
 
 // Fs is a in reservation cache using the filesystem as backend
 type Fs struct {
-	sync.RWMutex
+	m    sync.RWMutex
 	root string
 }
 
@@ -81,7 +81,7 @@ func NewFSStore(root string) (*Fs, error) {
 // Updates reservation results for reservations in cache that don't have a result set.
 func (s *Fs) updateReservationResults(rootPath string) error {
 	log.Info().Msg("updating reservation results")
-	reservations, err := s.list()
+	reservations, err := s.List()
 	if err != nil {
 		return err
 	}
@@ -127,6 +127,9 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 
 // Purge deletes all cached reservations that matches filter
 func (s *Fs) Purge(f Filter) error {
+	s.m.Lock()
+	s.m.Unlock()
+
 	// if rootPath is not present on the filesystem, return
 	_, err := os.Stat(s.root)
 	if os.IsNotExist(err) {
@@ -155,11 +158,12 @@ func (s *Fs) Purge(f Filter) error {
 		}
 		if f(reservation) {
 			log.Info().Str("reservation", reservation.ID).Msg("removing cached reservation")
-			return s.Remove(id)
+			return s.remove(id)
 		}
 
 		return nil
 	})
+
 	if err != nil {
 		return errors.Wrap(err, "error scanning cached reservations")
 	}
@@ -169,30 +173,30 @@ func (s *Fs) Purge(f Filter) error {
 // CurrentCounters gets current capacity counters from cache
 func (s *Fs) CurrentCounters() (primitives.Counters, error) {
 	var counter primitives.Counters
-	if err := s.Sync(&counter); err != nil {
+	if err := s.sync(&counter); err != nil {
 		return counter, err
 	}
 
 	return counter, nil
 }
 
-// Sync update the statser with all the reservation present in the cache
-func (s *Fs) Sync(statser provision.Statser) error {
-	s.RLock()
-	defer s.RUnlock()
+// sync update the statser with all the reservation present in the cache
+func (s *Fs) sync(statser provision.Statser) error {
+	s.m.RLock()
+	defer s.m.RUnlock()
 
 	return s.incrementCounters(statser)
 }
 
 // Add a reservation to the store
-func (s *Fs) Add(r *provision.Reservation) error {
-	return s.add(r, false)
+func (s *Fs) Add(r *provision.Reservation, override bool) error {
+	return s.add(r, override)
 }
 
 // Add a reservation to the store
 func (s *Fs) add(r *provision.Reservation, override bool) error {
-	s.Lock()
-	defer s.Unlock()
+	s.m.Lock()
+	defer s.m.Unlock()
 
 	// ensure direcory exists
 	if err := os.MkdirAll(s.root, 0770); err != nil {
@@ -225,9 +229,13 @@ func (s *Fs) add(r *provision.Reservation, override bool) error {
 
 // Remove a reservation from the store
 func (s *Fs) Remove(id string) error {
-	s.Lock()
-	defer s.Unlock()
+	s.m.Lock()
+	defer s.m.Unlock()
 
+	return s.remove(id)
+}
+
+func (s *Fs) remove(id string) error {
 	path := filepath.Join(s.root, id)
 	err := os.Remove(path)
 	if os.IsNotExist(errors.Cause(err)) {
@@ -242,8 +250,8 @@ func (s *Fs) Remove(id string) error {
 // GetExpired returns all id the the reservations that are expired
 // at the time of the function call
 func (s *Fs) GetExpired() ([]*provision.Reservation, error) {
-	s.RLock()
-	defer s.RUnlock()
+	s.m.RLock()
+	defer s.m.RUnlock()
 
 	infos, err := ioutil.ReadDir(s.root)
 	if err != nil {
@@ -281,26 +289,16 @@ func (s *Fs) GetExpired() ([]*provision.Reservation, error) {
 // Get retrieves a specific reservation using its ID
 // if returns a non nil error if the reservation is not present in the store
 func (s *Fs) Get(id string) (*provision.Reservation, error) {
-	s.RLock()
-	defer s.RUnlock()
+	s.m.RLock()
+	defer s.m.RUnlock()
 
 	return s.get(id)
 }
 
-// getType retrieves a specific reservation's type using its ID
-// if returns a non nil error if the reservation is not present in the store
-func (s *Fs) getType(id string) (provision.ReservationType, error) {
-	r, err := s.get(id)
-	if err != nil {
-		return provision.ReservationType("unknown"), err
-	}
-	return r.Type, nil
-}
-
 // Exists checks if the reservation ID is in the store
 func (s *Fs) Exists(id string) (bool, error) {
-	s.RLock()
-	defer s.RUnlock()
+	s.m.RLock()
+	defer s.m.RUnlock()
 
 	path := filepath.Join(s.root, id)
 	_, err := os.Stat(path)
@@ -315,7 +313,7 @@ func (s *Fs) Exists(id string) (bool, error) {
 
 // NetworkExists exists checks if a network exists in cache already
 func (s *Fs) NetworkExists(id string) (bool, error) {
-	reservations, err := s.list()
+	reservations, err := s.List()
 	if err != nil {
 		return false, err
 	}
@@ -337,9 +335,10 @@ func (s *Fs) NetworkExists(id string) (bool, error) {
 	return false, nil
 }
 
-func (s *Fs) list() ([]*provision.Reservation, error) {
-	s.RLock()
-	defer s.RUnlock()
+// List all reservations
+func (s *Fs) List() ([]*provision.Reservation, error) {
+	s.m.RLock()
+	defer s.m.RUnlock()
 
 	infos, err := ioutil.ReadDir(s.root)
 	if err != nil {
@@ -367,7 +366,7 @@ func (s *Fs) list() ([]*provision.Reservation, error) {
 func (s *Fs) incrementCounters(statser provision.Statser) error {
 	uniqueNetworkReservations := make(map[pkg.NetID]*provision.Reservation)
 
-	reservations, err := s.list()
+	reservations, err := s.List()
 	if err != nil {
 		return err
 	}

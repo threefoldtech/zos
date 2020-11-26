@@ -2,8 +2,11 @@ package primitives
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
@@ -54,13 +57,14 @@ func (p *Primitives) RuntimeUpgrade(ctx context.Context) {
 }
 
 // Provision implemenents provision.Provisioner
-func (p *Primitives) Provision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (p *Primitives) Provision(ctx context.Context, reservation *provision.Reservation) (*provision.Result, error) {
 	handler, ok := p.provisioners[reservation.Type]
 	if !ok {
 		return nil, fmt.Errorf("unknown reservation type '%s' for reservation id '%s'", reservation.Type, reservation.ID)
 	}
 
-	return handler(ctx, reservation)
+	data, err := handler(ctx, reservation)
+	return p.buildResult(reservation, data, err)
 }
 
 // Decommission implementation for provision.Provisioner
@@ -71,4 +75,27 @@ func (p *Primitives) Decommission(ctx context.Context, reservation *provision.Re
 	}
 
 	return handler(ctx, reservation)
+}
+
+func (p *Primitives) buildResult(reservation *provision.Reservation, data interface{}, err error) (*provision.Result, error) {
+	result := &provision.Result{
+		Type:    reservation.Type,
+		Created: time.Now(),
+		ID:      reservation.ID,
+	}
+
+	if err != nil {
+		result.Error = err.Error()
+		result.State = provision.StateError
+	} else {
+		result.State = provision.StateOk
+	}
+
+	br, err := json.Marshal(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to encode result")
+	}
+	result.Data = br
+
+	return result, nil
 }

@@ -37,7 +37,7 @@ type ResultConverterFunc func(result Result) (*workloads.Result, error)
 // ReservationCache define the interface to store
 // some reservations
 type ReservationCache interface {
-	Add(r *Reservation) error
+	Add(r *Reservation, override bool) error
 	Get(id string) (*Reservation, error)
 	Remove(id string) error
 	Exists(id string) (bool, error)

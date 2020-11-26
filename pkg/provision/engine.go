@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
 	"time"
 
-	"github.com/cenkalti/backoff/v3"
 	"github.com/jbenet/go-base58"
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron/v3"
@@ -28,21 +26,16 @@ const minimunZosMemory = 2 * gib
 
 // Provisioner interface
 type Provisioner interface {
-	Provision(ctx context.Context, reservation *Reservation) (interface{}, error)
+	Provision(ctx context.Context, reservation *Reservation) (*Result, error)
 	Decommission(ctx context.Context, reservation *Reservation) error
 }
 
 // Engine is the core of this package
 // The engine is responsible to manage provision and decomission of workloads on the system
 type Engine struct {
-	nodeID   string
-	source   ReservationSource
-	cache    ReservationCache
-	feedback Feedbacker
+	source ReservationSource
 
 	provisioner Provisioner
-	signer      Signer
-	zbusCl      zbus.Client
 	janitor     *Janitor
 
 	memCache          *cache.Cache
@@ -51,23 +44,10 @@ type Engine struct {
 
 // EngineOps are the configuration of the engine
 type EngineOps struct {
-	// NodeID is the identity of the system running the engine
-	NodeID string
 	// Source is responsible to retrieve reservation for a remote source
 	Source ReservationSource
-	// Feedback is used to send provision result to the source
-	// after the reservation is provisionned
-	Feedback Feedbacker
-	// Cache is a used to keep track of which reservation are provisionned on the system
-	// and know when they expired so they can be decommissioned
-	Cache ReservationCache
 
 	Provisioner Provisioner
-	// Signer is used to authenticate the result send to the source
-	Signer Signer
-
-	// ZbusCl is a client to Zbus
-	ZbusCl zbus.Client
 
 	// Janitor is used to clean up some of the resources that might be lingering on the node
 	// if not set, no cleaning up will be done
@@ -90,16 +70,10 @@ func New(opts EngineOps) (*Engine, error) {
 	totalMemory := math.Ceil(float64(memStats.Total)/gib) * gib
 
 	return &Engine{
-		nodeID:            opts.NodeID,
-		source:            opts.Source,
-		cache:             opts.Cache,
-		feedback:          opts.Feedback,
-		provisioners:      opts.Provisioners,
-		decomissioners:    opts.Decomissioners,
-		signer:            opts.Signer,
-		statser:           opts.Statser,
-		zbusCl:            opts.ZbusCl,
-		janitor:           opts.Janitor,
+		source:      opts.Source,
+		provisioner: opts.Provisioner,
+		janitor:     opts.Janitor,
+
 		memCache:          cache.New(30*time.Minute, 30*time.Second),
 		totalMemAvailable: uint64(totalMemory) - minimunZosMemory,
 	}, nil
@@ -156,7 +130,7 @@ func (e *Engine) Run(ctx context.Context) error {
 			if expired || reservation.ToDelete {
 				slog.Info().Msg("start decommissioning reservation")
 				if err := e.decommission(ctx, &reservation.Reservation); err != nil {
-					log.Error().Err(err).Msgf("failed to decommission reservation %s", reservation.ID)
+					log.Error().Err(err).Msg("failed to decommission reservation")
 					continue
 				}
 			} else {
@@ -174,7 +148,7 @@ func (e *Engine) Run(ctx context.Context) error {
 				e.memCache.Set(reservation.ID, struct{}{}, cache.DefaultExpiration)
 
 				if err := e.provision(ctx, &reservation.Reservation); err != nil {
-					log.Error().Err(err).Msgf("failed to provision reservation %s", reservation.ID)
+					log.Error().Err(err).Msg("failed to provision reservation")
 					continue
 				}
 			}
@@ -200,90 +174,38 @@ func (e *Engine) Run(ctx context.Context) error {
 	}
 }
 
-func (e *Engine) provision(ctx context.Context, r *Reservation) error {
-	if err := r.validate(); err != nil {
+func (e *Engine) provision(ctx context.Context, reservation *Reservation) error {
+	if err := reservation.validate(); err != nil {
 		return errors.Wrapf(err, "failed validation of reservation")
 	}
 
-	if r.Reference != "" {
-		if err := e.migrateToPool(ctx, r); err != nil {
-			return err
-		}
-	}
-
-	if cached, err := e.cache.Get(r.ID); err == nil {
-		log.Info().Str("id", r.ID).Msg("reservation have already been processed")
-		if cached.Result.IsNil() {
-			// this is probably an older reservation that is cached BEFORE
-			// we start caching the result along with the reservation
-			// then we just need to return here.
-			return nil
-		}
-
-		// otherwise, it's safe to resend the same result
-		// back to the grid.
-		if err := e.reply(ctx, &cached.Result); err != nil {
-			log.Error().Err(err).Msg("failed to send result to BCDB")
-		}
-
-		return nil
-	}
-
-	// to ensure old reservation workload that are already running
-	// keeps running as it is, we use the reference as new workload ID
-	realID := r.ID
-	if r.Reference != "" {
-		r.ID = r.Reference
-	}
-
-	returned, provisionError := e.provisionForward(ctx, r)
-
-	result, err := e.buildResult(realID, r.Type, provisionError, returned)
-	if err != nil {
-		return errors.Wrapf(err, "failed to build result object for reservation: %s", result.ID)
-	}
-
-	// send response to explorer
-	if err := e.reply(ctx, result); err != nil {
-		log.Error().Err(err).Msg("failed to send result to BCDB")
-	}
-
-	// if we fail to decomission the reservation then must be marked
-	// as deleted so it's never tried again. we also skip caching
-	// the reservation object. this is similar to what decomission does
-	// since on a decomission we also clear up the cache.
-	if provisionError != nil {
-		// we need to mark the reservation as deleted as well
-		if err := e.feedback.Deleted(e.nodeID, realID); err != nil {
-			log.Error().Err(err).Msg("failed to mark failed reservation as deleted")
-		}
-
-		return provisionError
+	if _, err := e.provisioner.Provision(ctx, reservation); err != nil {
+		return err
 	}
 
 	// we only cache successful reservations
-	r.ID = realID
-	r.Result = *result
-	if err := e.cache.Add(r); err != nil {
-		return errors.Wrapf(err, "failed to cache reservation %s locally", r.ID)
-	}
+	// r.ID = realID
+	// r.Result = *result
+	// if err := e.cache.Add(r, false); err != nil {
+	// 	return errors.Wrapf(err, "failed to cache reservation %s locally", r.ID)
+	// }
 
-	// If an update occurs on the network we don't increment the counter
-	if r.Type == "network_resource" {
-		nr := pkg.NetResource{}
-		if err := json.Unmarshal(r.Data, &nr); err != nil {
-			return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
-		}
+	// // If an update occurs on the network we don't increment the counter
+	// if r.Type == "network_resource" {
+	// 	nr := pkg.NetResource{}
+	// 	if err := json.Unmarshal(r.Data, &nr); err != nil {
+	// 		return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
+	// 	}
 
-		uniqueID := NetworkID(r.User, nr.Name)
-		exists, err := e.cache.NetworkExists(string(uniqueID))
-		if err != nil {
-			return errors.Wrap(err, "failed to check if network exists")
-		}
-		if exists {
-			return nil
-		}
-	}
+	// 	uniqueID := NetworkID(r.User, nr.Name)
+	// 	exists, err := e.cache.NetworkExists(string(uniqueID))
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "failed to check if network exists")
+	// 	}
+	// 	if exists {
+	// 		return nil
+	// 	}
+	// }
 
 	return nil
 }
@@ -307,65 +229,7 @@ func (e *Engine) provisionForward(ctx context.Context, r *Reservation) (interfac
 }
 
 func (e *Engine) decommission(ctx context.Context, r *Reservation) error {
-
-	exists, err := e.cache.Exists(r.ID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to check if reservation %s exists in cache", r.ID)
-	}
-
-	if !exists {
-		log.Info().Str("id", r.ID).Msg("reservation not provisioned, no need to decomission")
-		if err := e.feedback.Deleted(e.nodeID, r.ID); err != nil {
-			log.Error().Err(err).Str("id", r.ID).Msg("failed to mark reservation as deleted")
-		}
-		return nil
-	}
-
-	// to ensure old reservation can be deleted
-	// we use the reference as workload ID
-	realID := r.ID
-	if r.Reference != "" {
-		r.ID = r.Reference
-	}
-
-	if r.Result.State == StateError {
-		// this reservation already failed to deploy
-		// this code here shouldn't be executing because if
-		// the reservation has error-ed, it means is should
-		// not be in cache.
-		// BUT
-		// that was not always the case, so instead we
-		// will just return. here
-		log.Warn().Str("id", realID).Msg("skipping reservation because it is not provisioned")
-		return nil
-	}
-
-	err = e.provisioner.Decommission(ctx, r)
-	if err != nil {
-		return errors.Wrap(err, "decommissioning of reservation failed")
-	}
-
-	r.ID = realID
-
-	if err := e.cache.Remove(r.ID); err != nil {
-		return errors.Wrapf(err, "failed to remove reservation %s from cache", r.ID)
-	}
-
-	if err := e.feedback.Deleted(e.nodeID, r.ID); err != nil {
-		return errors.Wrap(err, "failed to mark reservation as deleted")
-	}
-
-	return nil
-}
-
-func (e *Engine) reply(ctx context.Context, result *Result) error {
-	log.Debug().Str("id", result.ID).Msg("sending reply for reservation")
-
-	if err := e.signResult(result); err != nil {
-		return err
-	}
-
-	return e.feedback.Feedback(e.nodeID, result)
+	return e.provisioner.Decommission(ctx, r)
 }
 
 // DecommissionCached is used by other module to ask provisiond that
@@ -373,32 +237,33 @@ func (e *Engine) reply(ctx context.Context, result *Result) error {
 // the decommission method will take care to update the reservation instance
 // and also decommission the reservation normally
 func (e *Engine) DecommissionCached(id string, reason string) error {
-	r, err := e.cache.Get(id)
-	if err != nil {
-		return err
-	}
+	return fmt.Errorf("not implemented")
+	// r, err := e.cache.Get(id)
+	// if err != nil {
+	// 	return err
+	// }
 
-	ctx := context.Background()
-	result, err := e.buildResult(id, r.Type, fmt.Errorf(reason), nil)
-	if err != nil {
-		return errors.Wrapf(err, "failed to build result object for reservation: %s", id)
-	}
+	// ctx := context.Background()
+	// result, err := e.buildResult(id, r.Type, fmt.Errorf(reason), nil)
+	// if err != nil {
+	// 	return errors.Wrapf(err, "failed to build result object for reservation: %s", id)
+	// }
 
-	if err := e.decommission(ctx, r); err != nil {
-		log.Error().Err(err).Msgf("failed to update reservation result with failure: %s", id)
-	}
+	// if err := e.decommission(ctx, r); err != nil {
+	// 	log.Error().Err(err).Msgf("failed to update reservation result with failure: %s", id)
+	// }
 
-	bf := backoff.NewExponentialBackOff()
-	bf.MaxInterval = 10 * time.Second
-	bf.MaxElapsedTime = 1 * time.Minute
+	// bf := backoff.NewExponentialBackOff()
+	// bf.MaxInterval = 10 * time.Second
+	// bf.MaxElapsedTime = 1 * time.Minute
 
-	return backoff.Retry(func() error {
-		err := e.reply(ctx, result)
-		if err != nil {
-			log.Error().Err(err).Msgf("failed to update reservation result with failure: %s", id)
-		}
-		return err
-	}, bf)
+	// return backoff.Retry(func() error {
+	// 	err := e.reply(ctx, result)
+	// 	if err != nil {
+	// 		log.Error().Err(err).Msgf("failed to update reservation result with failure: %s", id)
+	// 	}
+	// 	return err
+	// }, bf)
 }
 
 func (e *Engine) buildResult(id string, typ ReservationType, err error, info interface{}) (*Result, error) {
@@ -422,22 +287,6 @@ func (e *Engine) buildResult(id string, typ ReservationType, err error, info int
 	result.Data = br
 
 	return result, nil
-}
-
-func (e *Engine) signResult(result *Result) error {
-
-	b, err := result.Bytes()
-	if err != nil {
-		return errors.Wrap(err, "failed to convert the result to byte for signature")
-	}
-
-	sig, err := e.signer.Sign(b)
-	if err != nil {
-		return errors.Wrap(err, "failed to signed the result")
-	}
-	result.Signature = hex.EncodeToString(sig)
-
-	return nil
 }
 
 // func (e *Engine) updateStats() error {
@@ -484,6 +333,10 @@ func (e *Engine) signResult(result *Result) error {
 // 	return e.feedback.UpdateStats(e.nodeID, wl, r)
 // }
 
+func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
+	return nil
+}
+
 // // Counters is a zbus stream that sends statistics from the engine
 // func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
 // 	ch := make(chan pkg.ProvisionCounters)
@@ -512,47 +365,6 @@ func (e *Engine) signResult(result *Result) error {
 
 // 	return ch
 // }
-
-func (e *Engine) migrateToPool(ctx context.Context, r *Reservation) error {
-
-	oldRes, err := e.cache.Get(r.Reference)
-	if err == nil && oldRes.ID == r.Reference {
-		// we have received a reservation that reference another one.
-		// This is the sign user is trying to migrate his workloads to the new capacity pool system
-
-		log.Info().Str("reference", r.Reference).Msg("reservation referencing another one")
-
-		if string(oldRes.Type) != "network" { //we skip network cause its a PITA
-			// first let make sure both are the same
-			if !bytes.Equal(oldRes.Data, r.Data) {
-				return fmt.Errorf("trying to upgrade workloads to new version. new workload content is different from the old one. upgrade refused")
-			}
-		}
-
-		// remove the old one from the cache and store the new one
-		log.Info().Msgf("migration: remove %v from cache", oldRes.ID)
-		if err := e.cache.Remove(oldRes.ID); err != nil {
-			return err
-		}
-		log.Info().Msgf("migration: add %v to cache", r.ID)
-		if err := e.cache.Add(r); err != nil {
-			return err
-		}
-
-		r.Result.ID = r.ID
-		if err := e.signResult(&r.Result); err != nil {
-			return errors.Wrap(err, "error while signing reservation result")
-		}
-
-		if err := e.feedback.Feedback(e.nodeID, &r.Result); err != nil {
-			return err
-		}
-
-		log.Info().Str("old_id", oldRes.ID).Str("new_id", r.ID).Msg("reservation upgraded to new system")
-	}
-
-	return nil
-}
 
 // NetworkID construct a network ID based on a userID and network name
 func NetworkID(userID, name string) pkg.NetID {
