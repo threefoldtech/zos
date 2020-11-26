@@ -11,20 +11,26 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
+// Signer interface is used to sign reservation result before
+// sending them to the explorer
+type Signer interface {
+	Sign(b []byte) ([]byte, error)
+}
+
 // committerProvisioner is an implementation of the provision.Feedbacker
 // that u sends results to the TFExplorer: https://github.com/threefoldtech/tfexplorer
 type committerProvisioner struct {
 	inner     provision.Provisioner
 	client    *client.Client
 	converter provision.ResultConverterFunc
-	signer    provision.Signer
+	signer    Signer
 	nodeID    string
 	strategy  backoff.BackOff
 }
 
 // NewCommitterProvisioner creates a provisioner that makes sure provision results is committed
 // to the explorer
-func NewCommitterProvisioner(inner provision.Provisioner, client *client.Client, converter provision.ResultConverterFunc, signer provision.Signer, nodeID string) provision.Provisioner {
+func NewCommitterProvisioner(inner provision.Provisioner, client *client.Client, converter provision.ResultConverterFunc, signer Signer, nodeID string) provision.Provisioner {
 	strategy := backoff.NewExponentialBackOff()
 	strategy.MaxInterval = 15 * time.Second
 	strategy.MaxElapsedTime = 3 * time.Minute

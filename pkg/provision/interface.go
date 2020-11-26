@@ -21,11 +21,11 @@ type ReservationGetter interface {
 	Get(gwid string) (*Reservation, error)
 }
 
-// ProvisionerFunc is the function called by the Engine to provision a workload
-type ProvisionerFunc func(ctx context.Context, reservation *Reservation) (interface{}, error)
-
-// DecomissionerFunc is the function called by the Engine to decomission a workload
-type DecomissionerFunc func(ctx context.Context, reservation *Reservation) error
+// Provisioner interface
+type Provisioner interface {
+	Provision(ctx context.Context, reservation *Reservation) (*Result, error)
+	Decommission(ctx context.Context, reservation *Reservation) error
+}
 
 // ReservationConverterFunc is used to convert from the explorer workloads type into the
 // internal Reservation type
@@ -42,20 +42,6 @@ type ReservationCache interface {
 	Remove(id string) error
 	Exists(id string) (bool, error)
 	NetworkExists(id string) (bool, error)
-}
-
-// Feedbacker defines the method that needs to be implemented
-// to send the provision result to BCDB
-type Feedbacker interface {
-	Feedback(nodeID string, r *Result) error
-	Deleted(nodeID, id string) error
-	UpdateStats(nodeID string, w directory.WorkloadAmount, u directory.ResourceAmount) error
-}
-
-// Signer interface is used to sign reservation result before
-// sending them to the explorer
-type Signer interface {
-	Sign(b []byte) ([]byte, error)
 }
 
 // Statser is used by the provision Engine to keep

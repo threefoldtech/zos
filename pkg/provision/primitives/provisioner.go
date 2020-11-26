@@ -11,13 +11,16 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
+type provisionFn func(ctx context.Context, reservation *provision.Reservation) (interface{}, error)
+type decommissionFn func(ctx context.Context, reservation *provision.Reservation) error
+
 // Primitives hold all the logic responsible to provision and decomission
 // the different primitives workloads defined by this package
 type Primitives struct {
 	zbus zbus.Client
 
-	provisioners    map[provision.ReservationType]provision.ProvisionerFunc
-	decommissioners map[provision.ReservationType]provision.DecomissionerFunc
+	provisioners    map[provision.ReservationType]provisionFn
+	decommissioners map[provision.ReservationType]decommissionFn
 }
 
 // NewPrimitivesProvisioner creates a new 0-OS provisioner
@@ -25,7 +28,7 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 	p := &Primitives{
 		zbus: zbus,
 	}
-	p.provisioners = map[provision.ReservationType]provision.ProvisionerFunc{
+	p.provisioners = map[provision.ReservationType]provisionFn{
 		ContainerReservation:       p.containerProvision,
 		VolumeReservation:          p.volumeProvision,
 		NetworkReservation:         p.networkProvision,
@@ -35,7 +38,7 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 		KubernetesReservation:      p.kubernetesProvision,
 		PublicIPReservation:        p.publicIPProvision,
 	}
-	p.decommissioners = map[provision.ReservationType]provision.DecomissionerFunc{
+	p.decommissioners = map[provision.ReservationType]decommissionFn{
 		ContainerReservation:       p.containerDecommission,
 		VolumeReservation:          p.volumeDecommission,
 		NetworkReservation:         p.networkDecommission,
