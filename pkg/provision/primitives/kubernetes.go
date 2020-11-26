@@ -56,7 +56,7 @@ type Kubernetes struct {
 // const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
 const k3osFlistURL = "https://hub.grid.tf/lee/k3os.flist"
 
-func (p *Provisioner) kubernetesProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (p *Primitives) kubernetesProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.kubernetesProvisionImpl(ctx, reservation)
 }
 
@@ -71,7 +71,7 @@ func ensureFList(flister pkg.Flister, url string) (string, error) {
 	return flister.NamedMount(name, url, "", pkg.ReadOnlyMountOptions)
 }
 
-func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result KubernetesResult, err error) {
+func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result KubernetesResult, err error) {
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)
@@ -198,7 +198,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	return result, err
 }
 
-func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
+func (p *Primitives) kubernetesInstall(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(p.zbus)
 
 	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.mode=install k3os.install.silent k3os.debug k3os.install.device=/dev/vda k3os.token=%s k3os.k3s_args=\"--flannel-iface=eth0\"", cfg.PlainClusterSecret)
@@ -275,7 +275,7 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 	return vm.Delete(name)
 }
 
-func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
+func (p *Primitives) kubernetesRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, networkInfo pkg.VMNetworkInfo, cfg Kubernetes) error {
 	vm := stubs.NewVMModuleStub(p.zbus)
 
 	disks := make([]pkg.VMDisk, 1)
@@ -296,7 +296,7 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 	return vm.Run(kubevm)
 }
 
-func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) kubernetesDecomission(ctx context.Context, reservation *provision.Reservation) error {
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)
@@ -333,7 +333,7 @@ func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *pr
 	return nil
 }
 
-func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID string, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
+func (p *Primitives) buildNetworkInfo(ctx context.Context, rversion int, userID string, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 
 	netID := provision.NetworkID(userID, string(cfg.NetworkID))

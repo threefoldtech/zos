@@ -15,6 +15,23 @@ import (
 // ReservationType type
 type ReservationType string
 
+const (
+	// ContainerReservation type
+	ContainerReservation ReservationType = "container"
+	// VolumeReservation type
+	VolumeReservation ReservationType = "volume"
+	// NetworkReservation type
+	NetworkReservation ReservationType = "network"
+	// NetworkResourceReservation type
+	NetworkResourceReservation ReservationType = "network_resource"
+	// ZDBReservation type
+	ZDBReservation ReservationType = "zdb"
+	// DebugReservation type
+	DebugReservation ReservationType = "debug"
+	// KubernetesReservation type
+	KubernetesReservation ReservationType = "kubernetes"
+)
+
 // Reservation struct
 type Reservation struct {
 	// ID of the reservation

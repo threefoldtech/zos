@@ -22,7 +22,7 @@ type Debug struct {
 	Channel string `json:"channel"`
 }
 
-func (p *Provisioner) debugProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (p *Primitives) debugProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	var cfg Debug
 	if err := json.Unmarshal(reservation.Data, &cfg); err != nil {
 		return nil, err
@@ -33,11 +33,11 @@ func (p *Provisioner) debugProvision(ctx context.Context, reservation *provision
 	return nil, err
 }
 
-func (p *Provisioner) debugDecommission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) debugDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	return p.stopZLF(ctx, reservation.ID)
 }
 
-func (p *Provisioner) startZLF(ctx context.Context, ID string, cfg Debug) (string, error) {
+func (p *Primitives) startZLF(ctx context.Context, ID string, cfg Debug) (string, error) {
 	identity := stubs.NewIdentityManagerStub(p.zbus)
 
 	path, err := exec.LookPath("zlf")
@@ -75,7 +75,7 @@ func (p *Provisioner) startZLF(ctx context.Context, ID string, cfg Debug) (strin
 	return name, nil
 }
 
-func (p *Provisioner) stopZLF(ctx context.Context, ID string) error {
+func (p *Primitives) stopZLF(ctx context.Context, ID string) error {
 	z, err := zinit.New("")
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to zinit")

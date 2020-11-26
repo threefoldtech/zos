@@ -14,7 +14,7 @@ import (
 )
 
 // networkProvision is entry point to provision a network
-func (p *Provisioner) networkProvisionImpl(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) networkProvisionImpl(ctx context.Context, reservation *provision.Reservation) error {
 	nr := pkg.NetResource{}
 	if err := json.Unmarshal(reservation.Data, &nr); err != nil {
 		return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
@@ -37,11 +37,11 @@ func (p *Provisioner) networkProvisionImpl(ctx context.Context, reservation *pro
 	return nil
 }
 
-func (p *Provisioner) networkProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (p *Primitives) networkProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return nil, p.networkProvisionImpl(ctx, reservation)
 }
 
-func (p *Provisioner) networkDecommission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) networkDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	mgr := stubs.NewNetworkerStub(p.zbus)
 
 	network := &pkg.NetResource{}

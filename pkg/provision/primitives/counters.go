@@ -11,26 +11,16 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-// Counter interface
-type Counter interface {
-	// Increment counter atomically by v
-	Increment(v uint64) uint64
-	// Decrement counter atomically by v
-	Decrement(v uint64) uint64
-	// Current returns the current value
-	Current() uint64
-}
-
-// CounterUint64 value for safe increment/decrement
-type CounterUint64 uint64
+// atomicValue value for safe increment/decrement
+type atomicValue uint64
 
 // Increment counter atomically by one
-func (c *CounterUint64) Increment(v uint64) uint64 {
+func (c *atomicValue) Increment(v uint64) uint64 {
 	return atomic.AddUint64((*uint64)(c), v)
 }
 
 // Decrement counter atomically by one
-func (c *CounterUint64) Decrement(v uint64) uint64 {
+func (c *atomicValue) Decrement(v uint64) uint64 {
 	// spinlock until the decrement succeeds
 	for {
 		current := c.Current()
@@ -50,23 +40,23 @@ func (c *CounterUint64) Decrement(v uint64) uint64 {
 }
 
 // Current returns the current value
-func (c *CounterUint64) Current() uint64 {
+func (c *atomicValue) Current() uint64 {
 	return atomic.LoadUint64((*uint64)(c))
 }
 
 // Counters tracks the amount of primitives workload deployed and
 // the amount of resource unit used
 type Counters struct {
-	containers CounterUint64
-	volumes    CounterUint64
-	networks   CounterUint64
-	zdbs       CounterUint64
-	vms        CounterUint64
+	containers atomicValue
+	volumes    atomicValue
+	networks   atomicValue
+	zdbs       atomicValue
+	vms        atomicValue
 
-	SRU CounterUint64 // SSD storage in bytes
-	HRU CounterUint64 // HDD storage in bytes
-	MRU CounterUint64 // Memory storage in bytes
-	CRU CounterUint64 // CPU count absolute
+	sru atomicValue // SSD storage in bytes
+	hru atomicValue // HDD storage in bytes
+	mru atomicValue // Memory storage in bytes
+	cru atomicValue // CPU count absolute
 }
 
 // CurrentWorkloads return the number of each workloads provisioned on the system
@@ -84,10 +74,10 @@ func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 func (c *Counters) CurrentUnits() directory.ResourceAmount {
 	gib := float64(gib)
 	return directory.ResourceAmount{
-		Cru: c.CRU.Current(),
-		Mru: float64(c.MRU.Current()) / gib,
-		Hru: float64(c.HRU.Current()) / gib,
-		Sru: float64(c.SRU.Current()) / gib,
+		Cru: c.cru.Current(),
+		Mru: float64(c.mru.Current()) / gib,
+		Hru: float64(c.hru.Current()) / gib,
+		Sru: float64(c.sru.Current()) / gib,
 	}
 }
 
@@ -129,10 +119,10 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 		return err
 	}
 
-	c.CRU.Increment(u.CRU)
-	c.MRU.Increment(u.MRU)
-	c.SRU.Increment(u.SRU)
-	c.HRU.Increment(u.HRU)
+	c.cru.Increment(u.CRU)
+	c.mru.Increment(u.MRU)
+	c.sru.Increment(u.SRU)
+	c.hru.Increment(u.HRU)
 
 	return nil
 }
@@ -170,10 +160,10 @@ func (c *Counters) Decrement(r *provision.Reservation) error {
 		return err
 	}
 
-	c.CRU.Decrement(u.CRU)
-	c.MRU.Decrement(u.MRU)
-	c.SRU.Decrement(u.SRU)
-	c.HRU.Decrement(u.HRU)
+	c.cru.Decrement(u.CRU)
+	c.mru.Decrement(u.MRU)
+	c.sru.Decrement(u.SRU)
+	c.hru.Decrement(u.HRU)
 
 	return nil
 }

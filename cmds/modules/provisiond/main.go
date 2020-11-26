@@ -113,7 +113,6 @@ func action(cli *cli.Context) error {
 	}
 
 	// keep track of resource units reserved and amount of workloads provisionned
-	statser := &primitives.Counters{}
 
 	// to store reservation locally on the node
 	localStore, err := cache.NewFSStore(filepath.Join(storageDir, "reservations"))
@@ -121,10 +120,27 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create local reservation store")
 	}
 
-	// update stats from the local reservation cache
-	localStore.Sync(statser)
+	const daemonBootFlag = "provisiond"
+	if app.IsFirstBoot(daemonBootFlag) {
+		if err := localStore.Purge(cache.NotPersisted); err != nil {
+			log.Fatal().Err(err).Msg("failed to clean up cache")
+		}
+	}
 
-	provisioner := primitives.NewProvisioner(localStore, zbusCl)
+	if err := app.MarkBooted(daemonBootFlag); err != nil {
+		log.Fatal().Err(err).Msg("failed to mark service as booted")
+	}
+
+	capacity, err := localStore.CurrentCounters()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to get current deployed capacity")
+	}
+
+	handlers := primitives.NewPrimitivesProvisioner(localStore, zbusCl)
+	provisioner := primitives.NewStatisticsProvisioner(
+		handlers,
+		capacity,
+	)
 
 	puller := explorer.NewPoller(e, primitives.WorkloadToProvisionType, primitives.ProvisionOrder)
 	engine, err := provision.New(provision.EngineOps{
@@ -134,13 +150,11 @@ func action(cli *cli.Context) error {
 			provision.PollSource(puller, nodeID),
 			provision.NewDecommissionSource(localStore),
 		),
-		Provisioners:   provisioner.Provisioners,
-		Decomissioners: provisioner.Decommissioners,
-		Feedback:       explorer.NewFeedback(e, primitives.ResultToSchemaType),
-		Signer:         identity,
-		Statser:        statser,
-		ZbusCl:         zbusCl,
-		Janitor:        provision.NewJanitor(zbusCl, puller),
+		Provisioner: provisioner,
+		Feedback:    explorer.NewFeedback(e, primitives.ResultToSchemaType),
+		Signer:      identity,
+		ZbusCl:      zbusCl,
+		Janitor:     provision.NewJanitor(zbusCl, puller),
 	})
 
 	if err != nil {
@@ -160,7 +174,7 @@ func action(cli *cli.Context) error {
 	})
 
 	// call the runtime upgrade before running engine
-	provisioner.RuntimeUpgrade(ctx)
+	handlers.RuntimeUpgrade(ctx)
 
 	go func() {
 		if err := server.Run(ctx); err != nil && err != context.Canceled {

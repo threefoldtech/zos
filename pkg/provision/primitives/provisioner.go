@@ -2,28 +2,29 @@ package primitives
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-// Provisioner hold all the logic responsible to provision and decomission
+// Primitives hold all the logic responsible to provision and decomission
 // the different primitives workloads defined by this package
-type Provisioner struct {
+type Primitives struct {
 	cache provision.ReservationCache
 	zbus  zbus.Client
 
-	Provisioners    map[provision.ReservationType]provision.ProvisionerFunc
-	Decommissioners map[provision.ReservationType]provision.DecomissionerFunc
+	provisioners    map[provision.ReservationType]provision.ProvisionerFunc
+	decommissioners map[provision.ReservationType]provision.DecomissionerFunc
 }
 
-// NewProvisioner creates a new 0-OS provisioner
-func NewProvisioner(cache provision.ReservationCache, zbus zbus.Client) *Provisioner {
-	p := &Provisioner{
+// NewPrimitivesProvisioner creates a new 0-OS provisioner
+func NewPrimitivesProvisioner(cache provision.ReservationCache, zbus zbus.Client) *Primitives {
+	p := &Primitives{
 		cache: cache,
 		zbus:  zbus,
 	}
-	p.Provisioners = map[provision.ReservationType]provision.ProvisionerFunc{
+	p.provisioners = map[provision.ReservationType]provision.ProvisionerFunc{
 		ContainerReservation:       p.containerProvision,
 		VolumeReservation:          p.volumeProvision,
 		NetworkReservation:         p.networkProvision,
@@ -33,7 +34,7 @@ func NewProvisioner(cache provision.ReservationCache, zbus zbus.Client) *Provisi
 		KubernetesReservation:      p.kubernetesProvision,
 		PublicIPReservation:        p.publicIPProvision,
 	}
-	p.Decommissioners = map[provision.ReservationType]provision.DecomissionerFunc{
+	p.decommissioners = map[provision.ReservationType]provision.DecomissionerFunc{
 		ContainerReservation:       p.containerDecommission,
 		VolumeReservation:          p.volumeDecommission,
 		NetworkReservation:         p.networkDecommission,
@@ -48,6 +49,26 @@ func NewProvisioner(cache provision.ReservationCache, zbus zbus.Client) *Provisi
 }
 
 // RuntimeUpgrade runs upgrade needed when provision daemon starts
-func (p *Provisioner) RuntimeUpgrade(ctx context.Context) {
+func (p *Primitives) RuntimeUpgrade(ctx context.Context) {
 	p.upgradeRunningZdb(ctx)
+}
+
+// Provision implemenents provision.Provisioner
+func (p *Primitives) Provision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+	handler, ok := p.provisioners[reservation.Type]
+	if !ok {
+		return nil, fmt.Errorf("unknown reservation type '%s' for reservation id '%s'", reservation.Type, reservation.ID)
+	}
+
+	return handler(ctx, reservation)
+}
+
+// Decommission implementation for provision.Provisioner
+func (p *Primitives) Decommission(ctx context.Context, reservation *provision.Reservation) error {
+	handler, ok := p.decommissioners[reservation.Type]
+	if !ok {
+		return fmt.Errorf("unknown reservation type '%s' for reservation id '%s'", reservation.Type, reservation.ID)
+	}
+
+	return handler(ctx, reservation)
 }

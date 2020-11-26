@@ -17,7 +17,6 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/stubs"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -27,19 +26,24 @@ const gib = 1024 * 1024 * 1024
 
 const minimunZosMemory = 2 * gib
 
+// Provisioner interface
+type Provisioner interface {
+	Provision(ctx context.Context, reservation *Reservation) (interface{}, error)
+	Decommission(ctx context.Context, reservation *Reservation) error
+}
+
 // Engine is the core of this package
 // The engine is responsible to manage provision and decomission of workloads on the system
 type Engine struct {
-	nodeID         string
-	source         ReservationSource
-	cache          ReservationCache
-	feedback       Feedbacker
-	provisioners   map[ReservationType]ProvisionerFunc
-	decomissioners map[ReservationType]DecomissionerFunc
-	signer         Signer
-	statser        Statser
-	zbusCl         zbus.Client
-	janitor        *Janitor
+	nodeID   string
+	source   ReservationSource
+	cache    ReservationCache
+	feedback Feedbacker
+
+	provisioner Provisioner
+	signer      Signer
+	zbusCl      zbus.Client
+	janitor     *Janitor
 
 	memCache          *cache.Cache
 	totalMemAvailable uint64
@@ -57,18 +61,11 @@ type EngineOps struct {
 	// Cache is a used to keep track of which reservation are provisionned on the system
 	// and know when they expired so they can be decommissioned
 	Cache ReservationCache
-	// Provisioners is a function map so the engine knows how to provision the different
-	// workloads supported by the system running the engine
-	Provisioners map[ReservationType]ProvisionerFunc
-	// Decomissioners contains the opposite function from Provisioners
-	// they are used to decomission workloads from the system
-	Decomissioners map[ReservationType]DecomissionerFunc
+
+	Provisioner Provisioner
 	// Signer is used to authenticate the result send to the source
 	Signer Signer
-	// Statser is responsible to keep track of how much workloads and resource units
-	// are reserved on the system running the engine
-	// After each provision/decomission the engine sends statistics update to the staster
-	Statser Statser
+
 	// ZbusCl is a client to Zbus
 	ZbusCl zbus.Client
 
@@ -182,10 +179,6 @@ func (e *Engine) Run(ctx context.Context) error {
 				}
 			}
 
-			if err := e.updateStats(); err != nil {
-				log.Error().Err(err).Msg("failed to updated the capacity counters")
-			}
-
 		case <-cleanUp:
 			if !isAllWorkloadsProcessed {
 				// only allow cleanup triggered by the cron to run once
@@ -292,36 +285,24 @@ func (e *Engine) provision(ctx context.Context, r *Reservation) error {
 		}
 	}
 
-	if err := e.statser.Increment(r); err != nil {
-		log.Err(err).Str("reservation_id", r.ID).Msg("failed to increment workloads statistics")
-	}
-
 	return nil
 }
 
 func (e *Engine) provisionForward(ctx context.Context, r *Reservation) (interface{}, error) {
-	fn, ok := e.provisioners[r.Type]
-	if !ok {
-		return nil, fmt.Errorf("type of reservation not supported: %s", r.Type)
-	}
-
 	if err := e.statser.CheckMemoryRequirements(r, e.totalMemAvailable); err != nil {
 		return nil, errors.Wrapf(err, "failed to apply provision")
 	}
-
-	returned, provisionError := fn(ctx, r)
+	returned, provisionError := e.provisioner.Provision(ctx, r)
 	if provisionError != nil {
 		log.Error().
 			Err(provisionError).
 			Str("id", r.ID).
 			Msgf("failed to apply provision")
-		return nil, provisionError
+	} else {
+		log.Info().
+			Str("result", fmt.Sprintf("%v", returned)).
+			Msgf("workload deployed")
 	}
-
-	log.Info().
-		Str("result", fmt.Sprintf("%v", returned)).
-		Msgf("workload deployed")
-
 	return returned, nil
 }
 
@@ -359,22 +340,15 @@ func (e *Engine) decommission(ctx context.Context, r *Reservation) error {
 		return nil
 	}
 
-	if fn, ok := e.decomissioners[r.Type]; ok {
-		if err := fn(ctx, r); err != nil {
-			return errors.Wrap(err, "decommissioning of reservation failed")
-		}
-	} else {
-		log.Error().Str("type", string(r.Type)).Msg("type of reservation not supported")
+	err = e.provisioner.Decommission(ctx, r)
+	if err != nil {
+		return errors.Wrap(err, "decommissioning of reservation failed")
 	}
 
 	r.ID = realID
 
 	if err := e.cache.Remove(r.ID); err != nil {
 		return errors.Wrapf(err, "failed to remove reservation %s from cache", r.ID)
-	}
-
-	if err := e.statser.Decrement(r); err != nil {
-		log.Err(err).Str("reservation_id", r.ID).Msg("failed to decrement workloads statistics")
 	}
 
 	if err := e.feedback.Deleted(e.nodeID, r.ID); err != nil {
@@ -466,78 +440,78 @@ func (e *Engine) signResult(result *Result) error {
 	return nil
 }
 
-func (e *Engine) updateStats() error {
-	wl := e.statser.CurrentWorkloads()
-	r := e.statser.CurrentUnits()
+// func (e *Engine) updateStats() error {
+// 	wl := e.statser.CurrentWorkloads()
+// 	r := e.statser.CurrentUnits()
 
-	if e.zbusCl != nil {
-		// TODO: this is a very specific zos code that should not be
-		// here. this is a quick fix for the tfgateways
-		// but should be implemented cleanely after
-		storaged := stubs.NewStorageModuleStub(e.zbusCl)
+// 	if e.zbusCl != nil {
+// 		// TODO: this is a very specific zos code that should not be
+// 		// here. this is a quick fix for the tfgateways
+// 		// but should be implemented cleanely after
+// 		storaged := stubs.NewStorageModuleStub(e.zbusCl)
 
-		cache, err := storaged.GetCacheFS()
-		if err != nil {
-			return err
-		}
+// 		cache, err := storaged.GetCacheFS()
+// 		if err != nil {
+// 			return err
+// 		}
 
-		switch cache.DiskType {
-		case pkg.SSDDevice:
-			r.Sru += float64(cache.Usage.Size / gib)
-		case pkg.HDDDevice:
-			r.Hru += float64(cache.Usage.Size / gib)
-		}
+// 		switch cache.DiskType {
+// 		case pkg.SSDDevice:
+// 			r.Sru += float64(cache.Usage.Size / gib)
+// 		case pkg.HDDDevice:
+// 			r.Hru += float64(cache.Usage.Size / gib)
+// 		}
 
-		r.Mru += float64(minimunZosMemory / gib)
-	}
+//		r.Mru += float64(minimunZosMemory / gib)
+//	}
 
-	log.Info().
-		Uint16("network", wl.Network).
-		Uint16("volume", wl.Volume).
-		Uint16("zDBNamespace", wl.ZDBNamespace).
-		Uint16("container", wl.Container).
-		Uint16("k8sVM", wl.K8sVM).
-		Uint16("proxy", wl.Proxy).
-		Uint16("reverseProxy", wl.ReverseProxy).
-		Uint16("subdomain", wl.Subdomain).
-		Uint16("delegateDomain", wl.DelegateDomain).
-		Uint64("cru", r.Cru).
-		Float64("mru", r.Mru).
-		Float64("hru", r.Hru).
-		Float64("sru", r.Sru).
-		Msgf("provision statistics")
+// 	log.Info().
+// 		Uint16("network", wl.Network).
+// 		Uint16("volume", wl.Volume).
+// 		Uint16("zDBNamespace", wl.ZDBNamespace).
+// 		Uint16("container", wl.Container).
+// 		Uint16("k8sVM", wl.K8sVM).
+// 		Uint16("proxy", wl.Proxy).
+// 		Uint16("reverseProxy", wl.ReverseProxy).
+// 		Uint16("subdomain", wl.Subdomain).
+// 		Uint16("delegateDomain", wl.DelegateDomain).
+// 		Uint64("cru", r.Cru).
+// 		Float64("mru", r.Mru).
+// 		Float64("hru", r.Hru).
+// 		Float64("sru", r.Sru).
+// 		Msgf("provision statistics")
 
-	return e.feedback.UpdateStats(e.nodeID, wl, r)
-}
+// 	return e.feedback.UpdateStats(e.nodeID, wl, r)
+// }
 
-// Counters is a zbus stream that sends statistics from the engine
-func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
-	ch := make(chan pkg.ProvisionCounters)
-	go func() {
-		for {
-			select {
-			case <-time.After(2 * time.Second):
-			case <-ctx.Done():
-			}
+// // Counters is a zbus stream that sends statistics from the engine
+// func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
+// 	ch := make(chan pkg.ProvisionCounters)
+// 	go func() {
+// 		for {
+// 			select {
+// 			case <-time.After(2 * time.Second):
+// 			case <-ctx.Done():
+// 			}
 
-			wls := e.statser.CurrentWorkloads()
-			pc := pkg.ProvisionCounters{
-				Container: int64(wls.Container),
-				Network:   int64(wls.Network),
-				ZDB:       int64(wls.ZDBNamespace),
-				Volume:    int64(wls.Volume),
-				VM:        int64(wls.K8sVM),
-			}
+// 			wls := e.statser.CurrentWorkloads()
+// 			pc := pkg.ProvisionCounters{
+// 				Container: int64(wls.Container),
+// 				Network:   int64(wls.Network),
+// 				ZDB:       int64(wls.ZDBNamespace),
+// 				Volume:    int64(wls.Volume),
+// 				VM:        int64(wls.K8sVM),
+// 			}
 
-			select {
-			case <-ctx.Done():
-			case ch <- pc:
-			}
-		}
-	}()
+// 			select {
+// 			case <-ctx.Done():
+// 			case ch <- pc:
+// 			}
+// 		}
+// 	}()
 
-	return ch
-}
+// 	return ch
+// }
 
 func (e *Engine) migrateToPool(ctx context.Context, r *Reservation) error {
 

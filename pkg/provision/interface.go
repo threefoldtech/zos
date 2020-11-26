@@ -42,7 +42,6 @@ type ReservationCache interface {
 	Remove(id string) error
 	Exists(id string) (bool, error)
 	NetworkExists(id string) (bool, error)
-	Sync(Statser) error
 }
 
 // Feedbacker defines the method that needs to be implemented

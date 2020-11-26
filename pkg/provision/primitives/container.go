@@ -105,12 +105,12 @@ type ContainerCapacity struct {
 	DiskSize uint64 `json:"disk_size"`
 }
 
-func (p *Provisioner) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (p *Primitives) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.containerProvisionImpl(ctx, reservation)
 }
 
 // ContainerProvision is entry point to container reservation
-func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *provision.Reservation) (ContainerResult, error) {
+func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *provision.Reservation) (ContainerResult, error) {
 	var (
 		containerClient = stubs.NewContainerModuleStub(p.zbus)
 		flistClient     = stubs.NewFlisterStub(p.zbus)
@@ -328,7 +328,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 	}, nil
 }
 
-func (p *Provisioner) containerDecommission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) containerDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	container := stubs.NewContainerModuleStub(p.zbus)
 	flist := stubs.NewFlisterStub(p.zbus)
 	networkMgr := stubs.NewNetworkerStub(p.zbus)
@@ -373,7 +373,7 @@ func (p *Provisioner) containerDecommission(ctx context.Context, reservation *pr
 	return nil
 }
 
-func (p *Provisioner) waitContainerIP(ctx context.Context, ifaceName, namespace string) (net.IP, error) {
+func (p *Primitives) waitContainerIP(ctx context.Context, ifaceName, namespace string) (net.IP, error) {
 	var (
 		network     = stubs.NewNetworkerStub(p.zbus)
 		containerIP net.IP

@@ -25,6 +25,35 @@ var (
 	reservationSchemaLastVersion = reservationSchemaV1
 )
 
+// Filter is filtering function for Purge method
+type Filter func(*provision.Reservation) bool
+
+// FilterType delete all types that matches the given list
+func FilterType(types ...provision.ReservationType) Filter {
+	typeMap := make(map[provision.ReservationType]struct{})
+	for _, t := range types {
+		typeMap[t] = struct{}{}
+	}
+
+	return func(r *provision.Reservation) bool {
+		_, ok := typeMap[r.Type]
+
+		return ok
+	}
+}
+
+// FilterNot inverts the given filter
+func FilterNot(f Filter) Filter {
+	return func(r *provision.Reservation) bool {
+		return !f(r)
+	}
+}
+
+var (
+	// NotPersisted filter outs everything but volumes
+	NotPersisted = FilterNot(FilterType(provision.VolumeReservation))
+)
+
 // Fs is a in reservation cache using the filesystem as backend
 type Fs struct {
 	sync.RWMutex
@@ -36,22 +65,10 @@ func NewFSStore(root string) (*Fs, error) {
 	store := &Fs{
 		root: root,
 	}
-	if app.IsFirstBoot("provisiond") {
-		log.Info().Msg("first boot, empty reservation cache")
-		if err := store.removeAllButPersistent(root); err != nil {
-			return nil, err
-		}
-
-		if err := app.MarkBooted("provisiond"); err != nil {
-			return nil, errors.Wrap(err, "fail to mark provisiond as booted")
-		}
-	}
 
 	if err := os.MkdirAll(root, 0770); err != nil {
 		return nil, err
 	}
-
-	log.Info().Msg("restart detected, keep reservation cache intact")
 
 	if err := store.updateReservationResults(root); err != nil {
 		log.Error().Err(err).Msgf("error while updating reservation results")
@@ -108,18 +125,17 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 	return nil
 }
 
-//TODO: i think both sync and removeAllButPersistent can be merged into
-// one method because now it scans the same directory twice.
-func (s *Fs) removeAllButPersistent(rootPath string) error {
+// Purge deletes all cached reservations that matches filter
+func (s *Fs) Purge(f Filter) error {
 	// if rootPath is not present on the filesystem, return
-	_, err := os.Stat(rootPath)
+	_, err := os.Stat(s.root)
 	if os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
 		return err
 	}
 
-	err = filepath.Walk(rootPath, func(path string, info os.FileInfo, r error) error {
+	err = filepath.Walk(s.root, func(path string, info os.FileInfo, r error) error {
 		if r != nil {
 			return r
 		}
@@ -132,21 +148,32 @@ func (s *Fs) removeAllButPersistent(rootPath string) error {
 		if info.IsDir() {
 			return nil
 		}
-		reservationType, err := s.getType(filepath.Base(path))
+		id := filepath.Base(path)
+		reservation, err := s.get(id)
 		if err != nil {
 			return err
 		}
-		if reservationType != primitives.VolumeReservation {
-			log.Info().Msgf("Removing %s from cache", path)
-			return os.Remove(path)
+		if f(reservation) {
+			log.Info().Str("reservation", reservation.ID).Msg("removing cached reservation")
+			return s.Remove(id)
 		}
+
 		return nil
 	})
 	if err != nil {
-		log.Error().Msgf("error walking the path %q: %v\n", rootPath, err)
-		return err
+		return errors.Wrap(err, "error scanning cached reservations")
 	}
 	return nil
+}
+
+// CurrentCounters gets current capacity counters from cache
+func (s *Fs) CurrentCounters() (primitives.Counters, error) {
+	var counter primitives.Counters
+	if err := s.Sync(&counter); err != nil {
+		return counter, err
+	}
+
+	return counter, nil
 }
 
 // Sync update the statser with all the reservation present in the cache
@@ -163,7 +190,7 @@ func (s *Fs) Add(r *provision.Reservation) error {
 }
 
 // Add a reservation to the store
-func (s *Fs) add(r *provision.Reservation, update bool) error {
+func (s *Fs) add(r *provision.Reservation, override bool) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -173,7 +200,7 @@ func (s *Fs) add(r *provision.Reservation, update bool) error {
 	}
 
 	flags := os.O_CREATE | os.O_WRONLY
-	if !update {
+	if !override {
 		flags |= os.O_EXCL
 	}
 	f, err := os.OpenFile(filepath.Join(s.root, r.ID), flags, 0660)
@@ -265,7 +292,7 @@ func (s *Fs) Get(id string) (*provision.Reservation, error) {
 func (s *Fs) getType(id string) (provision.ReservationType, error) {
 	r, err := s.get(id)
 	if err != nil {
-		return provision.ReservationType(0), err
+		return provision.ReservationType("unknown"), err
 	}
 	return r.Type, nil
 }

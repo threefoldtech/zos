@@ -50,11 +50,11 @@ type ZDBResult struct {
 	Port      uint
 }
 
-func (p *Provisioner) zdbProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (p *Primitives) zdbProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.zdbProvisionImpl(ctx, reservation)
 }
 
-func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *provision.Reservation) (ZDBResult, error) {
+func (p *Primitives) zdbProvisionImpl(ctx context.Context, reservation *provision.Reservation) (ZDBResult, error) {
 	var (
 		storage = stubs.NewZDBAllocaterStub(p.zbus)
 
@@ -109,7 +109,7 @@ func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *provisi
 	}, nil
 }
 
-func (p *Provisioner) ensureZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) (pkg.Container, error) {
+func (p *Primitives) ensureZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) (pkg.Container, error) {
 	var container = stubs.NewContainerModuleStub(p.zbus)
 
 	name := pkg.ContainerID(allocation.VolumeID)
@@ -133,7 +133,7 @@ func (p *Provisioner) ensureZdbContainer(ctx context.Context, allocation pkg.All
 
 }
 
-func (p *Provisioner) zdbRootFS() (string, error) {
+func (p *Primitives) zdbRootFS() (string, error) {
 	var flist = stubs.NewFlisterStub(p.zbus)
 	var err error
 	var rootFS string
@@ -161,7 +161,7 @@ func (p *Provisioner) zdbRootFS() (string, error) {
 	return rootFS, nil
 }
 
-func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) error {
+func (p *Primitives) createZdbContainer(ctx context.Context, allocation pkg.Allocation, mode pkg.ZDBMode) error {
 	var (
 		name       = pkg.ContainerID(allocation.VolumeID)
 		cont       = stubs.NewContainerModuleStub(p.zbus)
@@ -243,7 +243,7 @@ func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.All
 	return nil
 }
 
-func (p *Provisioner) zdbRun(name string, rootfs string, cmd string, netns string, volumepath string, socketdir string) error {
+func (p *Primitives) zdbRun(name string, rootfs string, cmd string, netns string, volumepath string, socketdir string) error {
 	var cont = stubs.NewContainerModuleStub(p.zbus)
 
 	_, err := cont.Run(
@@ -269,7 +269,7 @@ func (p *Provisioner) zdbRun(name string, rootfs string, cmd string, netns strin
 	return err
 }
 
-func (p *Provisioner) waitZDBIPs(ctx context.Context, ifaceName, namespace string) ([]net.IP, error) {
+func (p *Primitives) waitZDBIPs(ctx context.Context, ifaceName, namespace string) ([]net.IP, error) {
 	var (
 		network      = stubs.NewNetworkerStub(p.zbus)
 		containerIPs []net.IP
@@ -322,7 +322,7 @@ func (p *Provisioner) waitZDBIPs(ctx context.Context, ifaceName, namespace strin
 	return containerIPs, nil
 }
 
-func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
+func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
 	zdbCl := zdbConnection(containerID)
 	defer zdbCl.Close()
 	if err := zdbCl.Connect(); err != nil {
@@ -356,7 +356,7 @@ func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID strin
 	return nil
 }
 
-func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) zdbDecommission(ctx context.Context, reservation *provision.Reservation) error {
 	var (
 		storage       = stubs.NewZDBAllocaterStub(p.zbus)
 		storageClient = stubs.NewStorageModuleStub(p.zbus)
@@ -416,7 +416,7 @@ func (p *Provisioner) zdbDecommission(ctx context.Context, reservation *provisio
 	return nil
 }
 
-func (p *Provisioner) deleteZdbContainer(containerID pkg.ContainerID) error {
+func (p *Primitives) deleteZdbContainer(containerID pkg.ContainerID) error {
 	return common.DeleteZdbContainer(containerID, p.zbus)
 }
 
@@ -457,7 +457,7 @@ func isYgg(ip net.IP) bool {
 	return yggNet.Contains(ip)
 }
 
-func (p *Provisioner) upgradeRunningZdb(ctx context.Context) error {
+func (p *Primitives) upgradeRunningZdb(ctx context.Context) error {
 	log.Info().Msg("checking for any outdated zdb running")
 
 	flistmod := stubs.NewFlisterStub(p.zbus)
