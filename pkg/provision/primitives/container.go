@@ -150,9 +150,10 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 		return ContainerResult{}, fmt.Errorf("network %s is not installed on this node", config.Network.NetworkID)
 	}
 
+	cache := provision.GetCache(ctx)
 	// check to make sure the requested volume are accessible
 	for _, mount := range config.Mounts {
-		volumeRes, err := p.cache.Get(mount.VolumeID)
+		volumeRes, err := cache.Get(mount.VolumeID)
 		if err != nil {
 			return ContainerResult{}, errors.Wrapf(err, "failed to retrieve the owner of volume %s", mount.VolumeID)
 		}

@@ -14,18 +14,16 @@ import (
 // Primitives hold all the logic responsible to provision and decomission
 // the different primitives workloads defined by this package
 type Primitives struct {
-	cache provision.ReservationCache
-	zbus  zbus.Client
+	zbus zbus.Client
 
 	provisioners    map[provision.ReservationType]provision.ProvisionerFunc
 	decommissioners map[provision.ReservationType]provision.DecomissionerFunc
 }
 
 // NewPrimitivesProvisioner creates a new 0-OS provisioner
-func NewPrimitivesProvisioner(cache provision.ReservationCache, zbus zbus.Client) *Primitives {
+func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 	p := &Primitives{
-		cache: cache,
-		zbus:  zbus,
+		zbus: zbus,
 	}
 	p.provisioners = map[provision.ReservationType]provision.ProvisionerFunc{
 		ContainerReservation:       p.containerProvision,

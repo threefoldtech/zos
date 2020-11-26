@@ -141,8 +141,7 @@ func action(cli *cli.Context) error {
 		log.Fatal().Err(err).Msg("failed to get current deployed capacity")
 	}
 
-	handlers := primitives.NewPrimitivesProvisioner(store, zbusCl)
-
+	handlers := primitives.NewPrimitivesProvisioner(zbusCl)
 	/* --- committer
 	 *   --- cache
 	 *	   --- statistics
