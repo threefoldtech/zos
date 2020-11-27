@@ -25,9 +25,9 @@ type Poller struct {
 // inputConv is a function used by the provision.Engine to convert date received from the explorer to into the internal type of the system
 // provisionOrder is a map with each primitive type as key. It is used to order the reservation before sending them to the engine.
 //  This can be useful if some workloads in a same reservation depends on each other
-func NewPoller(cl *client.Client, inputConv ReservationConverterFunc, provisionOrder map[provision.ReservationType]int) *Poller {
+func NewPoller(cl client.Workloads, inputConv ReservationConverterFunc, provisionOrder map[provision.ReservationType]int) *Poller {
 	return &Poller{
-		wl:             cl.Workloads,
+		wl:             cl,
 		inputConv:      inputConv,
 		provisionOrder: provisionOrder,
 	}

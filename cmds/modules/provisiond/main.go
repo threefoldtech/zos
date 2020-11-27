@@ -107,7 +107,7 @@ func action(cli *cli.Context) error {
 	})
 
 	// to get reservation from tnodb
-	explorerClient, err := app.ExplorerClient()
+	cl, err := app.ExplorerClient()
 	if err != nil {
 		return errors.Wrap(err, "failed to instantiate BCDB client")
 	}
@@ -152,19 +152,19 @@ func action(cli *cli.Context) error {
 			primitives.NewStatisticsProvisioner(
 				handlers,
 				capacity,
+				nodeID.Identity(),
+				cl.Directory,
 			),
 			store,
 		),
-		explorerClient,
+		cl.Workloads,
 		primitives.ResultToSchemaType,
 		identity,
 		nodeID.Identity(),
 	)
 
-	puller := explorer.NewPoller(e, primitives.WorkloadToProvisionType, primitives.ProvisionOrder)
-	engine, err := provision.New(provision.EngineOps{
-		NodeID: nodeID.Identity(),
-		Cache:  store,
+	puller := explorer.NewPoller(cl.Workloads, primitives.WorkloadToProvisionType, primitives.ProvisionOrder)
+	engine := provision.New(provision.EngineOps{
 		Source: provision.CombinedSource(
 			provision.PollSource(puller, nodeID),
 			provision.NewDecommissionSource(store),

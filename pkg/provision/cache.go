@@ -9,13 +9,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var (
-	cacheKey = struct{}{}
+type (
+	cacheKey = struct{}
 )
 
 // GetCache from context
 func GetCache(ctx context.Context) ReservationCache {
-	c := ctx.Value(cacheKey)
+	c := ctx.Value(cacheKey{})
 	if c == nil {
 		panic("cache middleware is not set")
 	}
@@ -64,11 +64,9 @@ func (c *cachedProvisioner) Provision(ctx context.Context, reservation *Reservat
 		reservation.ID = reservation.Reference
 	}
 
+	ctx = context.WithValue(ctx, cacheKey{}, c.cache)
 	result, err := c.inner.Provision(
-		// injecting cache to ctx
-		// so other provisioners down stream can
-		// use it by calling GetCache(ctx)
-		context.WithValue(ctx, cacheKey, c.cache),
+		ctx,
 		reservation,
 	)
 

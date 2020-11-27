@@ -2,6 +2,7 @@ package explorer
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -21,7 +22,7 @@ type Signer interface {
 // that u sends results to the TFExplorer: https://github.com/threefoldtech/tfexplorer
 type committerProvisioner struct {
 	inner     provision.Provisioner
-	client    *client.Client
+	client    client.Workloads
 	converter ResultConverterFunc
 	signer    Signer
 	nodeID    string
@@ -30,7 +31,7 @@ type committerProvisioner struct {
 
 // NewCommitterProvisioner creates a provisioner that makes sure provision results is committed
 // to the explorer
-func NewCommitterProvisioner(inner provision.Provisioner, client *client.Client, converter ResultConverterFunc, signer Signer, nodeID string) provision.Provisioner {
+func NewCommitterProvisioner(inner provision.Provisioner, client client.Workloads, converter ResultConverterFunc, signer Signer, nodeID string) provision.Provisioner {
 	strategy := backoff.NewExponentialBackOff()
 	strategy.MaxInterval = 15 * time.Second
 	strategy.MaxElapsedTime = 3 * time.Minute
@@ -62,7 +63,7 @@ func (p *committerProvisioner) Provision(ctx context.Context, reservation *provi
 		return result, errors.Wrap(err, "committer: failed to sign result")
 	}
 
-	result.Signature = string(signed)
+	result.Signature = hex.EncodeToString(signed)
 	if err := p.send(result); err != nil {
 		return result, errors.Wrap(err, "committer: failed to send result to explorer")
 	}
@@ -96,7 +97,7 @@ func (p *committerProvisioner) send(r *provision.Result) error {
 	}
 
 	return backoff.Retry(func() error {
-		err := p.client.Workloads.NodeWorkloadPutResult(p.nodeID, r.ID, *wr)
+		err := p.client.NodeWorkloadPutResult(p.nodeID, r.ID, *wr)
 		if err == nil || errors.Is(err, client.ErrRequestFailure) {
 			// we only retry if err is a request failure err.
 			return err
@@ -110,7 +111,7 @@ func (p *committerProvisioner) send(r *provision.Result) error {
 // Deleted implements provision.Feedbacker
 func (p *committerProvisioner) delete(id string) error {
 	return backoff.Retry(func() error {
-		err := p.client.Workloads.NodeWorkloadPutDeleted(p.nodeID, id)
+		err := p.client.NodeWorkloadPutDeleted(p.nodeID, id)
 		if err == nil || errors.Is(err, client.ErrRequestFailure) {
 			// we only retry if err is a request failure err.
 			return err

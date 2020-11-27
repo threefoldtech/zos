@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
 )
 
@@ -127,13 +126,13 @@ func (r *Reservation) Expired() bool {
 
 func (r *Reservation) validate() error {
 	// TODO: during testnet phase seems we don't need to verify this
-	if err := Verify(r); err != nil {
-		log.Warn().
-			Err(err).
-			Str("id", string(r.ID)).
-			Msg("verification of reservation signature failed")
-		return errors.Wrapf(err, "verification of reservation %s signature failed", r.ID)
-	}
+	// if err := Verify(r); err != nil {
+	// 	log.Warn().
+	// 		Err(err).
+	// 		Str("id", string(r.ID)).
+	// 		Msg("verification of reservation signature failed")
+	// 	return errors.Wrapf(err, "verification of reservation %s signature failed", r.ID)
+	// }
 
 	if r.Duration <= 0 {
 		return fmt.Errorf("reservation %s has not duration", r.ID)
