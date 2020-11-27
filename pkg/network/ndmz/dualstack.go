@@ -39,20 +39,25 @@ type DualStack struct {
 }
 
 // NewDualStack creates a new DMZ DualStack
-func NewDualStack(nodeID string) *DualStack {
+func NewDualStack(nodeID string, master string) *DualStack {
 	return &DualStack{
-		nodeID: nodeID,
+		nodeID:     nodeID,
+		ipv6Master: master,
 	}
 }
 
 //Create create the NDMZ network namespace and configure its default routes and addresses
 func (d *DualStack) Create(ctx context.Context) error {
-	master, err := FindIPv6Master()
-	if err != nil {
-		return errors.Wrap(err, "could not find public master iface for ndmz")
-	}
+	master := d.ipv6Master
+	var err error
 	if master == "" {
-		return errors.New("invalid physical interface to use as master for ndmz npub6")
+		master, err = FindIPv6Master()
+		if err != nil {
+			return errors.Wrap(err, "could not find public master iface for ndmz")
+		}
+		if master == "" {
+			return errors.New("invalid physical interface to use as master for ndmz npub6")
+		}
 	}
 
 	// There are 2 options for the master:
@@ -80,6 +85,9 @@ func (d *DualStack) Create(ctx context.Context) error {
 			}
 		}
 		physLink, err := netlink.LinkByName(master)
+		if err != nil {
+			return errors.Wrap(err, "failed to get master link")
+		}
 		// if the physLink is a bridge (zos), create a veth pair. else plug
 		// the iface directly into br-pub.
 		if physLink.Type() == "bridge" {
