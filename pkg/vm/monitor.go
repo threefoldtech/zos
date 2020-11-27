@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -48,14 +49,15 @@ func (m *Module) monitor(ctx context.Context) error {
 	defer m.lock.Unlock()
 
 	// list all machines available under `{root}/firecracker`
-	running, err := findAll()
-	if err != nil {
+	root := filepath.Join(m.root, "firecracker")
+	items, err := ioutil.ReadDir(root)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
 		return err
 	}
 
-	// list all configurations
-	root := filepath.Join(m.root, "firecracker")
-	items, err := ioutil.ReadDir(root)
+	running, err := findAll()
 	if err != nil {
 		return err
 	}
