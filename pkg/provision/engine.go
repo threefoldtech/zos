@@ -80,10 +80,10 @@ type EngineOps struct {
 // the default implementation is a single threaded worker. so it process
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
-func New(opts EngineOps) *Engine {
+func New(opts EngineOps) (*Engine, error) {
 	memStats, err := mem.VirtualMemory()
 	if err != nil {
-		log.Error().Err(err).Msg("failed retrieve memory stats")
+		return nil, errors.Wrap(err, "failed retrieve memory stats")
 	}
 
 	return &Engine{
@@ -98,7 +98,7 @@ func New(opts EngineOps) *Engine {
 		zbusCl:            opts.ZbusCl,
 		janitor:           opts.Janitor,
 		totalMemAvailable: memStats.Total - minimunZosMemory,
-	}
+	}, nil
 }
 
 // Run starts reader reservation from the Source and handle them
