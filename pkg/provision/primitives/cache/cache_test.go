@@ -84,7 +84,7 @@ func TestLocalStore(t *testing.T) {
 			assert.Equal(t, tt.args.r.Created, expired[0].Created)
 			assert.Equal(t, tt.args.r.ID, expired[0].ID)
 
-			reservations, err := s.list()
+			reservations, err := s.List()
 			require.NoError(t, err)
 			assert.Equal(t, len(reservations), 1)
 

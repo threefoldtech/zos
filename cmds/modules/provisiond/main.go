@@ -170,7 +170,7 @@ func action(cli *cli.Context) error {
 			provision.NewDecommissionSource(store),
 		),
 		Provisioner: provisioner,
-		Janitor:     provision.NewJanitor(zbusCl, puller),
+		Janitor:     primitives.NewJanitor(zbusCl, puller),
 	})
 
 	if err != nil {
@@ -205,9 +205,4 @@ func action(cli *cli.Context) error {
 
 	log.Info().Msg("provision engine stopped")
 	return nil
-}
-
-type store interface {
-	provision.ReservationPoller
-	provision.Feedbacker
 }

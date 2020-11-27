@@ -21,17 +21,6 @@ var (
 	ErrPollEOS = fmt.Errorf("end of stream")
 )
 
-// ReservationPoller define the interface to implement
-// to poll the Explorer for new reservation
-type ReservationPoller interface {
-	ReservationGetter
-	// Poll ask the store to send us reservation for a specific node ID
-	// from is the used as a filter to which reservation to use as
-	// reservation.ID >= from. So a client to the Poll method should make
-	// sure to call it with the last (MAX) reservation ID he receieved.
-	Poll(nodeID pkg.Identifier, from uint64) (reservations []*Reservation, lastID uint64, err error)
-}
-
 // ReservationJob wraps a reservation type and has
 // a boolean to indicate it is the last reservation
 type ReservationJob struct {

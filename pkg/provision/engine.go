@@ -36,7 +36,7 @@ type Engine struct {
 	source ReservationSource
 
 	provisioner Provisioner
-	janitor     *Janitor
+	janitor     Janitor
 
 	memCache          *cache.Cache
 	totalMemAvailable uint64
@@ -51,7 +51,7 @@ type EngineOps struct {
 
 	// Janitor is used to clean up some of the resources that might be lingering on the node
 	// if not set, no cleaning up will be done
-	Janitor *Janitor
+	Janitor Janitor
 }
 
 // New creates a new engine. Once started, the engine
@@ -166,7 +166,7 @@ func (e *Engine) Run(ctx context.Context) error {
 				continue
 			}
 
-			if err := e.janitor.CleanupResources(ctx); err != nil {
+			if err := e.janitor.Cleanup(ctx); err != nil {
 				log.Error().Err(err).Msg("failed to cleanup resources")
 				continue
 			}

@@ -4,8 +4,23 @@ import (
 	"context"
 
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
+
+var (
+	currentCapacity = struct{}{}
+)
+
+// GetCapacity gets current capacity from context
+func GetCapacity(ctx context.Context) directory.ResourceAmount {
+	val := ctx.Value(currentCapacity)
+	if val == nil {
+		panic("no current capacity injected")
+	}
+
+	return val.(directory.ResourceAmount)
+}
 
 // statsProvisioner a provisioner interceptor that keeps track
 // of consumed capacity, and reprot it to the explorer
@@ -24,6 +39,8 @@ func NewStatisticsProvisioner(inner provision.Provisioner, initial Counters) pro
 }
 
 func (s *statsProvisioner) Provision(ctx context.Context, reservation *provision.Reservation) (*provision.Result, error) {
+	current := s.counters.CurrentUnits()
+	ctx = context.WithValue(ctx, currentCapacity, current)
 	result, err := s.inner.Provision(ctx, reservation)
 	if err != nil {
 		return result, err

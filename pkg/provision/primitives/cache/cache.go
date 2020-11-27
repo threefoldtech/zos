@@ -181,7 +181,7 @@ func (s *Fs) CurrentCounters() (primitives.Counters, error) {
 }
 
 // sync update the statser with all the reservation present in the cache
-func (s *Fs) sync(statser provision.Statser) error {
+func (s *Fs) sync(statser provision.Counter) error {
 	s.m.RLock()
 	defer s.m.RUnlock()
 
@@ -363,7 +363,7 @@ func (s *Fs) List() ([]*provision.Reservation, error) {
 
 // incrementCounters will increment counters for all workloads
 // for network workloads it will only increment those that have a unique name
-func (s *Fs) incrementCounters(statser provision.Statser) error {
+func (s *Fs) incrementCounters(statser provision.Counter) error {
 	uniqueNetworkReservations := make(map[pkg.NetID]*provision.Reservation)
 
 	reservations, err := s.List()

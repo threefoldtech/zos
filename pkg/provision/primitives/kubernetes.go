@@ -130,7 +130,7 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, reservation *p
 	}
 
 	var diskPath string
-	diskName := fmt.Sprintf("%s-%s", provision.FilesystemName(*reservation), "vda")
+	diskName := fmt.Sprintf("%s-%s", FilesystemName(*reservation), "vda")
 	if storage.Exists(diskName) {
 		needsInstall = false
 		info, err := storage.Inspect(diskName)

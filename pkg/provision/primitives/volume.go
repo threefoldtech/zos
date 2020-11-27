@@ -46,7 +46,7 @@ func (p *Primitives) volumeProvisionImpl(ctx context.Context, reservation *provi
 		}, nil
 	}
 
-	_, err = storageClient.CreateFilesystem(provision.FilesystemName(*reservation), config.Size*gigabyte, config.Type)
+	_, err = storageClient.CreateFilesystem(FilesystemName(*reservation), config.Size*gigabyte, config.Type)
 
 	return VolumeResult{
 		ID: reservation.ID,

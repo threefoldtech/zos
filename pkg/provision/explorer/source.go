@@ -17,7 +17,7 @@ import (
 // that retrieve reservation from the TFExplorer: https://github.com/threefoldtech/tfexplorer
 type Poller struct {
 	wl             client.Workloads
-	inputConv      provision.ReservationConverterFunc
+	inputConv      ReservationConverterFunc
 	provisionOrder map[provision.ReservationType]int
 }
 
@@ -25,7 +25,7 @@ type Poller struct {
 // inputConv is a function used by the provision.Engine to convert date received from the explorer to into the internal type of the system
 // provisionOrder is a map with each primitive type as key. It is used to order the reservation before sending them to the engine.
 //  This can be useful if some workloads in a same reservation depends on each other
-func NewPoller(cl *client.Client, inputConv provision.ReservationConverterFunc, provisionOrder map[provision.ReservationType]int) *Poller {
+func NewPoller(cl *client.Client, inputConv ReservationConverterFunc, provisionOrder map[provision.ReservationType]int) *Poller {
 	return &Poller{
 		wl:             cl.Workloads,
 		inputConv:      inputConv,

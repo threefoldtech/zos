@@ -1,4 +1,4 @@
-package provision
+package primitives
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/provision/common"
 	"github.com/threefoldtech/zos/pkg/storage"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -21,23 +22,23 @@ var (
 	vdiskIDMatch = regexp.MustCompile(`^(\d+-\d+)`)
 )
 
-// Janitor structure
-type Janitor struct {
+// janitorImpl structure
+type janitorImpl struct {
 	zbus zbus.Client
 
-	getter ReservationGetter
+	getter provision.ReservationGetter
 }
 
 // NewJanitor creates a new Janitor instance
-func NewJanitor(zbus zbus.Client, getter ReservationGetter) *Janitor {
-	return &Janitor{
+func NewJanitor(zbus zbus.Client, getter provision.ReservationGetter) provision.Janitor {
+	return &janitorImpl{
 		zbus:   zbus,
 		getter: getter,
 	}
 }
 
-// CleanupResources cleans up unused resources
-func (j *Janitor) CleanupResources(ctx context.Context) error {
+// Cleanup cleans up unused resources
+func (j *janitorImpl) Cleanup(ctx context.Context) error {
 	// - First remove all lingering zdb namespaces that has NO valid
 	// reservation. This will also decomission zdb containers that
 	// serves no namespaces anymore
@@ -63,7 +64,7 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 	return nil
 }
 
-func (j *Janitor) checkToDelete(id string) (bool, error) {
+func (j *janitorImpl) checkToDelete(id string) (bool, error) {
 	log.Debug().Str("id", id).Msg("checking explorer for reservation")
 
 	reservation, err := j.getter.Get(id)
@@ -83,7 +84,7 @@ func (j *Janitor) checkToDelete(id string) (bool, error) {
 	return reservation.ToDelete, nil
 }
 
-func (j *Janitor) cleanupVdisks(ctx context.Context) error {
+func (j *janitorImpl) cleanupVdisks(ctx context.Context) error {
 	stub := stubs.NewVDiskModuleStub(j.zbus)
 
 	vdisks, err := stub.List()
@@ -118,7 +119,7 @@ func (j *Janitor) cleanupVdisks(ctx context.Context) error {
 	return nil
 }
 
-func (j *Janitor) cleanupVolumes(ctx context.Context) error {
+func (j *janitorImpl) cleanupVolumes(ctx context.Context) error {
 	storaged := stubs.NewStorageModuleStub(j.zbus)
 	// We get a list with ALL volumes, that are being
 	// used by active containers. Note we don't check if
@@ -205,7 +206,7 @@ func (j *Janitor) cleanupVolumes(ctx context.Context) error {
 	return nil
 }
 
-func (j *Janitor) cleanupZdbContainer(ctx context.Context, id string) error {
+func (j *janitorImpl) cleanupZdbContainer(ctx context.Context, id string) error {
 	con, err := newZdbConnection(id)
 	if err != nil {
 		return err
@@ -254,7 +255,7 @@ func (j *Janitor) cleanupZdbContainer(ctx context.Context, id string) error {
 	return common.DeleteZdbContainer(pkg.ContainerID(id), j.zbus)
 }
 
-func (j *Janitor) cleanupZdbContainers(ctx context.Context) error {
+func (j *janitorImpl) cleanupZdbContainers(ctx context.Context) error {
 	containerd := stubs.NewContainerModuleStub(j.zbus)
 
 	containers, err := containerd.List("zdb")
@@ -273,7 +274,7 @@ func (j *Janitor) cleanupZdbContainers(ctx context.Context) error {
 
 // checks running containers for subvolumes that might need to be saved because they are used
 // and subvolumes that might need to be deleted because they have no attached container anymore
-func (j *Janitor) protectedVolumesFromContainers(ctx context.Context) (map[string]struct{}, error) {
+func (j *janitorImpl) protectedVolumesFromContainers(ctx context.Context) (map[string]struct{}, error) {
 	toSave := make(map[string]struct{})
 
 	contd := stubs.NewContainerModuleStub(j.zbus)
@@ -317,12 +318,8 @@ func (j *Janitor) protectedVolumesFromContainers(ctx context.Context) (map[strin
 	return toSave, nil
 }
 
-func socketDir(containerID string) string {
-	return fmt.Sprintf("/var/run/zdb_%s", containerID)
-}
-
 func newZdbConnection(id string) (zdb.Client, error) {
-	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir(id))
+	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir(pkg.ContainerID(id)))
 	cl := zdb.New(socket)
 	return cl, cl.Connect()
 }
