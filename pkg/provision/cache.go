@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	cacheKey = struct{}
+	cacheKey struct{}
 )
 
 // GetCache from context

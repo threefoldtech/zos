@@ -13,7 +13,7 @@ import (
 )
 
 type (
-	currentCapacity = struct{}
+	currentCapacity struct{}
 )
 
 // GetCapacity gets current capacity from context
