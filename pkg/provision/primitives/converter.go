@@ -262,7 +262,7 @@ func WireguardToProvisionType(p workloads.WireguardPeer) (pkg.Peer, error) {
 
 // WorkloadToProvisionType converts from the explorer type to the internal provision.Reservation
 func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, error) {
-
+	nextAction := w.GetNextAction()
 	reservation := &provision.Reservation{
 		ID:        fmt.Sprintf("%d-%d", w.GetID(), w.WorkloadID()),
 		User:      fmt.Sprintf("%d", w.GetCustomerTid()),
@@ -270,7 +270,7 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 		Created:   w.GetEpoch().Time,
 		Duration:  math.MaxInt64, //ensure we never decomission based on expiration time. Since the capacity pool introduction this is not needed anymore
 		Signature: []byte(w.GetCustomerSignature()),
-		ToDelete:  w.GetNextAction() == workloads.NextActionDelete,
+		ToDelete:  nextAction == workloads.NextActionDelete || nextAction == workloads.NextActionDeleted,
 		Reference: w.GetReference(),
 		Result:    resultFromSchemaType(w.GetResult()),
 		Version:   w.GetVersion(),
