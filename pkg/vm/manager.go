@@ -380,6 +380,12 @@ func (m *Module) waitAndAdjOom(ctx context.Context, id string) error {
 	return nil
 }
 
+// Logs returns machine logs for give machine name
+func (m *Module) Logs(name string) (string, error) {
+	path := filepath.Join(m.machineRoot(name), "root", "machine.log")
+	return m.tail(path)
+}
+
 // Inspect a machine by name
 func (m *Module) Inspect(name string) (pkg.VMInfo, error) {
 	if !m.Exists(name) {

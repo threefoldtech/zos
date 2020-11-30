@@ -252,6 +252,13 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 			// In that case, we attempt a delete first. This will kill the vm process
 			// if it is still going. The actual resources (disk, taps, ...) should
 			// be handled by the caller.
+			logs, err := vm.Logs(name)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to get machine logs")
+			} else {
+				log.Debug().Str("vm", name).Str("type", "machine-logs").Msg(logs)
+			}
+
 			if err := vm.Delete(name); err != nil {
 				log.Warn().Err(err).Msg("could not delete vm who's install deadline expired")
 			}
@@ -269,6 +276,7 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 	disks := make([]pkg.VMDisk, 1)
 	// installed disk
 	disks[0] = pkg.VMDisk{Path: diskPath, ReadOnly: false, Root: false}
+	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.token=%s", cfg.PlainClusterSecret)
 
 	kubevm := pkg.VM{
 		Name:        name,
@@ -277,7 +285,7 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 		Network:     networkInfo,
 		KernelImage: imagePath + "/k3os-vmlinux",
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
-		KernelArgs:  "console=ttyS0 reboot=k panic=1",
+		KernelArgs:  cmdline,
 		Disks:       disks,
 	}
 

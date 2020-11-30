@@ -120,5 +120,6 @@ type VMModule interface {
 	Run(vm VM) error
 	Inspect(name string) (VMInfo, error)
 	Delete(name string) error
-	Exists(id string) bool
+	Exists(name string) bool
+	Logs(name string) (string, error)
 }
