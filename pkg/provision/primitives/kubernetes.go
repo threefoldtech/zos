@@ -256,7 +256,7 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get machine logs")
 			} else {
-				log.Debug().Str("vm", name).Str("type", "machine-logs").Msg(logs)
+				log.Warn().Str("vm", name).Str("type", "machine-logs").Msg(logs)
 			}
 
 			if err := vm.Delete(name); err != nil {
