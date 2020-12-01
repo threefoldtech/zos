@@ -13,6 +13,7 @@ import (
 	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
@@ -177,7 +178,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	}
 
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = p.buildNetworkInfo(ctx, reservation.Version, reservation.User, iface, pubIface, config)
+	netInfo, err = p.buildNetworkInfo(ctx, reservation.ID, reservation.Version, reservation.User, iface, pubIface, config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
@@ -332,7 +333,7 @@ func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *pr
 	return nil
 }
 
-func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID string, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
+func (p *Provisioner) buildNetworkInfo(ctx context.Context, rid string, rversion int, userID string, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 
 	netID := provision.NetworkID(userID, string(cfg.NetworkID))
@@ -394,9 +395,11 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID
 			return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not get public ip config")
 		}
 
+		mac := ifaceutil.HardwareAddrFromInputBytes([]byte(rid))
+
 		iface := pkg.VMIface{
 			Tap:            pubIface,
-			MAC:            "", // static ip is set so not important
+			MAC:            mac.String(), // fixed mac for SLAAC
 			IP4AddressCIDR: pubIP,
 			IP4GatewayIP:   pubGw,
 			// for now we get ipv6 from slaac, so leave ipv6 stuffs this empty
