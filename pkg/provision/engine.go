@@ -132,6 +132,10 @@ func (e *Engine) Run(ctx context.Context) error {
 				continue
 			}
 
+			//TODO:
+			// this is just a hack now to avoid having double provisioning
+			// other logs has been added in other places so we can find why
+			// the node keep receiving the same reservation twice
 			if _, ok := e.memCache.Get(reservation.ID); ok {
 				log.Debug().Str("id", reservation.ID).Msg("skipping reservation since it has just been processes!")
 				continue
