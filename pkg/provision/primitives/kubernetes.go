@@ -276,7 +276,6 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 	disks := make([]pkg.VMDisk, 1)
 	// installed disk
 	disks[0] = pkg.VMDisk{Path: diskPath, ReadOnly: false, Root: false}
-	cmdline := fmt.Sprintf("console=ttyS0 reboot=k panic=1 k3os.token=%s", cfg.PlainClusterSecret)
 
 	kubevm := pkg.VM{
 		Name:        name,
@@ -285,7 +284,7 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 		Network:     networkInfo,
 		KernelImage: imagePath + "/k3os-vmlinux",
 		InitrdImage: imagePath + "/k3os-initrd-amd64",
-		KernelArgs:  cmdline,
+		KernelArgs:  "console=ttyS0 reboot=k panic=1",
 		Disks:       disks,
 	}
 
