@@ -207,7 +207,7 @@ func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, totalMemAva
 
 	if requestedUnits.MRU != 0 {
 		// If current MRU + requested MRU exceeds total, return an error
-		if uint64(c.CurrentUnits().Mru)+requestedUnits.MRU > totalMemAvailable {
+		if c.MRU.Current()+requestedUnits.MRU > totalMemAvailable {
 			return errors.New("not enough free resources to support this memory size")
 		}
 	}
