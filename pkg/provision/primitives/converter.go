@@ -194,9 +194,24 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 		ClusterSecret: k.ClusterSecret,
 		MasterIPs:     k.MasterIps,
 		SSHKeys:       k.SshKeys,
+		PublicIP:      k.PublicIP,
 	}
 
 	return k8s, k.NodeId, nil
+}
+
+// PublicIPToProvisionType converts type to internal provision type
+func PublicIPToProvisionType(w workloads.Workloader) (PublicIP, string, error) {
+	p, ok := w.(*workloads.PublicIP)
+	if !ok {
+		return PublicIP{}, "", fmt.Errorf("failed to convert kubernetes workload, wrong format")
+	}
+
+	publicIP := PublicIP{
+		IP: p.IPaddress.IPNet,
+	}
+
+	return publicIP, p.NodeId, nil
 }
 
 // NetworkResourceToProvisionType converts type to internal provision type
@@ -247,7 +262,7 @@ func WireguardToProvisionType(p workloads.WireguardPeer) (pkg.Peer, error) {
 
 // WorkloadToProvisionType converts from the explorer type to the internal provision.Reservation
 func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, error) {
-
+	nextAction := w.GetNextAction()
 	reservation := &provision.Reservation{
 		ID:        fmt.Sprintf("%d-%d", w.GetID(), w.WorkloadID()),
 		User:      fmt.Sprintf("%d", w.GetCustomerTid()),
@@ -255,7 +270,7 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 		Created:   w.GetEpoch().Time,
 		Duration:  math.MaxInt64, //ensure we never decomission based on expiration time. Since the capacity pool introduction this is not needed anymore
 		Signature: []byte(w.GetCustomerSignature()),
-		ToDelete:  w.GetNextAction() == workloads.NextActionDelete,
+		ToDelete:  nextAction == workloads.NextActionDelete || nextAction == workloads.NextActionDeleted,
 		Reference: w.GetReference(),
 		Result:    resultFromSchemaType(w.GetResult()),
 		Version:   w.GetVersion(),
@@ -293,6 +308,11 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 		if err != nil {
 			return nil, err
 		}
+	case workloads.WorkloadTypePublicIP:
+		data, reservation.NodeID, err = PublicIPToProvisionType(w)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("%w (%s) (%T)", ErrUnsupportedWorkload, w.GetWorkloadType().String(), w)
 	}
@@ -320,6 +340,8 @@ func ResultToSchemaType(r provision.Result) (*workloads.Result, error) {
 		rType = workloads.WorkloadTypeNetwork
 	case KubernetesReservation:
 		rType = workloads.WorkloadTypeKubernetes
+	case PublicIPReservation:
+		rType = workloads.WorkloadTypePublicIP
 	default:
 		return nil, fmt.Errorf("unknown reservation type: %s", r.Type)
 	}
