@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 // PublicIP structure
@@ -29,5 +30,7 @@ func (p *Provisioner) publicIPProvisionImpl(ctx context.Context, reservation *pr
 }
 
 func (p *Provisioner) publicIPDecomission(ctx context.Context, reservation *provision.Reservation) error {
-	return nil
+	// Disconnect the public interface from the network if one exists
+	network := stubs.NewNetworkerStub(p.zbus)
+	return network.DisconnectPubTap(reservation.ID)
 }
