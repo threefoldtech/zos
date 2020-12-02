@@ -59,6 +59,17 @@ func (p *Provisioner) kubernetesProvision(ctx context.Context, reservation *prov
 	return p.kubernetesProvisionImpl(ctx, reservation)
 }
 
+func ensureFList(flister pkg.Flister, url string) (string, error) {
+	hash, err := flister.FlistHash(url)
+	if err != nil {
+		return "", err
+	}
+
+	name := fmt.Sprintf("k8s:%s", hash)
+
+	return flister.NamedMount(name, url, "", pkg.ReadOnlyMountOptions)
+}
+
 func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result KubernetesResult, err error) {
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
@@ -112,17 +123,10 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 		return result, nil
 	}
 
-	var imagePath string
-	imagePath, err = flist.NamedMount(provision.FilesystemName(*reservation), k3osFlistURL, "", pkg.ReadOnlyMountOptions)
+	imagePath, err := ensureFList(flist, k3osFlistURL)
 	if err != nil {
 		return result, errors.Wrap(err, "could not mount k3os flist")
 	}
-	// In case of future errors in the provisioning make sure we clean up
-	defer func() {
-		if err != nil {
-			_ = flist.Umount(imagePath)
-		}
-	}()
 
 	var diskPath string
 	diskName := fmt.Sprintf("%s-%s", provision.FilesystemName(*reservation), "vda")
@@ -295,7 +299,6 @@ func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *pr
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)
-		flist   = stubs.NewFlisterStub(p.zbus)
 		vm      = stubs.NewVMModuleStub(p.zbus)
 
 		cfg Kubernetes
@@ -324,11 +327,6 @@ func (p *Provisioner) kubernetesDecomission(ctx context.Context, reservation *pr
 
 	if err := storage.Deallocate(fmt.Sprintf("%s-%s", reservation.ID, "vda")); err != nil {
 		return errors.Wrap(err, "could not remove vDisk")
-	}
-
-	// Unmount flist, skip error if any.
-	if err := flist.NamedUmount(reservation.ID); err != nil {
-		log.Err(err).Msg("could not unmount flist")
 	}
 
 	return nil
