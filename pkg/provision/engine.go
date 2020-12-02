@@ -11,9 +11,9 @@ import (
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/jbenet/go-base58"
-	"github.com/shirou/gopsutil/mem"
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron/v3"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -40,7 +40,8 @@ type Engine struct {
 	zbusCl         zbus.Client
 	janitor        *Janitor
 
-	memCache *cache.Cache
+	memCache          *cache.Cache
+	totalMemAvailable uint64
 }
 
 // EngineOps are the configuration of the engine
@@ -85,7 +86,7 @@ func New(opts EngineOps) (*Engine, error) {
 	memStats, err := mem.VirtualMemory()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed retrieve memory stats")
-  }
+	}
 
 	return &Engine{
 		nodeID:            opts.NodeID,
@@ -98,7 +99,7 @@ func New(opts EngineOps) (*Engine, error) {
 		statser:           opts.Statser,
 		zbusCl:            opts.ZbusCl,
 		janitor:           opts.Janitor,
-    memCache:       cache.New(30*time.Second, 10*time.Second),
+		memCache:          cache.New(30*time.Second, 10*time.Second),
 		totalMemAvailable: memStats.Total - minimunZosMemory,
 	}, nil
 }
