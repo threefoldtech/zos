@@ -11,16 +11,16 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-// atomicValue value for safe increment/decrement
-type atomicValue uint64
+// AtomicValue value for safe increment/decrement
+type AtomicValue uint64
 
 // Increment counter atomically by one
-func (c *atomicValue) Increment(v uint64) uint64 {
+func (c *AtomicValue) Increment(v uint64) uint64 {
 	return atomic.AddUint64((*uint64)(c), v)
 }
 
 // Decrement counter atomically by one
-func (c *atomicValue) Decrement(v uint64) uint64 {
+func (c *AtomicValue) Decrement(v uint64) uint64 {
 	// spinlock until the decrement succeeds
 	for {
 		current := c.Current()
@@ -40,23 +40,23 @@ func (c *atomicValue) Decrement(v uint64) uint64 {
 }
 
 // Current returns the current value
-func (c *atomicValue) Current() uint64 {
+func (c *AtomicValue) Current() uint64 {
 	return atomic.LoadUint64((*uint64)(c))
 }
 
 // Counters tracks the amount of primitives workload deployed and
 // the amount of resource unit used
 type Counters struct {
-	containers atomicValue
-	volumes    atomicValue
-	networks   atomicValue
-	zdbs       atomicValue
-	vms        atomicValue
+	containers AtomicValue
+	volumes    AtomicValue
+	networks   AtomicValue
+	zdbs       AtomicValue
+	vms        AtomicValue
 
-	sru atomicValue // SSD storage in bytes
-	hru atomicValue // HDD storage in bytes
-	mru atomicValue // Memory storage in bytes
-	cru atomicValue // CPU count absolute
+	SRU AtomicValue // SSD storage in bytes
+	HRU AtomicValue // HDD storage in bytes
+	MRU AtomicValue // Memory storage in bytes
+	CRU AtomicValue // CPU count absolute
 }
 
 // CurrentWorkloads return the number of each workloads provisioned on the system
@@ -74,10 +74,10 @@ func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 func (c *Counters) CurrentUnits() directory.ResourceAmount {
 	gib := float64(gib)
 	return directory.ResourceAmount{
-		Cru: c.cru.Current(),
-		Mru: float64(c.mru.Current()) / gib,
-		Hru: float64(c.hru.Current()) / gib,
-		Sru: float64(c.sru.Current()) / gib,
+		Cru: c.CRU.Current(),
+		Mru: float64(c.MRU.Current()) / gib,
+		Hru: float64(c.HRU.Current()) / gib,
+		Sru: float64(c.SRU.Current()) / gib,
 	}
 }
 
@@ -119,10 +119,10 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 		return err
 	}
 
-	c.cru.Increment(u.CRU)
-	c.mru.Increment(u.MRU)
-	c.sru.Increment(u.SRU)
-	c.hru.Increment(u.HRU)
+	c.CRU.Increment(u.CRU)
+	c.MRU.Increment(u.MRU)
+	c.SRU.Increment(u.SRU)
+	c.HRU.Increment(u.HRU)
 
 	return nil
 }
@@ -160,10 +160,10 @@ func (c *Counters) Decrement(r *provision.Reservation) error {
 		return err
 	}
 
-	c.cru.Decrement(u.CRU)
-	c.mru.Decrement(u.MRU)
-	c.sru.Decrement(u.SRU)
-	c.hru.Decrement(u.HRU)
+	c.CRU.Decrement(u.CRU)
+	c.MRU.Decrement(u.MRU)
+	c.SRU.Decrement(u.SRU)
+	c.HRU.Decrement(u.HRU)
 
 	return nil
 }

@@ -32,6 +32,7 @@ func GetCapacity(ctx context.Context) directory.ResourceAmount {
 type statsProvisioner struct {
 	inner    provision.Provisioner
 	counters Counters
+	reserved directory.ResourceAmount
 
 	nodeID string
 	client client.Directory
@@ -39,8 +40,8 @@ type statsProvisioner struct {
 
 // NewStatisticsProvisioner creates a new statistics provisioner interceptor.
 // Statistics provisioner keeps track of used capacity and update explorer when it changes
-func NewStatisticsProvisioner(inner provision.Provisioner, initial Counters, nodeID string, client client.Directory) provision.Provisioner {
-	return &statsProvisioner{inner: inner, counters: initial, nodeID: nodeID, client: client}
+func NewStatisticsProvisioner(inner provision.Provisioner, initial, reserved Counters, nodeID string, client client.Directory) provision.Provisioner {
+	return &statsProvisioner{inner: inner, counters: initial, reserved: reserved.CurrentUnits(), nodeID: nodeID, client: client}
 }
 
 func (s *statsProvisioner) Provision(ctx context.Context, reservation *provision.Reservation) (*provision.Result, error) {
@@ -60,10 +61,30 @@ func (s *statsProvisioner) Provision(ctx context.Context, reservation *provision
 	return result, nil
 }
 
+func (s *statsProvisioner) Decommission(ctx context.Context, reservation *provision.Reservation) error {
+	if err := s.inner.Decommission(ctx, reservation); err != nil {
+		return err
+	}
+
+	if err := s.counters.Decrement(reservation); err != nil {
+		log.Error().Err(err).Msg("failed to decrement statistics counter")
+	}
+
+	s.sync(reservation.NodeID)
+
+	return nil
+}
+
 func (s *statsProvisioner) sync(nodeID string) {
 	strategy := backoff.NewExponentialBackOff()
 	strategy.MaxInterval = 15 * time.Second
 	strategy.MaxElapsedTime = 3 * time.Minute
+
+	current := s.counters.CurrentUnits()
+	current.Cru += s.reserved.Cru
+	current.Sru += s.reserved.Sru
+	current.Hru += s.reserved.Hru
+	current.Mru += s.reserved.Mru
 
 	// TODO (VERY IMPORTANT)
 	// make sure to also report used capacity
@@ -71,7 +92,7 @@ func (s *statsProvisioner) sync(nodeID string) {
 	err := backoff.Retry(func() error {
 		err := s.client.NodeUpdateUsedResources(
 			s.nodeID,
-			s.counters.CurrentUnits(),
+			current,
 			s.counters.CurrentWorkloads(),
 		)
 
@@ -87,18 +108,4 @@ func (s *statsProvisioner) sync(nodeID string) {
 	if err != nil {
 		log.Error().Err(err).Msg("failed to update consumed capacity on explorer")
 	}
-}
-
-func (s *statsProvisioner) Decommission(ctx context.Context, reservation *provision.Reservation) error {
-	if err := s.inner.Decommission(ctx, reservation); err != nil {
-		return err
-	}
-
-	if err := s.counters.Decrement(reservation); err != nil {
-		log.Error().Err(err).Msg("failed to decrement statistics counter")
-	}
-
-	s.sync(reservation.NodeID)
-
-	return nil
 }

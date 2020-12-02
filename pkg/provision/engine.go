@@ -289,50 +289,6 @@ func (e *Engine) buildResult(id string, typ ReservationType, err error, info int
 	return result, nil
 }
 
-// func (e *Engine) updateStats() error {
-// 	wl := e.statser.CurrentWorkloads()
-// 	r := e.statser.CurrentUnits()
-
-// 	if e.zbusCl != nil {
-// 		// TODO: this is a very specific zos code that should not be
-// 		// here. this is a quick fix for the tfgateways
-// 		// but should be implemented cleanely after
-// 		storaged := stubs.NewStorageModuleStub(e.zbusCl)
-
-// 		cache, err := storaged.GetCacheFS()
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		switch cache.DiskType {
-// 		case pkg.SSDDevice:
-// 			r.Sru += float64(cache.Usage.Size / gib)
-// 		case pkg.HDDDevice:
-// 			r.Hru += float64(cache.Usage.Size / gib)
-// 		}
-
-//		r.Mru += float64(minimunZosMemory / gib)
-//	}
-
-// 	log.Info().
-// 		Uint16("network", wl.Network).
-// 		Uint16("volume", wl.Volume).
-// 		Uint16("zDBNamespace", wl.ZDBNamespace).
-// 		Uint16("container", wl.Container).
-// 		Uint16("k8sVM", wl.K8sVM).
-// 		Uint16("proxy", wl.Proxy).
-// 		Uint16("reverseProxy", wl.ReverseProxy).
-// 		Uint16("subdomain", wl.Subdomain).
-// 		Uint16("delegateDomain", wl.DelegateDomain).
-// 		Uint64("cru", r.Cru).
-// 		Float64("mru", r.Mru).
-// 		Float64("hru", r.Hru).
-// 		Float64("sru", r.Sru).
-// 		Msgf("provision statistics")
-
-// 	return e.feedback.UpdateStats(e.nodeID, wl, r)
-// }
-
 func (e *Engine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
 	return nil
 }
