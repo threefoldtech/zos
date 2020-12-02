@@ -156,9 +156,12 @@ func (s *Fs) Purge(f Filter) error {
 		if err != nil {
 			return err
 		}
+
 		if f(reservation) {
 			log.Info().Str("reservation", reservation.ID).Msg("removing cached reservation")
-			return s.remove(id)
+			if err := s.remove(id); err != nil {
+				return err
+			}
 		}
 
 		return nil

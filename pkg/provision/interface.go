@@ -45,7 +45,7 @@ type ReservationCache interface {
 	Get(id string) (*Reservation, error)
 	Remove(id string) error
 	Exists(id string) (bool, error)
-	NetworkExists(id string) (bool, error)
+	//NetworkExists(id string) (bool, error)
 }
 
 // Counter is used by the provision Engine to keep

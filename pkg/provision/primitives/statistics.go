@@ -104,9 +104,6 @@ func (s *statsProvisioner) sync(nodeID string) {
 	current.Hru += reserved.Hru
 	current.Mru += reserved.Mru
 
-	// TODO (VERY IMPORTANT)
-	// make sure to also report used capacity
-	// by the node itself, such as cache volume
 	err := backoff.Retry(func() error {
 		err := s.client.NodeUpdateUsedResources(
 			s.nodeID,
