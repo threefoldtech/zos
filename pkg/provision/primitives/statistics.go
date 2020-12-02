@@ -8,22 +8,29 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
-	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
 type (
-	currentCapacity struct{}
+	currentCapacityKey struct{}
 )
 
+// CurrentCapacity is a value that holds current system load in bytes
+type CurrentCapacity struct {
+	Cru uint64
+	Mru uint64
+	Hru uint64
+	Sru uint64
+}
+
 // GetCapacity gets current capacity from context
-func GetCapacity(ctx context.Context) directory.ResourceAmount {
-	val := ctx.Value(currentCapacity{})
+func GetCapacity(ctx context.Context) CurrentCapacity {
+	val := ctx.Value(currentCapacityKey{})
 	if val == nil {
 		panic("no current capacity injected")
 	}
 
-	return val.(directory.ResourceAmount)
+	return val.(CurrentCapacity)
 }
 
 // statsProvisioner a provisioner interceptor that keeps track
@@ -32,7 +39,7 @@ func GetCapacity(ctx context.Context) directory.ResourceAmount {
 type statsProvisioner struct {
 	inner    provision.Provisioner
 	counters Counters
-	reserved directory.ResourceAmount
+	reserved Counters
 
 	nodeID string
 	client client.Directory
@@ -41,12 +48,21 @@ type statsProvisioner struct {
 // NewStatisticsProvisioner creates a new statistics provisioner interceptor.
 // Statistics provisioner keeps track of used capacity and update explorer when it changes
 func NewStatisticsProvisioner(inner provision.Provisioner, initial, reserved Counters, nodeID string, client client.Directory) provision.Provisioner {
-	return &statsProvisioner{inner: inner, counters: initial, reserved: reserved.CurrentUnits(), nodeID: nodeID, client: client}
+	return &statsProvisioner{inner: inner, counters: initial, reserved: reserved, nodeID: nodeID, client: client}
+}
+
+func (s *statsProvisioner) currentCapacity() CurrentCapacity {
+	return CurrentCapacity{
+		Cru: s.counters.CRU.Current() + s.reserved.CRU.Current(),
+		Mru: s.counters.CRU.Current() + s.reserved.MRU.Current(),
+		Hru: s.counters.CRU.Current() + s.reserved.HRU.Current(),
+		Sru: s.counters.CRU.Current() + s.reserved.SRU.Current(),
+	}
 }
 
 func (s *statsProvisioner) Provision(ctx context.Context, reservation *provision.Reservation) (*provision.Result, error) {
-	current := s.counters.CurrentUnits()
-	ctx = context.WithValue(ctx, currentCapacity{}, current)
+	current := s.currentCapacity()
+	ctx = context.WithValue(ctx, currentCapacityKey{}, current)
 	result, err := s.inner.Provision(ctx, reservation)
 	if err != nil {
 		return result, err
@@ -81,10 +97,12 @@ func (s *statsProvisioner) sync(nodeID string) {
 	strategy.MaxElapsedTime = 3 * time.Minute
 
 	current := s.counters.CurrentUnits()
-	current.Cru += s.reserved.Cru
-	current.Sru += s.reserved.Sru
-	current.Hru += s.reserved.Hru
-	current.Mru += s.reserved.Mru
+	reserved := s.reserved.CurrentUnits()
+
+	current.Cru += reserved.Cru
+	current.Sru += reserved.Sru
+	current.Hru += reserved.Hru
+	current.Mru += reserved.Mru
 
 	// TODO (VERY IMPORTANT)
 	// make sure to also report used capacity
