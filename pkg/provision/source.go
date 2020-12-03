@@ -94,7 +94,9 @@ func (s *pollSource) Reservations(ctx context.Context) <-chan *ReservationJob {
 				ids = append(ids, fmt.Sprintf("%s [D: %v]", r.ID, r.ToDelete))
 			}
 
-			slog.Info().Strs("reservation-ids", ids).Msg("received ids for processing")
+			if len(ids) > 0 {
+				log.Info().Strs("reservation-ids", ids).Msg("received ids for processing")
+			}
 
 			next = lastID + 1
 
