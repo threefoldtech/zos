@@ -99,7 +99,7 @@ func New(opts EngineOps) (*Engine, error) {
 		statser:           opts.Statser,
 		zbusCl:            opts.ZbusCl,
 		janitor:           opts.Janitor,
-		memCache:          cache.New(30*time.Second, 10*time.Second),
+		memCache:          cache.New(30*time.Minute, 30*time.Second),
 		totalMemAvailable: memStats.Total - minimunZosMemory,
 	}, nil
 }
