@@ -494,7 +494,9 @@ func (n *networker) DisconnectPubTap(pubIPReservationID string) error {
 	}
 
 	tap, err := netlink.LinkByName(tapIfaceName)
-	if err != nil {
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
