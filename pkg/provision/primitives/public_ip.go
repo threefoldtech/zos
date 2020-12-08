@@ -34,15 +34,28 @@ func (p *Provisioner) publicIPProvision(ctx context.Context, reservation *provis
 
 func (p *Provisioner) publicIPProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result PublicIPResult, err error) {
 	config := PublicIP{}
+
+	network := stubs.NewNetworkerStub(p.zbus)
+
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return PublicIPResult{}, errors.Wrap(err, "failed to decode reservation schema")
+	}
+
+	pubIP6Base, err := network.GetPublicIPv6Subnet()
+	if err != nil {
+		return PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
 	}
 
 	tapName := fmt.Sprintf("p-%s", reservation.ID) // TODO: clean this up, needs to come form networkd
 	fName := filterName(reservation.ID)
 	mac := ifaceutil.HardwareAddrFromInputBytes(config.IP.IP.To4())
 
-	err = setupFilters(ctx, fName, tapName, config.IP.IP.To4().String(), mac.String())
+	predictedIPv6, err := predictedSlaac(pubIP6Base.IP, mac.String())
+	if err != nil {
+		return PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
+	}
+
+	err = setupFilters(ctx, fName, tapName, config.IP.IP.To4().String(), predictedIPv6, mac.String())
 	return PublicIPResult{
 		ID: reservation.ID,
 		IP: config.IP.IP.String(),
@@ -59,7 +72,7 @@ func filterName(reservationID string) string {
 	return fmt.Sprintf("r-%s", reservationID)
 }
 
-func setupFilters(ctx context.Context, fName string, iface string, ip string, mac string) error {
+func setupFilters(ctx context.Context, fName string, iface string, ip string, ipv6 string, mac string) error {
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c",
 		fmt.Sprintf(`# add vm
 # add a chain for the vm public interface in arp and bridge
@@ -75,10 +88,10 @@ nft 'add rule arp filter %[1]s arp operation reply arp saddr ip . arp saddr ethe
 
 # filter on L2 fowarding of non-matching ip/mac, drop RA,dhcpv6,dhcp
 nft 'add rule bridge filter %[1]s ip saddr . ether saddr != { %[3]s . %[4]s } counter drop'
-nft 'add rule bridge filter %[1]s ip6 saddr . ether saddr != { 2a02:1807:1100:1:a6a1:c2ff:fe00:2 . %[4]s } counter drop'
+nft 'add rule bridge filter %[1]s ip6 saddr . ether saddr != { %[5]s . %[4]s } counter drop'
 nft 'add rule bridge filter %[1]s icmpv6 type nd-router-advert drop'
 nft 'add rule bridge filter %[1]s ip6 version 6 udp sport 547 drop'
-nft 'add rule bridge filter %[1]s ip version 4 udp sport 67 drop'`, fName, iface, ip, mac))
+nft 'add rule bridge filter %[1]s ip version 4 udp sport 67 drop'`, fName, iface, ip, mac, ipv6))
 
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "could not setup firewall rules for public ip")
@@ -112,25 +125,8 @@ nft 'delete chain arp filter handle '${a}`, fName))
 	return nil
 }
 
-// see: https://github.com/MalteJ/docker/blob/f09b7897d2a54f35a0b26f7cbe750b3c9383a553/daemon/networkdriver/bridge/driver.go#L585
-func linkLocalIPv6FromMac(mac string) (string, error) {
-	hx := strings.Replace(mac, ":", "", -1)
-	hw, err := hex.DecodeString(hx)
-	if err != nil {
-		return "", errors.New("Could not parse MAC address " + mac)
-	}
-
-	hw[0] ^= 0x2
-
-	return fmt.Sprintf("fe80::%x:%x:%x:%x/64",
-			0x100*int(hw[0])+int(hw[1]),
-			0x100*int(hw[2])+0xff,
-			0xFE00+int(hw[3]),
-			0x100*int(hw[4])+int(hw[5])),
-		nil
-}
-
-func predictedSlaacMac(mac string) (string, error) {
+// modified version of: https://github.com/MalteJ/docker/blob/f09b7897d2a54f35a0b26f7cbe750b3c9383a553/daemon/networkdriver/bridge/driver.go#L585
+func predictedSlaac(base net.IP, mac string) (string, error) {
 	// TODO: get pub ipv6 prefix
 	hx := strings.Replace(mac, ":", "", -1)
 	hw, err := hex.DecodeString(hx)
@@ -140,10 +136,15 @@ func predictedSlaacMac(mac string) (string, error) {
 
 	hw[0] ^= 0x2
 
-	return fmt.Sprintf("fe80::%x:%x:%x:%x/64",
-			0x100*int(hw[0])+int(hw[1]),
-			0x100*int(hw[2])+0xff,
-			0xFE00+int(hw[3]),
-			0x100*int(hw[4])+int(hw[5])),
-		nil
+	base[8] = hw[0]
+	base[9] = hw[1]
+	base[10] = hw[2]
+	base[11] = 0xFF
+	base[12] = 0xFE
+	base[13] = hw[3]
+	base[14] = hw[4]
+	base[15] = hw[5]
+
+	return base.String(), nil
+
 }
