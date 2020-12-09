@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -65,6 +66,10 @@ func (p *Provisioner) publicIPProvisionImpl(ctx context.Context, reservation *pr
 func (p *Provisioner) publicIPDecomission(ctx context.Context, reservation *provision.Reservation) error {
 	// Disconnect the public interface from the network if one exists
 	network := stubs.NewNetworkerStub(p.zbus)
+	fName := filterName(reservation.ID)
+	if err := teardownFilters(ctx, fName); err != nil {
+		log.Error().Err(err).Msg("could not remove filter rules")
+	}
 	return network.DisconnectPubTap(reservation.ID)
 }
 
