@@ -11,7 +11,7 @@ import (
 
 func ensureHostFw(ctx context.Context) error {
 	log.Info().Msg("ensuring existing host nft rules")
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", "nft list ruleset")
+	cmd := exec.CommandContext(ctx, "nft", "list", "ruleset")
 	out, err := cmd.Output()
 	if err != nil {
 		return errors.Wrap(err, "could not load existing nft rules")
