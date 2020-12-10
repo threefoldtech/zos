@@ -467,6 +467,10 @@ func (e *Engine) updateStats() error {
 	wl := e.statser.CurrentWorkloads()
 	r := e.statser.CurrentUnits()
 
+	// We always add the reserved zos memory here
+	// this should be cleaned up in engine refactoring branch
+	r.Mru += minimunZosMemory / gib
+
 	if e.zbusCl != nil {
 		// TODO: this is a very specific zos code that should not be
 		// here. this is a quick fix for the tfgateways
