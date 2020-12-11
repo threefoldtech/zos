@@ -31,7 +31,7 @@ type committerProvisioner struct {
 
 // NewCommitterProvisioner creates a provisioner that makes sure provision results is committed
 // to the explorer
-func NewCommitterProvisioner(inner provision.Provisioner, client client.Workloads, converter ResultConverterFunc, signer Signer, nodeID string) provision.Provisioner {
+func NewCommitterProvisioner(client client.Workloads, converter ResultConverterFunc, signer Signer, nodeID string, inner provision.Provisioner) provision.Provisioner {
 	strategy := backoff.NewExponentialBackOff()
 	strategy.MaxInterval = 15 * time.Second
 	strategy.MaxElapsedTime = 3 * time.Minute

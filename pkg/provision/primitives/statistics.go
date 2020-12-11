@@ -2,12 +2,15 @@ package primitives
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
@@ -47,7 +50,7 @@ type statsProvisioner struct {
 
 // NewStatisticsProvisioner creates a new statistics provisioner interceptor.
 // Statistics provisioner keeps track of used capacity and update explorer when it changes
-func NewStatisticsProvisioner(inner provision.Provisioner, initial, reserved Counters, nodeID string, client client.Directory) provision.Provisioner {
+func NewStatisticsProvisioner(initial, reserved Counters, nodeID string, client client.Directory, inner provision.Provisioner) provision.Provisioner {
 	return &statsProvisioner{inner: inner, counters: initial, reserved: reserved, nodeID: nodeID, client: client}
 }
 
@@ -68,8 +71,10 @@ func (s *statsProvisioner) Provision(ctx context.Context, reservation *provision
 		return result, err
 	}
 
-	if err := s.counters.Increment(reservation); err != nil {
-		log.Error().Err(err).Msg("failed to increment statistics counter")
+	if result.State == provision.StateOk {
+		if err := s.counters.Increment(reservation); err != nil {
+			log.Error().Err(err).Msg("failed to increment statistics counter")
+		}
 	}
 
 	s.sync(reservation.NodeID)
@@ -89,6 +94,43 @@ func (s *statsProvisioner) Decommission(ctx context.Context, reservation *provis
 	s.sync(reservation.NodeID)
 
 	return nil
+}
+
+func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, reservation *provision.Reservation) (bool, error) {
+	// rule, we always should update counters UNLESS it is a network reservation that
+	// already have been counted before.
+	if reservation.Type != provision.NetworkReservation {
+		return true, nil
+	}
+
+	nr := pkg.NetResource{}
+	if err := json.Unmarshal(reservation.Data, &nr); err != nil {
+		return false, fmt.Errorf("failed to unmarshal network from reservation: %w", err)
+	}
+	// otherwise we check the cache if a network
+	// with the same id already exists
+	id := NetworkID(reservation.User, nr.Name)
+	cache := provision.GetCache(ctx)
+	matches, err := cache.Find(func(r *provision.Reservation) bool {
+		if r.Type != provision.NetworkReservation {
+			return false
+		}
+
+		nr := pkg.NetResource{}
+		if err := json.Unmarshal(r.Data, &nr); err != nil {
+			log.Warn().Err(err).Str("id", r.ID).Msg("failed to load network reservation")
+			return false
+		}
+		cachedID := NetworkID(r.User, nr.Name)
+		return id == cachedID
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	// if no matches, then counters should be incremented
+	return len(matches) == 0, nil
 }
 
 func (s *statsProvisioner) sync(nodeID string) {

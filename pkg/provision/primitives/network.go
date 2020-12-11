@@ -1,10 +1,13 @@
 package primitives
 
 import (
+	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 
+	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
@@ -12,6 +15,19 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
+
+// NetworkID construct a network ID based on a userID and network name
+func NetworkID(userID, name string) pkg.NetID {
+	buf := bytes.Buffer{}
+	buf.WriteString(userID)
+	buf.WriteString(name)
+	h := md5.Sum(buf.Bytes())
+	b := base58.Encode(h[:])
+	if len(b) > 13 {
+		b = b[:13]
+	}
+	return pkg.NetID(string(b))
+}
 
 // networkProvision is entry point to provision a network
 func (p *Primitives) networkProvisionImpl(ctx context.Context, reservation *provision.Reservation) error {
@@ -24,7 +40,7 @@ func (p *Primitives) networkProvisionImpl(ctx context.Context, reservation *prov
 		return fmt.Errorf("validation of the network resource failed: %w", err)
 	}
 
-	nr.NetID = provision.NetworkID(reservation.User, nr.Name)
+	nr.NetID = NetworkID(reservation.User, nr.Name)
 
 	mgr := stubs.NewNetworkerStub(p.zbus)
 	log.Debug().Str("network", fmt.Sprintf("%+v", nr)).Msg("provision network")
@@ -49,7 +65,7 @@ func (p *Primitives) networkDecommission(ctx context.Context, reservation *provi
 		return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 	}
 
-	network.NetID = provision.NetworkID(reservation.User, network.Name)
+	network.NetID = NetworkID(reservation.User, network.Name)
 
 	if err := mgr.DeleteNR(*network); err != nil {
 		return fmt.Errorf("failed to delete network resource: %w", err)

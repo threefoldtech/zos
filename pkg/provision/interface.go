@@ -38,6 +38,9 @@ type Provisioner interface {
 	Decommission(ctx context.Context, reservation *Reservation) error
 }
 
+// Filter is filtering function for Purge method
+type Filter func(*Reservation) bool
+
 // ReservationCache define the interface to store
 // some reservations
 type ReservationCache interface {
@@ -45,7 +48,7 @@ type ReservationCache interface {
 	Get(id string) (*Reservation, error)
 	Remove(id string) error
 	Exists(id string) (bool, error)
-	//NetworkExists(id string) (bool, error)
+	Find(f Filter) ([]*Reservation, error)
 }
 
 // Counter is used by the provision Engine to keep

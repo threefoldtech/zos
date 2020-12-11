@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -26,15 +27,17 @@ func GetCache(ctx context.Context) ReservationCache {
 type cachedProvisioner struct {
 	inner Provisioner
 	cache ReservationCache
+
+	mem *cache.Cache
 }
 
 // NewCachedProvisioner is a provisioner interceptor that checks a cache to avoid
 // rerunning the reservation logic.
 // on deprovision it skips if there is no cached reservation
-func NewCachedProvisioner(inner Provisioner, cache ReservationCache) Provisioner {
+func NewCachedProvisioner(c ReservationCache, inner Provisioner) Provisioner {
 	return &cachedProvisioner{
 		inner: inner,
-		cache: cache,
+		cache: c,
 	}
 }
 

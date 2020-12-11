@@ -25,11 +25,8 @@ var (
 	reservationSchemaLastVersion = reservationSchemaV1
 )
 
-// Filter is filtering function for Purge method
-type Filter func(*provision.Reservation) bool
-
 // FilterType delete all types that matches the given list
-func FilterType(types ...provision.ReservationType) Filter {
+func FilterType(types ...provision.ReservationType) provision.Filter {
 	typeMap := make(map[provision.ReservationType]struct{})
 	for _, t := range types {
 		typeMap[t] = struct{}{}
@@ -43,7 +40,7 @@ func FilterType(types ...provision.ReservationType) Filter {
 }
 
 // FilterNot inverts the given filter
-func FilterNot(f Filter) Filter {
+func FilterNot(f provision.Filter) provision.Filter {
 	return func(r *provision.Reservation) bool {
 		return !f(r)
 	}
@@ -125,8 +122,55 @@ func (s *Fs) updateReservationResults(rootPath string) error {
 	return nil
 }
 
+// Find deletes all cached reservations that matches filter
+func (s *Fs) Find(f provision.Filter) ([]*provision.Reservation, error) {
+	s.m.Lock()
+	s.m.Unlock()
+
+	var results []*provision.Reservation
+	// if rootPath is not present on the filesystem, return
+	_, err := os.Stat(s.root)
+	if os.IsNotExist(err) {
+		return results, nil
+	} else if err != nil {
+		return results, err
+	}
+
+	err = filepath.Walk(s.root, func(path string, info os.FileInfo, r error) error {
+		if r != nil {
+			return r
+		}
+		// if a file with size 0 is present we can assume its empty and remove it
+		if info.Size() == 0 {
+			log.Warn().Str("filename", info.Name()).Msg("cached reservation found, but file is empty, removing.")
+			return os.Remove(path)
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+		id := filepath.Base(path)
+		reservation, err := s.get(id)
+		if err != nil {
+			return err
+		}
+
+		if f(reservation) {
+			results = append(results, reservation)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return results, errors.Wrap(err, "error scanning cached reservations")
+	}
+
+	return results, nil
+}
+
 // Purge deletes all cached reservations that matches filter
-func (s *Fs) Purge(f Filter) error {
+func (s *Fs) Purge(f provision.Filter) error {
 	s.m.Lock()
 	s.m.Unlock()
 
@@ -314,30 +358,6 @@ func (s *Fs) Exists(id string) (bool, error) {
 	return false, err
 }
 
-// NetworkExists exists checks if a network exists in cache already
-func (s *Fs) NetworkExists(id string) (bool, error) {
-	reservations, err := s.List()
-	if err != nil {
-		return false, err
-	}
-
-	for _, r := range reservations {
-		if r.Type == primitives.NetworkReservation {
-			nr := pkg.NetResource{}
-			if err := json.Unmarshal(r.Data, &nr); err != nil {
-				return false, fmt.Errorf("failed to unmarshal network from reservation: %w", err)
-			}
-
-			// Check if the combination of network id and user is the same
-			if string(provision.NetworkID(r.User, nr.Name)) == id {
-				return true, nil
-			}
-		}
-	}
-
-	return false, nil
-}
-
 // List all reservations
 func (s *Fs) List() ([]*provision.Reservation, error) {
 	s.m.RLock()
@@ -384,7 +404,7 @@ func (s *Fs) incrementCounters(statser provision.Counter) error {
 				return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 			}
 
-			netID := provision.NetworkID(r.User, nr.Name)
+			netID := primitives.NetworkID(r.User, nr.Name)
 			// if the network name + user exsists in the list, we skip it.
 			// else we add it to the list
 			if _, ok := uniqueNetworkReservations[netID]; ok {
