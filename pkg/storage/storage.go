@@ -88,7 +88,11 @@ func (s *Module) Total(kind pkg.DeviceType) (uint64, error) {
 	defer s.mu.RUnlock()
 	var total uint64
 
-	for _, pool := range s.pools {
+	brokenPools := make([]pkg.BrokenPool, 0)
+
+	// reverse loop so we can delete elements if possible
+	for i := len(s.pools) - 1; i >= 0; i-- {
+		pool := s.pools[i]
 		// ignore pools which don't have the right device type
 		if pool.Type() != kind {
 			continue
@@ -99,6 +103,14 @@ func (s *Module) Total(kind pkg.DeviceType) (uint64, error) {
 			_, err := pool.MountWithoutScan()
 			if err != nil {
 				log.Error().Err(err).Msgf("Failed to mount pool %s", pool.Name())
+
+				// if an error occures, add the pools to the broken pools slice
+				s.brokenPools = append(brokenPools, pkg.BrokenPool{Label: pool.Name(), Err: err})
+
+				// in case of an error, remove the broken pools from the functional pools slice
+				s.pools[i] = s.pools[len(s.pools)-1]
+				s.pools = s.pools[:len(s.pools)-1]
+
 				// If we fail to mount the pool, don't exit.
 				continue
 			}
