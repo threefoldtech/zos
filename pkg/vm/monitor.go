@@ -117,7 +117,7 @@ func (m *Module) monitorID(ctx context.Context, running map[string]int, id strin
 		}
 
 		if jailed.NoKeepAlive {
-			// if the permenant marker was not set, and we reach here it's possible that
+			// if the permanent marker was not set, and we reach here it's possible that
 			// the vmd was restarted, hence the in-memory copy of this flag was gone. Hence
 			// we need to set it correctly, and just return
 			m.failures.Set(id, permanent, cache.NoExpiration)
