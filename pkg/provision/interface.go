@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg"
@@ -32,10 +33,17 @@ type ReservationPoller interface {
 	Poll(nodeID pkg.Identifier, from uint64) (reservations []*Reservation, lastID uint64, err error)
 }
 
+var (
+	// ErrUnknownReservation is returned by a provisioner on Get calls if
+	// the reservation ID does not exist
+	ErrUnknownReservation = fmt.Errorf("unknown reservation id")
+)
+
 // Provisioner interface
 type Provisioner interface {
 	Provision(ctx context.Context, reservation *Reservation) (*Result, error)
 	Decommission(ctx context.Context, reservation *Reservation) error
+	Get(ctx context.Context, id string) (*Reservation, error)
 }
 
 // Filter is filtering function for Purge method

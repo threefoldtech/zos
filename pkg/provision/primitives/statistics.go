@@ -63,6 +63,10 @@ func (s *statsProvisioner) currentCapacity() CurrentCapacity {
 	}
 }
 
+func (s *statsProvisioner) Get(ctx context.Context, id string) (*provision.Reservation, error) {
+	return s.inner.Get(ctx, id)
+}
+
 func (s *statsProvisioner) Provision(ctx context.Context, reservation *provision.Reservation) (*provision.Result, error) {
 	current := s.currentCapacity()
 	ctx = context.WithValue(ctx, currentCapacityKey{}, current)

@@ -23,6 +23,8 @@ type Primitives struct {
 	decommissioners map[provision.ReservationType]decommissionFn
 }
 
+var _ provision.Provisioner = (*Primitives)(nil)
+
 // NewPrimitivesProvisioner creates a new 0-OS provisioner
 func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 	p := &Primitives{
@@ -55,6 +57,11 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 // RuntimeUpgrade runs upgrade needed when provision daemon starts
 func (p *Primitives) RuntimeUpgrade(ctx context.Context) {
 	p.upgradeRunningZdb(ctx)
+}
+
+// Get implements provision.Provisioner interface
+func (p *Primitives) Get(ctx context.Context, id string) (*provision.Reservation, error) {
+	return nil, provision.ErrUnknownReservation
 }
 
 // Provision implemenents provision.Provisioner

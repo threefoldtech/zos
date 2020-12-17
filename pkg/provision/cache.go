@@ -110,6 +110,15 @@ func (c *cachedProvisioner) Decommission(ctx context.Context, reservation *Reser
 	return c.cache.Remove(reservation.ID)
 }
 
+func (c *cachedProvisioner) Get(ctx context.Context, id string) (*Reservation, error) {
+	reservation, err := c.cache.Get(id)
+	if err != nil {
+		return nil, errors.Wrapf(ErrUnknownReservation, "reservation not cached: %s", err)
+	}
+
+	return reservation, nil
+}
+
 func (c *cachedProvisioner) migrateToPool(ctx context.Context, r *Reservation) (*Result, error) {
 	oldRes, err := c.cache.Get(r.Reference)
 	if err != nil {

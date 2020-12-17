@@ -77,6 +77,10 @@ func (p *committerProvisioner) Provision(ctx context.Context, reservation *provi
 	return result, nil
 }
 
+func (p *committerProvisioner) Get(ctx context.Context, id string) (*provision.Reservation, error) {
+	return p.inner.Get(ctx, id)
+}
+
 func (p *committerProvisioner) Decommission(ctx context.Context, reservation *provision.Reservation) error {
 	if err := p.inner.Decommission(ctx, reservation); err != nil {
 		return err
