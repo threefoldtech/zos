@@ -60,9 +60,6 @@ func (d *DualStack) Create(ctx context.Context) error {
 		}
 	}
 
-	// remember the original master in case we set up a public bridge
-	origMaster := master
-
 	// There are 2 options for the master:
 	// - use the interface directly
 	// - create a bridge and plug the interface into that one
@@ -124,14 +121,6 @@ func (d *DualStack) Create(ctx context.Context) error {
 	}
 
 	log.Info().Bool("public bridge", d.hasPubBridge).Msg("set up public bridge")
-
-	if d.hasPubBridge {
-		// disable ipv6 on the master interface, ipv6 will be taken by br-pub
-		log.Info().Str("interface", origMaster).Msg("disabling ipv6 on br-pub master interface")
-		if _, err = sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", origMaster), "1"); err != nil {
-			return errors.Wrap(err, "failed to disable ipv6 on master interface")
-		}
-	}
 
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
@@ -333,10 +322,6 @@ func waitIP6() error {
 	if err := ifaceutil.SetLoUp(); err != nil {
 		return errors.Wrapf(err, "ndmz: couldn't bring lo up in ndmz namespace")
 	}
-	// first, disable forwarding, so we can get an IPv6 deft route on public from an RA
-	if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "0"); err != nil {
-		return errors.Wrapf(err, "ndmz: failed to disable ipv6 forwarding in ndmz namespace")
-	}
 	// also, set kernel parameter that public always accepts an ra even when forwarding
 	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.accept_ra", DMZPub6), "2"); err != nil {
 		return errors.Wrapf(err, "ndmz: failed to accept_ra=2 in ndmz namespace")
@@ -351,13 +336,11 @@ func waitIP6() error {
 		return errors.Wrapf(err, "ndmz: couldn't disable proxy-arp on %s in ndmz namespace", DMZPub6)
 	}
 
-	var routes []netlink.Route
 	getRoutes := func() (err error) {
 		log.Info().Msg("wait for slaac to give ipv6")
 		// check if in the mean time SLAAC gave us an IPv6 deft gw, save it, and reapply after enabling forwarding
 		checkipv6 := net.ParseIP("2606:4700:4700::1111")
-		routes, err = netlink.RouteGet(checkipv6)
-		if err != nil {
+		if _, err = netlink.RouteGet(checkipv6); err != nil {
 			return errors.Wrapf(err, "ndmz: failed to get the IPv6 routes in ndmz")
 		}
 		return nil
@@ -365,14 +348,5 @@ func waitIP6() error {
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 122 * time.Second // default RA from router is every 60 secs
-	if err := backoff.Retry(getRoutes, bo); err != nil {
-		return err
-	}
-
-	if len(routes) == 1 {
-		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
-			return errors.Wrapf(err, "ndmz: failed to enable ipv6 forwarding in ndmz namespace")
-		}
-	}
-	return nil
+	return backoff.Retry(getRoutes, bo)
 }
