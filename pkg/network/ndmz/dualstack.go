@@ -46,7 +46,7 @@ func NewDualStack(nodeID string, master string) *DualStack {
 	}
 }
 
-//Create create the NDMZ network namespace and configure its default routes and addresses
+// Create create the NDMZ network namespace and configure its default routes and addresses
 func (d *DualStack) Create(ctx context.Context) error {
 	master := d.ipv6Master
 	var err error
@@ -59,6 +59,9 @@ func (d *DualStack) Create(ctx context.Context) error {
 			return errors.New("invalid physical interface to use as master for ndmz npub6")
 		}
 	}
+
+	// remember the original master in case we set up a public bridge
+	origMaster := master
 
 	// There are 2 options for the master:
 	// - use the interface directly
@@ -121,6 +124,14 @@ func (d *DualStack) Create(ctx context.Context) error {
 	}
 
 	log.Info().Bool("public bridge", d.hasPubBridge).Msg("set up public bridge")
+
+	if d.hasPubBridge {
+		// disable ipv6 on the master interface, ipv6 will be taken by br-pub
+		log.Info().Str("interface", origMaster).Msg("disabling ipv6 on br-pub master interface")
+		if _, err = sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", origMaster), "1"); err != nil {
+			return errors.Wrap(err, "failed to disable ipv6 on master interface")
+		}
+	}
 
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
