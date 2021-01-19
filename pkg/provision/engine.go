@@ -90,7 +90,7 @@ func New(opts EngineOps) (*Engine, error) {
 	}
 
 	// we round the total memory size to the nearest 1G
-	totalMemory := math.Ceil(float64(memStats.Total)/gig) * gig
+	totalMemory := math.Ceil(float64(memStats.Total)/gib) * gib
 
 	return &Engine{
 		nodeID:            opts.NodeID,
@@ -104,7 +104,7 @@ func New(opts EngineOps) (*Engine, error) {
 		zbusCl:            opts.ZbusCl,
 		janitor:           opts.Janitor,
 		memCache:          cache.New(30*time.Minute, 30*time.Second),
-		totalMemAvailable: totalMemory - minimunZosMemory,
+		totalMemAvailable: uint64(totalMemory) - minimunZosMemory,
 	}, nil
 }
 
