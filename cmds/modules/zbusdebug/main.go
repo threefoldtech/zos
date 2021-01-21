@@ -1,4 +1,4 @@
-package main
+package zbusdebug
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/version"
+	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 
 	"github.com/rs/zerolog/log"
@@ -29,36 +29,45 @@ var (
 		"container": struct{}{},
 		"provision": struct{}{},
 	}
+
+	Module cli.Command = cli.Command{
+		Name:  "zbusdebug",
+		Usage: "show status summery for running zbus modules",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:     "broker",
+				Value:    "unix:///var/run/redis.sock",
+				Usage:    "connection string to the message `BROKER`",
+				Required: true,
+			},
+			cli.StringFlag{
+				Name:  "module",
+				Usage: "debug specific `MODULE`",
+			},
+		},
+		Action: action,
+	}
 )
 
-func main() {
-	app.Initialize()
-
+func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string
-		module       string
-		ver          bool
+		msgBrokerCon string = cli.String("broker")
+		module       string = cli.String("module")
 	)
 
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
 	flag.StringVar(&module, "module", "", "debug specific module")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
 
 	cl, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize zbus client")
+		return errors.Wrap(err, "failed to initialize zbus client")
 	}
 
 	var debug []string
 	if module != "" {
 		_, ok := PossibleModules[module]
 		if !ok {
-			log.Fatal().Msg("unknown module")
+			return fmt.Errorf("unknown module")
 		}
 
 		debug = append(debug, module)
@@ -74,6 +83,7 @@ func main() {
 		}
 	}
 
+	return nil
 }
 
 func printModuleStatus(ctx context.Context, cl zbus.Client, module string) error {

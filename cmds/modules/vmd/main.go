@@ -37,6 +37,7 @@ var Module cli.Command = cli.Command{
 			Value: 1,
 		},
 	},
+	Action: action,
 }
 
 func action(cli *cli.Context) error {

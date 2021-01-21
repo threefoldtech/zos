@@ -1,11 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/cmds/modules/vmd"
+	"github.com/threefoldtech/zos/cmds/modules/zbusdebug"
 	"github.com/threefoldtech/zos/cmds/modules/zui"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/version"
@@ -21,6 +22,7 @@ func main() {
 		Commands: []cli.Command{
 			zui.Module,
 			vmd.Module,
+			zbusdebug.Module,
 		},
 	}
 
@@ -37,6 +39,7 @@ func main() {
 	}
 
 	if err := exe.Run(args); err != nil {
-		log.Fatal().Err(err).Msg("exit with error")
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
 	}
 }

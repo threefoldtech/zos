@@ -11,7 +11,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func provisionRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
+func provisionRender(client zbus.Client, grid *ui.Grid, render *signalFlag) error {
 	prov := widgets.NewTable()
 	prov.Title = "System Load"
 	prov.RowSeparator = false
