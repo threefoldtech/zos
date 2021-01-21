@@ -1,4 +1,4 @@
-package main
+package zui
 
 import (
 	"context"

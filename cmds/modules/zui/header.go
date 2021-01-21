@@ -1,4 +1,4 @@
-package main
+package zui
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 // func headerRenderer(c zbus.Client, h *widgets.Paragraph, r *Flag) error {
-func headerRenderer(c zbus.Client, h *widgets.Paragraph, r *Flag) error {
+func headerRenderer(c zbus.Client, h *widgets.Paragraph, r *signalFlag) error {
 	env, err := environment.Get()
 	if err != nil {
 		return err

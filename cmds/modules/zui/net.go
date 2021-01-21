@@ -1,4 +1,4 @@
-package main
+package zui
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client, render *Flag) error {
+func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client, render *signalFlag) error {
 	table.Title = "Network"
 	table.FillRow = true
 	table.RowSeparator = false
@@ -80,7 +80,7 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 	return nil
 }
 
-func netRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
+func netRender(client zbus.Client, grid *ui.Grid, render *signalFlag) error {
 	addresses := widgets.NewTable()
 
 	grid.Set(

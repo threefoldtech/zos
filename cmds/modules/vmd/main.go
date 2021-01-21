@@ -1,41 +1,50 @@
-package main
+package vmd
 
 import (
 	"context"
-	"flag"
 	"os"
 
-	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/threefoldtech/zos/pkg/vm"
+	"github.com/urfave/cli"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/version"
 )
 
 const module = "vmd"
 
-func main() {
-	app.Initialize()
+// Module entry point
+var Module cli.Command = cli.Command{
+	Name:  module,
+	Usage: "runs the virtual machine daemon",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "root",
+			Usage: "`ROOT` working directory of the module",
+			Value: "/var/cache/modules/vmd",
+		},
+		cli.StringFlag{
+			Name:  "broker",
+			Usage: "connection string to the message `BROKER`",
+			Value: "unix:///var/run/redis.sock",
+		},
+		cli.UintFlag{
+			Name:  "workers",
+			Usage: "number of workers `N`",
+			Value: 1,
+		},
+	},
+}
 
+func action(cli *cli.Context) error {
 	var (
-		moduleRoot   string
-		msgBrokerCon string
-		workerNr     uint
-		ver          bool
+		moduleRoot   string = cli.String("root")
+		msgBrokerCon string = cli.String("broker")
+		workerNr     uint   = cli.Uint("workers")
 	)
-
-	flag.StringVar(&moduleRoot, "root", "/var/cache/modules/vmd", "root working directory of the module")
-	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.UintVar(&workerNr, "workers", 1, "number of workers")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
 
 	if err := os.MkdirAll(moduleRoot, 0755); err != nil {
 		log.Fatal().Err(err).Str("root", moduleRoot).Msg("Failed to create module root")
@@ -44,12 +53,12 @@ func main() {
 	client, err := zbus.NewRedisClient(msgBrokerCon)
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
 	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	mod, err := vm.NewVMModule(client, moduleRoot)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create a new instance of manager")
+		return errors.Wrap(err, "failed to create a new instance of manager")
 	}
 
 	server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, mod)
@@ -67,6 +76,8 @@ func main() {
 		Msg("starting vmd module")
 
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
-		log.Fatal().Err(err).Msg("unexpected error")
+		return errors.Wrap(err, "unexpected error")
 	}
+
+	return nil
 }

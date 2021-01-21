@@ -1,4 +1,4 @@
-package main
+package zui
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func diskRender(client zbus.Client, grid *ui.Grid, render *Flag) error {
+func diskRender(client zbus.Client, grid *ui.Grid, render *signalFlag) error {
 	const (
 		mega = 1024 * 1024
 	)
