@@ -7,6 +7,7 @@ import (
 
 	"github.com/threefoldtech/zos/cmds/modules/contd"
 	"github.com/threefoldtech/zos/cmds/modules/flistd"
+	"github.com/threefoldtech/zos/cmds/modules/storaged"
 	"github.com/threefoldtech/zos/cmds/modules/vmd"
 	"github.com/threefoldtech/zos/cmds/modules/zbusdebug"
 	"github.com/threefoldtech/zos/cmds/modules/zui"
@@ -23,9 +24,10 @@ func main() {
 		Version: version.Current().String(),
 		Commands: []*cli.Command{
 			&zui.Module,
+			&storaged.Module,
+			&flistd.Module,
 			&contd.Module,
 			&vmd.Module,
-			&flistd.Module,
 			&zbusdebug.Module,
 		},
 	}

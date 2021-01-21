@@ -1,18 +1,18 @@
-package main
+package storaged
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/storage"
 	"github.com/threefoldtech/zos/pkg/utils"
-	"github.com/threefoldtech/zos/pkg/version"
 )
 
 const (
@@ -20,34 +20,44 @@ const (
 	module      = "storage"
 )
 
-func main() {
-	app.Initialize()
+// Module is module entry point
+var Module cli.Command = cli.Command{
+	Name: "storaged",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "broker",
+			Usage: "connection string to the message `BROKER`",
+			Value: "unix:///var/run/redis.sock",
+		},
+		&cli.UintFlag{
+			Name:  "workers",
+			Usage: "number of workers `N`",
+			Value: 1,
+		},
+		&cli.UintFlag{
+			Name:  "expvar-port",
+			Usage: "port to host expvar variables on `N`",
+			Value: 28682,
+		},
+	},
+	Action: action,
+}
 
+func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string
-		workerNr     uint
-		expvarPort   uint
-		ver          bool
+		msgBrokerCon string = cli.String("broker")
+		workerNr     uint   = cli.Uint("workers")
+		expvarPort   uint   = cli.Uint("expvar-port")
 	)
-
-	flag.StringVar(&msgBrokerCon, "broker", redisSocket, "Connection string to the message broker")
-	flag.UintVar(&workerNr, "workers", 1, "Number of workers")
-	flag.UintVar(&expvarPort, "expvarPort", 28682, "Port to host expvar variables on")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
 
 	storageModule, err := storage.New()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize storage module")
+		return errors.Wrap(err, "failed to initialize storage module")
 	}
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
 	if err != nil {
-		log.Fatal().Err(err).Msg("fail to connect to message broker server")
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	server.Register(zbus.ObjectID{Name: "storage", Version: "0.0.1"}, storageModule)
@@ -76,6 +86,8 @@ func main() {
 	}()
 
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
-		log.Fatal().Err(err).Msg("unexpected error")
+		return errors.Wrap(err, "unexpected error")
 	}
+
+	return nil
 }

@@ -24,7 +24,7 @@ const (
 
 // Module is entry point for module
 var Module cli.Command = cli.Command{
-	Name: module,
+	Name: "flistd",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "root",
