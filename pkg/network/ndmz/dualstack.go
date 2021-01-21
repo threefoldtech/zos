@@ -61,7 +61,7 @@ func (d *DualStack) Create(ctx context.Context) error {
 		// As a temporary workaround / hack, wait for a while before continuing
 		// 3 Minutes should be sufficient for now
 		log.Info().Msg("goin to sleep for a while so all ifaces have time to do SLAAC")
-		time.Sleep(time.Minute)
+		time.Sleep(3 * time.Minute)
 		log.Info().Msg("woke up from SLAAC sleep")
 
 		master, err = FindIPv6Master()
