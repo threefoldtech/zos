@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/threefoldtech/zos/pkg/vm"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 
 	"github.com/rs/zerolog/log"
 
@@ -21,17 +21,17 @@ var Module cli.Command = cli.Command{
 	Name:  module,
 	Usage: "runs the virtual machine daemon",
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "root",
 			Usage: "`ROOT` working directory of the module",
 			Value: "/var/cache/modules/vmd",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "broker",
 			Usage: "connection string to the message `BROKER`",
 			Value: "unix:///var/run/redis.sock",
 		},
-		cli.UintFlag{
+		&cli.UintFlag{
 			Name:  "workers",
 			Usage: "number of workers `N`",
 			Value: 1,

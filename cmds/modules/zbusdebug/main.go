@@ -9,7 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/rs/zerolog/log"
@@ -34,13 +34,13 @@ var (
 		Name:  "zbusdebug",
 		Usage: "show status summery for running zbus modules",
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:     "broker",
 				Value:    "unix:///var/run/redis.sock",
 				Usage:    "connection string to the message `BROKER`",
 				Required: true,
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:  "module",
 				Usage: "debug specific `MODULE`",
 			},

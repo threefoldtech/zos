@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func trimFloat64(a []float64, size int) []float64 {
@@ -36,7 +36,7 @@ func (f *signalFlag) Signaled() bool {
 var Module cli.Command = cli.Command{
 	Name: "zui",
 	Flags: []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "broker",
 			Usage: "connection string to the message broker",
 			Value: "unix:///var/run/redis.sock",

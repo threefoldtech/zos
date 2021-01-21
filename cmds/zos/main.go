@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/threefoldtech/zos/cmds/modules/contd"
+	"github.com/threefoldtech/zos/cmds/modules/flistd"
 	"github.com/threefoldtech/zos/cmds/modules/vmd"
 	"github.com/threefoldtech/zos/cmds/modules/zbusdebug"
 	"github.com/threefoldtech/zos/cmds/modules/zui"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/version"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -19,13 +21,18 @@ func main() {
 	exe := cli.App{
 		Name:    "ZOS",
 		Version: version.Current().String(),
-		Commands: []cli.Command{
-			zui.Module,
-			vmd.Module,
-			zbusdebug.Module,
+		Commands: []*cli.Command{
+			&zui.Module,
+			&contd.Module,
+			&vmd.Module,
+			&flistd.Module,
+			&zbusdebug.Module,
 		},
 	}
 
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Println(c.App.Version)
+	}
 	name := filepath.Base(os.Args[0])
 	args := os.Args
 	for _, cmd := range exe.Commands {

@@ -1,19 +1,18 @@
-package main
+package flistd
 
 import (
 	"context"
-	"flag"
 	"time"
 
-	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/urfave/cli/v2"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/flist"
-	"github.com/threefoldtech/zos/pkg/version"
 )
 
 const (
@@ -23,35 +22,46 @@ const (
 	cacheCleanup = time.Hour * 24
 )
 
-func main() {
-	app.Initialize()
+// Module is entry point for module
+var Module cli.Command = cli.Command{
+	Name: module,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "root",
+			Usage: "`ROOT` working directory of the module",
+			Value: "/var/cache/modules/flistd",
+		},
+		&cli.StringFlag{
+			Name:  "broker",
+			Usage: "connection string to the message `BROKER`",
+			Value: "unix:///var/run/redis.sock",
+		},
+		&cli.UintFlag{
+			Name:  "workers",
+			Usage: "number of workers `N`",
+			Value: 1,
+		},
+	},
+	Action: action,
+}
 
+func action(cli *cli.Context) error {
 	var (
-		moduleRoot   string
-		msgBrokerCon string
-		workerNr     uint
-		ver          bool
+		moduleRoot   string = cli.String("root")
+		msgBrokerCon string = cli.String("broker")
+		workerNr     uint   = cli.Uint("workers")
 	)
-
-	flag.StringVar(&moduleRoot, "root", "/var/cache/modules/flistd", "root working directory of the module")
-	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.UintVar(&workerNr, "workers", 1, "number of workers")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
 
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
+
 	storage := stubs.NewStorageModuleStub(redis)
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
 	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	mod := flist.New(moduleRoot, storage)
@@ -74,6 +84,8 @@ func main() {
 	})
 
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
-		log.Fatal().Err(err).Msg("unexpected error")
+		return errors.Wrap(err, "unexpected error")
 	}
+
+	return nil
 }
