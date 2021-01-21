@@ -506,9 +506,6 @@ func isIn(target string, list []string) bool {
 	return false
 }
 
-func (u *Upgrader) copyLink(dst string, src meta.Meta) error {
-	return nil
-}
 func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 	log.Info().Str("source", src.Name()).Str("destination", dst).Msg("copy file")
 
