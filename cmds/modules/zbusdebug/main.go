@@ -30,6 +30,7 @@ var (
 		"provision": struct{}{},
 	}
 
+	//Module entry point
 	Module cli.Command = cli.Command{
 		Name:  "zbusdebug",
 		Usage: "show status summery for running zbus modules",
