@@ -335,7 +335,7 @@ func buildNDMZ(nodeID string, pubMaster string) (ndmz.DMZ, error) {
 
 		findMaster := func() error {
 			var err error
-			master, err = ndmz.FindIPv6Master()
+			master, err = ndmz.FindIPv6Master(false)
 			return err
 		}
 
@@ -344,6 +344,12 @@ func buildNDMZ(nodeID string, pubMaster string) (ndmz.DMZ, error) {
 		bo.MaxElapsedTime = time.Minute * 2
 		bo.MaxInterval = time.Second * 10
 		err = backoff.RetryNotify(findMaster, bo, notify)
+	}
+
+	// if we haven't found a master after 2 minutes, include zos bridge in the
+	// search, and search 1 more time
+	if master == "" {
+		master, err = ndmz.FindIPv6Master(true)
 	}
 
 	// if ipv6 found, use dual stack ndmz
