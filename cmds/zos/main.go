@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/cmds/modules/capacityd"
 	"github.com/threefoldtech/zos/cmds/modules/contd"
 	"github.com/threefoldtech/zos/cmds/modules/flistd"
+	"github.com/threefoldtech/zos/cmds/modules/networkd"
 	"github.com/threefoldtech/zos/cmds/modules/provisiond"
 	"github.com/threefoldtech/zos/cmds/modules/storaged"
 	"github.com/threefoldtech/zos/cmds/modules/vmd"
@@ -15,7 +17,7 @@ import (
 	"github.com/threefoldtech/zos/cmds/modules/zui"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/version"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -30,6 +32,8 @@ func main() {
 			&flistd.Module,
 			&contd.Module,
 			&vmd.Module,
+			&capacityd.Module,
+			&networkd.Module,
 			&provisiond.Module,
 			&zbusdebug.Module,
 		},

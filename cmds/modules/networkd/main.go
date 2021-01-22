@@ -1,9 +1,8 @@
-package main
+package networkd
 
 import (
 	"context"
 	"crypto/ed25519"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -11,7 +10,9 @@ import (
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/urfave/cli/v2"
 	"github.com/vishvananda/netlink"
 
 	"github.com/threefoldtech/zos/pkg/network/latency"
@@ -29,45 +30,50 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
-	"github.com/threefoldtech/zos/pkg/version"
 	"github.com/threefoldtech/zos/pkg/zinit"
 )
 
 const redisSocket = "unix:///var/run/redis.sock"
 const module = "network"
 
-func main() {
-	app.Initialize()
+// Module is entry point for module
+var Module cli.Command = cli.Command{
+	Name: "networkd",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "root",
+			Usage: "`ROOT` working directory of the module",
+			Value: "/var/cache/modules/flistd",
+		},
+		&cli.StringFlag{
+			Name:  "broker",
+			Usage: "connection string to the message `BROKER`",
+			Value: "unix:///var/run/redis.sock",
+		},
+	},
+	Action: action,
+}
 
+func action(cli *cli.Context) error {
 	var (
-		root   string
-		broker string
-		ver    bool
+		root   string = cli.String("root")
+		broker string = cli.String("broker")
 	)
-
-	flag.StringVar(&root, "root", "/var/cache/modules/networkd", "root path of the module")
-	flag.StringVar(&broker, "broker", redisSocket, "connection string to broker")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
 
 	waitYggdrasilBin()
 
 	if err := bootstrap.DefaultBridgeValid(); err != nil {
-		log.Fatal().Err(err).Msg("invalid setup")
+		return errors.Wrap(err, "invalid setup")
 	}
 
 	client, err := zbus.NewRedisClient(broker)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to zbus broker")
+		return errors.Wrap(err, "failed to connect to zbus broker")
 	}
 
 	directory, err := explorerClient()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to BCDB")
+		return errors.Wrap(err, "failed to connect to BCDB")
 	}
 
 	identity := stubs.NewIdentityManagerStub(client)
@@ -85,10 +91,10 @@ func main() {
 	// this won't contains the ndmz IP yet, but this is OK.
 	ifaces, err := getLocalInterfaces()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to read local network interfaces")
+		return errors.Wrap(err, "failed to read local network interfaces")
 	}
 	if err := publishIfaces(ifaces, nodeID, directory); err != nil {
-		log.Fatal().Err(err).Msg("failed to publish network interfaces to BCDB")
+		return errors.Wrap(err, "failed to publish network interfaces to BCDB")
 	}
 
 	exitIface, err := getPubIface(directory, nodeID.Identity())
@@ -100,47 +106,46 @@ func main() {
 
 	ndmzNs, err := buildNDMZ(nodeID.Identity(), pubConfMaster)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create ndmz")
+		return errors.Wrap(err, "failed to create ndmz")
 	}
 
 	if err := ndmzNs.Create(ctx); err != nil {
-		log.Fatal().Err(err).Msg("failed to create ndmz")
+		return errors.Wrap(err, "failed to create ndmz")
 	}
 
 	if err := ensureHostFw(ctx); err != nil {
-		log.Fatal().Err(err).Msg("failed to host firewall rules")
+		return errors.Wrap(err, "failed to host firewall rules")
 	}
 
 	if hasPubConf {
 		if err := configurePubIface(ndmzNs, exitIface, nodeID); err != nil {
-			log.Error().Err(err).Msg("failed to configure public interface")
-			os.Exit(1)
+			return errors.Wrap(err, "failed to configure public interface")
 		}
 	}
 
 	ygg, err := startYggdrasil(ctx, identity.PrivateKey(), ndmzNs)
 	if err != nil {
-		log.Fatal().Err(err).Msgf("fail to start yggdrasil")
+		return errors.Wrap(err, "fail to start yggdrasil")
 	}
 
 	gw, err := ygg.Gateway()
 	if err != nil {
-		log.Fatal().Err(err).Msgf("fail read yggdrasil subnet")
+		return errors.Wrap(err, "fail read yggdrasil subnet")
 	}
 
 	if err := ndmzNs.SetIP6PublicIface(gw); err != nil {
-		log.Fatal().Err(err).Msgf("fail to configure yggdrasil subnet gateway IP")
+		return errors.Wrap(err, "fail to configure yggdrasil subnet gateway IP")
 	}
 
 	// send another detail of network interfaces now that ndmz is created
 	ndmzIfaces, err := getNdmzInterfaces()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to read ndmz network interfaces")
+		return errors.Wrap(err, "failed to read ndmz network interfaces")
 	}
 	ifaces = append(ifaces, ndmzIfaces...)
 
 	if err := publishIfaces(ifaces, nodeID, directory); err != nil {
-		log.Fatal().Err(err).Msg("failed to publish ndmz network interfaces to BCDB")
+		return errors.Wrap(err, "failed to publish ndmz network interfaces to BCDB")
 	}
 
 	// watch modification of the address on the nic so we can update the explorer
@@ -149,17 +154,19 @@ func main() {
 
 	log.Info().Msg("start zbus server")
 	if err := os.MkdirAll(root, 0750); err != nil {
-		log.Fatal().Err(err).Msgf("fail to create module root")
+		return errors.Wrap(err, "fail to create module root")
 	}
 
 	networker, err := network.NewNetworker(identity, directory, root, ndmzNs, ygg)
 	if err != nil {
-		log.Fatal().Err(err).Msg("error creating network manager")
+		return errors.Wrap(err, "error creating network manager")
 	}
 
 	if err := startServer(ctx, broker, networker); err != nil {
-		log.Fatal().Err(err).Msg("unexpected error")
+		return errors.Wrap(err, "unexpected error")
 	}
+
+	return nil
 }
 
 func startServer(ctx context.Context, broker string, networker pkg.Networker) error {

@@ -1,11 +1,12 @@
-package main
+package capacityd
 
 import (
 	"context"
-	"flag"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/pkg/errors"
+	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
@@ -18,10 +19,22 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/version"
 )
 
 const module = "monitor"
+
+// Module is entry point for module
+var Module cli.Command = cli.Command{
+	Name: "capacityd",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "broker",
+			Usage: "connection string to the message `BROKER`",
+			Value: "unix:///var/run/redis.sock",
+		},
+	},
+	Action: action,
+}
 
 func cap(ctx context.Context, client zbus.Client) {
 	storage := stubs.NewStorageModuleStub(client)
@@ -144,30 +157,19 @@ func mon(ctx context.Context, server zbus.Server) {
 	server.Register(zbus.ObjectID{Name: "system", Version: "0.0.1"}, system)
 }
 
-func main() {
-	app.Initialize()
-
+func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string
-		ver          bool
+		msgBrokerCon string = cli.String("broker")
 	)
-
-	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
 
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, 1)
 	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v\n", err)
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	ctx, _ := utils.WithSignal(context.Background())
@@ -179,8 +181,10 @@ func main() {
 	mon(ctx, server)
 
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
-		log.Fatal().Err(err).Msg("unexpected error")
+		return errors.Wrap(err, "unexpected error")
 	}
+
+	return nil
 }
 
 // instantiate the proper client based on the running mode
