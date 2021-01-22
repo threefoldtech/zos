@@ -19,7 +19,7 @@ const module = "vmd"
 // Module entry point
 var Module cli.Command = cli.Command{
 	Name:  module,
-	Usage: "runs the virtual machine daemon",
+	Usage: "handles virtual machines creation",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "root",

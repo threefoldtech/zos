@@ -22,7 +22,8 @@ const (
 
 // Module is module entry point
 var Module cli.Command = cli.Command{
-	Name: "storaged",
+	Name:  "storaged",
+	Usage: "handles and manages disks and volumes creation",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "broker",

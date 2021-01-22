@@ -25,7 +25,8 @@ const module = "monitor"
 
 // Module is entry point for module
 var Module cli.Command = cli.Command{
-	Name: "capacityd",
+	Name:  "capacityd",
+	Usage: "reports the node total resources",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "broker",

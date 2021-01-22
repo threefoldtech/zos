@@ -34,7 +34,8 @@ func (f *signalFlag) Signaled() bool {
 
 // Module is the app entry point
 var Module cli.Command = cli.Command{
-	Name: "zui",
+	Name:  "zui",
+	Usage: "starts zos UI",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "broker",

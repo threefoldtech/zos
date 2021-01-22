@@ -38,7 +38,8 @@ const module = "network"
 
 // Module is entry point for module
 var Module cli.Command = cli.Command{
-	Name: "networkd",
+	Name:  "networkd",
+	Usage: "handles network resources and user networks",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "root",

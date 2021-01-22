@@ -33,7 +33,7 @@ const (
 // Module entry point
 var Module cli.Command = cli.Command{
 	Name:  "provisiond",
-	Usage: "runs the virtual machine daemon",
+	Usage: "handles reservations streams and use other daemon to deploy them",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "root",

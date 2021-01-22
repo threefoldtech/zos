@@ -20,7 +20,8 @@ const module = "container"
 
 //Module is contd entry point
 var Module cli.Command = cli.Command{
-	Name: "contd",
+	Name:  "contd",
+	Usage: "handles containers creations",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "root",
