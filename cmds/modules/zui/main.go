@@ -1,16 +1,15 @@
-package main
+package zui
 
 import (
-	"flag"
 	"sync/atomic"
 	"time"
 
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/version"
+	"github.com/urfave/cli/v2"
 )
 
 func trimFloat64(a []float64, size int) []float64 {
@@ -20,42 +19,46 @@ func trimFloat64(a []float64, size int) []float64 {
 	return a
 }
 
-// Flag is a safe flag
-type Flag int32
+// signalFlag is a safe flag
+type signalFlag int32
 
 // Signal raises flag
-func (f *Flag) Signal() {
+func (f *signalFlag) Signal() {
 	atomic.SwapInt32((*int32)(f), 1)
 }
 
 //Signaled checks if flag was raised, and lowers the flag
-func (f *Flag) Signaled() bool {
+func (f *signalFlag) Signaled() bool {
 	return atomic.SwapInt32((*int32)(f), 0) == 1
 }
 
-func main() {
-	app.Initialize()
+// Module is the app entry point
+var Module cli.Command = cli.Command{
+	Name:  "zui",
+	Usage: "starts zos UI",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "broker",
+			Usage: "connection string to the message broker",
+			Value: "unix:///var/run/redis.sock",
+		},
+	},
 
+	Action: action,
+}
+
+func action(ctx *cli.Context) error {
 	var (
-		msgBrokerCon string
-		ver          bool
+		msgBrokerCon string = ctx.String("broker")
 	)
-
-	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
 
 	client, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to zbus")
+		return errors.Wrap(err, "failed to connect to zbus")
 	}
 
 	if err := ui.Init(); err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize term ui")
+		return errors.Wrap(err, "failed to initialize term ui")
 	}
 
 	defer ui.Close()
@@ -75,7 +78,7 @@ func main() {
 	provision.SetRect(0, 12, width, 18)
 	provision.Border = false
 
-	var flag Flag
+	var flag signalFlag
 
 	if err := headerRenderer(client, header, &flag); err != nil {
 		log.Error().Err(err).Msg("failed to start header renderer")
@@ -101,7 +104,7 @@ func main() {
 		case e := <-uiEvents:
 			switch e.ID {
 			case "q", "<C-c>":
-				return
+				return nil
 			case "<Resize>":
 				payload := e.Payload.(ui.Resize)
 				header.SetRect(0, 0, payload.Width, 3)

@@ -1,54 +1,59 @@
-package main
+package contd
 
 import (
 	"context"
-	"flag"
 	"os"
 	"os/exec"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/rs/zerolog"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/container"
 	"github.com/threefoldtech/zos/pkg/utils"
-	"github.com/threefoldtech/zos/pkg/version"
 )
 
 const module = "container"
 
-func main() {
-	app.Initialize()
+//Module is contd entry point
+var Module cli.Command = cli.Command{
+	Name:  "contd",
+	Usage: "handles containers creations",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "root",
+			Usage: "`ROOT` working directory of the module",
+			Value: "/var/cache/modules/contd",
+		},
+		&cli.StringFlag{
+			Name:  "broker",
+			Usage: "connection string to the message `BROKER`",
+			Value: "unix:///var/run/redis.sock",
+		},
+		&cli.StringFlag{
+			Name:  "congainerd",
+			Usage: "connection string to containerd `CONTAINERD`",
+			Value: "/run/containerd/containerd.sock",
+		},
+		&cli.UintFlag{
+			Name:  "workers",
+			Usage: "number of workers `N`",
+			Value: 1,
+		},
+	},
+	Action: action,
+}
 
+func action(cli *cli.Context) error {
 	var (
-		moduleRoot    string
-		msgBrokerCon  string
-		containerdCon string
-		workerNr      uint
-		debug         bool
-		ver           bool
+		moduleRoot    string = cli.String("root")
+		msgBrokerCon  string = cli.String("broker")
+		workerNr      uint   = cli.Uint("workers")
+		containerdCon string = cli.String("containerd")
 	)
-
-	flag.StringVar(&moduleRoot, "root", "/var/cache/modules/contd", "root working directory of the module")
-	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.StringVar(&containerdCon, "containerd", "/run/containerd/containerd.sock", "connection string to containerd")
-	flag.UintVar(&workerNr, "workers", 1, "number of workers")
-	flag.BoolVar(&debug, "debug", false, "enable debug logging")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
-
-	// Default level is info, unless debug flag is present
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
 
 	// wait for shim-logs to be available before starting
 	log.Info().Msg("wait for shim-logs binary to be available")
@@ -63,17 +68,17 @@ func main() {
 	})
 
 	if err := os.MkdirAll(moduleRoot, 0750); err != nil {
-		log.Fatal().Msgf("fail to create module root: %s", err)
+		return errors.Wrap(err, "fail to create module root")
 	}
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
 	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	client, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
-		log.Fatal().Msgf("fail to connect to message broker server: %v", err)
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	containerd := container.New(client, moduleRoot, containerdCon)
@@ -94,6 +99,8 @@ func main() {
 	go containerd.Watch(ctx)
 
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
-		log.Fatal().Err(err).Msg("unexpected error")
+		return errors.Wrap(err, "unexpected error")
 	}
+
+	return nil
 }
