@@ -43,7 +43,7 @@ var Module cli.Command = cli.Command{
 		&cli.StringFlag{
 			Name:  "root",
 			Usage: "`ROOT` working directory of the module",
-			Value: "/var/cache/modules/flistd",
+			Value: "/var/cache/modules/networkd",
 		},
 		&cli.StringFlag{
 			Name:  "broker",

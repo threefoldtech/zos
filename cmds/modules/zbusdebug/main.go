@@ -35,10 +35,9 @@ var (
 		Usage: "show status summery for running zbus modules",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "broker",
-				Value:    "unix:///var/run/redis.sock",
-				Usage:    "connection string to the message `BROKER`",
-				Required: true,
+				Name:  "broker",
+				Value: "unix:///var/run/redis.sock",
+				Usage: "connection string to the message `BROKER`",
 			},
 			&cli.StringFlag{
 				Name:  "module",
