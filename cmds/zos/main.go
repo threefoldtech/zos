@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/cmds/modules/contd"
 	"github.com/threefoldtech/zos/cmds/modules/flistd"
+	"github.com/threefoldtech/zos/cmds/modules/provisiond"
 	"github.com/threefoldtech/zos/cmds/modules/storaged"
 	"github.com/threefoldtech/zos/cmds/modules/vmd"
 	"github.com/threefoldtech/zos/cmds/modules/zbusdebug"
@@ -28,6 +30,7 @@ func main() {
 			&flistd.Module,
 			&contd.Module,
 			&vmd.Module,
+			&provisiond.Module,
 			&zbusdebug.Module,
 		},
 	}
@@ -48,7 +51,6 @@ func main() {
 	}
 
 	if err := exe.Run(args); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		log.Fatal().Err(err).Msg("exiting")
 	}
 }

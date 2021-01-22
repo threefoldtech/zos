@@ -1,4 +1,4 @@
-package main
+package provisiond
 
 import (
 	"context"
@@ -8,53 +8,55 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/provision/explorer"
 	"github.com/threefoldtech/zos/pkg/provision/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/primitives/cache"
+	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/provision"
-	"github.com/threefoldtech/zos/pkg/version"
 )
 
 const (
 	module = "provision"
 )
 
-func main() {
-	app.Initialize()
+// Module entry point
+var Module cli.Command = cli.Command{
+	Name:  module,
+	Usage: "runs the virtual machine daemon",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "root",
+			Usage: "`ROOT` working directory of the module",
+			Value: "/var/cache/modules/provisiond",
+		},
+		&cli.StringFlag{
+			Name:  "broker",
+			Usage: "connection string to the message `BROKER`",
+			Value: "unix:///var/run/redis.sock",
+		},
+	},
+	Action: action,
+}
 
+func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string
-		storageDir   string
-		debug        bool
-		ver          bool
+		msgBrokerCon string = cli.String("broker")
+		storageDir   string = cli.String("root")
 	)
 
 	flag.StringVar(&storageDir, "root", "/var/cache/modules/provisiond", "root path of the module")
 	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
-	flag.BoolVar(&debug, "debug", false, "enable debug logging")
-	flag.BoolVar(&ver, "v", false, "show version and exit")
-
-	flag.Parse()
-	if ver {
-		version.ShowAndExit(false)
-	}
-
-	// Default level for this example is info, unless debug flag is present
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
 
 	// keep checking if limited-cache flag is set
 	if app.CheckFlag(app.LimitedCache) {
@@ -64,30 +66,29 @@ func main() {
 		}
 	}
 
-	flag.Parse()
-
 	if err := os.MkdirAll(storageDir, 0770); err != nil {
-		log.Fatal().Err(err).Msg("failed to create cache directory")
+		return errors.Wrap(err, "failed to create cache directory")
 	}
 
 	env, err := environment.Get()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to parse node environment")
+		return errors.Wrap(err, "failed to parse node environment")
 	}
 
 	if env.Orphan {
 		// disable providiond on this node
 		// we don't have a valid farmer id set
-		log.Fatal().Msg("orphan node, we won't provision anything at all")
+		log.Info().Msg("orphan node, we won't provision anything at all")
+		select {}
 	}
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, 1)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to message broker")
+		return errors.Wrap(err, "failed to connect to message broker")
 	}
 	zbusCl, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
-		log.Fatal().Err(err).Msg("fail to connect to message broker server")
+		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	identity := stubs.NewIdentityManagerStub(zbusCl)
@@ -102,13 +103,13 @@ func main() {
 	backoff.RetryNotify(func() error {
 		return network.Ready()
 	}, bo, func(err error, d time.Duration) {
-		log.Error().Err(err).Msgf("networkd is not ready yet")
+		log.Error().Err(err).Msg("networkd is not ready yet")
 	})
 
 	// to get reservation from tnodb
 	e, err := app.ExplorerClient()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to instantiate BCDB client")
+		return errors.Wrap(err, "failed to instantiate BCDB client")
 	}
 
 	// keep track of resource units reserved and amount of workloads provisionned
@@ -117,8 +118,9 @@ func main() {
 	// to store reservation locally on the node
 	localStore, err := cache.NewFSStore(filepath.Join(storageDir, "reservations"))
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create local reservation store")
+		return errors.Wrap(err, "failed to create local reservation store")
 	}
+
 	// update stats from the local reservation cache
 	localStore.Sync(statser)
 
@@ -142,7 +144,7 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to instantiate provision engine")
+		return errors.Wrap(err, "failed to instantiate provision engine")
 	}
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, pkg.Provision(engine))
@@ -168,9 +170,11 @@ func main() {
 	}()
 
 	if err := engine.Run(ctx); err != nil {
-		log.Error().Err(err).Msg("unexpected error")
+		return errors.Wrap(err, "unexpected error")
 	}
+
 	log.Info().Msg("provision engine stopped")
+	return nil
 }
 
 type store interface {
