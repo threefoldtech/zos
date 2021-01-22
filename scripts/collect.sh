@@ -13,4 +13,7 @@ fi
 
 mkdir -p ${archive}/bin ${archive}/etc
 cp bin/* ${archive}/bin/
+for sub in $(bin/zos --list); do
+    ln -s zos ${archive}/bin/${sub}
+done
 cp -r etc/* ${archive}/etc/

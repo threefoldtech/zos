@@ -26,6 +26,13 @@ func main() {
 	exe := cli.App{
 		Name:    "ZOS",
 		Version: version.Current().String(),
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:   "list",
+				Hidden: true,
+				Usage:  "print all available clients names",
+			},
+		},
 		Commands: []*cli.Command{
 			&zui.Module,
 			&storaged.Module,
@@ -36,6 +43,21 @@ func main() {
 			&networkd.Module,
 			&provisiond.Module,
 			&zbusdebug.Module,
+		},
+		Action: func(c *cli.Context) error {
+			if !c.Bool("list") {
+				cli.ShowAppHelpAndExit(c, 0)
+			}
+			// this hidden flag (complete) is used to list
+			// all available modules names to automate building of
+			// symlinks
+			for _, cmd := range c.App.VisibleCommands() {
+				if cmd.Name == "help" {
+					continue
+				}
+				fmt.Println(cmd.Name)
+			}
+			return nil
 		},
 	}
 
