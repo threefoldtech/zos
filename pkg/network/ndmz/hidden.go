@@ -51,12 +51,8 @@ func (d *Hidden) Create(ctx context.Context) error {
 			if err != nil {
 				return errors.Wrap(err, "could not create public bridge")
 			}
-		} else {
-			_, err = bridge.Get(publicBridge)
-			if err != nil {
-				return errors.Wrap(err, "could not load public bridge")
-			}
 		}
+
 		var veth netlink.Link
 		if !ifaceutil.Exists(toZosVeth, nil) {
 			veth, err = ifaceutil.MakeVethPair(toZosVeth, publicBridge, 1500)
