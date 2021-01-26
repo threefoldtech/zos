@@ -43,6 +43,7 @@ func (d *Hidden) Create(ctx context.Context) error {
 	// operation of the different modes, we might be able to unify both ndmz
 	// imlementations in the cleanup
 	d.master = types.DefaultBridge
+	// note: d.master will always endup to be br-pub bridge !!
 	if !namespace.Exists(NetNSNDMZ) {
 		var err error
 		if !ifaceutil.Exists(publicBridge, nil) {
