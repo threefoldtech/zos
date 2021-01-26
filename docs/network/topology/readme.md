@@ -36,3 +36,14 @@ First we need to find the master interface for ndmz, we have the following cases
 this is an external configuration step that is configured by the farmer on the node object. The node then must have setup in the explorer.
 
 ![public-namespace](png/public-namespace.png)
+
+## Setting up Yggdrasil
+- Get a list of all public peers with status `up`
+- If hidden node:
+  - Find peers with IPv4 addresses
+- If dual stack node:
+  - Filter out all peers with same prefix as the node, to avoid connecting locally only
+- write down yggdrasil config, and start yggdrasil daemon via zinit
+- yggdrasil runs inside the ndmz namespace
+- add an ipv6 address to npub in the same prefix as yggdrasil. this way when npub6 is used as a gateway for this prefix, traffic
+will be routed through yggdrasil.

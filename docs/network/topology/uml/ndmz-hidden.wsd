@@ -43,6 +43,12 @@ package "ndmz namespace" {
     note as setup
     - net.ipv6.conf.all.forwarding = 1
     end note
+
+    [ygg0]
+    note bottom of ygg0
+    this will be added by yggdrasil setup
+    in the next step
+    end note
 }
 
 footer (hidden node) no master with global unicast ipv6 found
