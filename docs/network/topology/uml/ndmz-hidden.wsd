@@ -1,6 +1,6 @@
 @startuml
 [zos\nbridge] as zos
-note top of zos
+note left of zos
 current select master
 for hiddent ndmz setup
 end note
@@ -10,7 +10,7 @@ note top of brndmz
 disable ipv6
 - net.ipv6.conf.br-ndmz.disable_ipv6 = 1
 end note
-brpub -left- zos : veth pair (tozos)
+brpub -left- zos : veth pair\n(tozos)
 
 package "ndmz namespace" {
     [tonrs\nmacvlan] as tonrs
