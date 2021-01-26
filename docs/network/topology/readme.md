@@ -34,3 +34,5 @@ First we need to find the master interface for ndmz, we have the following cases
 
 ## Setting up Public Config
 this is an external configuration step that is configured by the farmer on the node object. The node then must have setup in the explorer.
+
+![public-namespace](png/public-namespace.png)

@@ -1,0 +1,28 @@
+@startuml
+
+() "Public Bridge" as brpub
+
+note left of brpub
+this changes depends on the type of ndmz
+br-pub in case of hidden ndmz
+end note
+
+
+package "public namespace" {
+
+    [public\nmacvlan] as public
+    public -down- brpub: macvlan
+    note right of public
+    - have a static mac generated from node id
+    - set the ips as configured
+    - set the default gateways as configured
+    end note
+
+    note as global
+    inside namespace
+    - net.ipv6.conf.all.accept_ra = 2
+    - net.ipv6.conf.all.accept_ra_defrtr = 1
+    end note
+}
+
+@enduml
