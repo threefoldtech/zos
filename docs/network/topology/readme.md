@@ -10,7 +10,7 @@ the first basic network setup is done, the point of this setup is to connect the
   - Create a bridge named `zos`
   - Disable IPv6 on this bridge, and ipv6 forwarding
 - Run `udhcpc` on zos bridge
-//TODO: Insert *zos-bridge.wsd* here
+![zos-bridge](png/zos-bridge.png)
 
 Once this setup complete, the node now has access to the internet which allows it to download and run `networkd` which takes over the network stack and continue the process as follows.
 
@@ -27,4 +27,6 @@ First we need to find the master interface for ndmz, we have the following cases
 - otherwise hidden node (still uses zos but in hidden node setup)
 
 ### Hidden node ndmz
-//TODO: insert *ndmz-hidden.wsd* here
+![ndmz-hidden](png/ndmz-hidden.png)
+
+### Dualstack ndmz

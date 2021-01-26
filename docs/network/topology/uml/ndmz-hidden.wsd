@@ -29,7 +29,7 @@ package "ndmz namespace" {
     npub6 -right- brpub: macvlan
 
     [npub4\nmacvlan] as npub4
-    npub4 -down- zos
+    npub4 -down- zos: macvlan
 
     note as MAC
     gets static mac address generated
