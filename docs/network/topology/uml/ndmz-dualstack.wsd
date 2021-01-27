@@ -1,9 +1,5 @@
 @startuml
 [zos\nbridge] as zos
-note left of zos
-current select master
-for hiddent ndmz setup
-end note
 [br-pub\nbridge] as brpub
 [br-ndmz\nbridge] as brndmz
 note top of brndmz
