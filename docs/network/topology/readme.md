@@ -63,3 +63,6 @@ Otherwise, the port is created on the host namespace and then moved to the netwo
 ![nr-2](png/nr-step-2.png)
 
 Finally the wireguard peer list is applied and configured, routing rules is also configured to route traffic to the wireguard interface
+
+# Member joining a user network (network resource)
+![nr-join](png/nr-join.png)
