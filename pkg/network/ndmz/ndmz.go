@@ -217,7 +217,7 @@ func convertIpv4ToIpv6(ip net.IP) net.IP {
 	} else {
 		ipv6 = fmt.Sprintf("fd00::%02x%02x", ip[14], ip[15])
 	}
-	fmt.Println(ipv6)
+
 	return net.ParseIP(ipv6)
 }
 
