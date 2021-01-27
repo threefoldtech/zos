@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"sort"
@@ -65,34 +66,38 @@ func InspectIfaces() ([]IfaceConfig, error) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(links))
 
-	cCfg := make(chan IfaceConfig)
+	ch := make(chan IfaceConfig)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 
 	for _, link := range links {
-		go func(cAddrs chan IfaceConfig, link netlink.Link) {
-			defer wg.Done()
-			if err := analyseLink(cAddrs, link); err != nil {
-				log.Error().Err(err).Str("interface", link.Attrs().Name).Msg("error analysing interface")
-			}
-		}(cCfg, link)
+		wg.Add(1)
+		analyseLink(ctx, &wg, ch, link)
 	}
 
 	go func() {
 		wg.Wait()
-		close(cCfg)
+		close(ch)
 	}()
 
 	configs := make([]IfaceConfig, 0, len(links))
-	for cfg := range cCfg {
+	for cfg := range ch {
 		configs = append(configs, cfg)
 	}
 
 	return configs, nil
 }
 
-func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
+// AnalyseLink gets information about link
+func AnalyseLink(ctx context.Context, link netlink.Link) (cfg IfaceConfig, err error) {
+	if link.Attrs().MasterIndex != 0 {
+		// this is to avoid breaking setups if a link is
+		// already used
+		return cfg, fmt.Errorf("link is attached to device")
+	}
 	tmpNS, err := namespace.Create(link.Attrs().Name)
 	if err != nil {
-		return errors.Wrap(err, "failed to create network namespace")
+		return cfg, errors.Wrap(err, "failed to create network namespace")
 	}
 	defer func() {
 		if err := namespace.Delete(tmpNS); err != nil {
@@ -101,7 +106,7 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 	}()
 
 	if err := netlink.LinkSetNsFd(link, int(tmpNS.Fd())); err != nil {
-		return errors.Wrap(err, "failed to sent interface into network namespace")
+		return cfg, errors.Wrap(err, "failed to sent interface into network namespace")
 	}
 
 	err = tmpNS.Do(func(_ ns.NetNS) error {
@@ -129,13 +134,12 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 
 		var addrs4 = newAddrSet()
 		var addrs6 = newAddrSet()
-		cTimeout := time.After(time.Second * 122)
 
-	Loop:
+	loop:
 		for {
 			select {
-			case <-cTimeout:
-				break Loop
+			case <-ctx.Done():
+				return ctx.Err()
 			default:
 				addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 				if err != nil {
@@ -150,7 +154,7 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 				addrs6.AddSlice(addrs)
 
 				if addrs6.Len() > 0 && addrs4.Len() > 0 {
-					break Loop
+					break loop
 				}
 				time.Sleep(time.Second)
 			}
@@ -165,7 +169,7 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 			return errors.Wrapf(err, "could not read routes from interface %s", name)
 		}
 
-		cAddrs <- IfaceConfig{
+		cfg = IfaceConfig{
 			Name:    name,
 			Addrs4:  addrs4.ToSlice(),
 			Addrs6:  addrs6.ToSlice(),
@@ -175,11 +179,19 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 
 		return nil
 	})
-	if err != nil {
-		log.Info().Str("interface", link.Attrs().Name).Msg("failed to gather ip addresses")
-	}
 
-	return nil
+	return
+}
+
+func analyseLink(ctx context.Context, wg *sync.WaitGroup, out chan<- IfaceConfig, link netlink.Link) {
+	go func() {
+		defer wg.Done()
+		cfg, err := AnalyseLink(ctx, link)
+		if err != nil {
+			log.Error().Err(err).Str("interface", link.Attrs().Name).Msg("error analysing interface")
+		}
+		out <- cfg
+	}()
 }
 
 // SelectZOS decide which interface should be assigned to the ZOS bridge
@@ -293,6 +305,7 @@ func isPrivateIP(ip net.IP) bool {
 	return false
 }
 
+//TODO: re-implement as map
 type addrSet struct {
 	l []netlink.Addr
 }
