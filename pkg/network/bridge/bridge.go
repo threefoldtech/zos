@@ -6,6 +6,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/vishvananda/netlink"
 )
 
@@ -81,6 +82,34 @@ func Exists(name string) bool {
 	}
 	_, ok := link.(*netlink.Bridge)
 	return ok
+}
+
+func vethName(from, to string) string {
+	name := fmt.Sprintf("%sto%s", from, to)
+	if len(name) > 13 {
+		return name[:13]
+	}
+
+	return name
+}
+
+// Attach attaches any link to a bridge, based on the link type
+// can be directly plugged or crossed over with a veth pari
+func Attach(link netlink.Link, bridge *netlink.Bridge) error {
+	if link.Type() == "device" {
+		return AttachNic(link, bridge)
+	} else if link.Type() == "bridge" {
+
+		//we need to create an veth pair to wire 2 bridges.
+		veth, err := ifaceutil.MakeVethPair(vethName(link.Attrs().Name, bridge.Name), bridge.Name, 1500)
+		if err != nil {
+			return err
+		}
+
+		return AttachNic(veth, bridge)
+	}
+
+	return fmt.Errorf("unsupported link type '%s'", link.Type())
 }
 
 // AttachNic attaches an interface to a bridge

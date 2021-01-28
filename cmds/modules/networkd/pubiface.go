@@ -14,11 +14,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/types"
 )
 
-// ErrNoPubIface is the error returns by ReadPubIface when no public
+// ErrNoPubInterface is the error returns by ReadPubIface when no public
 // interface is configured
-var ErrNoPubIface = errors.New("no public interface configured for this node")
+var ErrNoPubInterface = errors.New("no public interface configured for this node")
 
-func getPubIface(dir client.Directory, nodeID string) (*types.PubIface, error) {
+func getExitInterface(dir client.Directory, nodeID string) (*types.PubIface, error) {
 	schemaNode, err := dir.NodeGet(nodeID, false)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func getPubIface(dir client.Directory, nodeID string) (*types.PubIface, error) {
 
 	node := types.NewNodeFromSchema(schemaNode)
 	if node.PublicConfig == nil {
-		return nil, ErrNoPubIface
+		return nil, ErrNoPubInterface
 	}
 
 	return node.PublicConfig, nil
@@ -48,9 +48,9 @@ func watchPubIface(ctx context.Context, nodeID pkg.Identifier, dir client.Direct
 				break
 			}
 
-			exitIface, err := getPubIface(dir, nodeID.Identity())
+			exitIface, err := getExitInterface(dir, nodeID.Identity())
 			if err != nil {
-				if err == ErrNoPubIface {
+				if err == ErrNoPubInterface {
 					continue
 				}
 				log.Error().Err(err).Msg("failed to read public interface")

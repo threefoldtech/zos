@@ -324,7 +324,7 @@ func HostIPV6Iface(useZos bool) (string, error) {
 				Str("addr", addr.String()).
 				Msg("search public ipv6 address")
 
-			if addr.IP.IsGlobalUnicast() && !isULA(addr.IP) {
+			if addr.IP.IsGlobalUnicast() && !IsULA(addr.IP) {
 				return link.Attrs().Name, nil
 			}
 		}
@@ -368,6 +368,6 @@ var ulaPrefix = net.IPNet{
 	Mask: net.CIDRMask(7, 128),
 }
 
-func isULA(ip net.IP) bool {
+func IsULA(ip net.IP) bool {
 	return ulaPrefix.Contains(ip)
 }

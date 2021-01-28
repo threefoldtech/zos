@@ -34,11 +34,11 @@ func DefaultBridgeValid() error {
 	if !hasGW {
 		log.Info().Msg("no default route found, try to turn accept_ra off and on again")
 
-		if err := options.IPv6AcceptRA(false); err != nil {
+		if err := options.IPv6AcceptRA(options.RAOff); err != nil {
 			log.Fatal().Err(err).Msgf("failed to disable accept_ra zos")
 		}
 
-		if err := options.IPv6AcceptRA(true); err != nil {
+		if err := options.IPv6AcceptRA(options.RAAcceptIfForwardingIsDisabled); err != nil {
 			log.Fatal().Err(err).Msgf("failed to enable accept_ra zos")
 		}
 	}

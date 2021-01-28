@@ -12,6 +12,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/urfave/cli/v2"
 	"github.com/vishvananda/netlink"
 
@@ -98,12 +99,20 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to publish network interfaces to BCDB")
 	}
 
-	exitIface, err := getPubIface(directory, nodeID.Identity())
-	pubConfMaster := ""
-	if err == nil {
-		pubConfMaster = exitIface.Master
+	// choose exit interface for (br-pub)
+	// - this is public_config.master if set
+	// - otherwise we find the first nic with public ipv6 (that is not zos)
+	// - finally we use zos if that is the last option.
+	pub, err := getExitInterface(directory, nodeID.Identity())
+
+	if err != nil && err != ErrNoPubInterface {
+		return errors.Wrap(err, "failed to get node public_config")
 	}
-	hasPubConf := err == nil
+
+	_, err = public.EnsurePublicSetup(nodeID, pub)
+	if err != nil {
+		return errors.Wrap(err, "failed to setup public bridge")
+	}
 
 	ndmzNs, err := buildNDMZ(nodeID.Identity(), pubConfMaster)
 	if err != nil {
