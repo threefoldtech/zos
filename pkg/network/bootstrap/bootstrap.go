@@ -45,32 +45,50 @@ func (a byAddr) Len() int           { return len(a) }
 func (a byAddr) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byAddr) Less(i, j int) bool { return bytes.Compare(a[i].IP, a[j].IP) < 0 }
 
-// InspectIfaces is used to gather the IP that each interfaces would be from DHCP and SLAAC
+// AnalyseLinks is used to gather the IP that each interfaces would be from DHCP and SLAAC
 // it returns the IPs and routes for each interfaces for both IPv4 and IPv6
 //
 // It will list all the physical interfaces that have a cable plugged in it
 // create a network namespace per interfaces
 // start a DHCP probe on each interfaces and gather the IPs and routes received
-func InspectIfaces() ([]IfaceConfig, error) {
+func AnalyseLinks(filters ...Filter) ([]IfaceConfig, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to list interfaces")
 		return nil, err
 	}
 
-	filters := []ifaceFilter{filterPhysical, filterPlugged}
-	for _, filter := range filters {
-		links = filter(links)
+	filterred := links[:0]
+filter:
+	for _, link := range links {
+		log := log.With().Str("interface", link.Attrs().Name).Str("type", link.Type()).Logger()
+
+		log.Info().Msg("filtering interface")
+		if link.Attrs().Name == "lo" {
+			continue
+		}
+
+		for _, filter := range filters {
+			ok, err := filter(link)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to filter link")
+			}
+
+			if !ok {
+				continue filter
+			}
+		}
+		log.Info().Msg("testing link for connectivity")
+		filterred = append(filterred, link)
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(links))
 
 	ch := make(chan IfaceConfig)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	for _, link := range links {
+	for _, link := range filterred {
 		wg.Add(1)
 		analyseLink(ctx, &wg, ch, link)
 	}
@@ -241,38 +259,27 @@ func SelectZOS(cfgs []IfaceConfig) (string, error) {
 	return selected4[0].Name, nil
 }
 
-type ifaceFilter func(links []netlink.Link) []netlink.Link
+// Filter interface to filter out links
+type Filter func(link netlink.Link) (bool, error)
 
-// filterPhysical is a ifaceFilter that filter out the links that are
-// not physical interface
-func filterPhysical(links []netlink.Link) []netlink.Link {
-	out := links[:0]
-	for _, l := range links {
-		if l.Type() == "device" {
-			out = append(out, l)
-		}
-	}
-	return out
+// PhysicalFilter returns true if physical link
+func PhysicalFilter(link netlink.Link) (bool, error) {
+	return link.Type() == "device", nil
 }
 
-// filterPlugged is a ifaceFilter that filter out the links that does not have a cable plugged in it
-func filterPlugged(links []netlink.Link) []netlink.Link {
-	out := links[:0]
-	for _, l := range links {
-
-		if err := netlink.LinkSetUp(l); err != nil {
-			log.Info().Str("interface", l.Attrs().Name).Msg("failed to bring interface up")
-			continue
-		}
-
-		if !ifaceutil.IsVirtEth(l.Attrs().Name) && !ifaceutil.IsPluggedTimeout(l.Attrs().Name, time.Second*5) {
-			log.Info().Str("interface", l.Attrs().Name).Msg("interface is not plugged in, skipping")
-			continue
-		}
-
-		out = append(out, l)
+// PluggedFilter returns true if link is plugged in
+func PluggedFilter(link netlink.Link) (bool, error) {
+	if err := netlink.LinkSetUp(link); err != nil {
+		return false, errors.Wrapf(err, "failed to bring interface '%s' up", link.Attrs().Name)
 	}
-	return out
+
+	return ifaceutil.IsVirtEth(link.Attrs().Name) || ifaceutil.IsPluggedTimeout(link.Attrs().Name, time.Second*5), nil
+}
+
+// NotAttachedFilter filters out network cards that
+// area attached to bridges
+func NotAttachedFilter(link netlink.Link) (bool, error) {
+	return link.Attrs().MasterIndex == 0, nil
 }
 
 func isPrivateIP(ip net.IP) bool {
@@ -306,34 +313,31 @@ func isPrivateIP(ip net.IP) bool {
 }
 
 //TODO: re-implement as map
-type addrSet struct {
-	l []netlink.Addr
+type addrSet map[string]netlink.Addr
+
+func newAddrSet() addrSet {
+	return addrSet{}
 }
 
-func newAddrSet() *addrSet {
-	return &addrSet{
-		l: make([]netlink.Addr, 0, 5),
-	}
+func (s addrSet) Add(addr netlink.Addr) {
+	s[addr.String()] = addr
 }
 
-func (s *addrSet) Add(addr netlink.Addr) {
-	for _, a := range s.l {
-		if a.Equal(addr) {
-			return
-		}
-	}
-	s.l = append(s.l, addr)
-}
-
-func (s *addrSet) AddSlice(addrs []netlink.Addr) {
+func (s addrSet) AddSlice(addrs []netlink.Addr) {
 	for _, addr := range addrs {
 		s.Add(addr)
 	}
 }
 
-func (s *addrSet) Len() int {
-	return len(s.l)
+func (s addrSet) Len() int {
+	return len(s)
 }
-func (s *addrSet) ToSlice() []netlink.Addr {
-	return s.l
+
+func (s addrSet) ToSlice() []netlink.Addr {
+	var results []netlink.Addr
+	for _, l := range s {
+		results = append(results, l)
+	}
+
+	return results
 }
