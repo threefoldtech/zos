@@ -165,8 +165,9 @@ func (n *networker) Ready() error {
 }
 
 func (n *networker) ipv4Only() bool {
-	_, ipv4Only := n.ndmz.(*ndmz.Hidden)
-	return ipv4Only
+	return true
+	// _, ipv4Only := n.ndmz.(*ndmz.Hidden)
+	// return ipv4Only
 }
 
 func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.ContainerNetworkConfig) (join pkg.Member, err error) {

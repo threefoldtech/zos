@@ -58,13 +58,11 @@ func (d *DualStack) Create(ctx context.Context) error {
 	// iface, but need to create a veth pair between br-pub and zos.
 
 	netNS, err := namespace.GetByName(NetNSNDMZ)
-	if os.IsNotExist(err) {
+	if err != nil {
 		netNS, err = namespace.Create(NetNSNDMZ)
 		if err != nil {
 			return errors.Wrap(err, "failed to create ndmz namespace")
 		}
-	} else if err != nil {
-		return errors.Wrap(err, "failed to get ndmz namespace")
 	}
 
 	defer netNS.Close()

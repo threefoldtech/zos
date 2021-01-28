@@ -239,7 +239,8 @@ func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz
 
 	// filter out the possible yggdrasil public node
 	var filter latency.IPFilter
-	_, ipv4Only := dmz.(*ndmz.Hidden)
+	//TODO: _, ipv4Only := dmz.(*ndmz.Hidden)
+	ipv4Only := true
 	if ipv4Only {
 		// if we are a hidden node,only keep ipv4 public nodes
 		filter = latency.IPV4Only

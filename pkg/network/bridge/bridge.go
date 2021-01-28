@@ -99,14 +99,14 @@ func Attach(link netlink.Link, bridge *netlink.Bridge) error {
 	if link.Type() == "device" {
 		return AttachNic(link, bridge)
 	} else if link.Type() == "bridge" {
-
+		linkBr := link.(*netlink.Bridge)
 		//we need to create an veth pair to wire 2 bridges.
 		veth, err := ifaceutil.MakeVethPair(vethName(link.Attrs().Name, bridge.Name), bridge.Name, 1500)
 		if err != nil {
 			return err
 		}
 
-		return AttachNic(veth, bridge)
+		return AttachNic(veth, linkBr)
 	}
 
 	return fmt.Errorf("unsupported link type '%s'", link.Type())
