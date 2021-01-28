@@ -8,9 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/network"
-	"github.com/threefoldtech/zos/pkg/network/namespace"
-	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/types"
 )
 
@@ -74,26 +71,4 @@ func watchPubIface(ctx context.Context, nodeID pkg.Identifier, dir client.Direct
 		}
 	}()
 	return ch
-}
-
-func configurePubIface(dmz ndmz.DMZ, iface *types.PubIface, nodeID pkg.Identifier) error {
-	cleanup := func() error {
-		pubNs, err := namespace.GetByName(types.PublicNamespace)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to find public namespace")
-			return err
-		}
-		if err = namespace.Delete(pubNs); err != nil {
-			log.Error().Err(err).Msg("failed to delete public namespace")
-			return err
-		}
-		return nil
-	}
-
-	if err := network.CreatePublicNS(dmz, iface, nodeID); err != nil {
-		_ = cleanup()
-		return errors.Wrap(err, "failed to configure public namespace")
-	}
-
-	return nil
 }

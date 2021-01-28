@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/threefoldtech/zos/pkg/network/bridge"
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -33,46 +32,20 @@ const (
 
 // DualStack implement DMZ interface using dual stack ipv4/ipv6
 type DualStack struct {
-	nodeID       string
-	ipv6Master   string
-	hasPubBridge bool
+	nodeID string
+	public *netlink.Bridge
 }
 
-// NewDualStack creates a new DMZ DualStack
-func NewDualStack(nodeID string, master string) *DualStack {
+// New creates a new DMZ DualStack
+func New(nodeID string, public *netlink.Bridge) *DualStack {
 	return &DualStack{
-		nodeID:     nodeID,
-		ipv6Master: master,
+		nodeID: nodeID,
+		public: public,
 	}
 }
 
 // Create create the NDMZ network namespace and configure its default routes and addresses
 func (d *DualStack) Create(ctx context.Context) error {
-	master := d.ipv6Master
-	var err error
-	if master == "" {
-		// Look for an ipv6 master iface on the host. This eventually tries to find
-		// an interface with a SLAAC address. The physical iface attached to the
-		// zos bridge will not be selected as it should have ipv6 disabled already
-		// (or its SLAAC address will be moved to zos). It might be that this happens
-		// too soon though for all ifaces to properly have configured their SLAAC
-		// address.
-		// TODO: fix this properly: https://github.com/threefoldtech/zos/issues/1159
-		// As a temporary workaround / hack, wait for a while before continuing
-		// 3 Minutes should be sufficient for now
-		log.Info().Msg("goin to sleep for a while so all ifaces have time to do SLAAC")
-		time.Sleep(3 * time.Minute)
-		log.Info().Msg("woke up from SLAAC sleep")
-
-		master, err = FindIPv6Master(true)
-		if err != nil {
-			return errors.Wrap(err, "could not find public master iface for ndmz")
-		}
-		if master == "" {
-			return errors.New("invalid physical interface to use as master for ndmz npub6")
-		}
-	}
-
 	// There are 2 options for the master:
 	// - use the interface directly
 	// - create a bridge and plug the interface into that one
@@ -83,66 +56,15 @@ func (d *DualStack) Create(ctx context.Context) error {
 	// Now, it is possible that we are a 1 nic dualstack node, in which case
 	// master will actually be `zos`. In that case, we can't plug the physical
 	// iface, but need to create a veth pair between br-pub and zos.
-	if !namespace.Exists(NetNSNDMZ) {
-		var masterBr *netlink.Bridge
-		if !ifaceutil.Exists(publicBridge, nil) {
-			// create bridge, this needs to happen on the host ns
-			masterBr, err = bridge.New(publicBridge)
-			if err != nil {
-				return errors.Wrap(err, "could not create public bridge")
-			}
-		} else {
-			masterBr, err = bridge.Get(publicBridge)
-			if err != nil {
-				return errors.Wrap(err, "could not load public bridge")
-			}
-		}
-		physLink, err := netlink.LinkByName(master)
-		if err != nil {
-			return errors.Wrap(err, "failed to get master link")
-		}
-		// if the physLink is a bridge (zos), create a veth pair. else plug
-		// the iface directly into br-pub.
-		if physLink.Type() == "bridge" {
-			bridgeLink := physLink.(*netlink.Bridge)
-			var veth netlink.Link
-			if !ifaceutil.Exists(toZosVeth, nil) {
-				veth, err = ifaceutil.MakeVethPair(toZosVeth, publicBridge, 1500)
-				if err != nil {
-					return errors.Wrap(err, "failed to create veth pair")
-				}
-			} else {
-				veth, err = ifaceutil.VethByName(toZosVeth)
-				if err != nil {
-					return errors.Wrap(err, "failed to load existing veth link to master bridge")
-				}
-			}
-			if err = bridge.AttachNic(veth, bridgeLink); err != nil {
-				return errors.Wrap(err, "failed to add veth to ndmz master bridge")
-			}
-		} else if err = bridge.AttachNic(physLink, masterBr); err != nil {
-			return errors.Wrap(err, "could not attach public physical iface to bridge")
-		}
-
-		// this is the master now
-		master = publicBridge
-		d.hasPubBridge = true
-	} else if ifaceutil.Exists(publicBridge, nil) {
-		// existing bridge is the master
-		master = publicBridge
-		d.hasPubBridge = true
-	}
-
-	log.Info().Bool("public bridge", d.hasPubBridge).Msg("set up public bridge")
 
 	netNS, err := namespace.GetByName(NetNSNDMZ)
-	if err != nil {
-		// since we create the NDMZ here this should be a freshly booted node,
-		// so create the bridge in between for public networking
+	if os.IsNotExist(err) {
 		netNS, err = namespace.Create(NetNSNDMZ)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to create ndmz namespace")
 		}
+	} else if err != nil {
+		return errors.Wrap(err, "failed to get ndmz namespace")
 	}
 
 	defer netNS.Close()
@@ -151,10 +73,7 @@ func (d *DualStack) Create(ctx context.Context) error {
 		return errors.Wrapf(err, "ndmz: createRoutingBride error")
 	}
 
-	log.Info().Msgf("set ndmz ipv6 master to %s", master)
-	d.ipv6Master = master
-
-	if err := createPubIface6(DMZPub6, master, d.nodeID, netNS); err != nil {
+	if err := createPubIface6(DMZPub6, d.public, d.nodeID, netNS); err != nil {
 		return errors.Wrapf(err, "ndmz: could not node create pub iface 6")
 	}
 
@@ -288,12 +207,12 @@ func (d *DualStack) SetIP6PublicIface(subnet net.IPNet) error {
 
 // IP6PublicIface implements DMZ interface
 func (d *DualStack) IP6PublicIface() string {
-	return d.ipv6Master
+	return d.public.Name
 }
 
 // SupportsPubIPv4 implements DMZ interface
 func (d *DualStack) SupportsPubIPv4() bool {
-	return d.hasPubBridge
+	return true
 }
 
 // waitIP4 waits to receives some IPv4 from DHCP

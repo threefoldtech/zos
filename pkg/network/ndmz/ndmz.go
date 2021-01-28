@@ -84,9 +84,9 @@ func FindIPv6Master(useZos bool) (master string, err error) {
 	return master, nil
 }
 
-func createPubIface6(name, master, nodeID string, netNS ns.NetNS) error {
+func createPubIface6(name string, master *netlink.Bridge, nodeID string, netNS ns.NetNS) error {
 	if !ifaceutil.Exists(name, netNS) {
-		if _, err := macvlan.Create(name, master, netNS); err != nil {
+		if _, err := macvlan.Create(name, master.Name, netNS); err != nil {
 			return err
 		}
 	}
