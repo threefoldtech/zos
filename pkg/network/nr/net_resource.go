@@ -420,7 +420,7 @@ func (nr *NetResource) HasWireguard() (bool, error) {
 	err = nrNetNS.Do(func(_ ns.NetNS) error {
 		_, err = wireguard.GetByName(wgName)
 
-		if errors.Is(err, netlink.LinkNotFoundError{}) {
+		if errors.As(err, &netlink.LinkNotFoundError{}) {
 			return nil
 		} else if err != nil {
 			return err
