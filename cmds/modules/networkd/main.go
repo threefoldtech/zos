@@ -335,45 +335,6 @@ func explorerClient() (client.Directory, error) {
 	return client.Directory, nil
 }
 
-// func buildNDMZ(nodeID string, pubMaster string) (ndmz.DMZ, error) {
-// 	master := pubMaster
-
-// 	var err error
-// 	if master == "" {
-// 		notify := func(err error, d time.Duration) {
-// 			log.Warn().Err(err).Msgf("did not find a valid IPV6 master address for ndmz, retry in %s", d.String())
-// 		}
-
-// 		findMaster := func() error {
-// 			var err error
-// 			master, err = ndmz.FindIPv6Master(false)
-// 			return err
-// 		}
-
-// 		bo := backoff.NewExponentialBackOff()
-// 		// wait for 2 minute for public ipv6
-// 		bo.MaxElapsedTime = time.Minute * 2
-// 		bo.MaxInterval = time.Second * 10
-// 		err = backoff.RetryNotify(findMaster, bo, notify)
-// 	}
-
-// 	// if we haven't found a master after 2 minutes, include zos bridge in the
-// 	// search, and search 1 more time
-// 	if master == "" {
-// 		master, err = ndmz.FindIPv6Master(true)
-// 	}
-
-// 	// if ipv6 found, use dual stack ndmz
-// 	if err == nil && master != "" {
-// 		log.Info().Str("ndmz_npub6_master", master).Msg("network mode dualstack")
-// 		return ndmz.NewDualStack(nodeID, master), nil
-// 	}
-
-// 	// else use ipv4 only mode
-// 	log.Info().Msg("network mode hidden ipv4 only")
-// 	return ndmz.NewHidden(nodeID), nil
-// }
-
 func getDMZNPub6Addr() (net.IP, error) {
 	netns, err := namespace.GetByName(ndmz.NetNSNDMZ)
 	if err != nil {
