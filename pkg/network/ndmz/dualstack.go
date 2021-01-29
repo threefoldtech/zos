@@ -386,7 +386,7 @@ func waitIP6() error {
 	}
 
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 122 * time.Second // default RA from router is every 60 secs
+	bo.MaxElapsedTime = 2 * time.Minute // default RA from router is every 60 secs
 	return backoff.Retry(getRoutes, bo)
 }
 

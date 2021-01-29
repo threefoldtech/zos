@@ -220,6 +220,8 @@ func Get(name string, netNS ns.NetNS) (link netlink.Link, err error) {
 			link, err = netlink.LinkByName(name)
 			return nil
 		})
+
+		return
 	}
 
 	link, err = netlink.LinkByName(name)
