@@ -213,6 +213,19 @@ func Exists(name string, netNS ns.NetNS) bool {
 	return exist
 }
 
+// Get link by name from optional namespace
+func Get(name string, netNS ns.NetNS) (link netlink.Link, err error) {
+	if netNS != nil {
+		netNS.Do(func(_ ns.NetNS) error {
+			link, err = netlink.LinkByName(name)
+			return nil
+		})
+	}
+
+	link, err = netlink.LinkByName(name)
+	return
+}
+
 // GetMAC gets the mac address from the Interface
 func GetMAC(name string, netNS ns.NetNS) (net.HardwareAddr, error) {
 	if netNS != nil {

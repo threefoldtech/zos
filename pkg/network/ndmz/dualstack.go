@@ -1,15 +1,23 @@
 package ndmz
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/threefoldtech/tfexplorer/schema"
+	"github.com/threefoldtech/zos/pkg/network/bridge"
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/nft"
+	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/threefoldtech/zos/pkg/network/nr"
@@ -198,9 +206,59 @@ func (d *DualStack) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir 
 	})
 }
 
-// SetIP6PublicIface implements DMZ interface
-func (d *DualStack) SetIP6PublicIface(subnet net.IPNet) error {
-	return configureYggdrasil(subnet)
+// IsIPv4Only means dmz only supports ipv4 addresses
+func (d *DualStack) IsIPv4Only() (bool, error) {
+	// this is true if DMZPub6 only has local not routable ipv6 addresses
+	//DMZPub6
+	netNS, err := namespace.GetByName(NetNSNDMZ)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get ndmz namespace")
+	}
+
+	link, err := ifaceutil.Get(DMZPub6, netNS)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get interface '%s'", DMZPub6)
+	}
+	ips, err := netlink.AddrList(link, netlink.FAMILY_V6)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to list '%s' ips", DMZPub6)
+	}
+
+	for _, ip := range ips {
+		if ip.IP.IsGlobalUnicast() && !ifaceutil.IsULA(ip.IP) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// SetIP sets an ip inside dmz
+func (d *DualStack) SetIP(subnet net.IPNet) error {
+	netns, err := namespace.GetByName(NetNSNDMZ)
+	if err != nil {
+		return err
+	}
+
+	err = netns.Do(func(_ ns.NetNS) error {
+		inf := DMZPub4
+		if subnet.IP.To16() != nil {
+			inf = DMZPub6
+		}
+
+		link, err := netlink.LinkByName(inf)
+		if err != nil {
+			return err
+		}
+
+		if err := netlink.AddrAdd(link, &netlink.Addr{
+			IPNet: &subnet,
+		}); err != nil && !os.IsExist(err) {
+			return err
+		}
+		return nil
+	})
+	return err
 }
 
 // IP6PublicIface implements DMZ interface
@@ -211,6 +269,57 @@ func (d *DualStack) IP6PublicIface() string {
 // SupportsPubIPv4 implements DMZ interface
 func (d *DualStack) SupportsPubIPv4() bool {
 	return true
+}
+
+//Interfaces return information about dmz interfaces
+func (d *DualStack) Interfaces() ([]types.IfaceInfo, error) {
+	var output []types.IfaceInfo
+
+	f := func(_ ns.NetNS) error {
+		links, err := netlink.LinkList()
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to list interfaces")
+			return err
+		}
+		for _, link := range links {
+			name := link.Attrs().Name
+			if name == tonrsIface {
+				continue
+			}
+
+			addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+			if err != nil {
+				return err
+			}
+
+			info := types.IfaceInfo{
+				Name:       name,
+				Addrs:      make([]types.IPNet, len(addrs)),
+				MacAddress: schema.MacAddress{link.Attrs().HardwareAddr},
+			}
+			for i, addr := range addrs {
+				info.Addrs[i] = types.NewIPNet(addr.IPNet)
+			}
+
+			output = append(output, info)
+
+		}
+		return nil
+	}
+
+	// get the ndmz network namespace
+	ndmz, err := namespace.GetByName(NetNSNDMZ)
+	if err != nil {
+		return nil, err
+	}
+	defer ndmz.Close()
+
+	err = ndmz.Do(f)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
 // waitIP4 waits to receives some IPv4 from DHCP
@@ -279,4 +388,139 @@ func waitIP6() error {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 122 * time.Second // default RA from router is every 60 secs
 	return backoff.Retry(getRoutes, bo)
+}
+
+func createPubIface6(name string, master *netlink.Bridge, nodeID string, netNS ns.NetNS) error {
+	if !ifaceutil.Exists(name, netNS) {
+		if _, err := macvlan.Create(name, master.Name, netNS); err != nil {
+			return err
+		}
+	}
+
+	return netNS.Do(func(_ ns.NetNS) error {
+		// set mac address to something static to make sure we receive the same IP from a DHCP server
+		mac := ifaceutil.HardwareAddrFromInputBytes([]byte(nodeID + ndmzNsMACDerivationSuffix6))
+		log.Debug().
+			Str("mac", mac.String()).
+			Str("interface", name).
+			Msg("set mac on ipv6 ndmz public iface")
+
+		return ifaceutil.SetMAC(name, mac, nil)
+	})
+}
+
+func createPubIface4(name, nodeID string, netNS ns.NetNS) error {
+	if !ifaceutil.Exists(name, netNS) {
+		if _, err := macvlan.Create(name, types.DefaultBridge, netNS); err != nil {
+			return err
+		}
+	}
+
+	return netNS.Do(func(_ ns.NetNS) error {
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "1"); err != nil {
+			return errors.Wrapf(err, "failed to disable ip6 on %s", name)
+		}
+		// set mac address to something static to make sure we receive the same IP from a DHCP server
+		mac := ifaceutil.HardwareAddrFromInputBytes([]byte(nodeID + ndmzNsMACDerivationSuffix4))
+		log.Debug().
+			Str("mac", mac.String()).
+			Str("interface", name).
+			Msg("set mac on ipv4 ndmz public iface")
+
+		return ifaceutil.SetMAC(name, mac, nil)
+	})
+}
+
+func createRoutingBridge(name string, netNS ns.NetNS) error {
+	if !bridge.Exists(name) {
+		if _, err := bridge.New(name); err != nil {
+			return errors.Wrapf(err, "couldn't create bridge %s", name)
+		}
+	}
+
+	if !ifaceutil.Exists(tonrsIface, netNS) {
+		if _, err := macvlan.Create(tonrsIface, name, netNS); err != nil {
+			return errors.Wrapf(err, "ndmz: couldn't create %s", tonrsIface)
+		}
+	}
+
+	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "1"); err != nil {
+		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", name)
+	}
+
+	return netNS.Do(func(_ ns.NetNS) error {
+
+		link, err := netlink.LinkByName(tonrsIface)
+		if err != nil {
+			return err
+		}
+		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", tonrsIface), "0"); err != nil {
+			return errors.Wrapf(err, "failed to enable ip6 on interface %s", tonrsIface)
+		}
+
+		addrs := []*netlink.Addr{
+			{
+				IPNet: &net.IPNet{
+					IP:   net.ParseIP("100.127.0.1"),
+					Mask: net.CIDRMask(16, 32),
+				},
+			},
+			{
+				IPNet: &net.IPNet{
+					IP:   net.ParseIP("fe80::1"),
+					Mask: net.CIDRMask(64, 128),
+				},
+			},
+			{
+				IPNet: &net.IPNet{
+					IP:   net.ParseIP("fd00::1"),
+					Mask: net.CIDRMask(64, 128),
+				},
+			},
+		}
+
+		for _, addr := range addrs {
+			err = netlink.AddrAdd(link, addr)
+			if err != nil && !os.IsExist(err) {
+				return err
+			}
+		}
+
+		return netlink.LinkSetUp(link)
+	})
+}
+
+func applyFirewall() error {
+	buf := bytes.Buffer{}
+
+	data := struct {
+		YggPorts string
+	}{
+		YggPorts: strings.Join([]string{
+			strconv.Itoa(yggdrasil.YggListenTCP),
+			strconv.Itoa(yggdrasil.YggListenTLS),
+			strconv.Itoa(yggdrasil.YggListenLinkLocal),
+		}, ","),
+	}
+
+	if err := fwTmpl.Execute(&buf, data); err != nil {
+		return errors.Wrap(err, "failed to build nft rule set")
+	}
+
+	if err := nft.Apply(&buf, NetNSNDMZ); err != nil {
+		return errors.Wrap(err, "failed to apply nft rule set")
+	}
+
+	return nil
+}
+
+func convertIpv4ToIpv6(ip net.IP) net.IP {
+	var ipv6 string
+	if len(ip) == net.IPv4len {
+		ipv6 = fmt.Sprintf("fd00::%02x%02x", ip[2], ip[3])
+	} else {
+		ipv6 = fmt.Sprintf("fd00::%02x%02x", ip[14], ip[15])
+	}
+
+	return net.ParseIP(ipv6)
 }

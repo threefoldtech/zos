@@ -113,9 +113,9 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to setup public bridge")
 	}
 
-	ndmzNs := ndmz.New(nodeID.Identity(), master)
+	dmz := ndmz.New(nodeID.Identity(), master)
 
-	if err := ndmzNs.Create(ctx); err != nil {
+	if err := dmz.Create(ctx); err != nil {
 		return errors.Wrap(err, "failed to create ndmz")
 	}
 
@@ -123,7 +123,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to host firewall rules")
 	}
 
-	ygg, err := startYggdrasil(ctx, identity.PrivateKey(), ndmzNs)
+	ygg, err := startYggdrasil(ctx, identity.PrivateKey(), dmz)
 	if err != nil {
 		return errors.Wrap(err, "fail to start yggdrasil")
 	}
@@ -133,12 +133,12 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "fail read yggdrasil subnet")
 	}
 
-	if err := ndmzNs.SetIP6PublicIface(gw); err != nil {
+	if err := dmz.SetIP(gw); err != nil {
 		return errors.Wrap(err, "fail to configure yggdrasil subnet gateway IP")
 	}
 
 	// send another detail of network interfaces now that ndmz is created
-	ndmzIfaces, err := getNdmzInterfaces()
+	ndmzIfaces, err := dmz.Interfaces()
 	if err != nil {
 		return errors.Wrap(err, "failed to read ndmz network interfaces")
 	}
@@ -150,14 +150,14 @@ func action(cli *cli.Context) error {
 
 	// watch modification of the address on the nic so we can update the explorer
 	// with eventual new values
-	go startAddrWatch(ctx, nodeID, directory, ifaces)
+	go startAddrWatch(ctx, dmz, nodeID, directory, ifaces)
 
 	log.Info().Msg("start zbus server")
 	if err := os.MkdirAll(root, 0750); err != nil {
 		return errors.Wrap(err, "fail to create module root")
 	}
 
-	networker, err := network.NewNetworker(identity, directory, root, ndmzNs, ygg)
+	networker, err := network.NewNetworker(identity, directory, root, dmz, ygg)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
 	}
@@ -239,8 +239,11 @@ func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz
 
 	// filter out the possible yggdrasil public node
 	var filter latency.IPFilter
-	//TODO: _, ipv4Only := dmz.(*ndmz.Hidden)
-	ipv4Only := true
+	ipv4Only, err := dmz.IsIPv4Only()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check ipv6 support for dmz")
+	}
+
 	if ipv4Only {
 		// if we are a hidden node,only keep ipv4 public nodes
 		filter = latency.IPV4Only
@@ -299,7 +302,7 @@ func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz
 	return server, nil
 }
 
-func startAddrWatch(ctx context.Context, nodeID pkg.Identifier, cl client.Directory, ifaces []types.IfaceInfo) {
+func startAddrWatch(ctx context.Context, dmz ndmz.DMZ, nodeID pkg.Identifier, cl client.Directory, ifaces []types.IfaceInfo) {
 
 	ifaceNames := make([]string, len(ifaces))
 	for i, iface := range ifaces {
@@ -308,7 +311,7 @@ func startAddrWatch(ctx context.Context, nodeID pkg.Identifier, cl client.Direct
 	log.Info().Msgf("watched interfaces %v", ifaceNames)
 
 	f := func() error {
-		wl := NewWatchedLinks(ifaceNames, nodeID, cl)
+		wl := NewWatchedLinks(dmz, ifaceNames, nodeID, cl)
 		if err := wl.Forever(ctx); err != nil {
 			log.Error().Err(err).Msg("error in address watcher")
 			return err
