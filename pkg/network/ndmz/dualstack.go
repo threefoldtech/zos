@@ -75,7 +75,7 @@ func (d *dmzImpl) Create(ctx context.Context) error {
 
 	defer netNS.Close()
 
-	if err := createRoutingBridge(BridgeNDMZ, netNS); err != nil {
+	if err := createRoutingBridge(ndmzBridge, netNS); err != nil {
 		return errors.Wrapf(err, "ndmz: createRoutingBride error")
 	}
 
@@ -144,7 +144,7 @@ func (d *dmzImpl) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir st
 	}
 
 	if !ifaceutil.Exists(nrPubIface, nrNS) {
-		if _, err = macvlan.Create(nrPubIface, BridgeNDMZ, nrNS); err != nil {
+		if _, err = macvlan.Create(nrPubIface, ndmzBridge, nrNS); err != nil {
 			return err
 		}
 	}

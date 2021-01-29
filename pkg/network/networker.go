@@ -17,6 +17,7 @@ import (
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/cache"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
+	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
 	"github.com/threefoldtech/zos/pkg/network/wireguard"
 	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
@@ -666,26 +667,47 @@ func (n *networker) CreateNR(netNR pkg.NetResource) (string, error) {
 		}
 	}
 
-	// this is ok if pubNS is nil, nr.Create handles it
-	pubNS, _ := namespace.GetByName(types.PublicNamespace)
+	defer func() {
+		if err != nil {
+			cleanup()
+		}
+	}()
+
+	wgName, err := netr.WGName()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get wg interface name for network resource")
+	}
 
 	log.Info().Msg("create network resource namespace")
-	if err := netr.Create(pubNS); err != nil {
-		cleanup()
+	if err = netr.Create(); err != nil {
 		return "", errors.Wrap(err, "failed to create network resource")
 	}
 
-	if err := n.ndmz.AttachNR(string(netNR.NetID), netr, n.ipamLeaseDir); err != nil {
+	exists, err := netr.HasWireguard()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to check if network resource has wireguard setup")
+	}
+
+	if !exists {
+		var wg *wireguard.Wireguard
+		wg, err = public.NewWireguard(wgName)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to create wg interface for network resource '%s'", netNR.Name)
+		}
+		if err = netr.SetWireguard(wg); err != nil {
+			return "", errors.Wrap(err, "failed to setup wireguard interface for network resource")
+		}
+	}
+
+	if err = n.ndmz.AttachNR(string(netNR.NetID), netr, n.ipamLeaseDir); err != nil {
 		return "", errors.Wrapf(err, "failed to attach network resource to DMZ bridge")
 	}
 
-	if err := netr.ConfigureWG(privateKey); err != nil {
-		cleanup()
+	if err = netr.ConfigureWG(privateKey); err != nil {
 		return "", errors.Wrap(err, "failed to configure network resource")
 	}
 
-	if err := n.storeNetwork(netNR); err != nil {
-		cleanup()
+	if err = n.storeNetwork(netNR); err != nil {
 		return "", errors.Wrap(err, "failed to store network object")
 	}
 

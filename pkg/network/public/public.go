@@ -32,6 +32,14 @@ func ensurePublicBridge() (*netlink.Bridge, error) {
 	return br, nil
 }
 
+//getPublicNamespace gets the public namespace, or nil if it's
+//not setup or does not exist. the caller must be able to handle
+//this case
+func getPublicNamespace() ns.NetNS {
+	ns, _ := namespace.GetByName(types.PublicNamespace)
+	return ns
+}
+
 // EnsurePublicSetup create the public setup, it's okay to have inf == nil
 func EnsurePublicSetup(nodeID pkg.Identifier, inf *types.PubIface) (*netlink.Bridge, error) {
 	br, err := ensurePublicBridge()

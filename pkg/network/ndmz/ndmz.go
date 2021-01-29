@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	//BridgeNDMZ is the name of the ipv4 routing bridge in the ndmz namespace
-	BridgeNDMZ = "br-ndmz"
+	//ndmzBridge is the name of the ipv4 routing bridge in the ndmz namespace
+	ndmzBridge = "br-ndmz"
 	//NetNSNDMZ name of the dmz namespace
 	NetNSNDMZ = "ndmz"
 
