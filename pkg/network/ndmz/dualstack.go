@@ -38,22 +38,22 @@ const (
 	toZosVeth    = "tozos" // veth pair from br-pub to zos
 )
 
-// DualStack implement DMZ interface using dual stack ipv4/ipv6
-type DualStack struct {
+// dmzImpl implement DMZ interface using dual stack ipv4/ipv6
+type dmzImpl struct {
 	nodeID string
 	public *netlink.Bridge
 }
 
 // New creates a new DMZ DualStack
-func New(nodeID string, public *netlink.Bridge) *DualStack {
-	return &DualStack{
+func New(nodeID string, public *netlink.Bridge) *dmzImpl {
+	return &dmzImpl{
 		nodeID: nodeID,
 		public: public,
 	}
 }
 
 // Create create the NDMZ network namespace and configure its default routes and addresses
-func (d *DualStack) Create(ctx context.Context) error {
+func (d *dmzImpl) Create(ctx context.Context) error {
 	// There are 2 options for the master:
 	// - use the interface directly
 	// - create a bridge and plug the interface into that one
@@ -120,7 +120,7 @@ func (d *DualStack) Create(ctx context.Context) error {
 }
 
 // Delete deletes the NDMZ network namespace
-func (d *DualStack) Delete() error {
+func (d *dmzImpl) Delete() error {
 	netNS, err := namespace.GetByName(NetNSNDMZ)
 	if err == nil {
 		if err := namespace.Delete(netNS); err != nil {
@@ -132,7 +132,7 @@ func (d *DualStack) Delete() error {
 }
 
 // AttachNR links a network resource to the NDMZ
-func (d *DualStack) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error {
+func (d *dmzImpl) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error {
 	nrNSName, err := nr.Namespace()
 	if err != nil {
 		return err
@@ -207,7 +207,7 @@ func (d *DualStack) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir 
 }
 
 // IsIPv4Only means dmz only supports ipv4 addresses
-func (d *DualStack) IsIPv4Only() (bool, error) {
+func (d *dmzImpl) IsIPv4Only() (bool, error) {
 	// this is true if DMZPub6 only has local not routable ipv6 addresses
 	//DMZPub6
 	netNS, err := namespace.GetByName(NetNSNDMZ)
@@ -234,7 +234,7 @@ func (d *DualStack) IsIPv4Only() (bool, error) {
 }
 
 // SetIP sets an ip inside dmz
-func (d *DualStack) SetIP(subnet net.IPNet) error {
+func (d *dmzImpl) SetIP(subnet net.IPNet) error {
 	netns, err := namespace.GetByName(NetNSNDMZ)
 	if err != nil {
 		return err
@@ -262,17 +262,17 @@ func (d *DualStack) SetIP(subnet net.IPNet) error {
 }
 
 // IP6PublicIface implements DMZ interface
-func (d *DualStack) IP6PublicIface() string {
+func (d *dmzImpl) IP6PublicIface() string {
 	return d.public.Name
 }
 
 // SupportsPubIPv4 implements DMZ interface
-func (d *DualStack) SupportsPubIPv4() bool {
+func (d *dmzImpl) SupportsPubIPv4() bool {
 	return true
 }
 
 //Interfaces return information about dmz interfaces
-func (d *DualStack) Interfaces() ([]types.IfaceInfo, error) {
+func (d *dmzImpl) Interfaces() ([]types.IfaceInfo, error) {
 	var output []types.IfaceInfo
 
 	f := func(_ ns.NetNS) error {
