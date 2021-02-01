@@ -354,11 +354,6 @@ func (d *dmzImpl) SetIP(subnet net.IPNet) error {
 	return err
 }
 
-// IP6PublicIface implements DMZ interface
-func (d *dmzImpl) IP6PublicIface() string {
-	return d.public.Name
-}
-
 // SupportsPubIPv4 implements DMZ interface
 func (d *dmzImpl) SupportsPubIPv4() bool {
 	return true

@@ -26,8 +26,6 @@ type DMZ interface {
 	Delete() error
 	// link a network resource from a user network to ndmz
 	AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error
-	// Return the interface used by ndmz to router public ipv6 traffic
-	IP6PublicIface() string
 	// configure an address on the public IPv6 interface
 	SetIP(net.IPNet) error
 	// GetIP gets ndmz public ips from ndmz

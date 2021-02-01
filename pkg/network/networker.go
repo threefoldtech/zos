@@ -165,12 +165,6 @@ func (n *networker) Ready() error {
 	return nil
 }
 
-func (n *networker) ipv4Only() bool {
-	return true
-	// _, ipv4Only := n.ndmz.(*ndmz.Hidden)
-	// return ipv4Only
-}
-
 func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.ContainerNetworkConfig) (join pkg.Member, err error) {
 	// TODO:
 	// 1- Make sure this network id is actually deployed
@@ -187,7 +181,11 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.Conta
 		return join, errors.Wrapf(err, "couldn't load network with id (%s)", networkdID)
 	}
 
-	if cfg.PublicIP6 && n.ipv4Only() {
+	ipv4Only, err := n.ndmz.IsIPv4Only()
+	if err != nil {
+		return join, errors.Wrap(err, "failed to check ipv6 support")
+	}
+	if cfg.PublicIP6 && ipv4Only {
 		return join, errors.Errorf("this node runs in IPv4 only mode and you asked for a public IPv6. Impossible to fulfill the request")
 	}
 
@@ -205,7 +203,7 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.Conta
 		ContainerID: containerID,
 		IPs:         ips,
 		PublicIP6:   cfg.PublicIP6,
-		IPv4Only:    n.ipv4Only(),
+		IPv4Only:    ipv4Only,
 	})
 	if err != nil {
 		return join, errors.Wrap(err, "failed to load network resource")
@@ -363,7 +361,7 @@ func (n networker) createMacVlan(iface string, hw net.HardwareAddr, ips []*net.I
 	})
 
 	if _, ok := err.(netlink.LinkNotFoundError); ok {
-		macVlan, err = macvlan.Create(iface, n.ndmz.IP6PublicIface(), netNs)
+		macVlan, err = macvlan.Create(iface, public.PublicBridge, netNs)
 
 		if err != nil {
 			return err
@@ -448,14 +446,12 @@ func (n *networker) SetupPubTap(pubIPReservationID string) (string, error) {
 		return "", errors.New("can't create public tap on this node")
 	}
 
-	bridgeName := n.ndmz.IP6PublicIface()
-
 	tapIface, err := pubTapName(pubIPReservationID)
 	if err != nil {
 		return "", errors.Wrap(err, "could not get network namespace tap device name")
 	}
 
-	_, err = tuntap.CreateTap(tapIface, bridgeName)
+	_, err = tuntap.CreateTap(tapIface, public.PublicBridge)
 
 	return tapIface, err
 }
@@ -511,7 +507,7 @@ func (n *networker) DisconnectPubTap(pubIPReservationID string) error {
 // GetPublicIPv6Subnet returns the IPv6 prefix op the public subnet of the host
 func (n *networker) GetPublicIPv6Subnet() (net.IPNet, error) {
 	// TODO
-	pubIface, err := netlink.LinkByName(n.ndmz.IP6PublicIface())
+	pubIface, err := netlink.LinkByName(public.PublicBridge)
 	if err != nil {
 		return net.IPNet{}, errors.Wrap(err, "could not load public interface")
 	}

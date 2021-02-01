@@ -20,13 +20,16 @@ import (
 
 const (
 	publicNsMACDerivationSuffix = "-public"
+
+	// PublicBridge public bridge name, exists only after a call to EnsurePublicSetup
+	PublicBridge = types.PublicBridge
 )
 
 // EnsurePublicBridge makes sure that the public bridge exists
 func ensurePublicBridge() (*netlink.Bridge, error) {
-	br, err := bridge.Get(types.PublicBridge)
+	br, err := bridge.Get(PublicBridge)
 	if err != nil {
-		return bridge.New(types.PublicBridge)
+		return bridge.New(PublicBridge)
 	}
 
 	return br, nil
