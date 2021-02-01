@@ -6,26 +6,16 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/network/nr"
 	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/vishvananda/netlink"
 )
 
 const (
-	//ndmzBridge is the name of the ipv4 routing bridge in the ndmz namespace
-	ndmzBridge = "br-ndmz"
-	//NetNSNDMZ name of the dmz namespace
-	NetNSNDMZ = "ndmz"
-
-	ndmzNsMACDerivationSuffix6 = "-ndmz6"
-	ndmzNsMACDerivationSuffix4 = "-ndmz4"
-
-	// DMZPub4 ipv4 public interface
-	DMZPub4 = "npub4"
-	// DMZPub6 ipv6 public interface
-	DMZPub6 = "npub6"
-
-	//nrPubIface is the name of the public interface in a network resource
-	nrPubIface = "public"
-
-	tonrsIface = "tonrs"
+	// FamilyAll get all IP address families
+	FamilyAll = netlink.FAMILY_ALL
+	//FamilyV4 gets all IPv4 addresses
+	FamilyV4 = netlink.FAMILY_V4
+	//FamilyV6 gets all IPv6 addresses
+	FamilyV6 = netlink.FAMILY_V6
 )
 
 // DMZ is an interface used to create an DMZ network namespace
@@ -40,6 +30,11 @@ type DMZ interface {
 	IP6PublicIface() string
 	// configure an address on the public IPv6 interface
 	SetIP(net.IPNet) error
+	// GetIP gets ndmz public ips from ndmz
+	GetIP(family int) ([]net.IPNet, error)
+
+	GetIPFor(inf string) ([]net.IPNet, error)
+	//GetIP(family netlink.FAM)
 	// SupportsPubIPv4 indicates if the node supports public ipv4 addresses for
 	// workloads
 	SupportsPubIPv4() bool

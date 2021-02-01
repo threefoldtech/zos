@@ -887,99 +887,64 @@ func (n *networker) publishWGPorts() error {
 	return nil
 }
 
-func (n *networker) getAddresses(nsName, link string) ([]netlink.Addr, error) {
-	netns, err := namespace.GetByName(nsName)
-	if err != nil {
-		return nil, err
-	}
-
-	defer netns.Close()
-	var addr []netlink.Addr
-	err = netns.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(link)
-		if err != nil {
-			return err
-		}
-		addr, err = netlink.AddrList(link, netlink.FAMILY_ALL)
-		return err
-	})
-
-	return addr, err
-}
-
-func (n *networker) monitorNS(ctx context.Context, name string, links ...string) <-chan pkg.NetlinkAddresses {
-	get := func() (pkg.NetlinkAddresses, error) {
-		var result pkg.NetlinkAddresses
-		for _, link := range links {
-			values, err := n.getAddresses(name, link)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, value := range values {
-				result = append(result, pkg.NetlinkAddress(value))
-			}
-		}
-
-		return result, nil
-	}
-
-	addresses, _ := get()
+func (n *networker) DMZAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
 	ch := make(chan pkg.NetlinkAddresses)
 	go func() {
-		monitorCtx, cancel := context.WithCancel(context.Background())
-
-		defer func() {
-			close(ch)
-			cancel()
-		}()
-
-	main:
 		for {
-			updates, err := namespace.Monitor(monitorCtx, name)
-			if err != nil {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(30 * time.Second):
-					continue
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(30 * time.Second):
+				ips, err := n.ndmz.GetIP(ndmz.FamilyAll)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to get dmz IPs")
 				}
+				ch <- ips
 			}
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-updates:
-					addresses, err = get()
-					if err != nil {
-						// this might be duo too namespace was deleted, hence
-						// we need to try find the namespace object again
-						cancel()
-						monitorCtx, cancel = context.WithCancel(context.Background())
-						continue main
-					}
-				case <-time.After(2 * time.Second):
-					ch <- addresses
-				}
-			}
-
 		}
 	}()
 
 	return ch
 }
 
-func (n *networker) DMZAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
-	return n.monitorNS(ctx, ndmz.NetNSNDMZ, ndmz.DMZPub4, ndmz.DMZPub6)
-}
-
 func (n *networker) YggAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
-	return n.monitorNS(ctx, ndmz.NetNSNDMZ, yggdrasil.YggIface)
+	ch := make(chan pkg.NetlinkAddresses)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(30 * time.Second):
+				ips, err := n.ndmz.GetIPFor(yggdrasil.YggIface)
+				if err != nil {
+					log.Error().Err(err).Str("inf", yggdrasil.YggIface).Msg("failed to get public IPs")
+				}
+				ch <- ips
+			}
+		}
+	}()
+
+	return ch
 }
 
 func (n *networker) PublicAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
-	return n.monitorNS(ctx, types.PublicNamespace, types.PublicIface)
+	ch := make(chan pkg.NetlinkAddresses)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(30 * time.Second):
+				ips, err := public.IPs()
+				if err != nil {
+					log.Error().Err(err).Msg("failed to get public IPs")
+				}
+				ch <- ips
+			}
+		}
+	}()
+
+	return ch
 }
 
 func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
@@ -1000,7 +965,7 @@ func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 		var result pkg.NetlinkAddresses
 		values, _ := netlink.AddrList(link, netlink.FAMILY_ALL)
 		for _, value := range values {
-			result = append(result, pkg.NetlinkAddress(value))
+			result = append(result, *value.IPNet)
 		}
 
 		return result

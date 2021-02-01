@@ -4,19 +4,15 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"time"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/network/latency"
-	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/urfave/cli/v2"
-	"github.com/vishvananda/netlink"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
@@ -250,11 +246,17 @@ func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz
 	} else {
 		// if we are a dual stack node, filter out all the nodes from the same
 		// segment so we do not just connect locally
-		npub6IP, err := getDMZNPub6Addr()
+		ips, err := dmz.GetIP(ndmz.FamilyV6)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to get ndmz public ipv6")
 		}
-		filter = latency.ExcludePrefix(npub6IP[:8])
+
+		for _, ip := range ips {
+			if ip.IP.IsGlobalUnicast() {
+				filter = latency.ExcludePrefix(ip.IP[:8])
+				break
+			}
+		}
 	}
 
 	ls := latency.NewSorter(endpoints, 5, filter)
@@ -333,43 +335,4 @@ func explorerClient() (client.Directory, error) {
 	}
 
 	return client.Directory, nil
-}
-
-func getDMZNPub6Addr() (net.IP, error) {
-	netns, err := namespace.GetByName(ndmz.NetNSNDMZ)
-	if err != nil {
-		return nil, err
-	}
-	defer netns.Close()
-
-	var ip net.IP
-	getIP := func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(ndmz.DMZPub6)
-		if err != nil {
-			return err
-		}
-		addrs, err := netlink.AddrList(link, netlink.FAMILY_V6)
-		if err != nil {
-			return err
-		}
-
-		for _, addr := range addrs {
-			if addr.IP.IsGlobalUnicast() {
-				ip = addr.IP
-				return nil
-			}
-		}
-
-		return nil
-	}
-
-	if err = netns.Do(getIP); err != nil {
-		return nil, err
-	}
-
-	if ip == nil {
-		return nil, fmt.Errorf("didn't not find the IP of npub6 interface")
-	}
-
-	return ip, nil
 }

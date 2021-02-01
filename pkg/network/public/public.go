@@ -40,6 +40,36 @@ func getPublicNamespace() ns.NetNS {
 	return ns
 }
 
+// IPs gets the public ips of the nodes
+func IPs() ([]net.IPNet, error) {
+	namespace := getPublicNamespace()
+	if namespace == nil {
+		return nil, nil
+	}
+
+	defer namespace.Close()
+
+	var ips []net.IPNet
+	err := namespace.Do(func(_ ns.NetNS) error {
+		ln, err := netlink.LinkByName(types.PublicIface)
+		if err != nil {
+			return errors.Wrap(err, "failed to get public interface")
+		}
+
+		results, err := netlink.AddrList(ln, netlink.FAMILY_ALL)
+		if err != nil {
+			return errors.Wrap(err, "failed to list ips for public interface")
+		}
+
+		for _, ip := range results {
+			ips = append(ips, *ip.IPNet)
+		}
+		return nil
+	})
+
+	return ips, err
+}
+
 // EnsurePublicSetup create the public setup, it's okay to have inf == nil
 func EnsurePublicSetup(nodeID pkg.Identifier, inf *types.PubIface) (*netlink.Bridge, error) {
 	br, err := ensurePublicBridge()
