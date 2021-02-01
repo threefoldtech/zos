@@ -63,7 +63,7 @@ type dmzImpl struct {
 }
 
 // New creates a new DMZ DualStack
-func New(nodeID string, public *netlink.Bridge) *dmzImpl {
+func New(nodeID string, public *netlink.Bridge) DMZ {
 	return &dmzImpl{
 		nodeID: nodeID,
 		public: public,

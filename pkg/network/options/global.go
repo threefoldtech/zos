@@ -1,5 +1,5 @@
 /*
-package options abstract setting common networking sys flags on the selected namespaces
+Package options abstract setting common networking sys flags on the selected namespaces
 */
 package options
 

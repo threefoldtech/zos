@@ -383,6 +383,7 @@ var ulaPrefix = net.IPNet{
 	Mask: net.CIDRMask(7, 128),
 }
 
+// IsULA checks if IPv6 is a ULA ip
 func IsULA(ip net.IP) bool {
 	return ulaPrefix.Contains(ip)
 }
