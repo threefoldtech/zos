@@ -8,11 +8,11 @@ import (
 
 type sysOption struct {
 	key string
-	on  bool
+	val string
 }
 
 func (s *sysOption) apply(inf string) error {
-	_, err := sysctl.Sysctl(fmt.Sprintf(s.key, inf), flag(s.on))
+	_, err := sysctl.Sysctl(fmt.Sprintf(s.key, inf), s.val)
 	return err
 }
 
@@ -20,6 +20,30 @@ func (s *sysOption) apply(inf string) error {
 func IPv6Disable(f bool) Option {
 	return &sysOption{
 		key: "net.ipv6.conf.%s.disable_ipv6",
-		on:  f,
+		val: flag(f),
+	}
+}
+
+// ProxyArp sets proxy arp on interface
+func ProxyArp(f bool) Option {
+	return &sysOption{
+		key: "net.ipv4.conf.%s.proxy_arp",
+		val: flag(f),
+	}
+}
+
+// AcceptRA enables or disables forwarding for ipv6
+func AcceptRA(f RouterAdvertisements) Option {
+	return &sysOption{
+		key: "net.ipv6.conf.%s.accept_ra",
+		val: fmt.Sprintf("%d", f),
+	}
+}
+
+// LearnDefaultRouteInRA Learn default router in Router Advertisement.
+func LearnDefaultRouteInRA(f bool) Option {
+	return &sysOption{
+		key: "net.ipv6.conf.%s.accept_ra_defrtr",
+		val: flag(f),
 	}
 }

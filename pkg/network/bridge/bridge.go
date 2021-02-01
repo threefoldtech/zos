@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/network/options"
 	"github.com/vishvananda/netlink"
 )
 
@@ -119,7 +119,8 @@ func AttachNic(link netlink.Link, bridge *netlink.Bridge) error {
 		return errors.Wrap(err, "could not set veth peer up")
 	}
 	// disable ipv6 on slave
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", link.Attrs().Name), "1"); err != nil {
+
+	if err := options.Set(link.Attrs().Name, options.IPv6Disable(true)); err != nil {
 		return errors.Wrap(err, "failed to disable ipv6 on link interface")
 	}
 	return netlink.LinkSetMaster(link, bridge)

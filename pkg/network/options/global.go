@@ -9,8 +9,8 @@ import (
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 )
 
-// IPv6Forwarding enables or disables forwarding for ipv6
-func IPv6Forwarding(f bool) error {
+// SetIPv6Forwarding enables or disables forwarding for ipv6
+func SetIPv6Forwarding(f bool) error {
 	_, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", flag(f))
 	return err
 }
@@ -27,14 +27,14 @@ const (
 	RAAcceptIfForwardingIsEnabled
 )
 
-// IPv6AcceptRA enables or disables forwarding for ipv6
-func IPv6AcceptRA(f RouterAdvertisements) error {
+// SetIPv6AcceptRA enables or disables forwarding for ipv6
+func SetIPv6AcceptRA(f RouterAdvertisements) error {
 	_, err := sysctl.Sysctl("net.ipv6.conf.all.accept_ra", fmt.Sprint(int(f)))
 	return err
 }
 
-// IPv6LearnDefaultRouteInRA Learn default router in Router Advertisement.
-func IPv6LearnDefaultRouteInRA(f bool) error {
+// SetIPv6LearnDefaultRouteInRA Learn default router in Router Advertisement.
+func SetIPv6LearnDefaultRouteInRA(f bool) error {
 	_, err := sysctl.Sysctl("net.ipv6.conf.all.accept_ra_defrtr", flag(f))
 	return err
 }

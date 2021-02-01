@@ -11,9 +11,9 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/network/options"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
@@ -134,7 +134,8 @@ func AnalyseLink(ctx context.Context, link netlink.Link) (cfg IfaceConfig, err e
 		defer netlink.LinkSetDown(link)
 
 		name := link.Attrs().Name
-		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "0"); err != nil {
+
+		if err := options.Set(name, options.IPv6Disable(false)); err != nil {
 			return errors.Wrapf(err, "failed to enable ip6 on %s", name)
 		}
 

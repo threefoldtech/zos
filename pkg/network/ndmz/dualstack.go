@@ -16,6 +16,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/nft"
+	"github.com/threefoldtech/zos/pkg/network/options"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -28,7 +29,6 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 )
@@ -110,7 +110,7 @@ func (d *dmzImpl) Create(ctx context.Context) error {
 	}
 
 	err = netNS.Do(func(_ ns.NetNS) error {
-		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
+		if err := options.SetIPv6Forwarding(true); err != nil {
 			return errors.Wrapf(err, "failed to enable forwarding in ndmz")
 		}
 
@@ -450,17 +450,11 @@ func waitIP6() error {
 		return errors.Wrapf(err, "ndmz: couldn't bring lo up in ndmz namespace")
 	}
 	// also, set kernel parameter that public always accepts an ra even when forwarding
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.accept_ra", dmzPub6), "2"); err != nil {
-		return errors.Wrapf(err, "ndmz: failed to accept_ra=2 in ndmz namespace")
-	}
-	// the more, also accept defaultrouter (if isp doesn't have fe80::1 on his deft gw)
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.accept_ra_defrtr", dmzPub6), "1"); err != nil {
-		return errors.Wrapf(err, "ndmz: failed to enable enable_defrtr=1 in ndmz namespace")
-	}
-	// ipv4InterfaceArpProxySysctlTemple sets proxy_arp by default, not sure if that's a good idea
-	// but we disable only here because the rest works.
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv4.conf.%s.proxy_arp", dmzPub6), "0"); err != nil {
-		return errors.Wrapf(err, "ndmz: couldn't disable proxy-arp on %s in ndmz namespace", dmzPub6)
+	if err := options.Set(dmzPub6,
+		options.AcceptRA(options.RAAcceptIfForwardingIsEnabled),
+		options.LearnDefaultRouteInRA(true),
+		options.ProxyArp(false)); err != nil {
+		return errors.Wrapf(err, "ndmz: failed to set ndmz pub6 flags")
 	}
 
 	getRoutes := func() (err error) {
@@ -505,7 +499,7 @@ func createPubIface4(name, nodeID string, netNS ns.NetNS) error {
 	}
 
 	return netNS.Do(func(_ ns.NetNS) error {
-		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "1"); err != nil {
+		if err := options.Set(name, options.IPv6Disable(true)); err != nil {
 			return errors.Wrapf(err, "failed to disable ip6 on %s", name)
 		}
 		// set mac address to something static to make sure we receive the same IP from a DHCP server
@@ -532,7 +526,7 @@ func createRoutingBridge(name string, netNS ns.NetNS) error {
 		}
 	}
 
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "1"); err != nil {
+	if err := options.Set(name, options.IPv6Disable(true)); err != nil {
 		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", name)
 	}
 
@@ -542,7 +536,7 @@ func createRoutingBridge(name string, netNS ns.NetNS) error {
 		if err != nil {
 			return err
 		}
-		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", tonrsIface), "0"); err != nil {
+		if err := options.Set(tonrsIface, options.IPv6Disable(false)); err != nil {
 			return errors.Wrapf(err, "failed to enable ip6 on interface %s", tonrsIface)
 		}
 

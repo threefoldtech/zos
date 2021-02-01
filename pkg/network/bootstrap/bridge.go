@@ -34,16 +34,16 @@ func DefaultBridgeValid() error {
 	if !hasGW {
 		log.Info().Msg("no default route found, try to turn accept_ra off and on again")
 
-		if err := options.IPv6AcceptRA(options.RAOff); err != nil {
+		if err := options.SetIPv6AcceptRA(options.RAOff); err != nil {
 			log.Fatal().Err(err).Msgf("failed to disable accept_ra zos")
 		}
 
-		if err := options.IPv6AcceptRA(options.RAAcceptIfForwardingIsDisabled); err != nil {
+		if err := options.SetIPv6AcceptRA(options.RAAcceptIfForwardingIsDisabled); err != nil {
 			log.Fatal().Err(err).Msgf("failed to enable accept_ra zos")
 		}
 	}
 
-	if err := options.IPv6Forwarding(false); err != nil {
+	if err := options.SetIPv6Forwarding(false); err != nil {
 		return errors.Wrapf(err, "failed to disable ipv6 forwarding")
 	}
 
@@ -63,7 +63,7 @@ func CreateDefaultBridge(name string) (*netlink.Bridge, error) {
 		return nil, errors.Wrapf(err, "failed to enable ip6 on bridge %s", name)
 	}
 
-	if err := options.IPv6Forwarding(false); err != nil {
+	if err := options.SetIPv6Forwarding(false); err != nil {
 		return nil, errors.Wrapf(err, "failed to disable ipv6 forwarding")
 	}
 

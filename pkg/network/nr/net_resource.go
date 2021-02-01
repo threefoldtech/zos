@@ -10,10 +10,10 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/macvlan"
+	"github.com/threefoldtech/zos/pkg/network/options"
 
 	mapset "github.com/deckarep/golang-set"
 
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -294,7 +294,7 @@ func (nr *NetResource) createNetNS() error {
 	}
 	defer netNS.Close()
 	err = netNS.Do(func(_ ns.NetNS) error {
-		if _, err := sysctl.Sysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
+		if err := options.SetIPv6Forwarding(true); err != nil {
 			return err
 		}
 		if err := ifaceutil.SetLoUp(); err != nil {
@@ -392,7 +392,7 @@ func (nr *NetResource) createBridge() error {
 		return err
 	}
 
-	if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "1"); err != nil {
+	if err := options.Set(name, options.IPv6Disable(true)); err != nil {
 		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", name)
 	}
 	return nil

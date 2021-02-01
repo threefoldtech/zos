@@ -263,11 +263,11 @@ func createPublicNS(nodeID pkg.Identifier, iface *types.PubIface) error {
 	}
 
 	err = pubNS.Do(func(_ ns.NetNS) error {
-		if err := options.IPv6AcceptRA(options.RAAcceptIfForwardingIsEnabled); err != nil {
+		if err := options.SetIPv6AcceptRA(options.RAAcceptIfForwardingIsEnabled); err != nil {
 			return errors.Wrapf(err, "failed to accept_ra=2 in public namespace")
 		}
 
-		if err := options.IPv6LearnDefaultRouteInRA(true); err != nil {
+		if err := options.SetIPv6LearnDefaultRouteInRA(true); err != nil {
 			return errors.Wrapf(err, "failed to enable enable_defrtr=1 in public namespace")
 		}
 
