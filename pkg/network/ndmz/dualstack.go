@@ -231,23 +231,30 @@ func (d *dmzImpl) IsIPv4Only() (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get ndmz namespace")
 	}
+	defer netNS.Close()
 
-	link, err := ifaceutil.Get(dmzPub6, netNS)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to get interface '%s'", dmzPub6)
-	}
-	ips, err := netlink.AddrList(link, netlink.FAMILY_V6)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to list '%s' ips", dmzPub6)
-	}
-
-	for _, ip := range ips {
-		if ip.IP.IsGlobalUnicast() && !ifaceutil.IsULA(ip.IP) {
-			return false, nil
+	var ipv4Only bool
+	err = netNS.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(dmzPub6)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get interface '%s'", dmzPub6)
 		}
-	}
+		ips, err := netlink.AddrList(link, netlink.FAMILY_V6)
+		if err != nil {
+			return errors.Wrapf(err, "failed to list '%s' ips", dmzPub6)
+		}
 
-	return true, nil
+		for _, ip := range ips {
+			if ip.IP.IsGlobalUnicast() && !ifaceutil.IsULA(ip.IP) {
+				return nil
+			}
+		}
+
+		ipv4Only = true
+		return nil
+	})
+
+	return ipv4Only, err
 }
 
 func (d *dmzImpl) GetIPFor(inf string) ([]net.IPNet, error) {

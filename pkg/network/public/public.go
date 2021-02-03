@@ -139,18 +139,22 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *types.PubIface) (*netlink.Bri
 }
 
 func findPossibleExit() (string, error) {
+	log.Debug().Msg("find possible ipv6 exit interface")
+
 	links, err := bootstrap.AnalyseLinks(
 		bootstrap.PhysicalFilter,
 		bootstrap.PluggedFilter,
 		bootstrap.NotAttachedFilter,
 	)
 
+	log.Debug().Int("found", len(links)).Msg("found possible links")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to analyse links")
 	}
 
 	for _, link := range links {
 		for _, addr := range link.Addrs6 {
+			log.Debug().Str("link", link.Name).Str("ip", addr.String()).Msg("checking address")
 			if addr.IP.IsGlobalUnicast() && !ifaceutil.IsULA(addr.IP) {
 				return link.Name, nil
 			}

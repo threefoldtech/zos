@@ -20,6 +20,11 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+var (
+	cached     = map[int]IfaceConfig{}
+	cachedLock sync.RWMutex
+)
+
 // IfaceConfig contains all the IP address and routes of an interface
 type IfaceConfig struct {
 	Name    string
@@ -108,6 +113,13 @@ filter:
 
 // AnalyseLink gets information about link
 func AnalyseLink(ctx context.Context, link netlink.Link) (cfg IfaceConfig, err error) {
+	cachedLock.RLock()
+	if cfg, ok := cached[link.Attrs().Index]; ok {
+		cachedLock.RUnlock()
+		return cfg, nil
+	}
+	cachedLock.RUnlock()
+
 	if link.Attrs().MasterIndex != 0 {
 		// this is to avoid breaking setups if a link is
 		// already used
@@ -127,11 +139,12 @@ func AnalyseLink(ctx context.Context, link netlink.Link) (cfg IfaceConfig, err e
 		return cfg, errors.Wrap(err, "failed to sent interface into network namespace")
 	}
 
-	err = tmpNS.Do(func(_ ns.NetNS) error {
+	err = tmpNS.Do(func(host ns.NetNS) error {
 		if err := netlink.LinkSetUp(link); err != nil {
 			return errors.Wrap(err, "failed to bring interface up")
 		}
 		defer netlink.LinkSetDown(link)
+		defer netlink.LinkSetNsFd(link, int(host.Fd()))
 
 		name := link.Attrs().Name
 
@@ -170,11 +183,17 @@ func AnalyseLink(ctx context.Context, link netlink.Link) (cfg IfaceConfig, err e
 				if err != nil {
 					return errors.Wrapf(err, "could not read address from interface %s", name)
 				}
-				addrs6.AddSlice(addrs)
+
+				for _, addr := range addrs {
+					if addr.IP.IsGlobalUnicast() && !ifaceutil.IsULA(addr.IP) {
+						addrs6.Add(addr)
+					}
+				}
 
 				if addrs6.Len() > 0 && addrs4.Len() > 0 {
 					break loop
 				}
+
 				time.Sleep(time.Second)
 			}
 		}
@@ -198,6 +217,9 @@ func AnalyseLink(ctx context.Context, link netlink.Link) (cfg IfaceConfig, err e
 
 		return nil
 	})
+	cachedLock.Lock()
+	defer cachedLock.Unlock()
+	cached[link.Attrs().Index] = cfg
 
 	return
 }
@@ -208,6 +230,7 @@ func analyseLink(ctx context.Context, wg *sync.WaitGroup, out chan<- IfaceConfig
 		cfg, err := AnalyseLink(ctx, link)
 		if err != nil {
 			log.Error().Err(err).Str("interface", link.Attrs().Name).Msg("error analysing interface")
+			return
 		}
 		out <- cfg
 	}()
