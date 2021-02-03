@@ -105,6 +105,7 @@ type ContainerCapacity struct {
 	DiskSize uint64 `json:"disk_size"`
 }
 
+// FListElevated url of privileged container
 const FListElevated = "https://hub.grid.tf/maxux42.3bot/zdbfs-alpine.flist"
 
 func (p *Provisioner) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
