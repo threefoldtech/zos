@@ -34,8 +34,6 @@ import (
 )
 
 const (
-	publicBridge = "br-pub"
-	toZosVeth    = "tozos" // veth pair from br-pub to zos
 
 	//ndmzBridge is the name of the ipv4 routing bridge in the ndmz namespace
 	ndmzBridge = "br-ndmz"

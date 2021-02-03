@@ -94,14 +94,20 @@ func vethName(from, to string) string {
 }
 
 // Attach attaches any link to a bridge, based on the link type
-// can be directly plugged or crossed over with a veth pari
-func Attach(link netlink.Link, bridge *netlink.Bridge) error {
+// can be directly plugged or crossed over with a veth pair
+// if name is provided, the name will be used in case of veth pair instead of
+// a generated name
+func Attach(link netlink.Link, bridge *netlink.Bridge, name ...string) error {
 	if link.Type() == "device" {
 		return AttachNic(link, bridge)
 	} else if link.Type() == "bridge" {
 		linkBr := link.(*netlink.Bridge)
+		n := vethName(link.Attrs().Name, bridge.Name)
+		if len(name) > 0 {
+			n = name[0]
+		}
 		//we need to create an veth pair to wire 2 bridges.
-		veth, err := ifaceutil.MakeVethPair(vethName(link.Attrs().Name, bridge.Name), bridge.Name, 1500)
+		veth, err := ifaceutil.MakeVethPair(n, bridge.Name, 1500)
 		if err != nil {
 			return err
 		}

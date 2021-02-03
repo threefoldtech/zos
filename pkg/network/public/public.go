@@ -19,6 +19,7 @@ import (
 )
 
 const (
+	toZosVeth                   = "tozos" // veth pair from br-pub to zos
 	publicNsMACDerivationSuffix = "-public"
 
 	// PublicBridge public bridge name, exists only after a call to EnsurePublicSetup
@@ -124,7 +125,7 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *types.PubIface) (*netlink.Bri
 		return nil, errors.Wrapf(err, "failed to set link '%s' up", exitLink.Attrs().Name)
 	}
 
-	if err := bridge.Attach(exitLink, br); err != nil {
+	if err := bridge.Attach(exitLink, br, toZosVeth); err != nil {
 		return nil, errors.Wrap(err, "failed to attach exit nic to public bridge 'br-pub'")
 	}
 
