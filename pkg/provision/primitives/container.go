@@ -105,6 +105,8 @@ type ContainerCapacity struct {
 	DiskSize uint64 `json:"disk_size"`
 }
 
+const FListElevated = "https://hub.grid.tf/maxux42.3bot/zdbfs-alpine.flist"
+
 func (p *Provisioner) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.containerProvisionImpl(ctx, reservation)
 }
@@ -239,6 +241,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 		ReadOnly: false,
 		Type:     config.Capacity.DiskType,
 	}
+
 	if rootfsMntOpt.Limit == 0 || rootfsMntOpt.Type == "" {
 		rootfsMntOpt = pkg.DefaultMountOptions
 	}
@@ -247,6 +250,13 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 	mnt, err = flistClient.NamedMount(provision.FilesystemName(*reservation), config.FList, config.FlistStorage, rootfsMntOpt)
 	if err != nil {
 		return ContainerResult{}, err
+	}
+
+	var elevated = false
+
+	if config.FList == FListElevated {
+		// Enable fuse access to this specific flist
+		elevated = true
 	}
 
 	// prepare mount info for volumes
@@ -302,6 +312,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 			Memory:      config.Capacity.Memory * mib,
 			Logs:        logs,
 			Stats:       config.Stats,
+			Elevated:    elevated,
 		},
 	)
 	if err != nil {
