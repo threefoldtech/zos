@@ -1,10 +1,11 @@
 @startuml
 
-() "Public Bridge" as brpub
+() "br-pub (Public Bridge)" as brpub
 
-note left of brpub
-this changes depends on the type of ndmz
-br-pub in case of hidden ndmz
+note bottom of brpub
+This bridge is always created on boot, and is either
+connected to the zos bridge (in single nic setup).
+or to the seond nic with public IPv6 (in dual nic setup)
 end note
 
 
