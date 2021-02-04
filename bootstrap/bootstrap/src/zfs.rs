@@ -84,17 +84,18 @@ impl Zfs {
                 fs::rename(&tmp, &dst)?;
             } else if typ.is_symlink() {
                 let mut orig = fs::read_link(src)?;
-                orig = match orig.is_relative() {
-                    true => orig, // relative so we can do it directly
-                    false => {
-                        // otherwise, we need to prepend the
-                        // target directory
-                        let mut abs = PathBuf::new();
-                        abs.push(&target);
-                        abs.push(orig);
-                        abs
-                    }
+                orig = if orig.is_relative() {
+                    // relative so we can do it directly
+                    orig
+                } else {
+                    // otherwise, we need to prepend the
+                    // target directory
+                    let mut abs = PathBuf::new();
+                    abs.push(&target);
+                    abs.push(orig);
+                    abs
                 };
+
                 debug!("installing link {:?} => {:?}", dst, orig);
                 std::os::unix::fs::symlink(orig, dst)?;
             } else {
