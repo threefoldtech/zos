@@ -1,9 +1,7 @@
-use failure::Error;
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use walkdir::WalkDir;
-
-type Result<T> = std::result::Result<T, Error>;
 
 pub struct Zfs {
     target: PathBuf,
@@ -72,7 +70,8 @@ impl Zfs {
             use std::fs;
             if typ.is_dir() {
                 debug!("creating directory {:?}", dst);
-                std::fs::create_dir_all(dst)?;
+                std::fs::create_dir_all(&dst)
+                    .with_context(|| format!("failed to create directory: {:?}", &dst))?;
             } else if typ.is_file() {
                 let mut tmp = dst.clone();
                 let mut tmp_name: std::ffi::OsString = dst.file_name().unwrap().into();
@@ -80,10 +79,13 @@ impl Zfs {
                 tmp.set_file_name(tmp_name);
 
                 debug!("installing file {:?}", dst);
-                fs::copy(&src, &tmp)?;
-                fs::rename(&tmp, &dst)?;
+                fs::copy(&src, &tmp).context("failed to copy file")?;
+                fs::rename(&tmp, &dst).context("failed to rename file")?;
             } else if typ.is_symlink() {
-                let mut orig = fs::read_link(src)?;
+                let mut orig = fs::read_link(src)
+                    .with_context(|| format!("failed to read link: {:?}", &src))?;
+
+                debug!("installing link {:?} => {:?}", dst, orig);
                 orig = if orig.is_relative() {
                     // relative so we can do it directly
                     orig
@@ -96,8 +98,15 @@ impl Zfs {
                     abs
                 };
 
-                debug!("installing link {:?} => {:?}", dst, orig);
-                std::os::unix::fs::symlink(orig, dst)?;
+                match fs::remove_file(&dst) {
+                    Ok(_) => {}
+                    Err(err) => match err.kind() {
+                        std::io::ErrorKind::NotFound => {}
+                        _ => bail!("failed to delete file: {:?}", dst),
+                    },
+                }
+
+                std::os::unix::fs::symlink(orig, dst).context("failed to create symlink")?;
             } else {
                 debug!("skipping: ({:?}): {:?}", src, typ)
             }
