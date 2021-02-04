@@ -68,6 +68,8 @@ impl Zfs {
             dst.push(src.strip_prefix(&self.target)?);
 
             let typ = entry.file_type();
+
+            use std::fs;
             if typ.is_dir() {
                 debug!("creating directory {:?}", dst);
                 std::fs::create_dir_all(dst)?;
@@ -78,8 +80,23 @@ impl Zfs {
                 tmp.set_file_name(tmp_name);
 
                 debug!("installing file {:?}", dst);
-                std::fs::copy(&src, &tmp)?;
-                std::fs::rename(&tmp, &dst)?;
+                fs::copy(&src, &tmp)?;
+                fs::rename(&tmp, &dst)?;
+            } else if typ.is_symlink() {
+                let mut orig = fs::read_link(src)?;
+                orig = match orig.is_relative() {
+                    true => orig, // relative so we can do it directly
+                    false => {
+                        // otherwise, we need to prepend the
+                        // target directory
+                        let mut abs = PathBuf::new();
+                        abs.push(&target);
+                        abs.push(orig);
+                        abs
+                    }
+                };
+                debug!("installing link {:?} => {:?}", dst, orig);
+                std::os::unix::fs::symlink(orig, dst)?;
             } else {
                 debug!("skipping: ({:?}): {:?}", src, typ)
             }
