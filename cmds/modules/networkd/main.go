@@ -99,7 +99,7 @@ func action(cli *cli.Context) error {
 	// - otherwise we find the first nic with public ipv6 (that is not zos)
 	// - finally we use zos if that is the last option.
 	pub, err := getExitInterface(directory, nodeID.Identity())
-
+	log.Debug().Err(err).Msgf("public interface configred: %+v", pub)
 	if err != nil && err != ErrNoPubInterface {
 		return errors.Wrap(err, "failed to get node public_config")
 	}
