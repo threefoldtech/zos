@@ -76,6 +76,7 @@ func IPs() ([]net.IPNet, error) {
 
 // EnsurePublicSetup create the public setup, it's okay to have inf == nil
 func EnsurePublicSetup(nodeID pkg.Identifier, inf *types.PubIface) (*netlink.Bridge, error) {
+	log.Debug().Msg("ensure public setup")
 	br, err := ensurePublicBridge()
 	if err != nil {
 		return nil, err
@@ -116,6 +117,7 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *types.PubIface) (*netlink.Bri
 		exit = inf.Master
 	}
 
+	log.Debug().Str("master", exit).Msg("public master (exit)")
 	exitLink, err := netlink.LinkByName(exit)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get link '%s' by name", exit)
