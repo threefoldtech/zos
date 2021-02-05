@@ -30,7 +30,17 @@ const (
 func ensurePublicBridge() (*netlink.Bridge, error) {
 	br, err := bridge.Get(PublicBridge)
 	if err != nil {
-		return bridge.New(PublicBridge)
+		br, err = bridge.New(PublicBridge)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := options.Set(
+		br.Attrs().Name,
+		options.IPv6Disable(true),
+		options.AcceptRA(options.RAOff)); err != nil {
+		return nil, err
 	}
 
 	return br, nil
