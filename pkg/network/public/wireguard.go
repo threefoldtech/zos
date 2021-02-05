@@ -14,6 +14,11 @@ func NewWireguard(name string) (wg *wireguard.Wireguard, err error) {
 		if err != nil {
 			return err
 		}
+
+		if host == nil {
+			return nil
+		}
+
 		// we need to move it to the host
 		return netlink.LinkSetNsFd(wg, int(host.Fd()))
 	}
