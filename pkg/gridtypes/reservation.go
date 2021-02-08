@@ -34,16 +34,17 @@ type Reservation struct {
 	// ID of the reservation
 	ID ID `json:"id"`
 	// Identification of the user requesting the reservation
-	User string `json:"user_id"`
+	User ID `json:"user_id"`
 	// Type of the reservation (container, zdb, vm, etc...)
 	Type ReservationType `json:"type"`
 	// Data is the reservation type arguments.
 	Data json.RawMessage `json:"data,omitempty"`
 	// Date of creation
 	Created time.Time `json:"created"`
-	// Signature is the signature to the reservation
+	// TODO: Signature is the signature to the reservation
 	// it contains all the field of this struct except the signature itself and the Result field
-	Signature string `json:"signature,omitempty"`
+	// Signature string `json:"signature,omitempty"`
+
 	// Metadata is custom user metadata
 	Metadata string `json:"metadata"`
 	// Tag object is mainly used for debugging.
@@ -86,14 +87,16 @@ func (t Tag) String() string {
 type ResultState string
 
 const (
+	//StatusAccepted accepted constant
+	StatusAccepted = "accepted"
+	//StateProcessing constant
+	StateProcessing = "processing"
 	// StateError constant
 	StateError = "error"
 	// StateOk constant
 	StateOk = "ok"
 	//StateDeleted constant
 	StateDeleted = "deleted"
-	//StateProcessing constant
-	StateProcessing = "processing"
 )
 
 // Result is the struct filled by the node

@@ -5,8 +5,8 @@ import (
 	"net"
 )
 
-// ID is a generic numeric ID type
-type ID uint64
+// ID is a generic ID type
+type ID string
 
 // DeviceType is the actual type of hardware that the storage device runs on,
 // i.e. SSD or HDD
