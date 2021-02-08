@@ -42,11 +42,11 @@ type PublicIPResult struct {
 	IP string `json:"ip"`
 }
 
-func (p *Provisioner) publicIPProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (p *Primitives) publicIPProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.publicIPProvisionImpl(ctx, reservation)
 }
 
-func (p *Provisioner) publicIPProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result PublicIPResult, err error) {
+func (p *Primitives) publicIPProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result PublicIPResult, err error) {
 	config := PublicIP{}
 
 	network := stubs.NewNetworkerStub(p.zbus)
@@ -80,7 +80,7 @@ func (p *Provisioner) publicIPProvisionImpl(ctx context.Context, reservation *pr
 	}, err
 }
 
-func (p *Provisioner) publicIPDecomission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) publicIPDecomission(ctx context.Context, reservation *provision.Reservation) error {
 	// Disconnect the public interface from the network if one exists
 	network := stubs.NewNetworkerStub(p.zbus)
 	fName := filterName(reservation.ID)

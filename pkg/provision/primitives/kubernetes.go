@@ -414,7 +414,7 @@ func (p *Primitives) buildNetworkInfo(ctx context.Context, rversion int, userID 
 }
 
 // Get the public ip, and the gateway from the reservation ID
-func (p *Provisioner) getPubIPConfig(rid schema.ID) (net.IPNet, net.IP, error) {
+func (p *Primitives) getPubIPConfig(rid schema.ID) (net.IPNet, net.IP, error) {
 	// TODO: check if there is a better way to do this
 	explorerClient, err := app.ExplorerClient()
 	if err != nil {

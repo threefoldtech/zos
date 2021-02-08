@@ -1,4 +1,4 @@
-package main
+package provisiond
 
 import (
 	"github.com/rs/zerolog/log"

@@ -4,16 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/robfig/cron/v3"
-	"github.com/shirou/gopsutil/mem"
-	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -22,12 +18,6 @@ import (
 const gib = 1024 * 1024 * 1024
 
 const minimunZosMemory = 2 * gib
-
-// Provisioner interface
-type Provisioner interface {
-	Provision(ctx context.Context, reservation *Reservation) (*Result, error)
-	Decommission(ctx context.Context, reservation *Reservation) error
-}
 
 // Engine is the core of this package
 // The engine is responsible to manage provision and decomission of workloads on the system
@@ -58,15 +48,7 @@ type EngineOps struct {
 // the default implementation is a single threaded worker. so it process
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
-func New(opts EngineOps) (*Engine, error) {
-	memStats, err := mem.VirtualMemory()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed retrieve memory stats")
-	}
-
-	// we round the total memory size to the nearest 1G
-	totalMemory := math.Ceil(float64(memStats.Total)/gib) * gib
-
+func New(opts EngineOps) *Engine {
 	return &Engine{
 		source:      opts.Source,
 		provisioner: opts.Provisioner,
@@ -142,12 +124,12 @@ func (e *Engine) Run(ctx context.Context) error {
 				// this is just a hack now to avoid having double provisioning
 				// other logs has been added in other places so we can find why
 				// the node keep receiving the same reservation twice
-				if _, ok := e.memCache.Get(reservation.ID); ok {
+				if _, ok := e.mem.Get(reservation.ID); ok {
 					log.Debug().Str("id", reservation.ID).Msg("skipping reservation since it has just been processes!")
 					continue
 				}
 
-				e.memCache.Set(reservation.ID, struct{}{}, cache.DefaultExpiration)
+				e.mem.Set(reservation.ID, struct{}{}, cache.DefaultExpiration)
 
 				if err := e.provision(ctx, &reservation.Reservation); err != nil {
 					log.Error().Err(err).Msg("failed to provision reservation")
@@ -189,9 +171,6 @@ func (e *Engine) provision(ctx context.Context, reservation *Reservation) error 
 }
 
 func (e *Engine) provisionForward(ctx context.Context, r *Reservation) (interface{}, error) {
-	if err := e.statser.CheckMemoryRequirements(r, e.totalMemAvailable); err != nil {
-		return nil, errors.Wrapf(err, "failed to apply provision")
-	}
 	returned, provisionError := e.provisioner.Provision(ctx, r)
 	if provisionError != nil {
 		log.Error().
