@@ -47,6 +47,67 @@ func TestStorageAdd(t *testing.T) {
 
 }
 
+func TestStorageAddNetwork(t *testing.T) {
+	require := require.New(t)
+	root, err := ioutil.TempDir("", "storage-")
+	require.NoError(err)
+	defer os.RemoveAll(root)
+
+	store, err := NewFSStore(root)
+	require.NoError(err)
+
+	err = store.Add(gridtypes.Workload{
+		ID:   "my-id",
+		User: "my-user",
+		Type: gridtypes.NetworkReservation,
+		Data: json.RawMessage(`{"name": "my-network"}`),
+	})
+
+	require.NoError(err)
+	stat, err := os.Lstat(filepath.Join(root, pathByID, "my-id"))
+	require.NoError(err)
+	require.True(stat.Mode().IsRegular())
+
+	nid := gridtypes.NetworkID("my-user", "my-network")
+	stat, err = os.Lstat(filepath.Join(root, pathByType, "network", string(nid)))
+	require.NoError(err)
+	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
+
+	stat, err = os.Lstat(filepath.Join(root, pathByUser, "my-user", pathByType, "network", string(nid)))
+	require.NoError(err)
+	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
+
+	stat, err = os.Lstat(filepath.Join(root, pathByUser, "my-user", pathByID, "my-id"))
+	require.NoError(err)
+	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
+
+}
+
+func TestStorageGetNetwork(t *testing.T) {
+	require := require.New(t)
+	root, err := ioutil.TempDir("", "storage-")
+	require.NoError(err)
+	defer os.RemoveAll(root)
+
+	store, err := NewFSStore(root)
+	require.NoError(err)
+
+	err = store.Add(gridtypes.Workload{
+		ID:   "my-id",
+		User: "my-user",
+		Type: gridtypes.NetworkReservation,
+		Data: json.RawMessage(`{"name": "my-network"}`),
+	})
+
+	require.NoError(err)
+
+	nid := gridtypes.NetworkID("my-user", "my-network")
+
+	loaded, err := store.GetNetwork(nid)
+	require.NoError(err)
+	require.Equal(gridtypes.ID("my-id"), loaded.ID)
+}
+
 func TestStorageSet(t *testing.T) {
 	require := require.New(t)
 	root, err := ioutil.TempDir("", "storage-")
@@ -107,4 +168,94 @@ func TestStorageGet(t *testing.T) {
 	require.Equal(wl.ID, loaded.ID)
 	require.Equal(wl.User, loaded.User)
 	require.Equal(wl.Type, loaded.Type)
+}
+
+func TestStorageByType(t *testing.T) {
+	require := require.New(t)
+	root, err := ioutil.TempDir("", "storage-")
+	require.NoError(err)
+	defer os.RemoveAll(root)
+
+	store, err := NewFSStore(root)
+	require.NoError(err)
+
+	err = store.Add(gridtypes.Workload{
+		ID:   "my-volume-id",
+		User: "my-user",
+		Type: gridtypes.VolumeReservation,
+		Data: json.RawMessage(`"hello volume"`),
+	})
+
+	require.NoError(err)
+
+	err = store.Add(gridtypes.Workload{
+		ID:   "my-container-id",
+		User: "my-user",
+		Type: gridtypes.ContainerReservation,
+		Data: json.RawMessage(`"hello container"`),
+	})
+
+	require.NoError(err)
+
+	ids, err := store.ByType(gridtypes.VolumeReservation)
+	require.NoError(err)
+	require.Len(ids, 1)
+	require.Equal("my-volume-id", ids[0].String())
+
+	ids, err = store.ByType(gridtypes.ContainerReservation)
+	require.NoError(err)
+	require.Len(ids, 1)
+	require.Equal("my-container-id", ids[0].String())
+
+	ids, err = store.ByType(gridtypes.ZDBReservation)
+	require.NoError(err)
+	require.Len(ids, 0)
+
+}
+
+func TestStorageByUser(t *testing.T) {
+	require := require.New(t)
+	root, err := ioutil.TempDir("", "storage-")
+	require.NoError(err)
+	defer os.RemoveAll(root)
+
+	store, err := NewFSStore(root)
+	require.NoError(err)
+
+	err = store.Add(gridtypes.Workload{
+		ID:   "my-volume-1",
+		User: "my-user-1",
+		Type: gridtypes.VolumeReservation,
+		Data: json.RawMessage(`"hello volume"`),
+	})
+
+	require.NoError(err)
+
+	err = store.Add(gridtypes.Workload{
+		ID:   "my-volume-2",
+		User: "my-user-2",
+		Type: gridtypes.VolumeReservation,
+		Data: json.RawMessage(`"hello container"`),
+	})
+
+	require.NoError(err)
+
+	ids, err := store.ByType(gridtypes.VolumeReservation)
+	require.NoError(err)
+	require.Len(ids, 2)
+
+	ids, err = store.ByUser("my-user-1", gridtypes.VolumeReservation)
+	require.NoError(err)
+	require.Len(ids, 1)
+	require.Equal("my-volume-1", ids[0].String())
+
+	ids, err = store.ByUser("my-user-2", gridtypes.VolumeReservation)
+	require.NoError(err)
+	require.Len(ids, 1)
+	require.Equal("my-volume-2", ids[0].String())
+
+	ids, err = store.ByType(gridtypes.ZDBReservation)
+	require.NoError(err)
+	require.Len(ids, 0)
+
 }

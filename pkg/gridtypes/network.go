@@ -91,6 +91,10 @@ type Peer struct {
 // NetID is a type defining the ID of a network
 type NetID string
 
+func (i NetID) String() string {
+	return string(i)
+}
+
 // Valid checks if peer is valid
 func (p *Peer) Valid() error {
 	if p.WGPublicKey == "" {

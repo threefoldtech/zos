@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/versioned"
@@ -210,9 +208,8 @@ func (s *Fs) Set(wl gridtypes.Workload) error {
 }
 
 // Get gets a workload by id
-func (s *Fs) Get(id gridtypes.ID) (gridtypes.Workload, error) {
+func (s *Fs) get(path string) (gridtypes.Workload, error) {
 	var wl gridtypes.Workload
-	path := s.rooted(filepath.Join(pathByID, id.String()))
 	file, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return wl, errors.Wrapf(provision.ErrWorkloadNotExists, "object '%s' does not exist", wl.ID)
@@ -236,296 +233,50 @@ func (s *Fs) Get(id gridtypes.ID) (gridtypes.Workload, error) {
 	return wl, nil
 }
 
-// listing
-func (s *Fs) ByType(t gridtypes.ReservationType) ([]gridtypes.ID, error) {
-	return nil, nil
-}
-func (s *Fs) ByUser(user gridtypes.ID, t gridtypes.ReservationType) ([]gridtypes.ID, error) {
-	return nil, nil
-
+// Get gets a workload by id
+func (s *Fs) Get(id gridtypes.ID) (gridtypes.Workload, error) {
+	path := s.rooted(filepath.Join(pathByID, id.String()))
+	return s.get(path)
 }
 
-func (s *Fs) Network(id gridtypes.NetID) error {
-	return nil
-}
-
-// Find deletes all cached reservations that matches filter
-func (s *Fs) Find(f provision.Filter) ([]*provision.Reservation, error) {
-	s.m.Lock()
-	s.m.Unlock()
-
-	var results []*provision.Reservation
-	// if rootPath is not present on the filesystem, return
-	_, err := os.Stat(s.root)
+func (s *Fs) byType(base string, t gridtypes.ReservationType) ([]gridtypes.ID, error) {
+	dir := filepath.Join(base, pathByType, t.String())
+	entries, err := ioutil.ReadDir(dir)
 	if os.IsNotExist(err) {
-		return results, nil
+		return nil, nil
 	} else if err != nil {
-		return results, err
+		return nil, err
 	}
-
-	err = filepath.Walk(s.root, func(path string, info os.FileInfo, r error) error {
-		if r != nil {
-			return r
+	var results []gridtypes.ID
+	for _, entry := range entries {
+		if entry.Mode()&os.ModeSymlink == 0 {
+			continue
 		}
-		// if a file with size 0 is present we can assume its empty and remove it
-		if info.Size() == 0 {
-			log.Warn().Str("filename", info.Name()).Msg("cached reservation found, but file is empty, removing.")
-			return os.Remove(path)
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-		id := filepath.Base(path)
-		reservation, err := s.get(id)
+		target, err := os.Readlink(filepath.Join(dir, entry.Name()))
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		if f(reservation) {
-			results = append(results, reservation)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return results, errors.Wrap(err, "error scanning cached reservations")
+		results = append(results, gridtypes.ID(filepath.Base(target)))
 	}
 
 	return results, nil
 }
 
-// Purge deletes all cached reservations that matches filter
-func (s *Fs) Purge(f provision.Filter) error {
-	s.m.Lock()
-	s.m.Unlock()
-
-	// if rootPath is not present on the filesystem, return
-	_, err := os.Stat(s.root)
-	if os.IsNotExist(err) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-
-	err = filepath.Walk(s.root, func(path string, info os.FileInfo, r error) error {
-		if r != nil {
-			return r
-		}
-		// if a file with size 0 is present we can assume its empty and remove it
-		if info.Size() == 0 {
-			log.Warn().Str("filename", info.Name()).Msg("cached reservation found, but file is empty, removing.")
-			return os.Remove(path)
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-		id := filepath.Base(path)
-		reservation, err := s.get(id)
-		if err != nil {
-			return err
-		}
-
-		if f(reservation) {
-			log.Info().Str("reservation", reservation.ID).Msg("removing cached reservation")
-			if err := s.remove(id); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "error scanning cached reservations")
-	}
-	return nil
+// ByType return list of reservation ids by type
+func (s *Fs) ByType(t gridtypes.ReservationType) ([]gridtypes.ID, error) {
+	return s.byType(s.root, t)
 }
 
-// // Add a reservation to the store
-// func (s *Fs) Add(r *provision.Reservation, override bool) error {
-// 	return s.add(r, override)
-// }
-
-// Add a reservation to the store
-func (s *Fs) add(r *provision.Reservation, override bool) error {
-	s.m.Lock()
-	defer s.m.Unlock()
-
-	// ensure direcory exists
-	if err := os.MkdirAll(s.root, 0770); err != nil {
-		return err
-	}
-
-	flags := os.O_CREATE | os.O_WRONLY
-	if !override {
-		flags |= os.O_EXCL
-	}
-	f, err := os.OpenFile(filepath.Join(s.root, r.ID), flags, 0660)
-	if err != nil {
-		if os.IsExist(err) {
-			return fmt.Errorf("reservation %s already in the store", r.ID)
-		}
-		return err
-	}
-	defer f.Close()
-	writer, err := versioned.NewWriter(f, workloadSchemaLastVersion)
-	if err != nil {
-		return err
-	}
-
-	if err := json.NewEncoder(writer).Encode(r); err != nil {
-		return err
-	}
-
-	return nil
+// ByUser return list of reservation for a certain user by type
+func (s *Fs) ByUser(user gridtypes.ID, t gridtypes.ReservationType) ([]gridtypes.ID, error) {
+	base := filepath.Join(s.root, pathByUser, user.String())
+	return s.byType(base, t)
 }
 
-// Remove a reservation from the store
-func (s *Fs) Remove(id string) error {
-	s.m.Lock()
-	defer s.m.Unlock()
-
-	return s.remove(id)
-}
-
-func (s *Fs) remove(id string) error {
-	path := filepath.Join(s.root, id)
-	err := os.Remove(path)
-	if os.IsNotExist(errors.Cause(err)) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// GetExpired returns all id the the reservations that are expired
-// at the time of the function call
-func (s *Fs) GetExpired() ([]*provision.Reservation, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-
-	infos, err := ioutil.ReadDir(s.root)
-	if err != nil {
-		return nil, err
-	}
-
-	rs := make([]*provision.Reservation, 0, len(infos))
-	for _, info := range infos {
-		if info.IsDir() {
-			continue
-		}
-
-		// if the file is empty, remove it and return.
-		if info.Size() == 0 {
-			if info.Size() == 0 {
-				log.Warn().Str("filename", info.Name()).Msg("cached reservation found, but file is empty, removing.")
-				return nil, os.Remove(path.Join(s.root, info.Name()))
-			}
-		}
-
-		r, err := s.get(info.Name())
-		if err != nil {
-			return nil, err
-		}
-		if r.Expired() {
-			// r.Tag = Tag{"source": "FSStore"}
-			rs = append(rs, r)
-		}
-
-	}
-
-	return rs, nil
-}
-
-// // Get retrieves a specific reservation using its ID
-// // if returns a non nil error if the reservation is not present in the store
-// func (s *Fs) Get(id string) (*provision.Reservation, error) {
-// 	s.m.RLock()
-// 	defer s.m.RUnlock()
-
-// 	return s.get(id)
-// }
-
-// Exists checks if the reservation ID is in the store
-func (s *Fs) Exists(id string) (bool, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-
-	path := filepath.Join(s.root, id)
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
-}
-
-// List all reservations
-func (s *Fs) List() ([]*provision.Reservation, error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-
-	infos, err := ioutil.ReadDir(s.root)
-	if err != nil {
-		return nil, err
-	}
-	reservations := make([]*provision.Reservation, 0, len(infos))
-
-	for _, info := range infos {
-		if info.IsDir() {
-			continue
-		}
-
-		r, err := s.get(info.Name())
-		if err != nil {
-			return nil, fmt.Errorf("failed get reservation: %w", err)
-		}
-
-		reservations = append(reservations, r)
-	}
-	return reservations, nil
-}
-
-func (s *Fs) get(id string) (*provision.Reservation, error) {
-	path := filepath.Join(s.root, id)
-	f, err := os.Open(path)
-	if os.IsNotExist(err) {
-		return nil, errors.Wrapf(err, "reservation %s not found", id)
-	} else if err != nil {
-		return nil, err
-	}
-
-	defer f.Close()
-	reader, err := versioned.NewReader(f)
-	if err != nil && versioned.IsNotVersioned(err) {
-		if _, err := f.Seek(0, 0); err != nil { // make sure to read from start
-			return nil, err
-		}
-		reader = versioned.NewVersionedReader(versioned.MustParse("0.0.0"), f)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	validV1 := versioned.MustParseRange(fmt.Sprintf("<=%s", workloadSchemaV1))
-	var reservation provision.Reservation
-
-	if validV1(reader.Version()) {
-		if err := json.NewDecoder(reader).Decode(&reservation); err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, fmt.Errorf("unknown reservation object version (%s)", reader.Version())
-	}
-	// reservation.Tag = Tag{"source": "FSStore"}
-	return &reservation, nil
+// GetNetwork returns network object given network id
+func (s *Fs) GetNetwork(id gridtypes.NetID) (gridtypes.Workload, error) {
+	path := filepath.Join(s.root, pathByType, gridtypes.NetworkReservation.String(), id.String())
+	return s.get(path)
 }
 
 // Close makes sure the backend of the store is closed properly
