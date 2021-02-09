@@ -3,6 +3,7 @@ package gridtypes
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -19,15 +20,34 @@ const (
 	NetworkReservation ReservationType = "network"
 	// ZDBReservation type
 	ZDBReservation ReservationType = "zdb"
-
-	// DebugReservation type [deprecated]
-	// DebugReservation ReservationType = "debug"
-
 	// KubernetesReservation type
 	KubernetesReservation ReservationType = "kubernetes"
 	//PublicIPReservation reservation
 	PublicIPReservation ReservationType = "ipv4"
 )
+
+var (
+	reservationTypes map[ReservationType]struct{} = map[ReservationType]struct{}{
+		ContainerReservation:  struct{}{},
+		VolumeReservation:     struct{}{},
+		NetworkReservation:    struct{}{},
+		ZDBReservation:        struct{}{},
+		KubernetesReservation: struct{}{},
+		PublicIPReservation:   struct{}{},
+	}
+)
+
+func (t ReservationType) Valid() error {
+	if _, ok := reservationTypes[t]; !ok {
+		return fmt.Errorf("invalid reservation type")
+	}
+
+	return nil
+}
+
+func (t ReservationType) String() string {
+	return string(t)
+}
 
 // Workload struct
 type Workload struct {
@@ -40,7 +60,7 @@ type Workload struct {
 	// Type of the reservation (container, zdb, vm, etc...)
 	Type ReservationType `json:"type"`
 	// Data is the reservation type arguments.
-	Data json.RawMessage `json:"data,omitempty"`
+	Data json.RawMessage `json:"data"`
 	// Date of creation
 	Created time.Time `json:"created"`
 	// TODO: Signature is the signature to the reservation
@@ -53,6 +73,23 @@ type Workload struct {
 	Tag Tag `json:"-"`
 	// Result of reservation
 	Result Result `json:"result"`
+}
+
+// Valid validate reservation
+func (w *Workload) Valid() error {
+	if w.ID.IsEmpty() {
+		return fmt.Errorf("invalid workload id")
+	}
+
+	if w.User.IsEmpty() {
+		return fmt.Errorf("invalid user id")
+	}
+
+	if err := w.Type.Valid(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // AppendTag appends tags

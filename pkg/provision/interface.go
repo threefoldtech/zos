@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
@@ -22,16 +23,23 @@ type Provisioner interface {
 // Filter is filtering function for Purge method
 type Filter func(*Reservation) bool
 
-// ReservationCache define the interface to store
-// some reservations
+var (
+	//ErrWorkloadExists returned if object exist
+	ErrWorkloadExists = fmt.Errorf("exists")
+	//ErrWorkloadNotExists returned if object not exists
+	ErrWorkloadNotExists = fmt.Errorf("not exists")
+)
+
+// Storage interface
 type Storage interface {
 	Add(wl gridtypes.Workload) error
 	Set(wl gridtypes.Workload) error
-	Get(id gridtypes.ID)
+	Get(id gridtypes.ID) (gridtypes.Workload, error)
 
 	// listing
 	ByType(t gridtypes.ReservationType) ([]gridtypes.ID, error)
 	ByUser(user gridtypes.ID, t gridtypes.ReservationType) ([]gridtypes.ID, error)
+	Network(id gridtypes.NetID) error
 }
 
 // Janitor interface
