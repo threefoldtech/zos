@@ -23,9 +23,9 @@ type deprovisionJob struct {
 	ch chan error
 }
 
-// EngineImpl is the core of this package
+// engineImpl is the core of this package
 // The engine is responsible to manage provision and decomission of workloads on the system
-type EngineImpl struct {
+type engineImpl struct {
 	storage     Storage
 	janitor     Janitor
 	provisioner Provisioner
@@ -49,8 +49,8 @@ type EngineOps struct {
 // the default implementation is a single threaded worker. so it process
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
-func New(opts EngineOps) *EngineImpl {
-	return &EngineImpl{
+func New(opts EngineOps) Engine {
+	return &engineImpl{
 		provision:   make(chan provisionJob),
 		deprovision: make(chan deprovisionJob),
 		provisioner: opts.Provisioner,
@@ -59,7 +59,7 @@ func New(opts EngineOps) *EngineImpl {
 }
 
 // Provision workload
-func (e *EngineImpl) Provision(ctx context.Context, wl gridtypes.Workload) error {
+func (e *engineImpl) Provision(ctx context.Context, wl gridtypes.Workload) error {
 	j := provisionJob{
 		wl: wl,
 		ch: make(chan error),
@@ -76,7 +76,7 @@ func (e *EngineImpl) Provision(ctx context.Context, wl gridtypes.Workload) error
 }
 
 // Deprovision workload
-func (e *EngineImpl) Deprovision(ctx context.Context, id gridtypes.ID) error {
+func (e *engineImpl) Deprovision(ctx context.Context, id gridtypes.ID) error {
 	j := deprovisionJob{
 		id: id,
 		ch: make(chan error),
@@ -93,7 +93,7 @@ func (e *EngineImpl) Deprovision(ctx context.Context, id gridtypes.ID) error {
 }
 
 // Run starts reader reservation from the Source and handle them
-func (e *EngineImpl) Run(ctx context.Context) error {
+func (e *engineImpl) Run(ctx context.Context) error {
 	defer close(e.provision)
 	defer close(e.deprovision)
 
@@ -135,7 +135,7 @@ func (e *EngineImpl) Run(ctx context.Context) error {
 	}
 }
 
-func (e *EngineImpl) uninstall(ctx context.Context, wl gridtypes.Workload) {
+func (e *engineImpl) uninstall(ctx context.Context, wl gridtypes.Workload) {
 	log := log.With().Str("id", string(wl.ID)).Str("type", string(wl.Type)).Logger()
 
 	log.Debug().Msg("provisioning")
@@ -156,7 +156,7 @@ func (e *EngineImpl) uninstall(ctx context.Context, wl gridtypes.Workload) {
 	}
 }
 
-func (e *EngineImpl) install(ctx context.Context, wl gridtypes.Workload) {
+func (e *engineImpl) install(ctx context.Context, wl gridtypes.Workload) {
 	log := log.With().Str("id", string(wl.ID)).Str("type", string(wl.Type)).Logger()
 
 	log.Debug().Msg("provisioning")
