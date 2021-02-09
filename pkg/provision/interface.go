@@ -35,11 +35,10 @@ type Storage interface {
 	Add(wl gridtypes.Workload) error
 	Set(wl gridtypes.Workload) error
 	Get(id gridtypes.ID) (gridtypes.Workload, error)
+	GetNetwork(id gridtypes.NetID) (gridtypes.Workload, error)
 
-	// listing
 	ByType(t gridtypes.ReservationType) ([]gridtypes.ID, error)
 	ByUser(user gridtypes.ID, t gridtypes.ReservationType) ([]gridtypes.ID, error)
-	Network(id gridtypes.NetID) error
 }
 
 // Janitor interface

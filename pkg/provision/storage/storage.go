@@ -47,37 +47,13 @@ func networkTypeID(w *gridtypes.Workload) (string, error) {
 	return string(gridtypes.NetworkID(w.User.String(), name.Name)), nil
 }
 
-// FilterType delete all types that matches the given list
-func FilterType(types ...provision.ReservationType) provision.Filter {
-	typeMap := make(map[provision.ReservationType]struct{})
-	for _, t := range types {
-		typeMap[t] = struct{}{}
-	}
-
-	return func(r *provision.Reservation) bool {
-		_, ok := typeMap[r.Type]
-
-		return ok
-	}
-}
-
-// FilterNot inverts the given filter
-func FilterNot(f provision.Filter) provision.Filter {
-	return func(r *provision.Reservation) bool {
-		return !f(r)
-	}
-}
-
-var (
-	// NotPersisted filter outs everything but volumes
-	NotPersisted = FilterNot(FilterType(provision.VolumeReservation))
-)
-
 // Fs is a in reservation cache using the filesystem as backend
 type Fs struct {
 	m    sync.RWMutex
 	root string
 }
+
+var _ (provision.Storage) = (*Fs)(nil)
 
 // NewFSStore creates a in memory reservation store
 func NewFSStore(root string) (*Fs, error) {
@@ -146,6 +122,9 @@ func (s *Fs) symlink(from, to string) error {
 
 // Add workload to database
 func (s *Fs) Add(wl gridtypes.Workload) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+
 	byType, err := s.pathByType(&wl)
 	if err != nil {
 		return err
@@ -186,6 +165,9 @@ func (s *Fs) Add(wl gridtypes.Workload) error {
 // Set updates value of a workload, the reservation must exists
 // otherwise an error is returned
 func (s *Fs) Set(wl gridtypes.Workload) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+
 	path := s.rooted(s.pathByID(&wl))
 	file, err := os.OpenFile(
 		path,
@@ -209,6 +191,9 @@ func (s *Fs) Set(wl gridtypes.Workload) error {
 
 // Get gets a workload by id
 func (s *Fs) get(path string) (gridtypes.Workload, error) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+
 	var wl gridtypes.Workload
 	file, err := os.Open(path)
 	if os.IsNotExist(err) {
@@ -240,6 +225,9 @@ func (s *Fs) Get(id gridtypes.ID) (gridtypes.Workload, error) {
 }
 
 func (s *Fs) byType(base string, t gridtypes.ReservationType) ([]gridtypes.ID, error) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+
 	dir := filepath.Join(base, pathByType, t.String())
 	entries, err := ioutil.ReadDir(dir)
 	if os.IsNotExist(err) {
