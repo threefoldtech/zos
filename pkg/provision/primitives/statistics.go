@@ -106,7 +106,7 @@ func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, reservation
 	}
 	// otherwise we check the cache if a network
 	// with the same id already exists
-	id := NetworkID(reservation.User, nr.Name)
+	id := gridtypes.NetworkID(reservation.User, nr.Name)
 	cache := provision.GetCache(ctx)
 	matches, err := cache.Find(func(r *provision.Reservation) bool {
 		if r.Type != provision.NetworkReservation {

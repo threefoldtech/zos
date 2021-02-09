@@ -3,7 +3,6 @@ package storage
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -87,8 +86,7 @@ func TestStorageGet(t *testing.T) {
 	require := require.New(t)
 	root, err := ioutil.TempDir("", "storage-")
 	require.NoError(err)
-	fmt.Println(root)
-	//defer os.RemoveAll(root)
+	defer os.RemoveAll(root)
 
 	store, err := NewFSStore(root)
 	require.NoError(err)

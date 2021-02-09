@@ -16,12 +16,38 @@ import (
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
 
+const (
+	pathByID   = "by-id"
+	pathByType = "by-type"
+	pathByUser = "by-user"
+)
+
 var (
 	// workloadSchemaV1 reservation schema version 1
 	workloadSchemaV1 = versioned.MustParse("1.0.0")
 	// ReservationSchemaLastVersion link to latest version
 	workloadSchemaLastVersion = workloadSchemaV1
+
+	typeIDfn = map[gridtypes.ReservationType]func(*gridtypes.Workload) (string, error){
+		gridtypes.NetworkReservation: networkTypeID,
+	}
 )
+
+func networkTypeID(w *gridtypes.Workload) (string, error) {
+	var name struct {
+		Name string `json:"name"`
+	}
+
+	err := json.Unmarshal(w.Data, &name)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to load network name")
+	}
+	if len(name.Name) == 0 {
+		return "", fmt.Errorf("empty network name")
+	}
+
+	return string(gridtypes.NetworkID(w.User.String(), name.Name)), nil
+}
 
 // FilterType delete all types that matches the given list
 func FilterType(types ...provision.ReservationType) provision.Filter {
@@ -36,12 +62,6 @@ func FilterType(types ...provision.ReservationType) provision.Filter {
 		return ok
 	}
 }
-
-const (
-	pathByID   = "by-id"
-	pathByType = "by-type"
-	pathByUser = "by-user"
-)
 
 // FilterNot inverts the given filter
 func FilterNot(f provision.Filter) provision.Filter {
@@ -80,8 +100,24 @@ func (s *Fs) pathByID(wl *gridtypes.Workload) string {
 	return filepath.Join(pathByID, wl.ID.String())
 }
 
-func (s *Fs) pathByType(wl *gridtypes.Workload) string {
-	return filepath.Join(pathByType, wl.Type.String(), wl.ID.String())
+func (s *Fs) pathByType(wl *gridtypes.Workload) (string, error) {
+	// by types is different than by id in 2 aspects
+	// 1- it prefix the path with `by-type/<type>`
+	// 2- the second and not so obvious difference is that
+	// it doesn't use the workload.ID instead it uses the id
+	// calculated based on the type. It falls back to workload.ID
+	// if no custom id method for that type.
+	id := wl.ID.String()
+	fn, ok := typeIDfn[wl.Type]
+	if ok {
+		var err error
+		id, err = fn(wl)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return filepath.Join(pathByType, wl.Type.String(), id), nil
 }
 
 func (s *Fs) pathByUser(wl *gridtypes.Workload) string {
@@ -112,6 +148,11 @@ func (s *Fs) symlink(from, to string) error {
 
 // Add workload to database
 func (s *Fs) Add(wl gridtypes.Workload) error {
+	byType, err := s.pathByType(&wl)
+	if err != nil {
+		return err
+	}
+
 	path := s.rooted(s.pathByID(&wl))
 	file, err := os.OpenFile(
 		path,
@@ -132,9 +173,9 @@ func (s *Fs) Add(wl gridtypes.Workload) error {
 	}
 
 	for _, link := range []string{
-		s.rooted(s.pathByType(&wl)),
+		s.rooted(byType),
 		s.rooted(s.pathByUser(&wl), s.pathByID(&wl)),
-		s.rooted(s.pathByUser(&wl), s.pathByType(&wl)),
+		s.rooted(s.pathByUser(&wl), byType),
 	} {
 		if err := s.symlink(link, path); err != nil {
 			return err

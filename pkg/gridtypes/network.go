@@ -1,18 +1,20 @@
 package gridtypes
 
 import (
+	"bytes"
+	"crypto/md5"
 	"fmt"
+
+	"github.com/jbenet/go-base58"
 )
 
 // Network is the description of a part of a network local to a specific node
 type Network struct {
-	Name string
-	//unique id inside the reservation is an autoincrement (USE AS NET_ID)
-	NetID NetID `json:"net_id"`
+	Name string `json:"name"`
 	// IP range of the network, must be an IPv4 /16
 	NetworkIPRange IPNet `json:"ip_range"`
 
-	NodeID string `json:"node_id"`
+	NodeID string `json:"node_id"` //[deprecated]
 	// IPV4 subnet for this network resource
 	Subnet IPNet `json:"subnet"`
 
@@ -23,11 +25,22 @@ type Network struct {
 	Peers []Peer `json:"peers"`
 }
 
+// NetworkID construct a network ID based on a userID and network name
+func NetworkID(user, network string) NetID {
+	buf := bytes.Buffer{}
+	buf.WriteString(user)
+	buf.WriteString(":")
+	buf.WriteString(network)
+	h := md5.Sum(buf.Bytes())
+	b := base58.Encode(h[:])
+	if len(b) > 13 {
+		b = b[:13]
+	}
+	return NetID(string(b))
+}
+
 // Valid checks if the network resource is valid.
 func (nr *Network) Valid() error {
-	if nr.NetID == "" {
-		return fmt.Errorf("network ID cannot be empty")
-	}
 
 	if nr.Name == "" {
 		return fmt.Errorf("network name cannot be empty")
