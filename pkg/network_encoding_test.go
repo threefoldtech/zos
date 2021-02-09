@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 func TestNetResourceUnmarshal(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNetResourceUnmarshal(t *testing.T) {
 	}`
 
 	r := strings.NewReader(input)
-	network := NetResource{}
+	network := Network{}
 	err := json.NewDecoder(r).Decode(&network)
 	require.NoError(t, err)
 	assert := assert.New(t)
@@ -38,28 +38,28 @@ func TestNetResourceUnmarshal(t *testing.T) {
 }
 
 func TestEncodeDecode(t *testing.T) {
-	network := &NetResource{
+	network := &Network{
 		NetID: NetID("test"),
 		Name:  "supernet",
-		NetworkIPRange: types.NewIPNet(&net.IPNet{
+		NetworkIPRange: gridtypes.NewIPNet(&net.IPNet{
 			IP:   net.ParseIP("10.0.0.0"),
 			Mask: net.CIDRMask(16, 32),
 		}),
 		NodeID: "node1",
-		Subnet: types.NewIPNet(&net.IPNet{
+		Subnet: gridtypes.NewIPNet(&net.IPNet{
 			IP:   net.ParseIP("10.0.1.0"),
 			Mask: net.CIDRMask(24, 32),
 		}),
-		Peers: []Peer{
+		Peers: []gridtypes.Peer{
 			{
-				Subnet: types.NewIPNet(&net.IPNet{
+				Subnet: gridtypes.NewIPNet(&net.IPNet{
 					IP:   net.ParseIP("10.0.2.0"),
 					Mask: net.CIDRMask(24, 32),
 				}),
 				Endpoint:    "172.20.0.90:6380",
 				WGPublicKey: "pubkey",
-				AllowedIPs: []types.IPNet{
-					types.NewIPNet(&net.IPNet{
+				AllowedIPs: []gridtypes.IPNet{
+					gridtypes.NewIPNet(&net.IPNet{
 						IP:   net.ParseIP("10.0.1.0"),
 						Mask: net.CIDRMask(24, 32),
 					}),
@@ -71,7 +71,7 @@ func TestEncodeDecode(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println(string(b))
 
-	decoded := &NetResource{}
+	decoded := &Network{}
 	err = json.Unmarshal(b, decoded)
 	require.NoError(t, err)
 	assert.Equal(t, network.Name, decoded.Name)

@@ -4,12 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/threefoldtech/zos/pkg/provision/mw"
 )
 
 //Setup setup routes (v1)
-func (a *API) setup(router *mux.Router) error {
+func (a *Workloads) setup(router *mux.Router) error {
 	reservation := router.PathPrefix("/reservation").Subrouter()
 
-	reservation.Path("/").HandlerFunc(AsHandlerFunc(a.createReservation)).Methods(http.MethodPost).Name("reservation-create")
+	reservation.Path("/").HandlerFunc(mw.AsHandlerFunc(a.create)).Methods(http.MethodPost).Name("reservation-create")
 	return nil
 }

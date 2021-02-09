@@ -2,48 +2,21 @@ package provision
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/threefoldtech/tfexplorer/models/generated/directory"
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-// ReservationSource interface. The source
-// defines how the node will get reservation requests
-// then reservations are applied to the node to deploy
-// a resource of the given Reservation.Type
-type ReservationSource interface {
-	Reservations(ctx context.Context) <-chan *ReservationJob
+// Engine is engine interface
+type Engine interface {
+	Provision() chan<- gridtypes.Workload
+	Deprovision() chan<- gridtypes.ID
+	Get(gridtypes.ID) (gridtypes.Workload, error)
 }
-
-// ReservationGetter interface. Some reservation sources
-// can implement the getter interface
-type ReservationGetter interface {
-	Get(gwid string) (*Reservation, error)
-}
-
-// ReservationPoller define the interface to implement
-// to poll the Explorer for new reservation
-type ReservationPoller interface {
-	ReservationGetter
-	// Poll ask the store to send us reservation for a specific node ID
-	// from is the used as a filter to which reservation to use as
-	// reservation.ID >= from. So a client to the Poll method should make
-	// sure to call it with the last (MAX) reservation ID he receieved.
-	Poll(nodeID pkg.Identifier, from uint64) (reservations []*Reservation, lastID uint64, err error)
-}
-
-var (
-	// ErrUnknownReservation is returned by a provisioner on Get calls if
-	// the reservation ID does not exist
-	ErrUnknownReservation = fmt.Errorf("unknown reservation id")
-)
 
 // Provisioner interface
 type Provisioner interface {
-	Provision(ctx context.Context, reservation *Reservation) (*Result, error)
-	Decommission(ctx context.Context, reservation *Reservation) error
-	Get(ctx context.Context, id string) (*Reservation, error)
+	Provision(ctx context.Context, wl *gridtypes.Workload) (*gridtypes.Result, error)
+	Decommission(ctx context.Context, wl *gridtypes.Workload) error
 }
 
 // Filter is filtering function for Purge method
@@ -51,23 +24,14 @@ type Filter func(*Reservation) bool
 
 // ReservationCache define the interface to store
 // some reservations
-type ReservationCache interface {
-	Add(r *Reservation, override bool) error
-	Get(id string) (*Reservation, error)
-	Remove(id string) error
-	Exists(id string) (bool, error)
-	Find(f Filter) ([]*Reservation, error)
-}
+type Storage interface {
+	Add(wl gridtypes.Workload) error
+	Set(wl gridtypes.Workload) error
+	Get(id gridtypes.ID)
 
-// Counter is used by the provision Engine to keep
-// track of how much resource unit and number of primitives
-// is provisionned
-type Counter interface {
-	Increment(r *Reservation) error
-	Decrement(r *Reservation) error
-	CurrentUnits() directory.ResourceAmount
-	CurrentWorkloads() directory.WorkloadAmount
-	CheckMemoryRequirements(r *Reservation, totalMemAvailable uint64) error
+	// listing
+	ByType(t gridtypes.ReservationType) ([]gridtypes.ID, error)
+	ByUser(user gridtypes.ID, t gridtypes.ReservationType) ([]gridtypes.ID, error)
 }
 
 // Janitor interface

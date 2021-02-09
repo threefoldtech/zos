@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
-	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/provision/common"
 	"github.com/threefoldtech/zos/pkg/zdb"
 
@@ -50,23 +50,23 @@ type ZDBResult struct {
 	Port      uint
 }
 
-func (p *Primitives) zdbProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
-	return p.zdbProvisionImpl(ctx, reservation)
+func (p *Primitives) zdbProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
+	return p.zdbProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) zdbProvisionImpl(ctx context.Context, reservation *provision.Reservation) (ZDBResult, error) {
+func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (ZDBResult, error) {
 	var (
 		storage = stubs.NewZDBAllocaterStub(p.zbus)
 
-		nsID   = reservation.ID
+		nsID   = wl.ID.String()
 		config ZDB
 	)
-	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	var err error
-	config.PlainPassword, err = decryptSecret(config.Password, reservation.User, reservation.Version, p.zbus)
+	config.PlainPassword, err = decryptSecret(config.Password, wl.User.String(), wl.Version, p.zbus)
 	if err != nil {
 		return ZDBResult{}, errors.Wrap(err, "failed to decrypt namespace password")
 	}
@@ -138,7 +138,7 @@ func (p *Primitives) zdbRootFS() (string, error) {
 	var err error
 	var rootFS string
 
-	for _, typ := range []pkg.DeviceType{pkg.HDDDevice, pkg.SSDDevice} {
+	for _, typ := range []gridtypes.DeviceType{gridtypes.HDDDevice, gridtypes.SSDDevice} {
 		rootFS, err = flist.Mount(zdbFlistURL, "", pkg.MountOptions{
 			Limit:    10,
 			ReadOnly: false,
@@ -356,20 +356,20 @@ func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string
 	return nil
 }
 
-func (p *Primitives) zdbDecommission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) zdbDecommission(ctx context.Context, wl *gridtypes.Workload) error {
 	var (
 		storage       = stubs.NewZDBAllocaterStub(p.zbus)
 		storageClient = stubs.NewStorageModuleStub(p.zbus)
 
 		config ZDB
-		nsID   = reservation.ID
+		nsID   = wl.ID.String()
 	)
 
-	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	allocation, err := storage.Find(reservation.ID)
+	allocation, err := storage.Find(wl.ID.String())
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		return nil
 	} else if err != nil {

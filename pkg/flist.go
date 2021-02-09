@@ -1,5 +1,7 @@
 package pkg
 
+import "github.com/threefoldtech/zos/pkg/gridtypes"
+
 //go:generate mkdir -p stubs
 
 //go:generate zbusc -module flist -version 0.0.1 -name flist -package stubs github.com/threefoldtech/zos/pkg+Flister stubs/flist_stub.go
@@ -9,7 +11,7 @@ var (
 	DefaultMountOptions = MountOptions{
 		ReadOnly: false,
 		Limit:    256, //Mib
-		Type:     SSDDevice,
+		Type:     gridtypes.SSDDevice,
 	}
 
 	//ReadOnlyMountOptions shortcut for readonly mount options
@@ -25,7 +27,7 @@ type MountOptions struct {
 	// Limit size of read-write layer in Mib
 	Limit uint64
 	// Type of disk to use
-	Type DeviceType
+	Type gridtypes.DeviceType
 }
 
 //Flister is the interface for the flist module

@@ -10,29 +10,29 @@ import (
 	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
 
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 // NetworkID construct a network ID based on a userID and network name
-func NetworkID(userID, name string) pkg.NetID {
+func NetworkID(userID, name string) gridtypes.NetID {
 	buf := bytes.Buffer{}
 	buf.WriteString(userID)
+	buf.WriteString(":")
 	buf.WriteString(name)
 	h := md5.Sum(buf.Bytes())
 	b := base58.Encode(h[:])
 	if len(b) > 13 {
 		b = b[:13]
 	}
-	return pkg.NetID(string(b))
+	return gridtypes.NetID(string(b))
 }
 
 // networkProvision is entry point to provision a network
-func (p *Primitives) networkProvisionImpl(ctx context.Context, reservation *provision.Reservation) error {
-	nr := pkg.NetResource{}
-	if err := json.Unmarshal(reservation.Data, &nr); err != nil {
+func (p *Primitives) networkProvisionImpl(ctx context.Context, wl *gridtypes.Workload) error {
+	var nr gridtypes.Network
+	if err := json.Unmarshal(wl.Data, &nr); err != nil {
 		return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 	}
 
@@ -40,7 +40,7 @@ func (p *Primitives) networkProvisionImpl(ctx context.Context, reservation *prov
 		return fmt.Errorf("validation of the network resource failed: %w", err)
 	}
 
-	nr.NetID = NetworkID(reservation.User, nr.Name)
+	nr.NetID = NetworkID(wl.User.String(), nr.Name)
 
 	mgr := stubs.NewNetworkerStub(p.zbus)
 	log.Debug().Str("network", fmt.Sprintf("%+v", nr)).Msg("provision network")
@@ -53,21 +53,21 @@ func (p *Primitives) networkProvisionImpl(ctx context.Context, reservation *prov
 	return nil
 }
 
-func (p *Primitives) networkProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
-	return nil, p.networkProvisionImpl(ctx, reservation)
+func (p *Primitives) networkProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
+	return nil, p.networkProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) networkDecommission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) networkDecommission(ctx context.Context, wl *gridtypes.Workload) error {
 	mgr := stubs.NewNetworkerStub(p.zbus)
 
-	network := &pkg.NetResource{}
-	if err := json.Unmarshal(reservation.Data, network); err != nil {
+	var network gridtypes.Network
+	if err := json.Unmarshal(wl.Data, network); err != nil {
 		return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 	}
 
-	network.NetID = NetworkID(reservation.User, network.Name)
+	network.NetID = NetworkID(wl.User.String(), network.Name)
 
-	if err := mgr.DeleteNR(*network); err != nil {
+	if err := mgr.DeleteNR(network); err != nil {
 		return fmt.Errorf("failed to delete network resource: %w", err)
 	}
 	return nil

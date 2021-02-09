@@ -3,28 +3,22 @@ package api
 import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-// Engine is engine interface
-type Engine interface {
-	Feed() chan<- gridtypes.Reservation
-	Get(gridtypes.ID) (gridtypes.Reservation, error)
-}
-
-// API is provision engine API
-type API struct {
-	engine Engine
+// Workloads is provision engine Workloads
+type Workloads struct {
+	engine provision.Engine
 }
 
 // New creates a new API instance on given gorilla router
-func New(router *mux.Router, engine Engine) (*API, error) {
-	api := &API{engine: engine}
+func New(router *mux.Router, engine provision.Engine) (*Workloads, error) {
+	api := &Workloads{engine: engine}
 
 	return api, api.setup(router)
 }
 
-func (a *API) nextID() (string, error) {
+func (a *Workloads) nextID() (string, error) {
 	id, err := uuid.NewUUID()
 	if err != nil {
 		return "", err

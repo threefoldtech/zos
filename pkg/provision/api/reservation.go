@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/provision/mw"
 )
 
-func (a *API) createReservation(request *http.Request) (interface{}, Response) {
-	var reservation gridtypes.Reservation
+func (a *Workloads) create(request *http.Request) (interface{}, mw.Response) {
+	var reservation gridtypes.Workload
 	if err := json.NewDecoder(request.Body).Decode(&reservation); err != nil {
-		return nil, BadRequest(err)
+		return nil, mw.BadRequest(err)
 	}
 
 	id, err := a.nextID()
 	if err != nil {
-		return nil, Error(err)
+		return nil, mw.Error(err)
 	}
 	reservation.ID = gridtypes.ID(id)
 	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
@@ -27,8 +28,8 @@ func (a *API) createReservation(request *http.Request) (interface{}, Response) {
 	//accept his reservation
 	select {
 	case <-ctx.Done():
-		return nil, Unavailable(ctx.Err())
-	case a.engine.Feed() <- reservation:
-		return id, Accepted()
+		return nil, mw.Unavailable(ctx.Err())
+	case a.engine.Provision() <- reservation:
+		return id, mw.Accepted()
 	}
 }

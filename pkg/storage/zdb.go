@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
 	"github.com/threefoldtech/zos/pkg/storage/zdbpool"
 )
@@ -62,7 +63,7 @@ func (s *Module) Allocate(nsID string, diskType pkg.DeviceType, size uint64, mod
 		Str("mode", string(mode)).
 		Logger()
 
-	if diskType != pkg.HDDDevice && diskType != pkg.SSDDevice {
+	if diskType != gridtypes.HDDDevice && diskType != gridtypes.SSDDevice {
 		return allocation, pkg.ErrInvalidDeviceType{DeviceType: diskType}
 	}
 

@@ -19,16 +19,18 @@ const (
 	NetworkReservation ReservationType = "network"
 	// ZDBReservation type
 	ZDBReservation ReservationType = "zdb"
-	// DebugReservation type
-	DebugReservation ReservationType = "debug"
+
+	// DebugReservation type [deprecated]
+	// DebugReservation ReservationType = "debug"
+
 	// KubernetesReservation type
 	KubernetesReservation ReservationType = "kubernetes"
-	//IPV4Reservation reservation
-	IPV4Reservation ReservationType = "ipv4"
+	//PublicIPReservation reservation
+	PublicIPReservation ReservationType = "ipv4"
 )
 
-// Reservation struct
-type Reservation struct {
+// Workload struct
+type Workload struct {
 	//Version is version of reservation object
 	Version int `json:"version"`
 	// ID of the reservation

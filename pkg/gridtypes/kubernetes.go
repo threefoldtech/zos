@@ -27,4 +27,13 @@ type Kubernetes struct {
 	SSHKeys []string `json:"ssh_keys"`
 	// PublicIP points to a reservation for a public ip
 	PublicIP ID `json:"public_ip"`
+
+	// PlainClusterSecret plaintext secret
+	PlainClusterSecret string `json:"-"`
+}
+
+// KubernetesResult result returned by k3s reservation
+type KubernetesResult struct {
+	ID string `json:"id"`
+	IP string `json:"ip"`
 }

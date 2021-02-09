@@ -11,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	log "github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // DeviceManager is able to list all/specific devices on a system
@@ -46,13 +46,13 @@ const (
 
 // Device represents a physical device
 type Device struct {
-	Type       string         `json:"type"`
-	Path       string         `json:"name"`
-	Label      string         `json:"label"`
-	Filesystem FSType         `json:"fstype"`
-	Children   []Device       `json:"children"`
-	DiskType   pkg.DeviceType `json:"-"`
-	ReadTime   uint64         `json:"-"`
+	Type       string               `json:"type"`
+	Path       string               `json:"name"`
+	Label      string               `json:"label"`
+	Filesystem FSType               `json:"fstype"`
+	Children   []Device             `json:"children"`
+	DiskType   gridtypes.DeviceType `json:"-"`
+	ReadTime   uint64               `json:"-"`
 	//HasPartions is different from children, because once the
 	//devices are flattend in the device, cache, the children list is
 	//zeroed (since all devices are flat), then has partions is set to
@@ -236,7 +236,7 @@ func (l *lsblkDeviceManager) setDeviceTypes(devices []Device) error {
 
 // setDeviceType recursively sets a device type and read time on a device and
 // all of its children
-func (l *lsblkDeviceManager) setDeviceType(device *Device, typ pkg.DeviceType, readTime uint64) {
+func (l *lsblkDeviceManager) setDeviceType(device *Device, typ gridtypes.DeviceType, readTime uint64) {
 	device.DiskType = typ
 	device.ReadTime = readTime
 
@@ -246,15 +246,15 @@ func (l *lsblkDeviceManager) setDeviceType(device *Device, typ pkg.DeviceType, r
 	}
 }
 
-func (l *lsblkDeviceManager) deviceTypeFromString(typ string) pkg.DeviceType {
+func (l *lsblkDeviceManager) deviceTypeFromString(typ string) gridtypes.DeviceType {
 	switch strings.ToLower(typ) {
-	case string(pkg.SSDDevice):
-		return pkg.SSDDevice
-	case string(pkg.HDDDevice):
-		return pkg.HDDDevice
+	case string(gridtypes.SSDDevice):
+		return gridtypes.SSDDevice
+	case string(gridtypes.HDDDevice):
+		return gridtypes.HDDDevice
 	default:
 		// if we have an error or unrecognized type, set type to HDD
-		return pkg.HDDDevice
+		return gridtypes.HDDDevice
 	}
 }
 

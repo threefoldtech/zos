@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/macvlan"
 	"github.com/threefoldtech/zos/pkg/network/options"
@@ -30,14 +31,14 @@ import (
 type NetResource struct {
 	id pkg.NetID
 	// local network resources
-	resource pkg.NetResource
+	resource gridtypes.Network
 	// network IP range, usually a /16
 	networkIPRange net.IPNet
 }
 
 // New creates a new NetResource object
 // iprange is the full network subnet
-func New(nr pkg.NetResource) (*NetResource, error) {
+func New(nr gridtypes.Network) (*NetResource, error) {
 	return &NetResource{
 		id:             nr.NetID,
 		resource:       nr,

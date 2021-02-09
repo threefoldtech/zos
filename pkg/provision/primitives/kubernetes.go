@@ -9,55 +9,23 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
-	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
-	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-// KubernetesResult result returned by k3s reservation
-type KubernetesResult struct {
-	ID string `json:"id"`
-	IP string `json:"ip"`
-}
+// Kubernetes type
+type Kubernetes = gridtypes.Kubernetes
 
-// Kubernetes reservation data
-type Kubernetes struct {
-	// Size of the vm, this defines the amount of vCpu, memory, and the disk size
-	// Docs: docs/kubernetes/sizes.md
-	Size uint8 `json:"size"`
-
-	// NetworkID of the network namepsace in which to run the VM. The network
-	// must be provisioned previously.
-	NetworkID pkg.NetID `json:"network_id"`
-	// IP of the VM. The IP must be part of the subnet available in the network
-	// resource defined by the networkID on this node
-	IP net.IP `json:"ip"`
-
-	// ClusterSecret is the hex encoded encrypted cluster secret.
-	ClusterSecret string `json:"cluster_secret"`
-	// MasterIPs define the URL's for the kubernetes master nodes. If this
-	// list is empty, this node is considered to be a master node.
-	MasterIPs []net.IP `json:"master_ips"`
-	// SSHKeys is a list of ssh keys to add to the VM. Keys can be either
-	// a full ssh key, or in the form of `github:${username}`. In case of
-	// the later, the VM will retrieve the github keys for this username
-	// when it boots.
-	SSHKeys []string `json:"ssh_keys"`
-	// PublicIP points to a reservation for a public ip
-	PublicIP schema.ID `json:"public_ip"`
-
-	PlainClusterSecret string `json:"-"`
-}
+// KubernetesResult type
+type KubernetesResult = gridtypes.KubernetesResult
 
 // const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
 const k3osFlistURL = "https://hub.grid.tf/lee/k3os.flist"
 
-func (p *Primitives) kubernetesProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
-	return p.kubernetesProvisionImpl(ctx, reservation)
+func (p *Primitives) kubernetesProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
+	return p.kubernetesProvisionImpl(ctx, wl)
 }
 
 func ensureFList(flister pkg.Flister, url string) (string, error) {
@@ -71,7 +39,7 @@ func ensureFList(flister pkg.Flister, url string) (string, error) {
 	return flister.NamedMount(name, url, "", pkg.ReadOnlyMountOptions)
 }
 
-func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result KubernetesResult, err error) {
+func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (result KubernetesResult, err error) {
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)
@@ -83,11 +51,11 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, reservation *p
 		needsInstall = true
 	)
 
-	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	netID := NetworkID(reservation.User, string(config.NetworkID))
+	netID := NetworkID(wl.User.String(), string(config.NetworkID))
 
 	// check if the network tap already exists
 	// if it does, it's most likely that a vm with the same network id and node id already exists
@@ -102,14 +70,14 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, reservation *p
 	}
 
 	// check if public ipv4 is supported, should this be requested
-	if config.PublicIP != 0 && !network.PublicIPv4Support() {
+	if !config.PublicIP.IsEmpty() && !network.PublicIPv4Support() {
 		return result, errors.New("public ipv4 is requested, but not supported on this node")
 	}
 
-	result.ID = reservation.ID
+	result.ID = wl.ID.String()
 	result.IP = config.IP.String()
 
-	config.PlainClusterSecret, err = decryptSecret(config.ClusterSecret, reservation.User, reservation.Version, p.zbus)
+	config.PlainClusterSecret, err = decryptSecret(config.ClusterSecret, wl.User.String(), wl.Version, p.zbus)
 	if err != nil {
 		return result, errors.Wrap(err, "failed to decrypt namespace password")
 	}
@@ -119,7 +87,7 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, reservation *p
 		return result, errors.Wrap(err, "could not interpret vm size")
 	}
 
-	if _, err = vm.Inspect(reservation.ID); err == nil {
+	if _, err = vm.Inspect(wl.ID.String()); err == nil {
 		// vm is already running, nothing to do here
 		return result, nil
 	}
@@ -130,7 +98,7 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, reservation *p
 	}
 
 	var diskPath string
-	diskName := fmt.Sprintf("%s-%s", FilesystemName(*reservation), "vda")
+	diskName := fmt.Sprintf("%s-%s", FilesystemName(wl), "vda")
 	if storage.Exists(diskName) {
 		needsInstall = false
 		info, err := storage.Inspect(diskName)
@@ -164,35 +132,35 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, reservation *p
 	}()
 
 	var pubIface string
-	if config.PublicIP != 0 {
-		pubIface, err = network.SetupPubTap(pubIPResID(config.PublicIP))
+	if !config.PublicIP.IsEmpty() {
+		pubIface, err = network.SetupPubTap(config.PublicIP.String())
 		if err != nil {
 			return result, errors.Wrap(err, "could not set up tap device for public network")
 		}
 
 		defer func() {
 			if err != nil {
-				_ = network.RemovePubTap(pubIPResID(config.PublicIP))
+				_ = network.RemovePubTap(config.PublicIP.String())
 			}
 		}()
 	}
 
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = p.buildNetworkInfo(ctx, reservation.Version, reservation.User, iface, pubIface, config)
+	netInfo, err = p.buildNetworkInfo(ctx, wl.Version, wl.User.String(), iface, pubIface, config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
 
 	if needsInstall {
-		if err = p.kubernetesInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
+		if err = p.kubernetesInstall(ctx, wl.ID.String(), cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
 			return result, errors.Wrap(err, "failed to install k3s")
 		}
 	}
 
-	err = p.kubernetesRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config)
+	err = p.kubernetesRun(ctx, wl.ID.String(), cpu, memory, diskPath, imagePath, netInfo, config)
 	if err != nil {
 		// attempt to delete the vm, should the process still be lingering
-		vm.Delete(reservation.ID)
+		vm.Delete(wl.ID.String())
 	}
 
 	return result, err
@@ -296,7 +264,7 @@ func (p *Primitives) kubernetesRun(ctx context.Context, name string, cpu uint8, 
 	return vm.Run(kubevm)
 }
 
-func (p *Primitives) kubernetesDecomission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) kubernetesDecomission(ctx context.Context, wl *gridtypes.Workload) error {
 	var (
 		storage = stubs.NewVDiskModuleStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)
@@ -305,28 +273,28 @@ func (p *Primitives) kubernetesDecomission(ctx context.Context, reservation *pro
 		cfg Kubernetes
 	)
 
-	if err := json.Unmarshal(reservation.Data, &cfg); err != nil {
+	if err := json.Unmarshal(wl.Data, &cfg); err != nil {
 		return errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	if _, err := vm.Inspect(reservation.ID); err == nil {
-		if err := vm.Delete(reservation.ID); err != nil {
-			return errors.Wrapf(err, "failed to delete vm %s", reservation.ID)
+	if _, err := vm.Inspect(wl.ID.String()); err == nil {
+		if err := vm.Delete(wl.ID.String()); err != nil {
+			return errors.Wrapf(err, "failed to delete vm %s", wl.ID)
 		}
 	}
 
-	netID := NetworkID(reservation.User, string(cfg.NetworkID))
+	netID := NetworkID(wl.User.String(), string(cfg.NetworkID))
 	if err := network.RemoveTap(netID); err != nil {
 		return errors.Wrap(err, "could not clean up tap device")
 	}
 
-	if cfg.PublicIP != 0 {
-		if err := network.RemovePubTap(pubIPResID(cfg.PublicIP)); err != nil {
+	if !cfg.PublicIP.IsEmpty() {
+		if err := network.RemovePubTap(cfg.PublicIP.String()); err != nil {
 			return errors.Wrap(err, "could not clean up public tap device")
 		}
 	}
 
-	if err := storage.Deallocate(fmt.Sprintf("%s-%s", reservation.ID, "vda")); err != nil {
+	if err := storage.Deallocate(fmt.Sprintf("%s-%s", wl.ID, "vda")); err != nil {
 		return errors.Wrap(err, "could not remove vDisk")
 	}
 
@@ -385,7 +353,7 @@ func (p *Primitives) buildNetworkInfo(ctx context.Context, rversion int, userID 
 		networkInfo.NewStyle = true
 	}
 
-	if cfg.PublicIP != 0 {
+	if !cfg.PublicIP.IsEmpty() {
 		// A public ip is set, load the reservation, extract the ip and make a config
 		// for it
 
@@ -414,46 +382,49 @@ func (p *Primitives) buildNetworkInfo(ctx context.Context, rversion int, userID 
 }
 
 // Get the public ip, and the gateway from the reservation ID
-func (p *Primitives) getPubIPConfig(rid schema.ID) (net.IPNet, net.IP, error) {
-	// TODO: check if there is a better way to do this
-	explorerClient, err := app.ExplorerClient()
-	if err != nil {
-		return net.IPNet{}, nil, errors.Wrap(err, "could not create explorer client")
-	}
+func (p *Primitives) getPubIPConfig(rid gridtypes.ID) (net.IPNet, net.IP, error) {
 
-	// explorerClient.Workloads.Get(...) is currently broken
-	workloadDefinition, err := explorerClient.Workloads.NodeWorkloadGet(fmt.Sprintf("%d-1", rid))
-	if err != nil {
-		return net.IPNet{}, nil, errors.Wrap(err, "could not load public ip reservation")
-	}
-	// load IP
-	ip, ok := workloadDefinition.(*workloads.PublicIP)
-	if !ok {
-		return net.IPNet{}, nil, errors.Wrap(err, "could not decode ip reservation")
-	}
-	identity := stubs.NewIdentityManagerStub(p.zbus)
-	self := identity.NodeID().Identity()
-	selfDescription, err := explorerClient.Directory.NodeGet(self, false)
-	if err != nil {
-		return net.IPNet{}, nil, errors.Wrap(err, "could not get our own node description")
-	}
-	farm, err := explorerClient.Directory.FarmGet(schema.ID(selfDescription.FarmId))
-	if err != nil {
-		return net.IPNet{}, nil, errors.Wrap(err, "could not get our own farm")
-	}
+	panic("todo: not implemented")
 
-	var pubGw schema.IP
-	for _, ips := range farm.IPAddresses {
-		if ips.ReservationID == rid {
-			pubGw = ips.Gateway
-			break
-		}
-	}
-	if pubGw.IP == nil {
-		return net.IPNet{}, nil, errors.New("unable to identify public ip gateway")
-	}
+	// // TODO: check if there is a better way to do this
+	// explorerClient, err := app.ExplorerClient()
+	// if err != nil {
+	// 	return net.IPNet{}, nil, errors.Wrap(err, "could not create explorer client")
+	// }
 
-	return ip.IPaddress.IPNet, pubGw.IP, nil
+	// // explorerClient.Workloads.Get(...) is currently broken
+	// workloadDefinition, err := explorerClient.Workloads.NodeWorkloadGet(fmt.Sprintf("%d-1", rid))
+	// if err != nil {
+	// 	return net.IPNet{}, nil, errors.Wrap(err, "could not load public ip reservation")
+	// }
+	// // load IP
+	// ip, ok := workloadDefinition.(*workloads.PublicIP)
+	// if !ok {
+	// 	return net.IPNet{}, nil, errors.Wrap(err, "could not decode ip reservation")
+	// }
+	// identity := stubs.NewIdentityManagerStub(p.zbus)
+	// self := identity.NodeID().Identity()
+	// selfDescription, err := explorerClient.Directory.NodeGet(self, false)
+	// if err != nil {
+	// 	return net.IPNet{}, nil, errors.Wrap(err, "could not get our own node description")
+	// }
+	// farm, err := explorerClient.Directory.FarmGet(schema.ID(selfDescription.FarmId))
+	// if err != nil {
+	// 	return net.IPNet{}, nil, errors.Wrap(err, "could not get our own farm")
+	// }
+
+	// var pubGw schema.IP
+	// for _, ips := range farm.IPAddresses {
+	// 	if ips.ReservationID == rid {
+	// 		pubGw = ips.Gateway
+	// 		break
+	// 	}
+	// }
+	// if pubGw.IP == nil {
+	// 	return net.IPNet{}, nil, errors.New("unable to identify public ip gateway")
+	// }
+
+	// return ip.IPaddress.IPNet, pubGw.IP, nil
 }
 
 // returns the vCpu's, memory, disksize for a vm size
@@ -518,9 +489,4 @@ func vmSize(size uint8) (cpu uint8, memory uint64, storage uint64, err error) {
 	}
 
 	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size 1 to 18 are supported", size)
-}
-
-func pubIPResID(reservationID schema.ID) string {
-	// TODO: should this change in the actual reservation?
-	return fmt.Sprintf("%d-1", reservationID)
 }

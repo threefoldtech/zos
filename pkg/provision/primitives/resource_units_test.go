@@ -6,13 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 func Test_processZDB(t *testing.T) {
 	type args struct {
-		r *provision.Reservation
+		r *gridtypes.Workload
 	}
 
 	tests := []struct {
@@ -24,11 +23,11 @@ func Test_processZDB(t *testing.T) {
 		{
 			name: "zdbSSD",
 			args: args{
-				r: &provision.Reservation{
-					Type: ZDBReservation,
+				r: &gridtypes.Workload{
+					Type: gridtypes.ZDBReservation,
 					Data: mustMarshalJSON(t, ZDB{
 						Size:     1,
-						DiskType: pkg.SSDDevice,
+						DiskType: gridtypes.SSDDevice,
 					}),
 				},
 			},
@@ -40,11 +39,11 @@ func Test_processZDB(t *testing.T) {
 		{
 			name: "zdbHDD",
 			args: args{
-				r: &provision.Reservation{
-					Type: ZDBReservation,
+				r: &gridtypes.Workload{
+					Type: gridtypes.ZDBReservation,
 					Data: mustMarshalJSON(t, ZDB{
 						Size:     1,
-						DiskType: pkg.HDDDevice,
+						DiskType: gridtypes.HDDDevice,
 					}),
 				},
 			},
@@ -68,7 +67,7 @@ func Test_processZDB(t *testing.T) {
 
 func Test_processVolume(t *testing.T) {
 	type args struct {
-		r *provision.Reservation
+		r *gridtypes.Workload
 	}
 
 	tests := []struct {
@@ -80,11 +79,11 @@ func Test_processVolume(t *testing.T) {
 		{
 			name: "volumeSSD",
 			args: args{
-				r: &provision.Reservation{
-					Type: VolumeReservation,
+				r: &gridtypes.Workload{
+					Type: gridtypes.VolumeReservation,
 					Data: mustMarshalJSON(t, Volume{
 						Size: 1,
-						Type: pkg.SSDDevice,
+						Type: gridtypes.SSDDevice,
 					}),
 				},
 			},
@@ -95,11 +94,11 @@ func Test_processVolume(t *testing.T) {
 		{
 			name: "volumeHDD",
 			args: args{
-				r: &provision.Reservation{
-					Type: VolumeReservation,
+				r: &gridtypes.Workload{
+					Type: gridtypes.VolumeReservation,
 					Data: mustMarshalJSON(t, Volume{
 						Size: 1,
-						Type: pkg.HDDDevice,
+						Type: gridtypes.HDDDevice,
 					}),
 				},
 			},
@@ -122,7 +121,7 @@ func Test_processVolume(t *testing.T) {
 
 func Test_processContainer(t *testing.T) {
 	type args struct {
-		r *provision.Reservation
+		r *gridtypes.Workload
 	}
 
 	tests := []struct {
@@ -134,13 +133,13 @@ func Test_processContainer(t *testing.T) {
 		{
 			name: "container",
 			args: args{
-				r: &provision.Reservation{
-					Type: VolumeReservation,
+				r: &gridtypes.Workload{
+					Type: gridtypes.VolumeReservation,
 					Data: mustMarshalJSON(t, Container{
-						Capacity: ContainerCapacity{
+						Capacity: gridtypes.ContainerCapacity{
 							CPU:      2,
 							Memory:   1024,
-							DiskType: pkg.SSDDevice,
+							DiskType: gridtypes.SSDDevice,
 							DiskSize: 256,
 						},
 					}),
@@ -155,13 +154,13 @@ func Test_processContainer(t *testing.T) {
 		{
 			name: "container",
 			args: args{
-				r: &provision.Reservation{
-					Type: VolumeReservation,
+				r: &gridtypes.Workload{
+					Type: gridtypes.VolumeReservation,
 					Data: mustMarshalJSON(t, Container{
-						Capacity: ContainerCapacity{
+						Capacity: gridtypes.ContainerCapacity{
 							CPU:      2,
 							Memory:   2048,
-							DiskType: pkg.SSDDevice,
+							DiskType: gridtypes.SSDDevice,
 							DiskSize: 1024,
 						},
 					}),
@@ -188,7 +187,7 @@ func Test_processContainer(t *testing.T) {
 
 func Test_processKubernetes(t *testing.T) {
 	type args struct {
-		r *provision.Reservation
+		r *gridtypes.Workload
 	}
 
 	tests := []struct {
@@ -200,8 +199,8 @@ func Test_processKubernetes(t *testing.T) {
 		{
 			name: "k8sSize1",
 			args: args{
-				r: &provision.Reservation{
-					Type: KubernetesReservation,
+				r: &gridtypes.Workload{
+					Type: gridtypes.KubernetesReservation,
 					Data: mustMarshalJSON(t, Kubernetes{
 						Size: 1,
 					}),
@@ -216,8 +215,8 @@ func Test_processKubernetes(t *testing.T) {
 		{
 			name: "k8sSize2",
 			args: args{
-				r: &provision.Reservation{
-					Type: KubernetesReservation,
+				r: &gridtypes.Workload{
+					Type: gridtypes.KubernetesReservation,
 					Data: mustMarshalJSON(t, Kubernetes{
 						Size: 2,
 					}),

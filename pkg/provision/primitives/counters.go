@@ -2,13 +2,11 @@ package primitives
 
 import (
 	"encoding/json"
-	"fmt"
 	"sync/atomic"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // AtomicValue value for safe increment/decrement
@@ -87,7 +85,7 @@ const (
 )
 
 // Increment is called by the provision.Engine when a reservation has been provisionned
-func (c *Counters) Increment(r *provision.Reservation) error {
+func (c *Counters) Increment(r *gridtypes.Workload) error {
 
 	var (
 		u   resourceUnits
@@ -95,22 +93,24 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 	)
 
 	switch r.Type {
-	case VolumeReservation:
+	case gridtypes.VolumeReservation:
 		c.volumes.Increment(1)
 		u, err = processVolume(r)
-	case ContainerReservation:
+	case gridtypes.ContainerReservation:
 		c.containers.Increment(1)
 		u, err = processContainer(r)
-	case ZDBReservation:
+	case gridtypes.ZDBReservation:
 		c.zdbs.Increment(1)
 		u, err = processZdb(r)
-	case KubernetesReservation:
+	case gridtypes.KubernetesReservation:
 		c.vms.Increment(1)
 		u, err = processKubernetes(r)
-	case NetworkReservation, NetworkResourceReservation:
+	case gridtypes.NetworkReservation:
 		c.networks.Increment(1)
 		u = resourceUnits{}
 		err = nil
+
+		//TODO: add case for ipv4
 	default:
 		u = resourceUnits{}
 		err = nil
@@ -128,7 +128,7 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 }
 
 // Decrement is called by the provision.Engine when a reservation has been decommissioned
-func (c *Counters) Decrement(r *provision.Reservation) error {
+func (c *Counters) Decrement(r *gridtypes.Workload) error {
 
 	var (
 		u   resourceUnits
@@ -136,22 +136,23 @@ func (c *Counters) Decrement(r *provision.Reservation) error {
 	)
 
 	switch r.Type {
-	case VolumeReservation:
+	case gridtypes.VolumeReservation:
 		c.volumes.Decrement(1)
 		u, err = processVolume(r)
-	case ContainerReservation:
+	case gridtypes.ContainerReservation:
 		c.containers.Decrement(1)
 		u, err = processContainer(r)
-	case ZDBReservation:
+	case gridtypes.ZDBReservation:
 		c.zdbs.Decrement(1)
 		u, err = processZdb(r)
-	case KubernetesReservation:
+	case gridtypes.KubernetesReservation:
 		c.vms.Decrement(1)
 		u, err = processKubernetes(r)
-	case NetworkReservation, NetworkResourceReservation:
+	case gridtypes.NetworkReservation:
 		c.networks.Decrement(1)
 		u = resourceUnits{}
 		err = nil
+		//TODO: add case for ipv4
 	default:
 		u = resourceUnits{}
 		err = nil
@@ -177,18 +178,18 @@ type resourceUnits struct {
 
 // CheckMemoryRequirements checks memory requirements for a reservation and compares it to whats in the counters
 // and what is the total memory on this node
-func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, totalMemAvailable uint64) error {
+func (c *Counters) CheckMemoryRequirements(r *gridtypes.Workload, totalMemAvailable uint64) error {
 	var requestedUnits resourceUnits
 	var err error
 
 	switch r.Type {
-	case ContainerReservation:
+	case gridtypes.ContainerReservation:
 		requestedUnits, err = processContainer(r)
 		if err != nil {
 			return err
 		}
 
-	case KubernetesReservation:
+	case gridtypes.KubernetesReservation:
 		requestedUnits, err = processKubernetes(r)
 		if err != nil {
 			return err
@@ -205,60 +206,58 @@ func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, totalMemAva
 	return nil
 }
 
-func processVolume(r *provision.Reservation) (u resourceUnits, err error) {
-	var volume Volume
+func processVolume(r *gridtypes.Workload) (u resourceUnits, err error) {
+	var volume gridtypes.Volume
 	if err = json.Unmarshal(r.Data, &volume); err != nil {
 		return u, err
 	}
 
 	// volume.size and SRU is in GiB
 	switch volume.Type {
-	case pkg.SSDDevice:
+	case gridtypes.SSDDevice:
 		u.SRU = volume.Size * gib
-	case pkg.HDDDevice:
+	case gridtypes.HDDDevice:
 		u.HRU = volume.Size * gib
 	}
 
 	return u, nil
 }
 
-func processContainer(r *provision.Reservation) (u resourceUnits, err error) {
-	var cont Container
+func processContainer(r *gridtypes.Workload) (u resourceUnits, err error) {
+	var cont gridtypes.Container
 	if err = json.Unmarshal(r.Data, &cont); err != nil {
 		return u, err
 	}
 	u.CRU = uint64(cont.Capacity.CPU)
 	// memory is in MiB
 	u.MRU = cont.Capacity.Memory * mib
-	if cont.Capacity.DiskType == pkg.SSDDevice {
+	if cont.Capacity.DiskType == gridtypes.SSDDevice {
 		u.SRU = cont.Capacity.DiskSize * mib
-	} else if cont.Capacity.DiskType == pkg.HDDDevice {
+	} else if cont.Capacity.DiskType == gridtypes.HDDDevice {
 		u.HRU = cont.Capacity.DiskSize * mib
 	}
 
 	return u, nil
 }
 
-func processZdb(r *provision.Reservation) (u resourceUnits, err error) {
-	if r.Type != ZDBReservation {
-		return u, fmt.Errorf("wrong type or reservation %s, excepted %s", r.Type, ZDBReservation)
-	}
-	var zdbVolume ZDB
+func processZdb(r *gridtypes.Workload) (u resourceUnits, err error) {
+
+	var zdbVolume gridtypes.ZDB
 	if err := json.Unmarshal(r.Data, &zdbVolume); err != nil {
 		return u, err
 	}
 
 	switch zdbVolume.DiskType {
-	case pkg.SSDDevice:
+	case gridtypes.SSDDevice:
 		u.SRU = zdbVolume.Size * gib
-	case pkg.HDDDevice:
+	case gridtypes.HDDDevice:
 		u.HRU = zdbVolume.Size * gib
 	}
 
 	return u, nil
 }
 
-func processKubernetes(r *provision.Reservation) (u resourceUnits, err error) {
+func processKubernetes(r *gridtypes.Workload) (u resourceUnits, err error) {
 	var k8s Kubernetes
 	if err = json.Unmarshal(r.Data, &k8s); err != nil {
 		return u, err

@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
-	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -42,16 +42,16 @@ type PublicIPResult struct {
 	IP string `json:"ip"`
 }
 
-func (p *Primitives) publicIPProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
-	return p.publicIPProvisionImpl(ctx, reservation)
+func (p *Primitives) publicIPProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
+	return p.publicIPProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) publicIPProvisionImpl(ctx context.Context, reservation *provision.Reservation) (result PublicIPResult, err error) {
+func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (result PublicIPResult, err error) {
 	config := PublicIP{}
 
 	network := stubs.NewNetworkerStub(p.zbus)
 
-	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return PublicIPResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
@@ -64,8 +64,8 @@ func (p *Primitives) publicIPProvisionImpl(ctx context.Context, reservation *pro
 		return PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
 	}
 
-	tapName := fmt.Sprintf("p-%s", reservation.ID) // TODO: clean this up, needs to come form networkd
-	fName := filterName(reservation.ID)
+	tapName := fmt.Sprintf("p-%s", wl.ID) // TODO: clean this up, needs to come form networkd
+	fName := filterName(wl.ID.String())
 	mac := ifaceutil.HardwareAddrFromInputBytes(config.IP.IP.To4())
 
 	predictedIPv6, err := predictedSlaac(pubIP6Base.IP, mac.String())
@@ -75,19 +75,19 @@ func (p *Primitives) publicIPProvisionImpl(ctx context.Context, reservation *pro
 
 	err = setupFilters(ctx, fName, tapName, config.IP.IP.To4().String(), predictedIPv6, mac.String())
 	return PublicIPResult{
-		ID: reservation.ID,
+		ID: wl.ID.String(),
 		IP: config.IP.IP.String(),
 	}, err
 }
 
-func (p *Primitives) publicIPDecomission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) publicIPDecomission(ctx context.Context, wl *gridtypes.Workload) error {
 	// Disconnect the public interface from the network if one exists
 	network := stubs.NewNetworkerStub(p.zbus)
-	fName := filterName(reservation.ID)
+	fName := filterName(wl.ID.String())
 	if err := teardownFilters(ctx, fName); err != nil {
 		log.Error().Err(err).Msg("could not remove filter rules")
 	}
-	return network.DisconnectPubTap(reservation.ID)
+	return network.DisconnectPubTap(wl.ID.String())
 }
 
 func filterName(reservationID string) string {

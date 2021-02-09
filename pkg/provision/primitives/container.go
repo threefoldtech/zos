@@ -15,122 +15,40 @@ import (
 
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
-	"github.com/threefoldtech/zos/pkg/container/stats"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-// Network struct
-type Network struct {
-	NetworkID pkg.NetID `json:"network_id"`
-	// IP to give to the container
-	IPs         []net.IP `json:"ips"`
-	PublicIP6   bool     `json:"public_ip6"`
-	YggdrasilIP bool     `json:"yggdrasil_ip"`
-}
+type Container = gridtypes.Container
+type ContainerResult = gridtypes.ContainerResult
 
-// Mount defines a container volume mounted inside the container
-type Mount struct {
-	VolumeID   string `json:"volume_id"`
-	Mountpoint string `json:"mountpoint"`
-}
-
-// Logs defines a custom backend with variable settings
-type Logs struct {
-	Type string   `json:"type"`
-	Data LogsData `json:"data"`
-}
-
-// LogsData structure
-type LogsData struct {
-	// Stdout is the redis url for stdout (redis://host/channel)
-	Stdout string `json:"stdout"`
-
-	// Stderr is the redis url for stderr (redis://host/channel)
-	Stderr string `json:"stderr"`
-
-	// SecretStdout like stdout but encrypted with node public key
-	SecretStdout string `json:"secret_stdout"`
-
-	// SecretStderr like stderr but encrypted with node public key
-	SecretStderr string `json:"secret_stderr"`
-}
-
-//Container creation info
-type Container struct {
-	// URL of the flist
-	FList string `json:"flist"`
-	// URL of the storage backend for the flist
-	FlistStorage string `json:"flist_storage"`
-	// Env env variables to container in format
-	Env map[string]string `json:"env"`
-	// Env env variables to container that the value is encrypted
-	// with the node public key. the env will be exposed to plain
-	// text to the entrypoint.
-	SecretEnv map[string]string `json:"secret_env"`
-	// Entrypoint the process to start inside the container
-	Entrypoint string `json:"entrypoint"`
-	// Interactivity enable Core X as PID 1 on the container
-	Interactive bool `json:"interactive"`
-	// Mounts extra mounts in the container
-	Mounts []Mount `json:"mounts"`
-	// Network network info for container
-	Network Network `json:"network"`
-	// ContainerCapacity is the amount of resource to allocate to the container
-	Capacity ContainerCapacity `json:"capacity"`
-	// Logs contains a list of endpoint where to send containerlogs
-	Logs []Logs `json:"logs,omitempty"`
-	// Stats container metrics backend
-	Stats []stats.Stats `json:"stats,omitempty"`
-}
-
-// ContainerResult is the information return to the BCDB
-// after deploying a container
-type ContainerResult struct {
-	ID    string `json:"id"`
-	IPv6  string `json:"ipv6"`
-	IPv4  string `json:"ipv4"`
-	IPYgg string `json:"yggdrasil"`
-}
-
-// ContainerCapacity is the amount of resource to allocate to the container
-type ContainerCapacity struct {
-	// Number of CPU
-	CPU uint `json:"cpu"`
-	// Memory in MiB
-	Memory uint64 `json:"memory"`
-	//DiskType is the type of disk to use for root fs
-	DiskType pkg.DeviceType `json:"disk_type"`
-	// DiskSize of the root fs in MiB
-	DiskSize uint64 `json:"disk_size"`
-}
-
-func (p *Primitives) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
-	return p.containerProvisionImpl(ctx, reservation)
+func (p *Primitives) containerProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
+	return p.containerProvisionImpl(ctx, wl)
 }
 
 // ContainerProvision is entry point to container reservation
-func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *provision.Reservation) (ContainerResult, error) {
+func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (ContainerResult, error) {
 	var (
 		containerClient = stubs.NewContainerModuleStub(p.zbus)
 		flistClient     = stubs.NewFlisterStub(p.zbus)
 		storageClient   = stubs.NewStorageModuleStub(p.zbus)
 		networkMgr      = stubs.NewNetworkerStub(p.zbus)
-		tenantNS        = fmt.Sprintf("ns%s", reservation.User)
-		containerID     = reservation.ID
+		tenantNS        = fmt.Sprintf("ns%s", wl.User)
+		containerID     = wl.ID
 	)
 
 	var config Container
-	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return ContainerResult{}, err
 	}
 
 	// check if workload is already deployed
 	_, err := containerClient.Inspect(tenantNS, pkg.ContainerID(containerID))
 	if err == nil {
-		log.Info().Str("id", containerID).Msg("container already deployed")
+		log.Info().Stringer("id", containerID).Msg("container already deployed")
 		return ContainerResult{
-			ID:   containerID,
+			ID:   string(containerID),
 			IPv4: config.Network.IPs[0].String(),
 		}, nil
 	}
@@ -139,7 +57,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 		return ContainerResult{}, errors.Wrap(err, "container provision schema not valid")
 	}
 
-	netID := NetworkID(reservation.User, string(config.Network.NetworkID))
+	netID := NetworkID(wl.User.String(), string(config.Network.NetworkID))
 	log.Debug().
 		Str("network-id", string(netID)).
 		Str("config", fmt.Sprintf("%+v", config)).
@@ -158,8 +76,8 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 			return ContainerResult{}, errors.Wrapf(err, "failed to retrieve the owner of volume %s", mount.VolumeID)
 		}
 
-		if volumeRes.User != reservation.User {
-			return ContainerResult{}, fmt.Errorf("cannot use volume %s, user %s is not the owner of it", mount.VolumeID, reservation.User)
+		if volumeRes.User != wl.User.String() {
+			return ContainerResult{}, fmt.Errorf("cannot use volume %s, user %s is not the owner of it", mount.VolumeID, wl.User)
 		}
 	}
 
@@ -170,7 +88,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 	}
 
 	for k, v := range config.SecretEnv {
-		v, err := decryptSecret(v, reservation.User, reservation.Version, p.zbus)
+		v, err := decryptSecret(v, wl.User.String(), wl.Version, p.zbus)
 		if err != nil {
 			return ContainerResult{}, errors.Wrapf(err, "failed to decrypt secret env var '%s'", k)
 		}
@@ -183,14 +101,14 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 		stderr := log.Data.Stderr
 
 		if len(log.Data.SecretStdout) > 0 {
-			stdout, err = decryptSecret(log.Data.SecretStdout, reservation.User, reservation.Version, p.zbus)
+			stdout, err = decryptSecret(log.Data.SecretStdout, wl.User.String(), wl.Version, p.zbus)
 			if err != nil {
 				return ContainerResult{}, errors.Wrap(err, "failed to decrypt log.secret_stdout var")
 			}
 		}
 
 		if len(log.Data.SecretStderr) > 0 {
-			stderr, err = decryptSecret(log.Data.SecretStderr, reservation.User, reservation.Version, p.zbus)
+			stderr, err = decryptSecret(log.Data.SecretStderr, wl.User.String(), wl.Version, p.zbus)
 			if err != nil {
 				return ContainerResult{}, errors.Wrap(err, "failed to decrypt log.secret_stdout var")
 			}
@@ -210,7 +128,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 		ips[i] = ip.String()
 	}
 	var join pkg.Member
-	join, err = networkMgr.Join(netID, containerID, pkg.ContainerNetworkConfig{
+	join, err = networkMgr.Join(netID, containerID.String(), pkg.ContainerNetworkConfig{
 		IPs:         ips,
 		PublicIP6:   config.Network.PublicIP6,
 		YggdrasilIP: config.Network.YggdrasilIP,
@@ -222,12 +140,12 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 		Str("ipv6", join.IPv6.String()).
 		Str("ygg", join.YggdrasilIP.String()).
 		Str("ipv4", join.IPv4.String()).
-		Str("container", reservation.ID).
+		Stringer("container", wl.ID).
 		Msg("assigned an IP")
 
 	defer func() {
 		if err != nil {
-			if err := networkMgr.Leave(netID, containerID); err != nil {
+			if err := networkMgr.Leave(netID, containerID.String()); err != nil {
 				log.Error().Err(err).Msgf("failed leave container network namespace")
 			}
 		}
@@ -245,7 +163,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 	}
 
 	var mnt string
-	mnt, err = flistClient.NamedMount(FilesystemName(*reservation), config.FList, config.FlistStorage, rootfsMntOpt)
+	mnt, err = flistClient.NamedMount(FilesystemName(wl), config.FList, config.FlistStorage, rootfsMntOpt)
 	if err != nil {
 		return ContainerResult{}, err
 	}
@@ -277,7 +195,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 	defer func() {
 		if err != nil {
 			if err := containerClient.Delete(tenantNS, pkg.ContainerID(containerID)); err != nil {
-				log.Error().Err(err).Str("container_id", containerID).Msg("error during delete of container")
+				log.Error().Err(err).Stringer("container_id", containerID).Msg("error during delete of container")
 			}
 
 			if err := flistClient.Umount(mnt); err != nil {
@@ -290,7 +208,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 	id, err = containerClient.Run(
 		tenantNS,
 		pkg.Container{
-			Name:   containerID,
+			Name:   containerID.String(),
 			RootFS: mnt,
 			Env:    env,
 			Network: pkg.NetworkInfo{
@@ -329,16 +247,16 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, reservation *pr
 	}, nil
 }
 
-func (p *Primitives) containerDecommission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) containerDecommission(ctx context.Context, wl *gridtypes.Workload) error {
 	container := stubs.NewContainerModuleStub(p.zbus)
 	flist := stubs.NewFlisterStub(p.zbus)
 	networkMgr := stubs.NewNetworkerStub(p.zbus)
 
-	tenantNS := fmt.Sprintf("ns%s", reservation.User)
-	containerID := pkg.ContainerID(reservation.ID)
+	tenantNS := fmt.Sprintf("ns%s", wl.User)
+	containerID := pkg.ContainerID(wl.ID)
 
 	var config Container
-	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return err
 	}
 
@@ -364,7 +282,7 @@ func (p *Primitives) containerDecommission(ctx context.Context, reservation *pro
 		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
 	}
 
-	netID := NetworkID(reservation.User, string(config.Network.NetworkID))
+	netID := NetworkID(wl.User.String(), string(config.Network.NetworkID))
 	if _, err := networkMgr.GetSubnet(netID); err == nil { // simple check to make sure the network still exists on the node
 		if err := networkMgr.Leave(netID, string(containerID)); err != nil {
 			return errors.Wrap(err, "failed to delete container network namespace")

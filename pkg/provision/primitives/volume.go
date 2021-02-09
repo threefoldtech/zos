@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
 
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -17,49 +16,41 @@ const (
 )
 
 // Volume defines a mount point
-type Volume struct {
-	// Size of the volume in GiB
-	Size uint64 `json:"size"`
-	// Type of disk underneath the volume
-	Type pkg.DeviceType `json:"type"`
-}
+type Volume = gridtypes.Volume
 
-// VolumeResult is the information return to the BCDB
-// after deploying a volume
-type VolumeResult struct {
-	ID string `json:"volume_id"`
-}
+// VolumeResult types
+type VolumeResult = gridtypes.VolumeResult
 
-func (p *Primitives) volumeProvisionImpl(ctx context.Context, reservation *provision.Reservation) (VolumeResult, error) {
+func (p *Primitives) volumeProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (VolumeResult, error) {
 	var config Volume
-	if err := json.Unmarshal(reservation.Data, &config); err != nil {
+	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return VolumeResult{}, err
 	}
 
 	storageClient := stubs.NewStorageModuleStub(p.zbus)
 
-	_, err := storageClient.Path(reservation.ID)
+	_, err := storageClient.Path(wl.ID.String())
 	if err == nil {
-		log.Info().Str("id", reservation.ID).Msg("volume already deployed")
+		log.Info().Stringer("id", wl.ID).Msg("volume already deployed")
 		return VolumeResult{
-			ID: reservation.ID,
+			ID: wl.ID.String(),
 		}, nil
 	}
 
-	_, err = storageClient.CreateFilesystem(FilesystemName(*reservation), config.Size*gigabyte, config.Type)
+	_, err = storageClient.CreateFilesystem(FilesystemName(wl), config.Size*gigabyte, config.Type)
 
 	return VolumeResult{
-		ID: reservation.ID,
+		ID: wl.ID.String(),
 	}, err
 }
 
 // VolumeProvision is entry point to provision a volume
-func (p *Primitives) volumeProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
-	return p.volumeProvisionImpl(ctx, reservation)
+func (p *Primitives) volumeProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
+	return p.volumeProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) volumeDecommission(ctx context.Context, reservation *provision.Reservation) error {
+func (p *Primitives) volumeDecommission(ctx context.Context, wl *gridtypes.Workload) error {
 	storageClient := stubs.NewStorageModuleStub(p.zbus)
 
-	return storageClient.ReleaseFilesystem(reservation.ID)
+	return storageClient.ReleaseFilesystem(wl.ID.String())
 }

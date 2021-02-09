@@ -8,6 +8,15 @@ import (
 // ID is a generic ID type
 type ID string
 
+func (id ID) String() string {
+	return string(id)
+}
+
+// IsEmpty checks if id is empty
+func (id ID) IsEmpty() bool {
+	return len(id) == 0
+}
+
 // DeviceType is the actual type of hardware that the storage device runs on,
 // i.e. SSD or HDD
 type DeviceType string

@@ -12,10 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/termie/go-shutil"
 
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/cache"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
@@ -54,6 +56,11 @@ const (
 
 const (
 	mib = 1024 * 1024
+)
+
+var (
+	//NetworkSchemaLatestVersion last version
+	NetworkSchemaLatestVersion = semver.MustParse("0.1.0")
 )
 
 type networker struct {
@@ -613,7 +620,7 @@ func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 }
 
 // CreateNR implements pkg.Networker interface
-func (n *networker) CreateNR(netNR pkg.NetResource) (string, error) {
+func (n *networker) CreateNR(netNR gridtypes.Network) (string, error) {
 	defer func() {
 		if err := n.publishWGPorts(); err != nil {
 			log.Warn().Err(err).Msg("failed to publish wireguard port to BCDB")
@@ -706,7 +713,7 @@ func (n *networker) CreateNR(netNR pkg.NetResource) (string, error) {
 	return netr.Namespace()
 }
 
-func (n *networker) storeNetwork(network pkg.NetResource) error {
+func (n *networker) storeNetwork(network gridtypes.Network) error {
 	// map the network ID to the network namespace
 	path := filepath.Join(n.networkDir, string(network.NetID))
 	file, err := os.Create(path)
@@ -715,7 +722,7 @@ func (n *networker) storeNetwork(network pkg.NetResource) error {
 	}
 	defer file.Close()
 
-	writer, err := versioned.NewWriter(file, pkg.NetworkSchemaLatestVersion)
+	writer, err := versioned.NewWriter(file, NetworkSchemaLatestVersion)
 	if err != nil {
 		return err
 	}
@@ -729,7 +736,7 @@ func (n *networker) storeNetwork(network pkg.NetResource) error {
 }
 
 // DeleteNR implements pkg.Networker interface
-func (n *networker) DeleteNR(netNR pkg.NetResource) error {
+func (n *networker) DeleteNR(netNR gridtypes.Network) error {
 	defer func() {
 		if err := n.publishWGPorts(); err != nil {
 			log.Warn().Msg("failed to publish wireguard port to BCDB")
@@ -759,7 +766,7 @@ func (n *networker) DeleteNR(netNR pkg.NetResource) error {
 	return nil
 }
 
-func (n *networker) networkOf(id string) (nr pkg.NetResource, err error) {
+func (n *networker) networkOf(id string) (nr gridtypes.Network, err error) {
 	path := filepath.Join(n.networkDir, string(id))
 	file, err := os.OpenFile(path, os.O_RDWR, 0660)
 	if err != nil {
@@ -774,51 +781,19 @@ func (n *networker) networkOf(id string) (nr pkg.NetResource, err error) {
 			return nr, err
 		}
 
-		reader = versioned.NewVersionedReader(versioned.MustParse("0.0.0"), file)
+		reader = versioned.NewVersionedReader(NetworkSchemaLatestVersion, file)
 	} else if err != nil {
 		return nr, err
 	}
 
-	var net pkg.NetResource
+	var net gridtypes.Network
 	dec := json.NewDecoder(reader)
 
 	version := reader.Version()
-	validV1 := versioned.MustParseRange(fmt.Sprintf("=%s", pkg.NetworkSchemaV1))
-	validLatest := versioned.MustParseRange(fmt.Sprintf("<=%s", pkg.NetworkSchemaLatestVersion))
+	//validV1 := versioned.MustParseRange(fmt.Sprintf("=%s", pkg.NetworkSchemaV1))
+	validLatest := versioned.MustParseRange(fmt.Sprintf("<=%s", NetworkSchemaLatestVersion.String()))
 
-	if validV1(version) {
-		// we found a v1 full network definition, let migrate it to v2 network resource
-		var network pkg.Network
-		if err := dec.Decode(&network); err != nil {
-			return nr, err
-		}
-
-		for _, nr := range network.NetResources {
-			if nr.NodeID == n.identity.NodeID().Identity() {
-				net = nr
-				break
-			}
-		}
-		net.Name = network.Name
-		net.NetworkIPRange = network.IPRange
-		net.NetID = network.NetID
-
-		// overwrite the old version network with latest version
-		// old data that doesn't have any version information
-		if _, err := file.Seek(0, 0); err != nil {
-			return nr, err
-		}
-
-		writer, err := versioned.NewWriter(file, pkg.NetworkSchemaLatestVersion)
-		if err != nil {
-			return nr, err
-		}
-
-		if err := json.NewEncoder(writer).Encode(&net); err != nil {
-			return nr, err
-		}
-
-	} else if validLatest(version) {
+	if validLatest(version) {
 		if err := dec.Decode(&net); err != nil {
 			return nr, err
 		}
