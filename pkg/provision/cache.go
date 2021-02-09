@@ -5,12 +5,12 @@ import (
 )
 
 type (
-	cacheKey struct{}
+	storageKey struct{}
 )
 
-// GetCache from context
-func GetCache(ctx context.Context) Storage {
-	c := ctx.Value(cacheKey{})
+// GetStorage from context
+func GetStorage(ctx context.Context) Storage {
+	c := ctx.Value(storageKey{})
 	if c == nil {
 		panic("cache middleware is not set")
 	}

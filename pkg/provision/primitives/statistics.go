@@ -3,6 +3,7 @@ package primitives
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/rs/zerolog/log"
@@ -74,8 +75,6 @@ func (s *statsProvisioner) Provision(ctx context.Context, wl *gridtypes.Workload
 		}
 	}
 
-	//s.sync(wl.NodeID)
-
 	return result, nil
 }
 
@@ -93,39 +92,27 @@ func (s *statsProvisioner) Decommission(ctx context.Context, wl *gridtypes.Workl
 	return nil
 }
 
-func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, reservation *provision.Reservation) (bool, error) {
+func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, wl *gridtypes.Workload) (bool, error) {
 	// rule, we always should update counters UNLESS it is a network reservation that
 	// already have been counted before.
-	if reservation.Type != provision.NetworkReservation {
+	if wl.Type != gridtypes.NetworkReservation {
 		return true, nil
 	}
 
 	var nr gridtypes.Network
-	if err := json.Unmarshal(reservation.Data, &nr); err != nil {
+	if err := json.Unmarshal(wl.Data, &nr); err != nil {
 		return false, fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 	}
 	// otherwise we check the cache if a network
 	// with the same id already exists
-	id := gridtypes.NetworkID(reservation.User, nr.Name)
-	cache := provision.GetCache(ctx)
-	matches, err := cache.Find(func(r *provision.Reservation) bool {
-		if r.Type != provision.NetworkReservation {
-			return false
-		}
-
-		nr := gridtypes.Network{}
-		if err := json.Unmarshal(r.Data, &nr); err != nil {
-			log.Warn().Err(err).Str("id", r.ID).Msg("failed to load network reservation")
-			return false
-		}
-		cachedID := NetworkID(r.User, nr.Name)
-		return id == cachedID
-	})
-
-	if err != nil {
+	id := gridtypes.NetworkID(wl.User.String(), nr.Name)
+	cache := provision.GetStorage(ctx)
+	_, err := cache.GetNetwork(id)
+	if errors.Is(err, provision.ErrWorkloadNotExists) {
+		return true, nil
+	} else if err != nil {
 		return false, err
 	}
 
-	// if no matches, then counters should be incremented
-	return len(matches) == 0, nil
+	return false, nil
 }

@@ -68,15 +68,15 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 		return ContainerResult{}, fmt.Errorf("network %s is not installed on this node", config.Network.NetworkID)
 	}
 
-	cache := provision.GetCache(ctx)
+	cache := provision.GetStorage(ctx)
 	// check to make sure the requested volume are accessible
 	for _, mount := range config.Mounts {
-		volumeRes, err := cache.Get(mount.VolumeID)
+		volumeRes, err := cache.Get(gridtypes.ID(mount.VolumeID))
 		if err != nil {
 			return ContainerResult{}, errors.Wrapf(err, "failed to retrieve the owner of volume %s", mount.VolumeID)
 		}
 
-		if volumeRes.User != wl.User.String() {
+		if volumeRes.User != wl.User {
 			return ContainerResult{}, fmt.Errorf("cannot use volume %s, user %s is not the owner of it", mount.VolumeID, wl.User)
 		}
 	}
@@ -282,7 +282,7 @@ func (p *Primitives) containerDecommission(ctx context.Context, wl *gridtypes.Wo
 		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
 	}
 
-	netID := NetworkID(wl.User.String(), string(config.Network.NetworkID))
+	netID := gridtypes.NetworkID(wl.User.String(), string(config.Network.NetworkID))
 	if _, err := networkMgr.GetSubnet(netID); err == nil { // simple check to make sure the network still exists on the node
 		if err := networkMgr.Leave(netID, string(containerID)); err != nil {
 			return errors.Wrap(err, "failed to delete container network namespace")

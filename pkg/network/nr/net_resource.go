@@ -39,8 +39,10 @@ type NetResource struct {
 // New creates a new NetResource object
 // iprange is the full network subnet
 func New(nr gridtypes.Network) (*NetResource, error) {
+	panic("need fixing")
 	return &NetResource{
-		id:             nr.NetID,
+		//fix here
+		//id:             nr.NetID,
 		resource:       nr,
 		networkIPRange: nr.NetworkIPRange.IPNet,
 	}, nil

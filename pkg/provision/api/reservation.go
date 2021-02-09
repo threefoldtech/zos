@@ -24,12 +24,12 @@ func (a *Workloads) create(request *http.Request) (interface{}, mw.Response) {
 	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
 	defer cancel()
 
-	//TODO: validation of user identity goes here. and if we will
-	//accept his reservation
-	select {
-	case <-ctx.Done():
+	err = a.engine.Provision(ctx, reservation)
+	if err == context.DeadlineExceeded {
 		return nil, mw.Unavailable(ctx.Err())
-	case a.engine.Provision() <- reservation:
-		return id, mw.Accepted()
+	} else if err != nil {
+		return nil, mw.Error(err)
 	}
+
+	return id, mw.Accepted()
 }

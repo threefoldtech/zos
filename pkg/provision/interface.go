@@ -9,8 +9,11 @@ import (
 
 // Engine is engine interface
 type Engine interface {
-	Provision() chan<- gridtypes.Workload
-	Deprovision() chan<- gridtypes.ID
+	// Provision pushes a workload to engine queue. on success
+	// means that workload has been committed to storage (accepts)
+	// and will be processes later
+	Provision(ctx context.Context, wl gridtypes.Workload) error
+	Deprovision(ctx context.Context, id gridtypes.ID) error
 	Get(gridtypes.ID) (gridtypes.Workload, error)
 }
 
@@ -21,7 +24,6 @@ type Provisioner interface {
 }
 
 // Filter is filtering function for Purge method
-type Filter func(*Reservation) bool
 
 var (
 	//ErrWorkloadExists returned if object exist
