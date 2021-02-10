@@ -82,6 +82,10 @@ func New(storage Storage, provisioner Provisioner, opts ...EngineOption) *Native
 	return e
 }
 
+func (e *NativeEngine) Storage() Storage {
+	return e.storage
+}
+
 // Provision workload
 func (e *NativeEngine) Provision(ctx context.Context, wl gridtypes.Workload) error {
 	j := provisionJob{
@@ -164,6 +168,12 @@ func (e *NativeEngine) uninstall(ctx context.Context, wl gridtypes.Workload, rea
 	log := log.With().Str("id", string(wl.ID)).Str("type", string(wl.Type)).Logger()
 
 	log.Debug().Msg("provisioning")
+	if wl.Result.State == gridtypes.StateDeleted ||
+		wl.Result.State == gridtypes.StateError {
+		//nothing to do!
+		return
+	}
+
 	err := e.provisioner.Decommission(ctx, &wl)
 	result := &gridtypes.Result{
 		Error: reason,

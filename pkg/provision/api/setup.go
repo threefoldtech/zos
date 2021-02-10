@@ -9,8 +9,14 @@ import (
 
 //Setup setup routes (v1)
 func (a *Workloads) setup(router *mux.Router) error {
-	reservation := router.PathPrefix("/reservation").Subrouter()
+	router.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello world"))
+	}).Methods(http.MethodGet).Name("test")
 
-	reservation.Path("/").HandlerFunc(mw.AsHandlerFunc(a.create)).Methods(http.MethodPost).Name("reservation-create")
+	workloads := router.PathPrefix("/workloads").Subrouter()
+
+	workloads.Path("/").HandlerFunc(mw.AsHandlerFunc(a.create)).Methods(http.MethodPost).Name("workload-create")
+	workloads.Path("/{id}").HandlerFunc(mw.AsHandlerFunc(a.get)).Methods(http.MethodGet).Name("workload-get")
+	workloads.Path("/{id}").HandlerFunc(mw.AsHandlerFunc(a.delete)).Methods(http.MethodDelete).Name("workload-delete")
 	return nil
 }

@@ -14,6 +14,7 @@ type Engine interface {
 	// and will be processes later
 	Provision(ctx context.Context, wl gridtypes.Workload) error
 	Deprovision(ctx context.Context, id gridtypes.ID, reason string) error
+	Storage() Storage
 }
 
 // Provisioner interface
