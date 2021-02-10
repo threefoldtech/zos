@@ -39,8 +39,8 @@ type Storage interface {
 	Get(id gridtypes.ID) (gridtypes.Workload, error)
 	GetNetwork(id gridtypes.NetID) (gridtypes.Workload, error)
 
-	ByType(t gridtypes.ReservationType) ([]gridtypes.ID, error)
-	ByUser(user gridtypes.ID, t gridtypes.ReservationType) ([]gridtypes.ID, error)
+	ByType(t gridtypes.WorkloadType) ([]gridtypes.ID, error)
+	ByUser(user gridtypes.ID, t gridtypes.WorkloadType) ([]gridtypes.ID, error)
 }
 
 // Janitor interface

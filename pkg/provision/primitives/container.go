@@ -163,7 +163,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 	}
 
 	var mnt string
-	mnt, err = flistClient.NamedMount(FilesystemName(wl), config.FList, config.FlistStorage, rootfsMntOpt)
+	mnt, err = flistClient.NamedMount(FilesystemName(wl), config.FList, config.HubURL, rootfsMntOpt)
 	if err != nil {
 		return ContainerResult{}, err
 	}

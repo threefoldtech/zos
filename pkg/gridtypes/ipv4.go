@@ -2,6 +2,7 @@ package gridtypes
 
 import (
 	"fmt"
+	"io"
 )
 
 // PublicIP structure
@@ -12,7 +13,7 @@ type PublicIP struct {
 }
 
 // Valid validate public ip input
-func (p *PublicIP) Valid() error {
+func (p PublicIP) Valid() error {
 	if len(p.IP.IP) == 0 {
 		return fmt.Errorf("empty ip value")
 	}
@@ -22,6 +23,12 @@ func (p *PublicIP) Valid() error {
 	}
 
 	return nil
+}
+
+// Challenge implementation
+func (p PublicIP) Challenge(b io.Writer) error {
+	_, err := fmt.Fprintf(b, "%v", p.IP.String())
+	return err
 }
 
 // PublicIPResult result returned by publicIP reservation

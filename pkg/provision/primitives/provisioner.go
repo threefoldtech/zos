@@ -20,8 +20,8 @@ type decommissionFn func(ctx context.Context, wl *gridtypes.Workload) error
 type Primitives struct {
 	zbus zbus.Client
 
-	provisioners    map[gridtypes.ReservationType]provisionFn
-	decommissioners map[gridtypes.ReservationType]decommissionFn
+	provisioners    map[gridtypes.WorkloadType]provisionFn
+	decommissioners map[gridtypes.WorkloadType]decommissionFn
 }
 
 var _ provision.Provisioner = (*Primitives)(nil)
@@ -31,7 +31,7 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 	p := &Primitives{
 		zbus: zbus,
 	}
-	p.provisioners = map[gridtypes.ReservationType]provisionFn{
+	p.provisioners = map[gridtypes.WorkloadType]provisionFn{
 		gridtypes.ContainerReservation:  p.containerProvision,
 		gridtypes.VolumeReservation:     p.volumeProvision,
 		gridtypes.NetworkReservation:    p.networkProvision,
@@ -39,7 +39,7 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 		gridtypes.KubernetesReservation: p.kubernetesProvision,
 		gridtypes.PublicIPReservation:   p.publicIPProvision,
 	}
-	p.decommissioners = map[gridtypes.ReservationType]decommissionFn{
+	p.decommissioners = map[gridtypes.WorkloadType]decommissionFn{
 		gridtypes.ContainerReservation:  p.containerDecommission,
 		gridtypes.VolumeReservation:     p.volumeDecommission,
 		gridtypes.NetworkReservation:    p.networkDecommission,

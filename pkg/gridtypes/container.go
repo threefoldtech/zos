@@ -1,7 +1,10 @@
 package gridtypes
 
 import (
+	"fmt"
+	"io"
 	"net"
+	"sort"
 )
 
 // Member struct
@@ -13,10 +16,43 @@ type Member struct {
 	YggdrasilIP bool     `json:"yggdrasil_ip"`
 }
 
+// Challenge creates signature challenge
+func (m Member) Challenge(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "%s", m.NetworkID); err != nil {
+		return err
+	}
+
+	for _, addr := range m.IPs {
+		if _, err := fmt.Fprintf(w, "%s", addr.String()); err != nil {
+			return err
+		}
+	}
+
+	if _, err := fmt.Fprintf(w, "%t", m.PublicIP6); err != nil {
+		return err
+	}
+	// TODO: re-enable when working on https://github.com/threefoldtech/zos/issues/868
+	// if _, err := fmt.Fprintf(w, "%t", n.YggdrasilIP); err != nil {
+	// 	return err
+	// }
+	return nil
+}
+
 // Mount defines a container volume mounted inside the container
 type Mount struct {
 	VolumeID   string `json:"volume_id"`
 	Mountpoint string `json:"mountpoint"`
+}
+
+// Challenge creates signature challenge
+func (m Mount) Challenge(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "%s", m.VolumeID); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%s", m.Mountpoint); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Logs defines a custom backend with variable settings
@@ -46,12 +82,41 @@ type Stats struct {
 	Endpoint string `bson:"endpoint" json:"endpoint"`
 }
 
+// ContainerCapacity is the amount of resource to allocate to the container
+type ContainerCapacity struct {
+	// Number of CPU
+	CPU uint `json:"cpu"`
+	// Memory in MiB
+	Memory uint64 `json:"memory"`
+	//DiskType is the type of disk to use for root fs
+	DiskType DeviceType `json:"disk_type"`
+	// DiskSize of the root fs in MiB
+	DiskSize uint64 `json:"disk_size"`
+}
+
+// Challenge creates signature challenge
+func (c ContainerCapacity) Challenge(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "%d", c.CPU); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%d", c.Memory); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%d", c.DiskSize); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%s", c.DiskType.String()); err != nil {
+		return err
+	}
+	return nil
+}
+
 //Container creation info
 type Container struct {
 	// URL of the flist
 	FList string `json:"flist"`
 	// URL of the storage backend for the flist
-	FlistStorage string `json:"flist_storage"`
+	HubURL string `json:"hub_url"`
 	// Env env variables to container in format
 	Env map[string]string `json:"env"`
 	// Env env variables to container that the value is encrypted
@@ -74,6 +139,65 @@ type Container struct {
 	Stats []Stats `json:"stats,omitempty"`
 }
 
+// Valid implement the validation interface for container data
+func (c Container) Valid() error {
+	return nil
+}
+
+// Challenge implementation
+func (c Container) Challenge(w io.Writer) error {
+	encodeEnv := func(w io.Writer, env map[string]string) error {
+
+		keys := make([]string, 0, len(env))
+		for k := range env {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, k := range keys {
+			if _, err := fmt.Fprintf(w, "%s=%s", k, env[k]); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	if _, err := fmt.Fprintf(w, "%s", c.FList); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%s", c.HubURL); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%s", c.Entrypoint); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%t", c.Interactive); err != nil {
+		return err
+	}
+	if err := encodeEnv(w, c.Env); err != nil {
+		return err
+	}
+	if err := encodeEnv(w, c.SecretEnv); err != nil {
+		return err
+	}
+	for _, v := range c.Mounts {
+		if err := v.Challenge(w); err != nil {
+			return err
+		}
+	}
+
+	if err := c.Network.Challenge(w); err != nil {
+		return err
+	}
+
+	if err := c.Capacity.Challenge(w); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ContainerResult is the information return to the BCDB
 // after deploying a container
 type ContainerResult struct {
@@ -81,16 +205,4 @@ type ContainerResult struct {
 	IPv6  string `json:"ipv6"`
 	IPv4  string `json:"ipv4"`
 	IPYgg string `json:"yggdrasil"`
-}
-
-// ContainerCapacity is the amount of resource to allocate to the container
-type ContainerCapacity struct {
-	// Number of CPU
-	CPU uint `json:"cpu"`
-	// Memory in MiB
-	Memory uint64 `json:"memory"`
-	//DiskType is the type of disk to use for root fs
-	DiskType DeviceType `json:"disk_type"`
-	// DiskSize of the root fs in MiB
-	DiskSize uint64 `json:"disk_size"`
 }

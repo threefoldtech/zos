@@ -26,7 +26,7 @@ var (
 	// ReservationSchemaLastVersion link to latest version
 	workloadSchemaLastVersion = workloadSchemaV1
 
-	typeIDfn = map[gridtypes.ReservationType]func(*gridtypes.Workload) (string, error){
+	typeIDfn = map[gridtypes.WorkloadType]func(*gridtypes.Workload) (string, error){
 		gridtypes.NetworkReservation: networkTypeID,
 	}
 )
@@ -224,7 +224,7 @@ func (s *Fs) Get(id gridtypes.ID) (gridtypes.Workload, error) {
 	return s.get(path)
 }
 
-func (s *Fs) byType(base string, t gridtypes.ReservationType) ([]gridtypes.ID, error) {
+func (s *Fs) byType(base string, t gridtypes.WorkloadType) ([]gridtypes.ID, error) {
 	s.m.RLock()
 	defer s.m.RUnlock()
 
@@ -251,12 +251,12 @@ func (s *Fs) byType(base string, t gridtypes.ReservationType) ([]gridtypes.ID, e
 }
 
 // ByType return list of reservation ids by type
-func (s *Fs) ByType(t gridtypes.ReservationType) ([]gridtypes.ID, error) {
+func (s *Fs) ByType(t gridtypes.WorkloadType) ([]gridtypes.ID, error) {
 	return s.byType(s.root, t)
 }
 
 // ByUser return list of reservation for a certain user by type
-func (s *Fs) ByUser(user gridtypes.ID, t gridtypes.ReservationType) ([]gridtypes.ID, error) {
+func (s *Fs) ByUser(user gridtypes.ID, t gridtypes.WorkloadType) ([]gridtypes.ID, error) {
 	base := filepath.Join(s.root, pathByUser, user.String())
 	return s.byType(base, t)
 }

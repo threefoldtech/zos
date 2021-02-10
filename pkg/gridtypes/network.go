@@ -4,9 +4,31 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"io"
 
 	"github.com/jbenet/go-base58"
 )
+
+// NetID is a type defining the ID of a network
+type NetID string
+
+func (i NetID) String() string {
+	return string(i)
+}
+
+// NetworkID construct a network ID based on a userID and network name
+func NetworkID(user, network string) NetID {
+	buf := bytes.Buffer{}
+	buf.WriteString(user)
+	buf.WriteString(":")
+	buf.WriteString(network)
+	h := md5.Sum(buf.Bytes())
+	b := base58.Encode(h[:])
+	if len(b) > 13 {
+		b = b[:13]
+	}
+	return NetID(string(b))
+}
 
 // Network is the description of a part of a network local to a specific node
 type Network struct {
@@ -25,52 +47,68 @@ type Network struct {
 	Peers []Peer `json:"peers"`
 }
 
-// NetworkID construct a network ID based on a userID and network name
-func NetworkID(user, network string) NetID {
-	buf := bytes.Buffer{}
-	buf.WriteString(user)
-	buf.WriteString(":")
-	buf.WriteString(network)
-	h := md5.Sum(buf.Bytes())
-	b := base58.Encode(h[:])
-	if len(b) > 13 {
-		b = b[:13]
-	}
-	return NetID(string(b))
-}
-
 // Valid checks if the network resource is valid.
-func (nr *Network) Valid() error {
+func (n Network) Valid() error {
 
-	if nr.Name == "" {
+	if n.Name == "" {
 		return fmt.Errorf("network name cannot be empty")
 	}
 
-	if nr.NetworkIPRange.Nil() {
+	if n.NetworkIPRange.Nil() {
 		return fmt.Errorf("network IP range cannot be empty")
 	}
 
-	if nr.NodeID == "" {
+	if n.NodeID == "" {
 		return fmt.Errorf("network resource node ID cannot empty")
 	}
-	if len(nr.Subnet.IP) == 0 {
+	if len(n.Subnet.IP) == 0 {
 		return fmt.Errorf("network resource subnet cannot empty")
 	}
 
-	if nr.WGPrivateKey == "" {
+	if n.WGPrivateKey == "" {
 		return fmt.Errorf("network resource wireguard private key cannot empty")
 	}
 
-	if nr.WGPublicKey == "" {
+	if n.WGPublicKey == "" {
 		return fmt.Errorf("network resource wireguard public key cannot empty")
 	}
 
-	if nr.WGListenPort == 0 {
+	if n.WGListenPort == 0 {
 		return fmt.Errorf("network resource wireguard listen port cannot empty")
 	}
 
-	for _, peer := range nr.Peers {
+	for _, peer := range n.Peers {
 		if err := peer.Valid(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Challenge implements WorkloadData
+func (n Network) Challenge(b io.Writer) error {
+	if _, err := fmt.Fprintf(b, "%s", n.Name); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(b, "%s", n.NetworkIPRange.String()); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(b, "%s", n.WGPrivateKey); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(b, "%s", n.WGPublicKey); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(b, "%d", n.WGListenPort); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(b, "%s", n.NetworkIPRange.String()); err != nil {
+		return err
+	}
+
+	for _, p := range n.Peers {
+		if err := p.Challenge(b); err != nil {
 			return err
 		}
 	}
@@ -88,13 +126,6 @@ type Peer struct {
 	Endpoint    string  `json:"endpoint"`
 }
 
-// NetID is a type defining the ID of a network
-type NetID string
-
-func (i NetID) String() string {
-	return string(i)
-}
-
 // Valid checks if peer is valid
 func (p *Peer) Valid() error {
 	if p.WGPublicKey == "" {
@@ -107,6 +138,25 @@ func (p *Peer) Valid() error {
 
 	if len(p.AllowedIPs) <= 0 {
 		return fmt.Errorf("peer wireguard allowedIPs cannot empty")
+	}
+	return nil
+}
+
+//Challenge for peer
+func (p Peer) Challenge(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "%s", p.WGPublicKey); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%s", p.Endpoint); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%s", p.Subnet.String()); err != nil {
+		return err
+	}
+	for _, ip := range p.AllowedIPs {
+		if _, err := fmt.Fprintf(w, "%s", ip.String()); err != nil {
+			return err
+		}
 	}
 	return nil
 }

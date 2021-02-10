@@ -4,49 +4,73 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"reflect"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
-// ReservationType type
-type ReservationType string
+// WorkloadType type
+type WorkloadType string
 
 const (
 	// ContainerReservation type
-	ContainerReservation ReservationType = "container"
+	ContainerReservation WorkloadType = "container"
 	// VolumeReservation type
-	VolumeReservation ReservationType = "volume"
+	VolumeReservation WorkloadType = "volume"
 	// NetworkReservation type
-	NetworkReservation ReservationType = "network"
+	NetworkReservation WorkloadType = "network"
 	// ZDBReservation type
-	ZDBReservation ReservationType = "zdb"
+	ZDBReservation WorkloadType = "zdb"
 	// KubernetesReservation type
-	KubernetesReservation ReservationType = "kubernetes"
+	KubernetesReservation WorkloadType = "kubernetes"
 	//PublicIPReservation reservation
-	PublicIPReservation ReservationType = "ipv4"
+	PublicIPReservation WorkloadType = "ipv4"
 )
 
 var (
-	reservationTypes map[ReservationType]struct{} = map[ReservationType]struct{}{
-		ContainerReservation:  struct{}{},
-		VolumeReservation:     struct{}{},
-		NetworkReservation:    struct{}{},
-		ZDBReservation:        struct{}{},
-		KubernetesReservation: struct{}{},
-		PublicIPReservation:   struct{}{},
+	// workloadTypes with built in known types
+	workloadTypes = map[WorkloadType]WorkloadData{
+		ContainerReservation:  Container{},
+		VolumeReservation:     Volume{},
+		NetworkReservation:    Network{},
+		ZDBReservation:        ZDB{},
+		KubernetesReservation: Kubernetes{},
+		PublicIPReservation:   PublicIP{},
 	}
 )
 
-func (t ReservationType) Valid() error {
-	if _, ok := reservationTypes[t]; !ok {
+// RegisterType register a new workload type
+func RegisterType(t WorkloadType, d WorkloadData) {
+	if reflect.TypeOf(d).Kind() != reflect.Struct {
+		panic("only structures are supported")
+	}
+	if _, ok := workloadTypes[t]; ok {
+		panic("type already registered")
+	}
+
+	workloadTypes[t] = d
+}
+
+// Valid checks if this is a known reservation type
+func (t WorkloadType) Valid() error {
+	if _, ok := workloadTypes[t]; !ok {
 		return fmt.Errorf("invalid reservation type")
 	}
 
 	return nil
 }
 
-func (t ReservationType) String() string {
+func (t WorkloadType) String() string {
 	return string(t)
+}
+
+// WorkloadData interface
+type WorkloadData interface {
+	Valid() error
+	Challenge(io.Writer) error
 }
 
 // Workload struct
@@ -58,7 +82,7 @@ type Workload struct {
 	// Identification of the user requesting the reservation
 	User ID `json:"user_id"`
 	// Type of the reservation (container, zdb, vm, etc...)
-	Type ReservationType `json:"type"`
+	Type WorkloadType `json:"type"`
 	// Data is the reservation type arguments.
 	Data json.RawMessage `json:"data"`
 	// Date of creation
@@ -70,10 +94,28 @@ type Workload struct {
 	ToDelete bool `json:"to_delete"`
 	// Metadata is custom user metadata
 	Metadata string `json:"metadata"`
+	//Description
+	Description string `json:"description"`
 	// Tag object is mainly used for debugging.
 	Tag Tag `json:"-"`
 	// Result of reservation
 	Result Result `json:"result"`
+}
+
+// WorkloadData loads data of workload into WorkloadData object
+func (w *Workload) WorkloadData() (WorkloadData, error) {
+	if err := w.Type.Valid(); err != nil {
+		return nil, err
+	}
+
+	typ := workloadTypes[w.Type] // this returns a copy
+	value := reflect.New(reflect.TypeOf(typ)).Interface()
+
+	if err := json.Unmarshal(w.Data, &value); err != nil {
+		return nil, errors.Wrapf(err, "failed to load data into object of type '%T'", value)
+	}
+
+	return value.(WorkloadData), nil
 }
 
 // Valid validate reservation
@@ -90,7 +132,46 @@ func (w *Workload) Valid() error {
 		return err
 	}
 
-	return nil
+	data, err := w.WorkloadData()
+	if err != nil {
+		return err
+	}
+
+	return data.Valid()
+}
+
+//Challenge implementation
+func (w *Workload) Challenge(i io.Writer) error {
+	data, err := w.WorkloadData()
+	if err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(i, "%d", w.Version); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(i, "%s", w.User.String()); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(i, "%s", w.Type.String()); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(i, "%s", w.Created.String()); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(i, "%s", w.Metadata); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(i, "%s", w.Description); err != nil {
+		return err
+	}
+
+	return data.Challenge(i)
 }
 
 // AppendTag appends tags
