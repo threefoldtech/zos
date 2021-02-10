@@ -9,9 +9,13 @@ import (
 
 //Setup setup routes (v1)
 func (a *Workloads) setup(router *mux.Router) error {
-	router.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello world"))
-	}).Methods(http.MethodGet).Name("test")
+	//TODO: this will need more twiking later
+	//so the user getter will use the grid db
+	//plus some internal in-memory cache
+
+	router.Use(
+		mw.NewAuthMiddleware(mw.NewUserKeyGetter()),
+	)
 
 	workloads := router.PathPrefix("/workloads").Subrouter()
 

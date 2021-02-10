@@ -200,6 +200,29 @@ func (w *Workload) Sign(sk ed25519.PrivateKey) error {
 	return nil
 }
 
+// Verify verifies user signature
+func (w *Workload) Verify(pk ed25519.PublicKey) error {
+	if len(pk) != ed25519.PublicKeySize {
+		return fmt.Errorf("invalid public key")
+	}
+
+	var buf bytes.Buffer
+	if err := w.Challenge(&buf); err != nil {
+		return errors.Wrap(err, "failed to create the signature challenge")
+	}
+
+	signature, err := hex.DecodeString(w.Signature)
+	if err != nil {
+		return errors.Wrap(err, "invalid signature")
+	}
+
+	if !ed25519.Verify(pk, buf.Bytes(), signature) {
+		return fmt.Errorf("failed to verify signature")
+	}
+
+	return nil
+}
+
 // AppendTag appends tags
 func AppendTag(t, n Tag) Tag {
 	if t == nil {

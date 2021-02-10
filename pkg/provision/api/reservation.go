@@ -14,8 +14,8 @@ import (
 )
 
 func (a *Workloads) create(request *http.Request) (interface{}, mw.Response) {
-	var reservation gridtypes.Workload
-	if err := json.NewDecoder(request.Body).Decode(&reservation); err != nil {
+	var workload gridtypes.Workload
+	if err := json.NewDecoder(request.Body).Decode(&workload); err != nil {
 		return nil, mw.BadRequest(err)
 	}
 
@@ -23,17 +23,22 @@ func (a *Workloads) create(request *http.Request) (interface{}, mw.Response) {
 	if err != nil {
 		return nil, mw.Error(err)
 	}
-	reservation.ID = gridtypes.ID(id)
+	workload.ID = gridtypes.ID(id)
 	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
 	defer cancel()
 
-	if err := reservation.Valid(); err != nil {
+	if err := workload.Valid(); err != nil {
 		return nil, mw.BadRequest(err)
 	}
 
+	userID := mw.UserID(request.Context())
+	if workload.User != userID {
+		return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request body doesn't match http signature"))
+	}
+	// userPK := mw.UserPublicKey(request.Context())
 	//TODO: validate signature
 
-	err = a.engine.Provision(ctx, reservation)
+	err = a.engine.Provision(ctx, workload)
 	if err == context.DeadlineExceeded {
 		return nil, mw.Unavailable(ctx.Err())
 	} else if err != nil {
