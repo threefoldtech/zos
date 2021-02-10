@@ -171,7 +171,7 @@ func (s *Fs) Set(wl gridtypes.Workload) error {
 	path := s.rooted(s.pathByID(&wl))
 	file, err := os.OpenFile(
 		path,
-		os.O_WRONLY,
+		os.O_WRONLY|os.O_TRUNC,
 		0644,
 	)
 	if os.IsNotExist(err) {
