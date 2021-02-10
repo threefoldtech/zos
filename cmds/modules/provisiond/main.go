@@ -2,7 +2,6 @@ package provisiond
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -52,6 +51,11 @@ var Module cli.Command = cli.Command{
 			Usage: "connection string to the message `BROKER`",
 			Value: "unix:///var/run/redis.sock",
 		},
+		&cli.StringFlag{
+			Name:  "http",
+			Usage: "http listen address",
+			Value: ":2021",
+		},
 	},
 	Action: action,
 }
@@ -60,10 +64,8 @@ func action(cli *cli.Context) error {
 	var (
 		msgBrokerCon string = cli.String("broker")
 		storageDir   string = cli.String("root")
+		httpAddr     string = cli.String("http")
 	)
-
-	flag.StringVar(&storageDir, "root", "/var/cache/modules/provisiond", "root path of the module")
-	flag.StringVar(&msgBrokerCon, "broker", "unix:///var/run/redis.sock", "connection string to the message broker")
 
 	// keep checking if limited-cache flag is set
 	if app.CheckFlag(app.LimitedCache) {
@@ -177,7 +179,7 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize API")
 	}
-
+	httpServer.Addr = httpAddr
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("shutting down")
 		httpServer.Close()
@@ -232,6 +234,5 @@ func getHTTPServer(engine provision.Engine) (*http.Server, error) {
 
 	return &http.Server{
 		Handler: v1,
-		Addr:    ":2021",
 	}, nil
 }
