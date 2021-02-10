@@ -93,19 +93,19 @@ func (c *Counters) Increment(r *gridtypes.Workload) error {
 	)
 
 	switch r.Type {
-	case gridtypes.VolumeReservation:
+	case gridtypes.VolumeType:
 		c.volumes.Increment(1)
 		u, err = processVolume(r)
-	case gridtypes.ContainerReservation:
+	case gridtypes.ContainerType:
 		c.containers.Increment(1)
 		u, err = processContainer(r)
-	case gridtypes.ZDBReservation:
+	case gridtypes.ZDBType:
 		c.zdbs.Increment(1)
 		u, err = processZdb(r)
-	case gridtypes.KubernetesReservation:
+	case gridtypes.KubernetesType:
 		c.vms.Increment(1)
 		u, err = processKubernetes(r)
-	case gridtypes.NetworkReservation:
+	case gridtypes.NetworkType:
 		c.networks.Increment(1)
 		u = resourceUnits{}
 		err = nil
@@ -136,19 +136,19 @@ func (c *Counters) Decrement(r *gridtypes.Workload) error {
 	)
 
 	switch r.Type {
-	case gridtypes.VolumeReservation:
+	case gridtypes.VolumeType:
 		c.volumes.Decrement(1)
 		u, err = processVolume(r)
-	case gridtypes.ContainerReservation:
+	case gridtypes.ContainerType:
 		c.containers.Decrement(1)
 		u, err = processContainer(r)
-	case gridtypes.ZDBReservation:
+	case gridtypes.ZDBType:
 		c.zdbs.Decrement(1)
 		u, err = processZdb(r)
-	case gridtypes.KubernetesReservation:
+	case gridtypes.KubernetesType:
 		c.vms.Decrement(1)
 		u, err = processKubernetes(r)
-	case gridtypes.NetworkReservation:
+	case gridtypes.NetworkType:
 		c.networks.Decrement(1)
 		u = resourceUnits{}
 		err = nil
@@ -183,13 +183,13 @@ func (c *Counters) CheckMemoryRequirements(r *gridtypes.Workload, totalMemAvaila
 	var err error
 
 	switch r.Type {
-	case gridtypes.ContainerReservation:
+	case gridtypes.ContainerType:
 		requestedUnits, err = processContainer(r)
 		if err != nil {
 			return err
 		}
 
-	case gridtypes.KubernetesReservation:
+	case gridtypes.KubernetesType:
 		requestedUnits, err = processKubernetes(r)
 		if err != nil {
 			return err

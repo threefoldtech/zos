@@ -32,20 +32,20 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 		zbus: zbus,
 	}
 	p.provisioners = map[gridtypes.WorkloadType]provisionFn{
-		gridtypes.ContainerReservation:  p.containerProvision,
-		gridtypes.VolumeReservation:     p.volumeProvision,
-		gridtypes.NetworkReservation:    p.networkProvision,
-		gridtypes.ZDBReservation:        p.zdbProvision,
-		gridtypes.KubernetesReservation: p.kubernetesProvision,
-		gridtypes.PublicIPReservation:   p.publicIPProvision,
+		gridtypes.ContainerType:  p.containerProvision,
+		gridtypes.VolumeType:     p.volumeProvision,
+		gridtypes.NetworkType:    p.networkProvision,
+		gridtypes.ZDBType:        p.zdbProvision,
+		gridtypes.KubernetesType: p.kubernetesProvision,
+		gridtypes.PublicIPType:   p.publicIPProvision,
 	}
 	p.decommissioners = map[gridtypes.WorkloadType]decommissionFn{
-		gridtypes.ContainerReservation:  p.containerDecommission,
-		gridtypes.VolumeReservation:     p.volumeDecommission,
-		gridtypes.NetworkReservation:    p.networkDecommission,
-		gridtypes.ZDBReservation:        p.zdbDecommission,
-		gridtypes.KubernetesReservation: p.kubernetesDecomission,
-		gridtypes.PublicIPReservation:   p.publicIPDecomission,
+		gridtypes.ContainerType:  p.containerDecommission,
+		gridtypes.VolumeType:     p.volumeDecommission,
+		gridtypes.NetworkType:    p.networkDecommission,
+		gridtypes.ZDBType:        p.zdbDecommission,
+		gridtypes.KubernetesType: p.kubernetesDecomission,
+		gridtypes.PublicIPType:   p.publicIPDecomission,
 	}
 
 	return p

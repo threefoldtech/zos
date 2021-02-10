@@ -11,7 +11,7 @@ func TestWorkloadData(t *testing.T) {
 	require := require.New(t)
 
 	wl := Workload{
-		Type: VolumeReservation,
+		Type: VolumeType,
 		Data: json.RawMessage(`{"size": 10, "type": "ssd"}`),
 	}
 
@@ -31,7 +31,7 @@ func TestWorkloadValidation(t *testing.T) {
 	wl := Workload{
 		ID:   ID("my-id"),
 		User: ID("my-user"),
-		Type: VolumeReservation,
+		Type: VolumeType,
 		Data: json.RawMessage(`{"size": 10, "type": "ssd"}`),
 	}
 
@@ -41,7 +41,7 @@ func TestWorkloadValidation(t *testing.T) {
 	wl = Workload{
 		ID:   ID("my-id"),
 		User: ID("my-user"),
-		Type: VolumeReservation,
+		Type: VolumeType,
 		Data: json.RawMessage(`{"size": 10, "type": "abc"}`),
 	}
 

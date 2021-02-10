@@ -25,7 +25,7 @@ func TestStorageAdd(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeReservation,
+		Type: gridtypes.VolumeType,
 	})
 
 	require.NoError(err)
@@ -59,7 +59,7 @@ func TestStorageAddNetwork(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.NetworkReservation,
+		Type: gridtypes.NetworkType,
 		Data: json.RawMessage(`{"name": "my-network"}`),
 	})
 
@@ -95,7 +95,7 @@ func TestStorageGetNetwork(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.NetworkReservation,
+		Type: gridtypes.NetworkType,
 		Data: json.RawMessage(`{"name": "my-network"}`),
 	})
 
@@ -120,7 +120,7 @@ func TestStorageSet(t *testing.T) {
 	err = store.Set(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeReservation,
+		Type: gridtypes.VolumeType,
 	})
 
 	require.Error(err)
@@ -129,7 +129,7 @@ func TestStorageSet(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeReservation,
+		Type: gridtypes.VolumeType,
 	})
 
 	require.NoError(err)
@@ -137,7 +137,7 @@ func TestStorageSet(t *testing.T) {
 	err = store.Set(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeReservation,
+		Type: gridtypes.VolumeType,
 	})
 
 	require.NoError(err)
@@ -155,7 +155,7 @@ func TestStorageGet(t *testing.T) {
 	wl := gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeReservation,
+		Type: gridtypes.VolumeType,
 		Data: json.RawMessage(`"hello world"`),
 	}
 
@@ -182,7 +182,7 @@ func TestStorageByType(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-volume-id",
 		User: "my-user",
-		Type: gridtypes.VolumeReservation,
+		Type: gridtypes.VolumeType,
 		Data: json.RawMessage(`"hello volume"`),
 	})
 
@@ -191,23 +191,23 @@ func TestStorageByType(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-container-id",
 		User: "my-user",
-		Type: gridtypes.ContainerReservation,
+		Type: gridtypes.ContainerType,
 		Data: json.RawMessage(`"hello container"`),
 	})
 
 	require.NoError(err)
 
-	ids, err := store.ByType(gridtypes.VolumeReservation)
+	ids, err := store.ByType(gridtypes.VolumeType)
 	require.NoError(err)
 	require.Len(ids, 1)
 	require.Equal("my-volume-id", ids[0].String())
 
-	ids, err = store.ByType(gridtypes.ContainerReservation)
+	ids, err = store.ByType(gridtypes.ContainerType)
 	require.NoError(err)
 	require.Len(ids, 1)
 	require.Equal("my-container-id", ids[0].String())
 
-	ids, err = store.ByType(gridtypes.ZDBReservation)
+	ids, err = store.ByType(gridtypes.ZDBType)
 	require.NoError(err)
 	require.Len(ids, 0)
 
@@ -225,7 +225,7 @@ func TestStorageByUser(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-volume-1",
 		User: "my-user-1",
-		Type: gridtypes.VolumeReservation,
+		Type: gridtypes.VolumeType,
 		Data: json.RawMessage(`"hello volume"`),
 	})
 
@@ -234,27 +234,27 @@ func TestStorageByUser(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-volume-2",
 		User: "my-user-2",
-		Type: gridtypes.VolumeReservation,
+		Type: gridtypes.VolumeType,
 		Data: json.RawMessage(`"hello container"`),
 	})
 
 	require.NoError(err)
 
-	ids, err := store.ByType(gridtypes.VolumeReservation)
+	ids, err := store.ByType(gridtypes.VolumeType)
 	require.NoError(err)
 	require.Len(ids, 2)
 
-	ids, err = store.ByUser("my-user-1", gridtypes.VolumeReservation)
+	ids, err = store.ByUser("my-user-1", gridtypes.VolumeType)
 	require.NoError(err)
 	require.Len(ids, 1)
 	require.Equal("my-volume-1", ids[0].String())
 
-	ids, err = store.ByUser("my-user-2", gridtypes.VolumeReservation)
+	ids, err = store.ByUser("my-user-2", gridtypes.VolumeType)
 	require.NoError(err)
 	require.Len(ids, 1)
 	require.Equal("my-volume-2", ids[0].String())
 
-	ids, err = store.ByType(gridtypes.ZDBReservation)
+	ids, err = store.ByType(gridtypes.ZDBType)
 	require.NoError(err)
 	require.Len(ids, 0)
 

@@ -27,7 +27,7 @@ var (
 	workloadSchemaLastVersion = workloadSchemaV1
 
 	typeIDfn = map[gridtypes.WorkloadType]func(*gridtypes.Workload) (string, error){
-		gridtypes.NetworkReservation: networkTypeID,
+		gridtypes.NetworkType: networkTypeID,
 	}
 )
 
@@ -263,7 +263,7 @@ func (s *Fs) ByUser(user gridtypes.ID, t gridtypes.WorkloadType) ([]gridtypes.ID
 
 // GetNetwork returns network object given network id
 func (s *Fs) GetNetwork(id gridtypes.NetID) (gridtypes.Workload, error) {
-	path := filepath.Join(s.root, pathByType, gridtypes.NetworkReservation.String(), id.String())
+	path := filepath.Join(s.root, pathByType, gridtypes.NetworkType.String(), id.String())
 	return s.get(path)
 }
 

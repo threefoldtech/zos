@@ -93,7 +93,7 @@ func (s *statsProvisioner) Decommission(ctx context.Context, wl *gridtypes.Workl
 func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, wl *gridtypes.Workload) (bool, error) {
 	// rule, we always should update counters UNLESS it is a network reservation that
 	// already have been counted before.
-	if wl.Type != gridtypes.NetworkReservation {
+	if wl.Type != gridtypes.NetworkType {
 		return true, nil
 	}
 

@@ -2,6 +2,8 @@ package gridtypes
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,29 +18,29 @@ import (
 type WorkloadType string
 
 const (
-	// ContainerReservation type
-	ContainerReservation WorkloadType = "container"
-	// VolumeReservation type
-	VolumeReservation WorkloadType = "volume"
-	// NetworkReservation type
-	NetworkReservation WorkloadType = "network"
-	// ZDBReservation type
-	ZDBReservation WorkloadType = "zdb"
-	// KubernetesReservation type
-	KubernetesReservation WorkloadType = "kubernetes"
-	//PublicIPReservation reservation
-	PublicIPReservation WorkloadType = "ipv4"
+	// ContainerType type
+	ContainerType WorkloadType = "container"
+	// VolumeType type
+	VolumeType WorkloadType = "volume"
+	// NetworkType type
+	NetworkType WorkloadType = "network"
+	// ZDBType type
+	ZDBType WorkloadType = "zdb"
+	// KubernetesType type
+	KubernetesType WorkloadType = "kubernetes"
+	//PublicIPType reservation
+	PublicIPType WorkloadType = "ipv4"
 )
 
 var (
 	// workloadTypes with built in known types
 	workloadTypes = map[WorkloadType]WorkloadData{
-		ContainerReservation:  Container{},
-		VolumeReservation:     Volume{},
-		NetworkReservation:    Network{},
-		ZDBReservation:        ZDB{},
-		KubernetesReservation: Kubernetes{},
-		PublicIPReservation:   PublicIP{},
+		ContainerType:  Container{},
+		VolumeType:     Volume{},
+		NetworkType:    Network{},
+		ZDBType:        ZDB{},
+		KubernetesType: Kubernetes{},
+		PublicIPType:   PublicIP{},
 	}
 )
 
@@ -73,6 +75,16 @@ type WorkloadData interface {
 	Challenge(io.Writer) error
 }
 
+// MustMarshal is a utility function to quickly serialize workload data
+func MustMarshal(data WorkloadData) json.RawMessage {
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+
+	return json.RawMessage(bytes)
+}
+
 // Workload struct
 type Workload struct {
 	//Version is version of reservation object
@@ -98,6 +110,8 @@ type Workload struct {
 	Description string `json:"description"`
 	// Tag object is mainly used for debugging.
 	Tag Tag `json:"-"`
+	// User signature
+	Signature string `json:"signature"`
 	// Result of reservation
 	Result Result `json:"result"`
 }
@@ -120,10 +134,6 @@ func (w *Workload) WorkloadData() (WorkloadData, error) {
 
 // Valid validate reservation
 func (w *Workload) Valid() error {
-	if w.ID.IsEmpty() {
-		return fmt.Errorf("invalid workload id")
-	}
-
 	if w.User.IsEmpty() {
 		return fmt.Errorf("invalid user id")
 	}
@@ -172,6 +182,22 @@ func (w *Workload) Challenge(i io.Writer) error {
 	}
 
 	return data.Challenge(i)
+}
+
+//Sign signs the signature given the private key
+func (w *Workload) Sign(sk ed25519.PrivateKey) error {
+	if len(sk) != ed25519.PrivateKeySize {
+		return fmt.Errorf("invalid secure key")
+	}
+
+	var buf bytes.Buffer
+	if err := w.Challenge(&buf); err != nil {
+		return errors.Wrap(err, "failed to create the signature challenge")
+	}
+
+	w.Signature = hex.EncodeToString(ed25519.Sign(sk, buf.Bytes()))
+
+	return nil
 }
 
 // AppendTag appends tags
