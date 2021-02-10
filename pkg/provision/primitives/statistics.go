@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
@@ -43,13 +42,12 @@ type statsProvisioner struct {
 	reserved Counters
 
 	nodeID string
-	client client.Directory
 }
 
 // NewStatisticsProvisioner creates a new statistics provisioner interceptor.
 // Statistics provisioner keeps track of used capacity and update explorer when it changes
-func NewStatisticsProvisioner(initial, reserved Counters, nodeID string, client client.Directory, inner provision.Provisioner) provision.Provisioner {
-	return &statsProvisioner{inner: inner, counters: initial, reserved: reserved, nodeID: nodeID, client: client}
+func NewStatisticsProvisioner(initial, reserved Counters, nodeID string, inner provision.Provisioner) provision.Provisioner {
+	return &statsProvisioner{inner: inner, counters: initial, reserved: reserved, nodeID: nodeID}
 }
 
 func (s *statsProvisioner) currentCapacity() CurrentCapacity {

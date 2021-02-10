@@ -119,7 +119,10 @@ type Networker interface {
 }
 
 // Network type
-type Network = gridtypes.Network
+type Network struct {
+	gridtypes.Network
+	NetID NetID
+}
 
 // NetID type
 type NetID = gridtypes.NetID

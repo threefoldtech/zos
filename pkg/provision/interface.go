@@ -13,7 +13,7 @@ type Engine interface {
 	// means that workload has been committed to storage (accepts)
 	// and will be processes later
 	Provision(ctx context.Context, wl gridtypes.Workload) error
-	Deprovision(ctx context.Context, id gridtypes.ID) error
+	Deprovision(ctx context.Context, id gridtypes.ID, reason string) error
 }
 
 // Provisioner interface

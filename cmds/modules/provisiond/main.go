@@ -4,18 +4,23 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rusart/muxprom"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/provision/explorer"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/provision/api"
 	"github.com/threefoldtech/zos/pkg/provision/primitives"
-	"github.com/threefoldtech/zos/pkg/provision/primitives/cache"
+	"github.com/threefoldtech/zos/pkg/provision/storage"
 	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -108,40 +113,15 @@ func action(cli *cli.Context) error {
 		log.Error().Err(err).Msg("networkd is not ready yet")
 	})
 
-	// to get reservation from tnodb
-	cl, err := app.ExplorerClient()
-	if err != nil {
-		return errors.Wrap(err, "failed to instantiate BCDB client")
-	}
-
 	// keep track of resource units reserved and amount of workloads provisionned
 
 	// to store reservation locally on the node
-	store, err := cache.NewFSStore(filepath.Join(storageDir, "reservations"))
+	store, err := storage.NewFSStore(filepath.Join(storageDir, "workloads"))
 	if err != nil {
 		return errors.Wrap(err, "failed to create local reservation store")
 	}
 
 	const daemonBootFlag = "provisiond"
-	if app.IsFirstBoot(daemonBootFlag) {
-		if err := store.Purge(cache.NotPersisted); err != nil {
-			log.Fatal().Err(err).Msg("failed to clean up cache")
-		}
-	}
-
-	if err := app.MarkBooted(daemonBootFlag); err != nil {
-		log.Fatal().Err(err).Msg("failed to mark service as booted")
-	}
-
-	// compatability fix
-	if err := UpdateReservationsResults(store); err != nil {
-		log.Fatal().Err(err).Msg("failed to upgrade cached reservations")
-	}
-
-	initial, err := store.CurrentCounters()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to get current deployed capacity")
-	}
 	// update initial capacity with
 	reserved, err := getNodeReserved(zbusCl)
 	if err != nil {
@@ -154,32 +134,14 @@ func action(cli *cli.Context) error {
 	 *	   --- statistics
 	 *	     --- handlers
 	 */
-	provisioner := explorer.NewCommitterProvisioner(
-		cl.Workloads,
-		primitives.ResultToSchemaType,
-		identity,
+	provisioner := primitives.NewStatisticsProvisioner(
+		primitives.Counters{},
+		reserved,
 		nodeID.Identity(),
-		provision.NewCachedProvisioner(
-			store,
-			primitives.NewStatisticsProvisioner(
-				initial,
-				reserved,
-				nodeID.Identity(),
-				cl.Directory,
-				handlers,
-			),
-		),
+		handlers,
 	)
 
-	puller := explorer.NewPoller(cl.Workloads, primitives.WorkloadToProvisionType, primitives.ProvisionOrder)
-	engine := provision.New(provision.EngineOps{
-		Source: provision.CombinedSource(
-			provision.PollSource(puller, nodeID),
-			provision.NewDecommissionSource(store),
-		),
-		Provisioner: provisioner,
-		Janitor:     primitives.NewJanitor(zbusCl, puller),
-	})
+	engine := provision.New(store, provisioner)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to instantiate provision engine")
@@ -193,22 +155,36 @@ func action(cli *cli.Context) error {
 
 	ctx := context.Background()
 	ctx, _ = utils.WithSignal(ctx)
-	utils.OnDone(ctx, func(_ error) {
-		log.Info().Msg("shutting down")
-	})
 
 	// call the runtime upgrade before running engine
 	handlers.RuntimeUpgrade(ctx)
 
 	go func() {
+		if err := engine.Run(ctx); err != nil && err != context.Canceled {
+			log.Fatal().Err(err).Msg("provision engine exited unexpectedely")
+		}
+	}()
+
+	// starts zbus server in the back ground
+	go func() {
 		if err := server.Run(ctx); err != nil && err != context.Canceled {
-			log.Fatal().Err(err).Msg("unexpected error")
+			log.Fatal().Err(err).Msg("zbus provision engine api exited unexpectedely")
 		}
 		log.Info().Msg("zbus server stopped")
 	}()
 
-	if err := engine.Run(ctx); err != nil {
-		return errors.Wrap(err, "unexpected error")
+	httpServer, err := getHTTPServer(engine)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize API")
+	}
+
+	utils.OnDone(ctx, func(_ error) {
+		log.Info().Msg("shutting down")
+		httpServer.Close()
+	})
+
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return errors.Wrap(err, "http api exited unexpectedely")
 	}
 
 	log.Info().Msg("provision engine stopped")
@@ -224,9 +200,9 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 
 	var v *primitives.AtomicValue
 	switch fs.DiskType {
-	case pkg.HDDDevice:
+	case gridtypes.HDDDevice:
 		v = &counter.HRU
-	case pkg.SSDDevice:
+	case gridtypes.SSDDevice:
 		v = &counter.SRU
 	default:
 		return counter, fmt.Errorf("unknown cache disk type '%s'", fs.DiskType)
@@ -235,4 +211,27 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 	v.Increment(fs.Usage.Size)
 	counter.MRU.Increment(2 * gib)
 	return
+}
+
+func getHTTPServer(engine provision.Engine) (*http.Server, error) {
+	router := mux.NewRouter()
+
+	prom := muxprom.New(
+		muxprom.Router(router),
+		muxprom.Namespace("explorer"),
+	)
+	prom.Instrument()
+	router.Path("/metrics").Handler(promhttp.Handler()).Name("metrics")
+
+	v1 := router.PathPrefix("/api/v1").Subrouter()
+
+	_, err := api.New(v1, engine)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to setup workload api")
+	}
+
+	return &http.Server{
+		Handler: v1,
+		Addr:    ":2021",
+	}, nil
 }

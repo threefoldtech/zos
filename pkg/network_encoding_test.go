@@ -40,29 +40,31 @@ func TestNetResourceUnmarshal(t *testing.T) {
 func TestEncodeDecode(t *testing.T) {
 	network := &Network{
 		NetID: NetID("test"),
-		Name:  "supernet",
-		NetworkIPRange: gridtypes.NewIPNet(&net.IPNet{
-			IP:   net.ParseIP("10.0.0.0"),
-			Mask: net.CIDRMask(16, 32),
-		}),
-		NodeID: "node1",
-		Subnet: gridtypes.NewIPNet(&net.IPNet{
-			IP:   net.ParseIP("10.0.1.0"),
-			Mask: net.CIDRMask(24, 32),
-		}),
-		Peers: []gridtypes.Peer{
-			{
-				Subnet: gridtypes.NewIPNet(&net.IPNet{
-					IP:   net.ParseIP("10.0.2.0"),
-					Mask: net.CIDRMask(24, 32),
-				}),
-				Endpoint:    "172.20.0.90:6380",
-				WGPublicKey: "pubkey",
-				AllowedIPs: []gridtypes.IPNet{
-					gridtypes.NewIPNet(&net.IPNet{
-						IP:   net.ParseIP("10.0.1.0"),
+		Network: gridtypes.Network{
+			Name: "supernet",
+			NetworkIPRange: gridtypes.NewIPNet(&net.IPNet{
+				IP:   net.ParseIP("10.0.0.0"),
+				Mask: net.CIDRMask(16, 32),
+			}),
+			NodeID: "node1",
+			Subnet: gridtypes.NewIPNet(&net.IPNet{
+				IP:   net.ParseIP("10.0.1.0"),
+				Mask: net.CIDRMask(24, 32),
+			}),
+			Peers: []gridtypes.Peer{
+				{
+					Subnet: gridtypes.NewIPNet(&net.IPNet{
+						IP:   net.ParseIP("10.0.2.0"),
 						Mask: net.CIDRMask(24, 32),
 					}),
+					Endpoint:    "172.20.0.90:6380",
+					WGPublicKey: "pubkey",
+					AllowedIPs: []gridtypes.IPNet{
+						gridtypes.NewIPNet(&net.IPNet{
+							IP:   net.ParseIP("10.0.1.0"),
+							Mask: net.CIDRMask(24, 32),
+						}),
+					},
 				},
 			},
 		},

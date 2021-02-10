@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/vishvananda/netlink"
 )
 
@@ -68,7 +67,7 @@ func (t *testIdentityManager) PrivateKey() []byte {
 }
 
 func TestNamespace(t *testing.T) {
-	nr, err := New(gridtypes.Network{NodeID: "node1"})
+	nr, err := New(pkg.Network{})
 	require.NoError(t, err)
 
 	nsName, err := nr.Namespace()
@@ -86,7 +85,7 @@ func TestNamespace(t *testing.T) {
 }
 
 func TestNaming(t *testing.T) {
-	nr, err := New(gridtypes.Network{NodeID: "node1"})
+	nr, err := New(pkg.Network{})
 	require.NoError(t, err)
 
 	nsName, err := nr.Namespace()
@@ -104,7 +103,7 @@ func TestNaming(t *testing.T) {
 }
 
 func TestCreateBridge(t *testing.T) {
-	nr, err := New(gridtypes.Network{NodeID: "node1"})
+	nr, err := New(pkg.Network{})
 	require.NoError(t, err)
 
 	brName, err := nr.BridgeName()

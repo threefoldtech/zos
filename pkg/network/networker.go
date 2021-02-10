@@ -17,7 +17,6 @@ import (
 
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/cache"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
@@ -73,6 +72,8 @@ type networker struct {
 	ndmz ndmz.DMZ
 	ygg  *yggdrasil.Server
 }
+
+var _ pkg.Networker = (*networker)(nil)
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
 func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageDir string, ndmz ndmz.DMZ, ygg *yggdrasil.Server) (pkg.Networker, error) {
@@ -620,7 +621,7 @@ func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 }
 
 // CreateNR implements pkg.Networker interface
-func (n *networker) CreateNR(netNR gridtypes.Network) (string, error) {
+func (n *networker) CreateNR(netNR pkg.Network) (string, error) {
 	defer func() {
 		if err := n.publishWGPorts(); err != nil {
 			log.Warn().Err(err).Msg("failed to publish wireguard port to BCDB")
@@ -713,7 +714,7 @@ func (n *networker) CreateNR(netNR gridtypes.Network) (string, error) {
 	return netr.Namespace()
 }
 
-func (n *networker) storeNetwork(network gridtypes.Network) error {
+func (n *networker) storeNetwork(network pkg.Network) error {
 	// map the network ID to the network namespace
 	path := filepath.Join(n.networkDir, string(network.NetID))
 	file, err := os.Create(path)
@@ -736,7 +737,7 @@ func (n *networker) storeNetwork(network gridtypes.Network) error {
 }
 
 // DeleteNR implements pkg.Networker interface
-func (n *networker) DeleteNR(netNR gridtypes.Network) error {
+func (n *networker) DeleteNR(netNR pkg.Network) error {
 	defer func() {
 		if err := n.publishWGPorts(); err != nil {
 			log.Warn().Msg("failed to publish wireguard port to BCDB")
@@ -766,7 +767,7 @@ func (n *networker) DeleteNR(netNR gridtypes.Network) error {
 	return nil
 }
 
-func (n *networker) networkOf(id string) (nr gridtypes.Network, err error) {
+func (n *networker) networkOf(id string) (nr pkg.Network, err error) {
 	path := filepath.Join(n.networkDir, string(id))
 	file, err := os.OpenFile(path, os.O_RDWR, 0660)
 	if err != nil {
@@ -786,7 +787,7 @@ func (n *networker) networkOf(id string) (nr gridtypes.Network, err error) {
 		return nr, err
 	}
 
-	var net gridtypes.Network
+	var net pkg.Network
 	dec := json.NewDecoder(reader)
 
 	version := reader.Version()
