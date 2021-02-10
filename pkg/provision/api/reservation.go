@@ -35,8 +35,11 @@ func (a *Workloads) create(request *http.Request) (interface{}, mw.Response) {
 	if workload.User != userID {
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request body doesn't match http signature"))
 	}
-	// userPK := mw.UserPublicKey(request.Context())
-	//TODO: validate signature
+	userPK := mw.UserPublicKey(request.Context())
+
+	if err := workload.Verify(userPK); err != nil {
+		return nil, mw.UnAuthorized(err)
+	}
 
 	err = a.engine.Provision(ctx, workload)
 	if err == context.DeadlineExceeded {
@@ -78,6 +81,10 @@ func (a *Workloads) get(request *http.Request) (interface{}, mw.Response) {
 		return nil, mw.NotFound(fmt.Errorf("workload not found"))
 	} else if err != nil {
 		return nil, mw.Error(err)
+	}
+
+	if wl.User != mw.UserID(request.Context()) {
+		return nil, mw.UnAuthorized(fmt.Errorf("access denied"))
 	}
 
 	return wl, nil

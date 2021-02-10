@@ -56,7 +56,7 @@ func (u UserKeyGetter) GetKey(id string) interface{} {
 }
 
 // requiredHeaders are the parameters to be used to generated the http signature
-var requiredHeaders = []string{"(created)", "date", "threebot-id"}
+var requiredHeaders = []string{"(created)", "date"}
 
 // AuthMiddleware implements https://tools.ietf.org/html/draft-cavage-http-signatures-12
 // authentication scheme as an HTTP middleware

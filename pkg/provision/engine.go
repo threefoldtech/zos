@@ -167,7 +167,7 @@ func (e *NativeEngine) Run(ctx context.Context) error {
 func (e *NativeEngine) uninstall(ctx context.Context, wl gridtypes.Workload, reason string) {
 	log := log.With().Str("id", string(wl.ID)).Str("type", string(wl.Type)).Logger()
 
-	log.Debug().Msg("provisioning")
+	log.Debug().Msg("de-provisioning")
 	if wl.Result.State == gridtypes.StateDeleted ||
 		wl.Result.State == gridtypes.StateError {
 		//nothing to do!
