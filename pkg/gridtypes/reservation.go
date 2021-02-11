@@ -56,6 +56,16 @@ func RegisterType(t WorkloadType, d WorkloadData) {
 	workloadTypes[t] = d
 }
 
+//Types return a list of all registered types
+func Types() []WorkloadType {
+	types := make([]WorkloadType, 0, len(workloadTypes))
+	for typ := range workloadTypes {
+		types = append(types, typ)
+	}
+
+	return types
+}
+
 // Valid checks if this is a known reservation type
 func (t WorkloadType) Valid() error {
 	if _, ok := workloadTypes[t]; !ok {
@@ -250,8 +260,8 @@ func (t Tag) String() string {
 type ResultState string
 
 const (
-	//StatusAccepted accepted constant
-	StatusAccepted = "accepted"
+	//StateAccepted accepted constant
+	StateAccepted = "accepted"
 	// StateError constant
 	StateError = "error"
 	// StateOk constant

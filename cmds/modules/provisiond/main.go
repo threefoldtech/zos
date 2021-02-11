@@ -148,6 +148,13 @@ func action(cli *cli.Context) error {
 		store,
 		provisioner,
 		provision.WithUsers(mw.NewUserKeyGetter()),
+		// set priority to some reservation types on boot
+		// so we always need to make sure all volumes and networks
+		// comes first.
+		provision.WithStartupOrder(
+			gridtypes.VolumeType,
+			gridtypes.NetworkType,
+		),
 	)
 
 	if err != nil {

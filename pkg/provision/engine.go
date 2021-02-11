@@ -3,6 +3,7 @@ package provision
 import (
 	"context"
 	"crypto/ed25519"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -34,6 +35,13 @@ func WithUsers(g Users) EngineOption {
 	return &withUserKeyGetter{g}
 }
 
+// WithStartupOrder forces a specific startup order of types
+// any type that is not listed in this list, will get started
+// in an nondeterministic order
+func WithStartupOrder(t ...gridtypes.WorkloadType) EngineOption {
+	return &withStartupOrder{t}
+}
+
 type provisionJob struct {
 	wl gridtypes.Workload
 	ch chan error
@@ -57,6 +65,7 @@ type NativeEngine struct {
 	//options
 	janitor Janitor
 	users   Users
+	order   []gridtypes.WorkloadType
 }
 
 var _ Engine = (*NativeEngine)(nil)
@@ -77,6 +86,31 @@ type withUserKeyGetter struct {
 
 func (o *withUserKeyGetter) apply(e *NativeEngine) {
 	e.users = o.g
+}
+
+type withStartupOrder struct {
+	o []gridtypes.WorkloadType
+}
+
+func (w *withStartupOrder) apply(e *NativeEngine) {
+	all := make(map[gridtypes.WorkloadType]struct{})
+	for _, typ := range e.order {
+		all[typ] = struct{}{}
+	}
+	ordered := make([]gridtypes.WorkloadType, 0, len(all))
+	for _, typ := range w.o {
+		if _, ok := all[typ]; !ok {
+			panic(fmt.Sprintf("type '%s' is not registered", typ))
+		}
+		delete(all, typ)
+		ordered = append(ordered, typ)
+	}
+	// now move everything else
+	for typ := range all {
+		ordered = append(ordered, typ)
+	}
+
+	e.order = ordered
 }
 
 type nullKeyGetter struct{}
@@ -100,12 +134,14 @@ func GetEngine(ctx context.Context) Engine {
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
 func New(storage Storage, provisioner Provisioner, opts ...EngineOption) *NativeEngine {
+
 	e := &NativeEngine{
 		storage:     storage,
 		provisioner: provisioner,
 		provision:   make(chan provisionJob),
 		deprovision: make(chan deprovisionJob),
 		users:       &nullKeyGetter{},
+		order:       gridtypes.Types(),
 	}
 
 	for _, opt := range opts {
@@ -167,6 +203,9 @@ func (e *NativeEngine) Run(ctx context.Context) error {
 
 	ctx = context.WithValue(ctx, engineKey{}, e)
 
+	// restart everything first
+	e.boot(ctx)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -190,6 +229,9 @@ func (e *NativeEngine) Run(ctx context.Context) error {
 		case job := <-e.provision:
 			job.wl.Created = time.Now()
 			job.wl.ToDelete = false
+			job.wl.Result.State = gridtypes.StateAccepted
+			job.wl.Result.Created = time.Now()
+
 			err := e.storage.Add(job.wl)
 			// release the job. the caller will now know that the workload
 			// has been committed to storage (or not)
@@ -200,6 +242,31 @@ func (e *NativeEngine) Run(ctx context.Context) error {
 			}
 
 			e.install(ctx, job.wl)
+		}
+	}
+}
+
+// boot will make sure to re-deploy all stored reservation
+// on boot.
+func (e *NativeEngine) boot(ctx context.Context) {
+	storage := e.Storage()
+	for _, typ := range e.order {
+		ids, err := storage.ByType(typ)
+		if err != nil {
+			log.Error().Err(err).Stringer("type", typ).Msg("failed to get all reservation of type")
+			continue
+		}
+		for _, id := range ids {
+			wl, err := storage.Get(id)
+			if err != nil {
+				log.Error().Err(err).Stringer("id", id).Msg("failed to load workload")
+				continue
+			}
+
+			if wl.Result.State != gridtypes.StateOk && wl.Result.State != gridtypes.StateAccepted {
+				continue
+			}
+			e.install(ctx, wl)
 		}
 	}
 }
@@ -237,7 +304,6 @@ func (e *NativeEngine) uninstall(ctx context.Context, wl gridtypes.Workload, rea
 func (e *NativeEngine) install(ctx context.Context, wl gridtypes.Workload) {
 	log := log.With().Str("id", string(wl.ID)).Str("type", string(wl.Type)).Logger()
 
-	//ctx = context.WithValue(ctx, )
 	log.Debug().Msg("provisioning")
 	result, err := e.provisioner.Provision(ctx, &wl)
 	if err != nil {
