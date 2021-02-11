@@ -348,6 +348,22 @@ func (s *NetworkerStub) TapExists(arg0 gridtypes.NetID) (ret0 bool, ret1 error) 
 	return
 }
 
+func (s *NetworkerStub) WireguardPorts() (ret0 []uint, ret1 error) {
+	args := []interface{}{}
+	result, err := s.client.Request(s.module, s.object, "WireguardPorts", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerStub) YggAddresses(ctx context.Context) (<-chan pkg.NetlinkAddresses, error) {
 	ch := make(chan pkg.NetlinkAddresses)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "YggAddresses")

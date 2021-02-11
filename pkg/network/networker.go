@@ -124,10 +124,6 @@ func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageD
 		return nil, err
 	}
 
-	if err := nw.publishWGPorts(); err != nil {
-		return nil, err
-	}
-
 	return nw, nil
 }
 
@@ -171,6 +167,10 @@ var _ pkg.Networker = (*networker)(nil)
 
 func (n *networker) Ready() error {
 	return nil
+}
+
+func (n *networker) WireguardPorts() ([]uint, error) {
+	return n.portSet.List()
 }
 
 func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.ContainerNetworkConfig) (join pkg.Member, err error) {
@@ -622,12 +622,6 @@ func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 
 // CreateNR implements pkg.Networker interface
 func (n *networker) CreateNR(netNR pkg.Network) (string, error) {
-	defer func() {
-		if err := n.publishWGPorts(); err != nil {
-			log.Warn().Err(err).Msg("failed to publish wireguard port to BCDB")
-		}
-	}()
-
 	log.Info().Str("network", string(netNR.NetID)).Msg("create network resource")
 
 	// check if there is a reserved wireguard port for this NR already
@@ -733,12 +727,6 @@ func (n *networker) storeNetwork(network pkg.Network) error {
 
 // DeleteNR implements pkg.Networker interface
 func (n *networker) DeleteNR(netNR pkg.Network) error {
-	defer func() {
-		if err := n.publishWGPorts(); err != nil {
-			log.Warn().Msg("failed to publish wireguard port to BCDB")
-		}
-	}()
-
 	nr, err := nr.New(netNR)
 	if err != nil {
 		return errors.Wrap(err, "failed to load network resource")
@@ -833,20 +821,6 @@ func (n *networker) reservePort(port uint16) error {
 func (n *networker) releasePort(port uint16) error {
 	log.Debug().Uint16("port", port).Msg("release wireguard port")
 	n.portSet.Remove(uint(port))
-	return nil
-}
-
-func (n *networker) publishWGPorts() error {
-	ports, err := n.portSet.List()
-	if err != nil {
-		return err
-	}
-
-	if err := n.tnodb.NodeSetPorts(n.identity.NodeID().Identity(), ports); err != nil {
-		// maybe retry a couple of times ?
-		// having bdb and the node out of sync is pretty bad
-		return errors.Wrap(err, "fail to publish wireguard port to bcdb")
-	}
 	return nil
 }
 

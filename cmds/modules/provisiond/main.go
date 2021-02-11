@@ -96,18 +96,18 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to connect to message broker")
 	}
-	zbusCl, err := zbus.NewRedisClient(msgBrokerCon)
+	cl, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
-	identity := stubs.NewIdentityManagerStub(zbusCl)
+	identity := stubs.NewIdentityManagerStub(cl)
 	nodeID := identity.NodeID()
 
 	// block until networkd is ready to serve request from zbus
 	// this is used to prevent uptime and online status to the explorer if the node is not in a fully ready
 	// https://github.com/threefoldtech/zos/issues/632
-	network := stubs.NewNetworkerStub(zbusCl)
+	network := stubs.NewNetworkerStub(cl)
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
 	backoff.RetryNotify(func() error {
@@ -126,12 +126,12 @@ func action(cli *cli.Context) error {
 
 	const daemonBootFlag = "provisiond"
 	// update initial capacity with
-	reserved, err := getNodeReserved(zbusCl)
+	reserved, err := getNodeReserved(cl)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to get node reserved capacity")
 	}
 
-	handlers := primitives.NewPrimitivesProvisioner(zbusCl)
+	handlers := primitives.NewPrimitivesProvisioner(cl)
 	/* --- committer
 	 *   --- cache
 	 *	   --- statistics
@@ -180,7 +180,7 @@ func action(cli *cli.Context) error {
 		log.Info().Msg("zbus server stopped")
 	}()
 
-	httpServer, err := getHTTPServer(engine)
+	httpServer, err := getHTTPServer(cl, engine)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize API")
 	}
@@ -220,7 +220,7 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 	return
 }
 
-func getHTTPServer(engine provision.Engine) (*http.Server, error) {
+func getHTTPServer(cl zbus.Client, engine provision.Engine) (*http.Server, error) {
 	router := mux.NewRouter()
 
 	prom := muxprom.New(
@@ -232,9 +232,14 @@ func getHTTPServer(engine provision.Engine) (*http.Server, error) {
 
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 
-	_, err := api.New(v1, engine)
+	_, err := api.NewWorkloadsAPI(v1, engine)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to setup workload api")
+	}
+
+	_, err = api.NewNetworkAPI(v1, cl)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to setup network api")
 	}
 
 	return &http.Server{

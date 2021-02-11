@@ -106,6 +106,8 @@ type Networker interface {
 	// if the interface is in a network namespace netns needs to be not empty
 	Addrs(iface string, netns string) ([]net.IP, error)
 
+	WireguardPorts() ([]uint, error)
+
 	// ZOSAddresses monitoring streams for ZOS bridge IPs
 	ZOSAddresses(ctx context.Context) <-chan NetlinkAddresses
 
