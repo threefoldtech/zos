@@ -204,6 +204,9 @@ func (e *NativeEngine) Run(ctx context.Context) error {
 	ctx = context.WithValue(ctx, engineKey{}, e)
 
 	// restart everything first
+	// TODO: potential network disconnections if network already exists.
+	// may be network manager need to do nothing if same exact network config
+	// is applied
 	e.boot(ctx)
 
 	for {
