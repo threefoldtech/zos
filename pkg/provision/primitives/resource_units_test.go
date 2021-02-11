@@ -25,7 +25,7 @@ func Test_processZDB(t *testing.T) {
 			args: args{
 				r: &gridtypes.Workload{
 					Type: gridtypes.ZDBType,
-					Data: mustMarshalJSON(t, ZDB{
+					Data: mustMarshalJSON(t, gridtypes.ZDB{
 						Size:     1,
 						DiskType: gridtypes.SSDDevice,
 					}),
@@ -41,7 +41,7 @@ func Test_processZDB(t *testing.T) {
 			args: args{
 				r: &gridtypes.Workload{
 					Type: gridtypes.ZDBType,
-					Data: mustMarshalJSON(t, ZDB{
+					Data: mustMarshalJSON(t, gridtypes.ZDB{
 						Size:     1,
 						DiskType: gridtypes.HDDDevice,
 					}),

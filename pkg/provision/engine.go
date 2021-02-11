@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"crypto/ed25519"
 	"time"
 
 	"github.com/pkg/errors"
@@ -27,6 +28,12 @@ func WithJanitor(j Janitor) EngineOption {
 	return &withJanitorOpt{j}
 }
 
+// WithUsers sets the user key getter on the
+// engine
+func WithUsers(g Users) EngineOption {
+	return &withUserKeyGetter{g}
+}
+
 type provisionJob struct {
 	wl gridtypes.Workload
 	ch chan error
@@ -42,11 +49,14 @@ type deprovisionJob struct {
 // The engine is responsible to manage provision and decomission of workloads on the system
 type NativeEngine struct {
 	storage     Storage
-	janitor     Janitor
 	provisioner Provisioner
 
 	provision   chan provisionJob
 	deprovision chan deprovisionJob
+
+	//options
+	janitor Janitor
+	users   Users
 }
 
 var _ Engine = (*NativeEngine)(nil)
@@ -61,6 +71,28 @@ func (o *withJanitorOpt) apply(e *NativeEngine) {
 	e.janitor = o.j
 }
 
+type withUserKeyGetter struct {
+	g Users
+}
+
+func (o *withUserKeyGetter) apply(e *NativeEngine) {
+	e.users = o.g
+}
+
+type nullKeyGetter struct{}
+
+func (n *nullKeyGetter) GetKey(id gridtypes.ID) ed25519.PublicKey {
+	log.Debug().Stringer("id", id).Msg("null user key getter")
+	return nil
+}
+
+type engineKey struct{}
+
+// GetEngine gets engine from context
+func GetEngine(ctx context.Context) Engine {
+	return ctx.Value(engineKey{}).(Engine)
+}
+
 // New creates a new engine. Once started, the engine
 // will continue processing all reservations from the reservation source
 // and try to apply them.
@@ -73,6 +105,7 @@ func New(storage Storage, provisioner Provisioner, opts ...EngineOption) *Native
 		provisioner: provisioner,
 		provision:   make(chan provisionJob),
 		deprovision: make(chan deprovisionJob),
+		users:       &nullKeyGetter{},
 	}
 
 	for _, opt := range opts {
@@ -82,8 +115,14 @@ func New(storage Storage, provisioner Provisioner, opts ...EngineOption) *Native
 	return e
 }
 
+// Storage returns
 func (e *NativeEngine) Storage() Storage {
 	return e.storage
+}
+
+// Users returns users db
+func (e *NativeEngine) Users() Users {
+	return e.users
 }
 
 // Provision workload
@@ -126,7 +165,8 @@ func (e *NativeEngine) Run(ctx context.Context) error {
 	defer close(e.provision)
 	defer close(e.deprovision)
 
-	ctx = context.WithValue(ctx, storageKey{}, e.storage)
+	ctx = context.WithValue(ctx, engineKey{}, e)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -197,6 +237,7 @@ func (e *NativeEngine) uninstall(ctx context.Context, wl gridtypes.Workload, rea
 func (e *NativeEngine) install(ctx context.Context, wl gridtypes.Workload) {
 	log := log.With().Str("id", string(wl.ID)).Str("type", string(wl.Type)).Logger()
 
+	//ctx = context.WithValue(ctx, )
 	log.Debug().Msg("provisioning")
 	result, err := e.provisioner.Provision(ctx, &wl)
 	if err != nil {
@@ -207,6 +248,9 @@ func (e *NativeEngine) install(ctx context.Context, wl gridtypes.Workload) {
 		}
 	}
 
+	if result.State == gridtypes.StateError {
+		log.Error().Stringer("type", wl.Type).Str("error", result.Error).Msg("failed to deploy workload")
+	}
 	result.Created = time.Now()
 	wl.Result = *result
 

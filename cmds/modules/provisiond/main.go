@@ -18,6 +18,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision/api"
+	"github.com/threefoldtech/zos/pkg/provision/mw"
 	"github.com/threefoldtech/zos/pkg/provision/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
 	"github.com/urfave/cli/v2"
@@ -143,7 +144,11 @@ func action(cli *cli.Context) error {
 		handlers,
 	)
 
-	engine := provision.New(store, provisioner)
+	engine := provision.New(
+		store,
+		provisioner,
+		provision.WithUsers(mw.NewUserKeyGetter()),
+	)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to instantiate provision engine")

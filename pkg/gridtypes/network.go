@@ -36,13 +36,12 @@ type Network struct {
 	// IP range of the network, must be an IPv4 /16
 	NetworkIPRange IPNet `json:"ip_range"`
 
-	NodeID string `json:"node_id"` //[deprecated]
 	// IPV4 subnet for this network resource
 	Subnet IPNet `json:"subnet"`
 
-	WGPrivateKey string `json:"wg_private_key"`
-	WGPublicKey  string `json:"wg_public_key"`
-	WGListenPort uint16 `json:"wg_listen_port"`
+	WGPrivateKeyEncrypted string `json:"wireguard_private_key_encrypted"`
+	// WGPublicKey           string `json:"wireguard_public_key"`
+	WGListenPort uint16 `json:"wireguard_listen_port"`
 
 	Peers []Peer `json:"peers"`
 }
@@ -58,23 +57,12 @@ func (n Network) Valid() error {
 		return fmt.Errorf("network IP range cannot be empty")
 	}
 
-	if n.NodeID == "" {
-		return fmt.Errorf("network resource node ID cannot empty")
-	}
 	if len(n.Subnet.IP) == 0 {
 		return fmt.Errorf("network resource subnet cannot empty")
 	}
 
-	if n.WGPrivateKey == "" {
+	if n.WGPrivateKeyEncrypted == "" {
 		return fmt.Errorf("network resource wireguard private key cannot empty")
-	}
-
-	if n.WGPublicKey == "" {
-		return fmt.Errorf("network resource wireguard public key cannot empty")
-	}
-
-	if n.WGListenPort == 0 {
-		return fmt.Errorf("network resource wireguard listen port cannot empty")
 	}
 
 	for _, peer := range n.Peers {
@@ -94,15 +82,10 @@ func (n Network) Challenge(b io.Writer) error {
 	if _, err := fmt.Fprintf(b, "%s", n.NetworkIPRange.String()); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(b, "%s", n.WGPrivateKey); err != nil {
+	if _, err := fmt.Fprintf(b, "%s", n.WGPrivateKeyEncrypted); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(b, "%s", n.WGPublicKey); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(b, "%d", n.WGListenPort); err != nil {
-		return err
-	}
+
 	if _, err := fmt.Fprintf(b, "%s", n.NetworkIPRange.String()); err != nil {
 		return err
 	}
@@ -121,17 +104,13 @@ type Peer struct {
 	// IPV4 subnet of the network resource of the peer
 	Subnet IPNet `json:"subnet"`
 
-	WGPublicKey string  `json:"wg_public_key"`
+	WGPublicKey string  `json:"wireguard_public_key"`
 	AllowedIPs  []IPNet `json:"allowed_ips"`
 	Endpoint    string  `json:"endpoint"`
 }
 
 // Valid checks if peer is valid
 func (p *Peer) Valid() error {
-	if p.WGPublicKey == "" {
-		return fmt.Errorf("peer wireguard public key cannot empty")
-	}
-
 	if p.Subnet.Nil() {
 		return fmt.Errorf("peer wireguard subnet cannot empty")
 	}
@@ -139,6 +118,11 @@ func (p *Peer) Valid() error {
 	if len(p.AllowedIPs) <= 0 {
 		return fmt.Errorf("peer wireguard allowedIPs cannot empty")
 	}
+
+	if p.WGPublicKey == "" {
+		return fmt.Errorf("peer wireguard public key cannot empty")
+	}
+
 	return nil
 }
 

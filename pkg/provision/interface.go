@@ -2,10 +2,16 @@ package provision
 
 import (
 	"context"
+	"crypto/ed25519"
 	"fmt"
 
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
+
+// Users is used to get user public key
+type Users interface {
+	GetKey(id gridtypes.ID) ed25519.PublicKey
+}
 
 // Engine is engine interface
 type Engine interface {
@@ -15,6 +21,7 @@ type Engine interface {
 	Provision(ctx context.Context, wl gridtypes.Workload) error
 	Deprovision(ctx context.Context, id gridtypes.ID, reason string) error
 	Storage() Storage
+	Users() Users
 }
 
 // Provisioner interface

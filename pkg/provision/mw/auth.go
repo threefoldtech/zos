@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/zaibon/httpsig"
 )
 
@@ -36,12 +37,12 @@ type UserKeyGetter struct{}
 
 // NewUserKeyGetter create a httpsig.KeyGetter that uses the users collection
 // to find the key
-func NewUserKeyGetter() UserKeyGetter {
+func NewUserKeyGetter() provision.Users {
 	return UserKeyGetter{}
 }
 
 // GetKey implements httpsig.KeyGetter
-func (u UserKeyGetter) GetKey(id string) interface{} {
+func (u UserKeyGetter) GetKey(id gridtypes.ID) ed25519.PublicKey {
 	const testPK = "35DBBAE5DAAA5D391F620F25E6209D67CCD29255EBA2BAD771BECB7D137C1E62"
 	if id != "1" {
 		return nil
@@ -65,9 +66,17 @@ type AuthMiddleware struct {
 	challenge string
 }
 
+type keyGetter struct {
+	users provision.Users
+}
+
+func (k *keyGetter) GetKey(id string) interface{} {
+	return k.users.GetKey(gridtypes.ID(id))
+}
+
 // NewAuthMiddleware creates a new AuthMiddleware using the v httpsig.Verifier
-func NewAuthMiddleware(kg httpsig.KeyGetter) mux.MiddlewareFunc {
-	verifier := httpsig.NewVerifier(kg)
+func NewAuthMiddleware(users provision.Users) mux.MiddlewareFunc {
+	verifier := httpsig.NewVerifier(&keyGetter{users})
 	verifier.SetRequiredHeaders(requiredHeaders)
 	var challengeParams []string
 	if headers := verifier.RequiredHeaders(); len(headers) > 0 {
@@ -100,7 +109,7 @@ func NewAuthMiddleware(kg httpsig.KeyGetter) mux.MiddlewareFunc {
 				return
 			}
 
-			pk := kg.GetKey(userID)
+			pk := users.GetKey(gridtypes.ID(userID))
 			ctx := req.Context()
 			ctx = context.WithValue(ctx, userKeyID{}, gridtypes.ID(userID))
 			ctx = context.WithValue(ctx, usePublicKeyID{}, pk)

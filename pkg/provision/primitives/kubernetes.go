@@ -77,7 +77,7 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 	result.ID = wl.ID.String()
 	result.IP = config.IP.String()
 
-	config.PlainClusterSecret, err = decryptSecret(config.ClusterSecret, wl.User.String(), wl.Version, p.zbus)
+	config.PlainClusterSecret, err = p.decryptSecret(ctx, wl.User, config.ClusterSecret, wl.Version)
 	if err != nil {
 		return result, errors.Wrap(err, "failed to decrypt namespace password")
 	}

@@ -121,7 +121,8 @@ type Networker interface {
 // Network type
 type Network struct {
 	gridtypes.Network
-	NetID NetID
+	NetID             NetID  `json:"net_id"`
+	WGPrivateKeyPlain string `json:"wireguard_private_key"`
 }
 
 // NetID type

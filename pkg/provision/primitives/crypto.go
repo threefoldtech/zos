@@ -1,23 +1,27 @@
 package primitives
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
 	"strconv"
 
 	"github.com/threefoldtech/tfexplorer/schema"
-	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func decryptSecret(secret, userID string, reservationVersion int, client zbus.Client) (string, error) {
+func (p *Primitives) decryptSecret(ctx context.Context, user gridtypes.ID, secret string, version int) (string, error) {
 	if len(secret) == 0 {
 		return "", nil
 	}
 
-	identity := stubs.NewIdentityManagerStub(client)
+	engine := provision.GetEngine(ctx)
+
+	identity := stubs.NewIdentityManagerStub(p.zbus)
 
 	bytes, err := hex.DecodeString(secret)
 	if err != nil {
@@ -25,16 +29,14 @@ func decryptSecret(secret, userID string, reservationVersion int, client zbus.Cl
 	}
 
 	var (
-		out        []byte
-		userPubKey ed25519.PublicKey
+		out []byte
 	)
-	switch reservationVersion {
-	case 0:
-		out, err = identity.Decrypt(bytes)
+	// now only one version is supported
+	switch version {
 	default:
-		userPubKey, err = fetchUserPublicKey(userID)
-		if err != nil {
-			return "", fmt.Errorf("failed to retrieve user %s public key: %w", userID, err)
+		userPubKey := engine.Users().GetKey(user)
+		if userPubKey == nil {
+			return "", fmt.Errorf("failed to retrieve user %s public key", user)
 		}
 		out, err = identity.DecryptECDH(bytes, userPubKey)
 	}

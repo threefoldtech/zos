@@ -110,7 +110,7 @@ func (s *Module) Allocate(nsID string, diskType pkg.DeviceType, size uint64, mod
 	}
 
 	targetMode := zdbpool.IndexModeKeyValue
-	if mode == pkg.ZDBModeSeq {
+	if mode == gridtypes.ZDBModeSeq {
 		targetMode = zdbpool.IndexModeSequential
 	}
 

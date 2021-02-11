@@ -31,17 +31,6 @@ const (
 	zdbPort        = 9900
 )
 
-// ZDB namespace creation info
-type ZDB struct {
-	Size     uint64         `json:"size"`
-	Mode     pkg.ZDBMode    `json:"mode"`
-	Password string         `json:"password"`
-	DiskType pkg.DeviceType `json:"disk_type"`
-	Public   bool           `json:"public"`
-
-	PlainPassword string `json:"-"`
-}
-
 // ZDBResult is the information return to the BCDB
 // after deploying a 0-db namespace
 type ZDBResult struct {
@@ -59,14 +48,14 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 		storage = stubs.NewZDBAllocaterStub(p.zbus)
 
 		nsID   = wl.ID.String()
-		config ZDB
+		config gridtypes.ZDB
 	)
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	var err error
-	config.PlainPassword, err = decryptSecret(config.Password, wl.User.String(), wl.Version, p.zbus)
+	config.PlainPassword, err = p.decryptSecret(ctx, wl.User, config.Password, wl.Version)
 	if err != nil {
 		return ZDBResult{}, errors.Wrap(err, "failed to decrypt namespace password")
 	}
@@ -322,7 +311,7 @@ func (p *Primitives) waitZDBIPs(ctx context.Context, ifaceName, namespace string
 	return containerIPs, nil
 }
 
-func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
+func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string, config gridtypes.ZDB) error {
 	zdbCl := zdbConnection(containerID)
 	defer zdbCl.Close()
 	if err := zdbCl.Connect(); err != nil {
@@ -361,7 +350,7 @@ func (p *Primitives) zdbDecommission(ctx context.Context, wl *gridtypes.Workload
 		storage       = stubs.NewZDBAllocaterStub(p.zbus)
 		storageClient = stubs.NewStorageModuleStub(p.zbus)
 
-		config ZDB
+		config gridtypes.ZDB
 		nsID   = wl.ID.String()
 	)
 

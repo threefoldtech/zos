@@ -166,10 +166,6 @@ func (w *Workload) Challenge(i io.Writer) error {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(i, "%d", w.Created.Unix()); err != nil {
-		return err
-	}
-
 	if _, err := fmt.Fprintf(i, "%s", w.Metadata); err != nil {
 		return err
 	}

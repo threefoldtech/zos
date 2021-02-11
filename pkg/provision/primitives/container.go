@@ -68,7 +68,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 		return ContainerResult{}, fmt.Errorf("network %s is not installed on this node", config.Network.NetworkID)
 	}
 
-	cache := provision.GetStorage(ctx)
+	cache := provision.GetEngine(ctx).Storage()
 	// check to make sure the requested volume are accessible
 	for _, mount := range config.Mounts {
 		volumeRes, err := cache.Get(gridtypes.ID(mount.VolumeID))
@@ -88,7 +88,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 	}
 
 	for k, v := range config.SecretEnv {
-		v, err := decryptSecret(v, wl.User.String(), wl.Version, p.zbus)
+		v, err := p.decryptSecret(ctx, wl.User, v, wl.Version)
 		if err != nil {
 			return ContainerResult{}, errors.Wrapf(err, "failed to decrypt secret env var '%s'", k)
 		}
@@ -101,14 +101,14 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 		stderr := log.Data.Stderr
 
 		if len(log.Data.SecretStdout) > 0 {
-			stdout, err = decryptSecret(log.Data.SecretStdout, wl.User.String(), wl.Version, p.zbus)
+			stdout, err = p.decryptSecret(ctx, wl.User, log.Data.SecretStdout, wl.Version)
 			if err != nil {
 				return ContainerResult{}, errors.Wrap(err, "failed to decrypt log.secret_stdout var")
 			}
 		}
 
 		if len(log.Data.SecretStderr) > 0 {
-			stderr, err = decryptSecret(log.Data.SecretStderr, wl.User.String(), wl.Version, p.zbus)
+			stderr, err = p.decryptSecret(ctx, wl.User, log.Data.SecretStderr, wl.Version)
 			if err != nil {
 				return ContainerResult{}, errors.Wrap(err, "failed to decrypt log.secret_stdout var")
 			}

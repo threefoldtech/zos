@@ -27,9 +27,14 @@ func (p *Primitives) networkProvisionImpl(ctx context.Context, wl *gridtypes.Wor
 	mgr := stubs.NewNetworkerStub(p.zbus)
 	log.Debug().Str("network", fmt.Sprintf("%+v", network)).Msg("provision network")
 
-	_, err := mgr.CreateNR(pkg.Network{
-		Network: network,
-		NetID:   gridtypes.NetworkID(wl.User.String(), network.Name),
+	wgKey, err := p.decryptSecret(ctx, wl.User, network.WGPrivateKeyEncrypted, wl.Version)
+	if err != nil {
+		return errors.Wrap(err, "failed to decrypt wireguard private key")
+	}
+	_, err = mgr.CreateNR(pkg.Network{
+		Network:           network,
+		NetID:             gridtypes.NetworkID(wl.User.String(), network.Name),
+		WGPrivateKeyPlain: wgKey,
 	})
 
 	if err != nil {

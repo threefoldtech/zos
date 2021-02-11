@@ -43,8 +43,8 @@ func (d DeviceType) Valid() error {
 type IPNet struct{ net.IPNet }
 
 // NewIPNet creates a new IPNet from net.IPNet
-func NewIPNet(n *net.IPNet) IPNet {
-	return IPNet{IPNet: *n}
+func NewIPNet(n net.IPNet) IPNet {
+	return IPNet{IPNet: n}
 }
 
 // ParseIPNet parse iprange

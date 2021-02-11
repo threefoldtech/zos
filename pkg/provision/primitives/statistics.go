@@ -104,7 +104,8 @@ func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, wl *gridtyp
 	// otherwise we check the cache if a network
 	// with the same id already exists
 	id := gridtypes.NetworkID(wl.User.String(), nr.Name)
-	cache := provision.GetStorage(ctx)
+	cache := provision.GetEngine(ctx).Storage()
+
 	_, err := cache.GetNetwork(id)
 	if errors.Is(err, provision.ErrWorkloadNotExists) {
 		return true, nil

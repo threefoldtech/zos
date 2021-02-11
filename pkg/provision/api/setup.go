@@ -14,7 +14,7 @@ func (a *Workloads) setup(router *mux.Router) error {
 	//plus some internal in-memory cache
 
 	router.Use(
-		mw.NewAuthMiddleware(mw.NewUserKeyGetter()),
+		mw.NewAuthMiddleware(a.engine.Users()),
 	)
 
 	workloads := router.PathPrefix("/workloads").Subrouter()

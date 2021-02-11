@@ -630,16 +630,11 @@ func (n *networker) CreateNR(netNR pkg.Network) (string, error) {
 
 	log.Info().Str("network", string(netNR.NetID)).Msg("create network resource")
 
-	privateKey, err := n.extractPrivateKey(netNR.WGPrivateKey)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to extract private key from network object")
-	}
-
 	// check if there is a reserved wireguard port for this NR already
 	// or if we need to update it
 	storedNR, err := n.networkOf(string(netNR.NetID))
 	if err != nil && !os.IsNotExist(err) {
-		return "", err
+		return "", errors.Wrap(err, "failed to load previous network setup")
 	}
 
 	if err == nil {
@@ -703,7 +698,7 @@ func (n *networker) CreateNR(netNR pkg.Network) (string, error) {
 		return "", errors.Wrapf(err, "failed to attach network resource to DMZ bridge")
 	}
 
-	if err = netr.ConfigureWG(privateKey); err != nil {
+	if err = netr.ConfigureWG(netNR.WGPrivateKeyPlain); err != nil {
 		return "", errors.Wrap(err, "failed to configure network resource")
 	}
 

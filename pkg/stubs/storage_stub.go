@@ -24,7 +24,7 @@ func NewStorageModuleStub(client zbus.Client) *StorageModuleStub {
 	}
 }
 
-func (s *StorageModuleStub) Allocate(arg0 string, arg1 gridtypes.DeviceType, arg2 uint64, arg3 pkg.ZDBMode) (ret0 pkg.Allocation, ret1 error) {
+func (s *StorageModuleStub) Allocate(arg0 string, arg1 gridtypes.DeviceType, arg2 uint64, arg3 gridtypes.ZDBMode) (ret0 pkg.Allocation, ret1 error) {
 	args := []interface{}{arg0, arg1, arg2, arg3}
 	result, err := s.client.Request(s.module, s.object, "Allocate", args...)
 	if err != nil {
