@@ -99,9 +99,6 @@ type Workload struct {
 	Data json.RawMessage `json:"data"`
 	// Date of creation
 	Created time.Time `json:"created"`
-	// TODO: Signature is the signature to the reservation
-	// it contains all the field of this struct except the signature itself and the Result field
-	// Signature string `json:"signature,omitempty"`
 	//ToDelete is set if the user/farmer asked the reservation to be deleted
 	ToDelete bool `json:"to_delete"`
 	// Metadata is custom user metadata
