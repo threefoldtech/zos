@@ -57,7 +57,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 		return ContainerResult{}, errors.Wrap(err, "container provision schema not valid")
 	}
 
-	netID := gridtypes.NetworkID(wl.User.String(), string(config.Network.NetworkID))
+	netID := gridtypes.NetworkID(wl.User.String(), config.Network.NetworkID)
 	log.Debug().
 		Str("network-id", string(netID)).
 		Str("config", fmt.Sprintf("%+v", config)).

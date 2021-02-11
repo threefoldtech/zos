@@ -9,7 +9,7 @@ import (
 
 // Member struct
 type Member struct {
-	NetworkID NetID `json:"network_id"`
+	NetworkID string `json:"network_id"`
 	// IP to give to the container
 	IPs         []net.IP `json:"ips"`
 	PublicIP6   bool     `json:"public_ip6"`

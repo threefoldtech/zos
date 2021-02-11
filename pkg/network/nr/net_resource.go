@@ -119,7 +119,7 @@ func (nr *NetResource) Create() error {
 }
 
 func wgIP(subnet *net.IPNet) *net.IPNet {
-	// example: 10.3.1.0 -> 10.255.3.1
+	// example: 10.3.1.0 -> 100.64.3.1
 	a := subnet.IP[len(subnet.IP)-3]
 	b := subnet.IP[len(subnet.IP)-2]
 
