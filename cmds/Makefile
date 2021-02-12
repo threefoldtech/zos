@@ -20,4 +20,4 @@ internet: output
 	cd internet && CGO_ENABLED=0 GOOS=linux go build -ldflags $(ldflags) -o $(OUT)/internet
 
 zos: output
-	cd zos && CGO_ENABLED=0 GOOS=linux go build -ldflags $(ldflags) -o $(OUT)/zos
+	cd zos && CGO_ENABLED=1 GOOS=linux go build -ldflags $(ldflags) -o $(OUT)/zos

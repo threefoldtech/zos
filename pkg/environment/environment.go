@@ -23,6 +23,8 @@ type Environment struct {
 
 	FarmerID pkg.FarmID
 	Orphan   bool
+
+	SubstrateURL string
 }
 
 // RunningMode type
@@ -103,6 +105,13 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		env = envProd
 	default:
 		env = envProd
+	}
+
+	if substrate, ok := params.Get("substrate"); ok {
+		if len(substrate) > 0 {
+			env.SubstrateURL = substrate[len(substrate)-1]
+		}
+		// TODO: default value ?
 	}
 
 	if RunningMode(runmode[0]) == RunningDev {

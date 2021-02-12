@@ -3,7 +3,6 @@ package mw
 import (
 	"context"
 	"crypto/ed25519"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -32,28 +31,19 @@ func UserID(ctx context.Context) gridtypes.ID {
 	return value.(gridtypes.ID)
 }
 
-// UserKeyGetter implements httpsig.KeyGetter for the users collections
-type UserKeyGetter struct{}
+// UserMap implements httpsig.KeyGetter for the users collections
+type UserMap map[gridtypes.ID]ed25519.PublicKey
 
-// NewUserKeyGetter create a httpsig.KeyGetter that uses the users collection
+// NewUserMap create a httpsig.KeyGetter that uses the users collection
 // to find the key
-func NewUserKeyGetter() provision.Users {
-	return UserKeyGetter{}
+func NewUserMap() provision.Users {
+	return UserMap{}
 }
 
 // GetKey implements httpsig.KeyGetter
-func (u UserKeyGetter) GetKey(id gridtypes.ID) ed25519.PublicKey {
-	const testPK = "35DBBAE5DAAA5D391F620F25E6209D67CCD29255EBA2BAD771BECB7D137C1E62"
-	if id != "1" {
-		return nil
-	}
-
-	pk, err := hex.DecodeString(testPK)
-	if err != nil {
-		return nil
-	}
-
-	return ed25519.PublicKey(pk)
+func (u UserMap) GetKey(id gridtypes.ID) ed25519.PublicKey {
+	key, _ := u[id]
+	return key
 }
 
 // requiredHeaders are the parameters to be used to generated the http signature

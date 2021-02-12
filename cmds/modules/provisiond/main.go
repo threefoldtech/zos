@@ -17,7 +17,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision/api"
-	"github.com/threefoldtech/zos/pkg/provision/mw"
 	"github.com/threefoldtech/zos/pkg/provision/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
 	"github.com/urfave/cli/v2"
@@ -127,7 +126,7 @@ func action(cli *cli.Context) error {
 	// update initial capacity with
 	reserved, err := getNodeReserved(cl)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to get node reserved capacity")
+		return errors.Wrap(err, "failed to get node reserved capacity")
 	}
 
 	handlers := primitives.NewPrimitivesProvisioner(cl)
@@ -143,10 +142,15 @@ func action(cli *cli.Context) error {
 		handlers,
 	)
 
+	users, err := NewSubstrateUsers(env.SubstrateURL)
+	if err != nil {
+		return errors.Wrap(err, "failed to create substrate users database")
+	}
+
 	engine := provision.New(
 		store,
 		provisioner,
-		provision.WithUsers(mw.NewUserKeyGetter()),
+		provision.WithUsers(users),
 		// set priority to some reservation types on boot
 		// so we always need to make sure all volumes and networks
 		// comes first.
