@@ -11,7 +11,6 @@ import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rusart/muxprom"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
@@ -228,14 +227,13 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 }
 
 func getHTTPServer(cl zbus.Client, engine provision.Engine) (*http.Server, error) {
-	router := mux.NewRouter()
+	router := mux.NewRouter().StrictSlash(true)
 
 	prom := muxprom.New(
 		muxprom.Router(router),
-		muxprom.Namespace("explorer"),
+		muxprom.Namespace("provision"),
 	)
 	prom.Instrument()
-	router.Path("/metrics").Handler(promhttp.Handler()).Name("metrics")
 
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 
