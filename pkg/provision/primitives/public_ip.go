@@ -16,52 +16,26 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-// PublicIP structure
-type PublicIP struct {
-	// IP of the VM. The IP must be part of the subnet available in the network
-	// resource defined by the networkID on this node
-	IP net.IPNet `json:"ip"`
-}
-
-// Valid validate public ip input
-func (p *PublicIP) Valid() error {
-	if len(p.IP.IP) == 0 {
-		return fmt.Errorf("empty ip value")
-	}
-
-	if p.IP.IP.To4() == nil {
-		return fmt.Errorf("invalid ip format")
-	}
-
-	return nil
-}
-
-// PublicIPResult result returned by publicIP reservation
-type PublicIPResult struct {
-	ID string `json:"id"`
-	IP string `json:"ip"`
-}
-
 func (p *Primitives) publicIPProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
 	return p.publicIPProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (result PublicIPResult, err error) {
-	config := PublicIP{}
+func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (result gridtypes.PublicIPResult, err error) {
+	config := gridtypes.PublicIP{}
 
 	network := stubs.NewNetworkerStub(p.zbus)
 
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
-		return PublicIPResult{}, errors.Wrap(err, "failed to decode reservation schema")
+		return gridtypes.PublicIPResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	if err := config.Valid(); err != nil {
-		return PublicIPResult{}, errors.Wrap(err, "failed to validate ip reservation")
+		return gridtypes.PublicIPResult{}, errors.Wrap(err, "failed to validate ip reservation")
 	}
 
 	pubIP6Base, err := network.GetPublicIPv6Subnet()
 	if err != nil {
-		return PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
+		return gridtypes.PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
 	}
 
 	tapName := fmt.Sprintf("p-%s", wl.ID) // TODO: clean this up, needs to come form networkd
@@ -70,13 +44,12 @@ func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Wo
 
 	predictedIPv6, err := predictedSlaac(pubIP6Base.IP, mac.String())
 	if err != nil {
-		return PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
+		return gridtypes.PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
 	}
 
 	err = setupFilters(ctx, fName, tapName, config.IP.IP.To4().String(), predictedIPv6, mac.String())
-	return PublicIPResult{
-		ID: wl.ID.String(),
-		IP: config.IP.IP.String(),
+	return gridtypes.PublicIPResult{
+		IP: config.IP,
 	}, err
 }
 

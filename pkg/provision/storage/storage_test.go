@@ -22,26 +22,27 @@ func TestStorageAdd(t *testing.T) {
 	store, err := NewFSStore(root)
 	require.NoError(err)
 
+	id := "123456"
 	err = store.Add(gridtypes.Workload{
-		ID:   "my-id",
+		ID:   gridtypes.ID(id),
 		User: "my-user",
 		Type: gridtypes.VolumeType,
 	})
 
 	require.NoError(err)
-	stat, err := os.Lstat(filepath.Join(root, pathByID, "my-id"))
+	stat, err := os.Lstat(filepath.Join(root, pathByID, "12", "34", id))
 	require.NoError(err)
 	require.True(stat.Mode().IsRegular())
 
-	stat, err = os.Lstat(filepath.Join(root, pathByType, "volume", "my-id"))
+	stat, err = os.Lstat(filepath.Join(root, pathByType, "volume", id))
 	require.NoError(err)
 	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
 
-	stat, err = os.Lstat(filepath.Join(root, pathByUser, "my-user", pathByType, "volume", "my-id"))
+	stat, err = os.Lstat(filepath.Join(root, pathByUser, "my-user", pathByType, "volume", id))
 	require.NoError(err)
 	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
 
-	stat, err = os.Lstat(filepath.Join(root, pathByUser, "my-user", pathByID, "my-id"))
+	stat, err = os.Lstat(filepath.Join(root, pathByUser, "my-user", pathByID, "12", "34", id))
 	require.NoError(err)
 	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
 
@@ -56,15 +57,16 @@ func TestStorageAddNetwork(t *testing.T) {
 	store, err := NewFSStore(root)
 	require.NoError(err)
 
+	id := "123456"
 	err = store.Add(gridtypes.Workload{
-		ID:   "my-id",
+		ID:   gridtypes.ID(id),
 		User: "my-user",
 		Type: gridtypes.NetworkType,
 		Data: json.RawMessage(`{"name": "my-network"}`),
 	})
 
 	require.NoError(err)
-	stat, err := os.Lstat(filepath.Join(root, pathByID, "my-id"))
+	stat, err := os.Lstat(filepath.Join(root, pathByID, "12", "34", id))
 	require.NoError(err)
 	require.True(stat.Mode().IsRegular())
 
@@ -77,7 +79,7 @@ func TestStorageAddNetwork(t *testing.T) {
 	require.NoError(err)
 	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
 
-	stat, err = os.Lstat(filepath.Join(root, pathByUser, "my-user", pathByID, "my-id"))
+	stat, err = os.Lstat(filepath.Join(root, pathByUser, "my-user", pathByID, "12", "34", id))
 	require.NoError(err)
 	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
 

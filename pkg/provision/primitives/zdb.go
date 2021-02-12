@@ -31,61 +31,59 @@ const (
 	zdbPort        = 9900
 )
 
-// ZDBResult is the information return to the BCDB
-// after deploying a 0-db namespace
-type ZDBResult struct {
-	Namespace string
-	IPs       []string
-	Port      uint
+// ZDB types
+type ZDB struct {
+	gridtypes.ZDB
+	PasswordPlain string `json:"-"`
 }
 
 func (p *Primitives) zdbProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
 	return p.zdbProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (ZDBResult, error) {
+func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (gridtypes.ZDBResult, error) {
 	var (
 		storage = stubs.NewZDBAllocaterStub(p.zbus)
 
 		nsID   = wl.ID.String()
-		config gridtypes.ZDB
+		config ZDB
 	)
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
-		return ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
+		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	var err error
-	config.PlainPassword, err = p.decryptSecret(ctx, wl.User, config.Password, wl.Version)
+	config.PasswordPlain, err = p.decryptSecret(ctx, wl.User, config.PasswordEncrypted, wl.Version)
 	if err != nil {
-		return ZDBResult{}, errors.Wrap(err, "failed to decrypt namespace password")
+		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to decrypt namespace password")
 	}
 
 	// if we reached here, we need to create the 0-db namespace
 	log.Debug().Msg("allocating storage for namespace")
 	allocation, err := storage.Allocate(nsID, config.DiskType, config.Size*gigabyte, config.Mode)
 	if err != nil {
-		return ZDBResult{}, errors.Wrap(err, "failed to allocate storage")
+		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to allocate storage")
 	}
 
 	containerID := pkg.ContainerID(allocation.VolumeID)
 
 	cont, err := p.ensureZdbContainer(ctx, allocation, config.Mode)
 	if err != nil {
-		return ZDBResult{}, errors.Wrapf(err, "failed to ensure zdb containe running")
+		return gridtypes.ZDBResult{}, errors.Wrapf(err, "failed to ensure zdb containe running")
 	}
 
 	containerIPs, err := p.waitZDBIPs(ctx, nwmod.ZDBIface, cont.Network.Namespace)
 	if err != nil {
-		return ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
+		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
 	}
 	log.Warn().Msgf("ip for zdb containers %s", containerIPs)
 
 	// this call will actually configure the namespace in zdb and set the password
 	if err := p.createZDBNamespace(containerID, nsID, config); err != nil {
-		return ZDBResult{}, errors.Wrap(err, "failed to create zdb namespace")
+		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to create zdb namespace")
 	}
 
-	return ZDBResult{
+	return gridtypes.ZDBResult{
 		Namespace: nsID,
 		IPs: func() []string {
 			ips := make([]string, len(containerIPs))
@@ -311,7 +309,7 @@ func (p *Primitives) waitZDBIPs(ctx context.Context, ifaceName, namespace string
 	return containerIPs, nil
 }
 
-func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string, config gridtypes.ZDB) error {
+func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
 	zdbCl := zdbConnection(containerID)
 	defer zdbCl.Close()
 	if err := zdbCl.Connect(); err != nil {
@@ -328,8 +326,8 @@ func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string
 		}
 	}
 
-	if config.PlainPassword != "" {
-		if err := zdbCl.NamespaceSetPassword(nsID, config.PlainPassword); err != nil {
+	if config.PasswordPlain != "" {
+		if err := zdbCl.NamespaceSetPassword(nsID, config.PasswordPlain); err != nil {
 			return errors.Wrapf(err, "failed to set password namespace %s in 0-db: %s", nsID, containerID)
 		}
 	}

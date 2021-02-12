@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -70,8 +71,9 @@ func NewFSStore(root string) (*Fs, error) {
 	return store, nil
 }
 
-func (s *Fs) pathByID(wl *gridtypes.Workload) string {
-	return filepath.Join(pathByID, wl.ID.String())
+func (s *Fs) pathByID(id gridtypes.ID) string {
+	// NOTE this depends on the validID has been executed on this wl
+	return filepath.Join(pathByID, id[:2].String(), id[2:4].String(), id.String())
 }
 
 func (s *Fs) pathByType(wl *gridtypes.Workload) (string, error) {
@@ -125,12 +127,20 @@ func (s *Fs) Add(wl gridtypes.Workload) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 
+	if err := s.validID(wl.ID); err != nil {
+		return err
+	}
+
 	byType, err := s.pathByType(&wl)
 	if err != nil {
 		return err
 	}
 
-	path := s.rooted(s.pathByID(&wl))
+	path := s.rooted(s.pathByID(wl.ID))
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return errors.Wrap(err, "failed to crate directory")
+	}
+
 	file, err := os.OpenFile(
 		path,
 		os.O_CREATE|os.O_WRONLY|os.O_EXCL,
@@ -151,12 +161,25 @@ func (s *Fs) Add(wl gridtypes.Workload) error {
 
 	for _, link := range []string{
 		s.rooted(byType),
-		s.rooted(s.pathByUser(&wl), s.pathByID(&wl)),
+		s.rooted(s.pathByUser(&wl), s.pathByID(wl.ID)),
 		s.rooted(s.pathByUser(&wl), byType),
 	} {
 		if err := s.symlink(link, path); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (s *Fs) validID(id gridtypes.ID) error {
+	if len(id) < 4 {
+		// invalid id length.
+		return fmt.Errorf("invalid id length")
+	}
+
+	if strings.ContainsRune(string(id), filepath.Separator) {
+		return fmt.Errorf("invalid id format")
 	}
 
 	return nil
@@ -168,7 +191,7 @@ func (s *Fs) Set(wl gridtypes.Workload) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	path := s.rooted(s.pathByID(&wl))
+	path := s.rooted(s.pathByID(wl.ID))
 	file, err := os.OpenFile(
 		path,
 		os.O_WRONLY|os.O_TRUNC,
@@ -220,7 +243,11 @@ func (s *Fs) get(path string) (gridtypes.Workload, error) {
 
 // Get gets a workload by id
 func (s *Fs) Get(id gridtypes.ID) (gridtypes.Workload, error) {
-	path := s.rooted(filepath.Join(pathByID, id.String()))
+	if err := s.validID(id); err != nil {
+		return gridtypes.Workload{}, err
+	}
+
+	path := s.rooted(s.pathByID(id))
 	return s.get(path)
 }
 

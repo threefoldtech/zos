@@ -77,7 +77,7 @@ type withJanitorOpt struct {
 
 func (o *withJanitorOpt) apply(e *NativeEngine) {
 	panic("not implemented")
-	e.janitor = o.j
+	// e.janitor = o.j
 }
 
 type withUserKeyGetter struct {
