@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"sort"
@@ -10,9 +11,9 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/network/options"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
@@ -27,6 +28,16 @@ type IfaceConfig struct {
 	Routes4 []netlink.Route
 	Routes6 []netlink.Route
 }
+
+// Requires tesll the analyser to wait for ip type
+type Requires int
+
+const (
+	// RequiresIPv4 requires ipv4
+	RequiresIPv4 Requires = 1 << iota
+	// RequiresIPv6 requires ipv6
+	RequiresIPv6
+)
 
 type byIP4 []IfaceConfig
 
@@ -44,55 +55,80 @@ func (a byAddr) Len() int           { return len(a) }
 func (a byAddr) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byAddr) Less(i, j int) bool { return bytes.Compare(a[i].IP, a[j].IP) < 0 }
 
-// InspectIfaces is used to gather the IP that each interfaces would be from DHCP and SLAAC
+// AnalyseLinks is used to gather the IP that each interfaces would be from DHCP and SLAAC
 // it returns the IPs and routes for each interfaces for both IPv4 and IPv6
 //
 // It will list all the physical interfaces that have a cable plugged in it
 // create a network namespace per interfaces
 // start a DHCP probe on each interfaces and gather the IPs and routes received
-func InspectIfaces() ([]IfaceConfig, error) {
+func AnalyseLinks(requires Requires, filters ...Filter) ([]IfaceConfig, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to list interfaces")
 		return nil, err
 	}
 
-	filters := []ifaceFilter{filterPhysical, filterPlugged}
-	for _, filter := range filters {
-		links = filter(links)
+	filterred := links[:0]
+filter:
+	for _, link := range links {
+		log := log.With().Str("interface", link.Attrs().Name).Str("type", link.Type()).Logger()
+
+		log.Info().Msg("filtering interface")
+		if link.Attrs().Name == "lo" {
+			continue
+		}
+
+		for _, filter := range filters {
+			ok, err := filter(link)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to filter link")
+			}
+
+			if !ok {
+				log.Info().Msg("link didn't match filter crateria, skip testing")
+				continue filter
+			}
+		}
+		log.Info().Msg("link valid. testing link for connectivity")
+		filterred = append(filterred, link)
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(links))
 
-	cCfg := make(chan IfaceConfig)
+	ch := make(chan IfaceConfig)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
 
-	for _, link := range links {
-		go func(cAddrs chan IfaceConfig, link netlink.Link) {
-			defer wg.Done()
-			if err := analyseLink(cAddrs, link); err != nil {
-				log.Error().Err(err).Str("interface", link.Attrs().Name).Msg("error analysing interface")
-			}
-		}(cCfg, link)
+	for _, link := range filterred {
+		wg.Add(1)
+		analyseLink(ctx, &wg, ch, requires, link)
 	}
 
 	go func() {
 		wg.Wait()
-		close(cCfg)
+		close(ch)
 	}()
 
 	configs := make([]IfaceConfig, 0, len(links))
-	for cfg := range cCfg {
+	for cfg := range ch {
+		log.Info().Str("link", cfg.Name).Str("info", fmt.Sprintf("%+v", cfg)).Msg("info")
 		configs = append(configs, cfg)
 	}
 
 	return configs, nil
 }
 
-func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
+// AnalyseLink gets information about link
+func AnalyseLink(ctx context.Context, requires Requires, link netlink.Link) (cfg IfaceConfig, err error) {
+	cfg.Name = link.Attrs().Name
+	if link.Attrs().MasterIndex != 0 {
+		// this is to avoid breaking setups if a link is
+		// already used
+		return cfg, fmt.Errorf("link is attached to device")
+	}
 	tmpNS, err := namespace.Create(link.Attrs().Name)
 	if err != nil {
-		return errors.Wrap(err, "failed to create network namespace")
+		return cfg, errors.Wrap(err, "failed to create network namespace")
 	}
 	defer func() {
 		if err := namespace.Delete(tmpNS); err != nil {
@@ -101,17 +137,19 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 	}()
 
 	if err := netlink.LinkSetNsFd(link, int(tmpNS.Fd())); err != nil {
-		return errors.Wrap(err, "failed to sent interface into network namespace")
+		return cfg, errors.Wrap(err, "failed to sent interface into network namespace")
 	}
 
-	err = tmpNS.Do(func(_ ns.NetNS) error {
+	err = tmpNS.Do(func(host ns.NetNS) error {
 		if err := netlink.LinkSetUp(link); err != nil {
 			return errors.Wrap(err, "failed to bring interface up")
 		}
 		defer netlink.LinkSetDown(link)
+		defer netlink.LinkSetNsFd(link, int(host.Fd()))
 
 		name := link.Attrs().Name
-		if _, err := sysctl.Sysctl(fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6", name), "0"); err != nil {
+
+		if err := options.Set(name, options.IPv6Disable(false)); err != nil {
 			return errors.Wrapf(err, "failed to enable ip6 on %s", name)
 		}
 
@@ -129,13 +167,12 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 
 		var addrs4 = newAddrSet()
 		var addrs6 = newAddrSet()
-		cTimeout := time.After(time.Second * 122)
 
-	Loop:
+	loop:
 		for {
 			select {
-			case <-cTimeout:
-				break Loop
+			case <-ctx.Done():
+				return ctx.Err()
 			default:
 				addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 				if err != nil {
@@ -147,11 +184,18 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 				if err != nil {
 					return errors.Wrapf(err, "could not read address from interface %s", name)
 				}
-				addrs6.AddSlice(addrs)
 
-				if addrs6.Len() > 0 && addrs4.Len() > 0 {
-					break Loop
+				for _, addr := range addrs {
+					if addr.IP.IsGlobalUnicast() && !ifaceutil.IsULA(addr.IP) {
+						addrs6.Add(addr)
+					}
 				}
+
+				if ((requires&RequiresIPv6 == 0) || addrs6.Len() != 0) &&
+					((requires&RequiresIPv4 == 0) || addrs4.Len() != 0) {
+					break loop
+				}
+
 				time.Sleep(time.Second)
 			}
 		}
@@ -165,7 +209,7 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 			return errors.Wrapf(err, "could not read routes from interface %s", name)
 		}
 
-		cAddrs <- IfaceConfig{
+		cfg = IfaceConfig{
 			Name:    name,
 			Addrs4:  addrs4.ToSlice(),
 			Addrs6:  addrs6.ToSlice(),
@@ -175,11 +219,19 @@ func analyseLink(cAddrs chan IfaceConfig, link netlink.Link) error {
 
 		return nil
 	})
-	if err != nil {
-		log.Info().Str("interface", link.Attrs().Name).Msg("failed to gather ip addresses")
-	}
 
-	return nil
+	return
+}
+
+func analyseLink(ctx context.Context, wg *sync.WaitGroup, out chan<- IfaceConfig, requires Requires, link netlink.Link) {
+	go func() {
+		defer wg.Done()
+		cfg, err := AnalyseLink(ctx, requires, link)
+		if err != nil {
+			log.Error().Err(err).Str("interface", link.Attrs().Name).Msg("error analysing interface")
+		}
+		out <- cfg
+	}()
 }
 
 // SelectZOS decide which interface should be assigned to the ZOS bridge
@@ -229,38 +281,27 @@ func SelectZOS(cfgs []IfaceConfig) (string, error) {
 	return selected4[0].Name, nil
 }
 
-type ifaceFilter func(links []netlink.Link) []netlink.Link
+// Filter interface to filter out links
+type Filter func(link netlink.Link) (bool, error)
 
-// filterPhysical is a ifaceFilter that filter out the links that are
-// not physical interface
-func filterPhysical(links []netlink.Link) []netlink.Link {
-	out := links[:0]
-	for _, l := range links {
-		if l.Type() == "device" {
-			out = append(out, l)
-		}
-	}
-	return out
+// PhysicalFilter returns true if physical link
+func PhysicalFilter(link netlink.Link) (bool, error) {
+	return link.Type() == "device", nil
 }
 
-// filterPlugged is a ifaceFilter that filter out the links that does not have a cable plugged in it
-func filterPlugged(links []netlink.Link) []netlink.Link {
-	out := links[:0]
-	for _, l := range links {
-
-		if err := netlink.LinkSetUp(l); err != nil {
-			log.Info().Str("interface", l.Attrs().Name).Msg("failed to bring interface up")
-			continue
-		}
-
-		if !ifaceutil.IsVirtEth(l.Attrs().Name) && !ifaceutil.IsPluggedTimeout(l.Attrs().Name, time.Second*5) {
-			log.Info().Str("interface", l.Attrs().Name).Msg("interface is not plugged in, skipping")
-			continue
-		}
-
-		out = append(out, l)
+// PluggedFilter returns true if link is plugged in
+func PluggedFilter(link netlink.Link) (bool, error) {
+	if err := netlink.LinkSetUp(link); err != nil {
+		return false, errors.Wrapf(err, "failed to bring interface '%s' up", link.Attrs().Name)
 	}
-	return out
+
+	return ifaceutil.IsVirtEth(link.Attrs().Name) || ifaceutil.IsPluggedTimeout(link.Attrs().Name, time.Second*10), nil
+}
+
+// NotAttachedFilter filters out network cards that
+// area attached to bridges
+func NotAttachedFilter(link netlink.Link) (bool, error) {
+	return link.Attrs().MasterIndex == 0, nil
 }
 
 func isPrivateIP(ip net.IP) bool {
@@ -293,34 +334,32 @@ func isPrivateIP(ip net.IP) bool {
 	return false
 }
 
-type addrSet struct {
-	l []netlink.Addr
+//TODO: re-implement as map
+type addrSet map[string]netlink.Addr
+
+func newAddrSet() addrSet {
+	return addrSet{}
 }
 
-func newAddrSet() *addrSet {
-	return &addrSet{
-		l: make([]netlink.Addr, 0, 5),
-	}
+func (s addrSet) Add(addr netlink.Addr) {
+	s[addr.String()] = addr
 }
 
-func (s *addrSet) Add(addr netlink.Addr) {
-	for _, a := range s.l {
-		if a.Equal(addr) {
-			return
-		}
-	}
-	s.l = append(s.l, addr)
-}
-
-func (s *addrSet) AddSlice(addrs []netlink.Addr) {
+func (s addrSet) AddSlice(addrs []netlink.Addr) {
 	for _, addr := range addrs {
 		s.Add(addr)
 	}
 }
 
-func (s *addrSet) Len() int {
-	return len(s.l)
+func (s addrSet) Len() int {
+	return len(s)
 }
-func (s *addrSet) ToSlice() []netlink.Addr {
-	return s.l
+
+func (s addrSet) ToSlice() []netlink.Addr {
+	var results []netlink.Addr
+	for _, l := range s {
+		results = append(results, l)
+	}
+
+	return results
 }
