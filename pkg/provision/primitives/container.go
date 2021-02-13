@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
@@ -106,7 +107,7 @@ type ContainerCapacity struct {
 }
 
 // FListElevated url of privileged container
-const FListElevated = "https://hub.grid.tf/maxux42.3bot/zdbfs-alpine.flist"
+const FListElevated = "https://hub.grid.tf/tf-elevated/"
 
 func (p *Provisioner) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.containerProvisionImpl(ctx, reservation)
@@ -255,7 +256,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 
 	var elevated = false
 
-	if config.FList == FListElevated {
+	if strings.HasPrefix(config.FList, FListElevated) {
 		// Enable fuse access to this specific flist
 		elevated = true
 	}
