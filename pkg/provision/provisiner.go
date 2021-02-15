@@ -52,7 +52,7 @@ func (p *mapProvisioner) Decommission(ctx context.Context, wl *gridtypes.Workloa
 
 func (p *mapProvisioner) buildResult(wl *gridtypes.Workload, data interface{}, err error) (*gridtypes.Result, error) {
 	result := &gridtypes.Result{
-		Created: time.Now(),
+		Created: gridtypes.Timestamp(time.Now().Unix()),
 	}
 
 	if err != nil {

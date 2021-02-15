@@ -24,7 +24,6 @@ func (a *Workloads) create(request *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 	workload.ID = gridtypes.ID(id)
-	workload.Created = time.Now()
 	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
 	defer cancel()
 

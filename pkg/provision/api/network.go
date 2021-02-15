@@ -15,6 +15,9 @@ type Network struct {
 }
 
 // NewNetworkAPI creates a new NetworkAPI
+// TODO: this should not be part of the generic api
+// because it is zos specific
+// may be move with primitives
 func NewNetworkAPI(router *mux.Router, cl zbus.Client) (*Network, error) {
 	api := &Network{cl}
 	return api, api.setup(router)

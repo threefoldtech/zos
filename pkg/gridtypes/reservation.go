@@ -95,6 +95,27 @@ func MustMarshal(data WorkloadData) json.RawMessage {
 	return json.RawMessage(bytes)
 }
 
+// Timestamp type
+type Timestamp int64
+
+// UnmarshalJSON supports multiple formats
+func (t *Timestamp) UnmarshalJSON(data []byte) error {
+	var u int64
+	if err := json.Unmarshal(data, &u); err == nil {
+		*t = Timestamp(u)
+		return nil
+	}
+
+	// else we try time
+	var v time.Time
+	if err := json.Unmarshal(data, &v); err == nil {
+		*t = Timestamp(v.Unix())
+		return nil
+	}
+
+	return fmt.Errorf("unknown timestamp format, expecting a timestamp or an ISO-8601 date")
+}
+
 // Workload struct
 type Workload struct {
 	//Version is version of reservation object
@@ -108,7 +129,7 @@ type Workload struct {
 	// Data is the reservation type arguments.
 	Data json.RawMessage `json:"data"`
 	// Date of creation
-	Created time.Time `json:"created"`
+	Created Timestamp `json:"created"`
 	//ToDelete is set if the user/farmer asked the reservation to be deleted
 	ToDelete bool `json:"to_delete"`
 	// Metadata is custom user metadata
@@ -274,7 +295,7 @@ const (
 // after a reservation object has been processed
 type Result struct {
 	// Time when the result is sent
-	Created time.Time `json:"created"`
+	Created Timestamp `json:"created"`
 	// State of the deployment (ok,error)
 	State ResultState `json:"state"`
 	// if State is "error", then this field contains the error
@@ -299,7 +320,7 @@ func (r *Result) IsNil() bool {
 	// (like the type)
 	// so instead we gonna check the Data and the Created filed
 
-	return (r.Created.Equal(epoch) || r.Created.Equal(nullTime)) && (len(r.Data) == 0 || bytes.Equal(r.Data, nullRaw))
+	return r.Created == 0 && (len(r.Data) == 0 || bytes.Equal(r.Data, nullRaw))
 }
 
 var (

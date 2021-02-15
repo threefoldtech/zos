@@ -230,10 +230,10 @@ func (e *NativeEngine) Run(ctx context.Context) error {
 
 			e.uninstall(ctx, wl, job.reason)
 		case job := <-e.provision:
-			job.wl.Created = time.Now()
+			job.wl.Created = gridtypes.Timestamp(time.Now().Unix())
 			job.wl.ToDelete = false
 			job.wl.Result.State = gridtypes.StateAccepted
-			job.wl.Result.Created = time.Now()
+			job.wl.Result.Created = gridtypes.Timestamp(time.Now().Unix())
 
 			err := e.storage.Add(job.wl)
 			// release the job. the caller will now know that the workload
@@ -296,7 +296,7 @@ func (e *NativeEngine) uninstall(ctx context.Context, wl gridtypes.Workload, rea
 		result.Error = errors.Wrapf(err, "error while decommission reservation because of: '%s'", result.Error).Error()
 	}
 
-	result.Created = time.Now()
+	result.Created = gridtypes.Timestamp(time.Now().Unix())
 	wl.Result = *result
 
 	if err := e.storage.Set(wl); err != nil {
@@ -320,7 +320,7 @@ func (e *NativeEngine) install(ctx context.Context, wl gridtypes.Workload) {
 	if result.State == gridtypes.StateError {
 		log.Error().Stringer("type", wl.Type).Str("error", result.Error).Msg("failed to deploy workload")
 	}
-	result.Created = time.Now()
+	result.Created = gridtypes.Timestamp(time.Now().Unix())
 	wl.Result = *result
 
 	if err := e.storage.Set(wl); err != nil {
