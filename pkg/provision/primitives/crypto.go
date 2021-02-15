@@ -2,13 +2,9 @@ package primitives
 
 import (
 	"context"
-	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
-	"strconv"
 
-	"github.com/threefoldtech/tfexplorer/schema"
-	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -42,28 +38,4 @@ func (p *Primitives) decryptSecret(ctx context.Context, user gridtypes.ID, secre
 	}
 
 	return string(out), err
-}
-
-func fetchUserPublicKey(userID string) (ed25519.PublicKey, error) {
-	iid, err := strconv.Atoi(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	explorer, err := app.ExplorerClient()
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := explorer.Phonebook.Get(schema.ID(iid))
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := hex.DecodeString(user.Pubkey)
-	if err != nil {
-		return nil, err
-	}
-
-	return ed25519.PublicKey(b), nil
 }
