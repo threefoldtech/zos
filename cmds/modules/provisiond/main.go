@@ -19,6 +19,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision/api"
 	"github.com/threefoldtech/zos/pkg/provision/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
+	"github.com/threefoldtech/zos/pkg/provision/substrate"
 	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -142,7 +143,7 @@ func action(cli *cli.Context) error {
 		handlers,
 	)
 
-	users, err := NewSubstrateUsers(env.SubstrateURL)
+	users, err := substrate.NewSubstrateUsers(env.SubstrateURL)
 	if err != nil {
 		return errors.Wrap(err, "failed to create substrate users database")
 	}

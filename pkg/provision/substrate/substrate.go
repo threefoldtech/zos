@@ -1,4 +1,4 @@
-package provisiond
+package substrate
 
 import (
 	"crypto/ed25519"
