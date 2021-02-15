@@ -24,6 +24,7 @@ type Environment struct {
 	FarmerID pkg.FarmID
 	Orphan   bool
 
+	FarmSecret   string
 	SubstrateURL string
 }
 
@@ -112,6 +113,12 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 			env.SubstrateURL = substrate[len(substrate)-1]
 		}
 		// TODO: default value ?
+	}
+
+	if farmSecret, ok := params.Get("secret"); ok {
+		if len(farmSecret) > 0 {
+			env.FarmSecret = farmSecret[len(farmSecret)-1]
+		}
 	}
 
 	if RunningMode(runmode[0]) == RunningDev {

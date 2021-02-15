@@ -2,24 +2,21 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/jbenet/go-base58"
 	"github.com/shirou/gopsutil/host"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/tfexplorer/client"
-	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/geoip"
-	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg/substrate"
 	"github.com/threefoldtech/zos/pkg/upgrade"
 
 	"github.com/cenkalti/backoff/v3"
@@ -126,14 +123,9 @@ func main() {
 
 	// 2. Register the node to BCDB
 	// at this point we are running latest version
-	idMgr, err := identityMgr(root)
+	idMgr, err := getIdentityMgr(root)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create identity manager")
-	}
-
-	idStore, err := bcdbClient()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create identity client")
 	}
 
 	var current string
@@ -150,19 +142,17 @@ func main() {
 		current = "not booted from flist"
 	}
 
-	nodeID := idMgr.NodeID()
-	farmID, err := idMgr.FarmID()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to read farm ID")
-	}
-
 	loc, err := geoip.Fetch()
 	if err != nil {
 		log.Fatal().Err(err).Msg("fetch location")
 	}
+	farmIP, err := getFarmTwin()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to get farmer twin address")
+	}
 
 	register := func(v string) error {
-		return registerNode(nodeID, farmID, v, idStore, loc)
+		return registerNode(idMgr, farmIP, v, loc)
 	}
 
 	if err := backoff.RetryNotify(func() error {
@@ -411,7 +401,7 @@ func retryNotify(err error, d time.Duration) {
 	log.Warn().Err(err).Str("sleep", d.String()).Msg("registration failed")
 }
 
-func identityMgr(root string) (pkg.IdentityManager, error) {
+func getIdentityMgr(root string) (pkg.IdentityManager, error) {
 	seedPath := filepath.Join(root, seedName)
 
 	manager, err := identity.NewManager(seedPath)
@@ -437,54 +427,76 @@ func identityMgr(root string) (pkg.IdentityManager, error) {
 	return manager, nil
 }
 
-// instantiate the proper client based on the running mode
-func bcdbClient() (client.Directory, error) {
-	client, err := app.ExplorerClient()
+func getFarmTwin() (net.IP, error) {
+	env, err := environment.Get()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get runtime environment for zos")
 	}
 
-	return client.Directory, nil
+	sub, err := substrate.NewSubstrate(env.SubstrateURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to connect to substrate")
+	}
+
+	farm, err := sub.GetFarm(uint32(env.FarmerID))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get farm")
+	}
+
+	twin, err := sub.GetTwin(uint32(farm.TwinID))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get twin")
+	}
+
+	return twin.YggdrasilAddress()
 }
 
-func registerNode(nodeID pkg.Identifier, farmID pkg.FarmID, version string, store client.Directory, loc geoip.Location) error {
+func registerNode(mgr pkg.IdentityManager, ip net.IP, version string, loc geoip.Location) error {
 	log.Info().Str("version", version).Msg("start registration of the node")
 
-	v1ID, _ := network.NodeIDv1()
+	// nodeID := mgr.NodeID()
+	// farmID, err := mgr.FarmID()
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to get farm id")
+	// }
 
-	publicKeyHex := hex.EncodeToString(base58.Decode(nodeID.Identity()))
+	// farmSecret, err := mgr.FarmSecret()
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to return farm secret")
+	// }
 
-	hostName, err := os.Hostname()
-	if err != nil {
-		hostName = "unknown"
-	}
+	// publicKeyHex := hex.EncodeToString(base58.Decode(nodeID.Identity()))
 
-	uptime, err := hostUptime()
-	if err != nil {
-		return errors.Wrap(err, "could not get node uptime")
-	}
+	// hostName, err := os.Hostname()
+	// if err != nil {
+	// 	hostName = "unknown"
+	// }
 
-	err = store.NodeRegister(directory.Node{
-		NodeId:    nodeID.Identity(),
-		HostName:  hostName,
-		NodeIdV1:  v1ID,
-		FarmId:    int64(farmID),
-		OsVersion: version,
-		Location: directory.Location{
-			Continent: loc.Continent,
-			Country:   loc.Country,
-			City:      loc.City,
-			Longitude: loc.Longitute,
-			Latitude:  loc.Latitude,
-		},
-		PublicKeyHex: publicKeyHex,
-		Uptime:       int64(uptime),
-	})
+	// uptime, err := hostUptime()
+	// if err != nil {
+	// 	return errors.Wrap(err, "could not get node uptime")
+	// }
 
-	if err != nil {
-		log.Error().Err(err).Send()
-		return err
-	}
+	// err = store.NodeRegister(directory.Node{
+	// 	NodeId:    nodeID.Identity(),
+	// 	HostName:  hostName,
+	// 	FarmId:    int64(farmID),
+	// 	OsVersion: version,
+	// 	Location: directory.Location{
+	// 		Continent: loc.Continent,
+	// 		Country:   loc.Country,
+	// 		City:      loc.City,
+	// 		Longitude: loc.Longitute,
+	// 		Latitude:  loc.Latitude,
+	// 	},
+	// 	PublicKeyHex: publicKeyHex,
+	// 	Uptime:       int64(uptime),
+	// })
+
+	// if err != nil {
+	// 	log.Error().Err(err).Send()
+	// 	return err
+	// }
 
 	return nil
 }
