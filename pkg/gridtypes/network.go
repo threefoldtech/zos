@@ -82,11 +82,16 @@ func (n Network) Challenge(b io.Writer) error {
 	if _, err := fmt.Fprintf(b, "%s", n.NetworkIPRange.String()); err != nil {
 		return err
 	}
+
+	if _, err := fmt.Fprintf(b, "%s", n.Subnet.String()); err != nil {
+		return err
+	}
+
 	if _, err := fmt.Fprintf(b, "%s", n.WGPrivateKeyEncrypted); err != nil {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(b, "%s", n.NetworkIPRange.String()); err != nil {
+	if _, err := fmt.Fprintf(b, "%d", n.WGListenPort); err != nil {
 		return err
 	}
 
