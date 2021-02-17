@@ -69,6 +69,7 @@ func registration(ctx context.Context, cl zbus.Client) error {
 		return errors.Wrap(err, "failed to register node")
 	}
 
+	log.Info().Msg("node has been registered")
 	return nil
 }
 

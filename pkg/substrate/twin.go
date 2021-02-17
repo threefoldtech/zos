@@ -10,8 +10,8 @@ import (
 
 // EntityProof struct
 type EntityProof struct {
-	EntityID  types.U64
-	Signature []byte
+	EntityID  types.U32
+	Signature string
 }
 
 // Twin struct
