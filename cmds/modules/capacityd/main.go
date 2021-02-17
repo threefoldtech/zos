@@ -65,7 +65,7 @@ func action(cli *cli.Context) error {
 		log.Info().Msg("shutting down")
 	})
 
-	if err := registration(redis); err != nil {
+	if err := registration(ctx, redis); err != nil {
 		return errors.Wrap(err, "failed during node registration")
 	}
 

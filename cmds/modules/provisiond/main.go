@@ -256,6 +256,6 @@ func getHTTPServer(cl zbus.Client, engine provision.Engine) (*http.Server, error
 	}
 
 	return &http.Server{
-		Handler: v1,
+		Handler: router,
 	}, nil
 }

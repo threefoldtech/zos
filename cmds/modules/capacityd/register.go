@@ -1,6 +1,7 @@
 package capacityd
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -19,7 +20,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/substrate"
 )
 
-func registration(cl zbus.Client) error {
+func registration(ctx context.Context, cl zbus.Client) error {
 	env, err := environment.Get()
 	if err != nil {
 		return errors.Wrap(err, "failed to get runtime environment for zos")
@@ -51,7 +52,7 @@ func registration(cl zbus.Client) error {
 		Uint64("hru", cap.HRU).
 		Msg("node capacity")
 
-	url := fmt.Sprintf("http://[%s]:28682/", farmIP.String())
+	url := fmt.Sprintf("http://[%s]:3000/", farmIP.String())
 	fm, err := farmer.NewClient(url)
 	if err != nil {
 		return errors.Wrap(err, "failed to create farmer client")
@@ -59,9 +60,10 @@ func registration(cl zbus.Client) error {
 
 	exp := backoff.NewExponentialBackOff()
 	exp.MaxInterval = 2 * time.Minute
+	bo := backoff.WithContext(exp, ctx)
 	err = backoff.RetryNotify(func() error {
 		return registerNode(env, mgr, fm, cap, loc)
-	}, exp, retryNotify)
+	}, bo, retryNotify)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to register node")
