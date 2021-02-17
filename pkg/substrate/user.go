@@ -13,8 +13,7 @@ type User struct {
 	Name      string
 	CountryID types.U32
 	CityID    types.U32
-	Address   types.AccountID
-	PubKey    [32]byte
+	Address   AccountID
 }
 
 func (s *substrateClient) GetUser(id uint32) (*User, error) {

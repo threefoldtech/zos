@@ -105,6 +105,10 @@ func action(cli *cli.Context) error {
 	// block until networkd is ready to serve request from zbus
 	// this is used to prevent uptime and online status to the explorer if the node is not in a fully ready
 	// https://github.com/threefoldtech/zos/issues/632
+	// NOTE - UPDATE: this block of code should be deprecated
+	// since we do the waiting in zinit now since provisiond waits for networkd
+	// which has a 'test' condition in the zinit yaml file for networkd to wait
+	// for zbus
 	network := stubs.NewNetworkerStub(cl)
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0

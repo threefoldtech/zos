@@ -150,7 +150,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "fail to create module root")
 	}
 
-	networker, err := network.NewNetworker(identity, directory, root, dmz, ygg)
+	networker, err := network.NewNetworker(identity, root, dmz, ygg)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
 	}

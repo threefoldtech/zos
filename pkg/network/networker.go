@@ -15,7 +15,6 @@ import (
 	"github.com/blang/semver"
 	"github.com/termie/go-shutil"
 
-	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/cache"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/public"
@@ -66,7 +65,6 @@ type networker struct {
 	identity     pkg.IdentityManager
 	networkDir   string
 	ipamLeaseDir string
-	tnodb        client.Directory
 	portSet      *set.UIntSet
 
 	ndmz ndmz.DMZ
@@ -76,7 +74,7 @@ type networker struct {
 var _ pkg.Networker = (*networker)(nil)
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageDir string, ndmz ndmz.DMZ, ygg *yggdrasil.Server) (pkg.Networker, error) {
+func NewNetworker(identity pkg.IdentityManager, storageDir string, ndmz ndmz.DMZ, ygg *yggdrasil.Server) (pkg.Networker, error) {
 	vd, err := cache.VolatileDir("networkd", 50*mib)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("failed to create networkd cache directory: %w", err)
@@ -103,7 +101,6 @@ func NewNetworker(identity pkg.IdentityManager, tnodb client.Directory, storageD
 
 	nw := &networker{
 		identity:     identity,
-		tnodb:        tnodb,
 		networkDir:   nwDir,
 		ipamLeaseDir: ipamLease,
 		portSet:      set.NewInt(),

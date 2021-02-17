@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -14,9 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/substrate"
 	"github.com/threefoldtech/zos/pkg/upgrade"
 
 	"github.com/cenkalti/backoff/v3"
@@ -128,41 +125,6 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create identity manager")
 	}
 
-	var current string
-	if bootMethod == upgrade.BootMethodFList {
-		v, err := boot.Version()
-		if err != nil {
-			//NOTE: this is set to error intentionally (not fatal)
-			//this will cause version to be 0.0.0 and will force an
-			//immediate update of the flist to latest
-			log.Error().Err(err).Msg("failed to read current version")
-		}
-		current = v.String()
-	} else {
-		current = "not booted from flist"
-	}
-
-	loc, err := geoip.Fetch()
-	if err != nil {
-		log.Fatal().Err(err).Msg("fetch location")
-	}
-	farmIP, err := getFarmTwin()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to get farmer twin address")
-	}
-
-	register := func(v string) error {
-		return registerNode(idMgr, farmIP, v, loc)
-	}
-
-	if err := backoff.RetryNotify(func() error {
-		return register(current)
-	}, backoff.NewExponentialBackOff(), retryNotify); err != nil {
-		log.Error().Err(err).Msg("failed to register node")
-	} else {
-		log.Info().Str("version", current).Msg("node registered successfully")
-	}
-
 	monitor := newVersionMonitor(2 * time.Second)
 	// 3. start zbus server to serve identity interface
 	server, err := zbus.NewRedisServer(module, broker, 1)
@@ -206,7 +168,8 @@ func main() {
 	// 4. Start watcher for new version
 	log.Info().Msg("start upgrade daemon")
 
-	upgradeLoop(ctx, &boot, upgrader, debug, monitor, register)
+	// TODO: do we need to update farmer on node upgrade?
+	upgradeLoop(ctx, &boot, upgrader, debug, monitor, func(string) error { return nil })
 }
 
 // allow reinstall if receive signal USR1
@@ -364,13 +327,6 @@ func upgradeLoop(
 			}
 
 			monitor.C <- version
-			if err := backoff.RetryNotify(func() error {
-				return register(version.String())
-			}, backoff.NewExponentialBackOff(), retryNotify); err != nil {
-				log.Error().Err(err).Msg("failed to register node")
-			} else {
-				log.Info().Str("version", version.String()).Msg("node registered successfully")
-			}
 		case e := <-repoEvents:
 			if e == nil {
 				continue
@@ -397,10 +353,6 @@ func upgradeLoop(
 	}
 }
 
-func retryNotify(err error, d time.Duration) {
-	log.Warn().Err(err).Str("sleep", d.String()).Msg("registration failed")
-}
-
 func getIdentityMgr(root string) (pkg.IdentityManager, error) {
 	seedPath := filepath.Join(root, seedName)
 
@@ -425,80 +377,6 @@ func getIdentityMgr(root string) (pkg.IdentityManager, error) {
 		Msg("farmer identified")
 
 	return manager, nil
-}
-
-func getFarmTwin() (net.IP, error) {
-	env, err := environment.Get()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get runtime environment for zos")
-	}
-
-	sub, err := substrate.NewSubstrate(env.SubstrateURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to connect to substrate")
-	}
-
-	farm, err := sub.GetFarm(uint32(env.FarmerID))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get farm")
-	}
-
-	twin, err := sub.GetTwin(uint32(farm.TwinID))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get twin")
-	}
-
-	return twin.YggdrasilAddress()
-}
-
-func registerNode(mgr pkg.IdentityManager, ip net.IP, version string, loc geoip.Location) error {
-	log.Info().Str("version", version).Msg("start registration of the node")
-
-	// nodeID := mgr.NodeID()
-	// farmID, err := mgr.FarmID()
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to get farm id")
-	// }
-
-	// farmSecret, err := mgr.FarmSecret()
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to return farm secret")
-	// }
-
-	// publicKeyHex := hex.EncodeToString(base58.Decode(nodeID.Identity()))
-
-	// hostName, err := os.Hostname()
-	// if err != nil {
-	// 	hostName = "unknown"
-	// }
-
-	// uptime, err := hostUptime()
-	// if err != nil {
-	// 	return errors.Wrap(err, "could not get node uptime")
-	// }
-
-	// err = store.NodeRegister(directory.Node{
-	// 	NodeId:    nodeID.Identity(),
-	// 	HostName:  hostName,
-	// 	FarmId:    int64(farmID),
-	// 	OsVersion: version,
-	// 	Location: directory.Location{
-	// 		Continent: loc.Continent,
-	// 		Country:   loc.Country,
-	// 		City:      loc.City,
-	// 		Longitude: loc.Longitute,
-	// 		Latitude:  loc.Latitude,
-	// 	},
-	// 	PublicKeyHex: publicKeyHex,
-	// 	Uptime:       int64(uptime),
-	// })
-
-	// if err != nil {
-	// 	log.Error().Err(err).Send()
-	// 	return err
-	// }
-
-	return nil
 }
 
 // hostUptime returns the uptime of the node

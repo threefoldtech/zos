@@ -51,7 +51,7 @@ func (s *substrateUsers) GetKey(id gridtypes.ID) ed25519.PublicKey {
 		return nil
 	}
 
-	key := ed25519.PublicKey(user.PubKey[:])
+	key := user.Address.PublicKey()
 	s.mem.Add(id, key)
 	return key
 }

@@ -1,7 +1,6 @@
 package substrate
 
 import (
-	"crypto/ed25519"
 	"fmt"
 	"net"
 
@@ -18,16 +17,14 @@ type EntityProof struct {
 // Twin struct
 type Twin struct {
 	ID       types.U32
-	Address  types.AccountID
-	PubKey   [32]byte
+	Account  AccountID
+	IP       string
 	Entities []EntityProof
 }
 
-//YggdrasilAddress get the yggdrasil address from twin public key
-func (t *Twin) YggdrasilAddress() (net.IP, error) {
-	pk := ed25519.PublicKey(t.PubKey[:])
-	ygg := NewYggdrasilIdentity(pk)
-	return ygg.Address()
+//IPAddress parse the twin IP as net.IP
+func (t *Twin) IPAddress() net.IP {
+	return net.ParseIP(t.IP)
 }
 
 func (s *substrateClient) GetTwin(id uint32) (*Twin, error) {
