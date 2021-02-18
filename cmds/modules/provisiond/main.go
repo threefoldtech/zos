@@ -16,8 +16,8 @@ import (
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos/pkg/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/api"
-	"github.com/threefoldtech/zos/pkg/provision/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
 	"github.com/urfave/cli/v2"
 
