@@ -22,7 +22,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
-	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -121,28 +120,6 @@ func action(cli *cli.Context) error {
 	if err := dmz.SetIP(gw); err != nil {
 		return errors.Wrap(err, "fail to configure yggdrasil subnet gateway IP")
 	}
-
-	// send another detail of network interfaces now that ndmz is created
-	ndmzIfaces, err := dmz.Interfaces()
-	if err != nil {
-		return errors.Wrap(err, "failed to read ndmz network interfaces")
-	}
-	// already sends all the interfaces detail we find
-	// this won't contains the ndmz IP yet, but this is OK.
-	ifaces, err := getLocalInterfaces()
-	if err != nil {
-		return errors.Wrap(err, "failed to read local network interfaces")
-	}
-
-	ifaces = append(ifaces, ndmzIfaces...)
-
-	if err := publishIfaces(ifaces, nodeID, directory); err != nil {
-		return errors.Wrap(err, "failed to publish ndmz network interfaces to BCDB")
-	}
-
-	// watch modification of the address on the nic so we can update the explorer
-	// with eventual new values
-	go startAddrWatch(ctx, dmz, nodeID, directory, ifaces)
 
 	log.Info().Msg("start zbus server")
 	if err := os.MkdirAll(root, 0750); err != nil {
@@ -298,29 +275,6 @@ func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz
 	}
 
 	return server, nil
-}
-
-func startAddrWatch(ctx context.Context, dmz ndmz.DMZ, nodeID pkg.Identifier, cl client.Directory, ifaces []types.IfaceInfo) {
-
-	ifaceNames := make([]string, len(ifaces))
-	for i, iface := range ifaces {
-		ifaceNames[i] = iface.Name
-	}
-	log.Info().Msgf("watched interfaces %v", ifaceNames)
-
-	f := func() error {
-		wl := NewWatchedLinks(dmz, ifaceNames, nodeID, cl)
-		if err := wl.Forever(ctx); err != nil {
-			log.Error().Err(err).Msg("error in address watcher")
-			return err
-		}
-		return nil
-	}
-
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxInterval = time.Minute
-	bo.MaxElapsedTime = 0 // retry forever
-	backoff.Retry(f, bo)
 }
 
 // instantiate the proper client based on the running mode
