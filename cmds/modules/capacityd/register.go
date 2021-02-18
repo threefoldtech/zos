@@ -2,8 +2,6 @@ package capacityd
 
 import (
 	"context"
-	"fmt"
-	"net"
 	"os"
 	"time"
 
@@ -17,7 +15,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/farmer"
 	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/substrate"
 )
 
 func registration(ctx context.Context, cl zbus.Client) error {
@@ -33,12 +30,6 @@ func registration(ctx context.Context, cl zbus.Client) error {
 	if err != nil {
 		log.Fatal().Err(err).Msg("fetch location")
 	}
-	farmIP, err := getFarmTwin(env)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to get farmer twin address")
-	}
-
-	log.Debug().IPAddr("ip", farmIP).Msg("farmer IP")
 	oracle := capacity.NewResourceOracle(storage)
 	cap, err := oracle.Total()
 	if err != nil {
@@ -52,8 +43,7 @@ func registration(ctx context.Context, cl zbus.Client) error {
 		Uint64("hru", cap.HRU).
 		Msg("node capacity")
 
-	url := fmt.Sprintf("http://[%s]:3000/", farmIP.String())
-	fm, err := farmer.NewClient(url)
+	fm, err := farmer.NewClientFromSubstrate(env.SubstrateURL, uint32(env.FarmerID))
 	if err != nil {
 		return errors.Wrap(err, "failed to create farmer client")
 	}
@@ -99,29 +89,6 @@ func registerNode(env environment.Environment, mgr pkg.IdentityManager, cl *farm
 			Latitude:  loc.Latitude,
 		},
 		Capacity: cap,
+		Type:     "3node",
 	})
-}
-
-func getFarmTwin(env environment.Environment) (net.IP, error) {
-	sub, err := substrate.NewSubstrate(env.SubstrateURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to connect to substrate")
-	}
-
-	farm, err := sub.GetFarm(uint32(env.FarmerID))
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get farm '%d'", env.FarmerID)
-	}
-
-	twin, err := sub.GetTwin(uint32(farm.TwinID))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get twin")
-	}
-
-	ip := twin.IPAddress()
-	if len(ip) == 0 {
-		return nil, fmt.Errorf("invalid ip address associated with farmer twin")
-	}
-
-	return ip, nil
 }

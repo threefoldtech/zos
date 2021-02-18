@@ -1,4 +1,4 @@
-package provisiond
+package provision
 
 import (
 	"crypto/ed25519"
@@ -7,7 +7,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/substrate"
 )
 
@@ -16,8 +15,8 @@ type substrateUsers struct {
 	mem *lru.Cache
 }
 
-// NewSubstrateUsers creates a substrate users db
-func NewSubstrateUsers(url string) (provision.Users, error) {
+// NewSubstrateUsers creates a substrate users db that implements the Users interface.
+func NewSubstrateUsers(url string) (Users, error) {
 	sub, err := substrate.NewSubstrate(url)
 	if err != nil {
 		return nil, err

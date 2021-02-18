@@ -146,7 +146,7 @@ func action(cli *cli.Context) error {
 		handlers,
 	)
 
-	users, err := NewSubstrateUsers(env.SubstrateURL)
+	users, err := provision.NewSubstrateUsers(env.SubstrateURL)
 	if err != nil {
 		return errors.Wrap(err, "failed to create substrate users database")
 	}

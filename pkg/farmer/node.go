@@ -24,6 +24,7 @@ type Node struct {
 	Secret   string            `json:"secret"`
 	Location Location          `json:"location"`
 	Capacity capacity.Capacity `json:"capacity"`
+	// Type     string            `json:"type"`
 }
 
 // NodeRegister register node
