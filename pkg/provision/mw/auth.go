@@ -3,6 +3,7 @@ package mw
 import (
 	"context"
 	"crypto/ed25519"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -36,8 +37,18 @@ type UserMap map[gridtypes.ID]ed25519.PublicKey
 
 // NewUserMap create a httpsig.KeyGetter that uses the users collection
 // to find the key
-func NewUserMap() provision.Users {
+func NewUserMap() UserMap {
 	return UserMap{}
+}
+
+// AddKeyFromHex adds a user key to map from a hex string
+func (u UserMap) AddKeyFromHex(id gridtypes.ID, key string) error {
+	k, err := hex.DecodeString(key)
+	if err != nil {
+		return err
+	}
+	u[id] = ed25519.PublicKey(k)
+	return nil
 }
 
 // GetKey implements httpsig.KeyGetter

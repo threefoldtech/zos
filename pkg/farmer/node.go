@@ -40,5 +40,5 @@ func (c *Client) NodeRegister(node Node) error {
 		return errors.Wrap(err, "failed to build request")
 	}
 
-	return c.response(response, nil, http.StatusCreated)
+	return c.response(response, nil, http.StatusCreated, http.StatusNotModified)
 }

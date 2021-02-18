@@ -39,7 +39,6 @@ func (p *CertificationType) Decode(decoder scale.Decoder) error {
 type Farm struct {
 	ID                types.U32
 	Name              string
-	EntityID          types.U32
 	TwinID            types.U32
 	PricingPolicyID   types.U32
 	CertificationType CertificationType
