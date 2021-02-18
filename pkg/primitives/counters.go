@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
@@ -58,27 +57,27 @@ type Counters struct {
 	CRU AtomicValue // CPU count absolute
 }
 
-// CurrentWorkloads return the number of each workloads provisioned on the system
-func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
-	return directory.WorkloadAmount{
-		Network:      uint16(c.networks.Current()),
-		Volume:       uint16(c.volumes.Current()),
-		ZDBNamespace: uint16(c.zdbs.Current()),
-		Container:    uint16(c.containers.Current()),
-		K8sVM:        uint16(c.vms.Current()),
-	}
-}
+// // CurrentWorkloads return the number of each workloads provisioned on the system
+// func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
+// 	return directory.WorkloadAmount{
+// 		Network:      uint16(c.networks.Current()),
+// 		Volume:       uint16(c.volumes.Current()),
+// 		ZDBNamespace: uint16(c.zdbs.Current()),
+// 		Container:    uint16(c.containers.Current()),
+// 		K8sVM:        uint16(c.vms.Current()),
+// 	}
+// }
 
-// CurrentUnits return the number of each resource units reserved on the system
-func (c *Counters) CurrentUnits() directory.ResourceAmount {
-	gib := float64(gib)
-	return directory.ResourceAmount{
-		Cru: c.CRU.Current(),
-		Mru: float64(c.MRU.Current()) / gib,
-		Hru: float64(c.HRU.Current()) / gib,
-		Sru: float64(c.SRU.Current()) / gib,
-	}
-}
+// // CurrentUnits return the number of each resource units reserved on the system
+// func (c *Counters) CurrentUnits() directory.ResourceAmount {
+// 	gib := float64(gib)
+// 	return directory.ResourceAmount{
+// 		Cru: c.CRU.Current(),
+// 		Mru: float64(c.MRU.Current()) / gib,
+// 		Hru: float64(c.HRU.Current()) / gib,
+// 		Sru: float64(c.SRU.Current()) / gib,
+// 	}
+// }
 
 const (
 	mib = uint64(1024 * 1024)

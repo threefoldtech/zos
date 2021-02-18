@@ -16,7 +16,6 @@ import (
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/network"
@@ -66,11 +65,6 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to connect to zbus broker")
 	}
 
-	directory, err := explorerClient()
-	if err != nil {
-		return errors.Wrap(err, "failed to connect to BCDB")
-	}
-
 	identity := stubs.NewIdentityManagerStub(client)
 	nodeID := identity.NodeID()
 
@@ -86,7 +80,7 @@ func action(cli *cli.Context) error {
 	// - this is public_config.master if set
 	// - otherwise we find the first nic with public ipv6 (that is not zos)
 	// - finally we use zos if that is the last option.
-	pub, err := getExitInterface(directory, nodeID.Identity())
+	pub, err := getExitInterface()
 	log.Debug().Err(err).Msgf("public interface configred: %+v", pub)
 	if err != nil && err != ErrNoPubInterface {
 		return errors.Wrap(err, "failed to get node public_config")
@@ -275,14 +269,4 @@ func startYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, dmz ndmz
 	}
 
 	return server, nil
-}
-
-// instantiate the proper client based on the running mode
-func explorerClient() (client.Directory, error) {
-	client, err := ExplorerClient()
-	if err != nil {
-		return nil, err
-	}
-
-	return client.Directory, nil
 }
