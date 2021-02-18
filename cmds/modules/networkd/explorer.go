@@ -1,4 +1,4 @@
-package app
+package networkd
 
 import (
 	"crypto/ed25519"
@@ -11,6 +11,8 @@ import (
 
 const seedPath = "/var/cache/modules/identityd/seed.txt"
 
+// TODO: this is moved here temporary until it's completely dropped
+// once we drop the
 // ExplorerClient return the client to the explorer based
 // on the environment configured in the kernel arguments
 func ExplorerClient() (*client.Client, error) {

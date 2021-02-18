@@ -15,9 +15,11 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/api"
+	"github.com/threefoldtech/zos/pkg/provision/mw"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
 	"github.com/urfave/cli/v2"
 
@@ -146,10 +148,14 @@ func action(cli *cli.Context) error {
 		handlers,
 	)
 
-	users, err := provision.NewSubstrateUsers(env.SubstrateURL)
-	if err != nil {
-		return errors.Wrap(err, "failed to create substrate users database")
-	}
+	// TODO: that is a test user map for development, do not commit
+	users := mw.NewUserMap()
+	users.AddKeyFromHex(gridtypes.ID("1"), "95d1ba20e9f5cb6cfc6182fecfa904664fb1953eba520db454d5d5afaa82d791")
+
+	// users, err := provision.NewSubstrateUsers(env.SubstrateURL)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to create substrate users database")
+	// }
 
 	engine := provision.New(
 		store,

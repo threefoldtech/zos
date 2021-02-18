@@ -19,7 +19,6 @@ import (
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
@@ -326,7 +325,7 @@ func startAddrWatch(ctx context.Context, dmz ndmz.DMZ, nodeID pkg.Identifier, cl
 
 // instantiate the proper client based on the running mode
 func explorerClient() (client.Directory, error) {
-	client, err := app.ExplorerClient()
+	client, err := ExplorerClient()
 	if err != nil {
 		return nil, err
 	}
