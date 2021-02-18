@@ -1,9 +1,11 @@
-package gridtypes
+package zos
 
 import (
 	"fmt"
 	"io"
 	"net"
+
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // Kubernetes reservation data
@@ -28,7 +30,7 @@ type Kubernetes struct {
 	// when it boots.
 	SSHKeys []string `json:"ssh_keys"`
 	// PublicIP points to a reservation for a public ip
-	PublicIP ID `json:"public_ip"`
+	PublicIP gridtypes.ID `json:"public_ip"`
 
 	// PlainClusterSecret plaintext secret
 	PlainClusterSecret string `json:"-"`

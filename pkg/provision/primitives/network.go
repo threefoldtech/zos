@@ -10,12 +10,13 @@ import (
 
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 // networkProvision is entry point to provision a network
 func (p *Primitives) networkProvisionImpl(ctx context.Context, wl *gridtypes.Workload) error {
-	var network gridtypes.Network
+	var network zos.Network
 	if err := json.Unmarshal(wl.Data, &network); err != nil {
 		return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 	}
@@ -33,7 +34,7 @@ func (p *Primitives) networkProvisionImpl(ctx context.Context, wl *gridtypes.Wor
 	}
 	_, err = mgr.CreateNR(pkg.Network{
 		Network:           network,
-		NetID:             gridtypes.NetworkID(wl.User.String(), network.Name),
+		NetID:             zos.NetworkID(wl.User.String(), network.Name),
 		WGPrivateKeyPlain: wgKey,
 	})
 
@@ -51,14 +52,14 @@ func (p *Primitives) networkProvision(ctx context.Context, wl *gridtypes.Workloa
 func (p *Primitives) networkDecommission(ctx context.Context, wl *gridtypes.Workload) error {
 	mgr := stubs.NewNetworkerStub(p.zbus)
 
-	var network gridtypes.Network
+	var network zos.Network
 	if err := json.Unmarshal(wl.Data, &network); err != nil {
 		return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 	}
 
 	if err := mgr.DeleteNR(pkg.Network{
 		Network: network,
-		NetID:   gridtypes.NetworkID(wl.User.String(), network.Name),
+		NetID:   zos.NetworkID(wl.User.String(), network.Name),
 	}); err != nil {
 		return fmt.Errorf("failed to delete network resource: %w", err)
 	}

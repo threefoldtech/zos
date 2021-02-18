@@ -1,4 +1,4 @@
-package gridtypes
+package zos
 
 import (
 	"fmt"

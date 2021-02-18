@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -16,10 +17,10 @@ const (
 )
 
 // Volume defines a mount point
-type Volume = gridtypes.Volume
+type Volume = zos.Volume
 
 // VolumeResult types
-type VolumeResult = gridtypes.VolumeResult
+type VolumeResult = zos.VolumeResult
 
 func (p *Primitives) volumeProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (VolumeResult, error) {
 	var config Volume

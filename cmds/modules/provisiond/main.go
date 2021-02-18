@@ -15,7 +15,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision/api"
 	"github.com/threefoldtech/zos/pkg/provision/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
@@ -159,8 +159,8 @@ func action(cli *cli.Context) error {
 		// so we always need to make sure all volumes and networks
 		// comes first.
 		provision.WithStartupOrder(
-			gridtypes.VolumeType,
-			gridtypes.NetworkType,
+			zos.VolumeType,
+			zos.NetworkType,
 		),
 	)
 
@@ -221,9 +221,9 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 
 	var v *primitives.AtomicValue
 	switch fs.DiskType {
-	case gridtypes.HDDDevice:
+	case zos.HDDDevice:
 		v = &counter.HRU
-	case gridtypes.SSDDevice:
+	case zos.SSDDevice:
 		v = &counter.SRU
 	default:
 		return counter, fmt.Errorf("unknown cache disk type '%s'", fs.DiskType)

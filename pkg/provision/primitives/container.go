@@ -16,12 +16,13 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/container/logger"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-type Container = gridtypes.Container
-type ContainerResult = gridtypes.ContainerResult
+type Container = zos.Container
+type ContainerResult = zos.ContainerResult
 
 func (p *Primitives) containerProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {
 	return p.containerProvisionImpl(ctx, wl)
@@ -57,7 +58,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 		return ContainerResult{}, errors.Wrap(err, "container provision schema not valid")
 	}
 
-	netID := gridtypes.NetworkID(wl.User.String(), config.Network.NetworkID)
+	netID := zos.NetworkID(wl.User.String(), config.Network.NetworkID)
 	log.Debug().
 		Str("network-id", string(netID)).
 		Str("config", fmt.Sprintf("%+v", config)).
@@ -282,7 +283,7 @@ func (p *Primitives) containerDecommission(ctx context.Context, wl *gridtypes.Wo
 		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
 	}
 
-	netID := gridtypes.NetworkID(wl.User.String(), string(config.Network.NetworkID))
+	netID := zos.NetworkID(wl.User.String(), string(config.Network.NetworkID))
 	if _, err := networkMgr.GetSubnet(netID); err == nil { // simple check to make sure the network still exists on the node
 		if err := networkMgr.Leave(netID, string(containerID)); err != nil {
 			return errors.Wrap(err, "failed to delete container network namespace")

@@ -17,31 +17,9 @@ import (
 // WorkloadType type
 type WorkloadType string
 
-const (
-	// ContainerType type
-	ContainerType WorkloadType = "container"
-	// VolumeType type
-	VolumeType WorkloadType = "volume"
-	// NetworkType type
-	NetworkType WorkloadType = "network"
-	// ZDBType type
-	ZDBType WorkloadType = "zdb"
-	// KubernetesType type
-	KubernetesType WorkloadType = "kubernetes"
-	//PublicIPType reservation
-	PublicIPType WorkloadType = "ipv4"
-)
-
 var (
 	// workloadTypes with built in known types
-	workloadTypes = map[WorkloadType]WorkloadData{
-		ContainerType:  Container{},
-		VolumeType:     Volume{},
-		NetworkType:    Network{},
-		ZDBType:        ZDB{},
-		KubernetesType: Kubernetes{},
-		PublicIPType:   PublicIP{},
-	}
+	workloadTypes = map[WorkloadType]WorkloadData{}
 )
 
 // RegisterType register a new workload type

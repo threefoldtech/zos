@@ -89,6 +89,6 @@ func registerNode(env environment.Environment, mgr pkg.IdentityManager, cl *farm
 			Latitude:  loc.Latitude,
 		},
 		Capacity: cap,
-		Type:     "3node",
+		//Type:     "3node",
 	})
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/versioned"
 )
@@ -28,7 +29,7 @@ var (
 	workloadSchemaLastVersion = workloadSchemaV1
 
 	typeIDfn = map[gridtypes.WorkloadType]func(*gridtypes.Workload) (string, error){
-		gridtypes.NetworkType: networkTypeID,
+		zos.NetworkType: networkTypeID,
 	}
 )
 
@@ -45,7 +46,7 @@ func networkTypeID(w *gridtypes.Workload) (string, error) {
 		return "", fmt.Errorf("empty network name")
 	}
 
-	return string(gridtypes.NetworkID(w.User.String(), name.Name)), nil
+	return string(zos.NetworkID(w.User.String(), name.Name)), nil
 }
 
 // Fs is a in reservation cache using the filesystem as backend
@@ -289,8 +290,8 @@ func (s *Fs) ByUser(user gridtypes.ID, t gridtypes.WorkloadType) ([]gridtypes.ID
 }
 
 // GetNetwork returns network object given network id
-func (s *Fs) GetNetwork(id gridtypes.NetID) (gridtypes.Workload, error) {
-	path := filepath.Join(s.root, pathByType, gridtypes.NetworkType.String(), id.String())
+func (s *Fs) GetNetwork(id zos.NetID) (gridtypes.Workload, error) {
+	path := filepath.Join(s.root, pathByType, zos.NetworkType.String(), id.String())
 	return s.get(path)
 }
 

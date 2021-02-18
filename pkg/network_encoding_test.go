@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 func TestNetResourceUnmarshal(t *testing.T) {
@@ -37,7 +38,7 @@ func TestNetResourceUnmarshal(t *testing.T) {
 func TestEncodeDecode(t *testing.T) {
 	network := &Network{
 		NetID: NetID("test"),
-		Network: gridtypes.Network{
+		Network: zos.Network{
 			Name: "supernet",
 			NetworkIPRange: gridtypes.NewIPNet(net.IPNet{
 				IP:   net.ParseIP("10.0.0.0"),
@@ -47,7 +48,7 @@ func TestEncodeDecode(t *testing.T) {
 				IP:   net.ParseIP("10.0.1.0"),
 				Mask: net.CIDRMask(24, 32),
 			}),
-			Peers: []gridtypes.Peer{
+			Peers: []zos.Peer{
 				{
 					Subnet: gridtypes.NewIPNet(net.IPNet{
 						IP:   net.ParseIP("10.0.2.0"),

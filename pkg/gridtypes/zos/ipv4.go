@@ -1,15 +1,17 @@
-package gridtypes
+package zos
 
 import (
 	"fmt"
 	"io"
+
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // PublicIP structure
 type PublicIP struct {
 	// IP of the VM. The IP must be part of the subnet available in the network
 	// resource defined by the networkID on this node
-	IP IPNet `json:"ip"`
+	IP gridtypes.IPNet `json:"ip"`
 }
 
 // Valid validate public ip input
@@ -33,5 +35,5 @@ func (p PublicIP) Challenge(b io.Writer) error {
 
 // PublicIPResult result returned by publicIP reservation
 type PublicIPResult struct {
-	IP IPNet `json:"ip"`
+	IP gridtypes.IPNet `json:"ip"`
 }

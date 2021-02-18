@@ -11,15 +11,16 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 // Kubernetes type
-type Kubernetes = gridtypes.Kubernetes
+type Kubernetes = zos.Kubernetes
 
 // KubernetesResult type
-type KubernetesResult = gridtypes.KubernetesResult
+type KubernetesResult = zos.KubernetesResult
 
 // const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
 const k3osFlistURL = "https://hub.grid.tf/lee/k3os.flist"
@@ -55,7 +56,7 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	netID := gridtypes.NetworkID(wl.User.String(), string(config.NetworkID))
+	netID := zos.NetworkID(wl.User.String(), string(config.NetworkID))
 
 	// check if the network tap already exists
 	// if it does, it's most likely that a vm with the same network id and node id already exists
@@ -283,7 +284,7 @@ func (p *Primitives) kubernetesDecomission(ctx context.Context, wl *gridtypes.Wo
 		}
 	}
 
-	netID := gridtypes.NetworkID(wl.User.String(), string(cfg.NetworkID))
+	netID := zos.NetworkID(wl.User.String(), string(cfg.NetworkID))
 	if err := network.RemoveTap(netID); err != nil {
 		return errors.Wrap(err, "could not clean up tap device")
 	}
@@ -304,7 +305,7 @@ func (p *Primitives) kubernetesDecomission(ctx context.Context, wl *gridtypes.Wo
 func (p *Primitives) buildNetworkInfo(ctx context.Context, rversion int, userID string, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 
-	netID := gridtypes.NetworkID(userID, string(cfg.NetworkID))
+	netID := zos.NetworkID(userID, string(cfg.NetworkID))
 	subnet, err := network.GetSubnet(netID)
 	if err != nil {
 		return pkg.VMNetworkInfo{}, errors.Wrapf(err, "could not get network resource subnet")

@@ -1,4 +1,4 @@
-package gridtypes
+package zos
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/jbenet/go-base58"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // NetID is a type defining the ID of a network
@@ -34,10 +35,10 @@ func NetworkID(user, network string) NetID {
 type Network struct {
 	Name string `json:"name"`
 	// IP range of the network, must be an IPv4 /16
-	NetworkIPRange IPNet `json:"ip_range"`
+	NetworkIPRange gridtypes.IPNet `json:"ip_range"`
 
 	// IPV4 subnet for this network resource
-	Subnet IPNet `json:"subnet"`
+	Subnet gridtypes.IPNet `json:"subnet"`
 
 	WGPrivateKeyEncrypted string `json:"wireguard_private_key_encrypted"`
 	// WGPublicKey           string `json:"wireguard_public_key"`
@@ -107,11 +108,11 @@ func (n Network) Challenge(b io.Writer) error {
 // Peer is the description of a peer of a NetResource
 type Peer struct {
 	// IPV4 subnet of the network resource of the peer
-	Subnet IPNet `json:"subnet"`
+	Subnet gridtypes.IPNet `json:"subnet"`
 
-	WGPublicKey string  `json:"wireguard_public_key"`
-	AllowedIPs  []IPNet `json:"allowed_ips"`
-	Endpoint    string  `json:"endpoint"`
+	WGPublicKey string            `json:"wireguard_public_key"`
+	AllowedIPs  []gridtypes.IPNet `json:"allowed_ips"`
+	Endpoint    string            `json:"endpoint"`
 }
 
 // Valid checks if peer is valid

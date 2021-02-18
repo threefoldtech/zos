@@ -12,6 +12,7 @@ import (
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/provision/common"
 	"github.com/threefoldtech/zos/pkg/zdb"
@@ -33,7 +34,7 @@ const (
 
 // ZDB types
 type ZDB struct {
-	gridtypes.ZDB
+	zos.ZDB
 	PasswordPlain string `json:"-"`
 }
 
@@ -41,7 +42,7 @@ func (p *Primitives) zdbProvision(ctx context.Context, wl *gridtypes.Workload) (
 	return p.zdbProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (gridtypes.ZDBResult, error) {
+func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (zos.ZDBResult, error) {
 	var (
 		storage = stubs.NewZDBAllocaterStub(p.zbus)
 
@@ -49,41 +50,41 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 		config ZDB
 	)
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
-		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	var err error
 	config.PasswordPlain, err = p.decryptSecret(ctx, wl.User, config.PasswordEncrypted, wl.Version)
 	if err != nil {
-		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to decrypt namespace password")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to decrypt namespace password")
 	}
 
 	// if we reached here, we need to create the 0-db namespace
 	log.Debug().Msg("allocating storage for namespace")
 	allocation, err := storage.Allocate(nsID, config.DiskType, config.Size*gigabyte, config.Mode)
 	if err != nil {
-		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to allocate storage")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to allocate storage")
 	}
 
 	containerID := pkg.ContainerID(allocation.VolumeID)
 
 	cont, err := p.ensureZdbContainer(ctx, allocation, config.Mode)
 	if err != nil {
-		return gridtypes.ZDBResult{}, errors.Wrapf(err, "failed to ensure zdb containe running")
+		return zos.ZDBResult{}, errors.Wrapf(err, "failed to ensure zdb containe running")
 	}
 
 	containerIPs, err := p.waitZDBIPs(ctx, nwmod.ZDBIface, cont.Network.Namespace)
 	if err != nil {
-		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
 	}
 	log.Warn().Msgf("ip for zdb containers %s", containerIPs)
 
 	// this call will actually configure the namespace in zdb and set the password
 	if err := p.createZDBNamespace(containerID, nsID, config); err != nil {
-		return gridtypes.ZDBResult{}, errors.Wrap(err, "failed to create zdb namespace")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to create zdb namespace")
 	}
 
-	return gridtypes.ZDBResult{
+	return zos.ZDBResult{
 		Namespace: nsID,
 		IPs: func() []string {
 			ips := make([]string, len(containerIPs))
@@ -125,7 +126,7 @@ func (p *Primitives) zdbRootFS() (string, error) {
 	var err error
 	var rootFS string
 
-	for _, typ := range []gridtypes.DeviceType{gridtypes.HDDDevice, gridtypes.SSDDevice} {
+	for _, typ := range []zos.DeviceType{zos.HDDDevice, zos.SSDDevice} {
 		rootFS, err = flist.Mount(zdbFlistURL, "", pkg.MountOptions{
 			Limit:    10,
 			ReadOnly: false,
@@ -348,7 +349,7 @@ func (p *Primitives) zdbDecommission(ctx context.Context, wl *gridtypes.Workload
 		storage       = stubs.NewZDBAllocaterStub(p.zbus)
 		storageClient = stubs.NewStorageModuleStub(p.zbus)
 
-		config gridtypes.ZDB
+		config zos.ZDB
 		nsID   = wl.ID.String()
 	)
 

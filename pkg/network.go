@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 //go:generate mkdir -p stubs
@@ -122,10 +122,10 @@ type Networker interface {
 
 // Network type
 type Network struct {
-	gridtypes.Network
+	zos.Network
 	NetID             NetID  `json:"net_id"`
 	WGPrivateKeyPlain string `json:"wireguard_private_key"`
 }
 
 // NetID type
-type NetID = gridtypes.NetID
+type NetID = zos.NetID

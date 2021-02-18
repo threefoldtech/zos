@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
@@ -20,22 +21,22 @@ func (p *Primitives) publicIPProvision(ctx context.Context, wl *gridtypes.Worklo
 	return p.publicIPProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (result gridtypes.PublicIPResult, err error) {
-	config := gridtypes.PublicIP{}
+func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (result zos.PublicIPResult, err error) {
+	config := zos.PublicIP{}
 
 	network := stubs.NewNetworkerStub(p.zbus)
 
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
-		return gridtypes.PublicIPResult{}, errors.Wrap(err, "failed to decode reservation schema")
+		return zos.PublicIPResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	if err := config.Valid(); err != nil {
-		return gridtypes.PublicIPResult{}, errors.Wrap(err, "failed to validate ip reservation")
+		return zos.PublicIPResult{}, errors.Wrap(err, "failed to validate ip reservation")
 	}
 
 	pubIP6Base, err := network.GetPublicIPv6Subnet()
 	if err != nil {
-		return gridtypes.PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
+		return zos.PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
 	}
 
 	tapName := fmt.Sprintf("p-%s", wl.ID) // TODO: clean this up, needs to come form networkd
@@ -44,11 +45,11 @@ func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Wo
 
 	predictedIPv6, err := predictedSlaac(pubIP6Base.IP, mac.String())
 	if err != nil {
-		return gridtypes.PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
+		return zos.PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
 	}
 
 	err = setupFilters(ctx, fName, tapName, config.IP.IP.To4().String(), predictedIPv6, mac.String())
-	return gridtypes.PublicIPResult{
+	return zos.PublicIPResult{
 		IP: config.IP,
 	}, err
 }

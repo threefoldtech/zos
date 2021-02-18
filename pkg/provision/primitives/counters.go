@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 // AtomicValue value for safe increment/decrement
@@ -93,19 +94,19 @@ func (c *Counters) Increment(r *gridtypes.Workload) error {
 	)
 
 	switch r.Type {
-	case gridtypes.VolumeType:
+	case zos.VolumeType:
 		c.volumes.Increment(1)
 		u, err = processVolume(r)
-	case gridtypes.ContainerType:
+	case zos.ContainerType:
 		c.containers.Increment(1)
 		u, err = processContainer(r)
-	case gridtypes.ZDBType:
+	case zos.ZDBType:
 		c.zdbs.Increment(1)
 		u, err = processZdb(r)
-	case gridtypes.KubernetesType:
+	case zos.KubernetesType:
 		c.vms.Increment(1)
 		u, err = processKubernetes(r)
-	case gridtypes.NetworkType:
+	case zos.NetworkType:
 		c.networks.Increment(1)
 		u = resourceUnits{}
 		err = nil
@@ -136,19 +137,19 @@ func (c *Counters) Decrement(r *gridtypes.Workload) error {
 	)
 
 	switch r.Type {
-	case gridtypes.VolumeType:
+	case zos.VolumeType:
 		c.volumes.Decrement(1)
 		u, err = processVolume(r)
-	case gridtypes.ContainerType:
+	case zos.ContainerType:
 		c.containers.Decrement(1)
 		u, err = processContainer(r)
-	case gridtypes.ZDBType:
+	case zos.ZDBType:
 		c.zdbs.Decrement(1)
 		u, err = processZdb(r)
-	case gridtypes.KubernetesType:
+	case zos.KubernetesType:
 		c.vms.Decrement(1)
 		u, err = processKubernetes(r)
-	case gridtypes.NetworkType:
+	case zos.NetworkType:
 		c.networks.Decrement(1)
 		u = resourceUnits{}
 		err = nil
@@ -183,13 +184,13 @@ func (c *Counters) CheckMemoryRequirements(r *gridtypes.Workload, totalMemAvaila
 	var err error
 
 	switch r.Type {
-	case gridtypes.ContainerType:
+	case zos.ContainerType:
 		requestedUnits, err = processContainer(r)
 		if err != nil {
 			return err
 		}
 
-	case gridtypes.KubernetesType:
+	case zos.KubernetesType:
 		requestedUnits, err = processKubernetes(r)
 		if err != nil {
 			return err
@@ -207,16 +208,16 @@ func (c *Counters) CheckMemoryRequirements(r *gridtypes.Workload, totalMemAvaila
 }
 
 func processVolume(r *gridtypes.Workload) (u resourceUnits, err error) {
-	var volume gridtypes.Volume
+	var volume zos.Volume
 	if err = json.Unmarshal(r.Data, &volume); err != nil {
 		return u, err
 	}
 
 	// volume.size and SRU is in GiB
 	switch volume.Type {
-	case gridtypes.SSDDevice:
+	case zos.SSDDevice:
 		u.SRU = volume.Size * gib
-	case gridtypes.HDDDevice:
+	case zos.HDDDevice:
 		u.HRU = volume.Size * gib
 	}
 
@@ -224,16 +225,16 @@ func processVolume(r *gridtypes.Workload) (u resourceUnits, err error) {
 }
 
 func processContainer(r *gridtypes.Workload) (u resourceUnits, err error) {
-	var cont gridtypes.Container
+	var cont zos.Container
 	if err = json.Unmarshal(r.Data, &cont); err != nil {
 		return u, err
 	}
 	u.CRU = uint64(cont.Capacity.CPU)
 	// memory is in MiB
 	u.MRU = cont.Capacity.Memory * mib
-	if cont.Capacity.DiskType == gridtypes.SSDDevice {
+	if cont.Capacity.DiskType == zos.SSDDevice {
 		u.SRU = cont.Capacity.DiskSize * mib
-	} else if cont.Capacity.DiskType == gridtypes.HDDDevice {
+	} else if cont.Capacity.DiskType == zos.HDDDevice {
 		u.HRU = cont.Capacity.DiskSize * mib
 	}
 
@@ -242,15 +243,15 @@ func processContainer(r *gridtypes.Workload) (u resourceUnits, err error) {
 
 func processZdb(r *gridtypes.Workload) (u resourceUnits, err error) {
 
-	var zdbVolume gridtypes.ZDB
+	var zdbVolume zos.ZDB
 	if err := json.Unmarshal(r.Data, &zdbVolume); err != nil {
 		return u, err
 	}
 
 	switch zdbVolume.DiskType {
-	case gridtypes.SSDDevice:
+	case zos.SSDDevice:
 		u.SRU = zdbVolume.Size * gib
-	case gridtypes.HDDDevice:
+	case zos.HDDDevice:
 		u.HRU = zdbVolume.Size * gib
 	}
 

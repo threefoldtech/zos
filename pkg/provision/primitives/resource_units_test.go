@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 func Test_processZDB(t *testing.T) {
@@ -24,10 +25,10 @@ func Test_processZDB(t *testing.T) {
 			name: "zdbSSD",
 			args: args{
 				r: &gridtypes.Workload{
-					Type: gridtypes.ZDBType,
-					Data: mustMarshalJSON(t, gridtypes.ZDB{
+					Type: zos.ZDBType,
+					Data: mustMarshalJSON(t, zos.ZDB{
 						Size:     1,
-						DiskType: gridtypes.SSDDevice,
+						DiskType: zos.SSDDevice,
 					}),
 				},
 			},
@@ -40,10 +41,10 @@ func Test_processZDB(t *testing.T) {
 			name: "zdbHDD",
 			args: args{
 				r: &gridtypes.Workload{
-					Type: gridtypes.ZDBType,
-					Data: mustMarshalJSON(t, gridtypes.ZDB{
+					Type: zos.ZDBType,
+					Data: mustMarshalJSON(t, zos.ZDB{
 						Size:     1,
-						DiskType: gridtypes.HDDDevice,
+						DiskType: zos.HDDDevice,
 					}),
 				},
 			},
@@ -80,10 +81,10 @@ func Test_processVolume(t *testing.T) {
 			name: "volumeSSD",
 			args: args{
 				r: &gridtypes.Workload{
-					Type: gridtypes.VolumeType,
+					Type: zos.VolumeType,
 					Data: mustMarshalJSON(t, Volume{
 						Size: 1,
-						Type: gridtypes.SSDDevice,
+						Type: zos.SSDDevice,
 					}),
 				},
 			},
@@ -95,10 +96,10 @@ func Test_processVolume(t *testing.T) {
 			name: "volumeHDD",
 			args: args{
 				r: &gridtypes.Workload{
-					Type: gridtypes.VolumeType,
+					Type: zos.VolumeType,
 					Data: mustMarshalJSON(t, Volume{
 						Size: 1,
-						Type: gridtypes.HDDDevice,
+						Type: zos.HDDDevice,
 					}),
 				},
 			},
@@ -134,12 +135,12 @@ func Test_processContainer(t *testing.T) {
 			name: "container",
 			args: args{
 				r: &gridtypes.Workload{
-					Type: gridtypes.VolumeType,
+					Type: zos.VolumeType,
 					Data: mustMarshalJSON(t, Container{
-						Capacity: gridtypes.ContainerCapacity{
+						Capacity: zos.ContainerCapacity{
 							CPU:      2,
 							Memory:   1024,
-							DiskType: gridtypes.SSDDevice,
+							DiskType: zos.SSDDevice,
 							DiskSize: 256,
 						},
 					}),
@@ -155,12 +156,12 @@ func Test_processContainer(t *testing.T) {
 			name: "container",
 			args: args{
 				r: &gridtypes.Workload{
-					Type: gridtypes.VolumeType,
+					Type: zos.VolumeType,
 					Data: mustMarshalJSON(t, Container{
-						Capacity: gridtypes.ContainerCapacity{
+						Capacity: zos.ContainerCapacity{
 							CPU:      2,
 							Memory:   2048,
-							DiskType: gridtypes.SSDDevice,
+							DiskType: zos.SSDDevice,
 							DiskSize: 1024,
 						},
 					}),
@@ -200,7 +201,7 @@ func Test_processKubernetes(t *testing.T) {
 			name: "k8sSize1",
 			args: args{
 				r: &gridtypes.Workload{
-					Type: gridtypes.KubernetesType,
+					Type: zos.KubernetesType,
 					Data: mustMarshalJSON(t, Kubernetes{
 						Size: 1,
 					}),
@@ -216,7 +217,7 @@ func Test_processKubernetes(t *testing.T) {
 			name: "k8sSize2",
 			args: args{
 				r: &gridtypes.Workload{
-					Type: gridtypes.KubernetesType,
+					Type: zos.KubernetesType,
 					Data: mustMarshalJSON(t, Kubernetes{
 						Size: 2,
 					}),

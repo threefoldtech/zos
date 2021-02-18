@@ -17,28 +17,6 @@ func (id ID) IsEmpty() bool {
 	return len(id) == 0
 }
 
-// DeviceType is the actual type of hardware that the storage device runs on,
-// i.e. SSD or HDD
-type DeviceType string
-
-// Known device types
-const (
-	SSDDevice DeviceType = "ssd"
-	HDDDevice DeviceType = "hdd"
-)
-
-func (d DeviceType) String() string {
-	return string(d)
-}
-
-// Valid validates device type
-func (d DeviceType) Valid() error {
-	if d != SSDDevice && d != HDDDevice {
-		return fmt.Errorf("invalid device type")
-	}
-	return nil
-}
-
 // IPNet type
 type IPNet struct{ net.IPNet }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
@@ -26,7 +27,7 @@ func TestStorageAdd(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   gridtypes.ID(id),
 		User: "my-user",
-		Type: gridtypes.VolumeType,
+		Type: zos.VolumeType,
 	})
 
 	require.NoError(err)
@@ -61,7 +62,7 @@ func TestStorageAddNetwork(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   gridtypes.ID(id),
 		User: "my-user",
-		Type: gridtypes.NetworkType,
+		Type: zos.NetworkType,
 		Data: json.RawMessage(`{"name": "my-network"}`),
 	})
 
@@ -70,7 +71,7 @@ func TestStorageAddNetwork(t *testing.T) {
 	require.NoError(err)
 	require.True(stat.Mode().IsRegular())
 
-	nid := gridtypes.NetworkID("my-user", "my-network")
+	nid := zos.NetworkID("my-user", "my-network")
 	stat, err = os.Lstat(filepath.Join(root, pathByType, "network", string(nid)))
 	require.NoError(err)
 	require.Equal(os.ModeSymlink, stat.Mode()&os.ModeSymlink)
@@ -97,13 +98,13 @@ func TestStorageGetNetwork(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.NetworkType,
+		Type: zos.NetworkType,
 		Data: json.RawMessage(`{"name": "my-network"}`),
 	})
 
 	require.NoError(err)
 
-	nid := gridtypes.NetworkID("my-user", "my-network")
+	nid := zos.NetworkID("my-user", "my-network")
 
 	loaded, err := store.GetNetwork(nid)
 	require.NoError(err)
@@ -122,7 +123,7 @@ func TestStorageSet(t *testing.T) {
 	err = store.Set(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeType,
+		Type: zos.VolumeType,
 	})
 
 	require.Error(err)
@@ -131,7 +132,7 @@ func TestStorageSet(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeType,
+		Type: zos.VolumeType,
 	})
 
 	require.NoError(err)
@@ -139,7 +140,7 @@ func TestStorageSet(t *testing.T) {
 	err = store.Set(gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeType,
+		Type: zos.VolumeType,
 	})
 
 	require.NoError(err)
@@ -157,7 +158,7 @@ func TestStorageGet(t *testing.T) {
 	wl := gridtypes.Workload{
 		ID:   "my-id",
 		User: "my-user",
-		Type: gridtypes.VolumeType,
+		Type: zos.VolumeType,
 		Data: json.RawMessage(`"hello world"`),
 	}
 
@@ -184,7 +185,7 @@ func TestStorageByType(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-volume-id",
 		User: "my-user",
-		Type: gridtypes.VolumeType,
+		Type: zos.VolumeType,
 		Data: json.RawMessage(`"hello volume"`),
 	})
 
@@ -193,23 +194,23 @@ func TestStorageByType(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-container-id",
 		User: "my-user",
-		Type: gridtypes.ContainerType,
+		Type: zos.ContainerType,
 		Data: json.RawMessage(`"hello container"`),
 	})
 
 	require.NoError(err)
 
-	ids, err := store.ByType(gridtypes.VolumeType)
+	ids, err := store.ByType(zos.VolumeType)
 	require.NoError(err)
 	require.Len(ids, 1)
 	require.Equal("my-volume-id", ids[0].String())
 
-	ids, err = store.ByType(gridtypes.ContainerType)
+	ids, err = store.ByType(zos.ContainerType)
 	require.NoError(err)
 	require.Len(ids, 1)
 	require.Equal("my-container-id", ids[0].String())
 
-	ids, err = store.ByType(gridtypes.ZDBType)
+	ids, err = store.ByType(zos.ZDBType)
 	require.NoError(err)
 	require.Len(ids, 0)
 
@@ -227,7 +228,7 @@ func TestStorageByUser(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-volume-1",
 		User: "my-user-1",
-		Type: gridtypes.VolumeType,
+		Type: zos.VolumeType,
 		Data: json.RawMessage(`"hello volume"`),
 	})
 
@@ -236,27 +237,27 @@ func TestStorageByUser(t *testing.T) {
 	err = store.Add(gridtypes.Workload{
 		ID:   "my-volume-2",
 		User: "my-user-2",
-		Type: gridtypes.VolumeType,
+		Type: zos.VolumeType,
 		Data: json.RawMessage(`"hello container"`),
 	})
 
 	require.NoError(err)
 
-	ids, err := store.ByType(gridtypes.VolumeType)
+	ids, err := store.ByType(zos.VolumeType)
 	require.NoError(err)
 	require.Len(ids, 2)
 
-	ids, err = store.ByUser("my-user-1", gridtypes.VolumeType)
+	ids, err = store.ByUser("my-user-1", zos.VolumeType)
 	require.NoError(err)
 	require.Len(ids, 1)
 	require.Equal("my-volume-1", ids[0].String())
 
-	ids, err = store.ByUser("my-user-2", gridtypes.VolumeType)
+	ids, err = store.ByUser("my-user-2", zos.VolumeType)
 	require.NoError(err)
 	require.Len(ids, 1)
 	require.Equal("my-volume-2", ids[0].String())
 
-	ids, err = store.ByType(gridtypes.ZDBType)
+	ids, err = store.ByType(zos.ZDBType)
 	require.NoError(err)
 	require.Len(ids, 0)
 

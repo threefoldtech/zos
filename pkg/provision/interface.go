@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 // Users is used to get user public key
@@ -44,7 +45,7 @@ type Storage interface {
 	Add(wl gridtypes.Workload) error
 	Set(wl gridtypes.Workload) error
 	Get(id gridtypes.ID) (gridtypes.Workload, error)
-	GetNetwork(id gridtypes.NetID) (gridtypes.Workload, error)
+	GetNetwork(id zos.NetID) (gridtypes.Workload, error)
 
 	ByType(t gridtypes.WorkloadType) ([]gridtypes.ID, error)
 	ByUser(user gridtypes.ID, t gridtypes.WorkloadType) ([]gridtypes.ID, error)

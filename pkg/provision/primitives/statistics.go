@@ -8,6 +8,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
@@ -93,17 +94,17 @@ func (s *statsProvisioner) Decommission(ctx context.Context, wl *gridtypes.Workl
 func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, wl *gridtypes.Workload) (bool, error) {
 	// rule, we always should update counters UNLESS it is a network reservation that
 	// already have been counted before.
-	if wl.Type != gridtypes.NetworkType {
+	if wl.Type != zos.NetworkType {
 		return true, nil
 	}
 
-	var nr gridtypes.Network
+	var nr zos.Network
 	if err := json.Unmarshal(wl.Data, &nr); err != nil {
 		return false, fmt.Errorf("failed to unmarshal network from reservation: %w", err)
 	}
 	// otherwise we check the cache if a network
 	// with the same id already exists
-	id := gridtypes.NetworkID(wl.User.String(), nr.Name)
+	id := zos.NetworkID(wl.User.String(), nr.Name)
 	cache := provision.GetEngine(ctx).Storage()
 
 	_, err := cache.GetNetwork(id)

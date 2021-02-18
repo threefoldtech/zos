@@ -37,23 +37,24 @@ signature = hex(ed25591.sign(sk, challenge))
 ```
 > please check the implementation in this package how the challenge is computed from the workload data.
 
+## WorkloadType
 ## Data
 For each workload type, the `Data` must be filled with proper parameters for this workload types.
 
 ### Volume
-check volume data [here](volume.go)
+check volume data [here](zos/volume.go)
 
 ### ZDB
-check zdb data [here](zdb.go)
+check zdb data [here](zos/zdb.go)
 
 ### Network
-check network data [here](network.go)
+check network data [here](zos/network.go)
 
 ### IPV4
-check ipv4 data [here](ipv4.go)
+check ipv4 data [here](zos/ipv4.go)
 
 ### Container
-check container data [here](container.go)
+check container data [here](zos/container.go)
 
 ### Kubernetes
-check k8s data [here](kubernetes.go)
+check k8s data [here](zos/kubernetes.go)

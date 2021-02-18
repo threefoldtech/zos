@@ -1,12 +1,12 @@
 package pkg
 
-import "github.com/threefoldtech/zos/pkg/gridtypes"
+import "github.com/threefoldtech/zos/pkg/gridtypes/zos"
 
 //go:generate mkdir -p stubs
 //go:generate zbusc -module storage -version 0.0.1 -name storage -package stubs github.com/threefoldtech/zos/pkg+ZDBAllocater stubs/zdb_stub.go
 
 // ZDBMode is the enumeration of the modes 0-db can operate in
-type ZDBMode = gridtypes.ZDBMode
+type ZDBMode = zos.ZDBMode
 
 // ZDBNamespace is a 0-db namespace
 type ZDBNamespace struct {

@@ -1,6 +1,8 @@
 package pkg
 
-import "github.com/threefoldtech/zos/pkg/gridtypes"
+import (
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+)
 
 //go:generate mkdir -p stubs
 
@@ -11,7 +13,7 @@ var (
 	DefaultMountOptions = MountOptions{
 		ReadOnly: false,
 		Limit:    256, //Mib
-		Type:     gridtypes.SSDDevice,
+		Type:     zos.SSDDevice,
 	}
 
 	//ReadOnlyMountOptions shortcut for readonly mount options
@@ -27,7 +29,7 @@ type MountOptions struct {
 	// Limit size of read-write layer in Mib
 	Limit uint64
 	// Type of disk to use
-	Type gridtypes.DeviceType
+	Type zos.DeviceType
 }
 
 //Flister is the interface for the flist module
