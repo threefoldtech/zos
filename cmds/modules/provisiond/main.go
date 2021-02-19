@@ -15,12 +15,11 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/api"
-	"github.com/threefoldtech/zos/pkg/provision/mw"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
+	"github.com/threefoldtech/zos/pkg/substrate"
 	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -149,18 +148,24 @@ func action(cli *cli.Context) error {
 	)
 
 	// TODO: that is a test user map for development, do not commit
-	users := mw.NewUserMap()
-	users.AddKeyFromHex(gridtypes.ID("1"), "95d1ba20e9f5cb6cfc6182fecfa904664fb1953eba520db454d5d5afaa82d791")
+	// users := mw.NewUserMap()
+	// users.AddKeyFromHex(gridtypes.ID("1"), "95d1ba20e9f5cb6cfc6182fecfa904664fb1953eba520db454d5d5afaa82d791")
 
-	// users, err := provision.NewSubstrateUsers(env.SubstrateURL)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to create substrate users database")
-	// }
+	users, err := substrate.NewSubstrateUsers(env.SubstrateURL)
+	if err != nil {
+		return errors.Wrap(err, "failed to create substrate users database")
+	}
+
+	admins, err := substrate.NewSubstrateAdmins(env.SubstrateURL, uint32(env.FarmerID))
+	if err != nil {
+		return errors.Wrap(err, "failed to create substrate admins database")
+	}
 
 	engine := provision.New(
 		store,
 		provisioner,
 		provision.WithUsers(users),
+		provision.WithAdmins(admins),
 		// set priority to some reservation types on boot
 		// so we always need to make sure all volumes and networks
 		// comes first.
@@ -256,7 +261,7 @@ func getHTTPServer(cl zbus.Client, engine provision.Engine) (*http.Server, error
 		return nil, errors.Wrap(err, "failed to setup workload api")
 	}
 
-	_, err = api.NewNetworkAPI(v1, cl)
+	_, err = api.NewNetworkAPI(v1, engine, cl)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to setup network api")
 	}

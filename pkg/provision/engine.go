@@ -35,6 +35,12 @@ func WithUsers(g Users) EngineOption {
 	return &withUserKeyGetter{g}
 }
 
+// WithAdmins sets the admins key getter on the
+// engine
+func WithAdmins(g Users) EngineOption {
+	return &withAdminsKeyGetter{g}
+}
+
 // WithStartupOrder forces a specific startup order of types
 // any type that is not listed in this list, will get started
 // in an nondeterministic order
@@ -65,6 +71,7 @@ type NativeEngine struct {
 	//options
 	janitor Janitor
 	users   Users
+	admins  Users
 	order   []gridtypes.WorkloadType
 }
 
@@ -86,6 +93,14 @@ type withUserKeyGetter struct {
 
 func (o *withUserKeyGetter) apply(e *NativeEngine) {
 	e.users = o.g
+}
+
+type withAdminsKeyGetter struct {
+	g Users
+}
+
+func (o *withAdminsKeyGetter) apply(e *NativeEngine) {
+	e.admins = o.g
 }
 
 type withStartupOrder struct {
@@ -140,6 +155,7 @@ func New(storage Storage, provisioner Provisioner, opts ...EngineOption) *Native
 		provision:   make(chan provisionJob),
 		deprovision: make(chan deprovisionJob),
 		users:       &nullKeyGetter{},
+		admins:      &nullKeyGetter{},
 		order:       gridtypes.Types(),
 	}
 
@@ -158,6 +174,11 @@ func (e *NativeEngine) Storage() Storage {
 // Users returns users db
 func (e *NativeEngine) Users() Users {
 	return e.users
+}
+
+// Admins returns admins db
+func (e *NativeEngine) Admins() Users {
+	return e.admins
 }
 
 // Provision workload

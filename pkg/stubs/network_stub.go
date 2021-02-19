@@ -153,6 +153,22 @@ func (s *NetworkerStub) GetNet(arg0 zos.NetID) (ret0 net.IPNet, ret1 error) {
 	return
 }
 
+func (s *NetworkerStub) GetPublicConfig() (ret0 pkg.PublicConfig, ret1 error) {
+	args := []interface{}{}
+	result, err := s.client.Request(s.module, s.object, "GetPublicConfig", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerStub) GetPublicIPv6Subnet() (ret0 net.IPNet, ret1 error) {
 	args := []interface{}{}
 	result, err := s.client.Request(s.module, s.object, "GetPublicIPv6Subnet", args...)
@@ -290,6 +306,19 @@ func (s *NetworkerStub) RemovePubTap(arg0 string) (ret0 error) {
 func (s *NetworkerStub) RemoveTap(arg0 zos.NetID) (ret0 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.Request(s.module, s.object, "RemoveTap", args...)
+	if err != nil {
+		panic(err)
+	}
+	ret0 = new(zbus.RemoteError)
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerStub) SetPublicConfig(arg0 pkg.PublicConfig) (ret0 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "SetPublicConfig", args...)
 	if err != nil {
 		panic(err)
 	}

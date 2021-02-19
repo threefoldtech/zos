@@ -23,6 +23,7 @@ type Engine interface {
 	Deprovision(ctx context.Context, id gridtypes.ID, reason string) error
 	Storage() Storage
 	Users() Users
+	Admins() Users
 }
 
 // Provisioner interface
