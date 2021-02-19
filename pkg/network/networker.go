@@ -2,7 +2,6 @@ package network
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/termie/go-shutil"
 
 	"github.com/threefoldtech/zos/pkg/cache"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
@@ -48,7 +46,6 @@ const (
 	wgPortDir          = "wireguard_ports"
 	networkDir         = "networks"
 	ipamLeaseDir       = "ndmz-lease"
-	ipamPath           = "/var/cache/modules/networkd/lease"
 	zdbNamespacePrefix = "zdb-ns-"
 )
 
@@ -67,46 +64,38 @@ type networker struct {
 	ipamLeaseDir string
 	portSet      *set.UIntSet
 
-	ndmz ndmz.DMZ
-	ygg  *yggdrasil.Server
+	publicConfig string
+	ndmz         ndmz.DMZ
+	ygg          *yggdrasil.Server
 }
 
 var _ pkg.Networker = (*networker)(nil)
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity pkg.IdentityManager, storageDir string, ndmz ndmz.DMZ, ygg *yggdrasil.Server) (pkg.Networker, error) {
+func NewNetworker(identity pkg.IdentityManager, publicCfgPath string, ndmz ndmz.DMZ, ygg *yggdrasil.Server) (pkg.Networker, error) {
 	vd, err := cache.VolatileDir("networkd", 50*mib)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("failed to create networkd cache directory: %w", err)
 	}
 
-	nwDir := filepath.Join(vd, networkDir)
+	runtimeDir := filepath.Join(vd, networkDir)
 	ipamLease := filepath.Join(vd, ipamLeaseDir)
 
-	oldPath := filepath.Join(ipamPath, "ndmz")
-	newPath := filepath.Join(ipamLease, "ndmz")
-	if _, err := os.Stat(oldPath); err == nil {
-		if err := shutil.CopyTree(oldPath, newPath, nil); err != nil {
-			return nil, err
-		}
-		_ = os.RemoveAll(ipamPath)
-	}
-
-	//TODO: remove once all the node have move the network into the volatile directory
-	if _, err = os.Stat(storageDir); err == nil {
-		if err := copyNetworksToVolatile(storageDir, nwDir); err != nil {
-			return nil, fmt.Errorf("failed to copy old networks directory: %w", err)
+	for _, dir := range []string{runtimeDir, ipamLease} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, errors.Wrapf(err, "failed to create directory: '%s'", dir)
 		}
 	}
 
 	nw := &networker{
 		identity:     identity,
-		networkDir:   nwDir,
+		networkDir:   runtimeDir,
 		ipamLeaseDir: ipamLease,
 		portSet:      set.NewInt(),
 
-		ygg:  ygg,
-		ndmz: ndmz,
+		publicConfig: publicCfgPath,
+		ygg:          ygg,
+		ndmz:         ndmz,
 	}
 
 	// always add the reserved yggdrasil port to the port set so we make sure they are never
@@ -747,6 +736,26 @@ func (n *networker) DeleteNR(netNR pkg.Network) error {
 	return nil
 }
 
+// Set node public namespace config
+func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
+	id := n.identity.NodeID()
+	_, err := public.EnsurePublicSetup(id, &cfg)
+	if err != nil {
+		return err
+	}
+
+	return public.SavePublicConfig(n.publicConfig, &cfg)
+}
+
+// Get node public namespace config
+func (n *networker) GetPublicConfig() (pkg.PublicConfig, error) {
+	cfg, err := public.LoadPublicConfig(n.publicConfig)
+	if err != nil {
+		return pkg.PublicConfig{}, err
+	}
+	return *cfg, nil
+}
+
 func (n *networker) networkOf(id string) (nr pkg.Network, err error) {
 	path := filepath.Join(n.networkDir, string(id))
 	file, err := os.OpenFile(path, os.O_RDWR, 0660)
@@ -787,22 +796,6 @@ func (n *networker) networkOf(id string) (nr pkg.Network, err error) {
 	}
 
 	return net, nil
-}
-
-func (n *networker) extractPrivateKey(hexKey string) (string, error) {
-	//FIXME zaibon: I would like to move this into the nr package,
-	// but this method requires the identity module which is only available
-	// on the networker object
-	sk, err := hex.DecodeString(hexKey)
-	if err != nil {
-		return "", err
-	}
-	decoded, err := n.identity.Decrypt(sk)
-	if err != nil {
-		return "", err
-	}
-
-	return string(decoded), nil
 }
 
 func (n *networker) reservePort(port uint16) error {

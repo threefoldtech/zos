@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
@@ -108,6 +109,12 @@ type Networker interface {
 
 	WireguardPorts() ([]uint, error)
 
+	// Set node public namespace config
+	SetPublicConfig(cfg PublicConfig) error
+
+	// Get node public namespace config
+	GetPublicConfig() (PublicConfig, error)
+
 	// ZOSAddresses monitoring streams for ZOS bridge IPs
 	ZOSAddresses(ctx context.Context) <-chan NetlinkAddresses
 
@@ -129,3 +136,31 @@ type Network struct {
 
 // NetID type
 type NetID = zos.NetID
+
+// IfaceType define the different public interface supported
+type IfaceType string
+
+const (
+	//VlanIface means we use vlan for the public interface
+	VlanIface IfaceType = "vlan"
+	//MacVlanIface means we use macvlan for the public interface
+	MacVlanIface IfaceType = "macvlan"
+)
+
+// PublicConfig is the configuration of the interface
+// that is connected to the public internet
+type PublicConfig struct {
+	// Type define if we need to use
+	// the Vlan field or the MacVlan
+	Type IfaceType `json:"type"`
+	// Vlan int16     `json:"vlan"`
+	// Macvlan net.HardwareAddr
+
+	IPv4 gridtypes.IPNet `json:"ipv4"`
+	IPv6 gridtypes.IPNet `json:"ipv6"`
+
+	GW4 net.IP `json:"gw4"`
+	GW6 net.IP `json:"gw6"`
+
+	// Version int `json:"version"`
+}

@@ -7,16 +7,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-// IfaceType define the different public interface supported
-type IfaceType string
-
-const (
-	//VlanIface means we use vlan for the public interface
-	VlanIface IfaceType = "vlan"
-	//MacVlanIface means we use macvlan for the public interface
-	MacVlanIface IfaceType = "macvlan"
-)
-
 // MacAddress type
 type MacAddress struct{ net.HardwareAddr }
 
@@ -72,22 +62,4 @@ func (i *IfaceInfo) DefaultIP() (net.IP, error) {
 		}
 	}
 	return nil, fmt.Errorf("no ipv6 address with default gateway")
-}
-
-// PubIface is the configuration of the interface
-// that is connected to the public internet
-type PubIface struct {
-	// Type define if we need to use
-	// the Vlan field or the MacVlan
-	Type IfaceType `json:"type"`
-	Vlan int16     `json:"vlan"`
-	// Macvlan net.HardwareAddr
-
-	IPv4 gridtypes.IPNet `json:"ipv4"`
-	IPv6 gridtypes.IPNet `json:"ipv6"`
-
-	GW4 net.IP `json:"gw4"`
-	GW6 net.IP `json:"gw6"`
-
-	Version int `json:"version"`
 }

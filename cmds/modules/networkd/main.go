@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,8 +27,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/utils"
 )
 
-const redisSocket = "unix:///var/run/redis.sock"
-const module = "network"
+const (
+	redisSocket      = "unix:///var/run/redis.sock"
+	module           = "network"
+	publicConfigFile = "public-config.json"
+)
 
 // Module is entry point for module
 var Module cli.Command = cli.Command{
@@ -76,16 +80,13 @@ func action(cli *cli.Context) error {
 		log.Info().Msg("shutting down")
 	})
 
-	// choose exit interface for (br-pub)
-	// - this is public_config.master if set
-	// - otherwise we find the first nic with public ipv6 (that is not zos)
-	// - finally we use zos if that is the last option.
-	pub, err := getExitInterface()
+	publicCfgPath := filepath.Join(root, publicConfigFile)
+	pub, err := public.LoadPublicConfig(publicCfgPath)
 	log.Debug().Err(err).Msgf("public interface configred: %+v", pub)
-	if err != nil && err != ErrNoPubInterface {
+	if err != nil && err != public.ErrNoPublicConfig {
 		return errors.Wrap(err, "failed to get node public_config")
 	}
-
+	// EnsurePublicSetup knows how to handle a nil pub (in case of ErrNoPublicConfig)
 	master, err := public.EnsurePublicSetup(nodeID, pub)
 	if err != nil {
 		return errors.Wrap(err, "failed to setup public bridge")
@@ -100,7 +101,7 @@ func action(cli *cli.Context) error {
 	if err := ensureHostFw(ctx); err != nil {
 		return errors.Wrap(err, "failed to host firewall rules")
 	}
-
+	log.Debug().Msg("starting yggdrasil")
 	ygg, err := startYggdrasil(ctx, identity.PrivateKey(), dmz)
 	if err != nil {
 		return errors.Wrap(err, "fail to start yggdrasil")
@@ -120,7 +121,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "fail to create module root")
 	}
 
-	networker, err := network.NewNetworker(identity, root, dmz, ygg)
+	networker, err := network.NewNetworker(identity, publicCfgPath, dmz, ygg)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
 	}

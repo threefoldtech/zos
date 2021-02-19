@@ -12,8 +12,8 @@ import (
 )
 
 func TestCreatePublicNS(t *testing.T) {
-	iface := &types.PubIface{
-		Type: types.MacVlanIface,
+	iface := &pkg.PublicConfig{
+		Type: pkg.MacVlanIface,
 		IPv6: gridtypes.IPNet{IPNet: net.IPNet{
 			IP:   net.ParseIP("2a02:1802:5e:ff02::100"),
 			Mask: net.CIDRMask(64, 128),

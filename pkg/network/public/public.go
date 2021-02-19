@@ -110,7 +110,7 @@ func setupPublicBridge(br *netlink.Bridge) error {
 }
 
 // EnsurePublicSetup create the public setup, it's okay to have inf == nil
-func EnsurePublicSetup(nodeID pkg.Identifier, inf *types.PubIface) (*netlink.Bridge, error) {
+func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.Bridge, error) {
 	log.Debug().Msg("ensure public setup")
 	br, err := ensurePublicBridge()
 	if err != nil {
@@ -182,7 +182,7 @@ func ensureNamespace() (ns.NetNS, error) {
 	return namespace.GetByName(types.PublicNamespace)
 }
 
-func ensurePublicMacvlan(iface *types.PubIface, pubNS ns.NetNS) (*netlink.Macvlan, error) {
+func ensurePublicMacvlan(iface *pkg.PublicConfig, pubNS ns.NetNS) (*netlink.Macvlan, error) {
 	var (
 		pubIface *netlink.Macvlan
 		err      error
@@ -191,7 +191,7 @@ func ensurePublicMacvlan(iface *types.PubIface, pubNS ns.NetNS) (*netlink.Macvla
 	if !ifaceutil.Exists(types.PublicIface, pubNS) {
 
 		switch iface.Type {
-		case types.MacVlanIface:
+		case pkg.MacVlanIface:
 			pubIface, err = macvlan.Create(types.PublicIface, types.PublicBridge, pubNS)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create public mac vlan interface")
@@ -214,7 +214,7 @@ func ensurePublicMacvlan(iface *types.PubIface, pubNS ns.NetNS) (*netlink.Macvla
 	return pubIface, nil
 }
 
-func publicConfig(iface *types.PubIface) (ips []*net.IPNet, routes []*netlink.Route, err error) {
+func publicConfig(iface *pkg.PublicConfig) (ips []*net.IPNet, routes []*netlink.Route, err error) {
 	if !iface.IPv6.Nil() && iface.GW6 != nil {
 		routes = append(routes, &netlink.Route{
 			Dst: &net.IPNet{
@@ -247,7 +247,7 @@ func publicConfig(iface *types.PubIface) (ips []*net.IPNet, routes []*netlink.Ro
 }
 
 // setupPublicNS creates a public namespace in a node
-func setupPublicNS(nodeID pkg.Identifier, iface *types.PubIface) error {
+func setupPublicNS(nodeID pkg.Identifier, iface *pkg.PublicConfig) error {
 	pubNS, err := ensureNamespace()
 	if err != nil {
 		return err
