@@ -30,9 +30,9 @@ func (p *Primitives) decryptSecret(ctx context.Context, user gridtypes.ID, secre
 	// now only one version is supported
 	switch version {
 	default:
-		userPubKey := engine.Users().GetKey(user)
-		if userPubKey == nil {
-			return "", fmt.Errorf("failed to retrieve user %s public key", user)
+		userPubKey, err := engine.Users().GetKey(user)
+		if err != nil || userPubKey == nil {
+			return "", fmt.Errorf("failed to retrieve user %s public key: %s", user, err)
 		}
 		out, err = identity.DecryptECDH(bytes, userPubKey)
 	}

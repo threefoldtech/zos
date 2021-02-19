@@ -25,9 +25,11 @@ func NewNetworkAPI(router *mux.Router, cl zbus.Client) (*Network, error) {
 
 func (n *Network) setup(router *mux.Router) error {
 
-	api := router.PathPrefix("/wireguard").Subrouter()
-	api.Path("/").HandlerFunc(mw.AsHandlerFunc(n.listPorts)).Name("wireguard-list")
+	api := router.PathPrefix("/network").Subrouter()
+	api.Path("/wireguard").HandlerFunc(mw.AsHandlerFunc(n.listPorts)).Name("network-wireguard-list")
 
+	//config := api.PathPrefix("/config").Subrouter()
+	// config.Use(mwf ...mux.MiddlewareFunc)
 	return nil
 }
 

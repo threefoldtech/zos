@@ -2,7 +2,6 @@ package farmer
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/substrate"
@@ -15,7 +14,7 @@ const (
 
 // GetFarmTwin gets the IP of a farmer twin given the substrate db url
 // and the farm id
-func GetFarmTwin(url string, id uint32) (net.IP, error) {
+func GetFarmTwin(url string, id uint32) (*substrate.Twin, error) {
 	sub, err := substrate.NewSubstrate(url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to connect to substrate")
@@ -26,25 +25,20 @@ func GetFarmTwin(url string, id uint32) (net.IP, error) {
 		return nil, errors.Wrapf(err, "failed to get farm '%d'", id)
 	}
 
-	twin, err := sub.GetTwin(uint32(farm.TwinID))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get twin")
-	}
-
-	ip := twin.IPAddress()
-	if len(ip) == 0 {
-		return nil, fmt.Errorf("invalid ip address associated with farmer twin")
-	}
-
-	return ip, nil
+	return sub.GetTwin(uint32(farm.TwinID))
 }
 
 // NewClientFromSubstrate gets a farmer twin client from a substrate url and
 // the farm id
 func NewClientFromSubstrate(url string, id uint32, port ...uint16) (*Client, error) {
-	ip, err := GetFarmTwin(url, id)
+	twin, err := GetFarmTwin(url, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get farmer twin ip")
+	}
+
+	ip := twin.IPAddress()
+	if len(ip) == 0 {
+		return nil, fmt.Errorf("invalid ip address associated with farmer twin")
 	}
 
 	p := DefaultFarmerTwinPort

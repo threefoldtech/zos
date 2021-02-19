@@ -11,7 +11,7 @@ import (
 
 // Users is used to get user public key
 type Users interface {
-	GetKey(id gridtypes.ID) ed25519.PublicKey
+	GetKey(id gridtypes.ID) (ed25519.PublicKey, error)
 }
 
 // Engine is engine interface

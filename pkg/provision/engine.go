@@ -115,9 +115,8 @@ func (w *withStartupOrder) apply(e *NativeEngine) {
 
 type nullKeyGetter struct{}
 
-func (n *nullKeyGetter) GetKey(id gridtypes.ID) ed25519.PublicKey {
-	log.Debug().Stringer("id", id).Msg("null user key getter")
-	return nil
+func (n *nullKeyGetter) GetKey(id gridtypes.ID) (ed25519.PublicKey, error) {
+	return nil, fmt.Errorf("null user key getter")
 }
 
 type engineKey struct{}

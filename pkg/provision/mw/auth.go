@@ -52,9 +52,12 @@ func (u UserMap) AddKeyFromHex(id gridtypes.ID, key string) error {
 }
 
 // GetKey implements httpsig.KeyGetter
-func (u UserMap) GetKey(id gridtypes.ID) ed25519.PublicKey {
-	key, _ := u[id]
-	return key
+func (u UserMap) GetKey(id gridtypes.ID) (ed25519.PublicKey, error) {
+	key, ok := u[id]
+	if !ok {
+		return nil, fmt.Errorf("unknown user id '%s' in key map", id)
+	}
+	return key, nil
 }
 
 // requiredHeaders are the parameters to be used to generated the http signature
@@ -71,8 +74,19 @@ type keyGetter struct {
 	users provision.Users
 }
 
-func (k *keyGetter) GetKey(id string) interface{} {
+func (k *keyGetter) GetKey(id string) (interface{}, error) {
 	return k.users.GetKey(gridtypes.ID(id))
+}
+
+func writeError(w http.ResponseWriter, err error) {
+	object := struct {
+		Error string `json:"error"`
+	}{
+		Error: err.Error(),
+	}
+	if err := json.NewEncoder(w).Encode(object); err != nil {
+		log.Error().Err(err).Msg("failed to encode return object")
+	}
 }
 
 // NewAuthMiddleware creates a new AuthMiddleware using the v httpsig.Verifier
@@ -91,26 +105,24 @@ func NewAuthMiddleware(users provision.Users) mux.MiddlewareFunc {
 	}
 
 	return func(handler http.Handler) http.Handler {
+		//http.Error(w http.ResponseWriter, error string, code int)
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			userID, err := verifier.Verify(req)
 			if err != nil {
 				w.Header()["WWW-Authenticate"] = []string{challenge}
 				w.WriteHeader(http.StatusUnauthorized)
 
-				log.Error().Err(err).Msgf("unauthorized access to %s", req.URL.Path)
-
-				object := struct {
-					Error string `json:"error"`
-				}{
-					Error: errors.Wrap(err, "unauthorized access").Error(),
-				}
-				if err := json.NewEncoder(w).Encode(object); err != nil {
-					log.Error().Err(err).Msg("failed to encode return object")
-				}
+				writeError(w, errors.Wrap(err, "unauthorized access"))
 				return
 			}
 
-			pk := users.GetKey(gridtypes.ID(userID))
+			pk, err := users.GetKey(gridtypes.ID(userID))
+			if err != nil {
+				w.WriteHeader(http.StatusUnauthorized)
+				writeError(w, err)
+				return
+			}
+
 			ctx := req.Context()
 			ctx = context.WithValue(ctx, userKeyID{}, gridtypes.ID(userID))
 			ctx = context.WithValue(ctx, usePublicKeyID{}, pk)

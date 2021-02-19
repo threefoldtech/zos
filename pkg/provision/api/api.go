@@ -36,11 +36,10 @@ func (a *Workloads) setup(router *mux.Router) error {
 	//so the user getter will use the grid db
 	//plus some internal in-memory cache
 
-	router.Use(
+	workloads := router.PathPrefix("/workloads").Subrouter()
+	workloads.Use(
 		mw.NewAuthMiddleware(a.engine.Users()),
 	)
-
-	workloads := router.PathPrefix("/workloads").Subrouter()
 
 	workloads.Path("/").HandlerFunc(mw.AsHandlerFunc(a.create)).Methods(http.MethodPost).Name("workload-create")
 	workloads.Path("/{id}").HandlerFunc(mw.AsHandlerFunc(a.get)).Methods(http.MethodGet).Name("workload-get")
