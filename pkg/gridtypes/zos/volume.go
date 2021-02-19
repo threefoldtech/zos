@@ -3,6 +3,8 @@ package zos
 import (
 	"fmt"
 	"io"
+
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // Volume defines a mount point
@@ -24,6 +26,20 @@ func (v Volume) Valid() error {
 	}
 
 	return nil
+}
+
+// Capacity implements WorkloadData
+func (v Volume) Capacity() (cap gridtypes.Capacity, err error) {
+	switch v.Type {
+	case HDDDevice:
+		cap.HRU = v.Size
+	case SSDDevice:
+		cap.SRU = v.Size
+	default:
+		return cap, fmt.Errorf("invalid volume type '%s'", v.Type.String())
+	}
+
+	return
 }
 
 // Challenge implements WorkloadData

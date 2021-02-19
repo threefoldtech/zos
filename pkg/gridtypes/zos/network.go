@@ -105,6 +105,11 @@ func (n Network) Challenge(b io.Writer) error {
 	return nil
 }
 
+// Capacity implementation
+func (n Network) Capacity() (gridtypes.Capacity, error) {
+	return gridtypes.Capacity{}, nil
+}
+
 // Peer is the description of a peer of a NetResource
 type Peer struct {
 	// IPV4 subnet of the network resource of the peer

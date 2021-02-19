@@ -3,8 +3,11 @@ package zos
 import (
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"sort"
+
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // Member struct
@@ -111,6 +114,24 @@ func (c ContainerCapacity) Challenge(w io.Writer) error {
 	return nil
 }
 
+func (c ContainerCapacity) capacity() (gridtypes.Capacity, error) {
+	rsu := gridtypes.Capacity{
+		CRU: uint64(c.CPU),
+		// round mru to 4 digits precision
+		MRU: uint64(math.Round(float64(c.Memory)/1024*10000) / 10000),
+	}
+	storageSize := math.Round(float64(c.DiskSize)/1024*10000) / 10000
+	storageSize = math.Max(0, storageSize-50) // we offer the 50 first GB of storage for container root
+	switch c.DiskType {
+	case HDDDevice:
+		rsu.HRU = uint64(storageSize)
+	case SSDDevice:
+		rsu.SRU = uint64(storageSize)
+	}
+
+	return rsu, nil
+}
+
 //Container creation info
 type Container struct {
 	// URL of the flist
@@ -132,7 +153,7 @@ type Container struct {
 	// Network network info for container
 	Network Member `json:"network"`
 	// ContainerCapacity is the amount of resource to allocate to the container
-	Capacity ContainerCapacity `json:"capacity"`
+	ContainerCapacity ContainerCapacity `json:"capacity"`
 	// Logs contains a list of endpoint where to send containerlogs
 	Logs []Logs `json:"logs,omitempty"`
 	// Stats container metrics backend
@@ -191,11 +212,16 @@ func (c Container) Challenge(w io.Writer) error {
 		return err
 	}
 
-	if err := c.Capacity.Challenge(w); err != nil {
+	if err := c.ContainerCapacity.Challenge(w); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// Capacity implementation
+func (c Container) Capacity() (gridtypes.Capacity, error) {
+	return c.ContainerCapacity.capacity()
 }
 
 // ContainerResult is the information return to the BCDB

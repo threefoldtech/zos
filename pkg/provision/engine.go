@@ -15,8 +15,6 @@ import (
 
 const gib = 1024 * 1024 * 1024
 
-const minimunZosMemory = 2 * gib
-
 // EngineOption interface
 type EngineOption interface {
 	apply(e *NativeEngine)
@@ -83,7 +81,7 @@ type withJanitorOpt struct {
 }
 
 func (o *withJanitorOpt) apply(e *NativeEngine) {
-	panic("not implemented")
+	panic("not imple=nted")
 	// e.janitor = o.j
 }
 

@@ -8,6 +8,99 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
+var k8sSize = map[uint8]gridtypes.Capacity{
+	1: {
+		CRU: 1,
+		MRU: 2,
+		SRU: 50,
+	},
+	2: {
+		CRU: 2,
+		MRU: 4,
+		SRU: 100,
+	},
+	3: {
+		CRU: 2,
+		MRU: 8,
+		SRU: 25,
+	},
+	4: {
+		CRU: 2,
+		MRU: 5,
+		SRU: 50,
+	},
+	5: {
+		CRU: 2,
+		MRU: 8,
+		SRU: 200,
+	},
+	6: {
+		CRU: 4,
+		MRU: 16,
+		SRU: 50,
+	},
+	7: {
+		CRU: 4,
+		MRU: 16,
+		SRU: 100,
+	},
+	8: {
+		CRU: 4,
+		MRU: 16,
+		SRU: 400,
+	},
+	9: {
+		CRU: 8,
+		MRU: 32,
+		SRU: 100,
+	},
+	10: {
+		CRU: 8,
+		MRU: 32,
+		SRU: 200,
+	},
+	11: {
+		CRU: 8,
+		MRU: 32,
+		SRU: 800,
+	},
+	12: {
+		CRU: 1,
+		MRU: 64,
+		SRU: 200,
+	},
+	13: {
+		CRU: 1,
+		MRU: 64,
+		SRU: 400,
+	},
+	14: {
+		CRU: 1,
+		MRU: 64,
+		SRU: 800,
+	},
+	15: {
+		CRU: 1,
+		MRU: 2,
+		SRU: 25,
+	},
+	16: {
+		CRU: 2,
+		MRU: 4,
+		SRU: 50,
+	},
+	17: {
+		CRU: 4,
+		MRU: 8,
+		SRU: 50,
+	},
+	18: {
+		CRU: 1,
+		MRU: 1,
+		SRU: 25,
+	},
+}
+
 // Kubernetes reservation data
 type Kubernetes struct {
 	// Size of the vm, this defines the amount of vCpu, memory, and the disk size
@@ -69,6 +162,16 @@ func (k Kubernetes) Challenge(b io.Writer) error {
 	}
 
 	return nil
+}
+
+// Capacity implementation
+func (k Kubernetes) Capacity() (gridtypes.Capacity, error) {
+	rsu, ok := k8sSize[k.Size]
+	if !ok {
+		return gridtypes.Capacity{}, fmt.Errorf("K8S VM size %d is not supported", k.Size)
+	}
+
+	return rsu, nil
 }
 
 // KubernetesResult result returned by k3s reservation

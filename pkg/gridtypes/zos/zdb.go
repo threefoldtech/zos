@@ -3,6 +3,8 @@ package zos
 import (
 	"fmt"
 	"io"
+
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // ZDBMode is the enumeration of the modes 0-db can operate in
@@ -71,6 +73,20 @@ func (z ZDB) Challenge(b io.Writer) error {
 	}
 
 	return nil
+}
+
+// Capacity implements WorkloadData
+func (z ZDB) Capacity() (cap gridtypes.Capacity, err error) {
+	switch z.DiskType {
+	case HDDDevice:
+		cap.HRU = z.Size
+	case SSDDevice:
+		cap.SRU = z.Size
+	default:
+		return cap, fmt.Errorf("invalid volume type '%s'", z.DiskType.String())
+	}
+
+	return
 }
 
 // ZDBResult is the information return to the BCDB

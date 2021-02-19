@@ -57,10 +57,20 @@ func (t WorkloadType) String() string {
 	return string(t)
 }
 
+//Capacity the expected capacity of a workload
+type Capacity struct {
+	CRU   uint64
+	SRU   uint64
+	HRU   uint64
+	MRU   uint64
+	IPV4U uint64
+}
+
 // WorkloadData interface
 type WorkloadData interface {
 	Valid() error
 	Challenge(io.Writer) error
+	Capacity() (Capacity, error)
 }
 
 // MustMarshal is a utility function to quickly serialize workload data
@@ -71,27 +81,6 @@ func MustMarshal(data WorkloadData) json.RawMessage {
 	}
 
 	return json.RawMessage(bytes)
-}
-
-// Timestamp type
-type Timestamp int64
-
-// UnmarshalJSON supports multiple formats
-func (t *Timestamp) UnmarshalJSON(data []byte) error {
-	var u int64
-	if err := json.Unmarshal(data, &u); err == nil {
-		*t = Timestamp(u)
-		return nil
-	}
-
-	// else we try time
-	var v time.Time
-	if err := json.Unmarshal(data, &v); err == nil {
-		*t = Timestamp(v.Unix())
-		return nil
-	}
-
-	return fmt.Errorf("unknown timestamp format, expecting a timestamp or an ISO-8601 date")
 }
 
 // Workload struct
@@ -184,6 +173,16 @@ func (w *Workload) Challenge(i io.Writer) error {
 	}
 
 	return data.Challenge(i)
+}
+
+// Capacity returns the used capacity by this workload
+func (w *Workload) Capacity() (Capacity, error) {
+	data, err := w.WorkloadData()
+	if err != nil {
+		return Capacity{}, err
+	}
+
+	return data.Capacity()
 }
 
 //Sign signs the signature given the private key

@@ -1,8 +1,10 @@
 package gridtypes
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
+	"time"
 )
 
 // ID is a generic ID type
@@ -15,6 +17,27 @@ func (id ID) String() string {
 // IsEmpty checks if id is empty
 func (id ID) IsEmpty() bool {
 	return len(id) == 0
+}
+
+// Timestamp type
+type Timestamp int64
+
+// UnmarshalJSON supports multiple formats
+func (t *Timestamp) UnmarshalJSON(data []byte) error {
+	var u int64
+	if err := json.Unmarshal(data, &u); err == nil {
+		*t = Timestamp(u)
+		return nil
+	}
+
+	// else we try time
+	var v time.Time
+	if err := json.Unmarshal(data, &v); err == nil {
+		*t = Timestamp(v.Unix())
+		return nil
+	}
+
+	return fmt.Errorf("unknown timestamp format, expecting a timestamp or an ISO-8601 date")
 }
 
 // IPNet type

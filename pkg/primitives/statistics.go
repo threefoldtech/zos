@@ -3,10 +3,11 @@ package primitives
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -41,6 +42,7 @@ type statsProvisioner struct {
 	inner    provision.Provisioner
 	counters Counters
 	reserved Counters
+	mem      uint64
 
 	nodeID string
 }
@@ -48,7 +50,12 @@ type statsProvisioner struct {
 // NewStatisticsProvisioner creates a new statistics provisioner interceptor.
 // Statistics provisioner keeps track of used capacity and update explorer when it changes
 func NewStatisticsProvisioner(initial, reserved Counters, nodeID string, inner provision.Provisioner) provision.Provisioner {
-	return &statsProvisioner{inner: inner, counters: initial, reserved: reserved, nodeID: nodeID}
+	vm, err := mem.VirtualMemory()
+	if err != nil {
+		panic(err)
+	}
+
+	return &statsProvisioner{inner: inner, counters: initial, reserved: reserved, nodeID: nodeID, mem: vm.Total}
 }
 
 func (s *statsProvisioner) currentCapacity() CurrentCapacity {
@@ -60,8 +67,22 @@ func (s *statsProvisioner) currentCapacity() CurrentCapacity {
 	}
 }
 
+func (s *statsProvisioner) hasEnoughCapacity(c *gridtypes.Capacity) error {
+	//TODO: check required capacity here
+	return nil
+}
+
 func (s *statsProvisioner) Provision(ctx context.Context, wl *gridtypes.Workload) (*gridtypes.Result, error) {
 	current := s.currentCapacity()
+	needed, err := wl.Capacity()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to calculate workload needed capacity")
+	}
+
+	if err := s.hasEnoughCapacity(&needed); err != nil {
+		return nil, errors.Wrap(err, "failed to satisfy required capacity")
+	}
+
 	ctx = context.WithValue(ctx, currentCapacityKey{}, current)
 	result, err := s.inner.Provision(ctx, wl)
 	if err != nil {
@@ -85,8 +106,6 @@ func (s *statsProvisioner) Decommission(ctx context.Context, wl *gridtypes.Workl
 	if err := s.counters.Decrement(wl); err != nil {
 		log.Error().Err(err).Msg("failed to decrement statistics counter")
 	}
-
-	//s.sync(wl.NodeID)
 
 	return nil
 }

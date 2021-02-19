@@ -155,9 +155,9 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 	// mount root flist
 	log.Debug().Str("flist", config.FList).Msg("mounting flist")
 	rootfsMntOpt := pkg.MountOptions{
-		Limit:    config.Capacity.DiskSize,
+		Limit:    config.ContainerCapacity.DiskSize,
 		ReadOnly: false,
-		Type:     config.Capacity.DiskType,
+		Type:     config.ContainerCapacity.DiskType,
 	}
 	if rootfsMntOpt.Limit == 0 || rootfsMntOpt.Type == "" {
 		rootfsMntOpt = pkg.DefaultMountOptions
@@ -218,8 +218,8 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 			Mounts:      mounts,
 			Entrypoint:  config.Entrypoint,
 			Interactive: config.Interactive,
-			CPU:         config.Capacity.CPU,
-			Memory:      config.Capacity.Memory * mib,
+			CPU:         config.ContainerCapacity.CPU,
+			Memory:      config.ContainerCapacity.Memory * mib,
 			Logs:        logs,
 			Stats:       config.Stats,
 		},
@@ -345,11 +345,11 @@ func validateContainerConfig(config Container) error {
 		return fmt.Errorf("missing flist url")
 	}
 
-	if config.Capacity.Memory < 1024 {
+	if config.ContainerCapacity.Memory < 1024 {
 		return fmt.Errorf("amount of memory allocated for the container cannot be lower then 1024 megabytes")
 	}
 
-	if config.Capacity.CPU == 0 {
+	if config.ContainerCapacity.CPU == 0 {
 		return fmt.Errorf("cannot create a container with 0 CPU allocated")
 	}
 

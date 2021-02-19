@@ -33,6 +33,11 @@ func (p PublicIP) Challenge(b io.Writer) error {
 	return err
 }
 
+// Capacity implementation
+func (p PublicIP) Capacity() (gridtypes.Capacity, error) {
+	return gridtypes.Capacity{IPV4U: 1}, nil
+}
+
 // PublicIPResult result returned by publicIP reservation
 type PublicIPResult struct {
 	IP gridtypes.IPNet `json:"ip"`
