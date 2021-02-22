@@ -65,10 +65,10 @@ type NativeEngine struct {
 	deprovision chan deprovisionJob
 
 	//options
-	janitor Janitor
-	users   Users
-	admins  Users
-	order   []gridtypes.WorkloadType
+	// janitor Janitor
+	users  Users
+	admins Users
+	order  []gridtypes.WorkloadType
 }
 
 var _ Engine = (*NativeEngine)(nil)

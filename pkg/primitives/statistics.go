@@ -2,14 +2,11 @@ package primitives
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
@@ -110,28 +107,28 @@ func (s *statsProvisioner) Decommission(ctx context.Context, wl *gridtypes.Workl
 	return nil
 }
 
-func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, wl *gridtypes.Workload) (bool, error) {
-	// rule, we always should update counters UNLESS it is a network reservation that
-	// already have been counted before.
-	if wl.Type != zos.NetworkType {
-		return true, nil
-	}
+// func (s *statsProvisioner) shouldUpdateCounters(ctx context.Context, wl *gridtypes.Workload) (bool, error) {
+// 	// rule, we always should update counters UNLESS it is a network reservation that
+// 	// already have been counted before.
+// 	if wl.Type != zos.NetworkType {
+// 		return true, nil
+// 	}
 
-	var nr zos.Network
-	if err := json.Unmarshal(wl.Data, &nr); err != nil {
-		return false, fmt.Errorf("failed to unmarshal network from reservation: %w", err)
-	}
-	// otherwise we check the cache if a network
-	// with the same id already exists
-	id := zos.NetworkID(wl.User.String(), nr.Name)
-	cache := provision.GetEngine(ctx).Storage()
+// 	var nr zos.Network
+// 	if err := json.Unmarshal(wl.Data, &nr); err != nil {
+// 		return false, fmt.Errorf("failed to unmarshal network from reservation: %w", err)
+// 	}
+// 	// otherwise we check the cache if a network
+// 	// with the same id already exists
+// 	id := zos.NetworkID(wl.User.String(), nr.Name)
+// 	cache := provision.GetEngine(ctx).Storage()
 
-	_, err := cache.GetNetwork(id)
-	if errors.Is(err, provision.ErrWorkloadNotExists) {
-		return true, nil
-	} else if err != nil {
-		return false, err
-	}
+// 	_, err := cache.GetNetwork(id)
+// 	if errors.Is(err, provision.ErrWorkloadNotExists) {
+// 		return true, nil
+// 	} else if err != nil {
+// 		return false, err
+// 	}
 
-	return false, nil
-}
+// 	return false, nil
+// }

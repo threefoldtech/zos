@@ -21,7 +21,7 @@ func (p *Primitives) publicIPProvision(ctx context.Context, wl *gridtypes.Worklo
 	return p.publicIPProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (zos.PublicIPResult, error) {
+func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (result zos.PublicIPResult, err error) {
 	config := zos.PublicIP{}
 
 	network := stubs.NewNetworkerStub(p.zbus)
@@ -48,10 +48,9 @@ func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Wo
 		return zos.PublicIPResult{}, errors.Wrap(err, "could not look up ipv6 prefix")
 	}
 
+	result.IP = config.IP
 	err = setupFilters(ctx, fName, tapName, config.IP.IP.To4().String(), predictedIPv6, mac.String())
-	return zos.PublicIPResult{
-		IP: config.IP,
-	}, err
+	return
 }
 
 func (p *Primitives) publicIPDecomission(ctx context.Context, wl *gridtypes.Workload) error {

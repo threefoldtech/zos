@@ -84,10 +84,3 @@ func (c *Counters) Decrement(r *gridtypes.Workload) error {
 
 	return nil
 }
-
-type resourceUnits struct {
-	SRU uint64 `json:"sru,omitempty"`
-	HRU uint64 `json:"hru,omitempty"`
-	MRU uint64 `json:"mru,omitempty"`
-	CRU uint64 `json:"cru,omitempty"`
-}

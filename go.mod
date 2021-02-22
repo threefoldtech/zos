@@ -11,7 +11,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/cenkalti/backoff/v3 v3.2.2
-	github.com/centrifuge/go-substrate-rpc-client v2.0.0+incompatible
+	github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0
 	github.com/containerd/cgroups v0.0.0-20200327175542-b44481373989
 	github.com/containerd/containerd v1.4.0-beta.1.0.20200615192441-ae2f3fdfd1a4
 	github.com/containerd/continuity v0.0.0-20200413184840-d3ef23f19fbb // indirect
@@ -24,7 +24,6 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
-	github.com/ethereum/go-ethereum v1.9.25 // indirect
 	github.com/firecracker-microvm/firecracker-go-sdk v0.19.1-0.20200110212531-741fc8cb0f2e
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gizak/termui/v3 v3.1.0
@@ -52,14 +51,12 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.1
 	github.com/opencontainers/selinux v1.5.2 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pierrec/xxHash v0.1.5 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.19.0
 	github.com/rusart/muxprom v0.0.0-20200323164249-36ea051efbe6
 	github.com/shirou/gopsutil v2.20.5+incompatible
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
-	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
 	github.com/threefoldtech/zbus v0.1.4
 	github.com/tyler-smith/go-bip39 v1.0.2
@@ -73,8 +70,8 @@ require (
 	github.com/zaibon/httpsig v0.0.0-20210219100301-931cc471f406
 	go.etcd.io/bbolt v1.3.4 // indirect
 	go.mongodb.org/mongo-driver v1.3.2 // indirect
-	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
-	golang.org/x/sys v0.0.0-20200824131525-c12d262b63d8
+	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+	golang.org/x/sys v0.0.0-20201221093633-bc327ba9c2f0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20191219145116-fa6499c8e75f
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/grpc v1.29.1 // indirect
