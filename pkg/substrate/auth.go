@@ -47,7 +47,7 @@ func (s *substrateUsers) GetKey(id gridtypes.ID) (ed25519.PublicKey, error) {
 
 	user, err := s.sub.GetUser(uint32(idUint))
 	if err != nil {
-		return nil, errors.Wrapf(err, "couldnot get user with id '%d'", idUint)
+		return nil, errors.Wrapf(err, "could not get user with id '%d'", idUint)
 	}
 
 	key := user.Address.PublicKey()
@@ -98,7 +98,7 @@ func (s *substrateAdmins) GetKey(id gridtypes.ID) (ed25519.PublicKey, error) {
 
 	user, err := s.sub.GetUser(uint32(idUint))
 	if err != nil {
-		return nil, errors.Wrapf(err, "couldnot get user with id '%d'", idUint)
+		return nil, errors.Wrapf(err, "could not get user with id '%d'", idUint)
 	}
 
 	key := user.Address.PublicKey()

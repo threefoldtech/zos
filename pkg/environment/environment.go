@@ -136,7 +136,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 
 	} else {
 		env.Orphan = false
-		id, err := strconv.ParseUint(farmerID[0], 10, 64)
+		id, err := strconv.ParseUint(farmerID[0], 10, 32)
 		if err != nil {
 			return env, errors.Wrap(err, "wrong format for farm ID")
 		}
