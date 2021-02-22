@@ -21,7 +21,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
+// Container type alias
 type Container = zos.Container
+
+// ContainerResult type alias
 type ContainerResult = zos.ContainerResult
 
 func (p *Primitives) containerProvision(ctx context.Context, wl *gridtypes.Workload) (interface{}, error) {

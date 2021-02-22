@@ -132,6 +132,7 @@ type Kubernetes struct {
 	DisableDefaultIngress bool   `json:"disable_default_ingress"`
 }
 
+// Valid implementation
 func (k Kubernetes) Valid() error {
 	return nil
 }

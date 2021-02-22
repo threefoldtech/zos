@@ -20,6 +20,7 @@ func (m ZDBMode) String() string {
 	return string(m)
 }
 
+// Valid validates the mode
 func (m ZDBMode) Valid() error {
 	if m != ZDBModeUser && m != ZDBModeSeq {
 		return fmt.Errorf("invalid zdb mode")
