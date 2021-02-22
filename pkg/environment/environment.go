@@ -58,22 +58,26 @@ const (
 
 var (
 	envDev = Environment{
-		RunningMode: RunningDev3,
-		FlistURL:    "zdb://hub.grid.tf:9900",
-		BinRepo:     "tf-zos-bins.dev",
+		RunningMode:  RunningDev3,
+		SubstrateURL: "wss://explorer.devnet.grid.tf/ws",
+		FlistURL:     "zdb://hub.grid.tf:9900",
+		BinRepo:      "tf-zos-bins.dev",
 	}
 
 	envTest = Environment{
 		RunningMode: RunningTest3,
-		FlistURL:    "zdb://hub.grid.tf:9900",
-		BinRepo:     "tf-zos-bins.test",
+		// TODO: this should become a different substrate ?
+		SubstrateURL: "wss://explorer.devnet.grid.tf/ws",
+		FlistURL:     "zdb://hub.grid.tf:9900",
+		BinRepo:      "tf-zos-bins.test",
 	}
 
 	// same as testnet for now. will be updated the day of the launch of production network
 	envProd = Environment{
-		RunningMode: RunningMain,
-		FlistURL:    "zdb://hub.grid.tf:9900",
-		BinRepo:     "tf-zos-bins",
+		RunningMode:  RunningMain,
+		SubstrateURL: "wss://explorer.devnet.grid.tf/ws",
+		FlistURL:     "zdb://hub.grid.tf:9900",
+		BinRepo:      "tf-zos-bins",
 	}
 )
 
@@ -108,7 +112,6 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		if len(substrate) > 0 {
 			env.SubstrateURL = substrate[len(substrate)-1]
 		}
-		// TODO: default value ?
 	}
 
 	if farmSecret, ok := params.Get("secret"); ok {

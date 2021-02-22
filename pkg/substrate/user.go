@@ -1,14 +1,13 @@
 package substrate
 
 import (
-	"fmt"
-
 	"github.com/centrifuge/go-substrate-rpc-client/types"
 	"github.com/pkg/errors"
 )
 
 // User from substrate
 type User struct {
+	Versioned
 	ID        types.U32
 	Name      string
 	CountryID types.U32
@@ -31,14 +30,29 @@ func (s *substrateClient) GetUser(id uint32) (*User, error) {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
 
-	var user User
-	ok, err := s.cl.RPC.State.GetStorageLatest(key, &user)
+	raw, err := s.cl.RPC.State.GetStorageRawLatest(key)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to lookup user")
+		return nil, errors.Wrap(err, "failed to lookup entity")
 	}
 
-	if !ok {
-		return nil, fmt.Errorf("user not found")
+	if len(*raw) == 0 {
+		return nil, errors.Wrap(ErrNotFound, "entity not found")
+	}
+
+	version, err := s.getVersion(*raw)
+	if err != nil {
+		return nil, err
+	}
+
+	var user User
+
+	switch version {
+	case 1:
+		if err := types.DecodeFromBytes(*raw, &user); err != nil {
+			return nil, errors.Wrap(err, "failed to load object")
+		}
+	default:
+		return nil, ErrUnknownVersion
 	}
 
 	return &user, nil

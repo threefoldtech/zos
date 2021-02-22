@@ -1,7 +1,6 @@
 package substrate
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/centrifuge/go-substrate-rpc-client/types"
@@ -16,6 +15,7 @@ type EntityProof struct {
 
 // Twin struct
 type Twin struct {
+	Versioned
 	ID       types.U32
 	Account  AccountID
 	IP       string
@@ -42,14 +42,29 @@ func (s *substrateClient) GetTwin(id uint32) (*Twin, error) {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
 
-	var twin Twin
-	ok, err := s.cl.RPC.State.GetStorageLatest(key, &twin)
+	raw, err := s.cl.RPC.State.GetStorageRawLatest(key)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to lookup twin")
+		return nil, errors.Wrap(err, "failed to lookup entity")
 	}
 
-	if !ok {
-		return nil, fmt.Errorf("twin not found")
+	if len(*raw) == 0 {
+		return nil, errors.Wrap(ErrNotFound, "twin not found")
+	}
+
+	version, err := s.getVersion(*raw)
+	if err != nil {
+		return nil, err
+	}
+
+	var twin Twin
+
+	switch version {
+	case 1:
+		if err := types.DecodeFromBytes(*raw, &twin); err != nil {
+			return nil, errors.Wrap(err, "failed to load object")
+		}
+	default:
+		return nil, ErrUnknownVersion
 	}
 
 	return &twin, nil

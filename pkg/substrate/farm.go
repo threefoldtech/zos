@@ -37,6 +37,7 @@ func (p *CertificationType) Decode(decoder scale.Decoder) error {
 
 // Farm type
 type Farm struct {
+	Versioned
 	ID                types.U32
 	Name              string
 	TwinID            types.U32
@@ -61,14 +62,29 @@ func (s *substrateClient) GetFarm(id uint32) (*Farm, error) {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
 
-	var farm Farm
-	ok, err := s.cl.RPC.State.GetStorageLatest(key, &farm)
+	raw, err := s.cl.RPC.State.GetStorageRawLatest(key)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to lookup farm")
+		return nil, errors.Wrap(err, "failed to lookup entity")
 	}
 
-	if !ok {
-		return nil, fmt.Errorf("farm not found")
+	if len(*raw) == 0 {
+		return nil, errors.Wrap(ErrNotFound, "farm not found")
+	}
+
+	version, err := s.getVersion(*raw)
+	if err != nil {
+		return nil, err
+	}
+
+	var farm Farm
+
+	switch version {
+	case 1:
+		if err := types.DecodeFromBytes(*raw, &farm); err != nil {
+			return nil, errors.Wrap(err, "failed to load object")
+		}
+	default:
+		return nil, ErrUnknownVersion
 	}
 
 	return &farm, nil
