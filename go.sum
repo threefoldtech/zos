@@ -49,6 +49,7 @@ github.com/asaskevich/govalidator v0.0.0-20180720115003-f9ffefc3facf/go.mod h1:l
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
 github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 h1:zV3ejI06GQ59hwDQAvmK1qxOQGB3WuVTRoY0okPTAv0=
 github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496/go.mod h1:oGkLhpf+kjZl6xBf758TQhh5XrAeiJv/7FRz/2spLIg=
+github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
 github.com/aws/aws-sdk-go v1.25.25/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 h1:xJ4a3vCFaGF/jqvzLMYoU8P317H5OQ+Via4RmuPwCS0=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
@@ -618,6 +619,8 @@ github.com/threefoldtech/tfexplorer v0.4.1-0.20201120111415-6fefe983b035 h1:/WRl
 github.com/threefoldtech/tfexplorer v0.4.1-0.20201120111415-6fefe983b035/go.mod h1:6thp8ja7vDbtGAn91mcYL2wUmDGBoUdxJKHceC3xIaE=
 github.com/threefoldtech/tfexplorer v0.4.8-0.20201218110633-b1b2cd7b4975 h1:t/KX8L9P5eA+4Ddq4c3ivACl0WK0hQiqD/sDonlWu3E=
 github.com/threefoldtech/tfexplorer v0.4.8-0.20201218110633-b1b2cd7b4975/go.mod h1:qeuxHj2IDU6mPgZpxm7zFgffRgibAWJobqNIq2aLnHk=
+github.com/threefoldtech/tfexplorer v0.4.10-0.20210222093825-2231bac31586 h1:f1ZfiGXKJiJtvZduf9XDUp2IymUFUqwmaDDPgKUZf7o=
+github.com/threefoldtech/tfexplorer v0.4.10-0.20210222093825-2231bac31586/go.mod h1:Y/AUZYNp40rljkNlZiQbu54JL4DU3xTfDhGYoftxDyQ=
 github.com/threefoldtech/zbus v0.1.3 h1:18DnIzximRbATle5ZdZz0i84n/bCYB8k/gkhr2dXayc=
 github.com/threefoldtech/zbus v0.1.3/go.mod h1:ZtiRpcqzEBJetVQDsEbw0p48h/AF3O1kf0tvd30I0BU=
 github.com/threefoldtech/zbus v0.1.4 h1:c8lF4H9HMDJGknhcEK2p+zJWWM09fByGe3uL9m/iKgM=

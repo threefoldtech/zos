@@ -51,6 +51,9 @@ type Kubernetes struct {
 	PublicIP schema.ID `json:"public_ip"`
 
 	PlainClusterSecret string `json:"-"`
+
+	DatastoreEndpoint     string `json:"datastore_endpoint"`
+	DisableDefaultIngress bool   `json:"disable_default_ingress"`
 }
 
 // const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
@@ -218,6 +221,12 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 	}
 	for _, key := range cfg.SSHKeys {
 		cmdline = fmt.Sprintf("%s ssh_authorized_keys=\"%s\"", cmdline, key)
+	}
+	if cfg.DatastoreEndpoint != "" {
+		cmdline = fmt.Sprintf("%s k3os.k3s_args=\"--datastore-endpoint=%s\"", cmdline, cfg.DatastoreEndpoint)
+	}
+	if cfg.DisableDefaultIngress {
+		cmdline = fmt.Sprintf("%s k3os.k3s_args=\"--disable=traefik\"", cmdline)
 	}
 
 	disks := make([]pkg.VMDisk, 2)

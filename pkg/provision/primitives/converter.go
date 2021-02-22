@@ -189,13 +189,15 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 	}
 
 	k8s := Kubernetes{
-		Size:          uint8(k.Size),
-		NetworkID:     pkg.NetID(k.NetworkId),
-		IP:            k.Ipaddress,
-		ClusterSecret: k.ClusterSecret,
-		MasterIPs:     k.MasterIps,
-		SSHKeys:       k.SshKeys,
-		PublicIP:      k.PublicIP,
+		Size:                  uint8(k.Size),
+		NetworkID:             pkg.NetID(k.NetworkId),
+		IP:                    k.Ipaddress,
+		ClusterSecret:         k.ClusterSecret,
+		MasterIPs:             k.MasterIps,
+		SSHKeys:               k.SshKeys,
+		PublicIP:              k.PublicIP,
+		DatastoreEndpoint:     k.DatastoreEndpoint,
+		DisableDefaultIngress: k.DisableDefaultIngress,
 	}
 
 	return k8s, k.NodeId, nil
