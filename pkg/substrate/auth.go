@@ -24,7 +24,7 @@ func NewSubstrateUsers(url string) (provision.Users, error) {
 		return nil, err
 	}
 
-	cache, err := lru.New(1023)
+	cache, err := lru.New(1024)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func NewSubstrateAdmins(url string, farmID uint32) (provision.Users, error) {
 		return nil, errors.Wrap(err, "failed to get farm")
 	}
 
-	cache, err := lru.New(1023)
+	cache, err := lru.New(128)
 	if err != nil {
 		return nil, err
 	}
