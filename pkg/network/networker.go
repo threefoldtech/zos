@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -111,42 +110,6 @@ func NewNetworker(identity pkg.IdentityManager, publicCfgPath string, ndmz ndmz.
 	}
 
 	return nw, nil
-}
-
-func copyNetworksToVolatile(src, dst string) error {
-	log.Info().Msg("move network cached file to volatile directory")
-	if err := os.MkdirAll(dst, 0700); err != nil {
-		return err
-	}
-
-	infos, err := ioutil.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	copy := func(src string, dst string) error {
-		log.Info().Str("source", src).Str("dst", dst).Msg("copy file")
-		// Read all content of src to data
-		data, err := ioutil.ReadFile(src)
-		if err != nil {
-			return err
-		}
-		// Write data to dst
-		return ioutil.WriteFile(dst, data, 0644)
-	}
-
-	for _, info := range infos {
-		if info.IsDir() {
-			continue
-		}
-
-		s := filepath.Join(src, info.Name())
-		d := filepath.Join(dst, info.Name())
-		if err := copy(s, d); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 var _ pkg.Networker = (*networker)(nil)

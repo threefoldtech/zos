@@ -63,13 +63,6 @@ func (u UserMap) GetKey(id gridtypes.ID) (ed25519.PublicKey, error) {
 // requiredHeaders are the parameters to be used to generated the http signature
 var requiredHeaders = []string{"(created)", "date"}
 
-// AuthMiddleware implements https://tools.ietf.org/html/draft-cavage-http-signatures-12
-// authentication scheme as an HTTP middleware
-type AuthMiddleware struct {
-	verifier  *httpsig.Verifier
-	challenge string
-}
-
 type keyGetter struct {
 	users provision.Users
 }

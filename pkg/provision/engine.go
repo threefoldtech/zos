@@ -13,8 +13,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const gib = 1024 * 1024 * 1024
-
 // EngineOption interface
 type EngineOption interface {
 	apply(e *NativeEngine)

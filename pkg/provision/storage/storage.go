@@ -155,6 +155,9 @@ func (s *Fs) Add(wl gridtypes.Workload) error {
 	}
 	defer file.Close()
 	writer, err := versioned.NewWriter(file, workloadSchemaLastVersion)
+	if err != nil {
+		return errors.Wrap(err, "failed to create versioned writer")
+	}
 
 	if err := json.NewEncoder(writer).Encode(wl); err != nil {
 		return errors.Wrap(err, "failed to write workload data")
@@ -205,6 +208,9 @@ func (s *Fs) Set(wl gridtypes.Workload) error {
 	}
 	defer file.Close()
 	writer, err := versioned.NewWriter(file, workloadSchemaLastVersion)
+	if err != nil {
+		return errors.Wrap(err, "failed to create versioned writer")
+	}
 
 	if err := json.NewEncoder(writer).Encode(wl); err != nil {
 		return errors.Wrap(err, "failed to write workload data")

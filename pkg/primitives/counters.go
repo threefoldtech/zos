@@ -42,11 +42,7 @@ func (c *AtomicValue) Current() uint64 {
 // Counters tracks the amount of primitives workload deployed and
 // the amount of resource unit used
 type Counters struct {
-	containers AtomicValue
-	volumes    AtomicValue
-	networks   AtomicValue
-	zdbs       AtomicValue
-	vms        AtomicValue
+	//types map[gridtypes.WorkloadType]AtomicValue
 
 	SRU AtomicValue // SSD storage in bytes
 	HRU AtomicValue // HDD storage in bytes

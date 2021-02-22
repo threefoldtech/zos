@@ -21,7 +21,7 @@ func (p *Primitives) publicIPProvision(ctx context.Context, wl *gridtypes.Worklo
 	return p.publicIPProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (result zos.PublicIPResult, err error) {
+func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workload) (zos.PublicIPResult, error) {
 	config := zos.PublicIP{}
 
 	network := stubs.NewNetworkerStub(p.zbus)

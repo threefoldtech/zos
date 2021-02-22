@@ -9,7 +9,6 @@ import (
 	"io"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 )
@@ -302,8 +301,6 @@ func (r *Result) IsNil() bool {
 
 var (
 	//emptyResult is the Result zero value
-	epoch      = time.Unix(0, 0)
-	nullTime   = time.Time{}
 	nullRaw, _ = json.Marshal(nil)
 )
 

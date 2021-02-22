@@ -9,9 +9,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-type provisionFn func(ctx context.Context, wl *gridtypes.Workload) (interface{}, error)
-type decommissionFn func(ctx context.Context, wl *gridtypes.Workload) error
-
 // Primitives hold all the logic responsible to provision and decomission
 // the different primitives workloads defined by this package
 type Primitives struct {

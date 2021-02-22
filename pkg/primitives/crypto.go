@@ -2,6 +2,7 @@ package primitives
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
 
@@ -30,7 +31,8 @@ func (p *Primitives) decryptSecret(ctx context.Context, user gridtypes.ID, secre
 	// now only one version is supported
 	switch version {
 	default:
-		userPubKey, err := engine.Users().GetKey(user)
+		var userPubKey ed25519.PublicKey
+		userPubKey, err = engine.Users().GetKey(user)
 		if err != nil || userPubKey == nil {
 			return "", fmt.Errorf("failed to retrieve user %s public key: %s", user, err)
 		}
