@@ -196,7 +196,7 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 		MasterIPs:             k.MasterIps,
 		SSHKeys:               k.SshKeys,
 		PublicIP:              k.PublicIP,
-		DatastoreEndpoint:     k.DataStoreEndpoint,
+		DatastoreEndpoint:     k.DatastoreEndpoint,
 		DisableDefaultIngress: k.DisableDefaultIngress,
 	}
 
