@@ -15,9 +15,6 @@ import (
 type Environment struct {
 	RunningMode RunningMode
 
-	BcdbURL      string
-	BcdbPassword string
-
 	FlistURL string
 	BinRepo  string
 
@@ -33,11 +30,11 @@ type RunningMode string
 
 func (r RunningMode) String() string {
 	switch r {
-	case RunningDev:
+	case RunningDev3:
 		return "development"
 	case RunningMain:
 		return "production"
-	case RunningTest:
+	case RunningTest3:
 		return "testing"
 	}
 
@@ -46,9 +43,11 @@ func (r RunningMode) String() string {
 
 // Possible running mode of a node
 const (
-	RunningDev  RunningMode = "dev"
-	RunningTest RunningMode = "test"
-	RunningMain RunningMode = "prod"
+	//RunningDev   RunningMode = "dev"
+	RunningDev3 RunningMode = "dev3"
+	//RunningTest  RunningMode = "test"
+	RunningTest3 RunningMode = "test3"
+	RunningMain  RunningMode = "prod"
 
 	// Orphanage is the default farmid where nodes are registered
 	// if no farmid were specified on the kernel command line
@@ -59,15 +58,13 @@ const (
 
 var (
 	envDev = Environment{
-		RunningMode: RunningDev,
-		BcdbURL:     "https://explorer.devnet.grid.tf/explorer",
+		RunningMode: RunningDev3,
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins.dev",
 	}
 
 	envTest = Environment{
-		RunningMode: RunningTest,
-		BcdbURL:     "https://explorer.testnet.grid.tf/explorer",
+		RunningMode: RunningTest3,
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins.test",
 	}
@@ -75,7 +72,6 @@ var (
 	// same as testnet for now. will be updated the day of the launch of production network
 	envProd = Environment{
 		RunningMode: RunningMain,
-		BcdbURL:     "https://explorer.grid.tf/explorer",
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins",
 	}
@@ -98,9 +94,9 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	}
 
 	switch RunningMode(runmode[0]) {
-	case RunningDev:
+	case RunningDev3:
 		env = envDev
-	case RunningTest:
+	case RunningTest3:
 		env = envTest
 	case RunningMain:
 		env = envProd
@@ -121,23 +117,15 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		}
 	}
 
-	if RunningMode(runmode[0]) == RunningDev {
-		//allow override of the bcdb url in dev mode
-		bcdb, found := params.Get("bcdb")
-		if found && len(bcdb) >= 1 {
-			env.BcdbURL = bcdb[0]
-		}
-	}
-
 	farmerID, found := params.Get("farmer_id")
 	if !found || len(farmerID) < 1 || farmerID[0] == "" {
 		// fmt.Println("Warning: no valid farmer_id found in kernel parameter, fallback to orphanage")
 		env.Orphan = true
 
 		switch env.RunningMode {
-		case RunningDev:
+		case RunningDev3:
 			env.FarmerID = OrphanageDev
-		case RunningTest:
+		case RunningTest3:
 			env.FarmerID = OrphanageTest
 		case RunningMain:
 			env.FarmerID = OrphanageMain
@@ -155,12 +143,8 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	// Checking if there environment variable
 	// override default settings
 
-	if e := os.Getenv("ZOS_BCDB_URL"); e != "" {
-		env.BcdbURL = e
-	}
-
-	if e := os.Getenv("ZOS_BCDB_PASSWORD"); e != "" {
-		env.BcdbPassword = e
+	if e := os.Getenv("ZOS_SUBSTRATE_URL"); e != "" {
+		env.SubstrateURL = e
 	}
 
 	if e := os.Getenv("ZOS_FLIST_URL"); e != "" {
