@@ -188,6 +188,12 @@ func (p *Primitives) kubernetesInstall(ctx context.Context, name string, cpu uin
 	for _, key := range cfg.SSHKeys {
 		cmdline = fmt.Sprintf("%s ssh_authorized_keys=\"%s\"", cmdline, key)
 	}
+	if cfg.DatastoreEndpoint != "" {
+		cmdline = fmt.Sprintf("%s k3os.k3s_args=\"--datastore-endpoint=%s\"", cmdline, cfg.DatastoreEndpoint)
+	}
+	if cfg.DisableDefaultIngress {
+		cmdline = fmt.Sprintf("%s k3os.k3s_args=\"--disable=traefik\"", cmdline)
+	}
 
 	disks := make([]pkg.VMDisk, 2)
 	// install disk
