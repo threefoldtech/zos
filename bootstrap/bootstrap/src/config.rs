@@ -6,7 +6,9 @@ use clap::{App, Arg};
 pub enum RunMode {
     Prod,
     Test,
+    Test3,
     Dev,
+    Dev3,
 }
 
 fn runmode() -> Result<RunMode> {
@@ -16,7 +18,9 @@ fn runmode() -> Result<RunMode> {
             Some(mode) => match mode.as_ref() {
                 "prod" => RunMode::Prod,
                 "dev" => RunMode::Dev,
+                "dev3" => RunMode::Dev3,
                 "test" => RunMode::Test,
+                "test3" => RunMode::Test3,
                 m => {
                     bail!("unknown runmode: {}", m);
                 }
