@@ -127,6 +127,9 @@ type Kubernetes struct {
 
 	// PlainClusterSecret plaintext secret
 	PlainClusterSecret string `json:"-"`
+
+	DatastoreEndpoint     string `json:"datastore_endpoint"`
+	DisableDefaultIngress bool   `json:"disable_default_ingress"`
 }
 
 func (k Kubernetes) Valid() error {
