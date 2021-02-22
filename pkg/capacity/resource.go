@@ -5,7 +5,7 @@ import (
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 func (r *ResourceOracle) cru() (uint64, error) {
@@ -24,7 +24,7 @@ func (r *ResourceOracle) mru() (uint64, error) {
 }
 
 func (r *ResourceOracle) sru() (uint64, error) {
-	total, err := r.storage.Total(pkg.SSDDevice)
+	total, err := r.storage.Total(zos.SSDDevice)
 	if err != nil {
 		return 0, err
 	}
@@ -33,7 +33,7 @@ func (r *ResourceOracle) sru() (uint64, error) {
 }
 
 func (r *ResourceOracle) hru() (uint64, error) {
-	total, err := r.storage.Total(pkg.HDDDevice)
+	total, err := r.storage.Total(zos.HDDDevice)
 	if err != nil {
 		return 0, err
 	}

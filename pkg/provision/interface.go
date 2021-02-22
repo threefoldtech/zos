@@ -2,70 +2,57 @@ package provision
 
 import (
 	"context"
+	"crypto/ed25519"
+	"fmt"
 
-	"github.com/threefoldtech/tfexplorer/models/generated/directory"
-	"github.com/threefoldtech/tfexplorer/models/generated/workloads"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
-// ReservationSource interface. The source
-// defines how the node will get reservation requests
-// then reservations are applied to the node to deploy
-// a resource of the given Reservation.Type
-type ReservationSource interface {
-	Reservations(ctx context.Context) <-chan *ReservationJob
+// Users is used to get user public key
+type Users interface {
+	GetKey(id gridtypes.ID) (ed25519.PublicKey, error)
 }
 
-// ReservationGetter interface. Some reservation sources
-// can implement the getter interface
-type ReservationGetter interface {
-	Get(gwid string) (*Reservation, error)
+// Engine is engine interface
+type Engine interface {
+	// Provision pushes a workload to engine queue. on success
+	// means that workload has been committed to storage (accepts)
+	// and will be processes later
+	Provision(ctx context.Context, wl gridtypes.Workload) error
+	Deprovision(ctx context.Context, id gridtypes.ID, reason string) error
+	Storage() Storage
+	Users() Users
+	Admins() Users
 }
 
-// ProvisionerFunc is the function called by the Engine to provision a workload
-type ProvisionerFunc func(ctx context.Context, reservation *Reservation) (interface{}, error)
-
-// DecomissionerFunc is the function called by the Engine to decomission a workload
-type DecomissionerFunc func(ctx context.Context, reservation *Reservation) error
-
-// ReservationConverterFunc is used to convert from the explorer workloads type into the
-// internal Reservation type
-type ReservationConverterFunc func(w workloads.Workloader) (*Reservation, error)
-
-//ResultConverterFunc is used to convert internal Result type to the explorer workload result
-type ResultConverterFunc func(result Result) (*workloads.Result, error)
-
-// ReservationCache define the interface to store
-// some reservations
-type ReservationCache interface {
-	Add(r *Reservation) error
-	Get(id string) (*Reservation, error)
-	Remove(id string) error
-	Exists(id string) (bool, error)
-	NetworkExists(id string) (bool, error)
-	Sync(Statser) error
+// Provisioner interface
+type Provisioner interface {
+	Provision(ctx context.Context, wl *gridtypes.Workload) (*gridtypes.Result, error)
+	Decommission(ctx context.Context, wl *gridtypes.Workload) error
 }
 
-// Feedbacker defines the method that needs to be implemented
-// to send the provision result to BCDB
-type Feedbacker interface {
-	Feedback(nodeID string, r *Result) error
-	Deleted(nodeID, id string) error
-	UpdateStats(nodeID string, w directory.WorkloadAmount, u directory.ResourceAmount) error
+// Filter is filtering function for Purge method
+
+var (
+	//ErrWorkloadExists returned if object exist
+	ErrWorkloadExists = fmt.Errorf("exists")
+	//ErrWorkloadNotExists returned if object not exists
+	ErrWorkloadNotExists = fmt.Errorf("not exists")
+)
+
+// Storage interface
+type Storage interface {
+	Add(wl gridtypes.Workload) error
+	Set(wl gridtypes.Workload) error
+	Get(id gridtypes.ID) (gridtypes.Workload, error)
+	GetNetwork(id zos.NetID) (gridtypes.Workload, error)
+
+	ByType(t gridtypes.WorkloadType) ([]gridtypes.ID, error)
+	ByUser(user gridtypes.ID, t gridtypes.WorkloadType) ([]gridtypes.ID, error)
 }
 
-// Signer interface is used to sign reservation result before
-// sending them to the explorer
-type Signer interface {
-	Sign(b []byte) ([]byte, error)
-}
-
-// Statser is used by the provision Engine to keep
-// track of how much resource unit and number of primitives
-// is provisionned
-type Statser interface {
-	Increment(r *Reservation) error
-	Decrement(r *Reservation) error
-	CurrentUnits() directory.ResourceAmount
-	CurrentWorkloads() directory.WorkloadAmount
-	CheckMemoryRequirements(r *Reservation, totalMemAvailable uint64) error
+// Janitor interface
+type Janitor interface {
+	Cleanup(ctx context.Context) error
 }
