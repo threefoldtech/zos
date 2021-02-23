@@ -14,6 +14,7 @@ import (
 	"github.com/rusart/muxprom"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/primitives"
@@ -139,26 +140,28 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create local reservation store")
 	}
 
-	const daemonBootFlag = "provisiond"
+	provisioners := primitives.NewPrimitivesProvisioner(cl)
+
 	// update initial capacity with
 	reserved, err := getNodeReserved(cl)
 	if err != nil {
 		return errors.Wrap(err, "failed to get node reserved capacity")
 	}
+	cap, err := capacity.NewResourceOracle(stubs.NewStorageModuleStub(cl)).Total()
+	if err != nil {
+		return errors.Wrap(err, "failed to get node capacity")
+	}
 
-	provisioners := primitives.NewPrimitivesProvisioner(cl)
-	/* --- committer
-	 *   --- cache
-	 *	   --- statistics
-	 *	     --- handlers
-	 */
+	// statistics collects information about workload statistics
+	// also does some checks on capacity
 	statistics := primitives.NewStatistics(
-		primitives.Counters{},
+		cap,
 		reserved,
 		nodeID.Identity(),
 		provisioners,
 	)
 
+	// add endpoint for statistics
 	if err := primitives.NewStatisticsAPI(v1, statistics); err != nil {
 		return errors.Wrap(err, "failed to create statistics api")
 	}

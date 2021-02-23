@@ -34,6 +34,7 @@ func GetCapacity(ctx context.Context) gridtypes.Capacity {
 // capacity and then can report that this capacity can not be fulfilled
 type Statistics struct {
 	inner    provision.Provisioner
+	total    gridtypes.Capacity
 	counters Counters
 	reserved Counters
 	mem      uint64
@@ -43,14 +44,14 @@ type Statistics struct {
 
 // NewStatistics creates a new statistics provisioner interceptor.
 // Statistics provisioner keeps track of used capacity and update explorer when it changes
-func NewStatistics(initial, reserved Counters, nodeID string, inner provision.Provisioner) *Statistics {
+func NewStatistics(total gridtypes.Capacity, reserved Counters, nodeID string, inner provision.Provisioner) *Statistics {
 	vm, err := mem.VirtualMemory()
 	if err != nil {
 		panic(err)
 	}
 
 	ram := math.Ceil(float64(vm.Total) / (1024 * 1024 * 1024))
-	return &Statistics{inner: inner, counters: initial, reserved: reserved, nodeID: nodeID, mem: uint64(ram)}
+	return &Statistics{inner: inner, total: total, reserved: reserved, nodeID: nodeID, mem: uint64(ram)}
 }
 
 // Current returns the current used capacity
@@ -64,11 +65,18 @@ func (s *Statistics) Current() gridtypes.Capacity {
 	}
 }
 
+// Total returns the node total capacity
+func (s *Statistics) Total() gridtypes.Capacity {
+	return s.total
+}
+
 func (s *Statistics) hasEnoughCapacity(used *gridtypes.Capacity, required *gridtypes.Capacity) error {
-	//if required.
+	// checks memory
 	if required.MRU+used.MRU > s.mem {
 		return fmt.Errorf("cannot fulfil required memory size")
 	}
+
+	//check other as well?
 
 	return nil
 }
@@ -130,12 +138,12 @@ func (s *statisticsAPI) setup(router *mux.Router) error {
 }
 
 func (s *statisticsAPI) getCounters(r *http.Request) (interface{}, mw.Response) {
-	used := s.stats.Current()
-
 	return struct {
-		Used gridtypes.Capacity `json:"used"`
+		Total gridtypes.Capacity `json:"total"`
+		Used  gridtypes.Capacity `json:"used"`
 	}{
-		Used: used,
+		Total: s.stats.Total(),
+		Used:  s.stats.Current(),
 	}, nil
 }
 

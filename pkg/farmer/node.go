@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // Location structure
@@ -18,12 +18,12 @@ type Location struct {
 
 // Node structure
 type Node struct {
-	ID       string            `json:"node_id"`
-	HostName string            `json:"hostname"`
-	FarmID   uint32            `json:"farm_id"`
-	Secret   string            `json:"secret"`
-	Location Location          `json:"location"`
-	Capacity capacity.Capacity `json:"capacity"`
+	ID       string             `json:"node_id"`
+	HostName string             `json:"hostname"`
+	FarmID   uint32             `json:"farm_id"`
+	Secret   string             `json:"secret"`
+	Location Location           `json:"location"`
+	Capacity gridtypes.Capacity `json:"capacity"`
 	// Type     string            `json:"type"`
 }
 
