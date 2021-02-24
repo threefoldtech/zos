@@ -65,6 +65,15 @@ type Capacity struct {
 	IPV4U uint64 `json:"ipv4u"`
 }
 
+// Add increments value of capacity with o
+func (c *Capacity) Add(o *Capacity) {
+	c.CRU += o.CRU
+	c.MRU += o.MRU
+	c.SRU += o.SRU
+	c.HRU += o.HRU
+	c.IPV4U += o.IPV4U
+}
+
 // WorkloadData interface
 type WorkloadData interface {
 	Valid() error

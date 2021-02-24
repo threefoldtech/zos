@@ -210,13 +210,23 @@ func action(cli *cli.Context) error {
 	// call the runtime upgrade before running engine
 	provisioners.RuntimeUpgrade(ctx)
 
+	// spawn the entine
 	go func() {
 		if err := engine.Run(ctx); err != nil && err != context.Canceled {
 			log.Fatal().Err(err).Msg("provision engine exited unexpectedely")
 		}
 	}()
 
-	// starts zbus server in the back ground
+	// also spawn the capacity reporter
+	go func() {
+		reporter := NewReported(store)
+		if err := reporter.Run(ctx); err != nil && err != context.Canceled {
+			log.Fatal().Err(err).Msg("capacity reported stopped unexpectedely")
+		}
+		log.Info().Msg("capacity reported stopped")
+	}()
+
+	// and start the zbus server in the back ground
 	go func() {
 		if err := server.Run(ctx); err != nil && err != context.Canceled {
 			log.Fatal().Err(err).Msg("zbus provision engine api exited unexpectedely")
