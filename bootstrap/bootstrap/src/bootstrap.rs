@@ -17,7 +17,9 @@ fn boostrap_zos(cfg: &config::Config) -> Result<()> {
     let flist = match cfg.runmode {
         config::RunMode::Prod => "zos:production:latest.flist",
         config::RunMode::Dev => "zos:development:latest.flist",
+        config::RunMode::Dev3 => "zos:development-3:latest.flist",
         config::RunMode::Test => "zos:testing:latest.flist",
+        config::RunMode::Test3 => "zos:testing-3:latest.flist",
     };
 
     debug!("using flist: {}/{}", FLIST_REPO, flist);
@@ -121,8 +123,8 @@ pub fn install(cfg: &config::Config) -> Result<()> {
 fn install_packages(cfg: &config::Config) -> Result<()> {
     let repo = match cfg.runmode {
         config::RunMode::Prod => BIN_REPO.to_owned(),
-        config::RunMode::Dev => format!("{}.dev", BIN_REPO),
-        config::RunMode::Test => format!("{}.test", BIN_REPO),
+        config::RunMode::Dev | config::RunMode::Dev3 => format!("{}.dev", BIN_REPO),
+        config::RunMode::Test | config::RunMode::Test3 => format!("{}.test", BIN_REPO),
     };
 
     let client = hub::Repo::new(&repo);
