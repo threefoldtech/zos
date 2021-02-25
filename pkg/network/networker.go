@@ -166,7 +166,6 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.Conta
 		return join, errors.Wrap(err, "failed to load network resource")
 	}
 
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(containerID))
 	netNs, err := namespace.GetByName(join.Namespace)
 	if err != nil {
 		return join, errors.Wrap(err, "failed to found a valid network interface to use as parent for 0-db container")
@@ -174,7 +173,8 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.Conta
 	defer netNs.Close()
 
 	if cfg.PublicIP6 {
-		if err = n.createMacVlan("pub", hw, nil, nil, netNs); err != nil {
+		hw := ifaceutil.HardwareAddrFromInputBytes([]byte(containerID))
+		if err = n.createMacVlan("pub", public.PublicBridge, hw, nil, nil, netNs); err != nil {
 			return join, errors.Wrap(err, "failed to create public macvlan interface")
 		}
 	}
@@ -185,6 +185,7 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.Conta
 			routes []*netlink.Route
 		)
 
+		hw := ifaceutil.HardwareAddrFromInputBytes([]byte("ygg:" + containerID))
 		ip, err := n.ygg.SubnetFor(hw)
 		if err != nil {
 			return join, err
@@ -214,7 +215,7 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.Conta
 			},
 		}
 
-		if err := n.createMacVlan("ygg", hw, ips, routes, netNs); err != nil {
+		if err := n.createMacVlan("ygg", types.YggBridge, hw, ips, routes, netNs); err != nil {
 			return join, errors.Wrap(err, "failed to create yggdrasil macvlan interface")
 		}
 	}
@@ -285,7 +286,7 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 
 	}
 
-	return netNSName, n.createMacVlan(ZDBIface, hw, ips, routes, netNs)
+	return netNSName, n.createMacVlan(ZDBIface, types.YggBridge, hw, ips, routes, netNs)
 }
 
 // ZDBDestroy is the opposite of ZDPrepare, it makes sure network setup done
@@ -309,7 +310,7 @@ func (n networker) ZDBDestroy(ns string) error {
 	return namespace.Delete(nSpace)
 }
 
-func (n networker) createMacVlan(iface string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {
+func (n networker) createMacVlan(iface string, master string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {
 	var macVlan *netlink.Macvlan
 	err := netNs.Do(func(_ ns.NetNS) error {
 		var err error
@@ -318,7 +319,7 @@ func (n networker) createMacVlan(iface string, hw net.HardwareAddr, ips []*net.I
 	})
 
 	if _, ok := err.(netlink.LinkNotFoundError); ok {
-		macVlan, err = macvlan.Create(iface, public.PublicBridge, netNs)
+		macVlan, err = macvlan.Create(iface, master, netNs)
 
 		if err != nil {
 			return err

@@ -13,4 +13,6 @@ const (
 	DefaultBridge = "zos"
 	//PublicBridge name
 	PublicBridge = "br-pub"
+	//YggBridge ygg bridge
+	YggBridge = "br-ygg"
 )
