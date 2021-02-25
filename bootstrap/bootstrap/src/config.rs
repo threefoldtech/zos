@@ -6,9 +6,13 @@ use clap::{App, Arg};
 pub enum RunMode {
     Prod,
     Test,
-    Test3,
     Dev,
-    Dev3,
+}
+
+#[derive(Debug)]
+pub enum Version {
+    V2,
+    V3,
 }
 
 fn runmode() -> Result<RunMode> {
@@ -18,9 +22,7 @@ fn runmode() -> Result<RunMode> {
             Some(mode) => match mode.as_ref() {
                 "prod" => RunMode::Prod,
                 "dev" => RunMode::Dev,
-                "dev3" => RunMode::Dev3,
                 "test" => RunMode::Test,
-                "test3" => RunMode::Test3,
                 m => {
                     bail!("unknown runmode: {}", m);
                 }
@@ -40,10 +42,32 @@ fn runmode() -> Result<RunMode> {
     Ok(mode)
 }
 
+fn version() -> Result<Version> {
+    let params = kparams::params()?;
+    let ver = match params.get("version") {
+        Some(input) => match input {
+            Some(input) => match input.as_ref() {
+                "v2" => Version::V2,
+                "v3" => Version::V3,
+                m => {
+                    bail!("unknown version: {}", m);
+                }
+            },
+            None => Version::V2,
+        },
+        // version was not provided in cmdline
+        // so default is v2
+        None => Version::V2,
+    };
+
+    Ok(ver)
+}
+
 pub struct Config {
     pub stage: u32,
     pub debug: bool,
     pub runmode: RunMode,
+    pub version: Version,
 }
 
 impl Config {
@@ -83,6 +107,7 @@ impl Config {
             stage: stage,
             debug: matches.occurrences_of("debug") > 0,
             runmode: runmode()?,
+            version: version()?,
         })
     }
 }

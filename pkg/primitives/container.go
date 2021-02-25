@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
@@ -162,6 +163,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 		ReadOnly: false,
 		Type:     config.ContainerCapacity.DiskType,
 	}
+
 	if rootfsMntOpt.Limit == 0 || rootfsMntOpt.Type == "" {
 		rootfsMntOpt = pkg.DefaultMountOptions
 	}
@@ -170,6 +172,13 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 	mnt, err = flistClient.NamedMount(FilesystemName(wl), config.FList, config.HubURL, rootfsMntOpt)
 	if err != nil {
 		return ContainerResult{}, err
+	}
+
+	var elevated = false
+
+	if strings.HasPrefix(config.FList, FListElevated) {
+		// Enable fuse access to this specific flist
+		elevated = true
 	}
 
 	// prepare mount info for volumes
@@ -225,6 +234,7 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 			Memory:      config.ContainerCapacity.Memory * mib,
 			Logs:        logs,
 			Stats:       config.Stats,
+			Elevated:    elevated,
 		},
 	)
 	if err != nil {
