@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
@@ -104,6 +105,9 @@ type ContainerCapacity struct {
 	// DiskSize of the root fs in MiB
 	DiskSize uint64 `json:"disk_size"`
 }
+
+// FListElevated url of privileged container
+const FListElevated = "https://hub.grid.tf/tf-elevated/"
 
 func (p *Provisioner) containerProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.containerProvisionImpl(ctx, reservation)
@@ -239,6 +243,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 		ReadOnly: false,
 		Type:     config.Capacity.DiskType,
 	}
+
 	if rootfsMntOpt.Limit == 0 || rootfsMntOpt.Type == "" {
 		rootfsMntOpt = pkg.DefaultMountOptions
 	}
@@ -247,6 +252,13 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 	mnt, err = flistClient.NamedMount(provision.FilesystemName(*reservation), config.FList, config.FlistStorage, rootfsMntOpt)
 	if err != nil {
 		return ContainerResult{}, err
+	}
+
+	var elevated = false
+
+	if strings.HasPrefix(config.FList, FListElevated) {
+		// Enable fuse access to this specific flist
+		elevated = true
 	}
 
 	// prepare mount info for volumes
@@ -302,6 +314,7 @@ func (p *Provisioner) containerProvisionImpl(ctx context.Context, reservation *p
 			Memory:      config.Capacity.Memory * mib,
 			Logs:        logs,
 			Stats:       config.Stats,
+			Elevated:    elevated,
 		},
 	)
 	if err != nil {
