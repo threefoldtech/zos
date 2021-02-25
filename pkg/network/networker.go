@@ -40,8 +40,10 @@ import (
 )
 
 const (
-	// ZDBIface is the name of the interface used in the 0-db network namespace
-	ZDBIface           = "zdb0"
+	// ZDBPubIface is the name of the interface used in the 0-db network namespace
+	ZDBPubIface = "zdb0"
+	ZDBYggIface = "ygg0"
+
 	wgPortDir          = "wireguard_ports"
 	networkDir         = "networks"
 	ipamLeaseDir       = "ndmz-lease"
@@ -241,7 +243,10 @@ func (n *networker) Leave(networkdID pkg.NetID, containerID string) error {
 
 // ZDBPrepare sends a macvlan interface into the
 // network namespace of a ZDB container
-func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
+func (n networker) ZDBPrepare(id string) (string, error) {
+
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("pub:" + id))
+
 	netNSName := zdbNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
 
 	netNs, err := createNetNS(netNSName)
@@ -250,43 +255,50 @@ func (n networker) ZDBPrepare(hw net.HardwareAddr) (string, error) {
 	}
 	defer netNs.Close()
 
-	var (
-		ips    []*net.IPNet
-		routes []*netlink.Route
-	)
-
-	if n.ygg != nil {
-		ip, err := n.ygg.SubnetFor(hw)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate ygg subnet IP: %w", err)
-		}
-
-		ips = []*net.IPNet{
-			{
-				IP:   ip,
-				Mask: net.CIDRMask(64, 128),
-			},
-		}
-
-		gw, err := n.ygg.Gateway()
-		if err != nil {
-			return "", fmt.Errorf("failed to get ygg gateway IP: %w", err)
-		}
-
-		routes = []*netlink.Route{
-			{
-				Dst: &net.IPNet{
-					IP:   net.ParseIP("200::"),
-					Mask: net.CIDRMask(7, 128),
-				},
-				Gw: gw.IP,
-				// LinkIndex:... this is set by macvlan.Install
-			},
-		}
-
+	if err := n.createMacVlan(ZDBPubIface, types.PublicBridge, hw, nil, nil, netNs); err != nil {
+		return "", errors.Wrap(err, "failed to setup zdb public interface")
 	}
 
-	return netNSName, n.createMacVlan(ZDBIface, types.YggBridge, hw, ips, routes, netNs)
+	if n.ygg == nil {
+		return netNSName, nil
+	}
+
+	// new hardware address for the ygg interface
+	hw = ifaceutil.HardwareAddrFromInputBytes([]byte("ygg:" + id))
+
+	ip, err := n.ygg.SubnetFor(hw)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate ygg subnet IP: %w", err)
+	}
+
+	ips := []*net.IPNet{
+		{
+			IP:   ip,
+			Mask: net.CIDRMask(64, 128),
+		},
+	}
+
+	gw, err := n.ygg.Gateway()
+	if err != nil {
+		return "", fmt.Errorf("failed to get ygg gateway IP: %w", err)
+	}
+
+	routes := []*netlink.Route{
+		{
+			Dst: &net.IPNet{
+				IP:   net.ParseIP("200::"),
+				Mask: net.CIDRMask(7, 128),
+			},
+			Gw: gw.IP,
+			// LinkIndex:... this is set by macvlan.Install
+		},
+	}
+
+	if err := n.createMacVlan(ZDBYggIface, types.YggBridge, hw, ips, routes, netNs); err != nil {
+		return "", errors.Wrap(err, "failed to setup zdb ygg interface")
+	}
+
+	return netNSName, nil
 }
 
 // ZDBDestroy is the opposite of ZDPrepare, it makes sure network setup done
