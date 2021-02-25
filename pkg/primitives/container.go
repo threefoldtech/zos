@@ -22,6 +22,9 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
+// FListElevated url of privileged container
+const FListElevated = "https://hub.grid.tf/tf-elevated/"
+
 // Container type alias
 type Container = zos.Container
 
