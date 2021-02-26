@@ -1,11 +1,13 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
@@ -52,14 +54,49 @@ func (n *NodeClient) response(r *http.Response, o interface{}, codes ...int) err
 	return nil
 }
 
+func (n *NodeClient) url(path ...string) string {
+	url := "http://[%s]:2021/api/v1/" + filepath.Join(path...) + "/"
+	return url
+}
+
 // Deploy sends the workload for node to deploy. On success means the node
 // accepted the workload (it passed validation), doesn't mean it has been
 // deployed. the user then can pull on the workload status until it passes (or fail)
-func (n *NodeClient) Deploy(wl *gridtypes.Workload) (string, error) {
+func (n *NodeClient) Deploy(wl *gridtypes.Workload) (wid string, err error) {
 	wl.ID = n.client.id
 	if err := wl.Sign(n.client.sk); err != nil {
-		return "", errors.Wrap(err, "failed to sign the workload")
+		return wid, errors.Wrap(err, "failed to sign the workload")
 	}
 
-	return "", nil
+	if err := wl.Sign(n.client.sk); err != nil {
+		return wid, errors.Wrap(err, "failed to sign signature")
+	}
+
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(wl); err != nil {
+		return wid, errors.Wrap(err, "failed to serialize workload")
+	}
+
+	url := n.url("workloads")
+
+	request, err := http.NewRequest(http.MethodPost, url, &buf)
+	if err != nil {
+		return wid, errors.Wrap(err, "failed to build request")
+	}
+
+	if err := n.client.signer.Sign(request); err != nil {
+		return wid, errors.Wrap(err, "failed to sign request")
+	}
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return
+	}
+
+	if err := n.response(response, &wid, http.StatusAccepted); err != nil {
+		return wid, err
+	}
+
+	return wid, nil
 }

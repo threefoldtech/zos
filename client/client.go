@@ -11,12 +11,14 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/yggdrasil-network/yggdrasil-go/src/address"
 	"github.com/yggdrasil-network/yggdrasil-go/src/crypto"
+	"github.com/zaibon/httpsig"
 )
 
 // Client struct
 type Client struct {
-	id gridtypes.ID
-	sk ed25519.PrivateKey
+	id     gridtypes.ID
+	sk     ed25519.PrivateKey
+	signer *httpsig.Signer
 }
 
 // NewClient creates a new instance of client
@@ -31,10 +33,13 @@ func NewClient(id uint32, seed string) (*Client, error) {
 	}
 
 	sk := ed25519.NewKeyFromSeed(seedBytes)
+	idStr := fmt.Sprint(id)
+	signer := httpsig.NewSigner(idStr, sk, httpsig.Ed25519, []string{"(created)", "date"})
 
 	return &Client{
-		id: gridtypes.ID(fmt.Sprint(id)),
-		sk: sk,
+		id:     gridtypes.ID(idStr),
+		sk:     sk,
+		signer: signer,
 	}, nil
 }
 
