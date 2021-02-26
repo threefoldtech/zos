@@ -40,8 +40,9 @@ import (
 )
 
 const (
-	// ZDBPubIface is the name of the interface used in the 0-db network namespace
+	// ZDBPubIface is pub interface name of the interface used in the 0-db network namespace
 	ZDBPubIface = "zdb0"
+	// ZDBYggIface is ygg interface name of the interface used in the 0-db network namespace
 	ZDBYggIface = "ygg0"
 
 	wgPortDir          = "wireguard_ports"
