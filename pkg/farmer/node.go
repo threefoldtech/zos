@@ -24,12 +24,27 @@ type Node struct {
 	Secret   string             `json:"secret"`
 	Location Location           `json:"location"`
 	Capacity gridtypes.Capacity `json:"capacity"`
-	// Type     string            `json:"type"`
 }
 
 // NodeRegister register node
 func (c *Client) NodeRegister(node Node) error {
 	url := c.path("nodes")
+	body, err := c.serialize(node)
+	if err != nil {
+		return errors.Wrap(err, "failed to create request body")
+	}
+
+	response, err := http.Post(url, contentType, body)
+	if err != nil {
+		return errors.Wrap(err, "failed to build request")
+	}
+
+	return c.response(response, nil, http.StatusCreated, http.StatusNotModified)
+}
+
+// GatewayRegister registers a node as a gateway
+func (c *Client) GatewayRegister(node Node) error {
+	url := c.path("gateways")
 	body, err := c.serialize(node)
 	if err != nil {
 		return errors.Wrap(err, "failed to create request body")
