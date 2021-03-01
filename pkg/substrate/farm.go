@@ -80,7 +80,7 @@ func (s *substrateClient) GetFarm(id uint32) (*Farm, error) {
 	var farm Farm
 
 	switch version {
-	case 0, 1:
+	case 1:
 		if err := types.DecodeFromBytes(*raw, &farm); err != nil {
 			return nil, errors.Wrap(err, "failed to load object")
 		}
