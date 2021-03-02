@@ -1,4 +1,4 @@
-package yggdrasil
+package network
 
 import (
 	"crypto/sha512"
@@ -22,22 +22,22 @@ const (
 	confPath     = "/var/cache/modules/networkd/yggdrasil.conf"
 )
 
-// Server represent a yggdrasil server
-type Server struct {
+// YggServer represent a yggdrasil server
+type YggServer struct {
 	zinit *zinit.Client
 	cfg   *config.NodeConfig
 }
 
-// NewServer create a new yggdrasil Server
-func NewServer(zinit *zinit.Client, cfg *config.NodeConfig) *Server {
-	return &Server{
+// NewYggServer create a new yggdrasil Server
+func NewYggServer(zinit *zinit.Client, cfg *config.NodeConfig) *YggServer {
+	return &YggServer{
 		zinit: zinit,
 		cfg:   cfg,
 	}
 }
 
 // Start creates an yggdrasil zinit service and starts it
-func (s *Server) Start() error {
+func (s *YggServer) Start() error {
 	status, err := s.zinit.Status(zinitService)
 	if err == nil && status.State.Is(zinit.ServiceStateRunning) {
 		return nil
@@ -72,7 +72,7 @@ func (s *Server) Start() error {
 }
 
 // Stop stop the yggdrasil zinit service
-func (s *Server) Stop() error {
+func (s *YggServer) Stop() error {
 	status, err := s.zinit.Status(zinitService)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func (s *Server) Stop() error {
 }
 
 // NodeID returns the yggdrasil node ID of s
-func (s *Server) NodeID() (*crypto.NodeID, error) {
+func (s *YggServer) NodeID() (*crypto.NodeID, error) {
 	if s.cfg.EncryptionPublicKey == "" {
 		panic("EncryptionPublicKey empty")
 	}
@@ -102,7 +102,7 @@ func (s *Server) NodeID() (*crypto.NodeID, error) {
 }
 
 // Address return the address in the 200::/7 subnet allocated by yggdrasil
-func (s *Server) Address() (net.IP, error) {
+func (s *YggServer) Address() (net.IP, error) {
 	nodeID, err := s.NodeID()
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (s *Server) Address() (net.IP, error) {
 }
 
 // Subnet return the 300::/64 subnet allocated by yggdrasil
-func (s *Server) Subnet() (net.IPNet, error) {
+func (s *YggServer) Subnet() (net.IPNet, error) {
 	nodeID, err := s.NodeID()
 	if err != nil {
 		return net.IPNet{}, err
@@ -131,7 +131,7 @@ func (s *Server) Subnet() (net.IPNet, error) {
 }
 
 // Gateway return the first IP of the 300::/64 subnet allocated by yggdrasil
-func (s *Server) Gateway() (net.IPNet, error) {
+func (s *YggServer) Gateway() (net.IPNet, error) {
 
 	subnet, err := s.Subnet()
 	if err != nil {
@@ -143,13 +143,13 @@ func (s *Server) Gateway() (net.IPNet, error) {
 }
 
 // Tun return the name of the TUN interface created by yggdrasil
-func (s *Server) Tun() string {
+func (s *YggServer) Tun() string {
 	return s.cfg.IfName
 }
 
 // SubnetFor return an IP address out of the node allocated subnet by hasing b and using it
 // to generate the last 64 bits of the IPV6 address
-func (s *Server) SubnetFor(b []byte) (net.IP, error) {
+func (s *YggServer) SubnetFor(b []byte) (net.IP, error) {
 	subnet, err := s.Subnet()
 	if err != nil {
 		return nil, err
