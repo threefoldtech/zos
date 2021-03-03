@@ -3,8 +3,11 @@ package provisiond
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"time"
 
+	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
@@ -52,18 +55,65 @@ func (m many) AsError() error {
 
 // Consumption struct
 type Consumption struct {
-	Workloads map[gridtypes.WorkloadType]uint64
-	Capacity  gridtypes.Capacity
+	Workloads map[gridtypes.WorkloadType]uint64 `json:"workloads"`
+	Capacity  gridtypes.Capacity                `json:"capacity"`
+}
+
+// Report is a user report
+type Report struct {
+	Timestamp   int64 `json:"timestamp"`
+	Consumption map[gridtypes.ID]Consumption
 }
 
 // Reporter structure
 type Reporter struct {
 	storage *storage.Fs
+	queue   *dque.DQue
+}
+
+func reportBuilder() interface{} {
+	return &Report{}
 }
 
 // NewReported creates a new capacity reporter
-func NewReported(s *storage.Fs) *Reporter {
-	return &Reporter{storage: s}
+func NewReported(s *storage.Fs, report string) (*Reporter, error) {
+	if err := os.MkdirAll(report, 0755); err != nil && !os.IsExist(err) {
+		return nil, errors.Wrap(err, "failed to create persisted directory for report queue")
+	}
+
+	queue, err := dque.NewOrOpen("consumption", report, 1024, reportBuilder)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to setup report persisted queue")
+	}
+
+	return &Reporter{storage: s, queue: queue}, nil
+}
+
+func (r *Reporter) pushOne() error {
+	item, err := r.queue.PeekBlock()
+	if err != nil {
+		return errors.Wrap(err, "failed to peek into capacity queue. #properlyfatal")
+	}
+
+	report := item.(Report)
+
+	//TODO: push to farmer here. try forever !
+	fmt.Println(report)
+
+	// only removed if report is reported to
+	// farmer
+	// remove item from queue
+	_, err = r.queue.Dequeue()
+
+	return err
+}
+
+func (r *Reporter) pusher() {
+	for {
+		if err := r.pushOne(); err != nil {
+			log.Error().Err(err).Msg("error while processing capacity report")
+		}
+	}
 }
 
 // Run runs the reporter
@@ -71,6 +121,9 @@ func (r *Reporter) Run(ctx context.Context) error {
 	// go over all user reservations
 	// take into account the following:
 	// every is in seconds.
+
+	go r.pusher()
+
 	ticker := time.NewTicker(every * time.Second)
 	defer ticker.Stop()
 	for {
@@ -87,18 +140,27 @@ func (r *Reporter) Run(ctx context.Context) error {
 			// 5 minute slot.
 			// but if it was stopped before that timestamp, then it will
 			// not be counted.
-			if err := r.collect(time.Unix(u, 0)); err != nil {
+			report, err := r.collect(time.Unix(u, 0))
+			if err != nil {
 				log.Error().Err(err).Msg("failed to collect users consumptions")
+				continue
+			}
+
+			if err := r.push(report); err != nil {
+				log.Error().Err(err).Msg("failed to push capacity report")
 			}
 		}
 	}
 }
 
-func (r *Reporter) collect(since time.Time) error {
+func (r *Reporter) collect(since time.Time) (rep Report, err error) {
 	users, err := r.storage.Users()
 	if err != nil {
-		return err
+		return rep, err
 	}
+
+	rep.Timestamp = since.Unix()
+	rep.Consumption = make(map[gridtypes.ID]Consumption)
 
 	for _, user := range users {
 		cap, err := r.user(since, user)
@@ -109,17 +171,18 @@ func (r *Reporter) collect(since time.Time) error {
 			// collected some of the user consumption, we still can report that
 		}
 
-		if err := r.push(user, &cap); err != nil {
-			log.Error().Err(err).Msg("failed to push user capacity")
+		if cap.Capacity.Zero() {
+			continue
 		}
+
+		rep.Consumption[user] = cap
 	}
 
-	return nil
+	return
 }
 
-func (r *Reporter) push(user gridtypes.ID, cap *Consumption) error {
-	log.Debug().Msgf("user capacity (%s): %+v", user, cap)
-	return nil
+func (r *Reporter) push(report Report) error {
+	return r.queue.Enqueue(report)
 }
 
 func (r *Reporter) user(since time.Time, user gridtypes.ID) (Consumption, error) {
