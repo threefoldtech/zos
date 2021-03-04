@@ -101,8 +101,8 @@ func (n *NodeClient) Deploy(wl *gridtypes.Workload) (wid string, err error) {
 	return wid, nil
 }
 
-// GetWorkload get a workload by id
-func (n *NodeClient) GetWorkload(wid string) (wl gridtypes.Workload, err error) {
+// Get get a workload by id
+func (n *NodeClient) Get(wid string) (wl gridtypes.Workload, err error) {
 	url := n.url("workloads", wid)
 
 	var buf bytes.Buffer
@@ -123,8 +123,8 @@ func (n *NodeClient) GetWorkload(wid string) (wl gridtypes.Workload, err error) 
 	return wl, nil
 }
 
-// DeleteWorkload deletes a workload by id
-func (n *NodeClient) DeleteWorkload(wid string) (err error) {
+// Delete deletes a workload by id
+func (n *NodeClient) Delete(wid string) (err error) {
 	url := n.url("workloads", wid)
 
 	var buf bytes.Buffer
