@@ -217,7 +217,7 @@ func action(cli *cli.Context) error {
 		}
 	}()
 
-	reporter, err := NewReported(store, filepath.Join(rootDir, "reports"))
+	reporter, err := NewReported(store, identity, filepath.Join(rootDir, "reports"))
 	if err != nil {
 		return errors.Wrap(err, "failed to setup capacity reporter")
 	}

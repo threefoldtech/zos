@@ -3,13 +3,16 @@ package provisiond
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"encoding/hex"
 	"os"
 	"time"
 
 	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/farmer"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
 )
@@ -53,30 +56,31 @@ func (m many) AsError() error {
 	return m
 }
 
-// Consumption struct
-type Consumption struct {
-	Workloads map[gridtypes.WorkloadType]uint64 `json:"workloads"`
-	Capacity  gridtypes.Capacity                `json:"capacity"`
-}
-
-// Report is a user report
-type Report struct {
-	Timestamp   int64 `json:"timestamp"`
-	Consumption map[gridtypes.ID]Consumption
-}
-
 // Reporter structure
 type Reporter struct {
-	storage *storage.Fs
-	queue   *dque.DQue
+	identity pkg.IdentityManager
+	storage  *storage.Fs
+	queue    *dque.DQue
+	farmer   *farmer.Client
+	nodeID   string
 }
 
 func reportBuilder() interface{} {
-	return &Report{}
+	return &farmer.Report{}
 }
 
 // NewReported creates a new capacity reporter
-func NewReported(s *storage.Fs, report string) (*Reporter, error) {
+func NewReported(store *storage.Fs, identity pkg.IdentityManager, report string) (*Reporter, error) {
+	env, err := environment.Get()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get runtime environment")
+	}
+
+	fm, err := env.FarmerClient()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create farmer client")
+	}
+
 	if err := os.MkdirAll(report, 0755); err != nil && !os.IsExist(err) {
 		return nil, errors.Wrap(err, "failed to create persisted directory for report queue")
 	}
@@ -86,7 +90,13 @@ func NewReported(s *storage.Fs, report string) (*Reporter, error) {
 		return nil, errors.Wrap(err, "failed to setup report persisted queue")
 	}
 
-	return &Reporter{storage: s, queue: queue}, nil
+	return &Reporter{
+		storage:  store,
+		identity: identity,
+		queue:    queue,
+		farmer:   fm,
+		nodeID:   identity.NodeID().Identity(),
+	}, nil
 }
 
 func (r *Reporter) pushOne() error {
@@ -95,10 +105,13 @@ func (r *Reporter) pushOne() error {
 		return errors.Wrap(err, "failed to peek into capacity queue. #properlyfatal")
 	}
 
-	report := item.(Report)
+	report := item.(farmer.Report)
 
-	//TODO: push to farmer here. try forever !
-	fmt.Println(report)
+	// DEBUG
+	log.Debug().Int64("timestamp", report.Timestamp).Msg("sending capacity report")
+	if err := r.farmer.NodeReport(r.nodeID, report); err != nil {
+		return errors.Wrap(err, "failed to publish consumption report")
+	}
 
 	// only removed if report is reported to
 	// farmer
@@ -146,6 +159,11 @@ func (r *Reporter) Run(ctx context.Context) error {
 				continue
 			}
 
+			if len(report.Consumption) == 0 {
+				// nothing to report
+				continue
+			}
+
 			if err := r.push(report); err != nil {
 				log.Error().Err(err).Msg("failed to push capacity report")
 			}
@@ -153,14 +171,14 @@ func (r *Reporter) Run(ctx context.Context) error {
 	}
 }
 
-func (r *Reporter) collect(since time.Time) (rep Report, err error) {
+func (r *Reporter) collect(since time.Time) (rep farmer.Report, err error) {
 	users, err := r.storage.Users()
 	if err != nil {
 		return rep, err
 	}
 
 	rep.Timestamp = since.Unix()
-	rep.Consumption = make(map[gridtypes.ID]Consumption)
+	rep.Consumption = make(map[gridtypes.ID]farmer.Consumption)
 
 	for _, user := range users {
 		cap, err := r.user(since, user)
@@ -181,19 +199,31 @@ func (r *Reporter) collect(since time.Time) (rep Report, err error) {
 	return
 }
 
-func (r *Reporter) push(report Report) error {
+func (r *Reporter) push(report farmer.Report) error {
+	// create signature
+	var buf bytes.Buffer
+	if err := report.Challenge(&buf); err != nil {
+		return errors.Wrap(err, "failed to create report challenge")
+	}
+
+	signature, err := r.identity.Sign(buf.Bytes())
+	if err != nil {
+		return errors.Wrap(err, "failed to sign report")
+	}
+
+	report.Signature = hex.EncodeToString(signature)
 	return r.queue.Enqueue(report)
 }
 
-func (r *Reporter) user(since time.Time, user gridtypes.ID) (Consumption, error) {
+func (r *Reporter) user(since time.Time, user gridtypes.ID) (farmer.Consumption, error) {
 	var m many
 	types := gridtypes.Types()
-	consumption := Consumption{
-		Workloads: make(map[gridtypes.WorkloadType]uint64),
+	consumption := farmer.Consumption{
+		Workloads: make(map[gridtypes.WorkloadType][]gridtypes.ID),
 	}
 
 	for _, typ := range types {
-		consumption.Workloads[typ] = 0
+		consumption.Workloads[typ] = make([]gridtypes.ID, 0)
 		ids, err := r.storage.ByUser(user, typ)
 		if err != nil {
 			m = m.append(errors.Wrapf(err, "failed to get reservation for user '%s' type '%s", user, typ))
@@ -219,7 +249,7 @@ func (r *Reporter) user(since time.Time, user gridtypes.ID) (Consumption, error)
 					continue
 				}
 
-				consumption.Workloads[typ]++
+				consumption.Workloads[typ] = append(consumption.Workloads[typ], id)
 				consumption.Capacity.Add(&cap)
 			}
 
