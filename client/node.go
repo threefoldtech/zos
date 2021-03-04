@@ -100,3 +100,51 @@ func (n *NodeClient) Deploy(wl *gridtypes.Workload) (wid string, err error) {
 
 	return wid, nil
 }
+
+// GetWorkload get a workload by id
+func (n *NodeClient) GetWorkload(wid string) (wl gridtypes.Workload, err error) {
+	url := n.url(fmt.Sprintf("workloads/%s", wid))
+
+	var buf bytes.Buffer
+	request, err := http.NewRequest(http.MethodGet, url, &buf)
+	if err != nil {
+		return gridtypes.Workload{}, errors.Wrap(err, "failed to build request")
+	}
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return gridtypes.Workload{}, err
+	}
+
+	if err := n.response(response, &wid, http.StatusOK); err != nil {
+		return gridtypes.Workload{}, err
+	}
+
+	if err := json.NewDecoder(response.Body).Decode(&wl); err != nil {
+		return gridtypes.Workload{}, err
+	}
+
+	return wl, nil
+}
+
+// DeleteWorkload deletes a workload by id
+func (n *NodeClient) DeleteWorkload(wid string) (err error) {
+	url := n.url(fmt.Sprintf("workloads/%s", wid))
+
+	var buf bytes.Buffer
+	request, err := http.NewRequest(http.MethodDelete, url, &buf)
+	if err != nil {
+		return errors.Wrap(err, "failed to build request")
+	}
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+
+	if err := n.response(response, &wid, http.StatusOK); err != nil {
+		return err
+	}
+
+	return nil
+}
