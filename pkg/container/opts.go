@@ -107,7 +107,7 @@ func WithCPUCount(cru uint) oci.SpecOpts {
 			return fmt.Errorf("asked %d CRU while only %d are available", cru, totalCPU)
 		}
 
-		quota, period := cruToLimit(cru, totalCPU)
+		quota, period := cruToLimit(cru)
 
 		if s.Linux.Resources == nil {
 			s.Linux.Resources = &specs.LinuxResources{}
@@ -123,8 +123,9 @@ func WithCPUCount(cru uint) oci.SpecOpts {
 	}
 }
 
-func cruToLimit(cru uint, totalCPU int) (quota int64, period uint64) {
-	quota = 100000
-	period = uint64(quota) * uint64(cru)
+func cruToLimit(cru uint) (quota int64, period uint64) {
+	period = 100000
+	quota = int64(period * uint64(cru))
+
 	return quota, period
 }
