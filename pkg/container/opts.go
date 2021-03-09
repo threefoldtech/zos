@@ -3,7 +3,6 @@ package container
 import (
 	"context"
 	"fmt"
-	"math"
 
 	"path"
 
@@ -125,14 +124,7 @@ func WithCPUCount(cru uint) oci.SpecOpts {
 }
 
 func cruToLimit(cru uint, totalCPU int) (quota int64, period uint64) {
-	var (
-		required = float64(cru)
-		total    = float64(totalCPU)
-		p        float64
-	)
-	quota = int64(1000000) // 1 sec
-	p = required / total
-	p *= float64(quota)
-	p = math.Ceil(p)
-	return quota, uint64(p)
+	quota = 100000
+	period = uint64(quota) * uint64(cru)
+	return quota, period
 }
