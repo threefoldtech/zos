@@ -19,8 +19,8 @@ func Test_cruToLimit(t *testing.T) {
 				cru:      1,
 				totalCPU: 1,
 			},
-			wantPeriod: 1000000,
-			wantQuota:  1000000,
+			wantPeriod: 100000,
+			wantQuota:  100000,
 		},
 		{
 			name: "1-4",
@@ -28,8 +28,8 @@ func Test_cruToLimit(t *testing.T) {
 				cru:      1,
 				totalCPU: 4,
 			},
-			wantPeriod: 250000,
-			wantQuota:  1000000,
+			wantPeriod: 100000,
+			wantQuota:  100000,
 		},
 		{
 			name: "1-6",
@@ -37,8 +37,8 @@ func Test_cruToLimit(t *testing.T) {
 				cru:      1,
 				totalCPU: 6,
 			},
-			wantPeriod: 166667,
-			wantQuota:  1000000,
+			wantPeriod: 100000,
+			wantQuota:  100000,
 		},
 		{
 			name: "2-4",
@@ -46,8 +46,8 @@ func Test_cruToLimit(t *testing.T) {
 				cru:      2,
 				totalCPU: 4,
 			},
-			wantPeriod: 500000,
-			wantQuota:  1000000,
+			wantPeriod: 200000,
+			wantQuota:  100000,
 		},
 	}
 	for _, tt := range tests {
