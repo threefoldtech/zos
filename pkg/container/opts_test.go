@@ -4,8 +4,7 @@ import "testing"
 
 func Test_cruToLimit(t *testing.T) {
 	type args struct {
-		cru      uint
-		totalCPU int
+		cru uint
 	}
 	tests := []struct {
 		name       string
