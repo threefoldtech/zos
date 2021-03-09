@@ -105,11 +105,11 @@ func (r *Reporter) pushOne() error {
 		return errors.Wrap(err, "failed to peek into capacity queue. #properlyfatal")
 	}
 
-	report := item.(farmer.Report)
+	report := item.(*farmer.Report)
 
 	// DEBUG
 	log.Debug().Int64("timestamp", report.Timestamp).Msg("sending capacity report")
-	if err := r.farmer.NodeReport(r.nodeID, report); err != nil {
+	if err := r.farmer.NodeReport(r.nodeID, *report); err != nil {
 		return errors.Wrap(err, "failed to publish consumption report")
 	}
 
@@ -125,6 +125,7 @@ func (r *Reporter) pusher() {
 	for {
 		if err := r.pushOne(); err != nil {
 			log.Error().Err(err).Msg("error while processing capacity report")
+			<-time.After(3 * time.Second)
 		}
 	}
 }
