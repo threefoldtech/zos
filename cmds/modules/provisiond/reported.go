@@ -127,6 +127,8 @@ func (r *Reporter) pusher() {
 			log.Error().Err(err).Msg("error while processing capacity report")
 			<-time.After(3 * time.Second)
 		}
+
+		log.Debug().Msg("capacity report pushed to farmer")
 	}
 }
 
@@ -213,7 +215,7 @@ func (r *Reporter) push(report farmer.Report) error {
 	}
 
 	report.Signature = hex.EncodeToString(signature)
-	return r.queue.Enqueue(report)
+	return r.queue.Enqueue(&report)
 }
 
 func (r *Reporter) user(since time.Time, user gridtypes.ID) (farmer.Consumption, error) {
