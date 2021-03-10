@@ -14,6 +14,9 @@ import (
 	"github.com/containerd/containerd/oci"
 )
 
+// Defines the container cpu period
+const period = 100000
+
 // withNetworkNamespace set the named network namespace to use for the container
 func withNetworkNamespace(name string) oci.SpecOpts {
 	return oci.WithLinuxNamespace(
@@ -123,9 +126,8 @@ func WithCPUCount(cru uint) oci.SpecOpts {
 	}
 }
 
-func cruToLimit(cru uint) (quota int64, period uint64) {
-	period = 100000
-	quota = int64(period * uint64(cru))
+func cruToLimit(cru uint) (int64, uint64) {
+	quota := int64(period * uint64(cru))
 
 	return quota, period
 }
