@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -25,13 +26,25 @@ type Boot struct {
 	Args   string `json:"boot_args"`
 }
 
-// Drive struct
-type Drive struct {
+// Disk struct
+type Disk struct {
 	ID         string `json:"drive_id"`
 	Path       string `json:"path_on_host"`
 	RootDevice bool   `json:"is_root_device"`
 	ReadOnly   bool   `json:"is_read_only"`
 }
+
+func (d Disk) String() string {
+	on := "off"
+	if d.ReadOnly {
+		on = "on"
+	}
+
+	return fmt.Sprintf(`path=%s,readonly=%s`, d.Path, on)
+}
+
+// Disks is a list of vm disks
+type Disks []Disk
 
 // Interface nic struct
 type Interface struct {
@@ -40,23 +53,72 @@ type Interface struct {
 	Mac string `json:"guest_mac,omitempty"`
 }
 
+func (i Interface) String() string {
+	return fmt.Sprintf(`tap=%s,mac=%s`, i.Tap, i.Mac)
+}
+
+// Interfaces is a list of node interfaces
+type Interfaces []Interface
+
+func (i Interfaces) String() string {
+
+	var buf bytes.Buffer
+	for _, inf := range i {
+		if buf.Len() > 0 {
+			buf.WriteRune(' ')
+		}
+
+		buf.WriteString(inf.String())
+	}
+
+	return buf.String()
+}
+
+// MemMib is memory size in mib
+type MemMib int64
+
+func (m MemMib) String() string {
+	return fmt.Sprintf("size=%dM", int64(m))
+}
+
+// CPU type
+type CPU uint8
+
+func (c CPU) String() string {
+	return fmt.Sprintf("boot=%d", c)
+}
+
 // Config struct
 type Config struct {
-	CPU       uint8 `json:"vcpu_count"`
-	Mem       int64 `json:"mem_size_mib"`
-	HTEnabled bool  `json:"ht_enabled"`
+	CPU       CPU    `json:"vcpu_count"`
+	Mem       MemMib `json:"mem_size_mib"`
+	HTEnabled bool   `json:"ht_enabled"`
 }
 
 // Machine struct
 type Machine struct {
-	ID         string      `json:"-"`
-	Boot       Boot        `json:"boot-source"`
-	Drives     []Drive     `json:"drives"`
-	Interfaces []Interface `json:"network-interfaces"`
-	Config     Config      `json:"machine-config"`
+	ID         string     `json:"-"`
+	Boot       Boot       `json:"boot-source"`
+	Disks      Disks      `json:"drives"`
+	Interfaces Interfaces `json:"network-interfaces"`
+	Config     Config     `json:"machine-config"`
 	// NoKeepAlive is not used by firecracker, but instead a marker
 	// for the vm  mananger to not restart the machine when it stops
 	NoKeepAlive bool `json:"no-keep-alive"`
+}
+
+func (m *Machine) Save(n string) error {
+	f, err := os.Create(n)
+	if err != nil {
+		return errors.Wrap(err, "failed to create vm config file")
+	}
+	defer f.Close()
+
+	if err := json.NewEncoder(f).Encode(m); err != nil {
+		return errors.Wrap(err, "failed to serialize machine object")
+	}
+
+	return nil
 }
 
 // Jailed represents a jailed machine.
@@ -117,7 +179,7 @@ func (m *Machine) Jail(base string) (*Jailed, error) {
 	}
 
 	// mount drives
-	for i, drive := range cfg.Drives {
+	for i, drive := range cfg.Disks {
 		if len(drive.Path) == 0 {
 			return nil, fmt.Errorf("invalid configured disk empty path '%s'", m.ID)
 		}
@@ -127,7 +189,7 @@ func (m *Machine) Jail(base string) (*Jailed, error) {
 			return nil, errors.Wrapf(err, "failed to bind mount '%s' to machine root", drive.Path)
 		}
 
-		m.Drives[i].Path = name
+		m.Disks[i].Path = name
 	}
 
 	return &Jailed{Machine: cfg, Root: root}, nil

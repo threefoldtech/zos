@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
-	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -23,8 +21,10 @@ import (
 )
 
 const (
-	// FCSockDir where vm firecracker sockets are kept
-	FCSockDir = "/var/run/firecracker"
+	// socketDir where vm firecracker sockets are kept
+	socketDir = "/var/run/cloud-hypervisor"
+	configDir = "config"
+	logsDir   = "logs"
 
 	defaultKernelArgs = "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules"
 )
@@ -43,8 +43,14 @@ var (
 
 // NewVMModule creates a new instance of vm manager
 func NewVMModule(cl zbus.Client, root string) (*Module, error) {
-	if err := os.MkdirAll(FCSockDir, 0755); err != nil {
-		return nil, err
+	for _, dir := range []string{
+		socketDir,
+		filepath.Join(root, configDir),
+		filepath.Join(root, logsDir),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, err
+		}
 	}
 
 	return &Module{
@@ -55,12 +61,12 @@ func NewVMModule(cl zbus.Client, root string) (*Module, error) {
 	}, nil
 }
 
-func (m *Module) makeDevices(vm *pkg.VM) ([]Drive, error) {
-	var drives []Drive
+func (m *Module) makeDevices(vm *pkg.VM) ([]Disk, error) {
+	var drives []Disk
 	for i, disk := range vm.Disks {
 		id := fmt.Sprintf("%d", i+2)
 
-		drives = append(drives, Drive{
+		drives = append(drives, Disk{
 			ID:         id,
 			ReadOnly:   disk.ReadOnly,
 			RootDevice: disk.Root,
@@ -75,8 +81,16 @@ func (m *Module) machineRoot(id string) string {
 	return filepath.Join(m.root, "firecracker", id)
 }
 
-func (m *Module) socket(id string) string {
-	return filepath.Join(m.machineRoot(id), "root", "api.socket")
+func (m *Module) socketPath(name string) string {
+	return filepath.Join(socketDir, name)
+}
+
+func (m *Module) configPath(name string) string {
+	return filepath.Join(m.root, configDir, name)
+}
+
+func (m *Module) logsPath(name string) string {
+	return filepath.Join(m.root, logsDir, name)
 }
 
 // Exists checks if firecracker process running for this machine
@@ -305,13 +319,17 @@ func (m *Module) Run(vm pkg.VM) error {
 			Args:   kargs.String(),
 		},
 		Config: Config{
-			CPU:       vm.CPU,
-			Mem:       vm.Memory,
+			CPU:       CPU(vm.CPU),
+			Mem:       MemMib(vm.Memory),
 			HTEnabled: false,
 		},
 		Interfaces:  nics,
-		Drives:      devices,
+		Disks:       devices,
 		NoKeepAlive: vm.NoKeepAlive,
+	}
+
+	if err := machine.Save(m.configPath(vm.Name)); err != nil {
+		return err
 	}
 
 	defer func() {
@@ -320,39 +338,28 @@ func (m *Module) Run(vm pkg.VM) error {
 		}
 	}()
 
-	jailed, err := machine.Jail(m.root)
-	if err != nil {
-		return err
-	}
-
-	if err = jailed.Save(); err != nil {
-		return err
-	}
-
-	logFile := jailed.Log(m.root)
-
 	if vm.NoKeepAlive {
-		m.failures.Set(jailed.ID, permanent, cache.NoExpiration)
+		m.failures.Set(vm.Name, permanent, cache.NoExpiration)
 	}
 
-	if err = jailed.Start(ctx); err != nil {
-		return m.withLogs(logFile, err)
+	if err = machine.Run(ctx, m.socketPath(vm.Name), m.logsPath(vm.Name)); err != nil {
+		return m.withLogs(m.logsPath(vm.Name), err)
 	}
 
-	if err := m.waitAndAdjOom(ctx, jailed.ID); err != nil {
-		return m.withLogs(logFile, err)
+	if err := m.waitAndAdjOom(ctx, vm.Name); err != nil {
+		return m.withLogs(m.logsPath(vm.Name), err)
 	}
 
 	return nil
 }
 
-func (m *Module) waitAndAdjOom(ctx context.Context, id string) error {
+func (m *Module) waitAndAdjOom(ctx context.Context, name string) error {
 	check := func() error {
-		if !m.Exists(id) {
-			return fmt.Errorf("failed to spawn vm machine process '%s'", id)
+		if !m.Exists(name) {
+			return fmt.Errorf("failed to spawn vm machine process '%s'", name)
 		}
 		//TODO: check unix connection
-		socket := m.socket(id)
+		socket := m.socketPath(name)
 		con, err := net.Dial("unix", socket)
 		if err != nil {
 			return err
@@ -369,13 +376,13 @@ func (m *Module) waitAndAdjOom(ctx context.Context, id string) error {
 		return err
 	}
 
-	pid, err := find(id)
+	pid, err := find(name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to find vm with id '%s'", id)
+		return errors.Wrapf(err, "failed to find vm with id '%s'", name)
 	}
 
 	if err := ioutil.WriteFile(filepath.Join("/proc/", fmt.Sprint(pid), "oom_adj"), []byte("-17"), 0644); err != nil {
-		return errors.Wrapf(err, "failed to update oom priority for machine '%s' (PID: %d)", id, pid)
+		return errors.Wrapf(err, "failed to update oom priority for machine '%s' (PID: %d)", name, pid)
 	}
 
 	return nil
@@ -383,7 +390,7 @@ func (m *Module) waitAndAdjOom(ctx context.Context, id string) error {
 
 // Logs returns machine logs for give machine name
 func (m *Module) Logs(name string) (string, error) {
-	path := filepath.Join(m.machineRoot(name), "root", logFileName)
+	path := m.logsPath(name)
 	return m.tail(path)
 }
 
@@ -392,44 +399,23 @@ func (m *Module) Inspect(name string) (pkg.VMInfo, error) {
 	if !m.Exists(name) {
 		return pkg.VMInfo{}, fmt.Errorf("machine '%s' does not exist", name)
 	}
-
-	client := firecracker.NewClient(m.socket(name), nil, false)
-	cfg, err := client.GetMachineConfiguration()
+	client := NewClient(m.socketPath(name))
+	cpu, mem, err := client.Inspect(context.Background())
 	if err != nil {
 		return pkg.VMInfo{}, errors.Wrap(err, "failed to get machine configuration")
 	}
 
 	return pkg.VMInfo{
-		CPU:       *cfg.Payload.VcpuCount,
-		Memory:    *cfg.Payload.MemSizeMib,
-		HtEnabled: *cfg.Payload.HtEnabled,
+		CPU:       int64(cpu),
+		Memory:    int64(mem),
+		HtEnabled: false,
 	}, nil
-}
-
-func (m *Module) backupLogs(name string) error {
-	root := filepath.Join(m.machineRoot(name), "root")
-	logsDir := filepath.Join(m.root, "logs")
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
-		return err
-	}
-
-	return os.Rename(
-		filepath.Join(root, logFileName),
-		filepath.Join(logsDir, fmt.Sprintf("%s.log", name)),
-	)
 }
 
 // Delete deletes a machine by name (id)
 func (m *Module) Delete(name string) error {
-	defer m.cleanFs(name)
 	defer m.failures.Delete(name)
 
-	// try to backup machine logs
-	if err := m.backupLogs(name); err != nil {
-		if !os.IsNotExist(err) {
-			log.Error().Err(err).Str("id", name).Msg("failed to back up machine log file")
-		}
-	}
 	// before we do anything we set failures to permanent to prevent monitoring from trying
 	// to revive this machine
 	m.failures.Set(name, permanent, cache.NoExpiration)
@@ -440,15 +426,12 @@ func (m *Module) Delete(name string) error {
 		return nil
 	}
 
-	client := firecracker.NewClient(m.socket(name), nil, false)
+	client := NewClient(m.socketPath(name))
+
 	// timeout is request timeout, not machine timeout to shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 	defer cancel()
-	action := models.InstanceActionInfoActionTypeSendCtrlAltDel
-	info := models.InstanceActionInfo{
-		ActionType: &action,
-	}
 
 	now := time.Now()
 
@@ -457,9 +440,9 @@ func (m *Module) Delete(name string) error {
 		killAfter = 10 * time.Second
 	)
 
-	_, err = client.CreateSyncAction(ctx, &info)
-	if err != nil {
-		return err
+	log.Debug().Str("name", name).Msg("shutting vm down [client]")
+	if err := client.Shutdown(ctx); err != nil {
+		log.Error().Err(err).Str("name", name).Msg("failed to shutdown machine")
 	}
 
 	for {
@@ -467,11 +450,13 @@ func (m *Module) Delete(name string) error {
 			return nil
 		}
 
+		log.Debug().Str("name", name).Msg("shutting vm down [sigterm]")
 		if time.Since(now) > termAfter {
 			syscall.Kill(pid, syscall.SIGTERM)
 		}
 
 		if time.Since(now) > killAfter {
+			log.Debug().Str("name", name).Msg("shutting vm down [sigkill]")
 			syscall.Kill(pid, syscall.SIGKILL)
 			break
 		}
