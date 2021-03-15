@@ -97,7 +97,6 @@ func (m *Module) monitorID(ctx context.Context, running map[string]int, id strin
 		// if the marker is permanent. it means that this vm
 		// is being deleted or not monitored. we don't need to take any more action here
 		// (don't try to restart or delete)
-		log.Debug().Msg("permanent delete marker is set")
 		return nil
 	}
 

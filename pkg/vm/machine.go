@@ -54,7 +54,13 @@ type Interface struct {
 }
 
 func (i Interface) String() string {
-	return fmt.Sprintf(`tap=%s,mac=%s`, i.Tap, i.Mac)
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("tap=%s", i.Tap))
+	if len(i.Mac) > 0 {
+		buf.WriteString(fmt.Sprintf(",mac=%s", i.Mac))
+	}
+
+	return buf.String()
 }
 
 // Interfaces is a list of node interfaces

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // Run run the machine with cloud-hypervisor
@@ -41,14 +42,16 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		}
 	}
 
+	log.Debug().Strs("args", args).Msg("machine arguments")
+
 	quoted := make([]string, 0, len(args))
 	for _, arg := range args {
-		quoted = append(quoted, fmt.Sprintf(`"%s"`, arg))
+		quoted = append(quoted, fmt.Sprintf(`'%s'`, arg))
 	}
 
 	cmd := exec.CommandContext(ctx,
 		"ash", "-c",
-		fmt.Sprintf("%s &", strings.Join(quoted, " ")),
+		fmt.Sprintf("%s > %s 2>&1 &", strings.Join(quoted, " "), logs+".out"),
 	)
 
 	if err := cmd.Run(); err != nil {
