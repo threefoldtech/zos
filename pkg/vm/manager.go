@@ -445,6 +445,7 @@ func (m *Module) Delete(name string) error {
 		log.Error().Err(err).Str("name", name).Msg("failed to shutdown machine")
 	}
 
+	defer os.RemoveAll(m.configPath(name))
 	for {
 		if !m.Exists(name) {
 			return nil

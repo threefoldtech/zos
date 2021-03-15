@@ -107,6 +107,7 @@ type Machine struct {
 	NoKeepAlive bool `json:"no-keep-alive"`
 }
 
+// Save saves a machine into a file
 func (m *Machine) Save(n string) error {
 	f, err := os.Create(n)
 	if err != nil {
@@ -119,6 +120,21 @@ func (m *Machine) Save(n string) error {
 	}
 
 	return nil
+}
+
+// MachineFromFile loads a vm config from file
+func MachineFromFile(n string) (*Machine, error) {
+	f, err := os.Open(n)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open machine config file")
+	}
+	defer f.Close()
+	var m Machine
+	if err := json.NewDecoder(f).Decode(&m); err != nil {
+		return nil, errors.Wrap(err, "failed to decode machine config file")
+	}
+
+	return &m, nil
 }
 
 // Jailed represents a jailed machine.

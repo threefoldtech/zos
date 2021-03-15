@@ -76,7 +76,6 @@ func find(name string) (int, error) {
 		return 0, err
 	}
 
-	fmt.Printf("%+v\n", machines)
 	pid, ok := machines[name]
 	if !ok {
 		return 0, fmt.Errorf("vm '%s' not found", name)
