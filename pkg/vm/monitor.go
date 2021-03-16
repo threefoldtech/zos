@@ -111,7 +111,6 @@ func (m *Module) monitorID(ctx context.Context, running map[string]int, id strin
 	if count < failuresBeforeDestroy {
 		vm, err := MachineFromFile(m.configPath(id))
 
-		log.Debug().Str("name", id).Msg("trying to restart the vm")
 		if err != nil {
 			return err
 		}
@@ -124,6 +123,7 @@ func (m *Module) monitorID(ctx context.Context, running map[string]int, id strin
 			return nil
 		}
 
+		log.Debug().Str("name", id).Msg("trying to restart the vm")
 		reason = vm.Run(ctx, m.socketPath(id), m.logsPath(id))
 		if reason == nil {
 			reason = m.waitAndAdjOom(ctx, id)
@@ -134,13 +134,10 @@ func (m *Module) monitorID(ctx context.Context, running map[string]int, id strin
 
 	if reason != nil {
 		log.Debug().Err(reason).Msg("deleting vm due to restart error")
+		os.RemoveAll(m.configPath(id))
 
 		stub := stubs.NewProvisionStub(m.client)
 		if err := stub.DecommissionCached(id, reason.Error()); err != nil {
-			if err := m.cleanFs(id); err != nil {
-				log.Error().Err(err).Msg("failed to delete clean up unmanaged vm")
-			}
-
 			return errors.Wrapf(err, "failed to decommission reservation '%s'", id)
 		}
 	}

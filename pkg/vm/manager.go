@@ -35,6 +35,8 @@ type Module struct {
 	client   zbus.Client
 	lock     sync.Mutex
 	failures *cache.Cache
+
+	legacyMonitor LegacyMonitor
 }
 
 var (
@@ -53,12 +55,19 @@ func NewVMModule(cl zbus.Client, root string) (*Module, error) {
 		}
 	}
 
-	return &Module{
+	mod := &Module{
 		root:   root,
 		client: cl,
 		// values are cached only for 1 minute. purge cache every 20 second
 		failures: cache.New(2*time.Minute, 20*time.Second),
-	}, nil
+
+		legacyMonitor: LegacyMonitor{root},
+	}
+
+	// run legacy monitor
+	go mod.legacyMonitor.Monitor(context.Background())
+
+	return mod, nil
 }
 
 func (m *Module) makeDevices(vm *pkg.VM) ([]Disk, error) {
@@ -77,10 +86,6 @@ func (m *Module) makeDevices(vm *pkg.VM) ([]Disk, error) {
 	return drives, nil
 }
 
-func (m *Module) machineRoot(id string) string {
-	return filepath.Join(m.root, "firecracker", id)
-}
-
 func (m *Module) socketPath(name string) string {
 	return filepath.Join(socketDir, name)
 }
@@ -97,38 +102,6 @@ func (m *Module) logsPath(name string) string {
 func (m *Module) Exists(id string) bool {
 	_, err := find(id)
 	return err == nil
-}
-
-func (m *Module) cleanFs(id string) error {
-	root := filepath.Join(m.machineRoot(id), "root")
-
-	files, err := ioutil.ReadDir(root)
-	if os.IsNotExist(err) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-
-	for _, entry := range files {
-		if entry.IsDir() {
-			continue
-		}
-
-		// we try to unmount every file in the directory
-		// because it's faster than trying to find exactly
-		// what files are mounted under this location.
-		path := filepath.Join(root, entry.Name())
-		err := syscall.Unmount(
-			path,
-			syscall.MNT_DETACH,
-		)
-
-		if err != nil {
-			log.Warn().Err(err).Str("file", path).Msg("failed to unmount")
-		}
-	}
-
-	return os.RemoveAll(m.machineRoot(id))
 }
 
 func (m *Module) makeNetwork(vm *pkg.VM) ([]Interface, string, error) {
@@ -284,11 +257,6 @@ func (m *Module) Run(vm pkg.VM) error {
 		return fmt.Errorf("a vm with same name already exists")
 	}
 
-	// make sure to clean up previous roots just in case
-	if err := m.cleanFs(vm.Name); err != nil {
-		return err
-	}
-
 	devices, err := m.makeDevices(&vm)
 	if err != nil {
 		return err
@@ -328,6 +296,7 @@ func (m *Module) Run(vm pkg.VM) error {
 		NoKeepAlive: vm.NoKeepAlive,
 	}
 
+	log.Debug().Str("name", vm.Name).Msg("saving machine")
 	if err := machine.Save(m.configPath(vm.Name)); err != nil {
 		return err
 	}
@@ -419,7 +388,15 @@ func (m *Module) Delete(name string) error {
 	// before we do anything we set failures to permanent to prevent monitoring from trying
 	// to revive this machine
 	m.failures.Set(name, permanent, cache.NoExpiration)
+	defer os.RemoveAll(m.configPath(name))
 
+	//is this the real life? is this just legacy?
+	if pid, err := findFC(name); err == nil {
+		syscall.Kill(pid, syscall.SIGKILL)
+		return m.legacyMonitor.cleanFsFirecracker(name)
+	}
+
+	// normal operation
 	pid, err := find(name)
 	if err != nil {
 		// machine already gone
@@ -445,7 +422,6 @@ func (m *Module) Delete(name string) error {
 		log.Error().Err(err).Str("name", name).Msg("failed to shutdown machine")
 	}
 
-	defer os.RemoveAll(m.configPath(name))
 	for {
 		if !m.Exists(name) {
 			return nil
