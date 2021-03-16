@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"syscall"
 
 	"github.com/pkg/errors"
 )
@@ -133,28 +131,4 @@ func MachineFromFile(n string) (*Machine, error) {
 	}
 
 	return &m, nil
-}
-
-func (m *Machine) root(base string) string {
-	return filepath.Join(base, "firecracker", m.ID, "root")
-}
-
-func mount(src, dest string) error {
-	if filepath.Clean(src) == filepath.Clean(dest) {
-		// nothing to do here
-		return nil
-	}
-
-	f, err := os.Create(dest)
-	if err != nil {
-		return errors.Wrapf(err, "failed to touch file: %s", dest)
-	}
-
-	f.Close()
-
-	if err := syscall.Mount(src, dest, "", syscall.MS_BIND, ""); err != nil {
-		return errors.Wrapf(err, "failed to mount '%s' > '%s'", src, dest)
-	}
-
-	return nil
 }

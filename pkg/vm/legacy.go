@@ -14,10 +14,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	configFileName = "config.json"
-)
-
 var errNoMoreFirecracker = fmt.Errorf("not more fc processes")
 
 func findAllFC() (map[string]int, error) {
@@ -108,7 +104,7 @@ func (m *LegacyMonitor) Monitor(ctx context.Context) {
 			case <-time.After(monitorEvery):
 				err := m.monitor(ctx)
 				if err == errNoMoreFirecracker {
-					break
+					return
 				} else if err != nil {
 					log.Error().Err(err).Msg("failed to run monitoring")
 				}
