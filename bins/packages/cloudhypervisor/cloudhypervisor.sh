@@ -1,7 +1,7 @@
-CLOUDHYPERVISOR_VERSION="0.11.0"
-CLOUDHYPERVISOR_CHECKSUM="9c3c72c2fa23cfa2fd547d2c04dfde25"
+CLOUDHYPERVISOR_VERSION="0.13.0"
+CLOUDHYPERVISOR_CHECKSUM="44bd96c255b8d573a83eef2364d934ae"
 CLOUDHYPERVISOR_LINK="https://github.com/cloud-hypervisor/cloud-hypervisor/archive/v${CLOUDHYPERVISOR_VERSION}.tar.gz"
-CLOUDHYPERVISOR_RUST_TOOLCHAIN="1.47.0"
+CLOUDHYPERVISOR_RUST_TOOLCHAIN="1.48.0"
 
 dependencies_cloudhypervisor() {
     apt-get install -y curl build-essential
@@ -60,4 +60,3 @@ build_cloudhypervisor() {
 
     popd
 }
-
