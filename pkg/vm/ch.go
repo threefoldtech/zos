@@ -52,7 +52,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	log.Debug().Str("name", m.ID).Str("exec", tmp.Name()).Msg("using exec file")
 	defer func() {
 		tmp.Close()
-		//os.Remove(tmp.Name())
+		os.Remove(tmp.Name())
 	}()
 
 	const debug = false
