@@ -24,12 +24,19 @@ type KubernetesResult struct {
 	IP string `json:"ip"`
 }
 
+type KubernetesCustomSize struct {
+	CRU int64   `json:"cru"`
+	MRU float64 `json:"mru"`
+	SRU float64 `json:"sru"`
+}
+
 // Kubernetes reservation data
 type Kubernetes struct {
 	// Size of the vm, this defines the amount of vCpu, memory, and the disk size
 	// Docs: docs/kubernetes/sizes.md
-	Size uint8 `json:"size"`
+	Size int64 `json:"size"`
 
+	Custom KubernetesCustomSize `json:"custom_size"`
 	// NetworkID of the network namepsace in which to run the VM. The network
 	// must be provisioned previously.
 	NetworkID pkg.NetID `json:"network_id"`
@@ -117,7 +124,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 		return result, errors.Wrap(err, "failed to decrypt namespace password")
 	}
 
-	cpu, memory, disk, err := vmSize(config.Size)
+	cpu, memory, disk, err := vmSize(&config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not interpret vm size")
 	}
@@ -469,9 +476,13 @@ func (p *Provisioner) getPubIPConfig(rid schema.ID) (net.IPNet, net.IP, error) {
 
 // returns the vCpu's, memory, disksize for a vm size
 // memory and disk size is expressed in MiB
-func vmSize(size uint8) (cpu uint8, memory uint64, storage uint64, err error) {
-
-	switch size {
+func vmSize(vm *Kubernetes) (cpu uint8, memory uint64, storage uint64, err error) {
+	switch vm.Size {
+	case -1:
+		return uint8(vm.Custom.CRU),
+			uint64(vm.Custom.MRU * 1024),
+			uint64(vm.Custom.SRU * 1024),
+			nil
 	case 1:
 		// 1 vCpu, 2 GiB RAM, 50 GB disk
 		return 1, 2 * 1024, 50 * 1024, nil
@@ -528,7 +539,7 @@ func vmSize(size uint8) (cpu uint8, memory uint64, storage uint64, err error) {
 		return 1, 1 * 1024, 25 * 1024, nil
 	}
 
-	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size 1 to 18 are supported", size)
+	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size 1 to 18 are supported", vm.Size)
 }
 
 func pubIPResID(reservationID schema.ID) string {
