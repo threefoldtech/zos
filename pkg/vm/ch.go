@@ -1,9 +1,9 @@
 package vm
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 
@@ -44,30 +44,20 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		args["--net"] = interfaces
 	}
 
-	tmp, err := ioutil.TempFile("", "vm-exec-*.sh")
-	if err != nil {
-		return errors.Wrap(err, "failed to create vm exec script")
-	}
-
-	log.Debug().Str("name", m.ID).Str("exec", tmp.Name()).Msg("using exec file")
-	defer func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-	}()
-
 	const debug = false
 	if debug {
 		args["--console"] = []string{"off"}
 		args["--serial"] = []string{"tty"}
 	}
 
+	var tmp bytes.Buffer
 	write := func() error {
 		if _, err := tmp.WriteString("exec cloud-hypervisor"); err != nil {
 			return err
 		}
 
 		for k, vs := range args {
-			if _, err := tmp.WriteString(" \\\n\t"); err != nil {
+			if _, err := tmp.WriteString(" "); err != nil {
 				return err
 			}
 			if _, err := tmp.WriteString(k); err != nil {
@@ -88,28 +78,23 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 				}
 			}
 		}
-		_, err := tmp.WriteString("\n")
-		return err
+		return nil
 	}
 
 	if err := write(); err != nil {
 		return errors.Wrap(err, "exec script write error")
 	}
 
-	if err := tmp.Close(); err != nil {
-		return errors.Wrap(err, "failed to commit exec script")
-	}
-
 	log.Debug().Str("name", m.ID).Msg("starting machine")
 	//the reason we do this shit is that we want the process to daemoinize the process in the back ground
 	var cmd *exec.Cmd
 	if debug {
-		cmd = exec.CommandContext(ctx, "ash", tmp.Name())
+		cmd = exec.CommandContext(ctx, "ash", "-c", tmp.String())
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
 	} else {
-		cmd = exec.CommandContext(ctx, "ash", "-c", fmt.Sprintf("ash %s > %s 2>&1 &", tmp.Name(), logs+".out"))
+		cmd = exec.CommandContext(ctx, "ash", "-c", fmt.Sprintf("%s > %s 2>&1 &", tmp.String(), logs+".out"))
 	}
 
 	if err := cmd.Run(); err != nil {
