@@ -7,7 +7,7 @@ on:
       - v*
     paths:
       - 'bins/**'
-      - '.github/workflows/bins-extra-development'
+      - '.github/workflows/bins-extra-development.yaml'
 
 jobs:
   containerd:
