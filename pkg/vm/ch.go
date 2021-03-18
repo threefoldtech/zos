@@ -61,21 +61,44 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		args["--serial"] = []string{"tty"}
 	}
 
-	// todo: check write error
-	tmp.WriteString("exec cloud-hypervisor")
-
-	for k, vs := range args {
-		tmp.WriteString(" \\\n\t")
-		tmp.WriteString(k)
-		for _, v := range vs {
-			tmp.WriteString(" ")
-			tmp.WriteString("'")
-			tmp.WriteString(v)
-			tmp.WriteString("'")
+	write := func() error {
+		if _, err := tmp.WriteString("exec cloud-hypervisor"); err != nil {
+			return err
 		}
+
+		for k, vs := range args {
+			if _, err := tmp.WriteString(" \\\n\t"); err != nil {
+				return err
+			}
+			if _, err := tmp.WriteString(k); err != nil {
+				return err
+			}
+			for _, v := range vs {
+				if _, err := tmp.WriteString(" "); err != nil {
+					return err
+				}
+				if _, err := tmp.WriteString("'"); err != nil {
+					return err
+				}
+				if _, err := tmp.WriteString(v); err != nil {
+					return err
+				}
+				if _, err := tmp.WriteString("'"); err != nil {
+					return err
+				}
+			}
+		}
+		_, err := tmp.WriteString("\n")
+		return err
 	}
-	tmp.WriteString("\n")
-	tmp.Close()
+
+	if err := write(); err != nil {
+		return errors.Wrap(err, "exec script write error")
+	}
+
+	if err := tmp.Close(); err != nil {
+		return errors.Wrap(err, "failed to commit exec script")
+	}
 
 	log.Debug().Str("name", m.ID).Msg("starting machine")
 	//the reason we do this shit is that we want the process to daemoinize the process in the back ground
