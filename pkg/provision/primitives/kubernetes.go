@@ -188,6 +188,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 
 	if needsInstall {
 		if err = p.kubernetesInstall(ctx, reservation.ID, cpu, memory, diskPath, imagePath, netInfo, config); err != nil {
+			vm.Delete(reservation.ID)
 			return result, errors.Wrap(err, "failed to install k3s")
 		}
 	}
@@ -403,8 +404,9 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID
 			return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not get public ip config")
 		}
 
+		// the mac address uses the global workload id
 		// this needs to be the same as how we get it in the actual IP reservation
-		mac := ifaceutil.HardwareAddrFromInputBytes(pubIP.IP.To4())
+		mac := ifaceutil.HardwareAddrFromInputBytes([]byte(fmt.Sprintf("%d-1", cfg.PublicIP)))
 
 		iface := pkg.VMIface{
 			Tap:            pubIface,

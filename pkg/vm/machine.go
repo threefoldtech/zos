@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+	"github.com/vishvananda/netlink"
 )
 
 // Boot config struct
@@ -36,6 +38,16 @@ func (d Disk) String() string {
 // Disks is a list of vm disks
 type Disks []Disk
 
+// InterfaceType interface type
+type InterfaceType string
+
+const (
+	// InterfaceTAP tuntap type
+	InterfaceTAP InterfaceType = "tuntap"
+	// InterfaceMACvTAP mactap type
+	InterfaceMACvTAP InterfaceType = "macvtap"
+)
+
 // Interface nic struct
 type Interface struct {
 	ID  string `json:"iface_id"`
@@ -43,7 +55,19 @@ type Interface struct {
 	Mac string `json:"guest_mac,omitempty"`
 }
 
-func (i Interface) String() string {
+// asMACvTap returns the command line argument for this interface as a macvtap
+func (i Interface) asMACvTap(fd int) string {
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("fd=%d", fd))
+	if len(i.Mac) > 0 {
+		buf.WriteString(fmt.Sprintf(",mac=%s", i.Mac))
+	}
+
+	return buf.String()
+}
+
+// asTap returns the command line argument for this interface as a tap device
+func (i Interface) asTap() string {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("tap=%s", i.Tap))
 	if len(i.Mac) > 0 {
@@ -53,22 +77,26 @@ func (i Interface) String() string {
 	return buf.String()
 }
 
+// getType detects the interface type
+func (i *Interface) getType() (InterfaceType, int, error) {
+	link, err := netlink.LinkByName(i.Tap)
+	if err != nil {
+		return "", 0, err
+	}
+	log.Debug().Str("name", i.Tap).Str("type", link.Type()).Msg("checking device type")
+
+	switch InterfaceType(link.Type()) {
+	case InterfaceMACvTAP:
+		return InterfaceMACvTAP, link.Attrs().Index, nil
+	case InterfaceTAP:
+		return InterfaceTAP, link.Attrs().Index, nil
+	default:
+		return "", 0, fmt.Errorf("unknown tap type")
+	}
+}
+
 // Interfaces is a list of node interfaces
 type Interfaces []Interface
-
-func (i Interfaces) String() string {
-
-	var buf bytes.Buffer
-	for _, inf := range i {
-		if buf.Len() > 0 {
-			buf.WriteRune(' ')
-		}
-
-		buf.WriteString(inf.String())
-	}
-
-	return buf.String()
-}
 
 // MemMib is memory size in mib
 type MemMib int64

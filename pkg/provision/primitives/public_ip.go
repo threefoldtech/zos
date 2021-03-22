@@ -66,7 +66,7 @@ func (p *Provisioner) publicIPProvisionImpl(ctx context.Context, reservation *pr
 
 	tapName := fmt.Sprintf("p-%s", reservation.ID) // TODO: clean this up, needs to come form networkd
 	fName := filterName(reservation.ID)
-	mac := ifaceutil.HardwareAddrFromInputBytes(config.IP.IP.To4())
+	mac := ifaceutil.HardwareAddrFromInputBytes([]byte(reservation.ID))
 
 	predictedIPv6, err := predictedSlaac(pubIP6Base.IP, mac.String())
 	if err != nil {
