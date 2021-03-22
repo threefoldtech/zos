@@ -59,7 +59,7 @@ func CreateMACvTap(name string, master string, hw net.HardwareAddr) (*netlink.Ma
 		// so  assign properties to a blank tap
 		gl, ok := link.(*netlink.GenericLink)
 		if !ok {
-			return nil, fmt.Errorf("link %s should be of type tuntap", name)
+			return nil, fmt.Errorf("link %s should be of type macvtap", name)
 		}
 
 		tap = &netlink.Macvtap{
@@ -71,12 +71,12 @@ func CreateMACvTap(name string, master string, hw net.HardwareAddr) (*netlink.Ma
 	} else {
 		// make sure we have the right interface type
 		if tap.Mode != netlink.MACVLAN_MODE_BRIDGE {
-			return nil, errors.New("tuntap iface does not have the expected 'tap' mode")
+			return nil, errors.New("tuntap iface does not have the expected 'bridge' mode")
 		}
 	}
 
 	if err = netlink.LinkSetUp(tap); err != nil {
-		return nil, errors.Wrap(err, "could not bring up tap iface")
+		return nil, errors.Wrap(err, "could not bring up macvtap iface")
 	}
 
 	return tap, nil

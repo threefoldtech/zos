@@ -503,8 +503,9 @@ func (n *networker) DisconnectPubTap(pubIPReservationID string) error {
 		return errors.Wrap(err, "could not load tap device")
 	}
 
-	// TODO: this will not work with a macvtap,
-	return netlink.LinkSetNoMaster(tap)
+	//setting the txqueue on a macvtap will prevent traffic from
+	//going over the device, effectively disconnecting it.
+	return netlink.LinkSetTxQLen(tap, 0)
 }
 
 // GetPublicIPv6Subnet returns the IPv6 prefix op the public subnet of the host
