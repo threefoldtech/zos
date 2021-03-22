@@ -38,11 +38,14 @@ func (d Disk) String() string {
 // Disks is a list of vm disks
 type Disks []Disk
 
+// InterfaceType interface type
 type InterfaceType string
 
 const (
-	InterfaceTAP     = "tuntap"
-	InterfaceMACvTAP = "macvtap"
+	// InterfaceTAP tuntap type
+	InterfaceTAP InterfaceType = "tuntap"
+	// InterfaceMACvTAP mactap type
+	InterfaceMACvTAP InterfaceType = "macvtap"
 )
 
 // Interface nic struct
@@ -52,7 +55,8 @@ type Interface struct {
 	Mac string `json:"guest_mac,omitempty"`
 }
 
-func (i Interface) AsMACvTap(fd int) string {
+// asMACvTap returns the command line argument for this interface as a macvtap
+func (i Interface) asMACvTap(fd int) string {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("fd=%d", fd))
 	if len(i.Mac) > 0 {
@@ -62,7 +66,8 @@ func (i Interface) AsMACvTap(fd int) string {
 	return buf.String()
 }
 
-func (i Interface) AsTap() string {
+// asTap returns the command line argument for this interface as a tap device
+func (i Interface) asTap() string {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("tap=%s", i.Tap))
 	if len(i.Mac) > 0 {
@@ -72,15 +77,15 @@ func (i Interface) AsTap() string {
 	return buf.String()
 }
 
-// Type detects the interface type
-func (i *Interface) Type() (InterfaceType, int, error) {
+// getType detects the interface type
+func (i *Interface) getType() (InterfaceType, int, error) {
 	link, err := netlink.LinkByName(i.Tap)
 	if err != nil {
 		return "", 0, err
 	}
 	log.Debug().Str("name", i.Tap).Str("type", link.Type()).Msg("checking device type")
 
-	switch link.Type() {
+	switch InterfaceType(link.Type()) {
 	case InterfaceMACvTAP:
 		return InterfaceMACvTAP, link.Attrs().Index, nil
 	case InterfaceTAP:

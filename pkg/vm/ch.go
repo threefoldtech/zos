@@ -41,17 +41,17 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		var interfaces []string
 
 		for _, nic := range m.Interfaces {
-			typ, idx, err := nic.Type()
+			typ, idx, err := nic.getType()
 			if err != nil {
 				return errors.Wrapf(err, "failed to detect interface type '%s'", nic.Tap)
 			}
 			if typ == InterfaceTAP {
-				interfaces = append(interfaces, nic.AsTap())
+				interfaces = append(interfaces, nic.asTap())
 			} else if typ == InterfaceMACvTAP {
 				// macvtap
 				fd := len(fds) + 3
 				fds[fd] = idx
-				interfaces = append(interfaces, nic.AsMACvTap(fd))
+				interfaces = append(interfaces, nic.asMACvTap(fd))
 			} else {
 				return fmt.Errorf("unsupported tap device type '%s'", nic.Tap)
 			}
