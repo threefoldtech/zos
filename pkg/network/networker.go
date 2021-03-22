@@ -16,6 +16,7 @@ import (
 
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/zos/pkg/cache"
+	"github.com/threefoldtech/zos/pkg/network/macvtap"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
@@ -451,7 +452,8 @@ func (n *networker) SetupPubTap(pubIPReservationID string) (string, error) {
 		return "", errors.Wrap(err, "could not get network namespace tap device name")
 	}
 
-	_, err = tuntap.CreateTap(tapIface, public.PublicBridge)
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(pubIPReservationID))
+	_, err = macvtap.CreateMACvTap(tapIface, public.PublicBridge, hw)
 
 	return tapIface, err
 }
@@ -501,6 +503,7 @@ func (n *networker) DisconnectPubTap(pubIPReservationID string) error {
 		return errors.Wrap(err, "could not load tap device")
 	}
 
+	// TODO: this will not work with a macvtap,
 	return netlink.LinkSetNoMaster(tap)
 }
 

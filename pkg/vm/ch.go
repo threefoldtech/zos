@@ -36,10 +36,25 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		args["--disk"] = disks
 	}
 
+	fds := make(map[int]int)
 	if len(m.Interfaces) > 0 {
 		var interfaces []string
+
 		for _, nic := range m.Interfaces {
-			interfaces = append(interfaces, nic.String())
+			typ, idx, err := nic.Type()
+			if err != nil {
+				return errors.Wrapf(err, "failed to detect interface type '%s'", nic.Tap)
+			}
+			if typ == InterfaceTAP {
+				interfaces = append(interfaces, nic.AsTap())
+			} else if typ == InterfaceMACvTAP {
+				// macvtap
+				fd := len(fds) + 3
+				fds[fd] = idx
+				interfaces = append(interfaces, nic.AsMACvTap(fd))
+			} else {
+				return fmt.Errorf("unsupported tap device type '%s'", nic.Tap)
+			}
 		}
 		args["--net"] = interfaces
 	}
@@ -85,6 +100,12 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		return errors.Wrap(err, "exec script write error")
 	}
 
+	for fd, index := range fds {
+		if _, err := tmp.WriteString(fmt.Sprintf(" %d<>/dev/tap%d", fd, index)); err != nil {
+			return err
+		}
+	}
+
 	log.Debug().Str("name", m.ID).Msg("starting machine")
 	//the reason we do this shit is that we want the process to daemoinize the process in the back ground
 	var cmd *exec.Cmd
@@ -94,7 +115,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
 	} else {
-		cmd = exec.CommandContext(ctx, "ash", "-c", fmt.Sprintf("%s > %s 2>&1 &", tmp.String(), logs+".out"))
+		cmd = exec.CommandContext(ctx, "ash", "-c", fmt.Sprintf("%s >%s 2>&1 &", tmp.String(), logs+".out"))
 	}
 
 	if err := cmd.Run(); err != nil {

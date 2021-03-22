@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+	"github.com/vishvananda/netlink"
 )
 
 // Boot config struct
@@ -36,6 +38,13 @@ func (d Disk) String() string {
 // Disks is a list of vm disks
 type Disks []Disk
 
+type InterfaceType string
+
+const (
+	InterfaceTAP     = "tuntap"
+	InterfaceMACvTAP = "macvtap"
+)
+
 // Interface nic struct
 type Interface struct {
 	ID  string `json:"iface_id"`
@@ -43,7 +52,17 @@ type Interface struct {
 	Mac string `json:"guest_mac,omitempty"`
 }
 
-func (i Interface) String() string {
+func (i Interface) AsMACvTap(fd int) string {
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("fd=%d", fd))
+	if len(i.Mac) > 0 {
+		buf.WriteString(fmt.Sprintf(",mac=%s", i.Mac))
+	}
+
+	return buf.String()
+}
+
+func (i Interface) AsTap() string {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("tap=%s", i.Tap))
 	if len(i.Mac) > 0 {
@@ -53,22 +72,26 @@ func (i Interface) String() string {
 	return buf.String()
 }
 
+// Type detects the interface type
+func (i *Interface) Type() (InterfaceType, int, error) {
+	link, err := netlink.LinkByName(i.Tap)
+	if err != nil {
+		return "", 0, err
+	}
+	log.Debug().Str("name", i.Tap).Str("type", link.Type()).Msg("checking device type")
+
+	switch link.Type() {
+	case InterfaceMACvTAP:
+		return InterfaceMACvTAP, link.Attrs().Index, nil
+	case InterfaceTAP:
+		return InterfaceTAP, link.Attrs().Index, nil
+	default:
+		return "", 0, fmt.Errorf("unknown tap type")
+	}
+}
+
 // Interfaces is a list of node interfaces
 type Interfaces []Interface
-
-func (i Interfaces) String() string {
-
-	var buf bytes.Buffer
-	for _, inf := range i {
-		if buf.Len() > 0 {
-			buf.WriteRune(' ')
-		}
-
-		buf.WriteString(inf.String())
-	}
-
-	return buf.String()
-}
 
 // MemMib is memory size in mib
 type MemMib int64
