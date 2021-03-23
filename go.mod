@@ -33,7 +33,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
-	github.com/threefoldtech/tfexplorer v0.4.10-0.20210222093825-2231bac31586
+	github.com/threefoldtech/tfexplorer v0.5.1-0.20210323101825-40cfe4c04c1d
 	github.com/threefoldtech/zbus v0.1.4
 	github.com/tyler-smith/go-bip39 v1.0.2
 	github.com/urfave/cli v1.22.5
@@ -51,5 +51,3 @@ require (
 )
 
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
-
-replace github.com/threefoldtech/tfexplorer => ../tfexplorer
