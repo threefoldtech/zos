@@ -277,7 +277,9 @@ func processKubernetes(r *provision.Reservation) (u resourceUnits, err error) {
 	// size are defined at https://github.com/threefoldtech/zos/blob/master/pkg/provision/kubernetes.go#L311
 	switch k8s.Size {
 	case -1:
-		panic("not implemented")
+		u.CRU = uint64(k8s.Custom.CRU)
+		u.MRU = uint64(k8s.Custom.MRU) * gib
+		u.SRU = uint64(k8s.Custom.SRU) * gib
 	case 1:
 		u.CRU = 1
 		u.MRU = 2 * gib
