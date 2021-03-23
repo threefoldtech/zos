@@ -24,6 +24,7 @@ type KubernetesResult struct {
 	IP string `json:"ip"`
 }
 
+// KubernetesCustomSize type
 type KubernetesCustomSize struct {
 	CRU int64   `json:"cru"`
 	MRU float64 `json:"mru"`
