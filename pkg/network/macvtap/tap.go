@@ -79,5 +79,9 @@ func CreateMACvTap(name string, master string, hw net.HardwareAddr) (*netlink.Ma
 		return nil, errors.Wrap(err, "could not bring up macvtap iface")
 	}
 
+	if err = netlink.SetPromiscOn(tap); err != nil {
+		return nil, errors.Wrap(err, "could not bring set promsic on iface")
+	}
+
 	return tap, nil
 }
