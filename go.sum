@@ -627,6 +627,8 @@ github.com/threefoldtech/tfexplorer v0.4.8-0.20201218110633-b1b2cd7b4975 h1:t/KX
 github.com/threefoldtech/tfexplorer v0.4.8-0.20201218110633-b1b2cd7b4975/go.mod h1:qeuxHj2IDU6mPgZpxm7zFgffRgibAWJobqNIq2aLnHk=
 github.com/threefoldtech/tfexplorer v0.4.10-0.20210222093825-2231bac31586 h1:f1ZfiGXKJiJtvZduf9XDUp2IymUFUqwmaDDPgKUZf7o=
 github.com/threefoldtech/tfexplorer v0.4.10-0.20210222093825-2231bac31586/go.mod h1:Y/AUZYNp40rljkNlZiQbu54JL4DU3xTfDhGYoftxDyQ=
+github.com/threefoldtech/tfexplorer v0.5.1-0.20210323101825-40cfe4c04c1d h1:RCGd0uBLH7LQtUNOWvNvcNTuuBpQV+npxdhaDOLaiBk=
+github.com/threefoldtech/tfexplorer v0.5.1-0.20210323101825-40cfe4c04c1d/go.mod h1:Y/AUZYNp40rljkNlZiQbu54JL4DU3xTfDhGYoftxDyQ=
 github.com/threefoldtech/zbus v0.1.3 h1:18DnIzximRbATle5ZdZz0i84n/bCYB8k/gkhr2dXayc=
 github.com/threefoldtech/zbus v0.1.3/go.mod h1:ZtiRpcqzEBJetVQDsEbw0p48h/AF3O1kf0tvd30I0BU=
 github.com/threefoldtech/zbus v0.1.4 h1:c8lF4H9HMDJGknhcEK2p+zJWWM09fByGe3uL9m/iKgM=

@@ -189,7 +189,12 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 	}
 
 	k8s := Kubernetes{
-		Size:                  uint8(k.Size),
+		Size: k.Size,
+		Custom: KubernetesCustomSize{
+			CRU: k.CustomSize.CRU,
+			MRU: k.CustomSize.MRU,
+			SRU: k.CustomSize.SRU,
+		},
 		NetworkID:             pkg.NetID(k.NetworkId),
 		IP:                    k.Ipaddress,
 		ClusterSecret:         k.ClusterSecret,
