@@ -242,6 +242,7 @@ func (m *Module) withLogs(path string, err error) error {
 	return errors.Wrapf(err, string(logs))
 }
 
+// List all running vms names
 func (m *Module) List() ([]string, error) {
 	machines, err := findAll()
 	if err != nil {

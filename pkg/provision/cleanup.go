@@ -49,17 +49,17 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 		// to clean what we can
 	}
 
-	// - Second, we clean up all lingering volumes on the node
+	// -2nd we clean up all lingering vms on the node
 	if err := j.cleanupVms(ctx); err != nil {
 		log.Error().Err(err).Msg("vm cleaner failed")
 	}
 
-	// - Second, we clean up all lingering volumes on the node
+	// - 3rd, we clean up all lingering volumes on the node
 	if err := j.cleanupVolumes(ctx); err != nil {
 		log.Error().Err(err).Msg("volume cleaner failed")
 	}
 
-	// - Third, we clean up any lingering vdisks that are not being
+	// - 4th, we clean up any lingering vdisks that are not being
 	// used.
 	if err := j.cleanupVdisks(ctx); err != nil {
 		log.Error().Err(err).Msg("virtual disks cleaner failed")
