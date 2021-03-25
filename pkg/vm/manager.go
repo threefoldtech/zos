@@ -242,6 +242,30 @@ func (m *Module) withLogs(path string, err error) error {
 	return errors.Wrapf(err, string(logs))
 }
 
+func (m *Module) List() ([]string, error) {
+	machines, err := findAll()
+	if err != nil {
+		return nil, err
+	}
+
+	legacy, err := findAllFC()
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(machines)+len(legacy))
+
+	for name := range machines {
+		names = append(names, name)
+	}
+
+	for name := range legacy {
+		names = append(names, name)
+	}
+
+	return names, nil
+}
+
 // Run vm
 func (m *Module) Run(vm pkg.VM) error {
 	m.lock.Lock()

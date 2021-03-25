@@ -50,6 +50,11 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 	}
 
 	// - Second, we clean up all lingering volumes on the node
+	if err := j.cleanupVms(ctx); err != nil {
+		log.Error().Err(err).Msg("vm cleaner failed")
+	}
+
+	// - Second, we clean up all lingering volumes on the node
 	if err := j.cleanupVolumes(ctx); err != nil {
 		log.Error().Err(err).Msg("volume cleaner failed")
 	}
@@ -58,6 +63,30 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 	// used.
 	if err := j.cleanupVdisks(ctx); err != nil {
 		log.Error().Err(err).Msg("virtual disks cleaner failed")
+	}
+
+	return nil
+}
+
+func (j *Janitor) cleanupVms(ctx context.Context) error {
+	vmd := stubs.NewVMModuleStub(j.zbus)
+	vms, err := vmd.List()
+	if err != nil {
+		return err
+	}
+	for _, vm := range vms {
+		toDelete, err := j.checkToDelete(vm)
+		if err != nil {
+			log.Error().Err(err).Str("id", vm).Msg("failed to check vm for delete")
+		}
+		log.Debug().Bool("to-delete", toDelete).Str("id", vm).Msg("vm reservation status")
+		if !toDelete {
+			continue
+		}
+		log.Debug().Str("id", vm).Msg("deleting stall vm reservation")
+		if err := vmd.Delete(vm); err != nil {
+			log.Error().Err(err).Str("id", vm).Msg("failed to delete vm")
+		}
 	}
 
 	return nil
