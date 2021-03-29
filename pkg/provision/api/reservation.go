@@ -80,6 +80,8 @@ func (a *Workloads) delete(request *http.Request) (interface{}, mw.Response) {
 	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
 	defer cancel()
 
+	//TODO: signature validation must be done here.
+
 	err = a.engine.Deprovision(ctx, twin, id, "requested by user")
 	if err == context.DeadlineExceeded {
 		return nil, mw.Unavailable(ctx.Err())
