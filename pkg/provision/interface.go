@@ -20,6 +20,7 @@ type Engine interface {
 	// and will be processes later
 	Provision(ctx context.Context, wl gridtypes.Deployment) error
 	Deprovision(ctx context.Context, twin, id uint32, reason string) error
+	Update(ctx context.Context, twin, id uint32, update gridtypes.Deployment) error
 	Storage() Storage
 	Users() Users
 	Admins() Users

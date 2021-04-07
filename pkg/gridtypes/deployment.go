@@ -265,7 +265,8 @@ func (d *Deployment) Upgrade(n *Deployment) (*Upgrade, error) {
 			if older.Type != wl.Type {
 				return nil, fmt.Errorf("cannot change workload type '%s'", wl.Name)
 			}
-
+			// update the state of new deployment
+			wl.Result = older.Result
 			// older version that exists.
 			// so
 			if wl.Version == expected {
@@ -286,6 +287,10 @@ func (d *Deployment) Upgrade(n *Deployment) (*Upgrade, error) {
 			Workload: wl,
 			ID:       id,
 		})
+	}
+
+	if len(update) > 0 {
+		return nil, fmt.Errorf("update workload data is not supported yet")
 	}
 
 	return &Upgrade{ToAdd: add, ToUpdate: update, ToRemove: remove}, nil

@@ -284,15 +284,26 @@ func (e *NativeEngine) Run(root context.Context) error {
 				log.Error().Err(err).Msg("failed to set workload result")
 			}
 		case opUpdate:
+			// update is tricky because we need to work against
+			// 2 versions of the object. Once that reflects the current state
+			// and the new one that is the target state but it does not know
+			// the current state of already deployed workloads
+			// so (1st) we need to get the difference
+			// this call will return 3 lists
+			// - things to remove
+			// - things to add
+			// - things to update (not supported atm)
+			// - things that is not in any of the 3 lists are basically stay as is
+			// the call will also make sure the Result of those workload in both the (did not change)
+			// and update to reflect the current result on those workloads.
 			update, err := job.Source.Upgrade(&job.Target)
 			if err != nil {
 				log.Error().Err(err).Uint32("twin", job.Target.TwinID).Uint32("id", job.Target.DeploymentID).Msg("failed to get update procedure")
 				break
 			}
 
-			e.uninstallDeployment(ctx, workloads(update.ToRemove), "update")
+			e.uninstallDeployment(ctx, workloads(update.ToRemove), "deleted by an update")
 			e.installDeployment(ctx, workloads(update.ToAdd))
-			// TODO: process the "update"
 
 			if err := e.storage.Set(job.Target); err != nil {
 				log.Error().Err(err).Msg("failed to set workload result")

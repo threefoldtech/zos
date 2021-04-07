@@ -43,6 +43,7 @@ func (a *Workloads) setup(router *mux.Router) error {
 
 	workloads.Path("/").HandlerFunc(mw.AsHandlerFunc(a.create)).Methods(http.MethodPost).Name("workload-create")
 	workloads.Path("/{twin}/{id}").HandlerFunc(mw.AsHandlerFunc(a.get)).Methods(http.MethodGet).Name("workload-get")
+	workloads.Path("/{twin}/{id}").HandlerFunc(mw.AsHandlerFunc(a.update)).Methods(http.MethodPut).Name("workload-update")
 	workloads.Path("/{twin}/{id}").HandlerFunc(mw.AsHandlerFunc(a.delete)).Methods(http.MethodDelete).Name("workload-delete")
 	return nil
 }

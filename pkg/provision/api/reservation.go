@@ -112,3 +112,42 @@ func (a *Workloads) get(request *http.Request) (interface{}, mw.Response) {
 
 	return deployment, nil
 }
+
+func (a *Workloads) update(request *http.Request) (interface{}, mw.Response) {
+	twin, id, err := a.parseIDs(request)
+	if err != nil {
+		return nil, mw.BadRequest(err)
+	}
+
+	var deployment gridtypes.Deployment
+	if err := json.NewDecoder(request.Body).Decode(&deployment); err != nil {
+		return nil, mw.BadRequest(err)
+	}
+
+	if err := deployment.Valid(); err != nil {
+		return nil, mw.BadRequest(err)
+	}
+
+	//TODO: signature validation
+
+	// userID := mw.UserID(request.Context())
+	// if workload.User != userID {
+	// 	return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request body doesn't match http signature"))
+	// }
+	// userPK := mw.UserPublicKey(request.Context())
+
+	// if err := workload.Verify(userPK); err != nil {
+	// 	return nil, mw.UnAuthorized(err)
+	// }
+	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
+	defer cancel()
+
+	err = a.engine.Update(ctx, twin, id, deployment)
+	if err == context.DeadlineExceeded {
+		return nil, mw.Unavailable(ctx.Err())
+	} else if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return nil, mw.Accepted()
+}
