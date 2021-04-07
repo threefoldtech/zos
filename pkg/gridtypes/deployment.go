@@ -15,6 +15,18 @@ var (
 
 // https://github.com/threefoldtech/vgrid/blob/main/zosreq/req_deployment_root.v
 
+// WorkloadGetter is used to get a workload by name inside
+// the deployment context. Mainly used to validate dependency
+type WorkloadGetter interface {
+	Get(name string) (*WorkloadWithID, error)
+}
+
+// WorkloadByTypeGetter is used to get a list of workloads
+// of specific type from a workload container like a deployment
+type WorkloadByTypeGetter interface {
+	ByType(typ WorkloadType) []*WorkloadWithID
+}
+
 // Deployment structure
 type Deployment struct {
 	Version              int                  `json:"version"`
@@ -200,4 +212,88 @@ func (d *Deployment) ByType(typ WorkloadType) []*WorkloadWithID {
 	}
 
 	return results
+}
+
+// Upgrade validates n as an updated version of d, and return an Upgrade description
+// for the steps that the node needs to take.
+func (d *Deployment) Upgrade(n *Deployment) (*Upgrade, error) {
+	if err := n.Valid(); err != nil {
+		return nil, errors.Wrap(err, "new deployment is invalid")
+	}
+
+	if d.TwinID != n.TwinID || d.DeploymentID != n.DeploymentID {
+		return nil, fmt.Errorf("cannot change deployment or twin id")
+	}
+
+	expected := d.Version + 1
+	if expected != n.Version {
+		return nil, fmt.Errorf("expecting deployment version %d, got %d", expected, n.Version)
+	}
+
+	current := make(map[string]*Workload)
+	for i := range d.Workloads {
+		wl := &d.Workloads[i]
+
+		current[wl.Name] = wl
+	}
+
+	update := make([]*WorkloadWithID, 0)
+	add := make([]*WorkloadWithID, 0)
+	remove := make([]*WorkloadWithID, 0)
+
+	for i := range n.Workloads {
+		l := &n.Workloads[i]
+		id, err := NewWorkloadID(n.TwinID, n.DeploymentID, l.Name)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get build workload ID")
+		}
+		wl := &WorkloadWithID{
+			Workload: l,
+			ID:       id,
+		}
+		older, ok := current[wl.Name]
+
+		if !ok {
+			if wl.Version == expected {
+				// newly added workload
+				add = append(add, wl)
+			} else {
+				return nil, fmt.Errorf("invalid version number for workload '%s' expected '%d'", wl.Name, expected)
+			}
+		} else {
+			// modifying a type.
+			if older.Type != wl.Type {
+				return nil, fmt.Errorf("cannot change workload type '%s'", wl.Name)
+			}
+
+			// older version that exists.
+			// so
+			if wl.Version == expected {
+				// should added to 'update' pile
+				update = append(update, wl)
+			}
+			// other wise. we leave it untouched
+		}
+
+		// in both cases, we remove this from the current list
+		delete(current, wl.Name)
+	}
+
+	for _, wl := range current {
+		id, _ := NewWorkloadID(d.TwinID, d.DeploymentID, wl.Name)
+
+		remove = append(remove, &WorkloadWithID{
+			Workload: wl,
+			ID:       id,
+		})
+	}
+
+	return &Upgrade{ToAdd: add, ToUpdate: update, ToRemove: remove}, nil
+}
+
+// Upgrade procedure structure
+type Upgrade struct {
+	ToAdd    []*WorkloadWithID
+	ToUpdate []*WorkloadWithID
+	ToRemove []*WorkloadWithID
 }

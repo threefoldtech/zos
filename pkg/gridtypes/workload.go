@@ -79,12 +79,6 @@ func (c *Capacity) Add(o *Capacity) {
 	c.IPV4U += o.IPV4U
 }
 
-// WorkloadGetter is used to get a workload by name inside
-// the deployment context. Mainly used to validate dependency
-type WorkloadGetter interface {
-	Get(name string) (*WorkloadWithID, error)
-}
-
 // WorkloadData interface
 type WorkloadData interface {
 	Valid(getter WorkloadGetter) error

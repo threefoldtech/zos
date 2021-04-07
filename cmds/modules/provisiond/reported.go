@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"os"
 	"time"
 
 	"github.com/joncrlsn/dque"
@@ -70,7 +69,7 @@ func reportBuilder() interface{} {
 }
 
 // NewReported creates a new capacity reporter
-func NewReported(store *storage.Fs, identity pkg.IdentityManager, report string) (*Reporter, error) {
+func NewReported(store *storage.Fs, identity pkg.IdentityManager, root string) (*Reporter, error) {
 	env, err := environment.Get()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get runtime environment")
@@ -81,11 +80,7 @@ func NewReported(store *storage.Fs, identity pkg.IdentityManager, report string)
 		return nil, errors.Wrap(err, "failed to create farmer client")
 	}
 
-	if err := os.MkdirAll(report, 0755); err != nil && !os.IsExist(err) {
-		return nil, errors.Wrap(err, "failed to create persisted directory for report queue")
-	}
-
-	queue, err := dque.NewOrOpen("consumption", report, 1024, reportBuilder)
+	queue, err := dque.NewOrOpen("consumption", root, 1024, reportBuilder)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to setup report persisted queue")
 	}

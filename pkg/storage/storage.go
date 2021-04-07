@@ -385,27 +385,30 @@ func (s *Module) ReleaseFilesystem(name string) error {
 			return err
 		}
 		for _, vol := range volumes {
-			if vol.Name() == name {
-				log.Debug().Msgf("Removing filesystem %v in volume %v", vol.Name(), pool.Name())
-				err = pool.RemoveVolume(vol.Name())
+			if vol.Name() != name {
+				continue
+			}
+			log.Debug().Msgf("Removing filesystem %v in volume %v", vol.Name(), pool.Name())
+			err = pool.RemoveVolume(vol.Name())
+			if err != nil {
+				log.Err(err).Msgf("Error removing volume %s", vol.Name())
+				return err
+			}
+			// if there is only 1 volume, unmount and shutdown pool
+			if len(volumes) == 1 {
+				err = pool.UnMount()
 				if err != nil {
-					log.Err(err).Msgf("Error removing volume %s", vol.Name())
+					log.Err(err).Msgf("Error unmounting pool %s", pool.Name())
 					return err
 				}
-				// if there is only 1 volume, unmount and shutdown pool
-				if len(volumes) == 1 {
-					err = pool.UnMount()
-					if err != nil {
-						log.Err(err).Msgf("Error unmounting pool %s", pool.Name())
-						return err
-					}
-					err = pool.Shutdown()
-					if err != nil {
-						log.Err(err).Msgf("Error shutting down pool %s", pool.Name())
-						return err
-					}
+				err = pool.Shutdown()
+				if err != nil {
+					log.Err(err).Msgf("Error shutting down pool %s", pool.Name())
+					return err
 				}
 			}
+
+			return nil
 		}
 	}
 

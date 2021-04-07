@@ -16,9 +16,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/api"
+	"github.com/threefoldtech/zos/pkg/provision/mw"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
 	"github.com/threefoldtech/zos/pkg/substrate"
 	"github.com/urfave/cli/v2"
@@ -167,22 +169,28 @@ func action(cli *cli.Context) error {
 	}
 
 	// TODO: that is a test user map for development, do not commit
-	// users := mw.NewUserMap()
-	// users.AddKeyFromHex(gridtypes.ID("1"), "95d1ba20e9f5cb6cfc6182fecfa904664fb1953eba520db454d5d5afaa82d791")
+	users := mw.NewUserMap()
+	users.AddKeyFromHex(gridtypes.ID("1"), "95d1ba20e9f5cb6cfc6182fecfa904664fb1953eba520db454d5d5afaa82d791")
 
-	users, err := substrate.NewSubstrateUsers(env.SubstrateURL)
-	if err != nil {
-		return errors.Wrap(err, "failed to create substrate users database")
-	}
+	// users, err := substrate.NewSubstrateUsers(env.SubstrateURL)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to create substrate users database")
+	// }
 
 	admins, err := substrate.NewSubstrateAdmins(env.SubstrateURL, uint32(env.FarmerID))
 	if err != nil {
 		return errors.Wrap(err, "failed to create substrate admins database")
 	}
 
-	engine := provision.New(
+	queues := filepath.Join(rootDir, "queues")
+	if err := os.MkdirAll(queues, 0755); err != nil {
+		return errors.Wrap(err, "failed to create storage for queues")
+	}
+
+	engine, err := provision.New(
 		store,
 		statistics,
+		queues,
 		provision.WithUsers(users),
 		provision.WithAdmins(admins),
 		// set priority to some reservation types on boot
@@ -217,7 +225,7 @@ func action(cli *cli.Context) error {
 		}
 	}()
 
-	reporter, err := NewReported(store, identity, filepath.Join(rootDir, "reports"))
+	reporter, err := NewReported(store, identity, queues)
 	if err != nil {
 		return errors.Wrap(err, "failed to setup capacity reporter")
 	}

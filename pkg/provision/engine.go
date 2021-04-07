@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
@@ -44,16 +45,24 @@ func WithStartupOrder(t ...gridtypes.WorkloadType) EngineOption {
 	return &withStartupOrder{t}
 }
 
-type provisionJob struct {
-	wl gridtypes.Deployment
-	ch chan error
-}
+type jobOperation int
 
-type deprovisionJob struct {
-	twin   uint32
-	id     uint32
-	ch     chan error
-	reason string
+const (
+	opProvision jobOperation = iota
+	opDeprovision
+	opUpdate
+)
+
+// engineJob is a persisted job instance that is
+// stored in a queue. the queue uses a GOB encoder
+// so please make sure that edits to this struct is
+// ONLY by adding new fields or deleting older fields
+// but never rename or change the type of a field.
+type engineJob struct {
+	Op      jobOperation
+	Target  gridtypes.Deployment
+	Source  *gridtypes.Deployment
+	Message string
 }
 
 // NativeEngine is the core of this package
@@ -62,8 +71,7 @@ type NativeEngine struct {
 	storage     Storage
 	provisioner Provisioner
 
-	provision   chan provisionJob
-	deprovision chan deprovisionJob
+	queue *dque.DQue
 
 	//options
 	// janitor Janitor
@@ -150,13 +158,15 @@ func GetDeployment(ctx context.Context) gridtypes.Deployment {
 // the default implementation is a single threaded worker. so it process
 // one reservation at a time. On error, the engine will log the error. and
 // continue to next reservation.
-func New(storage Storage, provisioner Provisioner, opts ...EngineOption) *NativeEngine {
-
+func New(storage Storage, provisioner Provisioner, root string, opts ...EngineOption) (*NativeEngine, error) {
+	queue, err := dque.NewOrOpen("jobs", root, 512, func() interface{} { return &engineJob{} })
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create job queue")
+	}
 	e := &NativeEngine{
 		storage:     storage,
 		provisioner: provisioner,
-		provision:   make(chan provisionJob),
-		deprovision: make(chan deprovisionJob),
+		queue:       queue,
 		users:       &nullKeyGetter{},
 		admins:      &nullKeyGetter{},
 		order:       gridtypes.Types(),
@@ -166,7 +176,7 @@ func New(storage Storage, provisioner Provisioner, opts ...EngineOption) *Native
 		opt.apply(e)
 	}
 
-	return e
+	return e, nil
 }
 
 // Storage returns
@@ -186,101 +196,116 @@ func (e *NativeEngine) Admins() Users {
 
 // Provision workload
 func (e *NativeEngine) Provision(ctx context.Context, deployment gridtypes.Deployment) error {
-	j := provisionJob{
-		wl: deployment,
-		ch: make(chan error),
+	if err := e.storage.Add(deployment); err != nil {
+		return err
 	}
 
-	defer close(j.ch)
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case e.provision <- j:
-		return <-j.ch
+	job := engineJob{
+		Target: deployment,
+		Op:     opProvision,
 	}
+
+	return e.queue.Enqueue(&job)
 }
 
 // Deprovision workload
 func (e *NativeEngine) Deprovision(ctx context.Context, twin, id uint32, reason string) error {
-	j := deprovisionJob{
-		twin:   twin,
-		id:     id,
-		ch:     make(chan error),
-		reason: reason,
+	deployment, err := e.storage.Get(twin, id)
+	if err != nil {
+		return err
 	}
 
-	defer close(j.ch)
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case e.deprovision <- j:
-		return <-j.ch
+	job := engineJob{
+		Target: deployment,
+		Op:     opDeprovision,
 	}
+
+	return e.queue.Enqueue(&job)
+}
+
+func (e *NativeEngine) Update(ctx context.Context, twin, id uint32, update gridtypes.Deployment) error {
+	deployment, err := e.storage.Get(twin, id)
+	if err != nil {
+		return err
+	}
+
+	// this will just calculate the update
+	// steps we run it here as a sort of validation
+	// that this update is acceptable.
+	_, err = deployment.Upgrade(&update)
+	if err != nil {
+		return err
+	}
+
+	// all is okay we can push the job
+	job := engineJob{
+		Op:     opUpdate,
+		Target: update,
+		Source: &deployment,
+	}
+
+	return e.queue.Enqueue(&job)
 }
 
 // Run starts reader reservation from the Source and handle them
-func (e *NativeEngine) Run(ctx context.Context) error {
-	defer close(e.provision)
-	defer close(e.deprovision)
+func (e *NativeEngine) Run(root context.Context) error {
+	defer e.queue.Close()
 
-	ctx = context.WithValue(ctx, engineKey{}, e)
+	root = context.WithValue(root, engineKey{}, e)
 
 	// restart everything first
 	// TODO: potential network disconnections if network already exists.
 	// may be network manager need to do nothing if same exact network config
 	// is applied
-	if err := e.boot(ctx); err != nil {
+	if err := e.boot(root); err != nil {
 		log.Error().Err(err).Msg("error while setting up")
 	}
 
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case job := <-e.deprovision:
-			dl, err := e.storage.Get(job.twin, job.id)
-			if err != nil {
-				job.ch <- err
-				log.Error().Err(err).Uint32("twin", dl.TwinID).Uint32("id", job.id).Msg("failed to get workload from storage")
-				continue
-			}
-			//wl.ToDelete = true
-			err = e.storage.Set(dl)
-			job.ch <- err
-			if err != nil {
-				log.Error().Err(err).Uint32("id", job.id).Msg("failed to mark workload at to be delete")
-				continue
-			}
 
-			e.uninstallDeployment(ctx, dl, job.reason)
-		case job := <-e.provision:
-			deployment := job.wl
-
-			//TODO: check for migration (from older version to new)
-			err := e.storage.Add(deployment)
-			// NOTE: hack to force reinstall of same reservation
-			// TODO: remove hack
-			if errors.Is(err, ErrDeploymentExists) {
-				err = e.storage.Set(deployment)
-			}
-			// release the job. the caller will now know that the workload
-			// has been committed to storage (or not)
-			job.ch <- err
-			if err != nil {
-				log.Error().Err(err).Uint32("twin", job.wl.TwinID).Uint32("id", job.wl.DeploymentID).Msg("failed to commit deployment to storage")
-				continue
-			}
-
-			e.installDeployment(ctx, deployment)
+		obj, err := e.queue.PeekBlock()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to check job queue")
+			<-time.After(2 * time.Second)
+			continue
 		}
+		job := obj.(*engineJob)
+		ctx := context.WithValue(root, deploymentKey{}, job.Target)
+		switch job.Op {
+		case opProvision:
+			e.installDeployment(ctx, &job.Target)
+			// update the state of the deployment in one go.
+			if err := e.storage.Set(job.Target); err != nil {
+				log.Error().Err(err).Msg("failed to set workload result")
+			}
+		case opDeprovision:
+			e.uninstallDeployment(ctx, &job.Target, job.Message)
+			if err := e.storage.Set(job.Target); err != nil {
+				log.Error().Err(err).Msg("failed to set workload result")
+			}
+		case opUpdate:
+			update, err := job.Source.Upgrade(&job.Target)
+			if err != nil {
+				log.Error().Err(err).Uint32("twin", job.Target.TwinID).Uint32("id", job.Target.DeploymentID).Msg("failed to get update procedure")
+				break
+			}
+
+			e.uninstallDeployment(ctx, workloads(update.ToRemove), "update")
+			e.installDeployment(ctx, workloads(update.ToAdd))
+			// TODO: process the "update"
+
+			if err := e.storage.Set(job.Target); err != nil {
+				log.Error().Err(err).Msg("failed to set workload result")
+			}
+		}
+
+		e.queue.Dequeue()
 	}
 }
 
 // boot will make sure to re-deploy all stored reservation
 // on boot.
-func (e *NativeEngine) boot(ctx context.Context) error {
+func (e *NativeEngine) boot(root context.Context) error {
 	storage := e.Storage()
 	twins, err := storage.Twins()
 	if err != nil {
@@ -299,8 +324,15 @@ func (e *NativeEngine) boot(ctx context.Context) error {
 				log.Error().Err(err).Uint32("twin", twin).Uint32("id", id).Msg("failed to load deployment")
 				continue
 			}
+			// unfortunately we have to inject this value here
+			// since the boot runs outside the engine queue.
 
-			e.installDeployment(ctx, dl)
+			ctx := context.WithValue(root, deploymentKey{}, dl)
+			if e.installDeployment(ctx, &dl) {
+				if err := e.storage.Set(dl); err != nil {
+					log.Error().Err(err).Msg("failed to set workload result")
+				}
+			}
 		}
 	}
 
@@ -325,15 +357,19 @@ func (e *NativeEngine) uninstallWorkload(ctx context.Context, wl *gridtypes.Work
 	return err
 }
 
-func (e *NativeEngine) uninstallDeployment(ctx context.Context, dl gridtypes.Deployment, reason string) {
-	log := log.With().Uint32("twin", dl.TwinID).Uint32("id", dl.DeploymentID).Logger()
-	ctx = context.WithValue(ctx, deploymentKey{}, dl)
-
+func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes.WorkloadByTypeGetter, reason string) {
 	for i := len(e.order) - 1; i >= 0; i-- {
 		typ := e.order[i]
 
-		workloads := dl.ByType(typ)
+		workloads := getter.ByType(typ)
 		for _, wl := range workloads {
+			twin, deployment, name, _ := wl.ID.Parts()
+			log := log.With().
+				Uint32("twin", twin).
+				Uint32("deployment", deployment).
+				Str("name", name).
+				Str("type", wl.Type.String()).
+				Logger()
 
 			log.Debug().Str("workload", wl.Name).Msg("de-provisioning")
 			if wl.Result.State == gridtypes.StateDeleted ||
@@ -343,25 +379,32 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, dl gridtypes.Dep
 			}
 
 			_ = e.uninstallWorkload(ctx, wl, reason)
-
-			if err := e.storage.Set(dl); err != nil {
-				log.Error().Err(err).Msg("failed to set workload result")
-			}
 		}
 	}
 }
 
-func (e *NativeEngine) installDeployment(ctx context.Context, deployment gridtypes.Deployment) {
-	log := log.With().Uint32("twin", deployment.TwinID).Uint32("id", deployment.DeploymentID).Logger()
-	ctx = context.WithValue(ctx, deploymentKey{}, deployment)
-
+func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.WorkloadByTypeGetter) (changed bool) {
 	for _, typ := range e.order {
-		workloads := deployment.ByType(typ)
+		workloads := getter.ByType(typ)
 
 		for _, wl := range workloads {
-			log := log.With().Str("type", wl.Type.String()).Str("name", wl.Name).Logger()
-			log.Debug().Msg("provisioning")
+			// this workload is already deleted or in error state
+			// we don't try again
+			if wl.Result.State == gridtypes.StateDeleted ||
+				wl.Result.State == gridtypes.StateError {
+				//nothing to do!
+				continue
+			}
 
+			twin, deployment, name, _ := wl.ID.Parts()
+			log := log.With().
+				Uint32("twin", twin).
+				Uint32("deployment", deployment).
+				Str("name", name).
+				Str("type", wl.Type.String()).
+				Logger()
+
+			log.Debug().Msg("provisioning")
 			result, err := e.provisioner.Provision(ctx, wl)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to deploy workload")
@@ -377,12 +420,11 @@ func (e *NativeEngine) installDeployment(ctx context.Context, deployment gridtyp
 
 			result.Created = gridtypes.Timestamp(time.Now().Unix())
 			wl.Result = *result
-
-			if err := e.storage.Set(deployment); err != nil {
-				log.Error().Err(err).Msg("failed to set workload result")
-			}
+			changed = true
 		}
 	}
+
+	return
 }
 
 // Counters implements the zbus interface
@@ -429,7 +471,7 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 	ctx := context.WithValue(context.Background(), engineKey{}, e)
 	ctx = context.WithValue(ctx, deploymentKey{}, dl)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
 	err = e.uninstallWorkload(ctx, wl, reason)
@@ -439,4 +481,17 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 	}
 
 	return err
+}
+
+type workloads []*gridtypes.WorkloadWithID
+
+func (l workloads) ByType(typ gridtypes.WorkloadType) []*gridtypes.WorkloadWithID {
+	var results []*gridtypes.WorkloadWithID
+	for _, wl := range l {
+		if wl.Type == typ {
+			results = append(results, wl)
+		}
+	}
+
+	return results
 }
