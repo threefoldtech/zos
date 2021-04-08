@@ -26,15 +26,15 @@ func WithJanitor(j Janitor) EngineOption {
 	return &withJanitorOpt{j}
 }
 
-// WithUsers sets the user key getter on the
+// WithTwins sets the user key getter on the
 // engine
-func WithUsers(g Users) EngineOption {
+func WithTwins(g Twins) EngineOption {
 	return &withUserKeyGetter{g}
 }
 
 // WithAdmins sets the admins key getter on the
 // engine
-func WithAdmins(g Users) EngineOption {
+func WithAdmins(g Twins) EngineOption {
 	return &withAdminsKeyGetter{g}
 }
 
@@ -75,8 +75,8 @@ type NativeEngine struct {
 
 	//options
 	// janitor Janitor
-	users  Users
-	admins Users
+	twins  Twins
+	admins Twins
 	order  []gridtypes.WorkloadType
 }
 
@@ -93,15 +93,15 @@ func (o *withJanitorOpt) apply(e *NativeEngine) {
 }
 
 type withUserKeyGetter struct {
-	g Users
+	g Twins
 }
 
 func (o *withUserKeyGetter) apply(e *NativeEngine) {
-	e.users = o.g
+	e.twins = o.g
 }
 
 type withAdminsKeyGetter struct {
-	g Users
+	g Twins
 }
 
 func (o *withAdminsKeyGetter) apply(e *NativeEngine) {
@@ -135,7 +135,7 @@ func (w *withStartupOrder) apply(e *NativeEngine) {
 
 type nullKeyGetter struct{}
 
-func (n *nullKeyGetter) GetKey(id gridtypes.ID) (ed25519.PublicKey, error) {
+func (n *nullKeyGetter) GetKey(id uint32) (ed25519.PublicKey, error) {
 	return nil, fmt.Errorf("null user key getter")
 }
 
@@ -167,7 +167,7 @@ func New(storage Storage, provisioner Provisioner, root string, opts ...EngineOp
 		storage:     storage,
 		provisioner: provisioner,
 		queue:       queue,
-		users:       &nullKeyGetter{},
+		twins:       &nullKeyGetter{},
 		admins:      &nullKeyGetter{},
 		order:       gridtypes.Types(),
 	}
@@ -185,12 +185,12 @@ func (e *NativeEngine) Storage() Storage {
 }
 
 // Users returns users db
-func (e *NativeEngine) Users() Users {
-	return e.users
+func (e *NativeEngine) Twins() Twins {
+	return e.twins
 }
 
 // Admins returns admins db
-func (e *NativeEngine) Admins() Users {
+func (e *NativeEngine) Admins() Twins {
 	return e.admins
 }
 
@@ -223,8 +223,8 @@ func (e *NativeEngine) Deprovision(ctx context.Context, twin, id uint32, reason 
 	return e.queue.Enqueue(&job)
 }
 
-func (e *NativeEngine) Update(ctx context.Context, twin, id uint32, update gridtypes.Deployment) error {
-	deployment, err := e.storage.Get(twin, id)
+func (e *NativeEngine) Update(ctx context.Context, update gridtypes.Deployment) error {
+	deployment, err := e.storage.Get(update.TwinID, update.DeploymentID)
 	if err != nil {
 		return err
 	}

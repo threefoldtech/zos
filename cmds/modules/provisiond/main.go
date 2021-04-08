@@ -16,7 +16,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/api"
@@ -170,7 +169,7 @@ func action(cli *cli.Context) error {
 
 	// TODO: that is a test user map for development, do not commit
 	users := mw.NewUserMap()
-	users.AddKeyFromHex(gridtypes.ID("1"), "95d1ba20e9f5cb6cfc6182fecfa904664fb1953eba520db454d5d5afaa82d791")
+	users.AddKeyFromHex(1, "95d1ba20e9f5cb6cfc6182fecfa904664fb1953eba520db454d5d5afaa82d791")
 
 	// users, err := substrate.NewSubstrateUsers(env.SubstrateURL)
 	// if err != nil {
@@ -191,7 +190,7 @@ func action(cli *cli.Context) error {
 		store,
 		statistics,
 		queues,
-		provision.WithUsers(users),
+		provision.WithTwins(users),
 		provision.WithAdmins(admins),
 		// set priority to some reservation types on boot
 		// so we always need to make sure all volumes and networks

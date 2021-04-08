@@ -14,7 +14,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision/mw"
 )
 
-func (a *Workloads) create(request *http.Request) (interface{}, mw.Response) {
+func (a *Workloads) createOrUpdate(request *http.Request) (interface{}, mw.Response) {
 	var deployment gridtypes.Deployment
 	if err := json.NewDecoder(request.Body).Decode(&deployment); err != nil {
 		return nil, mw.BadRequest(err)
@@ -24,21 +24,25 @@ func (a *Workloads) create(request *http.Request) (interface{}, mw.Response) {
 		return nil, mw.BadRequest(err)
 	}
 
-	//TODO: signature validation
+	twinID := mw.TwinID(request.Context())
+	if deployment.TwinID != twinID {
+		return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request body doesn't match http signature"))
+	}
 
-	// userID := mw.UserID(request.Context())
-	// if workload.User != userID {
-	// 	return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request body doesn't match http signature"))
-	// }
-	// userPK := mw.UserPublicKey(request.Context())
+	if err := deployment.Verify(a.engine.Twins()); err != nil {
+		return nil, mw.UnAuthorized(err)
+	}
 
-	// if err := workload.Verify(userPK); err != nil {
-	// 	return nil, mw.UnAuthorized(err)
-	// }
 	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
 	defer cancel()
 
-	err := a.engine.Provision(ctx, deployment)
+	action := a.engine.Provision
+	if request.Method == http.MethodPut {
+		action = a.engine.Update
+	}
+
+	err := action(ctx, deployment)
+
 	if err == context.DeadlineExceeded {
 		return nil, mw.Unavailable(ctx.Err())
 	} else if err != nil {
@@ -80,7 +84,10 @@ func (a *Workloads) delete(request *http.Request) (interface{}, mw.Response) {
 	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
 	defer cancel()
 
-	//TODO: signature validation must be done here.
+	twinID := mw.TwinID(request.Context())
+	if twin != twinID {
+		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
+	}
 
 	err = a.engine.Deprovision(ctx, twin, id, "requested by user")
 	if err == context.DeadlineExceeded {
@@ -93,10 +100,14 @@ func (a *Workloads) delete(request *http.Request) (interface{}, mw.Response) {
 }
 
 func (a *Workloads) get(request *http.Request) (interface{}, mw.Response) {
-
 	twin, id, err := a.parseIDs(request)
 	if err != nil {
 		return nil, mw.BadRequest(err)
+	}
+
+	twinID := mw.TwinID(request.Context())
+	if twin != twinID {
+		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
 	}
 
 	deployment, err := a.engine.Storage().Get(twin, id)
@@ -106,48 +117,5 @@ func (a *Workloads) get(request *http.Request) (interface{}, mw.Response) {
 		return nil, mw.Error(err)
 	}
 
-	// if deployment.User != mw.UserID(request.Context()) {
-	// 	return nil, mw.UnAuthorized(fmt.Errorf("access denied"))
-	// }
-
 	return deployment, nil
-}
-
-func (a *Workloads) update(request *http.Request) (interface{}, mw.Response) {
-	twin, id, err := a.parseIDs(request)
-	if err != nil {
-		return nil, mw.BadRequest(err)
-	}
-
-	var deployment gridtypes.Deployment
-	if err := json.NewDecoder(request.Body).Decode(&deployment); err != nil {
-		return nil, mw.BadRequest(err)
-	}
-
-	if err := deployment.Valid(); err != nil {
-		return nil, mw.BadRequest(err)
-	}
-
-	//TODO: signature validation
-
-	// userID := mw.UserID(request.Context())
-	// if workload.User != userID {
-	// 	return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request body doesn't match http signature"))
-	// }
-	// userPK := mw.UserPublicKey(request.Context())
-
-	// if err := workload.Verify(userPK); err != nil {
-	// 	return nil, mw.UnAuthorized(err)
-	// }
-	ctx, cancel := context.WithTimeout(request.Context(), 3*time.Minute)
-	defer cancel()
-
-	err = a.engine.Update(ctx, twin, id, deployment)
-	if err == context.DeadlineExceeded {
-		return nil, mw.Unavailable(ctx.Err())
-	} else if err != nil {
-		return nil, mw.Error(err)
-	}
-
-	return nil, mw.Accepted()
 }

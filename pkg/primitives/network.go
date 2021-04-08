@@ -17,6 +17,8 @@ import (
 
 // networkProvision is entry point to provision a network
 func (p *Primitives) networkProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	deployment := provision.GetDeployment(ctx)
+
 	var network zos.Network
 	if err := json.Unmarshal(wl.Data, &network); err != nil {
 		return fmt.Errorf("failed to unmarshal network from reservation: %w", err)
@@ -25,17 +27,9 @@ func (p *Primitives) networkProvisionImpl(ctx context.Context, wl *gridtypes.Wor
 	mgr := stubs.NewNetworkerStub(p.zbus)
 	log.Debug().Str("network", fmt.Sprintf("%+v", network)).Msg("provision network")
 
-	wgKey, err := p.decryptSecret(ctx, wl.User, network.WGPrivateKeyEncrypted, wl.Version)
-	if err != nil {
-		return errors.Wrap(err, "failed to decrypt wireguard private key")
-	}
-
-	deployment := provision.GetDeployment(ctx)
-
-	_, err = mgr.CreateNR(pkg.Network{
-		Network:           network,
-		NetID:             zos.NetworkID(deployment.TwinID, wl.Name),
-		WGPrivateKeyPlain: wgKey,
+	_, err := mgr.CreateNR(pkg.Network{
+		Network: network,
+		NetID:   zos.NetworkID(deployment.TwinID, wl.Name),
 	})
 
 	if err != nil {

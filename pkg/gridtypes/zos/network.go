@@ -39,7 +39,7 @@ type Network struct {
 	// IPV4 subnet for this network resource
 	Subnet gridtypes.IPNet `json:"subnet"`
 
-	WGPrivateKeyEncrypted string `json:"wireguard_private_key_encrypted"`
+	WGPrivateKey string `json:"wireguard_private_key"`
 	// WGPublicKey           string `json:"wireguard_public_key"`
 	WGListenPort uint16 `json:"wireguard_listen_port"`
 
@@ -57,7 +57,7 @@ func (n Network) Valid(getter gridtypes.WorkloadGetter) error {
 		return fmt.Errorf("network resource subnet cannot empty")
 	}
 
-	if n.WGPrivateKeyEncrypted == "" {
+	if n.WGPrivateKey == "" {
 		return fmt.Errorf("network resource wireguard private key cannot empty")
 	}
 
@@ -80,7 +80,7 @@ func (n Network) Challenge(b io.Writer) error {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(b, "%s", n.WGPrivateKeyEncrypted); err != nil {
+	if _, err := fmt.Fprintf(b, "%s", n.WGPrivateKey); err != nil {
 		return err
 	}
 

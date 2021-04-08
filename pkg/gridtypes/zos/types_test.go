@@ -30,7 +30,6 @@ func TestWorkloadValidation(t *testing.T) {
 	require := require.New(t)
 
 	wl := gridtypes.Workload{
-		User: gridtypes.ID("my-user"),
 		Type: VolumeType,
 		Data: json.RawMessage(`{"size": 10, "type": "ssd"}`),
 	}
@@ -39,7 +38,6 @@ func TestWorkloadValidation(t *testing.T) {
 	require.NoError(err)
 
 	wl = gridtypes.Workload{
-		User: gridtypes.ID("my-user"),
 		Type: VolumeType,
 		Data: json.RawMessage(`{"size": 10, "type": "abc"}`),
 	}

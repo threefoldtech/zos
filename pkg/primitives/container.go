@@ -37,12 +37,13 @@ func (p *Primitives) containerProvision(ctx context.Context, wl *gridtypes.Workl
 
 // ContainerProvision is entry point to container reservation
 func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (ContainerResult, error) {
+	deployement := provision.GetDeployment(ctx)
 	var (
 		containerClient = stubs.NewContainerModuleStub(p.zbus)
 		flistClient     = stubs.NewFlisterStub(p.zbus)
 		storageClient   = stubs.NewStorageModuleStub(p.zbus)
 		networkMgr      = stubs.NewNetworkerStub(p.zbus)
-		tenantNS        = fmt.Sprintf("ns%s", wl.User)
+		tenantNS        = fmt.Sprintf("ns%d", deployement.TwinID)
 		containerID     = wl.ID
 	)
 
@@ -96,37 +97,13 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	for k, v := range config.SecretEnv {
-		v, err := p.decryptSecret(ctx, wl.User, v, wl.Version)
-		if err != nil {
-			return ContainerResult{}, errors.Wrapf(err, "failed to decrypt secret env var '%s'", k)
-		}
-		env = append(env, fmt.Sprintf("%s=%s", k, v))
-	}
-
 	var logs []logger.Logs
 	for _, log := range config.Logs {
-		stdout := log.Data.Stdout
-		stderr := log.Data.Stderr
-
-		if len(log.Data.SecretStdout) > 0 {
-			stdout, err = p.decryptSecret(ctx, wl.User, log.Data.SecretStdout, wl.Version)
-			if err != nil {
-				return ContainerResult{}, errors.Wrap(err, "failed to decrypt log.secret_stdout var")
-			}
-		}
-
-		if len(log.Data.SecretStderr) > 0 {
-			stderr, err = p.decryptSecret(ctx, wl.User, log.Data.SecretStderr, wl.Version)
-			if err != nil {
-				return ContainerResult{}, errors.Wrap(err, "failed to decrypt log.secret_stdout var")
-			}
-		}
 		logs = append(logs, logger.Logs{
 			Type: log.Type,
 			Data: logger.LogsRedis{
-				Stdout: stdout,
-				Stderr: stderr,
+				Stdout: log.Data.Stdout,
+				Stderr: log.Data.Stderr,
 			},
 		})
 	}
@@ -273,11 +250,12 @@ func (p *Primitives) containerProvisionImpl(ctx context.Context, wl *gridtypes.W
 }
 
 func (p *Primitives) containerDecommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	deployment := provision.GetDeployment(ctx)
+
 	container := stubs.NewContainerModuleStub(p.zbus)
 	flist := stubs.NewFlisterStub(p.zbus)
 	networkMgr := stubs.NewNetworkerStub(p.zbus)
-
-	tenantNS := fmt.Sprintf("ns%s", wl.User)
+	tenantNS := fmt.Sprintf("ns%d", deployment.TwinID)
 	containerID := pkg.ContainerID(wl.ID)
 
 	var config Container
@@ -307,7 +285,6 @@ func (p *Primitives) containerDecommission(ctx context.Context, wl *gridtypes.Wo
 		log.Error().Err(err).Str("container", string(containerID)).Msg("failed to inspect container for decomission")
 	}
 
-	deployment := provision.GetDeployment(ctx)
 	netID := zos.NetworkID(deployment.TwinID, string(config.Network.Network))
 	if _, err := networkMgr.GetSubnet(netID); err == nil { // simple check to make sure the network still exists on the node
 		if err := networkMgr.Leave(netID, string(containerID)); err != nil {

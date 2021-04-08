@@ -8,9 +8,9 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-// Users is used to get user public key
-type Users interface {
-	GetKey(id gridtypes.ID) (ed25519.PublicKey, error)
+// Twins is used to get twin public key
+type Twins interface {
+	GetKey(id uint32) (ed25519.PublicKey, error)
 }
 
 // Engine is engine interface
@@ -20,10 +20,10 @@ type Engine interface {
 	// and will be processes later
 	Provision(ctx context.Context, wl gridtypes.Deployment) error
 	Deprovision(ctx context.Context, twin, id uint32, reason string) error
-	Update(ctx context.Context, twin, id uint32, update gridtypes.Deployment) error
+	Update(ctx context.Context, update gridtypes.Deployment) error
 	Storage() Storage
-	Users() Users
-	Admins() Users
+	Twins() Twins
+	Admins() Twins
 }
 
 // Provisioner interface

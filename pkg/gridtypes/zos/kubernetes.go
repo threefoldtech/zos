@@ -126,9 +126,6 @@ type Kubernetes struct {
 	// PublicIP points to a reservation for a public ip
 	PublicIP gridtypes.ID `json:"public_ip"`
 
-	// PlainClusterSecret plaintext secret
-	PlainClusterSecret string `json:"-"`
-
 	DatastoreEndpoint     string `json:"datastore_endpoint"`
 	DisableDefaultIngress bool   `json:"disable_default_ingress"`
 }

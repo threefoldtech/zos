@@ -1,6 +1,9 @@
 package gridtypes
 
 import (
+	"crypto/ed25519"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -25,6 +28,10 @@ type WorkloadGetter interface {
 // of specific type from a workload container like a deployment
 type WorkloadByTypeGetter interface {
 	ByType(typ WorkloadType) []*WorkloadWithID
+}
+
+type KeyGetter interface {
+	GetKey(twin uint32) (ed25519.PublicKey, error)
 }
 
 // Deployment structure
@@ -79,7 +86,7 @@ type Signature struct {
 // SignatureRequirement struct
 type SignatureRequirement struct {
 	Requests       []SignatureRequest `json:"requests"`
-	WeightRequired int                `json:"weight_required"`
+	WeightRequired uint               `json:"weight_required"`
 	Signatures     []Signature        `json:"signatures"`
 }
 
@@ -96,6 +103,17 @@ func (r *SignatureRequirement) Challenge(w io.Writer) error {
 	}
 
 	return nil
+}
+
+// ChallengeHash computes the hash of the challenge signed
+// by the user. used for validation
+func (d *Deployment) ChallengeHash() ([]byte, error) {
+	hash := md5.New()
+	if err := d.Challenge(hash); err != nil {
+		return nil, err
+	}
+
+	return hash.Sum(nil), nil
 }
 
 // Challenge computes challenge for SignatureRequest
@@ -151,6 +169,63 @@ func (d *Deployment) Valid() error {
 		if err := wl.Valid(d); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Verify verifies user signature
+func (d *Deployment) Verify(getter KeyGetter) error {
+	message, err := d.ChallengeHash()
+	if err != nil {
+		return err
+	}
+
+	requirements := &d.SignatureRequirement
+	get := func(twin uint32) (Signature, bool) {
+		for _, sig := range requirements.Signatures {
+			if sig.TwinID == twin {
+				return sig, true
+			}
+		}
+		return Signature{}, false
+	}
+
+	originatorFound := false
+	var weight uint
+	for _, request := range requirements.Requests {
+		if request.TwinID == d.TwinID {
+			originatorFound = true
+			request.Required = true // we force that this is a required signature
+		}
+
+		signature, ok := get(request.TwinID)
+		if !ok && request.Required {
+			return fmt.Errorf("missing required signature for twin '%d'", request.TwinID)
+		}
+
+		pk, err := getter.GetKey(request.TwinID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get public key for twin '%d'", request.TwinID)
+		}
+
+		bytes, err := hex.DecodeString(signature.Signature)
+		if err != nil {
+			return errors.Wrap(err, "invalid signature")
+		}
+
+		if !ed25519.Verify(pk, message, bytes) {
+			return fmt.Errorf("failed to verify signature")
+		}
+		weight += request.Weight
+	}
+
+	if originatorFound {
+		return fmt.Errorf("originator twin id must be in the signature requests")
+	}
+
+	if weight < requirements.WeightRequired {
+		return fmt.Errorf("required signature weight is not reached")
 	}
 
 	return nil

@@ -659,7 +659,7 @@ func (n *networker) CreateNR(netNR pkg.Network) (string, error) {
 		return "", errors.Wrapf(err, "failed to attach network resource to DMZ bridge")
 	}
 
-	if err = netr.ConfigureWG(netNR.WGPrivateKeyPlain); err != nil {
+	if err = netr.ConfigureWG(netNR.WGPrivateKey); err != nil {
 		return "", errors.Wrap(err, "failed to configure network resource")
 	}
 

@@ -72,12 +72,6 @@ type LogsData struct {
 
 	// Stderr is the redis url for stderr (redis://host/channel)
 	Stderr string `json:"stderr"`
-
-	// SecretStdout like stdout but encrypted with node public key
-	SecretStdout string `json:"secret_stdout"`
-
-	// SecretStderr like stderr but encrypted with node public key
-	SecretStderr string `json:"secret_stderr"`
 }
 
 // Stats defines a stats backend
@@ -141,10 +135,6 @@ type Container struct {
 	HubURL string `json:"hub_url"`
 	// Env env variables to container in format
 	Env map[string]string `json:"env"`
-	// Env env variables to container that the value is encrypted
-	// with the node public key. the env will be exposed to plain
-	// text to the entrypoint.
-	SecretEnv map[string]string `json:"secret_env"`
 	// Entrypoint the process to start inside the container
 	Entrypoint string `json:"entrypoint"`
 	// Interactivity enable Core X as PID 1 on the container
@@ -213,9 +203,7 @@ func (c Container) Challenge(w io.Writer) error {
 	if err := encodeEnv(w, c.Env); err != nil {
 		return err
 	}
-	if err := encodeEnv(w, c.SecretEnv); err != nil {
-		return err
-	}
+
 	for _, v := range c.Mounts {
 		if err := v.Challenge(w); err != nil {
 			return err

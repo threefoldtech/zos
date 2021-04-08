@@ -2,8 +2,6 @@ package gridtypes
 
 import (
 	"bytes"
-	"crypto/ed25519"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -102,8 +100,6 @@ type Workload struct {
 	Version int `json:"version"`
 	//Name is unique workload name per deployment  (required)
 	Name string `json:"name"`
-	// Identification of the user requesting the reservation (deprecated)
-	User ID `json:"user_id"`
 	// Type of the reservation (container, zdb, vm, etc...)
 	Type WorkloadType `json:"type"`
 	// Data is the reservation type arguments.
@@ -149,10 +145,6 @@ func (w *Workload) Valid(getter WorkloadGetter) error {
 		return errors.Wrap(err, "invalid workload name")
 	}
 
-	if w.User.IsEmpty() {
-		return fmt.Errorf("invalid user id")
-	}
-
 	if err := w.Type.Valid(); err != nil {
 		return err
 	}
@@ -173,10 +165,6 @@ func (w *Workload) Challenge(i io.Writer) error {
 	}
 
 	if _, err := fmt.Fprintf(i, "%d", w.Version); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintf(i, "%s", w.User.String()); err != nil {
 		return err
 	}
 
@@ -205,44 +193,21 @@ func (w *Workload) Capacity() (Capacity, error) {
 	return data.Capacity()
 }
 
-//Sign signs the signature given the private key
-func (w *Workload) Sign(sk ed25519.PrivateKey) error {
-	if len(sk) != ed25519.PrivateKeySize {
-		return fmt.Errorf("invalid secure key")
-	}
+// //Sign signs the signature given the private key
+// func (w *Workload) Sign(sk ed25519.PrivateKey) error {
+// 	if len(sk) != ed25519.PrivateKeySize {
+// 		return fmt.Errorf("invalid secure key")
+// 	}
 
-	var buf bytes.Buffer
-	if err := w.Challenge(&buf); err != nil {
-		return errors.Wrap(err, "failed to create the signature challenge")
-	}
+// 	var buf bytes.Buffer
+// 	if err := w.Challenge(&buf); err != nil {
+// 		return errors.Wrap(err, "failed to create the signature challenge")
+// 	}
 
-	w.Signature = hex.EncodeToString(ed25519.Sign(sk, buf.Bytes()))
+// 	w.Signature = hex.EncodeToString(ed25519.Sign(sk, buf.Bytes()))
 
-	return nil
-}
-
-// Verify verifies user signature
-func (w *Workload) Verify(pk ed25519.PublicKey) error {
-	if len(pk) != ed25519.PublicKeySize {
-		return fmt.Errorf("invalid public key")
-	}
-
-	var buf bytes.Buffer
-	if err := w.Challenge(&buf); err != nil {
-		return errors.Wrap(err, "failed to create the signature challenge")
-	}
-
-	signature, err := hex.DecodeString(w.Signature)
-	if err != nil {
-		return errors.Wrap(err, "invalid signature")
-	}
-
-	if !ed25519.Verify(pk, buf.Bytes(), signature) {
-		return fmt.Errorf("failed to verify signature")
-	}
-
-	return nil
-}
+// 	return nil
+// }
 
 // AppendTag appends tags
 func AppendTag(t, n Tag) Tag {
