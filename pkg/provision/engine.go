@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/joncrlsn/dque"
@@ -161,6 +163,9 @@ func GetDeployment(ctx context.Context) gridtypes.Deployment {
 func New(storage Storage, provisioner Provisioner, root string, opts ...EngineOption) (*NativeEngine, error) {
 	queue, err := dque.NewOrOpen("jobs", root, 512, func() interface{} { return &engineJob{} })
 	if err != nil {
+		// if this happens it means data types has been changed in that case we need
+		// to clean up the queue and start over. unfortunately any un applied changes
+		os.RemoveAll(filepath.Join(root, "jobs"))
 		return nil, errors.Wrap(err, "failed to create job queue")
 	}
 	e := &NativeEngine{

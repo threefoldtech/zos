@@ -174,6 +174,30 @@ func (d *Deployment) Valid() error {
 	return nil
 }
 
+func (d *Deployment) Sign(twin uint32, sk ed25519.PrivateKey) error {
+	message, err := d.ChallengeHash()
+	if err != nil {
+		return err
+	}
+	signatureBytes := ed25519.Sign(sk, message)
+	signature := hex.EncodeToString(signatureBytes)
+	for i := range d.SignatureRequirement.Signatures {
+		sig := &d.SignatureRequirement.Signatures[i]
+		// update
+		if sig.TwinID == twin {
+			sig.Signature = signature
+			return nil
+		}
+	}
+
+	d.SignatureRequirement.Signatures = append(
+		d.SignatureRequirement.Signatures, Signature{
+			TwinID:    twin,
+			Signature: signature,
+		})
+	return nil
+}
+
 // Verify verifies user signature
 func (d *Deployment) Verify(getter KeyGetter) error {
 	message, err := d.ChallengeHash()
@@ -220,7 +244,7 @@ func (d *Deployment) Verify(getter KeyGetter) error {
 		weight += request.Weight
 	}
 
-	if originatorFound {
+	if !originatorFound {
 		return fmt.Errorf("originator twin id must be in the signature requests")
 	}
 

@@ -131,7 +131,7 @@ func NewAuthMiddleware(users provision.Twins) mux.MiddlewareFunc {
 			}
 
 			ctx := req.Context()
-			ctx = context.WithValue(ctx, twinKeyID{}, twinID)
+			ctx = context.WithValue(ctx, twinKeyID{}, uint32(twinID))
 			ctx = context.WithValue(ctx, twinPublicKeyID{}, pk)
 
 			handler.ServeHTTP(w, req.WithContext(ctx))
