@@ -388,10 +388,6 @@ func (d *Deployment) Upgrade(n *Deployment) (*Upgrade, error) {
 		})
 	}
 
-	if len(update) > 0 {
-		return nil, fmt.Errorf("update workload data is not supported yet")
-	}
-
 	return &Upgrade{ToAdd: add, ToUpdate: update, ToRemove: remove}, nil
 }
 

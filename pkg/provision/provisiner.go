@@ -19,13 +19,15 @@ type RemoveFunction func(ctx context.Context, wl *gridtypes.WorkloadWithID) erro
 type mapProvisioner struct {
 	provisioners    map[gridtypes.WorkloadType]DeployFunction
 	decommissioners map[gridtypes.WorkloadType]RemoveFunction
+	updaters        map[gridtypes.WorkloadType]DeployFunction
 }
 
 // NewMapProvisioner returns a new instance of a map provisioner
-func NewMapProvisioner(p map[gridtypes.WorkloadType]DeployFunction, d map[gridtypes.WorkloadType]RemoveFunction) Provisioner {
+func NewMapProvisioner(p map[gridtypes.WorkloadType]DeployFunction, d map[gridtypes.WorkloadType]RemoveFunction, u map[gridtypes.WorkloadType]DeployFunction) Provisioner {
 	return &mapProvisioner{
 		provisioners:    p,
 		decommissioners: d,
+		updaters:        u,
 	}
 }
 
@@ -33,7 +35,7 @@ func NewMapProvisioner(p map[gridtypes.WorkloadType]DeployFunction, d map[gridty
 func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error) {
 	handler, ok := p.provisioners[wl.Type]
 	if !ok {
-		return nil, fmt.Errorf("unknown reservation type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return nil, fmt.Errorf("no provisioner associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
 	}
 
 	data, err := handler(ctx, wl)
@@ -44,10 +46,26 @@ func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWi
 func (p *mapProvisioner) Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
 	handler, ok := p.decommissioners[wl.Type]
 	if !ok {
-		return fmt.Errorf("unknown reservation type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return fmt.Errorf("no decomissioner associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
 	}
 
 	return handler(ctx, wl)
+}
+
+// Provision implements provision.Provisioner
+func (p *mapProvisioner) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error) {
+	handler, ok := p.updaters[wl.Type]
+	if !ok {
+		return nil, fmt.Errorf("no updater associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+	}
+
+	data, err := handler(ctx, wl)
+	return p.buildResult(wl, data, err)
+}
+
+func (p *mapProvisioner) CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool {
+	_, ok := p.updaters[typ]
+	return ok
 }
 
 func (p *mapProvisioner) buildResult(wl *gridtypes.WorkloadWithID, data interface{}, err error) (*gridtypes.Result, error) {

@@ -30,6 +30,8 @@ type Engine interface {
 type Provisioner interface {
 	Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error)
 	Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error)
+	CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool
 }
 
 // Filter is filtering function for Purge method

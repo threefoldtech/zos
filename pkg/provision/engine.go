@@ -237,9 +237,15 @@ func (e *NativeEngine) Update(ctx context.Context, update gridtypes.Deployment) 
 	// this will just calculate the update
 	// steps we run it here as a sort of validation
 	// that this update is acceptable.
-	_, err = deployment.Upgrade(&update)
+	updates, err := deployment.Upgrade(&update)
 	if err != nil {
 		return err
+	}
+
+	for _, wl := range updates.ToUpdate {
+		if !e.provisioner.CanUpdate(ctx, wl.Type) {
+			return fmt.Errorf("updating workload of type '%s' is not supported", wl.Type.String())
+		}
 	}
 
 	// all is okay we can push the job
@@ -308,6 +314,7 @@ func (e *NativeEngine) Run(root context.Context) error {
 			}
 
 			e.uninstallDeployment(ctx, workloads(update.ToRemove), "deleted by an update")
+			e.updateDeployment(ctx, workloads(update.ToUpdate))
 			e.installDeployment(ctx, workloads(update.ToAdd))
 
 			if err := e.storage.Set(job.Target); err != nil {
@@ -388,8 +395,7 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes
 				Logger()
 
 			log.Debug().Str("workload", wl.Name).Msg("de-provisioning")
-			if wl.Result.State == gridtypes.StateDeleted ||
-				wl.Result.State == gridtypes.StateError {
+			if wl.Result.State == gridtypes.StateDeleted {
 				//nothing to do!
 				continue
 			}
@@ -397,6 +403,50 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes
 			_ = e.uninstallWorkload(ctx, wl, reason)
 		}
 	}
+}
+
+func (e *NativeEngine) updateDeployment(ctx context.Context, getter gridtypes.WorkloadByTypeGetter) (changed bool) {
+	for _, typ := range e.order {
+		workloads := getter.ByType(typ)
+
+		for _, wl := range workloads {
+			// this workload is already deleted or in error state
+			// we don't try again
+			if wl.Result.State == gridtypes.StateDeleted ||
+				wl.Result.State == gridtypes.StateError {
+				//nothing to do!
+				continue
+			}
+
+			twin, deployment, name, _ := wl.ID.Parts()
+			log := log.With().
+				Uint32("twin", twin).
+				Uint32("deployment", deployment).
+				Str("name", name).
+				Str("type", wl.Type.String()).
+				Logger()
+
+			log.Debug().Msg("provisioning")
+			result, err := e.provisioner.Update(ctx, wl)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to deploy workload")
+				result = &gridtypes.Result{
+					Error: err.Error(),
+					State: gridtypes.StateError,
+				}
+			}
+
+			if result.State == gridtypes.StateError {
+				log.Error().Str("error", result.Error).Msg("failed to deploy workload")
+			}
+
+			result.Created = gridtypes.Timestamp(time.Now().Unix())
+			wl.Result = *result
+			changed = true
+		}
+	}
+
+	return
 }
 
 func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.WorkloadByTypeGetter) (changed bool) {
