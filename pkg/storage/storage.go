@@ -339,6 +339,20 @@ func (s *Module) shutdownUnusedPools() error {
 	return nil
 }
 
+func (s *Module) UpdateFilesystem(name string, size uint64) (pkg.Filesystem, error) {
+	_, volume, fs, err := s.path(name)
+	if err != nil {
+		return pkg.Filesystem{}, err
+	}
+
+	if err := volume.Limit(size); err != nil {
+		return fs, err
+	}
+
+	fs.Usage.Size = size
+	return fs, nil
+}
+
 // CreateFilesystem with the given size in a storage pool.
 func (s *Module) CreateFilesystem(name string, size uint64, poolType pkg.DeviceType) (pkg.Filesystem, error) {
 	log.Info().Msgf("Creating new volume with size %d", size)
@@ -462,29 +476,29 @@ func (s *Module) ListFilesystems() ([]pkg.Filesystem, error) {
 // Path return the path of the mountpoint of the named filesystem
 // if no volume with name exists, an empty path and an error is returned
 func (s *Module) Path(name string) (pkg.Filesystem, error) {
-	_, fs, err := s.path(name)
+	_, _, fs, err := s.path(name)
 	return fs, err
 }
 
 // Path return the path of the mountpoint of the named filesystem
 // if no volume with name exists, an empty path and an error is returned
-func (s *Module) path(name string) (filesystem.Pool, pkg.Filesystem, error) {
+func (s *Module) path(name string) (filesystem.Pool, filesystem.Volume, pkg.Filesystem, error) {
 	for _, pool := range s.pools {
 		if _, mounted := pool.Mounted(); !mounted {
 			continue
 		}
 		filesystems, err := pool.Volumes()
 		if err != nil {
-			return nil, pkg.Filesystem{}, err
+			return nil, nil, pkg.Filesystem{}, err
 		}
 		for _, fs := range filesystems {
 			if fs.Name() == name {
 				usage, err := fs.Usage()
 				if err != nil {
-					return nil, pkg.Filesystem{}, err
+					return nil, nil, pkg.Filesystem{}, err
 				}
 
-				return pool, pkg.Filesystem{
+				return pool, fs, pkg.Filesystem{
 					ID:     fs.ID(),
 					FsType: fs.FsType(),
 					Name:   fs.Name(),
@@ -499,7 +513,7 @@ func (s *Module) path(name string) (filesystem.Pool, pkg.Filesystem, error) {
 		}
 	}
 
-	return nil, pkg.Filesystem{}, errors.Wrapf(os.ErrNotExist, "subvolume '%s' not found", name)
+	return nil, nil, pkg.Filesystem{}, errors.Wrapf(os.ErrNotExist, "subvolume '%s' not found", name)
 }
 
 // VDiskFindCandidate find a suitbale location for creating a vdisk of the given size

@@ -22,27 +22,33 @@ type Volume = zos.Volume
 // VolumeResult types
 type VolumeResult = zos.VolumeResult
 
-func (p *Primitives) volumeProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (VolumeResult, error) {
+func (p *Primitives) volumeProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (vol VolumeResult, err error) {
 	var config Volume
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return VolumeResult{}, err
 	}
 
+	vol.ID = wl.ID.String()
 	storageClient := stubs.NewStorageModuleStub(p.zbus)
-
-	_, err := storageClient.Path(wl.ID.String())
+	size := config.Size * gigabyte
+	fs, err := storageClient.Path(wl.ID.String())
 	if err == nil {
+		// todo: validate that the volume type has not been changed.
+		// filesystem exist. do we need to (resize)
 		log.Info().Stringer("id", wl.ID).Msg("volume already deployed")
-		return VolumeResult{
-			ID: wl.ID.String(),
-		}, nil
+		if fs.Usage.Size != size {
+			log.Info().Stringer("id", wl.ID).Uint64("size", size).Msg("resizing volume")
+			_, err := storageClient.UpdateFilesystem(wl.ID.String(), size)
+			if err != nil {
+				return vol, err
+			}
+		}
+		return vol, err
 	}
 
-	_, err = storageClient.CreateFilesystem(FilesystemName(wl), config.Size*gigabyte, config.Type)
+	_, err = storageClient.CreateFilesystem(wl.ID.String(), size, config.Type)
 
-	return VolumeResult{
-		ID: wl.ID.String(),
-	}, err
+	return vol, err
 }
 
 // VolumeProvision is entry point to provision a volume
