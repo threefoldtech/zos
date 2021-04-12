@@ -1,5 +1,5 @@
-CONTAINERD_VERSION="ae2f3fdfd1a435fe83fb083e4db9fa63a9e0a13e"
-CONTAINERD_CHECKSUM="73e6d4bad082e69e530c8ab5a9ee5118"
+CONTAINERD_VERSION="v1.4.4"
+CONTAINERD_CHECKSUM="94dedea260bb74b582ffc9f716269172"
 CONTAINERD_LINK="https://github.com/containerd/containerd/archive/${CONTAINERD_VERSION}.tar.gz"
 
 dependencies_containerd() {
