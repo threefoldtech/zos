@@ -1,5 +1,5 @@
-SHIMLOGS_VERSION="0.3"
-SHIMLOGS_CHECKSUM="f2b3ceaca8abe09fe6b96b694569d0a3"
+SHIMLOGS_VERSION="0.4"
+SHIMLOGS_CHECKSUM="c9441e08586077e27ab6cfc41343e24b"
 SHIMLOGS_LINK="https://github.com/threefoldtech/shim-logs/archive/v${SHIMLOGS_VERSION}.tar.gz"
 
 dependencies_shimlogs() {
