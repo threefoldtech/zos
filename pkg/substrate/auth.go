@@ -9,13 +9,13 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 )
 
-type substrateUsers struct {
+type substrateTwins struct {
 	sub Substrate
 	mem *lru.Cache
 }
 
-// NewSubstrateUsers creates a substrate users db that implements the provision.Users interface.
-func NewSubstrateUsers(url string) (provision.Twins, error) {
+// NewSubstrateTwins creates a substrate users db that implements the provision.Users interface.
+func NewSubstrateTwins(url string) (provision.Twins, error) {
 	sub, err := NewSubstrate(url)
 	if err != nil {
 		return nil, err
@@ -26,13 +26,13 @@ func NewSubstrateUsers(url string) (provision.Twins, error) {
 		return nil, err
 	}
 
-	return &substrateUsers{
+	return &substrateTwins{
 		sub: sub,
 		mem: cache,
 	}, nil
 }
 
-func (s *substrateUsers) GetKey(id uint32) (ed25519.PublicKey, error) {
+func (s *substrateTwins) GetKey(id uint32) (ed25519.PublicKey, error) {
 	if value, ok := s.mem.Get(id); ok {
 		return value.(ed25519.PublicKey), nil
 	}
@@ -67,6 +67,9 @@ func NewSubstrateAdmins(url string, farmID uint32) (provision.Twins, error) {
 	}
 
 	twin, err := sub.GetTwin(uint32(farm.TwinID))
+	if err != nil {
+		return nil, err
+	}
 	return &substrateAdmins{
 		sub:  sub,
 		twin: uint32(farm.TwinID),
