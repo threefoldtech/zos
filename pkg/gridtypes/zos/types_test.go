@@ -31,6 +31,7 @@ func TestWorkloadValidation(t *testing.T) {
 
 	wl := gridtypes.Workload{
 		Type: VolumeType,
+		Name: "name",
 		Data: json.RawMessage(`{"size": 10, "type": "ssd"}`),
 	}
 
@@ -39,6 +40,7 @@ func TestWorkloadValidation(t *testing.T) {
 
 	wl = gridtypes.Workload{
 		Type: VolumeType,
+		Name: "name",
 		Data: json.RawMessage(`{"size": 10, "type": "abc"}`),
 	}
 

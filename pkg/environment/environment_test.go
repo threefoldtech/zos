@@ -15,14 +15,14 @@ import (
 // argument set or not
 func TestManager(t *testing.T) {
 	// Development mode
-	params := kernel.Params{"runmode": {"dev3"}}
+	params := kernel.Params{"runmode": {"dev"}}
 	value, err := getEnvironmentFromParams(params)
 	require.NoError(t, err)
 
 	assert.Equal(t, RunningDev, value.RunningMode)
 
 	// Testing mode
-	params = kernel.Params{"runmode": {"test3"}}
+	params = kernel.Params{"runmode": {"test"}}
 	value, err = getEnvironmentFromParams(params)
 	require.NoError(t, err)
 
