@@ -169,7 +169,7 @@ func (k Kubernetes) Challenge(b io.Writer) error {
 		}
 	}
 	if _, err := fmt.Fprintf(b, "%s", k.PublicIP); err != nil {
-
+		return err
 	}
 
 	return nil
