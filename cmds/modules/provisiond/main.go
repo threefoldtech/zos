@@ -132,7 +132,6 @@ func action(cli *cli.Context) error {
 	// the v1 endpoint will be used by all components to register endpoints
 	// that are specific for that component
 	v1 := router.PathPrefix("/api/v1").Subrouter()
-
 	// keep track of resource units reserved and amount of workloads provisionned
 
 	// to store reservation locally on the node
@@ -198,6 +197,7 @@ func action(cli *cli.Context) error {
 		provision.WithStartupOrder(
 			zos.VolumeType,
 			zos.NetworkType,
+			zos.PublicIPType,
 		),
 	)
 
@@ -248,6 +248,8 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to initialize API")
 	}
 
+	// register static files
+	v1.PathPrefix("").Handler(http.StripPrefix("/api/v1", http.FileServer(http.FS(swaggerFs))))
 	httpServer := &http.Server{
 		Addr:    httpAddr,
 		Handler: router,

@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/provision/mw"
@@ -21,22 +20,13 @@ func NewWorkloadsAPI(router *mux.Router, engine provision.Engine) (*Workloads, e
 	return api, api.setup(router)
 }
 
-func (a *Workloads) nextID() (string, error) {
-	id, err := uuid.NewUUID()
-	if err != nil {
-		return "", err
-	}
-
-	return id.String(), nil
-}
-
 //Setup setup routes (v1)
 func (a *Workloads) setup(router *mux.Router) error {
 	//TODO: this will need more twiking later
 	//so the user getter will use the grid db
 	//plus some internal in-memory cache
 
-	workloads := router.PathPrefix("/workloads").Subrouter()
+	workloads := router.PathPrefix("/deployment").Subrouter()
 	workloads.Use(
 		mw.NewAuthMiddleware(a.engine.Twins()),
 	)

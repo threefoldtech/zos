@@ -19,14 +19,14 @@ func TestManager(t *testing.T) {
 	value, err := getEnvironmentFromParams(params)
 	require.NoError(t, err)
 
-	assert.Equal(t, RunningDev3, value.RunningMode)
+	assert.Equal(t, RunningDev, value.RunningMode)
 
 	// Testing mode
 	params = kernel.Params{"runmode": {"test3"}}
 	value, err = getEnvironmentFromParams(params)
 	require.NoError(t, err)
 
-	assert.Equal(t, RunningTest3, value.RunningMode)
+	assert.Equal(t, RunningTest, value.RunningMode)
 
 	// Main mode
 	params = kernel.Params{"runmode": {"prod"}}

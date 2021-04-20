@@ -1,6 +1,6 @@
 module github.com/threefoldtech/zos
 
-go 1.13
+go 1.16
 
 require (
 	github.com/BurntSushi/toml v0.3.1
@@ -8,7 +8,6 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
 	github.com/alexflint/go-filemutex v0.0.0-20171028004239-d358565f3c3f
-	github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/cenkalti/backoff/v3 v3.2.2
 	github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0
@@ -24,18 +23,10 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
-	github.com/firecracker-microvm/firecracker-go-sdk v0.19.1-0.20200110212531-741fc8cb0f2e
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/g0rbe/go-chattr v0.0.0-20190906133247-aa435a6a0a37
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
-	github.com/go-openapi/analysis v0.19.7 // indirect
-	github.com/go-openapi/errors v0.19.3 // indirect
-	github.com/go-openapi/runtime v0.19.9 // indirect
-	github.com/go-openapi/spec v0.19.5 // indirect
-	github.com/go-openapi/strfmt v0.19.4 // indirect
-	github.com/go-openapi/swag v0.19.6 // indirect
-	github.com/go-openapi/validate v0.19.5 // indirect
 	github.com/go-redis/redis v6.15.5+incompatible
 	github.com/gogo/googleapis v1.3.2 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible
@@ -57,6 +48,7 @@ require (
 	github.com/rs/zerolog v1.19.0
 	github.com/rusart/muxprom v0.0.0-20200323164249-36ea051efbe6
 	github.com/shirou/gopsutil v2.20.5+incompatible
+	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
@@ -71,7 +63,6 @@ require (
 	github.com/yggdrasil-network/yggdrasil-go v0.3.15-0.20200526002434-ed3bf5ef0736
 	github.com/zaibon/httpsig v0.0.0-20210219100301-931cc471f406
 	go.etcd.io/bbolt v1.3.4 // indirect
-	go.mongodb.org/mongo-driver v1.3.2 // indirect
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/sys v0.0.0-20201221093633-bc327ba9c2f0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20191219145116-fa6499c8e75f
