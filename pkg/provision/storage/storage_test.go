@@ -48,7 +48,7 @@ func TestStorageAdd(t *testing.T) {
 		TwinID:       twin,
 		DeploymentID: id,
 		Metadata:     "meta",
-		Description:  "descritpion",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -79,7 +79,7 @@ func TestStorageSet(t *testing.T) {
 		TwinID:       twin,
 		DeploymentID: id,
 		Metadata:     "meta",
-		Description:  "descritpion",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -115,7 +115,7 @@ func TestStorageGet(t *testing.T) {
 		TwinID:       twin,
 		DeploymentID: id,
 		Metadata:     "meta",
-		Description:  "descritpion",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -148,7 +148,7 @@ func TestStorageByTwin(t *testing.T) {
 		TwinID:       1,
 		DeploymentID: 1,
 		Metadata:     "meta",
-		Description:  "descritpion",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -165,7 +165,7 @@ func TestStorageByTwin(t *testing.T) {
 		TwinID:       1,
 		DeploymentID: 2,
 		Metadata:     "meta",
-		Description:  "descritpion",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -182,7 +182,7 @@ func TestStorageByTwin(t *testing.T) {
 		TwinID:       2,
 		DeploymentID: 1,
 		Metadata:     "meta",
-		Description:  "descritpion",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
