@@ -228,6 +228,7 @@ func (e *NativeEngine) Deprovision(ctx context.Context, twin, id uint32, reason 
 	return e.queue.Enqueue(&job)
 }
 
+// Update workloads
 func (e *NativeEngine) Update(ctx context.Context, update gridtypes.Deployment) error {
 	deployment, err := e.storage.Get(update.TwinID, update.DeploymentID)
 	if err != nil {
