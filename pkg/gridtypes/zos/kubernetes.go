@@ -124,7 +124,7 @@ type Kubernetes struct {
 	// when it boots.
 	SSHKeys []string `json:"ssh_keys"`
 	// PublicIP points to a reservation for a public ip
-	PublicIP gridtypes.ID `json:"public_ip"`
+	PublicIP string `json:"public_ip"`
 
 	DatastoreEndpoint     string `json:"datastore_endpoint"`
 	DisableDefaultIngress bool   `json:"disable_default_ingress"`
@@ -132,7 +132,7 @@ type Kubernetes struct {
 
 // Valid implementation
 func (k Kubernetes) Valid(getter gridtypes.WorkloadGetter) error {
-	wl, err := getter.Get(k.PublicIP.String())
+	wl, err := getter.Get(k.PublicIP)
 	if err != nil {
 		return fmt.Errorf("public ip is not found")
 	}
@@ -168,8 +168,8 @@ func (k Kubernetes) Challenge(b io.Writer) error {
 			return err
 		}
 	}
-	if _, err := fmt.Fprintf(b, "%s", k.PublicIP.String()); err != nil {
-		return err
+	if _, err := fmt.Fprintf(b, "%s", k.PublicIP); err != nil {
+
 	}
 
 	return nil

@@ -345,6 +345,13 @@ components:
         ip:
           type: string
           format: cidr
+        gateway:
+          type: string
+          format: ip
+          description: |
+            this value here is a temporary solution to the lack of a farmer twin. Hence this information
+            should be provided by the farmer (actually both Ip and Gw should be) so for now the user has
+            to provide the exact value that is setup for this IP in the farmer network.
     Container:
       type: object
       properties:
