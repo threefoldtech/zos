@@ -189,7 +189,7 @@ func (e *NativeEngine) Storage() Storage {
 	return e.storage
 }
 
-// Users returns users db
+// Twins returns twins db
 func (e *NativeEngine) Twins() Twins {
 	return e.twins
 }

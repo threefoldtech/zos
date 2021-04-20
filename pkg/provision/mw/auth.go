@@ -20,7 +20,7 @@ import (
 type twinPublicKeyID struct{}
 type twinKeyID struct{}
 
-// UserPublicKey extracts twin public key from request
+// TwinPublicKey extracts twin public key from request
 func TwinPublicKey(ctx context.Context) ed25519.PublicKey {
 	value := ctx.Value(twinPublicKeyID{})
 	return value.(ed25519.PublicKey)

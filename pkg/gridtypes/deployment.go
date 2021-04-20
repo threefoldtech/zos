@@ -30,6 +30,7 @@ type WorkloadByTypeGetter interface {
 	ByType(typ WorkloadType) []*WorkloadWithID
 }
 
+// KeyGetter interface to get key by twin ids
 type KeyGetter interface {
 	GetKey(twin uint32) (ed25519.PublicKey, error)
 }
@@ -174,6 +175,7 @@ func (d *Deployment) Valid() error {
 	return nil
 }
 
+// Sign adds a signature to deployment given twin id
 func (d *Deployment) Sign(twin uint32, sk ed25519.PrivateKey) error {
 	message, err := d.ChallengeHash()
 	if err != nil {

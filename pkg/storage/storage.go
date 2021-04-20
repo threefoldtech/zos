@@ -339,6 +339,7 @@ func (s *Module) shutdownUnusedPools() error {
 	return nil
 }
 
+// UpdateFilesystem updates filesystem size
 func (s *Module) UpdateFilesystem(name string, size uint64) (pkg.Filesystem, error) {
 	_, volume, fs, err := s.path(name)
 	if err != nil {

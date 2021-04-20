@@ -121,10 +121,12 @@ func (s *Statistics) Decommission(ctx context.Context, wl *gridtypes.WorkloadWit
 	return nil
 }
 
+// Update implements the provisioner interface
 func (s *Statistics) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error) {
 	return s.inner.Update(ctx, wl)
 }
 
+// CanUpdate implements the provisioner interface
 func (s *Statistics) CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool {
 	return s.inner.CanUpdate(ctx, typ)
 }
