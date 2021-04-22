@@ -73,7 +73,7 @@ fi
 echo "boot $image"
 
 qemu-system-x86_64 -kernel $image \
-    -m 3072 -enable-kvm -cpu host -smp $smp \
+    -m 3072 -enable-kvm -cpu host,host-phys-bits -smp $smp \
     -uuid $uuid \
     -netdev bridge,id=zos0,br=${bridge} -device virtio-net-pci,netdev=zos0,mac="${basemac}1" \
     -drive file=fat:rw:$basepath/overlay,format=raw \
