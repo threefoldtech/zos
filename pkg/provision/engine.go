@@ -47,6 +47,10 @@ func WithStartupOrder(t ...gridtypes.WorkloadType) EngineOption {
 	return &withStartupOrder{t}
 }
 
+func WithRerunAll(t bool) EngineOption {
+	return &withRerunAll{t}
+}
+
 type jobOperation int
 
 const (
@@ -77,9 +81,10 @@ type NativeEngine struct {
 
 	//options
 	// janitor Janitor
-	twins  Twins
-	admins Twins
-	order  []gridtypes.WorkloadType
+	twins    Twins
+	admins   Twins
+	order    []gridtypes.WorkloadType
+	rerunAll bool
 }
 
 var _ Engine = (*NativeEngine)(nil)
@@ -133,6 +138,14 @@ func (w *withStartupOrder) apply(e *NativeEngine) {
 	}
 
 	e.order = ordered
+}
+
+type withRerunAll struct {
+	t bool
+}
+
+func (w *withRerunAll) apply(e *NativeEngine) {
+	e.rerunAll = w.t
 }
 
 type nullKeyGetter struct{}
@@ -259,12 +272,10 @@ func (e *NativeEngine) Run(root context.Context) error {
 
 	root = context.WithValue(root, engineKey{}, e)
 
-	// restart everything first
-	// TODO: potential network disconnections if network already exists.
-	// may be network manager need to do nothing if same exact network config
-	// is applied
-	if err := e.boot(root); err != nil {
-		log.Error().Err(err).Msg("error while setting up")
+	if e.rerunAll {
+		if err := e.boot(root); err != nil {
+			log.Error().Err(err).Msg("error while setting up")
+		}
 	}
 
 	for {
