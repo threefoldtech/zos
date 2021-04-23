@@ -47,6 +47,8 @@ func WithStartupOrder(t ...gridtypes.WorkloadType) EngineOption {
 	return &withStartupOrder{t}
 }
 
+// WithRerunAll if set forces the engine to re-run all reservations
+// on engine start.
 func WithRerunAll(t bool) EngineOption {
 	return &withRerunAll{t}
 }
