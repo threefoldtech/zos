@@ -213,7 +213,6 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 
 	log.Info().
 		Str("namespace", ns).
-		Str("data", fmt.Sprintf("%+v", data)).
 		Msgf("create new container")
 
 	container, err := client.NewContainer(
@@ -233,9 +232,6 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 	if err != nil {
 		return id, err
 	}
-	log.Info().Msgf("args %+v", spec.Process.Args)
-	log.Info().Msgf("env %+v", spec.Process.Env)
-	log.Info().Msgf("root %+v", spec.Root)
 	for _, linxNS := range spec.Linux.Namespaces {
 		log.Info().Msgf("namespace %+v", linxNS.Type)
 	}
