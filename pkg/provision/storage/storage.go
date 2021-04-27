@@ -221,6 +221,8 @@ func (s *Fs) twins() ([]uint32, error) {
 	return ids, nil
 }
 
+// Capacity returns the total capacity of all deployments
+// that are in OK state.
 func (s *Fs) Capacity() (cap gridtypes.Capacity, err error) {
 	s.m.RLock()
 	defer s.m.RUnlock()
