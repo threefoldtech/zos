@@ -88,6 +88,10 @@ func NewAuthMiddleware(users provision.Twins) mux.MiddlewareFunc {
 				return
 			}
 
+			if time.Until(token.Expiration()) > 2*time.Minute {
+				writeError(w, fmt.Errorf("the expiration date should not be more than 2 minutes"))
+				return
+			}
 			twinID, err := strconv.ParseUint(token.Issuer(), 10, 32)
 			if err != nil {
 				writeError(w, errors.Wrap(err, "failed to parse issued id, expecting a 32 bit uint"))
