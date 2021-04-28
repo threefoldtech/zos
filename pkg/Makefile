@@ -9,6 +9,7 @@ getdeps:
 	@echo "Installing deadcode" && go get -u github.com/remyoudompheng/go-misc/deadcode
 	@echo "Installing misspell" && go get -u github.com/client9/misspell/cmd/misspell
 	@echo "Installing ineffassign" && go get -u github.com/gordonklaus/ineffassign
+	@echo "Installing staticcheck" && go install honnef.co/go/tools/cmd/staticcheck
 
 verifiers: vet fmt lint cyclo spelling static #deadcode
 
@@ -40,7 +41,7 @@ spelling:
 	@${GOPATH}/bin/misspell -i monitord -error `find .`
 
 static:
-	go run honnef.co/go/tools/cmd/staticcheck -- ./...
+	staticcheck -- ./...
 
 check: test
 test: verifiers build
