@@ -61,6 +61,7 @@ type Counters struct {
 	volumes    CounterUint64
 	networks   CounterUint64
 	zdbs       CounterUint64
+	k8s        CounterUint64
 	vms        CounterUint64
 
 	SRU CounterUint64 // SSD storage in bytes
@@ -76,7 +77,8 @@ func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 		Volume:       uint16(c.volumes.Current()),
 		ZDBNamespace: uint16(c.zdbs.Current()),
 		Container:    uint16(c.containers.Current()),
-		K8sVM:        uint16(c.vms.Current()),
+		K8sVM:        uint16(c.k8s.Current()),
+		GenericVM:    uint16(c.vms.Current()),
 	}
 }
 
@@ -115,8 +117,11 @@ func (c *Counters) Increment(r *provision.Reservation) error {
 		c.zdbs.Increment(1)
 		u, err = processZdb(r)
 	case KubernetesReservation:
-		c.vms.Increment(1)
+		c.k8s.Increment(1)
 		u, err = processKubernetes(r)
+	case VirtualMachineReservation:
+		c.vms.Increment(1)
+		u, err = processVM(r)
 	case NetworkReservation, NetworkResourceReservation:
 		c.networks.Increment(1)
 		u = resourceUnits{}
@@ -156,6 +161,9 @@ func (c *Counters) Decrement(r *provision.Reservation) error {
 		c.zdbs.Decrement(1)
 		u, err = processZdb(r)
 	case KubernetesReservation:
+		c.k8s.Decrement(1)
+		u, err = processKubernetes(r)
+	case VirtualMachineReservation:
 		c.vms.Decrement(1)
 		u, err = processKubernetes(r)
 	case NetworkReservation, NetworkResourceReservation:
@@ -199,6 +207,12 @@ func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, totalMemAva
 		}
 
 	case KubernetesReservation:
+		requestedUnits, err = processKubernetes(r)
+		if err != nil {
+			return err
+		}
+
+	case VirtualMachineReservation:
 		requestedUnits, err = processKubernetes(r)
 		if err != nil {
 			return err
@@ -273,13 +287,24 @@ func processKubernetes(r *provision.Reservation) (u resourceUnits, err error) {
 	if err = json.Unmarshal(r.Data, &k8s); err != nil {
 		return u, err
 	}
+	return getResourceRequirement(&k8s), nil
+}
 
+func processVM(r *provision.Reservation) (u resourceUnits, err error) {
+	var vm VM
+	if err = json.Unmarshal(r.Data, &vm); err != nil {
+		return u, err
+	}
+	return getResourceRequirement(&vm), nil
+}
+
+func getResourceRequirement(vm VMWithCustomSize) (u resourceUnits) {
 	// size are defined at https://github.com/threefoldtech/zos/blob/master/pkg/provision/kubernetes.go#L311
-	switch k8s.Size {
+	switch vm.GetSize() {
 	case -1:
-		u.CRU = uint64(k8s.Custom.CRU)
-		u.MRU = uint64(k8s.Custom.MRU) * gib
-		u.SRU = uint64(k8s.Custom.SRU) * gib
+		u.CRU = uint64(vm.GetCustomSize().CRU)
+		u.MRU = uint64(vm.GetCustomSize().MRU) * gib
+		u.SRU = uint64(vm.GetCustomSize().SRU) * gib
 	case 1:
 		u.CRU = 1
 		u.MRU = 2 * gib
@@ -360,5 +385,6 @@ func processKubernetes(r *provision.Reservation) (u resourceUnits, err error) {
 		extra = gib
 	}
 	u.MRU += extra
-	return u, nil
+
+	return u
 }

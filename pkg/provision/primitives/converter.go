@@ -208,7 +208,7 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 	return k8s, k.NodeId, nil
 }
 
-// K8SToProvisionType converts type to internal provision type
+// VMToProvisionType converts type to internal provision type
 func VMToProvisionType(w workloads.Workloader) (VM, string, error) {
 	k, ok := w.(*workloads.VirtualMachine)
 	if !ok {

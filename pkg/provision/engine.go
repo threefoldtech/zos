@@ -497,6 +497,7 @@ func (e *Engine) updateStats() error {
 		Uint16("zDBNamespace", wl.ZDBNamespace).
 		Uint16("container", wl.Container).
 		Uint16("k8sVM", wl.K8sVM).
+		Uint16("gVM", wl.GenericVM).
 		Uint16("proxy", wl.Proxy).
 		Uint16("reverseProxy", wl.ReverseProxy).
 		Uint16("subdomain", wl.Subdomain).

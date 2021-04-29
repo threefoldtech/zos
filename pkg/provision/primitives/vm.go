@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -52,7 +53,8 @@ type VMInfo struct {
 	ImagePath string
 }
 
-const VMREPO = "https://hub.grid.tf/omar0.3bot/"
+const VMREPO = "https://hub.grid.tf/tf-official-vms/"
+const VMTAG = "latest"
 
 func (p *Provisioner) VirtualMachineProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.virtualMachineProvisionImpl(ctx, reservation)
@@ -69,6 +71,11 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	)
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return result, errors.Wrap(err, "failed to decode reservation schema")
+	}
+
+	// avoid funny stuff like ../badaccount/another-flist
+	if matched, _ := regexp.MatchString("^[0-9a-zA-Z-.]*$", config.Name); !matched {
+		return result, errors.New("the name must consist of alphanumeric characters, dot, and dash ony.")
 	}
 
 	netID := provision.NetworkID(reservation.User, string(config.NetworkID))
@@ -103,7 +110,7 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 		return result, nil
 	}
 
-	flistName := VMREPO + config.Name + ".flist"
+	flistName := VMREPO + strings.ToLower(config.Name) + "-" + VMTAG + ".flist"
 	imagePath, err := ensureFList(flist, flistName)
 	if err != nil {
 		return result, errors.Wrap(err, "could not mount k3os flist")
@@ -188,7 +195,6 @@ func (p *Provisioner) prepareVMFS(ctx context.Context, imageInfo VMInfo, diskPat
 	imageFlag := fmt.Sprintf("if=%s", imageInfo.ImagePath)
 	diskFlag := fmt.Sprintf("of=%s", diskPath)
 	cmd = exec.CommandContext(ctx, "dd", imageFlag, diskFlag, "conv=notrunc")
-	log.Debug().Str("iflag", imageFlag).Msg("input dd flag")
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "failed to copy the ubuntu raw image over the disk")
 	}
