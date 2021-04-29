@@ -354,5 +354,11 @@ func processKubernetes(r *provision.Reservation) (u resourceUnits, err error) {
 		u.SRU = 25 * gib
 	}
 
+	// we add an over head of 5% of memory with a max of 1G
+	extra := u.MRU * 5 / 100
+	if extra > gib {
+		extra = gib
+	}
+	u.MRU += extra
 	return u, nil
 }
