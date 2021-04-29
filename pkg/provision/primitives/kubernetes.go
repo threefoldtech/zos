@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -121,7 +122,9 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	if err != nil {
 		return result, errors.Wrap(err, "failed to decrypt namespace password")
 	}
-
+	if strings.ContainsAny(config.PlainClusterSecret, " \t\r\n\f") {
+		return result, errors.New("cluster secret shouldn't contain whitespace chars")
+	}
 	cpu, memory, disk, err := vmSize(&config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not interpret vm size")
@@ -226,7 +229,11 @@ func (p *Provisioner) kubernetesInstall(ctx context.Context, name string, cpu ui
 		cmdline = fmt.Sprintf("%s k3os.server_url=https://%s:6443", cmdline, ipstring)
 	}
 	for _, key := range cfg.SSHKeys {
-		cmdline = fmt.Sprintf("%s ssh_authorized_keys=\"%s\"", cmdline, key)
+		trimmed := strings.TrimSpace(key)
+		if strings.ContainsAny(trimmed, "\"\n") {
+			return errors.New("ssh keys shouldn't contain double quotes or intermediate new lines")
+		}
+		cmdline = fmt.Sprintf("%s ssh_authorized_keys=\"%s\"", cmdline, trimmed)
 	}
 	if cfg.DatastoreEndpoint != "" {
 		cmdline = fmt.Sprintf("%s k3os.k3s_args=\"--datastore-endpoint=%s\"", cmdline, cfg.DatastoreEndpoint)

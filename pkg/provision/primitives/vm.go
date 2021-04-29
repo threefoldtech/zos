@@ -50,12 +50,12 @@ type VMInfo struct {
 	Flist              string
 	Initrd             string
 	Kernel             string
-	CmdlineConstructor func(VM) string
+	CmdlineConstructor func(VM) (string, error)
 }
 
 // const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
 var flistMap = map[string]VMInfo{
-	"ubuntu-20": VMInfo{
+	"ubuntu-20": {
 		Flist:              "https://hub.grid.tf/omar0.3bot/omarelawady-zos-ubuntu-vm-latest.flist",
 		Initrd:             "initrd.img-5.8.0-34-generic",
 		Kernel:             "vmlinuz-5.8.0-34-generic",
@@ -76,7 +76,6 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 
 		config VM
 	)
-	log.Debug().Str("data", string(reservation.Data)).Msg("Received Data")
 	if err := json.Unmarshal(reservation.Data, &config); err != nil {
 		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
@@ -172,9 +171,12 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	}
 	err = p.prepareVMFS(ctx, imagePath, diskPath)
 	if err != nil {
+		return result, errors.Wrap(err, "could not prepare vm filesystem")
+	}
+	cmdline, err := imageInfo.CmdlineConstructor(config)
+	if err != nil {
 		return result, err
 	}
-	cmdline := imageInfo.CmdlineConstructor(config)
 	err = p.vmRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, imageInfo.Initrd, imageInfo.Kernel, cmdline, netInfo)
 	if err != nil {
 		// attempt to delete the vm, should the process still be lingering
@@ -233,8 +235,8 @@ func (p *Provisioner) vmRun(ctx context.Context, name string, cpu uint8, memory 
 		CPU:         cpu,
 		Memory:      int64(memory),
 		Network:     networkInfo,
-		KernelImage: imagePath + "/" + initrd,
-		InitrdImage: imagePath + "/" + kernel,
+		KernelImage: imagePath + "/" + kernel,
+		InitrdImage: imagePath + "/" + initrd,
 		KernelArgs:  cmdline,
 		Disks:       disks,
 	}
@@ -250,12 +252,14 @@ func (k *VM) GetCustomSize() VMCustomSize {
 	return k.Custom
 }
 
-func ubuntuCMDLine(config VM) string {
-	sshKey := ""
-	if len(config.SSHKeys) > 0 {
-		sshKey = config.SSHKeys[0]
-	}
+func ubuntuCMDLine(config VM) (string, error) {
 	cmdline := "root=/dev/vda rw console=ttyS0 reboot=k panic=1"
-	cmdline = fmt.Sprintf("%s ssh=%s", cmdline, strings.Replace(sshKey, " ", ",", -1))
-	return cmdline
+	for _, key := range config.SSHKeys {
+		trimmed := strings.TrimSpace(key)
+		if strings.ContainsAny(trimmed, "\t\r\n\f") {
+			return "", errors.New("ssh keys can't contain intermediate whitespace chars other than white space")
+		}
+		cmdline = fmt.Sprintf("%s ssh=%s", cmdline, strings.Replace(trimmed, " ", ",", -1))
+	}
+	return cmdline, nil
 }
