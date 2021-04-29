@@ -107,7 +107,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	}
 
 	if exists {
-		return result, errors.New("kubernetes vm with same network already exists")
+		return result, errors.New("another vm with same network already exists")
 	}
 
 	// check if public ipv4 is supported, should this be requested

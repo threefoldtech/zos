@@ -47,21 +47,12 @@ type VM struct {
 }
 
 type VMInfo struct {
-	Flist              string
-	Initrd             string
-	Kernel             string
-	CmdlineConstructor func(VM) (string, error)
+	Initrd    string
+	Kernel    string
+	ImagePath string
 }
 
-// const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
-var flistMap = map[string]VMInfo{
-	"ubuntu-20": {
-		Flist:              "https://hub.grid.tf/omar0.3bot/omarelawady-zos-ubuntu-vm-latest.flist",
-		Initrd:             "initrd.img-5.8.0-34-generic",
-		Kernel:             "vmlinuz-5.8.0-34-generic",
-		CmdlineConstructor: ubuntuCMDLine,
-	},
-}
+const VMREPO = "https://hub.grid.tf/omar0.3bot/"
 
 func (p *Provisioner) VirtualMachineProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.virtualMachineProvisionImpl(ctx, reservation)
@@ -91,7 +82,7 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	}
 
 	if exists {
-		return result, errors.New("kubernetes vm with same network already exists")
+		return result, errors.New("another vm with same network already exists")
 	}
 
 	// check if public ipv4 is supported, should this be requested
@@ -111,10 +102,15 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 		// vm is already running, nothing to do here
 		return result, nil
 	}
-	imageInfo := flistMap[config.Name]
-	imagePath, err := ensureFList(flist, imageInfo.Flist)
+
+	flistName := VMREPO + config.Name + ".flist"
+	imagePath, err := ensureFList(flist, flistName)
 	if err != nil {
 		return result, errors.Wrap(err, "could not mount k3os flist")
+	}
+	imageInfo, err := constructImageInfo(imagePath)
+	if err != nil {
+		return result, err
 	}
 
 	var diskPath string
@@ -169,15 +165,15 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
-	err = p.prepareVMFS(ctx, imagePath, diskPath)
+	err = p.prepareVMFS(ctx, imageInfo, diskPath)
 	if err != nil {
 		return result, errors.Wrap(err, "could not prepare vm filesystem")
 	}
-	cmdline, err := imageInfo.CmdlineConstructor(config)
+	cmdline, err := constructCMDLine(config)
 	if err != nil {
 		return result, err
 	}
-	err = p.vmRun(ctx, reservation.ID, cpu, memory, diskPath, imagePath, imageInfo.Initrd, imageInfo.Kernel, cmdline, netInfo)
+	err = p.vmRun(ctx, reservation.ID, cpu, memory, diskPath, imageInfo, cmdline, netInfo)
 	if err != nil {
 		// attempt to delete the vm, should the process still be lingering
 		vm.Delete(reservation.ID)
@@ -186,13 +182,13 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	return result, err
 }
 
-func (p *Provisioner) prepareVMFS(ctx context.Context, imagePath string, diskPath string) error {
+func (p *Provisioner) prepareVMFS(ctx context.Context, imageInfo VMInfo, diskPath string) error {
 
 	var cmd *exec.Cmd
-	imageFlag := fmt.Sprintf("if=%s", imagePath+"/ubuntu.raw")
+	imageFlag := fmt.Sprintf("if=%s", imageInfo.ImagePath)
 	diskFlag := fmt.Sprintf("of=%s", diskPath)
 	cmd = exec.CommandContext(ctx, "dd", imageFlag, diskFlag, "conv=notrunc")
-
+	log.Debug().Str("iflag", imageFlag).Msg("input dd flag")
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "failed to copy the ubuntu raw image over the disk")
 	}
@@ -224,7 +220,7 @@ func (p *Provisioner) prepareVMFS(ctx context.Context, imagePath string, diskPat
 	return nil
 }
 
-func (p *Provisioner) vmRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imagePath string, initrd string, kernel string, cmdline string, networkInfo pkg.VMNetworkInfo) error {
+func (p *Provisioner) vmRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imageInfo VMInfo, cmdline string, networkInfo pkg.VMNetworkInfo) error {
 	vm := stubs.NewVMModuleStub(p.zbus)
 
 	disks := make([]pkg.VMDisk, 1)
@@ -235,8 +231,8 @@ func (p *Provisioner) vmRun(ctx context.Context, name string, cpu uint8, memory 
 		CPU:         cpu,
 		Memory:      int64(memory),
 		Network:     networkInfo,
-		KernelImage: imagePath + "/" + kernel,
-		InitrdImage: imagePath + "/" + initrd,
+		KernelImage: imageInfo.Kernel,
+		InitrdImage: imageInfo.Initrd,
 		KernelArgs:  cmdline,
 		Disks:       disks,
 	}
@@ -252,7 +248,7 @@ func (k *VM) GetCustomSize() VMCustomSize {
 	return k.Custom
 }
 
-func ubuntuCMDLine(config VM) (string, error) {
+func constructCMDLine(config VM) (string, error) {
 	cmdline := "root=/dev/vda rw console=ttyS0 reboot=k panic=1"
 	for _, key := range config.SSHKeys {
 		trimmed := strings.TrimSpace(key)
@@ -262,4 +258,20 @@ func ubuntuCMDLine(config VM) (string, error) {
 		cmdline = fmt.Sprintf("%s ssh=%s", cmdline, strings.Replace(trimmed, " ", ",", -1))
 	}
 	return cmdline, nil
+}
+
+func constructImageInfo(imagePath string) (VMInfo, error) {
+	initrd := ""
+	if _, err := os.Stat(imagePath + "/initrd"); err == nil {
+		initrd = imagePath + "/initrd"
+	}
+	kernel := imagePath + "/kernel"
+	if _, err := os.Stat(kernel); err != nil {
+		return VMInfo{}, errors.Wrap(err, "couldn't stat kernel")
+	}
+	image := imagePath + "/image.raw"
+	if _, err := os.Stat(image); err != nil {
+		return VMInfo{}, errors.Wrap(err, "couldn't stat image.raw")
+	}
+	return VMInfo{Initrd: initrd, Kernel: kernel, ImagePath: image}, nil
 }

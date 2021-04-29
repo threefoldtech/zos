@@ -21,9 +21,8 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 
 	// build command line
 	args := map[string][]string{
-		"--kernel":    {m.Boot.Kernel},
-		"--initramfs": {m.Boot.Initrd},
-		"--cmdline":   {m.Boot.Args},
+		"--kernel":  {m.Boot.Kernel},
+		"--cmdline": {m.Boot.Args},
 
 		"--cpus":   {m.Config.CPU.String()},
 		"--memory": {m.Config.Mem.String()},
@@ -31,7 +30,9 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		"--log-file":   {logs},
 		"--api-socket": {socket},
 	}
-
+	if m.Boot.Initrd != "" {
+		args["--initramfs"] = []string{m.Boot.Initrd}
+	}
 	// disks
 	if len(m.Disks) > 0 {
 		var disks []string
