@@ -209,7 +209,7 @@ func Test_processKubernetes(t *testing.T) {
 			},
 			wantU: resourceUnits{
 				CRU: 1,
-				MRU: 2 * gib,
+				MRU: 2*gib + (2 * gib * 5 / 100),
 				SRU: 50 * gib,
 			},
 		},
@@ -225,7 +225,7 @@ func Test_processKubernetes(t *testing.T) {
 			},
 			wantU: resourceUnits{
 				CRU: 2,
-				MRU: 4 * gib,
+				MRU: 4*gib + (4 * gib * 5 / 100),
 				SRU: 100 * gib,
 			},
 		},
