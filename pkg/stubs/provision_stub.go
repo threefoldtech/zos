@@ -42,9 +42,9 @@ func (s *ProvisionStub) Counters(ctx context.Context) (<-chan pkg.ProvisionCount
 	return ch, nil
 }
 
-func (s *ProvisionStub) DecommissionCached(arg0 string, arg1 string) (ret0 error) {
+func (s *ProvisionStub) DecommissionCached(ctx context.Context, arg0 string, arg1 string) (ret0 error) {
 	args := []interface{}{arg0, arg1}
-	result, err := s.client.Request(s.module, s.object, "DecommissionCached", args...)
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "DecommissionCached", args...)
 	if err != nil {
 		panic(err)
 	}
