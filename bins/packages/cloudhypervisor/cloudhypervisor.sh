@@ -1,7 +1,6 @@
-CLOUDHYPERVISOR_VERSION="0.14.1"
-CLOUDHYPERVISOR_CHECKSUM="4510d198f6defcfe1df14ac82de0cb82"
+CLOUDHYPERVISOR_VERSION="15.0"
+CLOUDHYPERVISOR_CHECKSUM="74a5865efd82538e9331a2c09eacf7c9"
 CLOUDHYPERVISOR_LINK="https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/v${CLOUDHYPERVISOR_VERSION}/cloud-hypervisor-static"
-CLOUDHYPERVISOR_RUST_TOOLCHAIN="1.50.0"
 
 
 download_cloudhypervisor() {
