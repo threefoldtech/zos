@@ -42,7 +42,7 @@ func (s *StorageMock) CreateFilesystem(ctx context.Context, name string, size ui
 // ReleaseFilesystem releases filesystem mock
 func (s *StorageMock) ReleaseFilesystem(ctx context.Context, name string) error {
 	args := s.Called(ctx, name)
-	return args.Error(1)
+	return args.Error(0)
 }
 
 // Path implements the pkg.StorageModules interfaces
@@ -129,7 +129,7 @@ func TestMountUnmount(t *testing.T) {
 
 	flister := newFlister(root, strg, cmder)
 
-	strg.On("Path", mock.Anything).Return("/my/backend", nil)
+	strg.On("Path", mock.Anything, mock.Anything).Return("/my/backend", nil)
 
 	strg.On("CreateFilesystem", mock.Anything, uint64(256*mib), zos.SSDDevice).
 		Return("/my/backend", nil)
@@ -139,7 +139,7 @@ func TestMountUnmount(t *testing.T) {
 
 	// Trick flister into thinking that 0-fs has exited
 	os.Remove(cmder.m["pid"])
-	strg.On("ReleaseFilesystem", filepath.Base(mnt)).Return(nil)
+	strg.On("ReleaseFilesystem", mock.Anything, filepath.Base(mnt)).Return(nil)
 
 	err = flister.Umount(mnt)
 	require.NoError(t, err)
@@ -158,9 +158,9 @@ func TestIsolation(t *testing.T) {
 
 	flister := newFlister(root, strg, cmder)
 
-	strg.On("Path", mock.Anything).Return("/my/backend", nil)
+	strg.On("Path", mock.Anything, mock.Anything).Return("/my/backend", nil)
 
-	strg.On("CreateFilesystem", mock.Anything, uint64(256*mib), zos.SSDDevice).
+	strg.On("CreateFilesystem", mock.Anything, mock.Anything, mock.Anything, uint64(256*mib), zos.SSDDevice).
 		Return("/my/backend", nil)
 
 	path1, err := flister.Mount("https://hub.grid.tf/thabet/redis.flist", "", pkg.DefaultMountOptions)
