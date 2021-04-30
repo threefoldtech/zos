@@ -13,7 +13,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
+func (c *Module) handlerEventTaskExit(ctx context.Context, ns string, event *events.TaskExit) {
 	log := log.With().
 		Str("namespace", ns).
 		Str("container", event.ContainerID).Logger()
@@ -57,20 +57,20 @@ func (c *Module) handlerEventTaskExit(ns string, event *events.TaskExit) {
 		log.Debug().Err(reason).Msg("deleting container due to restart error")
 
 		stub := stubs.NewProvisionStub(c.client)
-		if err := stub.DecommissionCached(event.ContainerID, reason.Error()); err != nil {
+		if err := stub.DecommissionCached(ctx, event.ContainerID, reason.Error()); err != nil {
 			log.Error().Err(err).Msg("failed to decommission reservation")
 		}
 	}
 }
 
-func (c *Module) handleEvent(ns string, event interface{}) {
+func (c *Module) handleEvent(ctx context.Context, ns string, event interface{}) {
 	switch event := event.(type) {
 	case *events.TaskExit:
 		// we run this handler in a go routine because
 		// - we don't want the restarts to slow down the event stream processing
 		// - this method does not return any useful value anyway, so safe to run
 		//   it in the background.
-		go c.handlerEventTaskExit(ns, event)
+		go c.handlerEventTaskExit(ctx, ns, event)
 	default:
 		log.Debug().Msgf("unhandled event: %+v", event)
 	}
@@ -102,7 +102,7 @@ func (c *Module) watch(ctx context.Context) error {
 				continue
 			}
 
-			c.handleEvent(envelope.Namespace, event)
+			c.handleEvent(ctx, envelope.Namespace, event)
 		case err := <-errors:
 			return err
 		}
