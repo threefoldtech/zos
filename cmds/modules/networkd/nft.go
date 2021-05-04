@@ -9,6 +9,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func ensureExporterPort(ctx context.Context) error {
+	const script = `
+	if ! nft list table inet filter | grep 1900; then
+		nft add rule inet filter input tcp dport 1900 accept
+	fi
+	`
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", script)
+
+	return cmd.Run()
+}
+
 func ensureHostFw(ctx context.Context) error {
 	log.Info().Msg("ensuring existing host nft rules")
 	cmd := exec.CommandContext(ctx, "nft", "list", "ruleset")
