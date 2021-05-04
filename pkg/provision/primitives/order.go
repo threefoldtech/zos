@@ -23,8 +23,6 @@ const (
 	VirtualMachineReservation provision.ReservationType = "virtual_machine"
 )
 
-// where is this order utilized?
-
 // ProvisionOrder is used to sort the workload type
 // in the right order for provision engine
 var ProvisionOrder = map[provision.ReservationType]int{

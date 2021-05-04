@@ -78,6 +78,12 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
+	config.PlainClusterSecret, err = decryptSecret(config.ClusterSecret, reservation.User, reservation.Version, p.zbus)
+
+	if err != nil {
+		return result, errors.Wrap(err, "failed to decrypt namespace password")
+	}
+
 	if err = config.Validate(); err != nil {
 		return result, err
 	}
@@ -103,13 +109,6 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	result.ID = reservation.ID
 	result.IP = config.IP.String()
 
-	config.PlainClusterSecret, err = decryptSecret(config.ClusterSecret, reservation.User, reservation.Version, p.zbus)
-	if err != nil {
-		return result, errors.Wrap(err, "failed to decrypt namespace password")
-	}
-	if strings.ContainsAny(config.PlainClusterSecret, " \t\r\n\f") {
-		return result, errors.New("cluster secret shouldn't contain whitespace chars")
-	}
 	cpu, memory, disk, err := vmSize(&config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not interpret vm size")
@@ -307,6 +306,11 @@ func (k *Kubernetes) Validate() error {
 	if err != nil {
 		return err
 	}
+
+	if strings.ContainsAny(k.PlainClusterSecret, " \t\r\n\f") {
+		return errors.New("cluster secret shouldn't contain whitespace chars")
+	}
+
 	for _, ip := range k.MasterIPs {
 		if ip.To4() == nil && ip.To16() == nil {
 			return errors.New("invalid master IP")
