@@ -118,14 +118,21 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		return errors.Wrap(err, "failed to start cloud-hypervisor")
 	}
 
+	pid := cmd.Process.Pid
+
 	go func() {
-		// since we can't fully daemonize this process
-		// the best solution for now is just do a
-		if err := cmd.Wait(); err != nil {
-			log.Debug().Err(err).Str("name", m.ID).Msg("vm has existed")
+		ps, err := os.FindProcess(pid)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to find process with id: %d", pid)
+			return
 		}
-		// this to make sure we have no zombi processes on the system
+
+		ps.Wait()
 	}()
+
+	if err := cmd.Process.Release(); err != nil {
+		return errors.Wrap(err, "failed to release cloud-hypervisor process")
+	}
 
 	return nil
 }
