@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -117,5 +118,14 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		return errors.Wrap(err, "failed to start cloud-hypervisor")
 	}
 
-	return cmd.Process.Release()
+	go func() {
+		// since we can't fully daemonize this process
+		// the best solution for now is just do a
+		if err := cmd.Wait(); err != nil {
+			log.Debug().Err(err).Str("name", m.ID).Msg("vm has existed")
+		}
+		// this to make sure we have no zombi processes on the system
+	}()
+
+	return nil
 }
