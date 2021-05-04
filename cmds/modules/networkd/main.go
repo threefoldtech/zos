@@ -109,10 +109,6 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to host firewall rules")
 	}
 
-	if err := ensureExporterPort(ctx); err != nil {
-		return errors.Wrap(err, "failed to open port for node exporter")
-	}
-
 	ygg, err := startYggdrasil(ctx, identity.PrivateKey(), dmz)
 	if err != nil {
 		return errors.Wrap(err, "fail to start yggdrasil")
