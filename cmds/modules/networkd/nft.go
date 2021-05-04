@@ -11,8 +11,8 @@ import (
 
 func ensureExporterPort(ctx context.Context) error {
 	const script = `
-	if ! nft list table inet filter | grep 1900; then
-		nft add rule inet filter input iifname zos tcp dport 1900
+	if ! nft list table inet filter | grep 9100; then
+		nft add rule inet filter input iifname zos tcp dport 9100
 	fi
 	`
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", script)
