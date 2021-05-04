@@ -34,7 +34,7 @@ func (p *Provisioner) vmDecomission(ctx context.Context, reservation *provision.
 		network = stubs.NewNetworkerStub(p.zbus)
 		vm      = stubs.NewVMModuleStub(p.zbus)
 
-		cfg Kubernetes
+		cfg VM
 	)
 
 	if err := json.Unmarshal(reservation.Data, &cfg); err != nil {
@@ -65,17 +65,17 @@ func (p *Provisioner) vmDecomission(ctx context.Context, reservation *provision.
 	return nil
 }
 
-func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID string, iface string, pubIface string, IP net.IP, pubIP schema.ID, networkID pkg.NetID) (pkg.VMNetworkInfo, error) {
+func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID string, iface string, pubIface string, cfg VM) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 
-	netID := provision.NetworkID(userID, string(networkID))
+	netID := provision.NetworkID(userID, string(cfg.NetworkID))
 	subnet, err := network.GetSubnet(netID)
 	if err != nil {
 		return pkg.VMNetworkInfo{}, errors.Wrapf(err, "could not get network resource subnet")
 	}
 
-	if !subnet.Contains(IP) {
-		return pkg.VMNetworkInfo{}, fmt.Errorf("IP %s is not part of local nr subnet %s", IP.String(), subnet.String())
+	if !subnet.Contains(cfg.IP) {
+		return pkg.VMNetworkInfo{}, fmt.Errorf("IP %s is not part of local nr subnet %s", cfg.IP.String(), subnet.String())
 	}
 
 	privNet, err := network.GetNet(netID)
@@ -84,7 +84,7 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID
 	}
 
 	addrCIDR := net.IPNet{
-		IP:   IP,
+		IP:   cfg.IP,
 		Mask: subnet.Mask,
 	}
 
@@ -93,7 +93,7 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID
 		return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not get network resource default gateway")
 	}
 
-	privIP6, err := network.GetIPv6From4(netID, IP)
+	privIP6, err := network.GetIPv6From4(netID, cfg.IP)
 	if err != nil {
 		return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not convert private ipv4 to ipv6")
 	}
@@ -117,11 +117,11 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID
 		networkInfo.NewStyle = true
 	}
 
-	if pubIP != 0 {
+	if cfg.PublicIP != 0 {
 		// A public ip is set, load the reservation, extract the ip and make a config
 		// for it
 
-		pubIP, pubGw, err := p.getPubIPConfig(pubIP)
+		pubIP, pubGw, err := p.getPubIPConfig(cfg.PublicIP)
 		if err != nil {
 			return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not get public ip config")
 		}
@@ -255,7 +255,7 @@ func vmSize(vm VMWithCustomSize) (cpu uint8, memory uint64, storage uint64, err 
 		return 1, 1 * 1024, 25 * 1024, nil
 	}
 
-	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size 1 to 18 are supported", vm.GetSize())
+	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size -1, and 1 to 18 are supported", vm.GetSize())
 }
 
 func pubIPResID(reservationID schema.ID) string {

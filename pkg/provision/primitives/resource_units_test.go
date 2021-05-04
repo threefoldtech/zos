@@ -203,7 +203,9 @@ func Test_processKubernetes(t *testing.T) {
 				r: &provision.Reservation{
 					Type: KubernetesReservation,
 					Data: mustMarshalJSON(t, Kubernetes{
-						Size: 1,
+						VM: VM{
+							Size: 1,
+						},
 					}),
 				},
 			},
@@ -219,7 +221,9 @@ func Test_processKubernetes(t *testing.T) {
 				r: &provision.Reservation{
 					Type: KubernetesReservation,
 					Data: mustMarshalJSON(t, Kubernetes{
-						Size: 2,
+						VM: VM{
+							Size: 2,
+						},
 					}),
 				},
 			},

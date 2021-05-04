@@ -165,7 +165,7 @@ func (c *Counters) Decrement(r *provision.Reservation) error {
 		u, err = processKubernetes(r)
 	case VirtualMachineReservation:
 		c.vms.Decrement(1)
-		u, err = processKubernetes(r)
+		u, err = processVM(r)
 	case NetworkReservation, NetworkResourceReservation:
 		c.networks.Decrement(1)
 		u = resourceUnits{}
@@ -213,7 +213,7 @@ func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, totalMemAva
 		}
 
 	case VirtualMachineReservation:
-		requestedUnits, err = processKubernetes(r)
+		requestedUnits, err = processVM(r)
 		if err != nil {
 			return err
 		}

@@ -34,7 +34,7 @@ var ProvisionOrder = map[provision.ReservationType]int{
 	ZDBReservation:             3,
 	VolumeReservation:          4,
 	ContainerReservation:       5,
-	KubernetesReservation:      6,
-	VirtualMachineReservation:  7,
-	PublicIPReservation:        8,
+	PublicIPReservation:        6,
+	KubernetesReservation:      7,
+	VirtualMachineReservation:  8,
 }

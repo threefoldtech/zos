@@ -10,7 +10,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -31,30 +30,13 @@ type KubernetesCustomSize struct {
 
 // Kubernetes reservation data
 type Kubernetes struct {
-	// Size of the vm, this defines the amount of vCpu, memory, and the disk size
-	// Docs: docs/kubernetes/sizes.md
-	Size int64 `json:"size"`
-
-	Custom VMCustomSize `json:"custom_size"`
-	// NetworkID of the network namepsace in which to run the VM. The network
-	// must be provisioned previously.
-	NetworkID pkg.NetID `json:"network_id"`
-	// IP of the VM. The IP must be part of the subnet available in the network
-	// resource defined by the networkID on this node
-	IP net.IP `json:"ip"`
+	VM `json:",inline"`
 
 	// ClusterSecret is the hex encoded encrypted cluster secret.
 	ClusterSecret string `json:"cluster_secret"`
 	// MasterIPs define the URL's for the kubernetes master nodes. If this
 	// list is empty, this node is considered to be a master node.
 	MasterIPs []net.IP `json:"master_ips"`
-	// SSHKeys is a list of ssh keys to add to the VM. Keys can be either
-	// a full ssh key, or in the form of `github:${username}`. In case of
-	// the later, the VM will retrieve the github keys for this username
-	// when it boots.
-	SSHKeys []string `json:"ssh_keys"`
-	// PublicIP points to a reservation for a public ip
-	PublicIP schema.ID `json:"public_ip"`
 
 	PlainClusterSecret string `json:"-"`
 
@@ -96,6 +78,9 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
+	if err = config.Validate(); err != nil {
+		return result, err
+	}
 	netID := provision.NetworkID(reservation.User, string(config.NetworkID))
 
 	// check if the network tap already exists
@@ -150,7 +135,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 		}
 		diskPath = info.Path
 	} else {
-		diskPath, err = storage.Allocate(diskName, int64(disk))
+		diskPath, err = storage.Allocate(diskName, int64(disk), "")
 		if err != nil {
 			return result, errors.Wrap(err, "failed to reserve filesystem for vm")
 		}
@@ -189,7 +174,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	}
 
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = p.buildNetworkInfo(ctx, reservation.Version, reservation.User, iface, pubIface, config.IP, config.PublicIP, config.NetworkID)
+	netInfo, err = p.buildNetworkInfo(ctx, reservation.Version, reservation.User, iface, pubIface, config.VM)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
@@ -316,10 +301,16 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 
 	return vm.Run(kubevm)
 }
-func (k *Kubernetes) GetSize() int64 {
-	return k.Size
-}
 
-func (k *Kubernetes) GetCustomSize() VMCustomSize {
-	return k.Custom
+func (k *Kubernetes) Validate() error {
+	err := k.VM.Validate()
+	if err != nil {
+		return err
+	}
+	for _, ip := range k.MasterIPs {
+		if ip.To4() == nil && ip.To16() == nil {
+			return errors.New("invalid master IP")
+		}
+	}
+	return nil
 }

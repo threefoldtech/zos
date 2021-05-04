@@ -4,15 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/tfexplorer/schema"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -73,9 +70,8 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 		return result, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	// avoid funny stuff like ../badaccount/another-flist
-	if matched, _ := regexp.MatchString("^[0-9a-zA-Z-.]*$", config.Name); !matched {
-		return result, errors.New("the name must consist of alphanumeric characters, dot, and dash ony.")
+	if err = config.Validate(); err != nil {
+		return result, err
 	}
 
 	netID := provision.NetworkID(reservation.User, string(config.NetworkID))
@@ -129,7 +125,7 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 		}
 		diskPath = info.Path
 	} else {
-		diskPath, err = storage.Allocate(diskName, int64(disk))
+		diskPath, err = storage.Allocate(diskName, int64(disk), imageInfo.ImagePath)
 		if err != nil {
 			return result, errors.Wrap(err, "failed to reserve filesystem for vm")
 		}
@@ -168,13 +164,9 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	}
 
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = p.buildNetworkInfo(ctx, reservation.Version, reservation.User, iface, pubIface, config.IP, config.PublicIP, config.NetworkID)
+	netInfo, err = p.buildNetworkInfo(ctx, reservation.Version, reservation.User, iface, pubIface, config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
-	}
-	err = p.prepareVMFS(ctx, imageInfo, diskPath)
-	if err != nil {
-		return result, errors.Wrap(err, "could not prepare vm filesystem")
 	}
 	cmdline, err := constructCMDLine(config)
 	if err != nil {
@@ -187,43 +179,6 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	}
 
 	return result, err
-}
-
-func (p *Provisioner) prepareVMFS(ctx context.Context, imageInfo VMInfo, diskPath string) error {
-
-	var cmd *exec.Cmd
-	imageFlag := fmt.Sprintf("if=%s", imageInfo.ImagePath)
-	diskFlag := fmt.Sprintf("of=%s", diskPath)
-	cmd = exec.CommandContext(ctx, "dd", imageFlag, diskFlag, "conv=notrunc")
-	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "failed to copy the ubuntu raw image over the disk")
-	}
-	dname, err := ioutil.TempDir("", "btrfs-resize")
-	if err != nil {
-		return errors.Wrap(err, "couldn't create a temp dir to mount the btrfs fs to resize it")
-	}
-	defer os.RemoveAll(dname)
-
-	cmd = exec.CommandContext(ctx, "mount", diskPath, dname)
-
-	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "couldn't mount the created disk to a tmp dir")
-	}
-
-	defer func() {
-		cmd = exec.CommandContext(ctx, "umount", dname)
-
-		if err := cmd.Run(); err != nil {
-			log.Error().Str("path", dname).Msg("Couldn't umount the tmp btrfs")
-		}
-	}()
-
-	cmd = exec.CommandContext(ctx, "btrfs", "filesystem", "resize", "max", dname)
-
-	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "failed to resize file system to disk size")
-	}
-	return nil
 }
 
 func (p *Provisioner) vmRun(ctx context.Context, name string, cpu uint8, memory uint64, diskPath string, imageInfo VMInfo, cmdline string, networkInfo pkg.VMNetworkInfo) error {
@@ -280,4 +235,25 @@ func constructImageInfo(imagePath string) (VMInfo, error) {
 		return VMInfo{}, errors.Wrap(err, "couldn't stat image.raw")
 	}
 	return VMInfo{Initrd: initrd, Kernel: kernel, ImagePath: image}, nil
+}
+
+func (k *VM) Validate() error {
+	// avoid funny stuff like ../badaccount/another-flist
+	if matched, _ := regexp.MatchString("^[0-9a-zA-Z-.]*$", k.Name); !matched {
+		return errors.New("the name must consist of alphanumeric characters, dot, and dash ony.")
+	}
+
+	if k.IP.To4() == nil && k.IP.To16() == nil {
+		return errors.New("invalid IP")
+	}
+	if k.Size != -1 && (k.Size < 1 || k.Size > 18) {
+		return errors.New("unsupported vm size %d, only size -1, and 1 to 18 are supported")
+	}
+	for _, key := range k.SSHKeys {
+		trimmed := strings.TrimSpace(key)
+		if strings.ContainsAny(trimmed, "\t\r\n\f\"") {
+			return errors.New("ssh keys can't contain intermediate whitespace chars other than white space")
+		}
+	}
+	return nil
 }
