@@ -503,6 +503,10 @@ func (n *networker) DisconnectPubTap(pubIPReservationID string) error {
 		return errors.Wrap(err, "could not load tap device")
 	}
 
+	// backward compatible
+	if err := netlink.LinkSetNoMaster(tap); err != nil {
+		log.Error().Err(err).Msg("failed to set tap device no-master")
+	}
 	//setting the txqueue on a macvtap will prevent traffic from
 	//going over the device, effectively disconnecting it.
 	return netlink.LinkSetTxQLen(tap, 0)
