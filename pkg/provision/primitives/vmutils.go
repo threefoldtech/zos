@@ -16,12 +16,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-type VMWithCustomSize interface {
-	GetSize() int64
-	GetCustomSize() VMCustomSize
-}
-
-// KubernetesCustomSize type
+// VMCustomSize type
 type VMCustomSize struct {
 	CRU int64   `json:"cru"`
 	MRU float64 `json:"mru"`
@@ -191,10 +186,10 @@ func (p *Provisioner) getPubIPConfig(rid schema.ID) (net.IPNet, net.IP, error) {
 
 // returns the vCpu's, memory, disksize for a vm size
 // memory and disk size is expressed in MiB
-func vmSize(vm VMWithCustomSize) (cpu uint8, memory uint64, storage uint64, err error) {
-	switch vm.GetSize() {
+func vmSize(vm VM) (cpu uint8, memory uint64, storage uint64, err error) {
+	switch vm.Size {
 	case -1:
-		customSize := vm.GetCustomSize()
+		customSize := vm.Custom
 		return uint8(customSize.CRU),
 			uint64(customSize.MRU * 1024),
 			uint64(customSize.SRU * 1024),
@@ -255,7 +250,7 @@ func vmSize(vm VMWithCustomSize) (cpu uint8, memory uint64, storage uint64, err 
 		return 1, 1 * 1024, 25 * 1024, nil
 	}
 
-	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size -1, and 1 to 18 are supported", vm.GetSize())
+	return 0, 0, 0, fmt.Errorf("unsupported vm size %d, only size -1, and 1 to 18 are supported", vm.Size)
 }
 
 func pubIPResID(reservationID schema.ID) string {

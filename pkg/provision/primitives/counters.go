@@ -287,7 +287,7 @@ func processKubernetes(r *provision.Reservation) (u resourceUnits, err error) {
 	if err = json.Unmarshal(r.Data, &k8s); err != nil {
 		return u, err
 	}
-	return getResourceRequirement(&k8s), nil
+	return getResourceRequirement(k8s.VM), nil
 }
 
 func processVM(r *provision.Reservation) (u resourceUnits, err error) {
@@ -295,16 +295,16 @@ func processVM(r *provision.Reservation) (u resourceUnits, err error) {
 	if err = json.Unmarshal(r.Data, &vm); err != nil {
 		return u, err
 	}
-	return getResourceRequirement(&vm), nil
+	return getResourceRequirement(vm), nil
 }
 
-func getResourceRequirement(vm VMWithCustomSize) (u resourceUnits) {
+func getResourceRequirement(vm VM) (u resourceUnits) {
 	// size are defined at https://github.com/threefoldtech/zos/blob/master/pkg/provision/kubernetes.go#L311
-	switch vm.GetSize() {
+	switch vm.Size {
 	case -1:
-		u.CRU = uint64(vm.GetCustomSize().CRU)
-		u.MRU = uint64(vm.GetCustomSize().MRU) * gib
-		u.SRU = uint64(vm.GetCustomSize().SRU) * gib
+		u.CRU = uint64(vm.Custom.CRU)
+		u.MRU = uint64(vm.Custom.MRU) * gib
+		u.SRU = uint64(vm.Custom.SRU) * gib
 	case 1:
 		u.CRU = 1
 		u.MRU = 2 * gib

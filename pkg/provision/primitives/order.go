@@ -19,7 +19,7 @@ const (
 	KubernetesReservation provision.ReservationType = "kubernetes"
 	// PublicIPReservation type
 	PublicIPReservation provision.ReservationType = "public_ip"
-	// PublicIPReservation type
+	// VirtualMachineReservation type
 	VirtualMachineReservation provision.ReservationType = "virtual_machine"
 )
 

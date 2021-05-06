@@ -16,13 +16,13 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-// KubernetesResult result returned by k3s reservation
+// VMResult result returned by k3s reservation
 type VMResult struct {
 	ID string `json:"id"`
 	IP string `json:"ip"`
 }
 
-// Kubernetes reservation data
+// VM reservation data
 type VM struct {
 	// Size of the vm, this defines the amount of vCpu, memory, and the disk size
 	// Docs: docs/kubernetes/sizes.md
@@ -44,16 +44,20 @@ type VM struct {
 	Name string `json:"name"`
 }
 
+// VMInfo kernel initrd and the raw disk path of the vm
 type VMInfo struct {
 	Initrd    string
 	Kernel    string
 	ImagePath string
 }
 
+// VMREPO in which all the vm flists are stored
 const VMREPO = "https://hub.grid.tf/tf-official-vms/"
+
+// VMTAG the tag of the vm images
 const VMTAG = "latest"
 
-func (p *Provisioner) VirtualMachineProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
+func (p *Provisioner) virtualMachineProvision(ctx context.Context, reservation *provision.Reservation) (interface{}, error) {
 	return p.virtualMachineProvisionImpl(ctx, reservation)
 }
 
@@ -96,7 +100,7 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	result.ID = reservation.ID
 	result.IP = config.IP.String()
 
-	cpu, memory, disk, err := vmSize(&config)
+	cpu, memory, disk, err := vmSize(config)
 	if err != nil {
 		return result, errors.Wrap(err, "could not interpret vm size")
 	}
@@ -187,7 +191,7 @@ func (p *Provisioner) vmRun(ctx context.Context, name string, cpu uint8, memory 
 	disks := make([]pkg.VMDisk, 1)
 	// installed disk
 	disks[0] = pkg.VMDisk{Path: diskPath, ReadOnly: false, Root: false}
-	kubevm := pkg.VM{
+	vmObj := pkg.VM{
 		Name:        name,
 		CPU:         cpu,
 		Memory:      int64(memory),
@@ -198,15 +202,7 @@ func (p *Provisioner) vmRun(ctx context.Context, name string, cpu uint8, memory 
 		Disks:       disks,
 	}
 
-	return vm.Run(kubevm)
-}
-
-func (k *VM) GetSize() int64 {
-	return k.Size
-}
-
-func (k *VM) GetCustomSize() VMCustomSize {
-	return k.Custom
+	return vm.Run(vmObj)
 }
 
 func constructCMDLine(config VM) (string, error) {
@@ -237,10 +233,11 @@ func constructImageInfo(imagePath string) (VMInfo, error) {
 	return VMInfo{Initrd: initrd, Kernel: kernel, ImagePath: image}, nil
 }
 
+// Validate validates the vm config, name, ip, size, and ssh keys
 func (k *VM) Validate() error {
 	// avoid funny stuff like ../badaccount/another-flist
 	if matched, _ := regexp.MatchString("^[0-9a-zA-Z-.]*$", k.Name); !matched {
-		return errors.New("the name must consist of alphanumeric characters, dot, and dash ony.")
+		return errors.New("the name must consist of alphanumeric characters, dot, and dash ony")
 	}
 
 	if k.IP.To4() == nil && k.IP.To16() == nil {

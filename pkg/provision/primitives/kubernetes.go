@@ -109,7 +109,7 @@ func (p *Provisioner) kubernetesProvisionImpl(ctx context.Context, reservation *
 	result.ID = reservation.ID
 	result.IP = config.IP.String()
 
-	cpu, memory, disk, err := vmSize(&config)
+	cpu, memory, disk, err := vmSize(config.VM)
 	if err != nil {
 		return result, errors.Wrap(err, "could not interpret vm size")
 	}
@@ -301,6 +301,7 @@ func (p *Provisioner) kubernetesRun(ctx context.Context, name string, cpu uint8,
 	return vm.Run(kubevm)
 }
 
+// Validate validates the vm configuration, master ip, clutser secret
 func (k *Kubernetes) Validate() error {
 	err := k.VM.Validate()
 	if err != nil {
