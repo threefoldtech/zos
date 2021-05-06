@@ -468,7 +468,7 @@ jobs:
         id: package
         run: |
           cd bins
-          sudo ./bins-extra.sh --package node-exporter'
+          sudo ./bins-extra.sh --package node-exporter
 
       - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
         if: success()
