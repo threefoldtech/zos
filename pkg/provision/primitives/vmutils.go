@@ -36,10 +36,8 @@ func (p *Provisioner) vmDecomission(ctx context.Context, reservation *provision.
 		return errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	if _, err := vm.Inspect(reservation.ID); err == nil {
-		if err := vm.Delete(reservation.ID); err != nil {
-			return errors.Wrapf(err, "failed to delete vm %s", reservation.ID)
-		}
+	if err := vm.Delete(reservation.ID); err != nil {
+		return errors.Wrapf(err, "failed to delete vm %s", reservation.ID)
 	}
 
 	netID := provision.NetworkID(reservation.User, string(cfg.NetworkID))
