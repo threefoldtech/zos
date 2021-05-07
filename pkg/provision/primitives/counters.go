@@ -81,6 +81,7 @@ func (c *Counters) CurrentWorkloads() directory.WorkloadAmount {
 }
 
 // CurrentUnits return the number of each resource units reserved on the system
+// Units are in GiB
 func (c *Counters) CurrentUnits() directory.ResourceAmount {
 	gib := float64(gib)
 	return directory.ResourceAmount{

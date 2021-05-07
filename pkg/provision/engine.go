@@ -120,12 +120,19 @@ func (e *Engine) getUsableMemoryBytes() (uint64, error) {
 		return 0, err
 	}
 
-	if m.Free > e.reservedMemoryBytes {
-		return m.Free - e.reservedMemoryBytes, nil
+	// 1 -get reserved memory from current deployed workloads (theoretical max)
+	cap := e.statser.CurrentUnits()
+	// 2 -calculate total reserved memory
+	reserved := cap.Mru*gib + float64(e.reservedMemoryBytes)
+	var free float64
+	if reserved >= float64(m.Total) {
+		free = 0
+	} else {
+		free = float64(m.Total) - reserved
 	}
 
-	// no free memory
-	return 0, nil
+	return uint64(math.Min(float64(free), float64(m.Free))), nil
+
 }
 
 // Run starts reader reservation from the Source and handle them
@@ -517,7 +524,7 @@ func (e *Engine) updateStats() error {
 	// total reserved memory is calculated as the
 	// 1 - all reservations memory (r.Mru)
 	// 2 - the system reserved memory
-	totalReservedMemory := r.Mru + float64(e.reservedMemoryBytes/gib)
+	totalReservedMemoryBytes := r.Mru*gib + float64(e.reservedMemoryBytes)
 	// 3 - then we also compare this to actual node consumption (things that)
 	// are not accounted for! and we always report the max of both
 	sys, err := mem.VirtualMemory()
@@ -525,9 +532,9 @@ func (e *Engine) updateStats() error {
 		return err
 	}
 
-	totalReservedMemory = math.Max(float64(sys.Used)/gib, totalReservedMemory)
+	totalReservedMemoryBytes = math.Max(float64(sys.Used), totalReservedMemoryBytes)
 	// and that is the value we should report
-	r.Mru = totalReservedMemory
+	r.Mru = totalReservedMemoryBytes / gib
 
 	log.Info().
 		Uint16("network", wl.Network).
