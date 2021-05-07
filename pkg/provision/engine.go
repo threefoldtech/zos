@@ -27,7 +27,6 @@ const gib = 1024 * 1024 * 1024
 
 const (
 	minimunZosMemory = 2 * gib
-	maximumZosMemory = 4 * gib
 )
 
 // Engine is the core of this package
@@ -94,13 +93,9 @@ func New(opts EngineOps) (*Engine, error) {
 
 	// we round the total memory size to the nearest 1G
 	totalMemory := math.Ceil(float64(memStats.Total)/gib) * gib
-	reservedMemory := totalMemory * 0.20
-	reservedMemory = math.Max(
-		math.Min(
-			reservedMemory,
-			maximumZosMemory,
-		),
-		minimunZosMemory,
+	reservedMemory := math.Max(
+		totalMemory*0.1,  //10% of total memory
+		minimunZosMemory, // min of 2G
 	)
 
 	reservedMemory = math.Ceil(reservedMemory/gib) * gib
