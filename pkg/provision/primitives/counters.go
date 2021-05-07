@@ -187,7 +187,7 @@ type resourceUnits struct {
 
 // CheckMemoryRequirements checks memory requirements for a reservation and compares it to whats in the counters
 // and what is the total memory on this node
-func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, totalMemAvailable uint64) error {
+func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, usableMemoryBytes uint64) error {
 	var requestedUnits resourceUnits
 	var err error
 
@@ -206,8 +206,8 @@ func (c *Counters) CheckMemoryRequirements(r *provision.Reservation, totalMemAva
 	}
 
 	if requestedUnits.MRU != 0 {
-		// If current MRU + requested MRU exceeds total, return an error
-		if c.MRU.Current()+requestedUnits.MRU > totalMemAvailable {
+		// requested MRU exceeds usable, return an error
+		if requestedUnits.MRU > usableMemoryBytes {
 			return errors.New("not enough free resources to support this memory size")
 		}
 	}
