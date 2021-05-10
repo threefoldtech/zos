@@ -131,7 +131,7 @@ func (e *Engine) getUsableMemoryBytes() (uint64, error) {
 		free = float64(m.Total) - reserved
 	}
 
-	return uint64(math.Min(float64(free), float64(m.Free))), nil
+	return uint64(math.Min(float64(free), float64(m.Available))), nil
 
 }
 
@@ -532,7 +532,14 @@ func (e *Engine) updateStats() error {
 		return err
 	}
 
-	totalReservedMemoryBytes = math.Max(float64(sys.Used), totalReservedMemoryBytes)
+	actualUsed := sys.Total - sys.Available
+
+	log.Debug().
+		Uint64("reserved", uint64(totalReservedMemoryBytes)).
+		Uint64("actual", actualUsed).
+		Msg("used memory")
+
+	totalReservedMemoryBytes = math.Max(float64(actualUsed), totalReservedMemoryBytes)
 	// and that is the value we should report
 	r.Mru = totalReservedMemoryBytes / gib
 
