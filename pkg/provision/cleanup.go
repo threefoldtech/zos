@@ -20,7 +20,7 @@ import (
 
 var (
 	vdiskIDMatch = regexp.MustCompile(`^(\d+-\d+)`)
-	pubIpIDMatch = regexp.MustCompile(`^p-(\d+-1)$`)
+	pubIPIDMatch = regexp.MustCompile(`^p-(\d+-1)$`)
 )
 
 // Janitor structure
@@ -83,7 +83,7 @@ func (j *Janitor) cleanupPublicIPs(ctx context.Context) error {
 
 	netd := stubs.NewNetworkerStub(j.zbus)
 	for _, link := range links {
-		m := pubIpIDMatch.FindStringSubmatch(link.Attrs().Name)
+		m := pubIPIDMatch.FindStringSubmatch(link.Attrs().Name)
 		if m == nil {
 			continue
 		}
