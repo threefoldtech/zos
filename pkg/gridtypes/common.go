@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+// Unit defines a capacity unit in "bytes"
+// Any "value" of type Unit must be in bytes only
+// hence use the Unit mutliplies below to set the
+// write value
+type Unit uint64
+
+const (
+	Kilobyte Unit = 1024
+	Megabyte Unit = 1024 * Kilobyte
+	Gigabyte Unit = 1024 * Megabyte
+	Terabyte Unit = 1024 * Gigabyte
+)
+
 // Timestamp type
 type Timestamp int64
 

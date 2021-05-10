@@ -3,7 +3,6 @@ package primitives
 import (
 	"context"
 	"fmt"
-	"math"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -37,7 +36,7 @@ type Statistics struct {
 	total    gridtypes.Capacity
 	counters Counters
 	reserved Counters
-	mem      uint64
+	mem      gridtypes.Unit
 
 	nodeID string
 }
@@ -53,13 +52,13 @@ func NewStatistics(total, initial gridtypes.Capacity, reserved Counters, nodeID 
 	log.Debug().Msgf("initial used capacity %+v", initial)
 	var counters Counters
 	counters.Increment(initial)
-	ram := math.Ceil(float64(vm.Total) / (1024 * 1024 * 1024))
+
 	return &Statistics{
 		inner:    inner,
 		total:    total,
 		counters: counters,
 		reserved: reserved,
-		mem:      uint64(ram),
+		mem:      gridtypes.Unit(vm.Total),
 		nodeID:   nodeID,
 	}
 }
@@ -67,11 +66,11 @@ func NewStatistics(total, initial gridtypes.Capacity, reserved Counters, nodeID 
 // Current returns the current used capacity
 func (s *Statistics) Current() gridtypes.Capacity {
 	return gridtypes.Capacity{
-		CRU:   s.counters.CRU.Current() + s.reserved.CRU.Current(),
+		CRU:   uint64(s.counters.CRU.Current() + s.reserved.CRU.Current()),
 		MRU:   s.counters.MRU.Current() + s.reserved.MRU.Current(),
 		HRU:   s.counters.HRU.Current() + s.reserved.HRU.Current(),
 		SRU:   s.counters.SRU.Current() + s.reserved.SRU.Current(),
-		IPV4U: s.counters.IPv4.Current(),
+		IPV4U: uint64(s.counters.IPv4.Current()),
 	}
 }
 

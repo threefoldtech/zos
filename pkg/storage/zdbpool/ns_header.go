@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 const (
@@ -31,7 +32,7 @@ type Header struct {
 	Version  uint32
 	Name     string
 	Password string
-	MaxSize  uint64
+	MaxSize  gridtypes.Unit
 }
 
 // WriteHeader writes header data to writer
@@ -59,7 +60,7 @@ func WriteHeader(w io.Writer, h Header) error {
 		binary.LittleEndian,
 		extendedHeader{
 			Version: 1,
-			MaxSize: h.MaxSize,
+			MaxSize: uint64(h.MaxSize),
 		}); err != nil {
 		return err
 	}
@@ -74,7 +75,7 @@ func ReadHeader(r io.Reader) (header Header, err error) {
 		return header, err
 	}
 	header.Version = 0
-	header.MaxSize = uint64(bh.MaxSize)
+	header.MaxSize = gridtypes.Unit(bh.MaxSize)
 	name := make([]byte, bh.NameLength)
 	passwrd := make([]byte, bh.PasswordLength)
 	// the next reads are important to advance the reader to the position
@@ -99,7 +100,7 @@ func ReadHeader(r io.Reader) (header Header, err error) {
 	}
 
 	header.Version = eh.Version
-	header.MaxSize = eh.MaxSize
+	header.MaxSize = gridtypes.Unit(eh.MaxSize)
 
 	return
 }

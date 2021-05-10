@@ -127,8 +127,8 @@ func (n *NodeClient) Get(twin, deployment uint32) (dl gridtypes.Deployment, err 
 }
 
 // Delete deletes a workload by id
-func (n *NodeClient) Delete(wid string) (err error) {
-	url := n.url("deployment", wid)
+func (n *NodeClient) Delete(twin, deployment uint32) (err error) {
+	url := n.url("deployment", fmt.Sprint(twin), fmt.Sprint(deployment))
 
 	request, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
@@ -144,7 +144,7 @@ func (n *NodeClient) Delete(wid string) (err error) {
 		return err
 	}
 
-	if err := n.response(response, &wid, http.StatusOK); err != nil {
+	if err := n.response(response, nil, http.StatusOK); err != nil {
 		return err
 	}
 

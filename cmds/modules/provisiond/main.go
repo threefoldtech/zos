@@ -298,7 +298,7 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 		return counter, err
 	}
 
-	var v *primitives.AtomicValue
+	var v *primitives.AtomicUnit
 	switch fs.DiskType {
 	case zos.HDDDevice:
 		v = &counter.HRU
