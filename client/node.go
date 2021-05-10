@@ -144,7 +144,7 @@ func (n *NodeClient) Delete(twin, deployment uint32) (err error) {
 		return err
 	}
 
-	if err := n.response(response, nil, http.StatusOK); err != nil {
+	if err := n.response(response, nil, http.StatusAccepted); err != nil {
 		return err
 	}
 

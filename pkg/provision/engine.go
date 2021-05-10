@@ -235,6 +235,11 @@ func (e *NativeEngine) Deprovision(ctx context.Context, twin, id uint32, reason 
 		return err
 	}
 
+	log.Debug().
+		Uint32("twin", deployment.TwinID).
+		Uint32("deployment", deployment.DeploymentID).
+		Msg("schedule for deprovision")
+
 	job := engineJob{
 		Target: deployment,
 		Op:     opDeprovision,
