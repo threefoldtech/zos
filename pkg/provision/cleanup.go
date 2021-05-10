@@ -14,11 +14,13 @@ import (
 	"github.com/threefoldtech/zos/pkg/storage"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zdb"
+	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
 )
 
 var (
 	vdiskIDMatch = regexp.MustCompile(`^(\d+-\d+)`)
+	pubIpIDMatch = regexp.MustCompile(`^p-(\d+-1)$`)
 )
 
 // Janitor structure
@@ -49,6 +51,10 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 		// to clean what we can
 	}
 
+	if err := j.cleanupPublicIPs(ctx); err != nil {
+		log.Error().Err(err).Msg("ip cleaner failed")
+	}
+
 	// -2nd we clean up all lingering vms on the node
 	if err := j.cleanupVms(ctx); err != nil {
 		log.Error().Err(err).Msg("vm cleaner failed")
@@ -63,6 +69,37 @@ func (j *Janitor) CleanupResources(ctx context.Context) error {
 	// used.
 	if err := j.cleanupVdisks(ctx); err != nil {
 		log.Error().Err(err).Msg("virtual disks cleaner failed")
+	}
+
+	return nil
+}
+
+func (j *Janitor) cleanupPublicIPs(ctx context.Context) error {
+	//todo: use networkd to list public taps
+	links, err := netlink.LinkList()
+	if err != nil {
+		return err
+	}
+
+	netd := stubs.NewNetworkerStub(j.zbus)
+	for _, link := range links {
+		m := pubIpIDMatch.FindStringSubmatch(link.Attrs().Name)
+		if m == nil {
+			continue
+		}
+		id := m[1]
+		toDelete, err := j.checkToDelete(id)
+		if err != nil {
+			log.Error().Err(err).Str("id", id).Msg("failed to check ip for delete")
+		}
+		log.Debug().Bool("to-delete", toDelete).Str("id", id).Msg("vm reservation status")
+		if !toDelete {
+			continue
+		}
+		log.Debug().Str("id", id).Msg("deleting stall ip reservation")
+		if err := netd.DisconnectPubTap(id); err != nil {
+			log.Error().Err(err).Str("id", id).Msg("failed to delete public ip")
+		}
 	}
 
 	return nil

@@ -509,9 +509,8 @@ func (n *networker) DisconnectPubTap(pubIPReservationID string) error {
 	if err := netlink.LinkSetNoMaster(tap); err != nil {
 		log.Error().Err(err).Msg("failed to set tap device no-master")
 	}
-	//setting the txqueue on a macvtap will prevent traffic from
-	//going over the device, effectively disconnecting it.
-	return netlink.LinkSetTxQLen(tap, 0)
+
+	return netlink.LinkDel(tap)
 }
 
 // GetPublicIPv6Subnet returns the IPv6 prefix op the public subnet of the host
