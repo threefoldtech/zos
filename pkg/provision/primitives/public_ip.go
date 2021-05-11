@@ -87,7 +87,7 @@ func (p *Provisioner) publicIPDecomission(ctx context.Context, reservation *prov
 	if err := teardownFilters(ctx, fName); err != nil {
 		log.Error().Err(err).Msg("could not remove filter rules")
 	}
-	return network.DisconnectPubTap(reservation.ID)
+	return network.RemovePubTap(reservation.ID)
 }
 
 func filterName(reservationID string) string {

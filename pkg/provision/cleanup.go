@@ -97,7 +97,7 @@ func (j *Janitor) cleanupPublicIPs(ctx context.Context) error {
 			continue
 		}
 		log.Debug().Str("id", id).Msg("deleting stall ip reservation")
-		if err := netd.DisconnectPubTap(id); err != nil {
+		if err := netd.RemovePubTap(id); err != nil {
 			log.Error().Err(err).Str("id", id).Msg("failed to delete public ip")
 		}
 	}

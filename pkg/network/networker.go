@@ -485,34 +485,6 @@ func (n *networker) RemovePubTap(pubIPReservationID string) error {
 	return ifaceutil.Delete(tapIface, nil)
 }
 
-// DisconnectPubTap disconnects the public tap from the network. The interface
-// itself is not removed and will need to be cleaned up later
-func (n *networker) DisconnectPubTap(pubIPReservationID string) error {
-	log.Info().Str("pubip-res-id", string(pubIPReservationID)).Msg("Disconnecting public tap interface")
-
-	tapIfaceName, err := pubTapName(pubIPReservationID)
-	if err != nil {
-		return errors.Wrap(err, "could not get network namespace tap device name")
-	}
-
-	tap, err := netlink.LinkByName(tapIfaceName)
-	if _, ok := err.(netlink.LinkNotFoundError); ok {
-		return nil
-	} else if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return errors.Wrap(err, "could not load tap device")
-	}
-
-	// backward compatible
-	if err := netlink.LinkSetNoMaster(tap); err != nil {
-		log.Error().Err(err).Msg("failed to set tap device no-master")
-	}
-
-	return netlink.LinkDel(tap)
-}
-
 // GetPublicIPv6Subnet returns the IPv6 prefix op the public subnet of the host
 func (n *networker) GetPublicIPv6Subnet() (net.IPNet, error) {
 	addrs, err := n.ndmz.GetIP(ndmz.FamilyV6)
