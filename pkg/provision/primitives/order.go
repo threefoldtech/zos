@@ -19,6 +19,8 @@ const (
 	KubernetesReservation provision.ReservationType = "kubernetes"
 	// PublicIPReservation type
 	PublicIPReservation provision.ReservationType = "public_ip"
+	// VirtualMachineReservation type
+	VirtualMachineReservation provision.ReservationType = "virtual_machine"
 )
 
 // ProvisionOrder is used to sort the workload type
@@ -30,6 +32,7 @@ var ProvisionOrder = map[provision.ReservationType]int{
 	ZDBReservation:             3,
 	VolumeReservation:          4,
 	ContainerReservation:       5,
-	KubernetesReservation:      6,
-	PublicIPReservation:        7,
+	PublicIPReservation:        6,
+	KubernetesReservation:      7,
+	VirtualMachineReservation:  8,
 }

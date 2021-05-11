@@ -2,8 +2,10 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 
@@ -50,7 +52,7 @@ func (d *vdiskModule) findDisk(id string) (string, error) {
 }
 
 // AllocateDisk with given size, return path to virtual disk (size in MB)
-func (d *vdiskModule) Allocate(id string, size int64) (string, error) {
+func (d *vdiskModule) Allocate(id string, size int64, sourceDisk string) (string, error) {
 	path, err := d.findDisk(id)
 	if err == nil {
 		return path, errors.Wrapf(os.ErrExist, "disk with id '%s' already exists", id)
@@ -79,12 +81,27 @@ func (d *vdiskModule) Allocate(id string, size int64) (string, error) {
 		return "", err
 	}
 
+	if sourceDisk != "" {
+		source, err := os.Open(sourceDisk)
+		if err != nil {
+			return "", err
+		}
+		defer source.Close()
+		io.Copy(file, source)
+	}
+
 	defer file.Close()
 	if err = chattr.SetAttr(file, chattr.FS_NOCOW_FL); err != nil {
 		return "", err
 	}
 
 	err = syscall.Fallocate(int(file.Fd()), 0, 0, size*mib)
+	if sourceDisk != "" {
+		err = d.expandfs(path)
+		if err != nil {
+			return "", err
+		}
+	}
 	return path, err
 }
 
@@ -99,6 +116,28 @@ func (d *vdiskModule) safePath(base, id string) (string, error) {
 	}
 
 	return path, nil
+}
+
+func (d *vdiskModule) expandfs(disk string) error {
+	dname, err := ioutil.TempDir("", "btrfs-resize")
+	if err != nil {
+		return errors.Wrap(err, "couldn't create a temp dir to mount the btrfs fs to resize it")
+	}
+	defer os.RemoveAll(dname)
+
+	cmd := exec.Command("mount", disk, dname)
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrap(err, "couldn't mount the btrfs fs to resize it")
+	}
+
+	defer syscall.Unmount(dname, 0)
+	cmd = exec.Command("btrfs", "filesystem", "resize", "max", dname)
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrap(err, "failed to resize file system to disk size")
+	}
+	return nil
 }
 
 // DeallocateVDisk removes a virtual disk

@@ -57,7 +57,7 @@ const (
 var (
 	envDev = Environment{
 		RunningMode: RunningDev,
-		BcdbURL:     "https://explorer.devnet.grid.tf/explorer",
+		BcdbURL:     "http://4.tcp.ngrok.io:19441/explorer",
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins.dev",
 	}

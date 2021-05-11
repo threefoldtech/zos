@@ -189,23 +189,44 @@ func K8SToProvisionType(w workloads.Workloader) (Kubernetes, string, error) {
 	}
 
 	k8s := Kubernetes{
-		Size: k.Size,
-		Custom: KubernetesCustomSize{
-			CRU: k.CustomSize.CRU,
-			MRU: k.CustomSize.MRU,
-			SRU: k.CustomSize.SRU,
+		VM: VM{
+			Size: k.Size,
+			Custom: VMCustomSize{
+				CRU: k.CustomSize.CRU,
+				MRU: k.CustomSize.MRU,
+				SRU: k.CustomSize.SRU,
+			},
+			IP:        k.Ipaddress,
+			SSHKeys:   k.SshKeys,
+			PublicIP:  k.PublicIP,
+			NetworkID: pkg.NetID(k.NetworkId),
 		},
-		NetworkID:             pkg.NetID(k.NetworkId),
-		IP:                    k.Ipaddress,
 		ClusterSecret:         k.ClusterSecret,
 		MasterIPs:             k.MasterIps,
-		SSHKeys:               k.SshKeys,
-		PublicIP:              k.PublicIP,
 		DatastoreEndpoint:     k.DatastoreEndpoint,
 		DisableDefaultIngress: k.DisableDefaultIngress,
 	}
 
 	return k8s, k.NodeId, nil
+}
+
+// VMToProvisionType converts type to internal provision type
+func VMToProvisionType(w workloads.Workloader) (VM, string, error) {
+	k, ok := w.(*workloads.VirtualMachine)
+	if !ok {
+		return VM{}, "", fmt.Errorf("failed to convert kubernetes workload, wrong format")
+	}
+
+	vm := VM{
+		Size:      k.Size,
+		NetworkID: pkg.NetID(k.NetworkId),
+		IP:        k.Ipaddress,
+		Name:      k.Name,
+		SSHKeys:   k.SshKeys,
+		PublicIP:  k.PublicIP,
+	}
+
+	return vm, k.NodeId, nil
 }
 
 // PublicIPToProvisionType converts type to internal provision type
@@ -321,6 +342,11 @@ func WorkloadToProvisionType(w workloads.Workloader) (*provision.Reservation, er
 		if err != nil {
 			return nil, err
 		}
+	case workloads.WorkloadTypeVirtualMachine:
+		data, reservation.NodeID, err = VMToProvisionType(w)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		log.Error().Str("type", w.GetWorkloadType().String()).Msg("unsupported reservation type")
 		return reservation, nil
@@ -351,6 +377,8 @@ func ResultToSchemaType(r provision.Result) (*workloads.Result, error) {
 		rType = workloads.WorkloadTypeKubernetes
 	case PublicIPReservation:
 		rType = workloads.WorkloadTypePublicIP
+	case VirtualMachineReservation:
+		rType = workloads.WorkloadTypeVirtualMachine
 	default:
 		return nil, fmt.Errorf("unknown reservation type: %s", r.Type)
 	}
