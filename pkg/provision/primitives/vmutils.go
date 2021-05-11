@@ -121,7 +121,7 @@ func (p *Provisioner) buildNetworkInfo(ctx context.Context, rversion int, userID
 
 		// the mac address uses the global workload id
 		// this needs to be the same as how we get it in the actual IP reservation
-		mac := ifaceutil.HardwareAddrFromInputBytes([]byte(fmt.Sprintf("%d-1", pubIP)))
+		mac := ifaceutil.HardwareAddrFromInputBytes([]byte(fmt.Sprintf("%d-1", cfg.PublicIP)))
 
 		iface := pkg.VMIface{
 			Tap:            pubIface,

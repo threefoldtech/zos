@@ -83,10 +83,6 @@ type Networker interface {
 	// RemovePubTap removes the public tap device from the host namespace
 	RemovePubTap(PubIPReservationID string) error
 
-	// DisconnectPubTap disconnects the public tap from the network. The interface
-	// itself is not removed and will need to be cleaned up later
-	DisconnectPubTap(PubIPReservationID string) error
-
 	// GetSubnet of the network with the given ID on the local node
 	GetSubnet(networkID NetID) (net.IPNet, error)
 

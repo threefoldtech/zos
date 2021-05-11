@@ -88,19 +88,6 @@ func (s *NetworkerStub) DeleteNR(arg0 pkg.NetResource) (ret0 error) {
 	return
 }
 
-func (s *NetworkerStub) DisconnectPubTap(arg0 string) (ret0 error) {
-	args := []interface{}{arg0}
-	result, err := s.client.Request(s.module, s.object, "DisconnectPubTap", args...)
-	if err != nil {
-		panic(err)
-	}
-	ret0 = new(zbus.RemoteError)
-	if err := result.Unmarshal(0, &ret0); err != nil {
-		panic(err)
-	}
-	return
-}
-
 func (s *NetworkerStub) GetDefaultGwIP(arg0 pkg.NetID) (ret0 []uint8, ret1 []uint8, ret2 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.Request(s.module, s.object, "GetDefaultGwIP", args...)
