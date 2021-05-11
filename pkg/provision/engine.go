@@ -25,7 +25,9 @@ import (
 
 const gib = 1024 * 1024 * 1024
 
-const minimunZosMemory = 2 * gib
+const (
+	minimunZosMemory = 2 * gib
+)
 
 // Engine is the core of this package
 // The engine is responsible to manage provision and decomission of workloads on the system
@@ -41,8 +43,8 @@ type Engine struct {
 	zbusCl         zbus.Client
 	janitor        *Janitor
 
-	memCache          *cache.Cache
-	totalMemAvailable uint64
+	memCache            *cache.Cache
+	reservedMemoryBytes uint64
 }
 
 // EngineOps are the configuration of the engine
@@ -91,21 +93,46 @@ func New(opts EngineOps) (*Engine, error) {
 
 	// we round the total memory size to the nearest 1G
 	totalMemory := math.Ceil(float64(memStats.Total)/gib) * gib
+	reservedMemory := math.Max(
+		totalMemory*0.1,  //10% of total memory
+		minimunZosMemory, // min of 2G
+	)
 
+	reservedMemory = math.Ceil(reservedMemory/gib) * gib
 	return &Engine{
-		nodeID:            opts.NodeID,
-		source:            opts.Source,
-		cache:             opts.Cache,
-		feedback:          opts.Feedback,
-		provisioners:      opts.Provisioners,
-		decomissioners:    opts.Decomissioners,
-		signer:            opts.Signer,
-		statser:           opts.Statser,
-		zbusCl:            opts.ZbusCl,
-		janitor:           opts.Janitor,
-		memCache:          cache.New(30*time.Minute, 30*time.Second),
-		totalMemAvailable: uint64(totalMemory) - minimunZosMemory,
+		nodeID:              opts.NodeID,
+		source:              opts.Source,
+		cache:               opts.Cache,
+		feedback:            opts.Feedback,
+		provisioners:        opts.Provisioners,
+		decomissioners:      opts.Decomissioners,
+		signer:              opts.Signer,
+		statser:             opts.Statser,
+		zbusCl:              opts.ZbusCl,
+		janitor:             opts.Janitor,
+		memCache:            cache.New(30*time.Minute, 30*time.Second),
+		reservedMemoryBytes: uint64(reservedMemory),
 	}, nil
+}
+func (e *Engine) getUsableMemoryBytes() (uint64, error) {
+	m, err := mem.VirtualMemory()
+	if err != nil {
+		return 0, err
+	}
+
+	// 1 -get reserved memory from current deployed workloads (theoretical max)
+	cap := e.statser.CurrentUnits()
+	// 2 -calculate total reserved memory
+	reserved := cap.Mru*gib + float64(e.reservedMemoryBytes)
+	var free float64
+	if reserved >= float64(m.Total) {
+		free = 0
+	} else {
+		free = float64(m.Total) - reserved
+	}
+
+	return uint64(math.Min(float64(free), float64(m.Available))), nil
+
 }
 
 // Run starts reader reservation from the Source and handle them
@@ -305,7 +332,12 @@ func (e *Engine) provisionForward(ctx context.Context, r *Reservation) (interfac
 		return nil, fmt.Errorf("type of reservation not supported: %s", r.Type)
 	}
 
-	if err := e.statser.CheckMemoryRequirements(r, e.totalMemAvailable); err != nil {
+	free, err := e.getUsableMemoryBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := e.statser.CheckMemoryRequirements(r, free); err != nil {
 		return nil, errors.Wrapf(err, "failed to apply provision")
 	}
 
@@ -487,9 +519,29 @@ func (e *Engine) updateStats() error {
 		case pkg.HDDDevice:
 			r.Hru += float64(cache.Usage.Size / gib)
 		}
-
-		r.Mru += float64(minimunZosMemory / gib)
 	}
+
+	// total reserved memory is calculated as the
+	// 1 - all reservations memory (r.Mru)
+	// 2 - the system reserved memory
+	totalReservedMemoryBytes := r.Mru*gib + float64(e.reservedMemoryBytes)
+	// 3 - then we also compare this to actual node consumption (things that)
+	// are not accounted for! and we always report the max of both
+	sys, err := mem.VirtualMemory()
+	if err != nil {
+		return err
+	}
+
+	actualUsed := sys.Total - sys.Available
+
+	log.Debug().
+		Uint64("reserved", uint64(totalReservedMemoryBytes)).
+		Uint64("actual", actualUsed).
+		Msg("used memory")
+
+	totalReservedMemoryBytes = math.Max(float64(actualUsed), totalReservedMemoryBytes)
+	// and that is the value we should report
+	r.Mru = totalReservedMemoryBytes / gib
 
 	log.Info().
 		Uint16("network", wl.Network).

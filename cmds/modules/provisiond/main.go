@@ -45,6 +45,10 @@ var Module cli.Command = cli.Command{
 			Usage: "connection string to the message `BROKER`",
 			Value: "unix:///var/run/redis.sock",
 		},
+		&cli.BoolFlag{
+			Name:  "clean",
+			Usage: "cleans stale reservations and exits. Should be done only if provisiond is stopped",
+		},
 	},
 	Action: action,
 }
@@ -127,6 +131,11 @@ func action(cli *cli.Context) error {
 	provisioner := primitives.NewProvisioner(localStore, zbusCl)
 
 	puller := explorer.NewPoller(e, primitives.WorkloadToProvisionType, primitives.ProvisionOrder)
+	janitor := provision.NewJanitor(zbusCl, puller)
+
+	if cli.Bool("clean") {
+		return janitor.CleanupResources(cli.Context)
+	}
 	engine, err := provision.New(provision.EngineOps{
 		NodeID: nodeID.Identity(),
 		Cache:  localStore,
@@ -140,7 +149,7 @@ func action(cli *cli.Context) error {
 		Signer:         identity,
 		Statser:        statser,
 		ZbusCl:         zbusCl,
-		Janitor:        provision.NewJanitor(zbusCl, puller),
+		Janitor:        janitor,
 	})
 
 	if err != nil {
