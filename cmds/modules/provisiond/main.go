@@ -316,8 +316,8 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 		return counter, fmt.Errorf("unknown cache disk type '%s'", fs.DiskType)
 	}
 
-	v.Increment(fs.Usage.Size / gib)
-	counter.MRU.Increment(2)
+	v.Increment(fs.Usage.Size)
+	counter.MRU.Increment(2 * gridtypes.Gigabyte)
 	return
 }
 
