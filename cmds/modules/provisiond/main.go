@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/rusart/muxprom"
@@ -273,9 +274,16 @@ func action(cli *cli.Context) error {
 
 	// register static files
 	v1.PathPrefix("").Handler(http.StripPrefix("/api/v1", http.FileServer(http.FS(swaggerFs))))
+	r := handlers.LoggingHandler(os.Stderr, router)
+	r = handlers.CORS(
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedHeaders([]string{"Content-Type"}),
+		handlers.ExposedHeaders([]string{"Pages"}),
+	)(r)
+
 	httpServer := &http.Server{
 		Addr:    httpAddr,
-		Handler: router,
+		Handler: r,
 	}
 
 	utils.OnDone(ctx, func(_ error) {

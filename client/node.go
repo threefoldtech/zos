@@ -55,7 +55,7 @@ func (n *NodeClient) response(r *http.Response, o interface{}, codes ...int) err
 }
 
 func (n *NodeClient) url(path ...string) string {
-	url := "http://[" + n.ip.String() + "]:2021/api/v1/" + filepath.Join(path...) + "/"
+	url := "http://[" + n.ip.String() + "]:2021/api/v1/" + filepath.Join(path...)
 	return url
 }
 
