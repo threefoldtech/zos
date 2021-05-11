@@ -47,7 +47,7 @@ var Module cli.Command = cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "clean",
-			Usage: "cleans stall reservations and exits. Should be done only if provisiond is stopped",
+			Usage: "cleans stale reservations and exits. Should be done only if provisiond is stopped",
 		},
 	},
 	Action: action,
