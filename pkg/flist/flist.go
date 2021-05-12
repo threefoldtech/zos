@@ -257,8 +257,6 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 	if out, err = cmd.CombinedOutput(); err != nil {
 		sublog.Err(err).Str("out", string(out)).Msg("fail to start 0-fs daemon")
 		return "", err
-	} else {
-		sublog.Debug().Msg(string(out))
 	}
 
 	// wait for the daemon to be ready
