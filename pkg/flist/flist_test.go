@@ -253,14 +253,20 @@ func TestWaitPIDFileExists(t *testing.T) {
 	const testFile = "/tmp/wait.exists.test"
 	os.Remove(testFile)
 
-	out := make(chan error)
-	go func(out chan<- error) {
-		out <- waitPidFile(2*time.Second, testFile, true)
+	type ret struct {
+		pid int64
+		err error
+	}
+	out := make(chan ret)
+	go func(out chan<- ret) {
+		pid, err := waitPidFile(3*time.Second, testFile, true)
+		out <- ret{pid, err}
 	}(out)
 
-	os.Create(testFile)
-	err := <-out
-	require.NoError(err)
+	require.NoError(ioutil.WriteFile(testFile, []byte("123456"), 0644))
+	r := <-out
+	require.NoError(r.err)
+	require.Equal(int64(123456), r.pid)
 }
 
 func TestWaitPIDFileDeleted(t *testing.T) {
@@ -270,7 +276,8 @@ func TestWaitPIDFileDeleted(t *testing.T) {
 
 	out := make(chan error)
 	go func(out chan<- error) {
-		out <- waitPidFile(2*time.Second, testFile, false)
+		_, err := waitPidFile(2*time.Second, testFile, false)
+		out <- err
 	}(out)
 
 	os.Remove(testFile)
@@ -285,7 +292,8 @@ func TestWaitPIDFileTimeout(t *testing.T) {
 
 	out := make(chan error)
 	go func(out chan<- error) {
-		out <- waitPidFile(1*time.Second, testFile, false)
+		_, err := waitPidFile(1*time.Second, testFile, false)
+		out <- err
 	}(out)
 
 	err := <-out
