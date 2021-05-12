@@ -261,9 +261,17 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 
 	// wait for the daemon to be ready
 	// we check the pid file is created
-	if err := waitPidFile(time.Second*5, pidPath, true); err != nil {
+	pid, err := waitPidFile(time.Second*5, pidPath, true)
+	if err != nil {
 		sublog.Error().Err(err).Msg("pid file of 0-fs daemon not created")
 		return "", err
+	}
+
+	// set oom adj
+	if err := setOOMAdj(pid, -17); err != nil {
+		log.Error().Err(err).Int64("pid", pid).Msg("failed to set 0-fs oom adjust for pid")
+		// this won't affect the operation, it can make
+		// the 0-fs process vulnerable to oom, so we continue anyway
 	}
 
 	// and scan the logs after "mount ready"
@@ -381,7 +389,7 @@ func (f *flistModule) Umount(path string) error {
 		log.Error().Err(err).Str("path", path).Msg("fail to umount flist")
 	}
 
-	if err := waitPidFile(time.Second*2, pidPath, false); err != nil {
+	if _, err := waitPidFile(time.Second*2, pidPath, false); err != nil {
 		log.Error().Err(err).Str("path", path).Msg("0-fs daemon did not stop properly")
 
 		pid, err := f.getPid(pidPath)
@@ -530,20 +538,29 @@ func random() (string, error) {
 	return fmt.Sprintf("%x", b), err
 }
 
+func setOOMAdj(pid int64, adj int) error {
+	if err := ioutil.WriteFile(filepath.Join("/proc/", fmt.Sprint(pid), "oom_adj"), []byte(fmt.Sprint(adj)), 0644); err != nil {
+		return errors.Wrapf(err, "failed to update oom priority for (PID: %d)", pid)
+	}
+
+	return nil
+}
+
 // waitPidFile wait for a file pointed by path to be created or deleted
 // for at most timeout duration
 // is exists is true, it waits for the file to exists
 // else it waits for the file to be deleted
-func waitPidFile(timeout time.Duration, path string, exists bool) error {
+func waitPidFile(timeout time.Duration, path string, exists bool) (int64, error) {
 	const delay = time.Millisecond * 100
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+loop:
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return 0, ctx.Err()
 		default:
 			_, err := os.Stat(path)
 			// check exist but the file is not there yet,
@@ -553,10 +570,44 @@ func waitPidFile(timeout time.Duration, path string, exists bool) error {
 				time.Sleep(delay)
 			} else if err != nil && !os.IsNotExist(err) {
 				//another error that is NOT IsNotExist.
-				return err
+				return 0, err
 			} else {
-				return nil
+				break loop
 			}
+		}
+	}
+
+	if !exists {
+		return 0, nil
+	}
+
+	// otherwise, we need to try reading the pid of this 0-fs process
+	// from the pid file.
+	// note that the file might exists but the pid is not written yet.
+	// hence we need to retry reading this.
+	for {
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		default:
+			pidBytes, err := ioutil.ReadFile(path)
+			if err != nil {
+				//file should exist, so this error is perminant
+				return 0, err
+			}
+
+			if len(pidBytes) == 0 {
+				time.Sleep(delay)
+				continue
+			}
+			pid, err := strconv.ParseInt(strings.TrimSpace(string(pidBytes)), 10, 64)
+			if err != nil {
+				// possible that the pid is not fully written. we can try again
+				time.Sleep(delay)
+				continue
+			}
+
+			return pid, nil
 		}
 	}
 }
