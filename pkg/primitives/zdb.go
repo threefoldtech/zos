@@ -117,7 +117,7 @@ func (p *Primitives) zdbRootFS(ctx context.Context) (string, error) {
 
 	for _, typ := range []zos.DeviceType{zos.HDDDevice, zos.SSDDevice} {
 		rootFS, err = flist.Mount(ctx, zdbFlistURL, "", pkg.MountOptions{
-			Limit:    10,
+			Limit:    10 * gridtypes.Megabyte,
 			ReadOnly: false,
 			Type:     typ,
 		})

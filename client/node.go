@@ -64,10 +64,6 @@ func (n *NodeClient) url(path ...string) string {
 // deployed. the user then can pull on the workload status until it passes (or fail)
 func (n *NodeClient) Deploy(dl *gridtypes.Deployment, update bool) error {
 	dl.TwinID = n.client.id
-	// if err := dl.Sign(n.client.sk); err != nil {
-	// 	return wid, errors.Wrap(err, "failed to sign the workload")
-	// }
-
 	var buf bytes.Buffer
 
 	if err := json.NewEncoder(&buf).Encode(dl); err != nil {

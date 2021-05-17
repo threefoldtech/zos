@@ -234,7 +234,7 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 				return "", fmt.Errorf("invalid mount option, missing disk type and/or size")
 			}
 			newAllocation = true
-			backend, err = f.storage.CreateFilesystem(ctx, name, opts.Limit*mib, opts.Type)
+			backend, err = f.storage.CreateFilesystem(ctx, name, opts.Limit, opts.Type)
 			if err != nil {
 				return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
 			}

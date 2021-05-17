@@ -2,6 +2,7 @@ package capacity
 
 import (
 	"context"
+	"math"
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
@@ -20,7 +21,9 @@ func (r *ResourceOracle) mru() (gridtypes.Unit, error) {
 		return 0, err
 	}
 
-	return gridtypes.Unit(vm.Total), nil
+	// we round the value to nearest Gigabyte
+	total := math.Round(float64(vm.Total)/float64(gridtypes.Gigabyte)) * float64(gridtypes.Gigabyte)
+	return gridtypes.Unit(total), nil
 }
 
 func (r *ResourceOracle) sru() (gridtypes.Unit, error) {

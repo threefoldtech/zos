@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/rusart/muxprom"
-	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
@@ -144,16 +143,16 @@ func action(cli *cli.Context) error {
 
 	provisioners := primitives.NewPrimitivesProvisioner(cl)
 
-	// update initial capacity with
-	reserved, err := getNodeReserved(cl)
-	if err != nil {
-		return errors.Wrap(err, "failed to get node reserved capacity")
-	}
 	cap, err := capacity.NewResourceOracle(stubs.NewStorageModuleStub(cl)).Total()
 	if err != nil {
 		return errors.Wrap(err, "failed to get node capacity")
 	}
 
+	// update initial capacity with
+	reserved, err := getNodeReserved(cl, cap)
+	if err != nil {
+		return errors.Wrap(err, "failed to get node reserved capacity")
+	}
 	var current gridtypes.Capacity
 	if !app.IsFirstBoot(module) {
 		// if this is the first boot of this module.
@@ -300,7 +299,7 @@ func action(cli *cli.Context) error {
 	return nil
 }
 
-func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
+func getNodeReserved(cl zbus.Client, available gridtypes.Capacity) (counter primitives.Counters, err error) {
 	// fill in reserved storage
 	storage := stubs.NewStorageModuleStub(cl)
 	fs, err := storage.GetCacheFS(context.TODO())
@@ -320,22 +319,14 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 
 	v.Increment(fs.Usage.Size)
 
-	// fill in reserved memory
-	// we save 10% of total memory, minimum of 2G
-	vm, err := mem.VirtualMemory()
-	if err != nil {
-		return primitives.Counters{}, err
-	}
-
-	// align to Gigabytes
-	total := (gridtypes.Unit(vm.Total) / gridtypes.Gigabyte) * gridtypes.Gigabyte
 	// we reserve 10% of memory to ZOS itself, with a min of 2G
 	counter.MRU.Increment(
 		gridtypes.Max(
-			total*10/100,
+			available.MRU*10/100,
 			2*gridtypes.Gigabyte,
 		),
 	)
+
 	return
 }
 

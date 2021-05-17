@@ -260,7 +260,7 @@ func (e *NativeEngine) Update(ctx context.Context, update gridtypes.Deployment) 
 	// that this update is acceptable.
 	_, err = deployment.Upgrade(&update)
 	if err != nil {
-		return err
+		return errors.Wrap(ErrDeploymentUpgradeValidationError, err.Error())
 	}
 
 	// all is okay we can push the job
