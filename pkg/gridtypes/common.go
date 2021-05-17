@@ -14,12 +14,17 @@ import (
 type Unit uint64
 
 const (
+	// Kilobyte unit multiplier
 	Kilobyte Unit = 1024
+	// Megabyte unit multiplier
 	Megabyte Unit = 1024 * Kilobyte
+	// Gigabyte unit multiplier
 	Gigabyte Unit = 1024 * Megabyte
+	// Terabyte unit multiplier
 	Terabyte Unit = 1024 * Gigabyte
 )
 
+// Max return max of u, and v
 func Max(u, v Unit) Unit {
 	if u > v {
 		return u
@@ -28,6 +33,7 @@ func Max(u, v Unit) Unit {
 	return v
 }
 
+// Min return min of u, and v
 func Min(u, v Unit) Unit {
 	if u < v {
 		return u

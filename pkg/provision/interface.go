@@ -44,7 +44,7 @@ var (
 	// ErrDidNotChange special error that can be returned by the provisioner
 	// if returned the engine does no update workload data
 	ErrDidNotChange = fmt.Errorf("did not change")
-	// ErrWorkloadUpgradeValidationError error, is returned if the deployment
+	// ErrDeploymentUpgradeValidationError error, is returned if the deployment
 	// failed to compute upgrade steps
 	ErrDeploymentUpgradeValidationError = fmt.Errorf("upgrade validation error")
 )
