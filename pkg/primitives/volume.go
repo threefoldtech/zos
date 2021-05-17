@@ -11,11 +11,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-const (
-	// gigabyte to byte conversion
-	gigabyte uint64 = 1024 * 1024 * 1024
-)
-
 // Volume defines a mount point
 type Volume = zos.Volume
 
