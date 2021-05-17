@@ -16,8 +16,6 @@ import (
 const (
 	// vdiskVolumeName is the name of the volume used to store vdisks
 	vdiskVolumeName = "vdisks"
-
-	mib = 1024 * 1024
 )
 
 type vdiskModule struct {
