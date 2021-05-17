@@ -8,6 +8,7 @@ kernelargs=""
 bridge=zos0
 graphics="-nographic -nodefaults"
 smp=1
+mem=3
 
 usage() {
    cat <<EOF
@@ -20,6 +21,7 @@ Usage: vm -n $name [ -r ] [ -d ]
    -i: kernel image to boot
    -b: bridge for network (default zos)
    -g: open GUI
+   -m: memory in Gigabytes
    -h: help
 
 EOF
@@ -27,7 +29,7 @@ EOF
 }
 
 
-while getopts "c:n:i:rdb:gs:" opt; do
+while getopts "c:n:i:rdb:gs:m:" opt; do
    case $opt in
    i )  image=$OPTARG ;;
    r )  reset=1 ;;
@@ -37,6 +39,7 @@ while getopts "c:n:i:rdb:gs:" opt; do
    b )  bridge=$OPTARG ;;
    g )  graphics="" ;;
    s )  smp=$OPTARG ;;
+   m )  mem=$OPTARG ;;
    h )  usage ; exit 0 ;;
    \?)  usage ; exit 1 ;;
    esac
@@ -73,7 +76,10 @@ fi
 echo "boot $image"
 
 qemu-system-x86_64 -kernel $image \
-    -m 3072 -enable-kvm -cpu host -smp $smp \
+    -m $(( mem * 1024 )) \
+    -enable-kvm \
+    -cpu host \
+    -smp $smp \
     -uuid $uuid \
     -netdev bridge,id=zos0,br=${bridge} -device virtio-net-pci,netdev=zos0,mac="${basemac}1" \
     -drive file=fat:rw:$basepath/overlay,format=raw \

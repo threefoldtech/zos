@@ -20,6 +20,22 @@ const (
 	Terabyte Unit = 1024 * Gigabyte
 )
 
+func Max(u, v Unit) Unit {
+	if u > v {
+		return u
+	}
+
+	return v
+}
+
+func Min(u, v Unit) Unit {
+	if u < v {
+		return u
+	}
+
+	return v
+}
+
 // Timestamp type
 type Timestamp int64
 

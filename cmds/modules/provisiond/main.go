@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/rusart/muxprom"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
@@ -300,6 +301,7 @@ func action(cli *cli.Context) error {
 }
 
 func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
+	// fill in reserved storage
 	storage := stubs.NewStorageModuleStub(cl)
 	fs, err := storage.GetCacheFS(context.TODO())
 	if err != nil {
@@ -317,7 +319,23 @@ func getNodeReserved(cl zbus.Client) (counter primitives.Counters, err error) {
 	}
 
 	v.Increment(fs.Usage.Size)
-	counter.MRU.Increment(2 * gridtypes.Gigabyte)
+
+	// fill in reserved memory
+	// we save 10% of total memory, minimum of 2G
+	vm, err := mem.VirtualMemory()
+	if err != nil {
+		return primitives.Counters{}, err
+	}
+
+	// align to Gigabytes
+	total := (gridtypes.Unit(vm.Total) / gridtypes.Gigabyte) * gridtypes.Gigabyte
+	// we reserve 10% of memory to ZOS itself, with a min of 2G
+	counter.MRU.Increment(
+		gridtypes.Max(
+			total*10/100,
+			2*gridtypes.Gigabyte,
+		),
+	)
 	return
 }
 

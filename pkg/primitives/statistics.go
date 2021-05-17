@@ -3,6 +3,7 @@ package primitives
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/provision/mw"
 )
@@ -65,9 +67,20 @@ func NewStatistics(total, initial gridtypes.Capacity, reserved Counters, nodeID 
 
 // Current returns the current used capacity
 func (s *Statistics) Current() gridtypes.Capacity {
+	used := s.counters.MRU.Current() + s.reserved.MRU.Current()
+	vm, err := mem.VirtualMemory()
+	if err != nil {
+		// this should never happen
+		panic("failed to get memory consumption")
+	}
+
+	// used memory is maximum of actual used on the node or the
+	// reserved memory by workloads.
+	used = gridtypes.Unit(math.Max(float64(vm.Used), float64(used)))
+
 	return gridtypes.Capacity{
 		CRU:   uint64(s.counters.CRU.Current() + s.reserved.CRU.Current()),
-		MRU:   s.counters.MRU.Current() + s.reserved.MRU.Current(),
+		MRU:   used,
 		HRU:   s.counters.HRU.Current() + s.reserved.HRU.Current(),
 		SRU:   s.counters.SRU.Current() + s.reserved.SRU.Current(),
 		IPV4U: uint64(s.counters.IPv4.Current()),
@@ -97,6 +110,12 @@ func (s *Statistics) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to calculate workload needed capacity")
 	}
+
+	// we add extra overhead for some workload types here
+	if wl.Type == zos.KubernetesType {
+		// we add the min of 5% of allocated memory or 1G
+		needed.MRU += gridtypes.Min(needed.MRU*5/100, gridtypes.Gigabyte)
+	} // TODO: other types ?
 
 	if err := s.hasEnoughCapacity(&current, &needed); err != nil {
 		return nil, errors.Wrap(err, "failed to satisfy required capacity")
