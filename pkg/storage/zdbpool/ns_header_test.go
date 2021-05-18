@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 func TestReadHeader(t *testing.T) {
@@ -19,7 +20,7 @@ func TestReadHeader(t *testing.T) {
 
 	assert.Equal(t, "test", h.Name)
 	assert.Equal(t, "", h.Password)
-	assert.Equal(t, uint64(1025), h.MaxSize)
+	assert.Equal(t, gridtypes.Unit(1025), h.MaxSize)
 }
 
 func TestReadHeaderExtended(t *testing.T) {
@@ -33,7 +34,7 @@ func TestReadHeaderExtended(t *testing.T) {
 	assert.Equal(t, uint32(1), h.Version)
 	assert.Equal(t, "test", h.Name)
 	assert.Equal(t, "password", h.Password)
-	assert.Equal(t, uint64(1073741824), h.MaxSize) // 1G
+	assert.Equal(t, gridtypes.Unit(1073741824), h.MaxSize) // 1G
 }
 
 func TestWriteHeader(t *testing.T) {
