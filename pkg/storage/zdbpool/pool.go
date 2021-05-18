@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // Prefix is a string used as prefix in the filesystem volume used
@@ -25,7 +26,7 @@ func New(path string) ZDBPool {
 // NSInfo is a struct containing information about a 0-db namespace
 type NSInfo struct {
 	Name string
-	Size uint64
+	Size gridtypes.Unit
 }
 
 // Reserved return the amount of storage that has been reserved by all the
@@ -47,7 +48,7 @@ func (p *ZDBPool) Reserved() (uint64, error) {
 // Create a namespace. Note that this create only reserve the name
 // space size (and create namespace descriptor) this must be followed
 // by an actual zdb NSNEW call to create the database files.
-func (p *ZDBPool) Create(name, password string, size uint64) error {
+func (p *ZDBPool) Create(name, password string, size gridtypes.Unit) error {
 	dir := filepath.Join(p.path, name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return errors.Wrapf(err, "namespace '%s' directory creation failed", dir)

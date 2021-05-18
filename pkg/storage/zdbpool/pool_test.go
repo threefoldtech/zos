@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 func TestNamespaces(t *testing.T) {
@@ -17,10 +18,10 @@ func TestNamespaces(t *testing.T) {
 
 	require.Equal(t, 2, len(ns))
 	assert.Equal(t, "test", ns[0].Name)
-	assert.Equal(t, uint64(1025), ns[0].Size)
+	assert.Equal(t, gridtypes.Unit(1025), ns[0].Size)
 
 	assert.Equal(t, "test2", ns[1].Name)
-	assert.Equal(t, uint64(123132), ns[1].Size)
+	assert.Equal(t, gridtypes.Unit(123132), ns[1].Size)
 }
 
 func TestReserved(t *testing.T) {
