@@ -540,14 +540,19 @@ func (e *Engine) updateStats() error {
 		}
 	}
 
-	wlReserved := r.Mru
+	// reserved bytes from the workloads (+ the system reserved)
+	reserved := r.Mru*gib + float64(e.reservedMemoryBytes)
+
 	total, usable, err := e.getUsableMemoryBytes()
 	if err != nil {
 		return err
 	}
 
+	// current memory status (+ the system reserved)
 	used := total + e.reservedMemoryBytes - usable
-	r.Mru = float64(used) / gib
+
+	mru := math.Max(reserved, float64(used))
+	r.Mru = mru / gib
 
 	log.Info().
 		Uint16("network", wl.Network).
@@ -561,7 +566,7 @@ func (e *Engine) updateStats() error {
 		Uint16("subdomain", wl.Subdomain).
 		Uint16("delegateDomain", wl.DelegateDomain).
 		Uint64("zos-mru", e.reservedMemoryBytes/gib).
-		Uint64("workload-mru", uint64(wlReserved)).
+		Uint64("workload-mru", uint64(reserved/gib)).
 		Uint64("cru", r.Cru).
 		Float64("actual-mru", r.Mru).
 		Float64("hru", r.Hru).
