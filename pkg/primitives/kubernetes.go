@@ -68,7 +68,7 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 	// check if the network tap already exists
 	// if it does, it's most likely that a vm with the same network id and node id already exists
 	// this will cause the reservation to fail
-	exists, err := network.TapExists(ctx, netID)
+	exists, err := network.TapExists(ctx, string(netID))
 	if err != nil {
 		return result, errors.Wrap(err, "could not check if tap device exists")
 	}
@@ -114,7 +114,7 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 		}
 		diskPath = info.Path
 	} else {
-		diskPath, err = storage.Allocate(ctx, diskName, cap.SRU)
+		diskPath, err = storage.Allocate(ctx, diskName, cap.SRU, "")
 		if err != nil {
 			return result, errors.Wrap(err, "failed to reserve filesystem for vm")
 		}
@@ -127,14 +127,14 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 	}()
 
 	var iface string
-	iface, err = network.SetupTap(ctx, netID)
+	iface, err = network.SetupTap(ctx, netID, string(netID))
 	if err != nil {
 		return result, errors.Wrap(err, "could not set up tap device")
 	}
 
 	defer func() {
 		if err != nil {
-			_ = network.RemoveTap(ctx, netID)
+			_ = network.RemoveTap(ctx, string(netID))
 		}
 	}()
 
@@ -158,7 +158,7 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 	}
 
 	var netInfo pkg.VMNetworkInfo
-	netInfo, err = p.buildNetworkInfo(ctx, deployment, iface, pubIface, config)
+	netInfo, err = p.buildNetworkInfo(ctx, deployment, iface, pubIface, config.VirtualMachine)
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
@@ -305,7 +305,7 @@ func (p *Primitives) kubernetesDecomission(ctx context.Context, wl *gridtypes.Wo
 	deployment := provision.GetDeployment(ctx)
 
 	netID := zos.NetworkID(deployment.TwinID, string(cfg.Network))
-	if err := network.RemoveTap(ctx, netID); err != nil {
+	if err := network.RemoveTap(ctx, string(netID)); err != nil {
 		return errors.Wrap(err, "could not clean up tap device")
 	}
 
@@ -322,7 +322,7 @@ func (p *Primitives) kubernetesDecomission(ctx context.Context, wl *gridtypes.Wo
 	return nil
 }
 
-func (p *Primitives) buildNetworkInfo(ctx context.Context, deployment gridtypes.Deployment, iface string, pubIface string, cfg Kubernetes) (pkg.VMNetworkInfo, error) {
+func (p *Primitives) buildNetworkInfo(ctx context.Context, deployment gridtypes.Deployment, iface string, pubIface string, cfg VirtualMachine) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 
 	netID := zos.NetworkID(deployment.TwinID, string(cfg.Network))
