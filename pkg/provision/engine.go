@@ -132,9 +132,9 @@ func (e *Engine) getUsableMemoryBytes() (uint64, uint64, error) {
 	total := roundTotalMemory(m.Total) - e.reservedMemoryBytes
 	// which means the available memory is always also
 	// is actual_available - reserved
-	available := 0
+	var available uint64
 	if m.Available > e.reservedMemoryBytes {
-		available = int(m.Available) - int(e.reservedMemoryBytes)
+		available = m.Available - e.reservedMemoryBytes
 	}
 
 	// what we did is that we deducted the system reserved memory
