@@ -79,6 +79,11 @@ type EngineOps struct {
 	Janitor *Janitor
 }
 
+// round the given value to the lowest gigabyte
+func roundTotalMemory(t uint64) uint64 {
+	return uint64(math.Floor(float64(t)/gib) * gib)
+}
+
 // New creates a new engine. Once started, the engine
 // will continue processing all reservations from the reservation source
 // and try to apply them.
@@ -92,10 +97,10 @@ func New(opts EngineOps) (*Engine, error) {
 	}
 
 	// we round the total memory size to the nearest 1G
-	totalMemory := math.Ceil(float64(memStats.Total)/gib) * gib
+	totalMemory := roundTotalMemory(memStats.Total)
 	reservedMemory := math.Max(
-		totalMemory*0.1,  //10% of total memory
-		minimunZosMemory, // min of 2G
+		float64(totalMemory)*0.1, //10% of total memory
+		minimunZosMemory,         // min of 2G
 	)
 
 	reservedMemory = math.Ceil(reservedMemory/gib) * gib
@@ -114,24 +119,38 @@ func New(opts EngineOps) (*Engine, error) {
 		reservedMemoryBytes: uint64(reservedMemory),
 	}, nil
 }
-func (e *Engine) getUsableMemoryBytes() (uint64, error) {
+
+// getUsableMemoryBytes returns the usable free memory. this takes
+// into account the system reserved
+func (e *Engine) getUsableMemoryBytes() (uint64, uint64, error) {
 	m, err := mem.VirtualMemory()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	// 1 -get reserved memory from current deployed workloads (theoretical max)
+	// total is always the total - the reserved
+	total := roundTotalMemory(m.Total) - e.reservedMemoryBytes
+	// which means the available memory is always also
+	// is actual_available - reserved
+	available := 0
+	if m.Available > e.reservedMemoryBytes {
+		available = int(m.Available) - int(e.reservedMemoryBytes)
+	}
+
+	// what we did is that we deducted the system reserved memory
+	// from the calculation.
+
+	// get reserved memory from current deployed workloads (theoretical max)
 	cap := e.statser.CurrentUnits()
-	// 2 -calculate total reserved memory
-	reserved := cap.Mru*gib + float64(e.reservedMemoryBytes)
-	var free float64
-	if reserved >= float64(m.Total) {
-		free = 0
-	} else {
-		free = float64(m.Total) - reserved
+	workloadReserved := uint64(cap.Mru * gib)
+	var workloadFree uint64 // this is the (total - workload)
+	if total > workloadReserved {
+		workloadFree = total - workloadReserved
 	}
 
-	return uint64(math.Min(float64(free), float64(m.Available))), nil
+	// usable is the min of actual available on the system or workloadFree
+	usable := uint64(math.Min(float64(workloadFree), float64(available)))
+	return total, usable, nil
 
 }
 
@@ -332,12 +351,12 @@ func (e *Engine) provisionForward(ctx context.Context, r *Reservation) (interfac
 		return nil, fmt.Errorf("type of reservation not supported: %s", r.Type)
 	}
 
-	free, err := e.getUsableMemoryBytes()
+	_, usable, err := e.getUsableMemoryBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := e.statser.CheckMemoryRequirements(r, free); err != nil {
+	if err := e.statser.CheckMemoryRequirements(r, usable); err != nil {
 		return nil, errors.Wrapf(err, "failed to apply provision")
 	}
 
@@ -521,27 +540,14 @@ func (e *Engine) updateStats() error {
 		}
 	}
 
-	// total reserved memory is calculated as the
-	// 1 - all reservations memory (r.Mru)
-	// 2 - the system reserved memory
-	totalReservedMemoryBytes := r.Mru*gib + float64(e.reservedMemoryBytes)
-	// 3 - then we also compare this to actual node consumption (things that)
-	// are not accounted for! and we always report the max of both
-	sys, err := mem.VirtualMemory()
+	wlReserved := r.Mru
+	total, usable, err := e.getUsableMemoryBytes()
 	if err != nil {
 		return err
 	}
 
-	actualUsed := sys.Total - sys.Available
-
-	log.Debug().
-		Uint64("reserved", uint64(totalReservedMemoryBytes)).
-		Uint64("actual", actualUsed).
-		Msg("used memory")
-
-	totalReservedMemoryBytes = math.Max(float64(actualUsed), totalReservedMemoryBytes)
-	// and that is the value we should report
-	r.Mru = totalReservedMemoryBytes / gib
+	used := total + e.reservedMemoryBytes - usable
+	r.Mru = float64(used) / gib
 
 	log.Info().
 		Uint16("network", wl.Network).
@@ -554,10 +560,14 @@ func (e *Engine) updateStats() error {
 		Uint16("reverseProxy", wl.ReverseProxy).
 		Uint16("subdomain", wl.Subdomain).
 		Uint16("delegateDomain", wl.DelegateDomain).
+		Uint64("zos-mru", e.reservedMemoryBytes/gib).
+		Uint64("workload-mru", uint64(wlReserved)).
 		Uint64("cru", r.Cru).
-		Float64("mru", r.Mru).
+		Float64("actual-mru", r.Mru).
 		Float64("hru", r.Hru).
 		Float64("sru", r.Sru).
+		Uint64("total-mru", total).
+		Uint64("usable-mru", usable).
 		Msgf("provision statistics")
 
 	return e.feedback.UpdateStats(e.nodeID, wl, r)
