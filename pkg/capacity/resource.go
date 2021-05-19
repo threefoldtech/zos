@@ -20,7 +20,7 @@ func (r *ResourceOracle) mru() (uint64, error) {
 	}
 
 	total := float64(vm.Total) / float64(GiB)
-	return uint64(math.Round(total)), nil
+	return uint64(math.Floor(total)), nil
 }
 
 func (r *ResourceOracle) sru() (uint64, error) {
