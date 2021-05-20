@@ -310,7 +310,13 @@ func (p *Primitives) kubernetesDecomission(ctx context.Context, wl *gridtypes.Wo
 	}
 
 	if len(cfg.PublicIP) > 0 {
-		if err := network.RemovePubTap(ctx, cfg.PublicIP); err != nil {
+		ipWl, err := deployment.Get(cfg.PublicIP)
+		ifName := ipWl.ID.String()
+		if err != nil {
+			return err
+		}
+
+		if err := network.RemovePubTap(ctx, ifName); err != nil {
 			return errors.Wrap(err, "could not clean up public tap device")
 		}
 	}
