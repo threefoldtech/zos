@@ -116,30 +116,15 @@ type Kubernetes struct {
 
 // Challenge implementation
 func (k Kubernetes) Challenge(b io.Writer) error {
-	if _, err := fmt.Fprintf(b, "%d", k.Size); err != nil {
-		return err
-	}
+	k.VirtualMachine.Challenge(b)
+
 	if _, err := fmt.Fprintf(b, "%s", k.ClusterSecret); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(b, "%s", k.Network); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(b, "%s", k.IP.String()); err != nil {
 		return err
 	}
 	for _, ip := range k.MasterIPs {
 		if _, err := fmt.Fprintf(b, "%s", ip.String()); err != nil {
 			return err
 		}
-	}
-	for _, key := range k.SSHKeys {
-		if _, err := fmt.Fprintf(b, "%s", key); err != nil {
-			return err
-		}
-	}
-	if _, err := fmt.Fprintf(b, "%s", k.PublicIP); err != nil {
-		return err
 	}
 
 	return nil
