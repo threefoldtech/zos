@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
@@ -127,6 +129,24 @@ func (k Kubernetes) Challenge(b io.Writer) error {
 		}
 	}
 
+	return nil
+}
+
+// Valid implementation
+func (k Kubernetes) Valid(getter gridtypes.WorkloadGetter) error {
+	err := k.VirtualMachine.Valid(getter)
+	if err != nil {
+		return err
+	}
+	if strings.ContainsAny(k.ClusterSecret, " \t\r\n\f") {
+		return errors.New("cluster secret shouldn't contain whitespace chars")
+	}
+
+	for _, ip := range k.MasterIPs {
+		if ip.To4() == nil && ip.To16() == nil {
+			return errors.New("invalid master IP")
+		}
+	}
 	return nil
 }
 
