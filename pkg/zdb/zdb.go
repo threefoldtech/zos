@@ -26,22 +26,24 @@ type Client interface {
 
 // clientImpl is a connection to a 0-db
 type clientImpl struct {
-	addr string
-	pool *redis.Pool
+	addr     string
+	pool     *redis.Pool
+	password string
 }
 
 // New creates a client to 0-db pointed by addr
 // addr format: TODO:
-func New(addr string) Client {
+func New(password, addr string) Client {
 	return &clientImpl{
-		addr: addr,
+		addr:     addr,
+		password: password,
 	}
 }
 
 // Connect dials addr and creates a pool of connection
 func (c *clientImpl) Connect() error {
 	if c.pool == nil {
-		pool, err := newRedisPool(c.addr)
+		pool, err := newRedisPool(c.password, c.addr)
 		if err != nil {
 			return errors.Wrapf(err, "failed to connect to %s", c.addr)
 		}
@@ -69,7 +71,7 @@ func (c *clientImpl) Close() error {
 	return nil
 }
 
-func newRedisPool(address string) (*redis.Pool, error) {
+func newRedisPool(password, address string) (*redis.Pool, error) {
 	u, err := url.Parse(address)
 	if err != nil {
 		return nil, err
@@ -98,7 +100,19 @@ func newRedisPool(address string) (*redis.Pool, error) {
 
 	return &redis.Pool{
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial(u.Scheme, host, opts...)
+			con, err := redis.Dial(u.Scheme, host, opts...)
+			if err != nil {
+				return nil, err
+			}
+			_, err = con.Do("AUTH", password)
+			if err != nil {
+				_, err := con.Do("PING")
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			return con, nil
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			if time.Since(t) > 10*time.Second {
