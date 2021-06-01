@@ -10,6 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var errAuthenticationDisabled = errors.New("Authentification disabled")
+
 // Client interface
 type Client interface {
 	Connect() error
@@ -106,10 +108,10 @@ func newRedisPool(password, address string) (*redis.Pool, error) {
 			}
 			_, err = con.Do("AUTH", password)
 			if err != nil {
-				_, err := con.Do("NSLIST")
-				if err != nil {
-					return nil, err
+				if errors.Is(err, errAuthenticationDisabled) {
+					return con, nil
 				}
+				return nil, err
 			}
 
 			return con, nil
