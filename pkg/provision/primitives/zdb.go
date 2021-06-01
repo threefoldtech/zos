@@ -92,7 +92,7 @@ func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *provisi
 	log.Warn().Msgf("ip for zdb containers %s", containerIPs)
 
 	// this call will actually configure the namespace in zdb and set the password
-	if err := p.createZDBNamespace(containerID, nsID, config); err != nil {
+	if err := p.createZDBNamespace(containerID, nsID, config, allocation.VolumeID); err != nil {
 		return ZDBResult{}, errors.Wrap(err, "failed to create zdb namespace")
 	}
 
@@ -218,7 +218,7 @@ func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.All
 		return err
 	}
 
-	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data --mode %s  --listen :: --port %d --socket /socket/zdb.sock --dualnet", string(mode), zdbPort)
+	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data --mode %s  --listen :: --port %d --socket /socket/zdb.sock --dualnet --admin %s --protect", string(mode), zdbPort, allocation.VolumeID)
 
 	err = p.zdbRun(string(name), rootFS, cmd, netNsName, volumePath, socketDir)
 	if err != nil {
@@ -322,7 +322,7 @@ func (p *Provisioner) waitZDBIPs(ctx context.Context, ifaceName, namespace strin
 	return containerIPs, nil
 }
 
-func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
+func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB, password string) error {
 	zdbCl := zdbConnection(containerID)
 	defer zdbCl.Close()
 	if err := zdbCl.Connect(); err != nil {
@@ -432,7 +432,7 @@ func socketFile(containerID pkg.ContainerID) string {
 // mock it in testing.
 var zdbConnection = func(id pkg.ContainerID) zdb.Client {
 	socket := fmt.Sprintf("unix://%s", socketFile(id))
-	return zdb.New(socket)
+	return zdb.New(string(id), socket)
 }
 
 // isPublic check if ip is a IPv6 public address
