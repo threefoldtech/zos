@@ -92,7 +92,7 @@ func (p *Provisioner) zdbProvisionImpl(ctx context.Context, reservation *provisi
 	log.Warn().Msgf("ip for zdb containers %s", containerIPs)
 
 	// this call will actually configure the namespace in zdb and set the password
-	if err := p.createZDBNamespace(containerID, nsID, config, allocation.VolumeID); err != nil {
+	if err := p.createZDBNamespace(containerID, nsID, config); err != nil {
 		return ZDBResult{}, errors.Wrap(err, "failed to create zdb namespace")
 	}
 
@@ -322,7 +322,7 @@ func (p *Provisioner) waitZDBIPs(ctx context.Context, ifaceName, namespace strin
 	return containerIPs, nil
 }
 
-func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB, password string) error {
+func (p *Provisioner) createZDBNamespace(containerID pkg.ContainerID, nsID string, config ZDB) error {
 	zdbCl := zdbConnection(containerID)
 	defer zdbCl.Close()
 	if err := zdbCl.Connect(); err != nil {
