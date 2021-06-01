@@ -106,7 +106,7 @@ func newRedisPool(password, address string) (*redis.Pool, error) {
 			}
 			_, err = con.Do("AUTH", password)
 			if err != nil {
-				_, err := con.Do("PING")
+				_, err := con.Do("NSLIST")
 				if err != nil {
 					return nil, err
 				}
