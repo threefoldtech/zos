@@ -4,6 +4,7 @@ package zdb
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -105,11 +106,8 @@ func newRedisPool(password, address string) (*redis.Pool, error) {
 				return nil, err
 			}
 			_, err = con.Do("AUTH", password)
-			if err != nil {
-				_, err := con.Do("PING")
-				if err != nil {
-					return nil, err
-				}
+			if err != nil && !strings.Contains(err.Error(), "disabled") {
+				return nil, err
 			}
 
 			return con, nil
