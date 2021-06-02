@@ -64,7 +64,6 @@ func (f *flistModule) cleanupMount(name string) error {
 		for _, file := range []string{
 			filepath.Join(f.pid, fmt.Sprintf("%s.pid", name)),
 			filepath.Join(f.run, name),
-			filepath.Join(f.log, fmt.Sprintf("%s.log", name)),
 		} {
 			if err := os.Remove(file); err != nil {
 				log.Warn().Err(err).Str("file", file).Msg("failed to delete pid file")

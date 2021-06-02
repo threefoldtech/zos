@@ -404,10 +404,9 @@ func (f *flistModule) Umount(path string) error {
 	}
 
 	// clean up working dirs
-	logPath := filepath.Join(f.log, name) + ".log"
-	for _, path := range []string{logPath, path} {
+	for _, path := range []string{pidPath, path} {
 		if err := os.RemoveAll(path); err != nil {
-			log.Error().Err(err).Msgf("fail to remove %s", logPath)
+			log.Error().Err(err).Msgf("fail to remove '%s'", path)
 		}
 	}
 
