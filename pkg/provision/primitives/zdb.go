@@ -218,7 +218,7 @@ func (p *Provisioner) createZdbContainer(ctx context.Context, allocation pkg.All
 		return err
 	}
 
-	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data --mode %s  --listen :: --port %d --socket /socket/zdb.sock --dualnet", string(mode), zdbPort)
+	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data --mode %s  --listen :: --port %d --socket /socket/zdb.sock --dualnet --admin %s --protect", string(mode), zdbPort, allocation.VolumeID)
 
 	err = p.zdbRun(string(name), rootFS, cmd, netNsName, volumePath, socketDir)
 	if err != nil {
@@ -432,7 +432,7 @@ func socketFile(containerID pkg.ContainerID) string {
 // mock it in testing.
 var zdbConnection = func(id pkg.ContainerID) zdb.Client {
 	socket := fmt.Sprintf("unix://%s", socketFile(id))
-	return zdb.New(socket)
+	return zdb.New(string(id), socket)
 }
 
 // isPublic check if ip is a IPv6 public address

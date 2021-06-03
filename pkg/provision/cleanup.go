@@ -389,6 +389,6 @@ func socketDir(containerID string) string {
 
 func newZdbConnection(id string) (zdb.Client, error) {
 	socket := fmt.Sprintf("unix://%s/zdb.sock", socketDir(id))
-	cl := zdb.New(socket)
+	cl := zdb.New(id, socket)
 	return cl, cl.Connect()
 }
