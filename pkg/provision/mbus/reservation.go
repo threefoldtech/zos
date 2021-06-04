@@ -13,6 +13,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
+// CreateOrUpdate creates or updates a workload based on a message from the message bus
 func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, message rmb.Message, create bool) (interface{}, mw.Response) {
 	bytes, err := message.GetPayload()
 	if err != nil {

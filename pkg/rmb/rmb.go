@@ -18,6 +18,7 @@ const (
 	replyBus       = "msgbus.system.reply"
 )
 
+// Message is an struct used to communicate over the messagebus
 type Message struct {
 	Version    int    `json:"ver"`
 	UID        string `json:"uid"`
@@ -33,12 +34,14 @@ type Message struct {
 	Err        string `json:"err"`
 }
 
+// MessaeBus is a struct that contains everything required to run the message bus
 type MessageBus struct {
 	Context  context.Context
 	pool     *redis.Pool
 	handlers map[string]func(message Message) error
 }
 
+// New creates a new message bus
 func New(context context.Context, address string) (*MessageBus, error) {
 	pool, err := newRedisPool(address)
 	if err != nil {
@@ -52,10 +55,13 @@ func New(context context.Context, address string) (*MessageBus, error) {
 	}, nil
 }
 
+// WithHandler adds a topic handler to the messagebus
 func (m *MessageBus) WithHandler(topic string, handler func(message Message) error) {
 	m.handlers[topic] = handler
 }
 
+// Run runs listeners to the configured handlers
+// and will trigger the handlers in the case an event comes in
 func (m *MessageBus) Run() error {
 	con := m.pool.Get()
 	defer con.Close()
@@ -97,6 +103,7 @@ func (m *MessageBus) Run() error {
 	}
 }
 
+// SendReply send a reply to the message bus with some data
 func (m *MessageBus) SendReply(message Message, data []byte) error {
 	con := m.pool.Get()
 	defer con.Close()
@@ -126,6 +133,8 @@ func (m *MessageBus) SendReply(message Message, data []byte) error {
 	return nil
 }
 
+// PushMessage pushes a message to a topic
+// for testing purposes
 func (m *MessageBus) PushMessage(topic string, message Message) error {
 	con := m.pool.Get()
 	defer con.Close()
@@ -144,6 +153,7 @@ func (m *MessageBus) PushMessage(topic string, message Message) error {
 	return nil
 }
 
+// GetPayload returns the payload for a message's data
 func (m *Message) GetPayload() ([]byte, error) {
 	return base64.RawStdEncoding.DecodeString(m.Data)
 }
