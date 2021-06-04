@@ -2,6 +2,7 @@ package mbus
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -10,6 +11,11 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	systemLocalBus = "msgbus.system.local"
+	replyBus       = "msgbus.system.reply"
 )
 
 type Message struct {
@@ -23,7 +29,7 @@ type Message struct {
 	Twin_dest  []int  `json:"twin_dest"`
 	Retqueue   string `json:"retqueue"`
 	Schema     string `json:"schema"`
-	Epoch      int    `json:"epoch"`
+	Epoch      int64  `json:"epoch"`
 	Err        string `json:"err"`
 }
 
@@ -47,17 +53,20 @@ func New(port uint16, context context.Context) (*Messagebus, error) {
 
 func (m *Messagebus) StreamMessages(ctx context.Context, messageChan chan Message) error {
 	con := m.pool.Get()
+	defer con.Close()
 
 	for {
 		if ctx.Err() != nil {
 			return nil
 		}
 
-		data, err := redis.ByteSlices(con.Do("BLPOP", "msgbus.system.local", 0))
+		log.Info().Msg("reading now")
+		data, err := redis.ByteSlices(con.Do("BLPOP", systemLocalBus, 0))
 		if err != nil {
 			log.Err(err).Msg("failed to read from system local messagebus")
 			return err
 		}
+		log.Info().Msg("got message")
 
 		candidate := data[1]
 
@@ -65,21 +74,52 @@ func (m *Messagebus) StreamMessages(ctx context.Context, messageChan chan Messag
 		err = json.Unmarshal(candidate, &m)
 		if err != nil {
 			log.Err(err).Msg("failed to unmarshal message")
-			return err
+			continue
 		}
 
 		messageChan <- m
 	}
 }
 
-func (m *Messagebus) PushMessage(ctx context.Context, message Message) error {
+func (m *Messagebus) SendReply(message Message, data []byte) error {
 	con := m.pool.Get()
+	defer con.Close()
+
+	// invert src and dest
+	source := message.Twin_src
+	message.Twin_src = message.Twin_dest
+	message.Twin_dest = source
+
+	// base 64 encode the response data
+	message.Data = base64.StdEncoding.EncodeToString(data)
+
+	// set the time to now
+	message.Epoch = time.Now().Unix()
 
 	bytes, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
-	_, err = con.Do("RPUSH", "msgbus.system.local", bytes)
+
+	_, err = con.Do("RPUSH", systemLocalBus, bytes)
+	if err != nil {
+		log.Err(err).Msg("failed to push to reply messagebus")
+		return err
+	}
+
+	return nil
+}
+
+func (m *Messagebus) PushMessage(message Message) error {
+	con := m.pool.Get()
+	defer con.Close()
+
+	bytes, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	_, err = con.Do("RPUSH", systemLocalBus, bytes)
 	if err != nil {
 		log.Err(err).Msg("failed to push to local messagebus")
 		return err
