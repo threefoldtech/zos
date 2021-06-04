@@ -2,20 +2,19 @@ package mbus
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/mbus"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/provision/mw"
+	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
-func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, message mbus.Message, create bool) (interface{}, mw.Response) {
-	bytes, err := base64.RawStdEncoding.DecodeString(message.Data)
+func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, message rmb.Message, create bool) (interface{}, mw.Response) {
+	bytes, err := message.GetPayload()
 	if err != nil {
 		return nil, mw.Error(err, 400)
 	}

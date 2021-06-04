@@ -1,4 +1,4 @@
-package mbus
+package rmb
 
 import (
 	"context"
@@ -19,7 +19,7 @@ const (
 )
 
 type Message struct {
-	Ver        int    `json:"ver"`
+	Version    int    `json:"ver"`
 	UID        string `json:"uid"`
 	Command    string `json:"cmd"`
 	Expiration int    `json:"exp"`
@@ -34,8 +34,9 @@ type Message struct {
 }
 
 type MessageBus struct {
-	Context context.Context
-	pool    *redis.Pool
+	Context  context.Context
+	pool     *redis.Pool
+	handlers map[string]func(message Message) error
 }
 
 func New(context context.Context, address string) (*MessageBus, error) {
@@ -45,12 +46,17 @@ func New(context context.Context, address string) (*MessageBus, error) {
 	}
 
 	return &MessageBus{
-		pool:    pool,
-		Context: context,
+		pool:     pool,
+		Context:  context,
+		handlers: make(map[string]func(message Message) error),
 	}, nil
 }
 
-func (m *MessageBus) Handle(topic string, handler func(message Message) error) error {
+func (m *MessageBus) WithHandler(topic string, handler func(message Message) error) {
+	m.handlers[topic] = handler
+}
+
+func (m *MessageBus) Run() error {
 	con := m.pool.Get()
 	defer con.Close()
 
@@ -59,20 +65,31 @@ func (m *MessageBus) Handle(topic string, handler func(message Message) error) e
 			return nil
 		}
 
-		data, err := redis.ByteSlices(con.Do("BLPOP", topic, 0))
+		topics := make([]string, len(m.handlers))
+		for topic := range m.handlers {
+			topics = append(topics, topic)
+		}
+
+		data, err := redis.ByteSlices(con.Do("BLPOP", redis.Args{}.AddFlat(topics).Add(0)...))
 		if err != nil {
 			log.Err(err).Msg("failed to read from system local messagebus")
 			return err
 		}
+		fmt.Println(string(data[0]))
 
-		var m Message
-		err = json.Unmarshal(data[1], &m)
+		var message Message
+		err = json.Unmarshal(data[1], &message)
 		if err != nil {
 			log.Err(err).Msg("failed to unmarshal message")
 			continue
 		}
 
-		return handler(m)
+		// select the handler and call the handle method
+		err = m.handlers[string(data[0])](message)
+		if err != nil {
+			log.Err(err).Msg("failed to handle message")
+			continue
+		}
 	}
 }
 
@@ -105,7 +122,7 @@ func (m *MessageBus) SendReply(message Message, data []byte) error {
 	return nil
 }
 
-func (m *MessageBus) PushMessage(message Message) error {
+func (m *MessageBus) PushMessage(topic string, message Message) error {
 	con := m.pool.Get()
 	defer con.Close()
 
@@ -114,13 +131,17 @@ func (m *MessageBus) PushMessage(message Message) error {
 		return err
 	}
 
-	_, err = con.Do("RPUSH", systemLocalBus, bytes)
+	_, err = con.Do("RPUSH", topic, bytes)
 	if err != nil {
-		log.Err(err).Msg("failed to push to local messagebus")
+		log.Err(err).Msg("failed to push to topic")
 		return err
 	}
 
 	return nil
+}
+
+func (m *Message) GetPayload() ([]byte, error) {
+	return base64.RawStdEncoding.DecodeString(m.Data)
 }
 
 func newRedisPool(address string) (*redis.Pool, error) {

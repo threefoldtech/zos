@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/mbus"
 	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
 const (
@@ -16,37 +16,37 @@ const (
 // WorkloadsMessagebus is provision engine Workloads
 type WorkloadsMessagebus struct {
 	engine provision.Engine
-	mbus   *mbus.MessageBus
+	rmb    *rmb.MessageBus
 }
 
 // NewWorkloadsMessagebus creates a new messagebus instance
 func NewWorkloadsMessagebus(engine provision.Engine, address string) (*WorkloadsMessagebus, error) {
-	messageBus, err := mbus.New(context.Background(), address)
+	messageBus, err := rmb.New(context.Background(), address)
 	if err != nil {
 		return nil, err
 	}
 
 	api := &WorkloadsMessagebus{
 		engine: engine,
-		mbus:   messageBus,
+		rmb:    messageBus,
 	}
 
 	return api, nil
 }
 
-func (w *WorkloadsMessagebus) deployHandler(message mbus.Message) error {
+func (w *WorkloadsMessagebus) deployHandler(message rmb.Message) error {
 	log.Info().Msgf("found deploy request, %s", message.Command)
 	_, _ = w.CreateOrUpdate(context.Background(), message, true)
 	return nil
 }
 
-func (w *WorkloadsMessagebus) deleteHandler(message mbus.Message) error {
+func (w *WorkloadsMessagebus) deleteHandler(message rmb.Message) error {
 	return nil
 }
 
 func (w *WorkloadsMessagebus) Run() error {
-	w.mbus.Handle(cmdDeploy, w.deployHandler)
-	w.mbus.Handle(cmdDelete, w.deleteHandler)
+	w.rmb.WithHandler(cmdDeploy, w.deployHandler)
+	w.rmb.WithHandler(cmdDelete, w.deleteHandler)
 
-	return nil
+	return w.rmb.Run()
 }
