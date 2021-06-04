@@ -60,14 +60,14 @@ func (m *MessageBus) Run() error {
 	con := m.pool.Get()
 	defer con.Close()
 
+	topics := make([]string, len(m.handlers))
+	for topic := range m.handlers {
+		topics = append(topics, topic)
+	}
+
 	for {
 		if m.Context.Err() != nil {
 			return nil
-		}
-
-		topics := make([]string, len(m.handlers))
-		for topic := range m.handlers {
-			topics = append(topics, topic)
 		}
 
 		data, err := redis.ByteSlices(con.Do("BLPOP", redis.Args{}.AddFlat(topics).Add(0)...))
@@ -84,8 +84,12 @@ func (m *MessageBus) Run() error {
 			continue
 		}
 
-		// select the handler and call the handle method
-		err = m.handlers[string(data[0])](message)
+		handler, ok := m.handlers[string(data[0])]
+		if !ok {
+			log.Debug().Msg("handler not found")
+		}
+
+		err = handler(message)
 		if err != nil {
 			log.Err(err).Msg("failed to handle message")
 			continue
