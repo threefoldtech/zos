@@ -16,6 +16,7 @@ import (
 const (
 	systemLocalBus = "msgbus.system.local"
 	replyBus       = "msgbus.system.reply"
+	numWorkers     = 5
 )
 
 // Message is an struct used to communicate over the messagebus
@@ -38,7 +39,12 @@ type Message struct {
 type MessageBus struct {
 	Context  context.Context
 	pool     *redis.Pool
-	handlers map[string]func(message Message) error
+	handlers map[string]func(payload []byte, twinSrc []int) ([]byte, error)
+}
+
+type job struct {
+	message Message
+	handler func(payload []byte, twinSrc []int) ([]byte, error)
 }
 
 // New creates a new message bus
@@ -51,12 +57,12 @@ func New(context context.Context, address string) (*MessageBus, error) {
 	return &MessageBus{
 		pool:     pool,
 		Context:  context,
-		handlers: make(map[string]func(message Message) error),
+		handlers: make(map[string]func(payload []byte, twinSrc []int) ([]byte, error)),
 	}, nil
 }
 
 // WithHandler adds a topic handler to the messagebus
-func (m *MessageBus) WithHandler(topic string, handler func(message Message) error) {
+func (m *MessageBus) WithHandler(topic string, handler func(payload []byte, twinSrc []int) ([]byte, error)) {
 	m.handlers[topic] = handler
 }
 
@@ -69,6 +75,11 @@ func (m *MessageBus) Run() error {
 	topics := make([]string, len(m.handlers))
 	for topic := range m.handlers {
 		topics = append(topics, topic)
+	}
+
+	jobs := make(chan job, numWorkers)
+	for i := 1; i <= numWorkers; i++ {
+		go m.worker(context.Background(), jobs)
 	}
 
 	for {
@@ -95,10 +106,35 @@ func (m *MessageBus) Run() error {
 			log.Debug().Msg("handler not found")
 		}
 
-		err = handler(message)
-		if err != nil {
-			log.Err(err).Msg("failed to handle message")
-			continue
+		jobs <- job{
+			message: message,
+			handler: handler,
+		}
+	}
+}
+
+func (m *MessageBus) worker(ctx context.Context, jobs chan job) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case job := <-jobs:
+			bytes, err := job.message.GetPayload()
+			if err != nil {
+				log.Err(err).Msg("err while parsing payload reply")
+			}
+
+			data, err := job.handler(bytes, job.message.TwinSrc)
+			if err != nil {
+				log.Err(err).Msg("err while handling job")
+				// TODO: create an error object
+				job.message.Err = err.Error()
+			}
+
+			err = m.SendReply(job.message, data)
+			if err != nil {
+				log.Err(err).Msg("err while sending reply")
+			}
 		}
 	}
 }
@@ -194,7 +230,7 @@ func newRedisPool(address string) (*redis.Pool, error) {
 
 			return nil
 		},
-		MaxActive:   3,
+		MaxActive:   5,
 		MaxIdle:     3,
 		IdleTimeout: 1 * time.Minute,
 		Wait:        true,

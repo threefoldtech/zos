@@ -10,18 +10,12 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/provision/mw"
-	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
 // CreateOrUpdate creates or updates a workload based on a message from the message bus
-func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, message rmb.Message, create bool) (interface{}, mw.Response) {
-	bytes, err := message.GetPayload()
-	if err != nil {
-		return nil, mw.Error(err, 400)
-	}
-
+func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, payload []byte, twinSrc []int, create bool) (interface{}, mw.Response) {
 	var deployment gridtypes.Deployment
-	if err := json.Unmarshal(bytes, &deployment); err != nil {
+	if err := json.Unmarshal(payload, &deployment); err != nil {
 		return nil, mw.BadRequest(err)
 	}
 
@@ -30,7 +24,7 @@ func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, message rmb.Me
 	}
 
 	authorized := false
-	for _, twinID := range message.TwinSrc {
+	for _, twinID := range twinSrc {
 		if twinID == int(deployment.TwinID) {
 			authorized = true
 		}
@@ -51,7 +45,7 @@ func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, message rmb.Me
 		action = a.engine.Update
 	}
 
-	err = action(ctx, deployment)
+	err := action(ctx, deployment)
 
 	if err == context.DeadlineExceeded {
 		return nil, mw.Unavailable(ctx.Err())

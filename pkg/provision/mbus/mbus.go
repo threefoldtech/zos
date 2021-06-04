@@ -34,14 +34,14 @@ func NewWorkloadsMessagebus(engine provision.Engine, address string) (*Workloads
 	return api, nil
 }
 
-func (w *WorkloadsMessagebus) deployHandler(message rmb.Message) error {
-	log.Info().Msgf("found deploy request, %s", message.Command)
-	_, _ = w.CreateOrUpdate(context.Background(), message, true)
-	return nil
+func (w *WorkloadsMessagebus) deployHandler(payload []byte, twinSrc []int) ([]byte, error) {
+	log.Info().Msgf("found deploy request, %v", payload)
+	_, _ = w.CreateOrUpdate(context.Background(), payload, twinSrc, true)
+	return nil, nil
 }
 
-func (w *WorkloadsMessagebus) deleteHandler(message rmb.Message) error {
-	return nil
+func (w *WorkloadsMessagebus) deleteHandler(payload []byte, twinSrc []int) ([]byte, error) {
+	return nil, nil
 }
 
 // Run runs the messagebus for workloads
