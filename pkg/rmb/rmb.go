@@ -34,7 +34,7 @@ type Message struct {
 	Err        string `json:"err"`
 }
 
-// MessaeBus is a struct that contains everything required to run the message bus
+// MessageBus is a struct that contains everything required to run the message bus
 type MessageBus struct {
 	Context  context.Context
 	pool     *redis.Pool

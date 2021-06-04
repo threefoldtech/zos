@@ -44,6 +44,7 @@ func (w *WorkloadsMessagebus) deleteHandler(message rmb.Message) error {
 	return nil
 }
 
+// Run runs the messagebus for workloads
 func (w *WorkloadsMessagebus) Run() error {
 	w.rmb.WithHandler(cmdDeploy, w.deployHandler)
 	w.rmb.WithHandler(cmdDelete, w.deleteHandler)
