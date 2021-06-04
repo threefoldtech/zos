@@ -19,44 +19,43 @@ const (
 )
 
 type Message struct {
-	Version    int    `json:"version"`
-	Id         string `json:"id"`
-	Command    string `json:"command"`
-	Expiration int    `json:"expiration"`
-	Retry      int    `json:"retry"`
-	Data       string `json:"data"`
-	Twin_src   []int  `json:"twin_src"`
-	Twin_dest  []int  `json:"twin_dest"`
-	Retqueue   string `json:"retqueue"`
-	Schema     string `json:"schema"`
-	Epoch      int64  `json:"epoch"`
+	Ver        int    `json:"ver"`
+	UID        string `json:"uid"`
+	Command    string `json:"cmd"`
+	Expiration int    `json:"exp"`
+	Retry      int    `json:"try"`
+	Data       string `json:"dat"`
+	TwinSrc    []int  `json:"src"`
+	TwinDest   []int  `json:"dest"`
+	Retqueue   string `json:"ret"`
+	Schema     string `json:"shm"`
+	Epoch      int64  `json:"now"`
 	Err        string `json:"err"`
 }
 
-type Messagebus struct {
+type MessageBus struct {
 	Context context.Context
 	pool    *redis.Pool
 }
 
-func New(port uint16, context context.Context) (*Messagebus, error) {
-	addr := fmt.Sprintf("tcp://[::]:%d", port)
-	pool, err := newRedisPool(addr)
+func New(context context.Context, address string) (*MessageBus, error) {
+	pool, err := newRedisPool(address)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to %s", addr)
+		return nil, errors.Wrapf(err, "failed to connect to %s", address)
 	}
 
-	return &Messagebus{
+	return &MessageBus{
 		pool:    pool,
 		Context: context,
 	}, nil
 }
 
-func (m *Messagebus) StreamMessages(ctx context.Context, topic string, messageChan chan Message) error {
+func (m *MessageBus) Handle(topic string, handler func(message Message) error) error {
 	con := m.pool.Get()
 	defer con.Close()
 
 	for {
-		if ctx.Err() != nil {
+		if m.Context.Err() != nil {
 			return nil
 		}
 
@@ -73,18 +72,18 @@ func (m *Messagebus) StreamMessages(ctx context.Context, topic string, messageCh
 			continue
 		}
 
-		messageChan <- m
+		return handler(m)
 	}
 }
 
-func (m *Messagebus) SendReply(message Message, data []byte) error {
+func (m *MessageBus) SendReply(message Message, data []byte) error {
 	con := m.pool.Get()
 	defer con.Close()
 
 	// invert src and dest
-	source := message.Twin_src
-	message.Twin_src = message.Twin_dest
-	message.Twin_dest = source
+	source := message.TwinSrc
+	message.TwinSrc = message.TwinDest
+	message.TwinDest = source
 
 	// base 64 encode the response data
 	message.Data = base64.StdEncoding.EncodeToString(data)
@@ -106,7 +105,7 @@ func (m *Messagebus) SendReply(message Message, data []byte) error {
 	return nil
 }
 
-func (m *Messagebus) PushMessage(message Message) error {
+func (m *MessageBus) PushMessage(message Message) error {
 	con := m.pool.Get()
 	defer con.Close()
 

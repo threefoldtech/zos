@@ -9,19 +9,19 @@ import (
 )
 
 const (
-	cmdDeploy = "msgbus.deploy"
-	cmdDelete = "msgbus.delete"
+	cmdDeploy = "zos.deployment.deploy"
+	cmdDelete = "zos.deployment.delete"
 )
 
 // WorkloadsMessagebus is provision engine Workloads
 type WorkloadsMessagebus struct {
 	engine provision.Engine
-	mbus   *mbus.Messagebus
+	mbus   *mbus.MessageBus
 }
 
 // NewWorkloadsMessagebus creates a new messagebus instance
-func NewWorkloadsMessagebus(engine provision.Engine, port uint16) (*WorkloadsMessagebus, error) {
-	messageBus, err := mbus.New(port, context.Background())
+func NewWorkloadsMessagebus(engine provision.Engine, address string) (*WorkloadsMessagebus, error) {
+	messageBus, err := mbus.New(context.Background(), address)
 	if err != nil {
 		return nil, err
 	}
@@ -34,28 +34,19 @@ func NewWorkloadsMessagebus(engine provision.Engine, port uint16) (*WorkloadsMes
 	return api, nil
 }
 
+func (w *WorkloadsMessagebus) deployHandler(message mbus.Message) error {
+	log.Info().Msgf("found deploy request, %s", message.Command)
+	_, _ = w.CreateOrUpdate(context.Background(), message, true)
+	return nil
+}
+
+func (w *WorkloadsMessagebus) deleteHandler(message mbus.Message) error {
+	return nil
+}
+
 func (w *WorkloadsMessagebus) Run() error {
-	deployChan := make(chan mbus.Message)
-	deleteChan := make(chan mbus.Message)
-
-	go func() {
-		if err := w.mbus.StreamMessages(context.Background(), cmdDeploy, deployChan); err != nil {
-			panic(err)
-		}
-		if err := w.mbus.StreamMessages(context.Background(), cmdDelete, deleteChan); err != nil {
-			panic(err)
-		}
-	}()
-
-	select {
-	case deploy := <-deployChan:
-		log.Info().Msgf("found deploy request, %s", deploy.Command)
-		_, _ = w.CreateOrUpdate(context.Background(), deploy, true)
-		// TODO handle reply
-
-	case delete := <-deleteChan:
-		log.Info().Msgf("found delete request, %s", delete.Command)
-	}
+	w.mbus.Handle(cmdDeploy, w.deployHandler)
+	w.mbus.Handle(cmdDelete, w.deleteHandler)
 
 	return nil
 }

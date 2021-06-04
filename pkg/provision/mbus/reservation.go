@@ -30,7 +30,7 @@ func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, message mbus.M
 	}
 
 	authorized := false
-	for _, twinID := range message.Twin_src {
+	for _, twinID := range message.TwinSrc {
 		if twinID == int(deployment.TwinID) {
 			authorized = true
 		}
