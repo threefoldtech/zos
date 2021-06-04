@@ -51,7 +51,7 @@ func New(port uint16, context context.Context) (*Messagebus, error) {
 	}, nil
 }
 
-func (m *Messagebus) StreamMessages(ctx context.Context, messageChan chan Message) error {
+func (m *Messagebus) StreamMessages(ctx context.Context, topic string, messageChan chan Message) error {
 	con := m.pool.Get()
 	defer con.Close()
 
@@ -60,18 +60,14 @@ func (m *Messagebus) StreamMessages(ctx context.Context, messageChan chan Messag
 			return nil
 		}
 
-		log.Info().Msg("reading now")
-		data, err := redis.ByteSlices(con.Do("BLPOP", systemLocalBus, 0))
+		data, err := redis.ByteSlices(con.Do("BLPOP", topic, 0))
 		if err != nil {
 			log.Err(err).Msg("failed to read from system local messagebus")
 			return err
 		}
-		log.Info().Msg("got message")
-
-		candidate := data[1]
 
 		var m Message
-		err = json.Unmarshal(candidate, &m)
+		err = json.Unmarshal(data[1], &m)
 		if err != nil {
 			log.Err(err).Msg("failed to unmarshal message")
 			continue
@@ -101,7 +97,7 @@ func (m *Messagebus) SendReply(message Message, data []byte) error {
 		return err
 	}
 
-	_, err = con.Do("RPUSH", systemLocalBus, bytes)
+	_, err = con.Do("RPUSH", replyBus, bytes)
 	if err != nil {
 		log.Err(err).Msg("failed to push to reply messagebus")
 		return err
