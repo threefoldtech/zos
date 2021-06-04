@@ -19,6 +19,9 @@ const (
 	numWorkers     = 5
 )
 
+type twinSrcKey string
+type messageKey string
+
 // Message is an struct used to communicate over the messagebus
 type Message struct {
 	Version    int    `json:"ver"`
@@ -39,16 +42,11 @@ type Message struct {
 type MessageBus struct {
 	Context  context.Context
 	pool     *redis.Pool
-	handlers map[string]func(payload []byte, twinSrc []int) ([]byte, error)
-}
-
-type job struct {
-	message Message
-	handler func(payload []byte, twinSrc []int) ([]byte, error)
+	handlers map[string]func(ctx context.Context, payload []byte) ([]byte, error)
 }
 
 // New creates a new message bus
-func New(context context.Context, address string) (*MessageBus, error) {
+func New(ctx context.Context, address string) (*MessageBus, error) {
 	pool, err := newRedisPool(address)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to %s", address)
@@ -56,13 +54,13 @@ func New(context context.Context, address string) (*MessageBus, error) {
 
 	return &MessageBus{
 		pool:     pool,
-		Context:  context,
-		handlers: make(map[string]func(payload []byte, twinSrc []int) ([]byte, error)),
+		Context:  ctx,
+		handlers: make(map[string]func(ctx context.Context, payload []byte) ([]byte, error)),
 	}, nil
 }
 
 // WithHandler adds a topic handler to the messagebus
-func (m *MessageBus) WithHandler(topic string, handler func(payload []byte, twinSrc []int) ([]byte, error)) {
+func (m *MessageBus) WithHandler(topic string, handler func(ctx context.Context, payload []byte) ([]byte, error)) {
 	m.handlers[topic] = handler
 }
 
@@ -77,7 +75,7 @@ func (m *MessageBus) Run() error {
 		topics = append(topics, topic)
 	}
 
-	jobs := make(chan job, numWorkers)
+	jobs := make(chan Message, numWorkers)
 	for i := 1; i <= numWorkers; i++ {
 		go m.worker(context.Background(), jobs)
 	}
@@ -101,42 +99,60 @@ func (m *MessageBus) Run() error {
 			continue
 		}
 
-		handler, ok := m.handlers[string(data[0])]
+		_, ok := m.handlers[string(data[0])]
 		if !ok {
 			log.Debug().Msg("handler not found")
 		}
 
-		jobs <- job{
-			message: message,
-			handler: handler,
-		}
+		jobs <- message
 	}
 }
 
-func (m *MessageBus) worker(ctx context.Context, jobs chan job) {
+func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case job := <-jobs:
-			bytes, err := job.message.GetPayload()
+		case message := <-jobs:
+			bytes, err := message.GetPayload()
 			if err != nil {
 				log.Err(err).Msg("err while parsing payload reply")
 			}
 
-			data, err := job.handler(bytes, job.message.TwinSrc)
+			handler, ok := m.handlers[message.Command]
+			if !ok {
+				log.Debug().Msg("handler not found")
+			}
+
+			var tKey twinSrcKey
+			ctx = context.WithValue(ctx, tKey, message.TwinSrc)
+
+			var mKey messageKey
+			ctx = context.WithValue(ctx, mKey, message)
+
+			data, err := handler(ctx, bytes)
 			if err != nil {
 				log.Err(err).Msg("err while handling job")
 				// TODO: create an error object
-				job.message.Err = err.Error()
+				message.Err = err.Error()
 			}
 
-			err = m.SendReply(job.message, data)
+			err = m.SendReply(message, data)
 			if err != nil {
 				log.Err(err).Msg("err while sending reply")
 			}
 		}
 	}
+}
+
+func (m *MessageBus) GetMessage(ctx context.Context) (*Message, error) {
+	var mKey messageKey
+	message, ok := ctx.Value(mKey).(Message)
+	if !ok {
+		return nil, errors.New("failed to load message from context")
+	}
+
+	return &message, nil
 }
 
 // SendReply send a reply to the message bus with some data

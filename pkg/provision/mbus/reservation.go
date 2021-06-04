@@ -13,7 +13,7 @@ import (
 )
 
 // CreateOrUpdate creates or updates a workload based on a message from the message bus
-func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, payload []byte, twinSrc []int, create bool) (interface{}, mw.Response) {
+func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, payload []byte, create bool) (interface{}, mw.Response) {
 	var deployment gridtypes.Deployment
 	if err := json.Unmarshal(payload, &deployment); err != nil {
 		return nil, mw.BadRequest(err)
@@ -21,6 +21,11 @@ func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, payload []byte
 
 	if err := deployment.Valid(); err != nil {
 		return nil, mw.BadRequest(err)
+	}
+
+	twinSrc, ok := ctx.Value("twinSrc").([]int)
+	if !ok {
+		return nil, mw.BadRequest(errors.New("failed to load twin source from context"))
 	}
 
 	authorized := false
