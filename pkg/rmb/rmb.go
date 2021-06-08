@@ -19,30 +19,30 @@ const (
 	numWorkers     = 5
 )
 
-type twinSrcKey string
-type messageKey string
+type twinKeyID struct{}
+type messageKey struct{}
 
 // Message is an struct used to communicate over the messagebus
 type Message struct {
-	Version    int    `json:"ver"`
-	UID        string `json:"uid"`
-	Command    string `json:"cmd"`
-	Expiration int    `json:"exp"`
-	Retry      int    `json:"try"`
-	Data       string `json:"dat"`
-	TwinSrc    []int  `json:"src"`
-	TwinDest   []int  `json:"dest"`
-	Retqueue   string `json:"ret"`
-	Schema     string `json:"shm"`
-	Epoch      int64  `json:"now"`
-	Err        string `json:"err"`
+	Version    int      `json:"ver"`
+	UID        string   `json:"uid"`
+	Command    string   `json:"cmd"`
+	Expiration int      `json:"exp"`
+	Retry      int      `json:"try"`
+	Data       string   `json:"dat"`
+	TwinSrc    uint32   `json:"src"`
+	TwinDest   []uint32 `json:"dest"`
+	Retqueue   string   `json:"ret"`
+	Schema     string   `json:"shm"`
+	Epoch      int64    `json:"now"`
+	Err        string   `json:"err"`
 }
 
 // MessageBus is a struct that contains everything required to run the message bus
 type MessageBus struct {
 	Context  context.Context
 	pool     *redis.Pool
-	handlers map[string]func(ctx context.Context, payload []byte) ([]byte, error)
+	handlers map[string]func(ctx context.Context, payload []byte) (interface{}, error)
 }
 
 // New creates a new message bus
@@ -55,12 +55,12 @@ func New(ctx context.Context, address string) (*MessageBus, error) {
 	return &MessageBus{
 		pool:     pool,
 		Context:  ctx,
-		handlers: make(map[string]func(ctx context.Context, payload []byte) ([]byte, error)),
+		handlers: make(map[string]func(ctx context.Context, payload []byte) (interface{}, error)),
 	}, nil
 }
 
 // WithHandler adds a topic handler to the messagebus
-func (m *MessageBus) WithHandler(topic string, handler func(ctx context.Context, payload []byte) ([]byte, error)) {
+func (m *MessageBus) WithHandler(topic string, handler func(ctx context.Context, payload []byte) (interface{}, error)) {
 	m.handlers[topic] = handler
 }
 
@@ -90,7 +90,6 @@ func (m *MessageBus) Run() error {
 			log.Err(err).Msg("failed to read from system local messagebus")
 			return err
 		}
-		fmt.Println(string(data[0]))
 
 		var message Message
 		err = json.Unmarshal(data[1], &message)
@@ -102,6 +101,7 @@ func (m *MessageBus) Run() error {
 		_, ok := m.handlers[string(data[0])]
 		if !ok {
 			log.Debug().Msg("handler not found")
+			continue
 		}
 
 		jobs <- message
@@ -121,10 +121,10 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 
 			handler, ok := m.handlers[message.Command]
 			if !ok {
-				log.Debug().Msg("handler not found")
+				log.Warn().Msg("handler not found")
 			}
 
-			var tKey twinSrcKey
+			var tKey twinKeyID
 			ctx = context.WithValue(ctx, tKey, message.TwinSrc)
 
 			var mKey messageKey
@@ -145,9 +145,8 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 	}
 }
 
-func (m *MessageBus) GetMessage(ctx context.Context) (*Message, error) {
-	var mKey messageKey
-	message, ok := ctx.Value(mKey).(Message)
+func GetMessage(ctx context.Context) (*Message, error) {
+	message, ok := ctx.Value(messageKey{}).(Message)
 	if !ok {
 		return nil, errors.New("failed to load message from context")
 	}
@@ -156,17 +155,15 @@ func (m *MessageBus) GetMessage(ctx context.Context) (*Message, error) {
 }
 
 // SendReply send a reply to the message bus with some data
-func (m *MessageBus) SendReply(message Message, data []byte) error {
+func (m *MessageBus) SendReply(message Message, data interface{}) error {
 	con := m.pool.Get()
 	defer con.Close()
 
-	// invert src and dest
-	source := message.TwinSrc
-	message.TwinSrc = message.TwinDest
-	message.TwinDest = source
+	// reply to source
+	message.TwinDest = []uint32{message.TwinSrc}
 
 	// base 64 encode the response data
-	message.Data = base64.StdEncoding.EncodeToString(data)
+	// message.Data = base64.StdEncoding.EncodeToString(data)
 
 	// set the time to now
 	message.Epoch = time.Now().Unix()

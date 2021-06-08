@@ -3,7 +3,6 @@ package mbus
 import (
 	"context"
 
-	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/rmb"
 )
@@ -11,6 +10,7 @@ import (
 const (
 	cmdDeploy = "zos.deployment.deploy"
 	cmdDelete = "zos.deployment.delete"
+	cmdGet    = "zos.deployment.get"
 )
 
 // WorkloadsMessagebus is provision engine Workloads
@@ -34,20 +34,26 @@ func NewWorkloadsMessagebus(engine provision.Engine, address string) (*Workloads
 	return api, nil
 }
 
-func (w *WorkloadsMessagebus) deployHandler(ctx context.Context, payload []byte) ([]byte, error) {
-	log.Info().Msgf("found deploy request, %v", payload)
-	_, _ = w.CreateOrUpdate(ctx, payload, true)
-	return nil, nil
+func (w *WorkloadsMessagebus) deployHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := w.CreateOrUpdate(ctx, payload, true)
+	return data, err.Err()
 }
 
-func (w *WorkloadsMessagebus) deleteHandler(ctx context.Context, payload []byte) ([]byte, error) {
-	return nil, nil
+func (w *WorkloadsMessagebus) deleteHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := w.Delete(ctx, payload)
+	return data, err.Err()
+}
+
+func (w *WorkloadsMessagebus) getHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := w.Get(ctx, payload)
+	return data, err.Err()
 }
 
 // Run runs the messagebus for workloads
 func (w *WorkloadsMessagebus) Run() error {
 	w.rmb.WithHandler(cmdDeploy, w.deployHandler)
 	w.rmb.WithHandler(cmdDelete, w.deleteHandler)
+	w.rmb.WithHandler(cmdGet, w.getHandler)
 
 	return w.rmb.Run()
 }

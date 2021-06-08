@@ -12,6 +12,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision/mw"
 )
 
+type DeleteOrGetArgs struct {
+	TwinID       uint32
+	DeploymentID uint32
+}
+
 // CreateOrUpdate creates or updates a workload based on a message from the message bus
 func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, payload []byte, create bool) (interface{}, mw.Response) {
 	var deployment gridtypes.Deployment
@@ -65,4 +70,53 @@ func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, payload []byte
 	}
 
 	return nil, mw.Accepted()
+}
+
+func (a *WorkloadsMessagebus) Delete(ctx context.Context, payload []byte) (interface{}, mw.Response) {
+	var args DeleteOrGetArgs
+	err := json.Unmarshal(payload, &args)
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+
+	twinID := mw.TwinID(ctx)
+	if args.TwinID != twinID {
+		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
+	}
+
+	err = a.engine.Deprovision(ctx, args.TwinID, args.DeploymentID, "requested by user")
+	if err == context.DeadlineExceeded {
+		return nil, mw.Unavailable(ctx.Err())
+	} else if errors.Is(err, provision.ErrDeploymentNotExists) {
+		return nil, mw.NotFound(err)
+	} else if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return nil, mw.Accepted()
+}
+
+func (a *WorkloadsMessagebus) Get(ctx context.Context, payload []byte) (interface{}, mw.Response) {
+	var args DeleteOrGetArgs
+	err := json.Unmarshal(payload, &args)
+	if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	twinID := mw.TwinID(ctx)
+	if args.TwinID != twinID {
+		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
+	}
+
+	deployment, err := a.engine.Storage().Get(args.TwinID, args.DeploymentID)
+	if errors.Is(err, provision.ErrDeploymentNotExists) {
+		return nil, mw.NotFound(fmt.Errorf("workload not found"))
+	} else if err != nil {
+		return nil, mw.Error(err)
+	}
+
+	return deployment, nil
 }
