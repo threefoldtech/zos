@@ -66,7 +66,7 @@ func (m *MessageBus) WithHandler(topic string, handler func(ctx context.Context,
 
 // Run runs listeners to the configured handlers
 // and will trigger the handlers in the case an event comes in
-func (m *MessageBus) Run() error {
+func (m *MessageBus) Run(ctx context.Context) error {
 	con := m.pool.Get()
 	defer con.Close()
 
@@ -77,7 +77,7 @@ func (m *MessageBus) Run() error {
 
 	jobs := make(chan Message, numWorkers)
 	for i := 1; i <= numWorkers; i++ {
-		go m.worker(context.Background(), jobs)
+		go m.worker(ctx, jobs)
 	}
 
 	for {
@@ -124,20 +124,17 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 				log.Warn().Msg("handler not found")
 			}
 
-			var tKey twinKeyID
-			ctx = context.WithValue(ctx, tKey, message.TwinSrc)
+			requestCtx := context.WithValue(ctx, twinKeyID{}, message.TwinSrc)
+			requestCtx = context.WithValue(requestCtx, messageKey{}, message)
 
-			var mKey messageKey
-			ctx = context.WithValue(ctx, mKey, message)
-
-			data, err := handler(ctx, bytes)
+			data, err := handler(requestCtx, bytes)
 			if err != nil {
 				log.Err(err).Msg("err while handling job")
 				// TODO: create an error object
 				message.Err = err.Error()
 			}
 
-			err = m.SendReply(message, data)
+			err = m.sendReply(message, data)
 			if err != nil {
 				log.Err(err).Msg("err while sending reply")
 			}
@@ -148,14 +145,14 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 func GetMessage(ctx context.Context) (*Message, error) {
 	message, ok := ctx.Value(messageKey{}).(Message)
 	if !ok {
-		return nil, errors.New("failed to load message from context")
+		panic("failed to load message from context")
 	}
 
 	return &message, nil
 }
 
-// SendReply send a reply to the message bus with some data
-func (m *MessageBus) SendReply(message Message, data interface{}) error {
+// sendReply send a reply to the message bus with some data
+func (m *MessageBus) sendReply(message Message, data interface{}) error {
 	con := m.pool.Get()
 	defer con.Close()
 

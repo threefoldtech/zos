@@ -55,5 +55,5 @@ func (w *WorkloadsMessagebus) Run() error {
 	w.rmb.WithHandler(cmdDelete, w.deleteHandler)
 	w.rmb.WithHandler(cmdGet, w.getHandler)
 
-	return w.rmb.Run()
+	return w.rmb.Run(context.Background())
 }
