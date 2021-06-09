@@ -142,6 +142,7 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 	}
 }
 
+// GetMessage gets a message from the context, panics if it's not there
 func GetMessage(ctx context.Context) (*Message, error) {
 	message, ok := ctx.Value(messageKey{}).(Message)
 	if !ok {
