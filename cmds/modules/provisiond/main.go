@@ -21,6 +21,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/primitives"
 	"github.com/threefoldtech/zos/pkg/provision/api"
+	"github.com/threefoldtech/zos/pkg/provision/mbus"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
 	"github.com/threefoldtech/zos/pkg/substrate"
 	"github.com/urfave/cli/v2"
@@ -295,6 +296,16 @@ func action(cli *cli.Context) error {
 
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return errors.Wrap(err, "http api exited unexpectedely")
+	}
+
+	messageBus, err := mbus.NewWorkloadsMessagebus(engine, cl, *statistics, msgBrokerCon)
+	if err != nil {
+		return err
+	}
+
+	err = messageBus.Run()
+	if err != nil {
+		return err
 	}
 
 	log.Info().Msg("provision engine stopped")
