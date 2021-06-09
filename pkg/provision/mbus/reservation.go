@@ -12,7 +12,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision/mw"
 )
 
-type DeleteOrGetArgs struct {
+type deleteOrGetArgs struct {
 	TwinID       uint32
 	DeploymentID uint32
 }
@@ -72,8 +72,9 @@ func (a *WorkloadsMessagebus) CreateOrUpdate(ctx context.Context, payload []byte
 	return nil, mw.Accepted()
 }
 
+// Delete deletes a workload
 func (a *WorkloadsMessagebus) Delete(ctx context.Context, payload []byte) (interface{}, mw.Response) {
-	var args DeleteOrGetArgs
+	var args deleteOrGetArgs
 	err := json.Unmarshal(payload, &args)
 	if err != nil {
 		return nil, mw.Error(err)
@@ -99,8 +100,9 @@ func (a *WorkloadsMessagebus) Delete(ctx context.Context, payload []byte) (inter
 	return nil, mw.Accepted()
 }
 
+// Get gets a workload
 func (a *WorkloadsMessagebus) Get(ctx context.Context, payload []byte) (interface{}, mw.Response) {
-	var args DeleteOrGetArgs
+	var args deleteOrGetArgs
 	err := json.Unmarshal(payload, &args)
 	if err != nil {
 		return nil, mw.Error(err)
