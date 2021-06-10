@@ -42,6 +42,7 @@ type Message struct {
 type messageBusSubrouter struct {
 	handlers map[string]Handler
 	sub      map[string]*messageBusSubrouter
+	mw       []Middleware
 }
 
 func newSubRouter() messageBusSubrouter {
@@ -50,7 +51,16 @@ func newSubRouter() messageBusSubrouter {
 		sub:      make(map[string]*messageBusSubrouter),
 	}
 }
+
 func (m *messageBusSubrouter) call(ctx context.Context, route string, payload []byte) (interface{}, error) {
+	var err error
+	for _, mw := range m.mw {
+		ctx, err = mw(ctx, payload)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	handler, ok := m.handlers[route]
 	if ok {
 		return handler(ctx, payload)
@@ -60,7 +70,7 @@ func (m *messageBusSubrouter) call(ctx context.Context, route string, payload []
 
 	key := parts[0]
 	var subroute string
-	if len(subroute) == 2 {
+	if len(parts) == 2 {
 		subroute = parts[1]
 	}
 
@@ -70,6 +80,10 @@ func (m *messageBusSubrouter) call(ctx context.Context, route string, payload []
 	}
 
 	return router.call(ctx, subroute, payload)
+}
+
+func (m *messageBusSubrouter) Use(mw Middleware) {
+	m.mw = append(m.mw, mw)
 }
 
 func (m *messageBusSubrouter) Subroute(prefix string) Router {

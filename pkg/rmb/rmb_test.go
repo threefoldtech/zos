@@ -17,9 +17,9 @@ func TestRouter(t *testing.T) {
 		return nil, nil
 	})
 
-	sub := router.Subroute("test2")
+	sub := router.Subroute("test")
 
-	sub.WithHandler("handler.do", func(ctx context.Context, payload []byte) (interface{}, error) {
+	sub.WithHandler("handler.do2", func(ctx context.Context, payload []byte) (interface{}, error) {
 		return nil, nil
 	})
 
@@ -27,5 +27,42 @@ func TestRouter(t *testing.T) {
 	router.getTopics("", &l)
 
 	require.Len(l, 2)
-	require.Equal([]string{"test.handler.do", "test2.handler.do"}, l)
+	require.Equal([]string{"test.handler.do", "test.handler.do2"}, l)
+}
+
+func TestMiddleware(t *testing.T) {
+	require := require.New(t)
+
+	router := newSubRouter()
+	router.Use(func(ctx context.Context, payload []byte) (context.Context, error) {
+		return context.WithValue(ctx, "name", "test middleware"), nil
+	})
+
+	router.WithHandler("test.handle.do", func(ctx context.Context, payload []byte) (interface{}, error) {
+		value := ctx.Value("name")
+		require.Equal("test middleware", value)
+
+		notVisibleHere := ctx.Value("age")
+		require.Nil(notVisibleHere)
+		return nil, nil
+	})
+
+	sub := router.Subroute("test")
+	sub.Use(func(ctx context.Context, payload []byte) (context.Context, error) {
+		return context.WithValue(ctx, "age", 150), nil
+	})
+
+	sub.WithHandler("handle.do2", func(ctx context.Context, payload []byte) (interface{}, error) {
+		value := ctx.Value("name")
+		require.Equal("test middleware", value)
+
+		age := ctx.Value("age")
+		require.EqualValues(150, age)
+		return nil, nil
+	})
+
+	_, err := router.call(context.Background(), "test.handle.do", nil)
+	require.NoError(err)
+	_, err = router.call(context.Background(), "test.handle.do2", nil)
+	require.NoError(err)
 }
