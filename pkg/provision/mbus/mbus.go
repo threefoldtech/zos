@@ -9,17 +9,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
-const (
-	cmdDeploy          = "zos.deployment.deploy"
-	cmdDelete          = "zos.deployment.delete"
-	cmdGet             = "zos.deployment.get"
-	cmdListPorts       = "zos.network.list_wg_ports"
-	cmdListIPs         = "zos.network.list_public_ips"
-	cmdGetPublicConfig = "zos.network.public_config_get"
-	cmdSetPublicConfig = "zos.network.public_config_set"
-	cmdGetStatistics   = "zos.statistics.get"
-)
-
 // WorkloadsMessagebus is provision engine Workloads
 type WorkloadsMessagebus struct {
 	engine provision.Engine
@@ -88,18 +77,21 @@ func (w *WorkloadsMessagebus) getStatisticsHandler(ctx context.Context, payload 
 // Run runs the messagebus for workloads
 func (w *WorkloadsMessagebus) Run() error {
 	// zos deployment handlers
-	w.rmb.WithHandler(cmdDeploy, w.deployHandler)
-	w.rmb.WithHandler(cmdDelete, w.deleteHandler)
-	w.rmb.WithHandler(cmdGet, w.getHandler)
+	zosRouter := w.rmb.Subroute("zos").Subroute("deployment")
+	zosRouter.WithHandler("deploy", w.deployHandler)
+	zosRouter.WithHandler("delete", w.deleteHandler)
+	zosRouter.WithHandler("get", w.getHandler)
 
 	// network handlers
-	w.rmb.WithHandler(cmdListPorts, w.listPortsHandler)
-	w.rmb.WithHandler(cmdListIPs, w.listPublicIPsHandler)
-	w.rmb.WithHandler(cmdGetPublicConfig, w.getPublicConfigHandler)
-	w.rmb.WithHandler(cmdSetPublicConfig, w.setPublicConfigHandler)
+	networkRouter := w.rmb.Subroute("zos").Subroute("network")
+	networkRouter.WithHandler("list_wg_ports", w.listPortsHandler)
+	networkRouter.WithHandler("list_public_ips", w.listPublicIPsHandler)
+	networkRouter.WithHandler("public_config_get", w.getPublicConfigHandler)
+	networkRouter.WithHandler("public_config_set", w.setPublicConfigHandler)
 
 	// statistics handlers
-	w.rmb.WithHandler(cmdGetStatistics, w.getStatisticsHandler)
+	statsRouter := w.rmb.Subroute("zos").Subroute("statistics")
+	statsRouter.WithHandler("get", w.getStatisticsHandler)
 
 	return w.rmb.Run(context.Background())
 }
