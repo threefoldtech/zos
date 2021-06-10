@@ -95,14 +95,14 @@ func (m *messageBusSubrouter) Subroute(prefix string) Router {
 		panic("invalid subrouter prefix should not have '.'")
 	}
 
-	_, ok := m.sub[prefix]
+	sub, ok := m.sub[prefix]
 	if ok {
-		panic("subrouter already registered")
+		return sub
 	}
 
-	sub := newSubRouter()
-	m.sub[prefix] = &sub
-	return &sub
+	r := newSubRouter()
+	m.sub[prefix] = &r
+	return &r
 }
 
 // WithHandler adds a topic handler to the messagebus
