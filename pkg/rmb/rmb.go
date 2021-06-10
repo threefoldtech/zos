@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -38,11 +39,77 @@ type Message struct {
 	Err        string   `json:"err"`
 }
 
+type messageBusSubrouter struct {
+	handlers map[string]Handler
+	sub      map[string]*messageBusSubrouter
+}
+
+func (m *messageBusSubrouter) call(ctx context.Context, route string, payload []byte) (interface{}, error) {
+	handler, ok := m.handlers[route]
+	if ok {
+		return handler(ctx, payload)
+	}
+
+	parts := strings.SplitN(route, ".", 2)
+
+	key := parts[0]
+	var subroute string
+	if len(subroute) == 2 {
+		subroute = parts[1]
+	}
+
+	router, ok := m.sub[key]
+	if !ok {
+		return nil, ErrFunctionNotFound
+	}
+
+	return router.call(ctx, subroute, payload)
+}
+
+func (m *messageBusSubrouter) Subroute(prefix string) Router {
+	//r.handle('abc.def.fun', handler)
+	// sub = r.handle(xyz)
+	// sub.use(middle)
+	// sub.handle('func', handler) // xyz.func
+	if strings.Contains(prefix, ".") {
+		panic("invalid subrouter prefix should not have '.'")
+	}
+
+	_, ok := m.sub[prefix]
+	if ok {
+		panic("subrouter already registered")
+	}
+
+	sub := &messageBusSubrouter{
+		handlers: make(map[string]Handler),
+		sub:      make(map[string]*messageBusSubrouter),
+	}
+	m.sub[prefix] = sub
+	return sub
+}
+
+// WithHandler adds a topic handler to the messagebus
+func (m *messageBusSubrouter) WithHandler(topic string, handler Handler) error {
+	m.handlers[topic] = handler
+	return nil
+}
+
+func (m *messageBusSubrouter) getTopics(l *[]string) {
+	for r := range m.handlers {
+		*l = append(*l, r)
+	}
+
+	for _, sub := range m.sub {
+		sub.getTopics(l)
+	}
+
+}
+
 // MessageBus is a struct that contains everything required to run the message bus
 type MessageBus struct {
-	Context  context.Context
-	pool     *redis.Pool
-	handlers map[string]func(ctx context.Context, payload []byte) (interface{}, error)
+	messageBusSubrouter
+	Context context.Context
+	pool    *redis.Pool
 }
 
 // New creates a new message bus
@@ -53,15 +120,13 @@ func New(ctx context.Context, address string) (*MessageBus, error) {
 	}
 
 	return &MessageBus{
-		pool:     pool,
-		Context:  ctx,
-		handlers: make(map[string]func(ctx context.Context, payload []byte) (interface{}, error)),
+		pool:    pool,
+		Context: ctx,
+		messageBusSubrouter: messageBusSubrouter{
+			handlers: make(map[string]Handler),
+			sub:      make(map[string]*messageBusSubrouter),
+		},
 	}, nil
-}
-
-// WithHandler adds a topic handler to the messagebus
-func (m *MessageBus) WithHandler(topic string, handler func(ctx context.Context, payload []byte) (interface{}, error)) {
-	m.handlers[topic] = handler
 }
 
 // Run runs listeners to the configured handlers
@@ -70,10 +135,8 @@ func (m *MessageBus) Run(ctx context.Context) error {
 	con := m.pool.Get()
 	defer con.Close()
 
-	topics := make([]string, len(m.handlers))
-	for topic := range m.handlers {
-		topics = append(topics, topic)
-	}
+	topics := make([]string, 0)
+	m.getTopics(&topics)
 
 	jobs := make(chan Message, numWorkers)
 	for i := 1; i <= numWorkers; i++ {
@@ -119,15 +182,10 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 				log.Err(err).Msg("err while parsing payload reply")
 			}
 
-			handler, ok := m.handlers[message.Command]
-			if !ok {
-				log.Warn().Msg("handler not found")
-			}
-
 			requestCtx := context.WithValue(ctx, twinKeyID{}, message.TwinSrc)
 			requestCtx = context.WithValue(requestCtx, messageKey{}, message)
 
-			data, err := handler(requestCtx, bytes)
+			data, err := m.call(requestCtx, message.Command, bytes)
 			if err != nil {
 				log.Err(err).Msg("err while handling job")
 				// TODO: create an error object
