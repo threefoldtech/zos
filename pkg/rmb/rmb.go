@@ -44,6 +44,12 @@ type messageBusSubrouter struct {
 	sub      map[string]*messageBusSubrouter
 }
 
+func newSubRouter() messageBusSubrouter {
+	return messageBusSubrouter{
+		handlers: make(map[string]Handler),
+		sub:      make(map[string]*messageBusSubrouter),
+	}
+}
 func (m *messageBusSubrouter) call(ctx context.Context, route string, payload []byte) (interface{}, error) {
 	handler, ok := m.handlers[route]
 	if ok {
@@ -80,12 +86,9 @@ func (m *messageBusSubrouter) Subroute(prefix string) Router {
 		panic("subrouter already registered")
 	}
 
-	sub := &messageBusSubrouter{
-		handlers: make(map[string]Handler),
-		sub:      make(map[string]*messageBusSubrouter),
-	}
-	m.sub[prefix] = sub
-	return sub
+	sub := newSubRouter()
+	m.sub[prefix] = &sub
+	return &sub
 }
 
 // WithHandler adds a topic handler to the messagebus
@@ -94,13 +97,19 @@ func (m *messageBusSubrouter) WithHandler(topic string, handler Handler) error {
 	return nil
 }
 
-func (m *messageBusSubrouter) getTopics(l *[]string) {
+func (m *messageBusSubrouter) getTopics(prefix string, l *[]string) {
 	for r := range m.handlers {
+		if len(prefix) != 0 {
+			r = fmt.Sprintf("%s.%s", prefix, r)
+		}
 		*l = append(*l, r)
 	}
 
-	for _, sub := range m.sub {
-		sub.getTopics(l)
+	for r, sub := range m.sub {
+		if len(prefix) != 0 {
+			r = fmt.Sprintf("%s.%s", prefix, r)
+		}
+		sub.getTopics(r, l)
 	}
 
 }
@@ -120,12 +129,9 @@ func New(ctx context.Context, address string) (*MessageBus, error) {
 	}
 
 	return &MessageBus{
-		pool:    pool,
-		Context: ctx,
-		messageBusSubrouter: messageBusSubrouter{
-			handlers: make(map[string]Handler),
-			sub:      make(map[string]*messageBusSubrouter),
-		},
+		pool:                pool,
+		Context:             ctx,
+		messageBusSubrouter: newSubRouter(),
 	}, nil
 }
 
@@ -136,7 +142,7 @@ func (m *MessageBus) Run(ctx context.Context) error {
 	defer con.Close()
 
 	topics := make([]string, 0)
-	m.getTopics(&topics)
+	m.getTopics("", &topics)
 
 	jobs := make(chan Message, numWorkers)
 	for i := 1; i <= numWorkers; i++ {
