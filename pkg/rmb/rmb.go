@@ -167,13 +167,11 @@ func (m *MessageBus) Run(ctx context.Context) error {
 			continue
 		}
 
-		_, ok := m.handlers[string(data[0])]
-		if !ok {
-			log.Debug().Msg("handler not found")
-			continue
+		select {
+		case jobs <- message:
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-
-		jobs <- message
 	}
 }
 
