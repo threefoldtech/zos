@@ -35,25 +35,19 @@ type MountOptions struct {
 
 //Flister is the interface for the flist module
 type Flister interface {
-	// Mount mounts an flist located at url using the 0-db located at storage.
-	// MountOptions, can be nil, in that case falls to default, other wise
-	// use the provided values.
-	// Returns the path in the filesystem where the flist is mounted or an error
-	Mount(url string, storage string, opts MountOptions) (path string, err error)
+	// Mount mounts an flist located at url using the 0-db located at storage
+	// in a RO mode. note that there is no way u can unmount a ro flist because
+	// it can be shared by many users, it's then up to system to decide if the
+	// mount is not needed anymore and clean it up
+	MountRO(url string, storage string) (path string, err error)
 
-	// Mount mounts an flist located at url using the 0-db located at storage.
-	// MountOptions, can be nil, in that case falls to default, other wise
-	// use the provided values.
-	// Name is a unique name to identify this mount. The flist can later be unmounted
-	// with the same name. It is up to the caller to ensure `name` is unique.
-	// Returns the path in the filesystem where the flist is mounted or an error
-	NamedMount(name string, url string, storage string, ots MountOptions) (path string, err error)
+	// Mounts an flist in rw mode. the name given should be granted by the user to
+	// be unique. if a similar name exists, the current path will be returned.
+	MountRW(name, url, storage string, size gridtypes.Unit) (path string, err error)
 
-	// Umount the flist mounted at path
-	Umount(path string) error
-
-	// NamedUmount unmounts the flist mounted via the NamedMount call, with the same name
-	NamedUmount(path string) error
+	// Umount a RW mount. this only unmounts the RW layer and remove the assigned
+	// volume.
+	Unmount(name string) error
 
 	// HashFromRootPath returns flist hash from a running g8ufs mounted with NamedMount
 	HashFromRootPath(name string) (string, error)

@@ -81,7 +81,7 @@ type VirtualMachine struct {
 	SSHKeys         []string        `json:"ssh_keys"`
 	Size            uint8           `json:"size"` // deprecated, use compute_capacity instead
 	ComputeCapacity MachineCapacity `json:"compute_capacity"`
-	Mounts          []Mount         `json:"mounts"`
+	Mounts          []MachineMount  `json:"mounts"`
 	// following items are only available in container mode. if FList is for a container
 	// not a VM.
 	Entrypoint string            `json:"entrypoint"`

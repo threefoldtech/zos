@@ -24,6 +24,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -73,6 +74,7 @@ type flistModule struct {
 	flist      string
 	cache      string
 	mountpoint string
+	ro         string
 	pid        string
 	log        string
 	run        string
@@ -96,7 +98,7 @@ func newFlister(root string, storage volumeAllocator, commander commander) pkg.F
 	}
 
 	// prepare directory layout for the module
-	for _, path := range []string{"flist", "cache", "mountpoint", "pid", "log", "run"} {
+	for _, path := range []string{"flist", "cache", "mountpoint", "ro", "pid", "log", "run"} {
 		p := filepath.Join(root, path)
 		if err := os.MkdirAll(p, 0755); err != nil {
 			panic(err)
@@ -112,6 +114,7 @@ func newFlister(root string, storage volumeAllocator, commander commander) pkg.F
 		flist:      filepath.Join(root, "flist"),
 		cache:      filepath.Join(root, "cache"),
 		mountpoint: filepath.Join(root, "mountpoint"),
+		ro:         filepath.Join(root, "ro"),
 		pid:        filepath.Join(root, "pid"),
 		log:        filepath.Join(root, "log"),
 		run:        filepath.Join(root, "run"),
@@ -138,23 +141,177 @@ func New(root string, storage *stubs.StorageModuleStub) pkg.Flister {
 	return newFlister(root, storage, cmd(exec.Command))
 }
 
-// NamedMount implements the Flister.NamedMount interface
-func (f *flistModule) NamedMount(name, url, storage string, opts pkg.MountOptions) (string, error) {
-	return f.mount(name, url, storage, opts)
+// MountRO mounts an flist in read-only mode. This mount then can be shared between multiple rw mounts
+// TODO: how to know that this ro mount is no longer used, hence can be unmounted and cleaned up?
+func (f *flistModule) MountRO(url, storage string) (string, error) {
+	// this should return always the flist mountpoint. which is used
+	// as a base for all RW mounts.
+	sublog := log.With().Str("url", url).Str("storage", storage).Logger()
+	sublog.Info().Msg("request to mount flist")
+
+	hash, err := f.FlistHash(url)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get flist hash")
+	}
+
+	mountpoint, err := f.roMountpath(hash)
+	if err != nil {
+		return "", err
+	}
+
+	err = f.valid(mountpoint)
+	if err == ErrAlreadyMounted {
+		return mountpoint, nil
+	} else if err != nil {
+		return "", err
+	}
+
+	// otherwise, we need to mount this flist in ro mode
+
+	env, err := environment.Get()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse node environment")
+	}
+
+	if storage == "" {
+		storage = env.FlistURL
+	}
+
+	flistPath, err := f.downloadFlist(url)
+	if err != nil {
+		sublog.Err(err).Msg("fail to download flist")
+		return "", err
+	}
+
+	pidPath := filepath.Join(f.pid, hash) + ".pid"
+	logPath := filepath.Join(f.log, hash) + ".log"
+	var args []string
+
+	args = append(args,
+		"-cache", f.cache,
+		"-meta", flistPath,
+		"-storage-url", storage,
+		"-daemon",
+		"-pid", pidPath,
+		"-log", logPath,
+		// this is always read-only
+		"-ro",
+		mountpoint,
+	)
+
+	sublog.Info().Strs("args", args).Msg("starting 0-fs daemon")
+	cmd := f.commander.Command("g8ufs", args...)
+
+	var out []byte
+	if out, err = cmd.CombinedOutput(); err != nil {
+		sublog.Err(err).Str("out", string(out)).Msg("fail to start 0-fs daemon")
+		return "", err
+	}
+
+	// wait for the daemon to be ready
+	// we check the pid file is created
+	if err := waitPidFile(time.Second*5, pidPath, true); err != nil {
+		sublog.Error().Err(err).Msg("pid file of 0-fs daemon not created")
+		return "", err
+	}
+
+	// and scan the logs after "mount ready"
+	if err := waitMountedLog(time.Second*5, logPath); err != nil {
+		sublog.Error().Err(err).Msg("0-fs daemon did not start properly")
+		return "", err
+	}
+	// the track file is a symlink to the process pid
+	// if the link is broken, then the fs has exited gracefully
+	// otherwise we can get the fs pid from the track path
+	// if the pid does not exist of the target does not exist
+	// we can clean up the named mount
+	trackPath := filepath.Join(f.run, hash)
+	if err = os.Symlink(pidPath, trackPath); err != nil {
+		sublog.Error().Err(err).Msg("failed track fs pid")
+	}
+
+	return mountpoint, nil
 }
 
-// Mount implements the Flister.Mount interface
-func (f *flistModule) Mount(url, storage string, opts pkg.MountOptions) (string, error) {
-	rnd, err := random()
+func (f *flistModule) MountRW(name, url, storage string, size gridtypes.Unit) (string, error) {
+	sublog := log.With().Str("name", name).Str("url", url).Str("storage", storage).Logger()
+	sublog.Info().Msg("request to mount flist in rw")
+
+	// mount overlay
+	mountpoint, err := f.mountpath(name)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to generate random id for the mount")
+		return "", err
 	}
-	return f.mount(rnd, url, storage, opts)
+
+	ro, err := f.MountRO(url, storage)
+	if err != nil {
+		return "", err
+	}
+
+	ctx := context.Background()
+
+	// create subvolume
+	sublog.Info().Msgf("check if subvolume %s already exists", name)
+	// check if the filesystem doesn't already exists
+	backend, err := f.storage.Path(ctx, name)
+	newAllocation := false
+	if err != nil {
+		sublog.Info().Msgf("create new subvolume %s", name)
+		// and only create a new one if it doesn't exist
+		if size == 0 {
+			// sanity check in case type is not set always use hdd
+			return "", fmt.Errorf("invalid mount option, missing disk type")
+		}
+		newAllocation = true
+		backend, err = f.storage.CreateFilesystem(ctx, name, size, zos.SSDDevice)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
+		}
+	}
+
+	defer func() {
+		// in case of an error (mount is never fully completed)
+		// we need to deallocate the filesystem
+
+		if newAllocation && err != nil {
+			f.storage.ReleaseFilesystem(ctx, name)
+		}
+	}()
+
+	rw := filepath.Join(backend.Path, "rw")
+	wd := filepath.Join(backend.Path, "wd")
+	for _, d := range []string{rw, wd} {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			return "", err
+		}
+	}
+
+	// mount overlay as
+	err = syscall.Mount("overlay",
+		mountpoint,
+		"overlay",
+		syscall.MS_NOATIME,
+		fmt.Sprintf(
+			"lowerdir=%s,upperdir=%s,workdir=%s",
+			ro, rw, wd,
+		),
+	)
+
+	return mountpoint, err
 }
 
 func (f *flistModule) mountpath(name string) (string, error) {
 	mountpath := filepath.Join(f.mountpoint, name)
 	if filepath.Dir(mountpath) != f.mountpoint {
+		return "", errors.New("invalid mount name")
+	}
+
+	return mountpath, nil
+}
+
+func (f *flistModule) roMountpath(hash string) (string, error) {
+	mountpath := filepath.Join(f.ro, hash)
+	if filepath.Dir(mountpath) != f.ro {
 		return "", errors.New("invalid mount name")
 	}
 
@@ -183,128 +340,6 @@ func (f *flistModule) valid(path string) error {
 	}
 
 	return nil
-}
-
-func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (string, error) {
-	ctx := context.Background()
-	sublog := log.With().Str("url", url).Str("storage", storage).Logger()
-	sublog.Info().Msg("request to mount flist")
-
-	mountpoint, err := f.mountpath(name)
-	if err != nil {
-		return "", err
-	}
-
-	err = f.valid(mountpoint)
-	if errors.Is(err, ErrAlreadyMounted) {
-		// if everything is already in place, just early return
-		log.Info().Msgf("flist is already mounted at %s, nothing more to do", mountpoint)
-		return mountpoint, nil
-	} else if err != nil {
-		return "", err
-	}
-
-	env, err := environment.Get()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to parse node environment")
-	}
-
-	if storage == "" {
-		storage = env.FlistURL
-	}
-
-	flistPath, err := f.downloadFlist(url)
-	if err != nil {
-		sublog.Err(err).Msg("fail to download flist")
-		return "", err
-	}
-
-	var backend pkg.Filesystem
-	var newAllocation bool
-	var args []string
-	if !opts.ReadOnly {
-		sublog.Info().Msgf("check if subvolume %s already exists", name)
-		// check if the filesystem doesn't already exists
-		backend, err = f.storage.Path(ctx, name)
-		if err != nil {
-			sublog.Info().Msgf("create new subvolume %s", name)
-			// and only create a new one if it doesn't exist
-			if opts.Limit == 0 || len(opts.Type) == 0 {
-				// sanity check in case type is not set always use hdd
-				return "", fmt.Errorf("invalid mount option, missing disk type and/or size")
-			}
-			newAllocation = true
-			backend, err = f.storage.CreateFilesystem(ctx, name, opts.Limit, opts.Type)
-			if err != nil {
-				return "", errors.Wrap(err, "failed to create read-write subvolume for 0-fs")
-			}
-		}
-	}
-
-	if len(backend.Path) != 0 {
-		args = append(args, "-backend", backend.Path)
-		// in case of an error (mount is never fully completed)
-		// we need to deallocate the filesystem
-		defer func() {
-			if newAllocation && err != nil {
-				f.storage.ReleaseFilesystem(ctx, name)
-			}
-		}()
-	} else {
-		args = append(args, "-ro")
-	}
-
-	if err != nil {
-		return "", errors.Wrap(err, "invalid mount point")
-	}
-
-	if err = os.MkdirAll(mountpoint, 0755); err != nil {
-		return "", err
-	}
-	pidPath := filepath.Join(f.pid, name) + ".pid"
-	logPath := filepath.Join(f.log, name) + ".log"
-
-	args = append(args,
-		"-cache", f.cache,
-		"-meta", flistPath,
-		"-storage-url", storage,
-		"-daemon",
-		"-pid", pidPath,
-		"-log", logPath,
-		mountpoint,
-	)
-	sublog.Info().Strs("args", args).Msg("starting 0-fs daemon")
-	cmd := f.commander.Command("g8ufs", args...)
-
-	var out []byte
-	if out, err = cmd.CombinedOutput(); err != nil {
-		sublog.Err(err).Str("out", string(out)).Msg("fail to start 0-fs daemon")
-		return "", err
-	}
-
-	// wait for the daemon to be ready
-	// we check the pid file is created
-	if err := waitPidFile(time.Second*5, pidPath, true); err != nil {
-		sublog.Error().Err(err).Msg("pid file of 0-fs daemon not created")
-		return "", err
-	}
-
-	// and scan the logs after "mount ready"
-	if err := waitMountedLog(time.Second*5, logPath); err != nil {
-		sublog.Error().Err(err).Msg("0-fs daemon did not start properly")
-		return "", err
-	}
-	// the track file is a symlink to the process pid
-	// if the link is broken, then the fs has exited gracefully
-	// otherwise we can get the fs pid from the track path
-	// if the pid does not exist of the target does not exist
-	// we can clean up the named mount
-	trackPath := filepath.Join(f.run, name)
-	if err = os.Symlink(pidPath, trackPath); err != nil {
-		sublog.Error().Err(err).Msg("failed track fs pid")
-	}
-
-	return mountpoint, nil
 }
 
 func (f *flistModule) getPid(pidPath string) (int64, error) {
@@ -366,73 +401,22 @@ func (f *flistModule) HashFromRootPath(name string) (string, error) {
 	return "", fmt.Errorf("could not find rootfs hash name")
 }
 
-// NamedUmount implements the Flister.NamedUmount interface
-func (f *flistModule) NamedUmount(name string) error {
-	return f.Umount(filepath.Join(f.mountpoint, name))
-}
-
-// Umount implements the Flister.Umount interface
-func (f *flistModule) Umount(path string) error {
-	ctx := context.Background()
-	log.Info().Str("path", path).Msg("request unmount flist")
-
-	info, err := os.Stat(path)
+func (f *flistModule) Unmount(name string) error {
+	// this will
+	// - unmount the overlay mount
+	mountpoint, err := f.mountpath(name)
 	if err != nil {
 		return err
 	}
-	if !info.IsDir() {
-		return fmt.Errorf("specified path is not a directory")
-	}
 
-	if filepath.Dir(path) != filepath.Clean(f.mountpoint) {
-		return fmt.Errorf("trying to unmount a directory outside of the flist module boundaries")
-	}
-
-	_, name := filepath.Split(path)
-	pidPath := filepath.Join(f.pid, name) + ".pid"
-
-	// from here on out, skip errors because we want to try to clean up as much as possible
-	opts, err := f.getMountOptions(pidPath)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to read mount options")
-
-		//we don't return an error in case the file is gone somehow
-		//but the mount is still there. So better to fail on next call
-		//than leaking
-	}
-
-	if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil {
-		log.Error().Err(err).Str("path", path).Msg("fail to umount flist")
-	}
-
-	if err := waitPidFile(time.Second*2, pidPath, false); err != nil {
-		log.Error().Err(err).Str("path", path).Msg("0-fs daemon did not stop properly")
-
-		pid, err := f.getPid(pidPath)
-		if err == nil {
-			if err := forceStop(int(pid)); err != nil {
-				log.Error().Int64("pid", pid).Err(err).Msg("failed to kill 0-fs process")
-			}
-		} else {
-			log.Error().Int64("pid", pid).Err(err).Msg("failed to get pid")
-		}
-
-	}
-
-	// clean up working dirs
-	logPath := filepath.Join(f.log, name) + ".log"
-	for _, path := range []string{logPath, path} {
-		if err := os.RemoveAll(path); err != nil {
-			log.Error().Err(err).Msgf("fail to remove %s", logPath)
+	if f.valid(mountpoint) == ErrAlreadyMounted {
+		if err := syscall.Unmount(mountpoint, syscall.MNT_DETACH|syscall.MNT_FORCE); err != nil {
+			log.Error().Err(err).Str("path", mountpoint).Msg("fail to umount flist")
 		}
 	}
 
-	// clean up subvolume should be done only for RW mounts.
-	if opts.Find("-ro") >= 0 {
-		return nil
-	}
-
-	if err := f.storage.ReleaseFilesystem(ctx, name); err != nil {
+	// - delete the volume
+	if err := f.storage.ReleaseFilesystem(context.Background(), name); err != nil {
 		log.Error().Err(err).Msg("fail to clean up subvolume")
 	}
 
@@ -469,29 +453,31 @@ func (f *flistModule) FlistHash(url string) (string, error) {
 func (f *flistModule) downloadFlist(url string) (string, error) {
 	// first check if the md5 of the flist is available
 	hash, err := f.FlistHash(url)
+	if err != nil {
+		return "", err
+	}
+
+	flistPath := filepath.Join(f.flist, strings.TrimSpace(string(hash)))
+	file, err := os.Open(flistPath)
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+
 	if err == nil {
-		flistPath := filepath.Join(f.flist, strings.TrimSpace(string(hash)))
-		f, err := os.Open(flistPath)
-		if err != nil && !os.IsNotExist(err) {
+		defer file.Close()
+
+		log.Info().Str("url", url).Msg("flist already in on the filesystem")
+		// flist is already present locally, verify it's still valid
+		equal, err := md5Compare(hash, file)
+		if err != nil {
 			return "", err
 		}
-		defer f.Close()
 
-		if err == nil {
-			log.Info().Str("url", url).Msg("flist already in on the filesystem")
-			// flist is already present locally, verify it's still valid
-			equal, err := md5Compare(hash, f)
-			if err != nil {
-				return "", err
-			}
-			if equal {
-				return flistPath, nil
-			}
-			log.Info().Str("url", url).Msg("flist on filesystem is corrupted, re-downloading it")
-			// if not equal the rest of the function will overwrite the faulty flist
-		} else {
-			log.Info().Str("url", url).Msg("flist not in cache, downloading")
+		if equal {
+			return flistPath, nil
 		}
+
+		log.Info().Str("url", url).Msg("flist on filesystem is corrupted, re-downloading it")
 	}
 
 	// we don't have the flist locally yet, let's download it

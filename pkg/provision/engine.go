@@ -407,7 +407,7 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes
 				Str("type", wl.Type.String()).
 				Logger()
 
-			log.Debug().Str("workload", wl.Name).Msg("de-provisioning")
+			log.Debug().Str("workload", string(wl.Name)).Msg("de-provisioning")
 			if wl.Result.State == gridtypes.StateDeleted {
 				//nothing to do!
 				continue
@@ -551,7 +551,7 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 		return err
 	}
 
-	wl, err := dl.Get(name)
+	wl, err := dl.Get(gridtypes.Name(name))
 	if err != nil {
 		return err
 	}

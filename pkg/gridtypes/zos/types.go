@@ -25,7 +25,6 @@ const (
 )
 
 func init() {
-	gridtypes.RegisterType(ContainerType, Container{})
 	gridtypes.RegisterType(VolumeType, Volume{})
 	gridtypes.RegisterType(NetworkType, Network{})
 	gridtypes.RegisterType(ZDBType, ZDB{})
