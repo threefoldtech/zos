@@ -63,7 +63,8 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 
 	deployment := provision.GetDeployment(ctx)
 
-	netID := zos.NetworkID(deployment.TwinID, string(config.Network))
+	netConfig := config.Network.Interfaces[0]
+	netID := zos.NetworkID(deployment.TwinID, netConfig.Network)
 
 	// check if the network tap already exists
 	// if it does, it's most likely that a vm with the same network id and node id already exists
@@ -78,12 +79,12 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 	}
 
 	// check if public ipv4 is supported, should this be requested
-	if len(config.PublicIP) > 0 && !network.PublicIPv4Support(ctx) {
+	if len(config.Network.PublicIP) > 0 && !network.PublicIPv4Support(ctx) {
 		return result, errors.New("public ipv4 is requested, but not supported on this node")
 	}
 
 	result.ID = wl.ID.String()
-	result.IP = config.IP.String()
+	result.IP = netConfig.IP.String()
 
 	cap, err := config.Capacity()
 	if err != nil {
@@ -139,8 +140,9 @@ func (p *Primitives) kubernetesProvisionImpl(ctx context.Context, wl *gridtypes.
 	}()
 
 	var pubIface string
-	if len(config.PublicIP) > -0 {
-		ipWl, err := deployment.Get(config.PublicIP)
+	pubIP := config.Network.PublicIP
+	if len(pubIP) > -0 {
+		ipWl, err := deployment.Get(pubIP)
 		if err != nil {
 			return zos.KubernetesResult{}, err
 		}
@@ -303,14 +305,15 @@ func (p *Primitives) kubernetesDecomission(ctx context.Context, wl *gridtypes.Wo
 	}
 
 	deployment := provision.GetDeployment(ctx)
-
-	netID := zos.NetworkID(deployment.TwinID, string(cfg.Network))
+	netConfig := cfg.Network.Interfaces[0]
+	netID := zos.NetworkID(deployment.TwinID, netConfig.Network)
 	if err := network.RemoveTap(ctx, string(netID)); err != nil {
 		return errors.Wrap(err, "could not clean up tap device")
 	}
 
-	if len(cfg.PublicIP) > 0 {
-		ipWl, err := deployment.Get(cfg.PublicIP)
+	pubIP := cfg.Network.PublicIP
+	if len(pubIP) > 0 {
+		ipWl, err := deployment.Get(pubIP)
 		ifName := ipWl.ID.String()
 		if err != nil {
 			return err
@@ -330,15 +333,15 @@ func (p *Primitives) kubernetesDecomission(ctx context.Context, wl *gridtypes.Wo
 
 func (p *Primitives) buildNetworkInfo(ctx context.Context, deployment gridtypes.Deployment, iface string, pubIface string, cfg VirtualMachine) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
-
-	netID := zos.NetworkID(deployment.TwinID, string(cfg.Network))
+	netConfig := cfg.Network.Interfaces[0]
+	netID := zos.NetworkID(deployment.TwinID, netConfig.Network)
 	subnet, err := network.GetSubnet(ctx, netID)
 	if err != nil {
 		return pkg.VMNetworkInfo{}, errors.Wrapf(err, "could not get network resource subnet")
 	}
 
-	if !subnet.Contains(cfg.IP) {
-		return pkg.VMNetworkInfo{}, fmt.Errorf("IP %s is not part of local nr subnet %s", cfg.IP.String(), subnet.String())
+	if !subnet.Contains(netConfig.IP) {
+		return pkg.VMNetworkInfo{}, fmt.Errorf("IP %s is not part of local nr subnet %s", netConfig.IP.String(), subnet.String())
 	}
 
 	privNet, err := network.GetNet(ctx, netID)
@@ -347,7 +350,7 @@ func (p *Primitives) buildNetworkInfo(ctx context.Context, deployment gridtypes.
 	}
 
 	addrCIDR := net.IPNet{
-		IP:   cfg.IP,
+		IP:   netConfig.IP,
 		Mask: subnet.Mask,
 	}
 
@@ -356,7 +359,7 @@ func (p *Primitives) buildNetworkInfo(ctx context.Context, deployment gridtypes.
 		return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not get network resource default gateway")
 	}
 
-	privIP6, err := network.GetIPv6From4(ctx, netID, cfg.IP)
+	privIP6, err := network.GetIPv6From4(ctx, netID, netConfig.IP)
 	if err != nil {
 		return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not convert private ipv4 to ipv6")
 	}
@@ -375,15 +378,16 @@ func (p *Primitives) buildNetworkInfo(ctx context.Context, deployment gridtypes.
 		Nameservers: []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("1.1.1.1"), net.ParseIP("2001:4860:4860::8888")},
 	}
 
-	if len(cfg.PublicIP) > 0 {
+	pubIP := cfg.Network.PublicIP
+	if len(pubIP) > 0 {
 		// A public ip is set, load the reservation, extract the ip and make a config
 		// for it
-		ipWl, err := deployment.Get(cfg.PublicIP)
+		ipWl, err := deployment.Get(pubIP)
 		if err != nil {
 			return pkg.VMNetworkInfo{}, err
 		}
 
-		pubIP, pubGw, err := p.getPubIPConfig(ipWl, cfg.PublicIP)
+		pubIP, pubGw, err := p.getPubIPConfig(ipWl)
 		if err != nil {
 			return pkg.VMNetworkInfo{}, errors.Wrap(err, "could not get public ip config")
 		}
@@ -409,7 +413,7 @@ func (p *Primitives) buildNetworkInfo(ctx context.Context, deployment gridtypes.
 }
 
 // Get the public ip, and the gateway from the reservation ID
-func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID, name string) (ip net.IPNet, gw net.IP, err error) {
+func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID) (ip net.IPNet, gw net.IP, err error) {
 
 	//CRITICAL: TODO
 	// in this function we need to return the IP from the IP workload

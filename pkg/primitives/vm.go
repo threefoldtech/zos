@@ -62,7 +62,10 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 
 	deployment := provision.GetDeployment(ctx)
 
-	netID := zos.NetworkID(deployment.TwinID, string(config.Network))
+	// the config is validated by the engine. we now only support only one
+	// private network
+	netConfig := config.Network.Interfaces[0]
+	netID := zos.NetworkID(deployment.TwinID, netConfig.Network)
 
 	// hash to avoid tapName > 16 errors
 	tapName := hashDeployment(wl.ID)
@@ -77,12 +80,12 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	}
 
 	// check if public ipv4 is supported, should this be requested
-	if len(config.PublicIP) > 0 && !network.PublicIPv4Support(ctx) {
+	if !config.Network.PublicIP.IsEmpty() && !network.PublicIPv4Support(ctx) {
 		return result, errors.New("public ipv4 is requested, but not supported on this node")
 	}
 
 	result.ID = wl.ID.String()
-	result.IP = config.IP.String()
+	result.IP = netConfig.IP.String()
 
 	cap, err := config.Capacity()
 	if err != nil {
@@ -138,8 +141,8 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	}()
 
 	var pubIface string
-	if len(config.PublicIP) > -0 {
-		ipWl, err := deployment.Get(config.PublicIP)
+	if len(config.Network.PublicIP) > -0 {
+		ipWl, err := deployment.Get(config.Network.PublicIP)
 		if err != nil {
 			return zos.KubernetesResult{}, err
 		}
@@ -199,9 +202,9 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 		return errors.Wrap(err, "could not clean up tap device")
 	}
 
-	if len(cfg.PublicIP) > 0 {
+	if len(cfg.Network.PublicIP) > 0 {
 		deployment := provision.GetDeployment(ctx)
-		ipWl, err := deployment.Get(cfg.PublicIP)
+		ipWl, err := deployment.Get(cfg.Network.PublicIP)
 		ifName := ipWl.ID.String()
 		if err != nil {
 			return err
