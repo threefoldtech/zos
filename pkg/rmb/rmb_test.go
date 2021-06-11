@@ -30,6 +30,29 @@ func TestRouter(t *testing.T) {
 	require.Equal([]string{"test.handler.do", "test.handler.do2"}, l)
 }
 
+func TestRouter1(t *testing.T) {
+	require := require.New(t)
+
+	router := newSubRouter()
+	require.NotNil(router)
+
+	subRouter := router.Subroute("msgbus").Subroute("zos").Subroute("statistics")
+	subRouter.WithHandler("get", func(ctx context.Context, payload []byte) (interface{}, error) {
+		return nil, nil
+	})
+
+	router.Subroute("msgbus").Subroute("zos").Subroute("statistics")
+
+	l := make([]string, 0)
+	router.getTopics("", &l)
+
+	require.Len(l, 1)
+	require.Equal([]string{"msgbus.zos.statistics.get"}, l)
+
+	_, err := router.call(context.Background(), "msgbus.zos.statistics.get", nil)
+	require.NoError(err)
+}
+
 func TestMiddleware(t *testing.T) {
 	require := require.New(t)
 

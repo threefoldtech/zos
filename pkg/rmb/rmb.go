@@ -32,7 +32,7 @@ type Message struct {
 	Retry      int      `json:"try"`
 	Data       string   `json:"dat"`
 	TwinSrc    uint32   `json:"src"`
-	TwinDest   []uint32 `json:"dest"`
+	TwinDest   []uint32 `json:"dst"`
 	Retqueue   string   `json:"ret"`
 	Schema     string   `json:"shm"`
 	Epoch      int64    `json:"now"`
@@ -157,6 +157,9 @@ func (m *MessageBus) Run(ctx context.Context) error {
 
 	topics := make([]string, 0)
 	m.getTopics("", &topics)
+	for i, topic := range topics {
+		topics[i] = "msgbus." + topic
+	}
 
 	jobs := make(chan Message, numWorkers)
 	for i := 1; i <= numWorkers; i++ {
@@ -233,21 +236,27 @@ func (m *MessageBus) sendReply(message Message, data interface{}) error {
 	con := m.pool.Get()
 	defer con.Close()
 
+	src := message.TwinDest[0]
 	// reply to source
 	message.TwinDest = []uint32{message.TwinSrc}
+	message.TwinSrc = src
 
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
 	// base 64 encode the response data
-	// message.Data = base64.StdEncoding.EncodeToString(data)
+	message.Data = base64.RawStdEncoding.EncodeToString(bytes)
 
 	// set the time to now
 	message.Epoch = time.Now().Unix()
 
-	bytes, err := json.Marshal(message)
+	bytes, err = json.Marshal(message)
 	if err != nil {
 		return err
 	}
 
-	_, err = con.Do("RPUSH", replyBus, bytes)
+	_, err = con.Do("LPUSH", message.Retqueue, string(bytes))
 	if err != nil {
 		log.Err(err).Msg("failed to push to reply messagebus")
 		return err

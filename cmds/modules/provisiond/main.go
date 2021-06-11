@@ -275,6 +275,18 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to initialize API")
 	}
 
+	log.Info().Msg("creating messagebus")
+	messageBus, err := mbus.NewWorkloadsMessagebus(engine, cl, statistics, "tcp://192.168.123.22:6379")
+	if err != nil {
+		return err
+	}
+
+	log.Info().Msg("running messagebus")
+	err = messageBus.Run()
+	if err != nil {
+		return err
+	}
+
 	// register static files
 	v1.PathPrefix("").Handler(http.StripPrefix("/api/v1", http.FileServer(http.FS(swaggerFs))))
 	r := handlers.LoggingHandler(os.Stderr, router)
@@ -296,16 +308,6 @@ func action(cli *cli.Context) error {
 
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return errors.Wrap(err, "http api exited unexpectedely")
-	}
-
-	messageBus, err := mbus.NewWorkloadsMessagebus(engine, cl, *statistics, msgBrokerCon)
-	if err != nil {
-		return err
-	}
-
-	err = messageBus.Run()
-	if err != nil {
-		return err
 	}
 
 	log.Info().Msg("provision engine stopped")
