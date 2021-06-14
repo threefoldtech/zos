@@ -6,12 +6,17 @@ import (
 )
 
 var (
+	// ErrFunctionNotFound is an err returned if the handler function is not found
 	ErrFunctionNotFound = fmt.Errorf("function not found")
 )
 
+// Handler is a handler function type
 type Handler func(ctx context.Context, payload []byte) (interface{}, error)
+
+// Middleware is middleware function type
 type Middleware func(ctx context.Context, payload []byte) (context.Context, error)
 
+// Router is the router interface
 type Router interface {
 	WithHandler(route string, handler Handler) error
 	Subroute(route string) Router

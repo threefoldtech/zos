@@ -20,7 +20,10 @@ const (
 	numWorkers     = 5
 )
 
+// TwinKeyID is where the twin key is stored
 type TwinKeyID struct{}
+
+// MessageKey is where the original message is stored
 type MessageKey struct{}
 
 // Message is an struct used to communicate over the messagebus
