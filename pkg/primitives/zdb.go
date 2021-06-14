@@ -119,7 +119,6 @@ func (p *Primitives) zdbRootFS(ctx context.Context) (string, error) {
 		rootFS, err = flist.Mount(ctx, zdbFlistURL, "", pkg.MountOptions{
 			Limit:    10 * gridtypes.Megabyte,
 			ReadOnly: false,
-			Type:     typ,
 		})
 
 		if err != nil {

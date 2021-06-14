@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 //go:generate mkdir -p stubs
@@ -14,7 +13,6 @@ var (
 	DefaultMountOptions = MountOptions{
 		ReadOnly: false,
 		Limit:    256 * gridtypes.Megabyte, //Mib
-		Type:     zos.SSDDevice,
 	}
 
 	//ReadOnlyMountOptions shortcut for readonly mount options
@@ -29,8 +27,8 @@ type MountOptions struct {
 	ReadOnly bool
 	// Limit size of read-write layer
 	Limit gridtypes.Unit
-	// Type of disk to use
-	Type zos.DeviceType
+	// optional storage url
+	Storage string
 }
 
 //Flister is the interface for the flist module
@@ -39,11 +37,7 @@ type Flister interface {
 	// in a RO mode. note that there is no way u can unmount a ro flist because
 	// it can be shared by many users, it's then up to system to decide if the
 	// mount is not needed anymore and clean it up
-	MountRO(url string, storage string) (path string, err error)
-
-	// Mounts an flist in rw mode. the name given should be granted by the user to
-	// be unique. if a similar name exists, the current path will be returned.
-	MountRW(name, url, storage string, size gridtypes.Unit) (path string, err error)
+	Mount(name, url string, opt MountOptions) (path string, err error)
 
 	// Umount a RW mount. this only unmounts the RW layer and remove the assigned
 	// volume.
