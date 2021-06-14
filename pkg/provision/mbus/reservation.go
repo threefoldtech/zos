@@ -10,11 +10,12 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/provision/mw"
+	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
 type deleteOrGetArgs struct {
-	TwinID       uint32
-	DeploymentID uint32
+	TwinID       uint32 `json:"twinID"`
+	DeploymentID uint32 `json:"deploymentID"`
 }
 
 func (a *WorkloadsMessagebus) createOrUpdate(ctx context.Context, payload []byte, create bool) (interface{}, mw.Response) {
@@ -27,17 +28,16 @@ func (a *WorkloadsMessagebus) createOrUpdate(ctx context.Context, payload []byte
 		return nil, mw.BadRequest(err)
 	}
 
-	twinSrc, ok := ctx.Value("twinSrc").([]int)
+	twinSrc, ok := ctx.Value(rmb.TwinKeyID{}).(uint32)
 	if !ok {
-		return nil, mw.BadRequest(errors.New("failed to load twin source from context"))
+		return nil, mw.BadRequest(errors.New("twin src is not found on context"))
 	}
 
 	authorized := false
-	for _, twinID := range twinSrc {
-		if twinID == int(deployment.TwinID) {
-			authorized = true
-		}
+	if twinSrc == uint32(deployment.TwinID) {
+		authorized = true
 	}
+
 	if !authorized {
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request message"))
 	}
@@ -81,7 +81,10 @@ func (a *WorkloadsMessagebus) delete(ctx context.Context, payload []byte) (inter
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
-	twinID := mw.TwinID(ctx)
+	twinID, ok := ctx.Value(rmb.TwinKeyID{}).(uint32)
+	if !ok {
+		return nil, mw.BadRequest(errors.New("twin src is not found on context"))
+	}
 	if args.TwinID != twinID {
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
 	}
@@ -105,7 +108,10 @@ func (a *WorkloadsMessagebus) get(ctx context.Context, payload []byte) (interfac
 		return nil, mw.Error(err)
 	}
 
-	twinID := mw.TwinID(ctx)
+	twinID, ok := ctx.Value(rmb.TwinKeyID{}).(uint32)
+	if !ok {
+		return nil, mw.BadRequest(errors.New("twin src is not found on context"))
+	}
 	if args.TwinID != twinID {
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
 	}

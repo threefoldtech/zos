@@ -20,8 +20,8 @@ const (
 	numWorkers     = 5
 )
 
-type twinKeyID struct{}
-type messageKey struct{}
+type TwinKeyID struct{}
+type MessageKey struct{}
 
 // Message is an struct used to communicate over the messagebus
 type Message struct {
@@ -203,8 +203,8 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 				log.Err(err).Msg("err while parsing payload reply")
 			}
 
-			requestCtx := context.WithValue(ctx, twinKeyID{}, message.TwinSrc)
-			requestCtx = context.WithValue(requestCtx, messageKey{}, message)
+			requestCtx := context.WithValue(ctx, TwinKeyID{}, message.TwinSrc)
+			requestCtx = context.WithValue(requestCtx, MessageKey{}, message)
 
 			data, err := m.call(requestCtx, message.Command, bytes)
 			if err != nil {
@@ -223,7 +223,7 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 
 // GetMessage gets a message from the context, panics if it's not there
 func GetMessage(ctx context.Context) (*Message, error) {
-	message, ok := ctx.Value(messageKey{}).(Message)
+	message, ok := ctx.Value(MessageKey{}).(Message)
 	if !ok {
 		panic("failed to load message from context")
 	}
@@ -246,7 +246,7 @@ func (m *MessageBus) sendReply(message Message, data interface{}) error {
 		return err
 	}
 	// base 64 encode the response data
-	message.Data = base64.RawStdEncoding.EncodeToString(bytes)
+	message.Data = base64.StdEncoding.EncodeToString(bytes)
 
 	// set the time to now
 	message.Epoch = time.Now().Unix()
@@ -287,7 +287,7 @@ func (m *MessageBus) PushMessage(topic string, message Message) error {
 
 // GetPayload returns the payload for a message's data
 func (m *Message) GetPayload() ([]byte, error) {
-	return base64.RawStdEncoding.DecodeString(m.Data)
+	return base64.StdEncoding.DecodeString(m.Data)
 }
 
 func newRedisPool(address string) (*redis.Pool, error) {
