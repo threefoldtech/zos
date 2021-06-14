@@ -91,13 +91,13 @@ type VirtualMachine struct {
 // Valid implementation
 func (v VirtualMachine) Valid(getter gridtypes.WorkloadGetter) error {
 	if matched, _ := regexp.MatchString("^[0-9a-zA-Z-.]*$", v.Name); !matched {
-		return errors.New("the name must consist of alphanumeric characters, dot, and dash ony")
+		return fmt.Errorf("the name must consist of alphanumeric characters, dot, and dash ony")
 	}
 
 	for _, key := range v.SSHKeys {
 		trimmed := strings.TrimSpace(key)
 		if strings.ContainsAny(trimmed, "\t\r\n\f\"") {
-			return errors.New("ssh keys can't contain intermediate whitespace chars or quotes other than white space")
+			return fmt.Errorf("ssh keys can't contain intermediate whitespace chars or quotes other than white space")
 		}
 	}
 
@@ -107,12 +107,19 @@ func (v VirtualMachine) Valid(getter gridtypes.WorkloadGetter) error {
 
 	for _, inf := range v.Network.Interfaces {
 		if inf.IP.To4() == nil && inf.IP.To16() == nil {
-			return errors.New("invalid IP")
+			return fmt.Errorf("invalid IP")
 		}
 	}
 
-	if v.Size < 1 || v.Size > 18 {
-		return errors.New("unsupported vm size %d, only size 1 to 18 are supported")
+	if v.Size == 0 {
+		if v.ComputeCapacity.CPU == 0 {
+			return fmt.Errorf("cpu capcity can't be 0")
+		}
+		if v.ComputeCapacity.Memory < 250*gridtypes.Megabyte {
+			return fmt.Errorf("mem capacity can't be less that 250M")
+		}
+	} else if v.Size < 1 || v.Size > 18 {
+		return fmt.Errorf("unsupported vm size %d, only size 1 to 18 are supported", v.Size)
 	}
 	if !v.Network.PublicIP.IsEmpty() {
 		wl, err := getter.Get(v.Network.PublicIP)

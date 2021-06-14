@@ -73,14 +73,21 @@ func NewVMModule(cl zbus.Client, root string) (*Module, error) {
 
 func (m *Module) makeDevices(vm *pkg.VM) ([]Disk, error) {
 	var drives []Disk
-	for i, disk := range vm.Disks {
-		id := fmt.Sprintf("%d", i+2)
+	if vm.Boot.Type == pkg.BootDisk {
+		drives = append(drives, Disk{
+			ID:         "1",
+			Path:       vm.Boot.Path,
+			RootDevice: true,
+			ReadOnly:   false,
+		})
+	}
+	for _, disk := range vm.Disks {
+		id := fmt.Sprintf("%d", len(drives)+1)
 
 		drives = append(drives, Disk{
-			ID:         id,
-			ReadOnly:   disk.ReadOnly,
-			RootDevice: disk.Root,
-			Path:       disk.Path,
+			ID:       id,
+			ReadOnly: false,
+			Path:     disk.Path,
 		})
 	}
 
@@ -261,6 +268,10 @@ func (m *Module) Run(vm pkg.VM) error {
 	if err != nil {
 		return err
 	}
+
+	// if vm.Boot.Type == pkg.BootVirtioFS {
+	// 	//todo:
+	// }
 
 	var kargs strings.Builder
 	kargs.WriteString(vm.KernelArgs)

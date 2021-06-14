@@ -50,8 +50,45 @@ func (d *vdiskModule) findDisk(id string) (string, error) {
 	return "", os.ErrNotExist
 }
 
+//
+func (d *vdiskModule) WriteImage(id string, image string) error {
+	path, err := d.findDisk(id)
+	if err != nil {
+		return errors.Wrapf(err, "couldnot find disk with id: %s", id)
+	}
+	source, err := os.Open(image)
+	if err != nil {
+		return errors.Wrap(err, "failed to open image")
+	}
+	defer source.Close()
+	file, err := os.OpenFile(path, os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	imgStat, err := source.Stat()
+	if err != nil {
+		return errors.Wrap(err, "failed to stat image")
+	}
+	fileStat, err := file.Stat()
+	if err != nil {
+		return errors.Wrap(err, "failed to state disk")
+	}
+
+	if imgStat.Size() > fileStat.Size() {
+		return fmt.Errorf("image size is bigger than disk")
+	}
+
+	_, err = io.Copy(file, source)
+	if err != nil {
+		return errors.Wrap(err, "failed to write disk image")
+	}
+
+	return d.expandFs(path)
+}
+
 // AllocateDisk with given size and an optional source disk, return path to virtual disk (size in MB)
-func (d *vdiskModule) Allocate(id string, size gridtypes.Unit, sourceDisk string) (string, error) {
+func (d *vdiskModule) Allocate(id string, size gridtypes.Unit) (string, error) {
 	path, err := d.findDisk(id)
 	if err == nil {
 		return path, errors.Wrapf(os.ErrExist, "disk with id '%s' already exists", id)
@@ -80,32 +117,16 @@ func (d *vdiskModule) Allocate(id string, size gridtypes.Unit, sourceDisk string
 		return "", err
 	}
 
-	if sourceDisk != "" {
-		source, err := os.Open(sourceDisk)
-		if err != nil {
-			return "", err
-		}
-		defer source.Close()
-		io.Copy(file, source)
-	}
-
 	defer file.Close()
 	if err = chattr.SetAttr(file, chattr.FS_NOCOW_FL); err != nil {
 		return "", err
 	}
 
 	err = syscall.Fallocate(int(file.Fd()), 0, 0, int64(size))
-	if sourceDisk != "" {
-		err = d.expandfs(path)
-		if err != nil {
-			return "", err
-		}
-	}
-
 	return path, err
 }
 
-func (d *vdiskModule) expandfs(disk string) error {
+func (d *vdiskModule) expandFs(disk string) error {
 	dname, err := ioutil.TempDir("", "btrfs-resize")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create a temp dir to mount the btrfs fs to resize it")

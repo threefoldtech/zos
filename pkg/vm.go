@@ -41,10 +41,22 @@ type VMNetworkInfo struct {
 
 // VMDisk specifies vm disk params
 type VMDisk struct {
-	// Size is disk size in Mib
-	Path     string
-	ReadOnly bool
-	Root     bool
+	// Path raw disk path
+	Path string
+	// Target is mount point. Only in container mode
+	Target string
+}
+
+type BootType uint8
+
+const (
+	BootDisk BootType = iota
+	BootVirtioFS
+)
+
+type Boot struct {
+	Type BootType
+	Path string
 }
 
 // VM config structure
@@ -66,6 +78,8 @@ type VM struct {
 	// Disks are a list of disks that are going to
 	// be auto allocated on the provided storage path
 	Disks []VMDisk
+
+	Boot Boot
 	// If this flag is set, the VM module will not auto start
 	// this machine hence, also no auto clean up when it exits
 	// it's up to the caller to check for the machine status

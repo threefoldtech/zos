@@ -2,7 +2,6 @@ package stubs
 
 import (
 	"context"
-
 	zbus "github.com/threefoldtech/zbus"
 	pkg "github.com/threefoldtech/zos/pkg"
 	gridtypes "github.com/threefoldtech/zos/pkg/gridtypes"
@@ -25,8 +24,8 @@ func NewVDiskModuleStub(client zbus.Client) *VDiskModuleStub {
 	}
 }
 
-func (s *VDiskModuleStub) Allocate(ctx context.Context, arg0 string, arg1 gridtypes.Unit, arg2 string) (ret0 string, ret1 error) {
-	args := []interface{}{arg0, arg1, arg2}
+func (s *VDiskModuleStub) Allocate(ctx context.Context, arg0 string, arg1 gridtypes.Unit) (ret0 string, ret1 error) {
+	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "Allocate", args...)
 	if err != nil {
 		panic(err)
@@ -93,6 +92,19 @@ func (s *VDiskModuleStub) List(ctx context.Context) (ret0 []pkg.VDisk, ret1 erro
 	}
 	ret1 = new(zbus.RemoteError)
 	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *VDiskModuleStub) WriteImage(ctx context.Context, arg0 string, arg1 string) (ret0 error) {
+	args := []interface{}{arg0, arg1}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "WriteImage", args...)
+	if err != nil {
+		panic(err)
+	}
+	ret0 = new(zbus.RemoteError)
+	if err := result.Unmarshal(0, &ret0); err != nil {
 		panic(err)
 	}
 	return
