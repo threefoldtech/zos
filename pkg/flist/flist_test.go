@@ -171,6 +171,40 @@ func TestMountUnmount(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestMountUnmountRO(t *testing.T) {
+	cmder := &testCommander{T: t}
+	strg := &StorageMock{}
+
+	root, err := ioutil.TempDir("", "flist_root")
+	require.NoError(t, err)
+
+	defer os.RemoveAll(root)
+
+	sys := &testSystem{}
+	flister := newFlister(root, strg, cmder, sys)
+
+	backend, err := ioutil.TempDir("", "flist_backend")
+	require.NoError(t, err)
+	defer os.RemoveAll(backend)
+
+	name := "test"
+
+	flist := mock.Anything
+	sys.On("Mount", flist, filepath.Join(root, "mountpoint", name), "bind", uintptr(syscall.MS_BIND), "").Return(nil)
+
+	mnt, err := flister.Mount(name, "https://hub.grid.tf/thabet/redis.flist", pkg.ReadOnlyMountOptions)
+	require.NoError(t, err)
+
+	// Trick flister into thinking that 0-fs has exited
+	os.Remove(cmder.m["pid"])
+	strg.On("ReleaseFilesystem", mock.Anything, filepath.Base(mnt)).Return(nil)
+
+	sys.On("Unmount", mnt, uintptr(syscall.MNT_DETACH|syscall.MNT_FORCE)).Return(nil)
+
+	err = flister.Unmount(name)
+	require.NoError(t, err)
+}
+
 func TestIsolation(t *testing.T) {
 	require := require.New(t)
 

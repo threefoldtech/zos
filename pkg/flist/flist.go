@@ -478,7 +478,8 @@ func (f *flistModule) Unmount(name string) error {
 		}
 	}
 
-	// - delete the volume
+	// - delete the volume, this should be done only for RW (TODO)
+	// mounts, but for now it's still safe to try to remove the subvolume anyway
 	// this will work only for rw mounts.
 	if err := f.storage.ReleaseFilesystem(context.Background(), name); err != nil {
 		log.Error().Err(err).Msg("fail to clean up subvolume")
