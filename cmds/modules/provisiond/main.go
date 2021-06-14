@@ -276,7 +276,7 @@ func action(cli *cli.Context) error {
 	}
 
 	log.Info().Msg("creating messagebus")
-	messageBus, err := mbus.NewWorkloadsMessagebus(engine, cl, statistics, "tcp://192.168.123.22:6379")
+	messageBus, err := mbus.NewWorkloadsMessagebus(engine, cl, statistics, msgBrokerCon)
 	if err != nil {
 		return err
 	}
