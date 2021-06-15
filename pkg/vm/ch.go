@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -20,9 +21,8 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 
 	// build command line
 	args := map[string][]string{
-		"--kernel":    {m.Boot.Kernel},
-		"--initramfs": {m.Boot.Initrd},
-		"--cmdline":   {m.Boot.Args},
+		"--kernel":  {m.Boot.Kernel},
+		"--cmdline": {m.Boot.Args},
 
 		"--cpus":   {m.Config.CPU.String()},
 		"--memory": {m.Config.Mem.String()},
@@ -30,7 +30,9 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		"--log-file":   {logs},
 		"--api-socket": {socket},
 	}
-
+	if m.Boot.Initrd != "" {
+		args["--initramfs"] = []string{m.Boot.Initrd}
+	}
 	// disks
 	if len(m.Disks) > 0 {
 		var disks []string
@@ -117,5 +119,21 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		return errors.Wrap(err, "failed to start cloud-hypervisor")
 	}
 
-	return cmd.Process.Release()
+	pid := cmd.Process.Pid
+
+	go func() {
+		ps, err := os.FindProcess(pid)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to find process with id: %d", pid)
+			return
+		}
+
+		ps.Wait()
+	}()
+
+	if err := cmd.Process.Release(); err != nil {
+		return errors.Wrap(err, "failed to release cloud-hypervisor process")
+	}
+
+	return nil
 }

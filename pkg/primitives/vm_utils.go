@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
@@ -135,6 +136,7 @@ func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID) (ip net.IPNet,
 
 func getFlistInfo(imagePath string) (FListInfo, error) {
 	kernel := filepath.Join(imagePath, "kernel")
+	log.Debug().Str("file", kernel).Msg("checking kernel")
 	if _, err := os.Stat(kernel); os.IsNotExist(err) {
 		return FListInfo{Container: true}, nil
 	} else if err != nil {
@@ -142,6 +144,7 @@ func getFlistInfo(imagePath string) (FListInfo, error) {
 	}
 
 	initrd := filepath.Join(imagePath, "initrd")
+	log.Debug().Str("file", initrd).Msg("checking initrd")
 	if _, err := os.Stat(initrd); os.IsNotExist(err) {
 		initrd = "" // optional
 	} else if err != nil {
@@ -149,6 +152,7 @@ func getFlistInfo(imagePath string) (FListInfo, error) {
 	}
 
 	image := imagePath + "/image.raw"
+	log.Debug().Str("file", image).Msg("checking image")
 	if _, err := os.Stat(image); err != nil {
 		return FListInfo{}, errors.Wrap(err, "couldn't stat /image.raw")
 	}

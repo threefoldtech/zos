@@ -245,6 +245,9 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	// if the pid does not exist of the target does not exist
 	// we can clean up the named mount
 	trackPath := filepath.Join(f.run, hash)
+	if err = os.Remove(trackPath); !os.IsNotExist(err) {
+		return "", errors.Wrap(err, "failed to clean up pid file")
+	}
 	if err = os.Symlink(pidPath, trackPath); err != nil {
 		sublog.Error().Err(err).Msg("failed track fs pid")
 	}
@@ -253,19 +256,33 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 }
 
 func (f *flistModule) mountBind(ctx context.Context, name, ro string) error {
-
 	mountpoint, err := f.mountpath(name)
 	if err != nil {
 		return err
 	}
 
+	if err := os.MkdirAll(mountpoint, 0755); err != nil {
+		return errors.Wrap(err, "failed to mount bind the flist")
+	}
+
 	// mount overlay as
-	return f.system.Mount(ro,
+	err = f.system.Mount(ro,
 		mountpoint,
 		"bind",
 		syscall.MS_BIND,
 		"",
 	)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			f.system.Unmount(mountpoint, 0)
+		}
+	}()
+
+	err = f.waitMountpoint(mountpoint, 3)
+	return err
 }
 
 func (f *flistModule) mountOverlay(ctx context.Context, name, ro string, size gridtypes.Unit) error {
@@ -356,10 +373,12 @@ func (f *flistModule) Mount(name, url string, opt pkg.MountOptions) (string, err
 	ctx := context.Background()
 
 	if opt.ReadOnly {
+		sublog.Debug().Msg("mount bind")
 		return mountpoint, f.mountBind(ctx, name, ro)
 	}
 
 	// otherwise
+	sublog.Debug().Msg("mount overlay")
 	return mountpoint, f.mountOverlay(ctx, name, ro, opt.Limit)
 }
 
@@ -398,11 +417,29 @@ func (f *flistModule) valid(path string) error {
 		return fmt.Errorf("not a directory: %s", path)
 	}
 
-	if err := exec.Command("mountpoint", path).Run(); err == nil {
+	if err := f.isMountpoint(path); err == nil {
 		return ErrAlreadyMounted
 	}
 
 	return nil
+}
+
+func (f *flistModule) waitMountpoint(path string, seconds int) error {
+	for ; seconds >= 0; seconds-- {
+		if err := f.isMountpoint(path); err == nil {
+			return nil
+		}
+
+		if seconds > 0 {
+			<-time.After(1 * time.Second)
+		}
+	}
+
+	return fmt.Errorf("was not mounted in time")
+}
+
+func (f *flistModule) isMountpoint(path string) error {
+	return exec.Command("mountpoint", path).Run()
 }
 
 func (f *flistModule) getPid(pidPath string) (int64, error) {
@@ -473,11 +510,14 @@ func (f *flistModule) Unmount(name string) error {
 	}
 
 	if f.valid(mountpoint) == ErrAlreadyMounted {
-		if err := f.system.Unmount(mountpoint, syscall.MNT_DETACH|syscall.MNT_FORCE); err != nil {
+		if err := f.system.Unmount(mountpoint, syscall.MNT_DETACH); err != nil {
 			log.Error().Err(err).Str("path", mountpoint).Msg("fail to umount flist")
 		}
 	}
 
+	if err := os.RemoveAll(mountpoint); err != nil {
+		log.Error().Err(err).Str("mnt", mountpoint).Msg("failed to remove mount point")
+	}
 	// - delete the volume, this should be done only for RW (TODO)
 	// mounts, but for now it's still safe to try to remove the subvolume anyway
 	// this will work only for rw mounts.

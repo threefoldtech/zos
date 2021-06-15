@@ -57,6 +57,8 @@ const (
 type Boot struct {
 	Type BootType
 	Path string
+	//Environment only works with Boot type virtiofs
+	Environment map[string]string
 }
 
 // VM config structure
@@ -101,8 +103,8 @@ func (vm *VM) Validate() error {
 		return fmt.Errorf("kernel-image is required")
 	}
 
-	if vm.Memory < 512*gridtypes.Megabyte {
-		return fmt.Errorf("invalid memory must not be less than 512M")
+	if vm.Memory < 250*gridtypes.Megabyte {
+		return fmt.Errorf("invalid memory must not be less than 250M")
 	}
 
 	if vm.CPU == 0 || vm.CPU > 32 {

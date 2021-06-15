@@ -10,6 +10,7 @@ import (
 
 	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
@@ -110,11 +111,20 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		return result, errors.Wrapf(err, "failed to mount flist: %s", wl.ID.String())
 	}
 
+	// defer func() {
+	// 	if err != nil {
+	// 		flist.Unmount(ctx, wl.ID.String())
+	// 	}
+	// }()
+
+	var imageInfo FListInfo
 	// - detect type (container or VM)
-	imageInfo, err := getFlistInfo(mnt)
+	imageInfo, err = getFlistInfo(mnt)
 	if err != nil {
 		return result, err
 	}
+
+	log.Debug().Msgf("detected flist type: %+v", imageInfo)
 
 	var boot pkg.Boot
 	var disks []pkg.VMDisk
@@ -143,10 +153,12 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	} else {
 		// if a VM the vm has to have at least one mount
 		if len(config.Mounts) == 0 {
-			return result, errors.Wrap(err, "at least one mount has to be attached for Vm mode")
+			err = fmt.Errorf("at least one mount has to be attached for Vm mode")
+			return result, err
 		}
 
-		disk, err := deployment.Get(config.Mounts[0].Name)
+		var disk *gridtypes.WorkloadWithID
+		disk, err = deployment.Get(config.Mounts[0].Name)
 		if err != nil {
 			return result, err
 		}
@@ -157,14 +169,15 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		if disk.Result.State != gridtypes.StateOk {
 			return result, fmt.Errorf("boot disk was not deployed correctly")
 		}
-		info, err := storage.Inspect(ctx, disk.ID.String())
+		var info pkg.VDisk
+		info, err = storage.Inspect(ctx, disk.ID.String())
 		if err != nil {
 			return result, errors.Wrap(err, "disk does not exist")
 		}
 
 		//TODO: this should not happen if disk image was written before !!
 		// fs detection must be done here
-		if err := storage.WriteImage(ctx, disk.ID.String(), imageInfo.ImagePath); err != nil {
+		if err = storage.WriteImage(ctx, disk.ID.String(), imageInfo.ImagePath); err != nil {
 			return result, errors.Wrap(err, "failed to write image to disk")
 		}
 
@@ -217,7 +230,8 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
-	cmdline, err := constructCMDLine(config)
+	var cmdline string
+	cmdline, err = constructCMDLine(config)
 	if err != nil {
 		return result, err
 	}
