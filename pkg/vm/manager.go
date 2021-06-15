@@ -290,6 +290,13 @@ func (m *Module) Run(vm pkg.VM) error {
 
 	kargs.WriteString(args)
 
+	var fs []VirtioFS
+	if vm.Boot.Type == pkg.BootVirtioFS {
+		fs = []VirtioFS{
+			{Tag: "/dev/root", Path: vm.Boot.Path},
+		}
+	}
+
 	machine := Machine{
 		ID: vm.Name,
 		Boot: Boot{
@@ -302,6 +309,7 @@ func (m *Module) Run(vm pkg.VM) error {
 			Mem:       MemMib(vm.Memory / gridtypes.Megabyte),
 			HTEnabled: false,
 		},
+		FS:          fs,
 		Interfaces:  nics,
 		Disks:       devices,
 		NoKeepAlive: vm.NoKeepAlive,

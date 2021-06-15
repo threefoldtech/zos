@@ -6,8 +6,9 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"strings"
+	"path/filepath"
 
+	"github.com/google/shlex"
 	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -16,6 +17,12 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
+)
+
+const (
+	// this probably need a way to update. for now just hard code it
+	cloudContainerFlist = "https://hub.grid.tf/azmy.3bot/cloud-container.flist"
+	cloudContainerName  = "cloud-container"
 )
 
 // VirtualMachine type
@@ -45,7 +52,9 @@ func (p *Primitives) mountsToDisks(ctx context.Context, deployment gridtypes.Dep
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get disk '%s' workload", disk.Name)
 		}
-
+		if wl.Type != zos.ZMountType {
+			return nil, fmt.Errorf("expecting a reservation of type '%s' for disk '%s'", zos.ZMountType, disk.Name)
+		}
 		if wl.Result.State != gridtypes.StateOk {
 			return nil, fmt.Errorf("invalid disk '%s' state", disk.Name)
 		}
@@ -129,8 +138,13 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	var boot pkg.Boot
 	var disks []pkg.VMDisk
 
-	if imageInfo.Container {
-		return result, fmt.Errorf("fuck off")
+	// "root=/dev/vda rw console=ttyS0 reboot=k panic=1"
+	cmd := cmdline{
+		"rw":      "",
+		"console": "ttyS0",
+		"reboot":  "k",
+		"panic":   "1",
+		"root":    "/dev/vda",
 	}
 
 	if imageInfo.Container {
@@ -145,15 +159,28 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 			return result, errors.Wrapf(err, "failed to mount flist: %s", wl.ID.String())
 		}
 
+		// now mount cloud image also
+		cloudImage, err := flist.Mount(ctx, cloudContainerName, cloudContainerFlist, pkg.ReadOnlyMountOptions)
+		if err != nil {
+			return result, errors.Wrap(err, "failed to mount cloud container base image")
+		}
 		// inject container kernel and init
-		imageInfo.Kernel = "TODO"
-		imageInfo.Initrd = "TODO"
+		imageInfo.Kernel = filepath.Join(cloudImage, "kernel")
+		imageInfo.Initrd = filepath.Join(cloudImage, "initramfs-linux.img")
 
 		boot = pkg.Boot{
 			Type: pkg.BootVirtioFS,
 			Path: mnt,
 		}
+		// change the root boot to use the right virtiofs tag
+		cmd["root"] = "/dev/root"
+		cmd["rootfstype"] = "virtiofs"
+		cmd["init"] = config.Entrypoint
+
 		disks, err = p.mountsToDisks(ctx, deployment, config.Mounts)
+		if err != nil {
+			return result, err
+		}
 	} else {
 		// if a VM the vm has to have at least one mount
 		if len(config.Mounts) == 0 {
@@ -166,10 +193,11 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		if err != nil {
 			return result, err
 		}
-		// TODO: Validate that a disk here is a valid disk workload
-		// if disk.Type != zos.VolumeType {
-		// 	return result, fmt.Errorf("mount is not not a valid disk workload")
-		// }
+
+		if disk.Type != zos.ZMountType {
+			return result, fmt.Errorf("mount is not not a valid disk workload")
+		}
+
 		if disk.Result.State != gridtypes.StateOk {
 			return result, fmt.Errorf("boot disk was not deployed correctly")
 		}
@@ -234,12 +262,8 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	if err != nil {
 		return result, errors.Wrap(err, "could not generate network info")
 	}
-	var cmdline string
-	cmdline, err = constructCMDLine(config)
-	if err != nil {
-		return result, err
-	}
-	err = p.vmRun(ctx, wl.ID.String(), config.ComputeCapacity, boot, disks, imageInfo, cmdline, netInfo)
+
+	err = p.vmRun(ctx, wl.ID.String(), config.ComputeCapacity, boot, disks, imageInfo, cmd.String(), netInfo)
 	if err != nil {
 		// attempt to delete the vm, should the process still be lingering
 		vm.Delete(ctx, wl.ID.String())
@@ -320,16 +344,41 @@ func (p *Primitives) vmRun(
 	return vm.Run(ctx, kubevm)
 }
 
-func constructCMDLine(config VirtualMachine) (string, error) {
-	cmdline := "root=/dev/vda rw console=ttyS0 reboot=k panic=1"
-	for _, key := range config.SSHKeys {
-		trimmed := strings.TrimSpace(key)
-		if strings.ContainsAny(trimmed, "\t\r\n\f") {
-			return "", errors.New("ssh keys can't contain intermediate whitespace chars other than white space")
+type cmdline map[string]string
+
+func (s cmdline) String() string {
+	var buf bytes.Buffer
+	for k, v := range s {
+		if k == "init" {
+			//init must be handled later separately
+			continue
 		}
-		cmdline = fmt.Sprintf("%s ssh=%s", cmdline, strings.Replace(trimmed, " ", ",", -1))
+		if buf.Len() > 0 {
+			buf.WriteRune(' ')
+		}
+		buf.WriteString(k)
+		if len(v) > 0 {
+			buf.WriteRune('=')
+			buf.WriteString(v)
+		}
 	}
-	return cmdline, nil
+	init, ok := s["init"]
+	if ok {
+		if buf.Len() > 0 {
+			buf.WriteRune(' ')
+		}
+		parts, _ := shlex.Split(init)
+		if len(parts) > 0 {
+			buf.WriteString("init=")
+			buf.WriteString(parts[0])
+			for _, part := range parts[1:] {
+				buf.WriteRune(' ')
+				buf.WriteString(fmt.Sprintf("\"%s\"", part))
+			}
+		}
+	}
+
+	return buf.String()
 }
 
 func hashDeployment(wid gridtypes.WorkloadID) string {

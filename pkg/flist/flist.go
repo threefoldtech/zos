@@ -179,7 +179,7 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	if err == ErrAlreadyMounted {
 		return mountpoint, nil
 	} else if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "failed to validate mountpoint")
 	}
 
 	if err := os.MkdirAll(mountpoint, 0755); err != nil {
@@ -248,9 +248,10 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	// if the pid does not exist of the target does not exist
 	// we can clean up the named mount
 	trackPath := filepath.Join(f.run, hash)
-	if err = os.Remove(trackPath); !os.IsNotExist(err) {
+	if err = os.Remove(trackPath); err != nil && !os.IsNotExist(err) {
 		return "", errors.Wrap(err, "failed to clean up pid file")
 	}
+
 	if err = os.Symlink(pidPath, trackPath); err != nil {
 		sublog.Error().Err(err).Msg("failed track fs pid")
 	}

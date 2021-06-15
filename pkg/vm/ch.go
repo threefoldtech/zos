@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -25,13 +26,39 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		"--cmdline": {m.Boot.Args},
 
 		"--cpus":   {m.Config.CPU.String()},
-		"--memory": {m.Config.Mem.String()},
+		"--memory": {fmt.Sprintf("%s,shared=on", m.Config.Mem.String())},
 
 		"--log-file":   {logs},
 		"--console":    {"off"},
 		"--serial":     {fmt.Sprintf("file=%s.console", logs)},
 		"--api-socket": {socket},
 	}
+	var err error
+	var pids []int
+	defer func() {
+		if err != nil {
+			for _, pid := range pids {
+				syscall.Kill(pid, syscall.SIGKILL)
+			}
+		}
+	}()
+
+	var filesystems []string
+	for i, fs := range m.FS {
+		socket := filepath.Join("/var", "run", fmt.Sprintf("virtio-%s-%d.socket", m.ID, i))
+		var pid int
+		pid, err = m.startFs(socket, fs.Path)
+		if err != nil {
+			return err
+		}
+		pids = append(pids, pid)
+		filesystems = append(filesystems, fmt.Sprintf("tag=%s,socket=%s", fs.Tag, socket))
+	}
+
+	if len(filesystems) > 0 {
+		args["--fs"] = filesystems
+	}
+
 	if m.Boot.Initrd != "" {
 		args["--initramfs"] = []string{m.Boot.Initrd}
 	}
@@ -49,7 +76,9 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		var interfaces []string
 
 		for _, nic := range m.Interfaces {
-			typ, idx, err := nic.getType()
+			var typ InterfaceType
+			var idx int
+			typ, idx, err = nic.getType()
 			if err != nil {
 				return errors.Wrapf(err, "failed to detect interface type '%s'", nic.Tap)
 			}
@@ -62,7 +91,8 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 				// fds[fd] = idx
 				interfaces = append(interfaces, nic.asMACvTap(fd))
 			} else {
-				return fmt.Errorf("unsupported tap device type '%s'", nic.Tap)
+				err = fmt.Errorf("unsupported tap device type '%s'", nic.Tap)
+				return err
 			}
 		}
 		args["--net"] = interfaces
@@ -88,6 +118,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	// this.
 	fullArgs = append(fullArgs, "setsid", chBin)
 	fullArgs = append(fullArgs, argsList...)
+	log.Debug().Msgf("ch: %+v", fullArgs)
 	cmd := exec.CommandContext(ctx, "busybox", fullArgs...)
 	// TODO: always get permission denied when setting
 	// sid with sys proc attr
@@ -102,7 +133,8 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	var toClose []io.Closer
 
 	for _, tapindex := range fds {
-		tap, err := os.OpenFile(filepath.Join("/dev", fmt.Sprintf("tap%d", tapindex)), os.O_RDWR, 0600)
+		var tap *os.File
+		tap, err = os.OpenFile(filepath.Join("/dev", fmt.Sprintf("tap%d", tapindex)), os.O_RDWR, 0600)
 		if err != nil {
 			return err
 		}
@@ -116,12 +148,33 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		}
 	}()
 
-	if err := cmd.Start(); err != nil {
+	if err = cmd.Start(); err != nil {
 		return errors.Wrap(err, "failed to start cloud-hypervisor")
 	}
 
-	pid := cmd.Process.Pid
+	if err = m.release(cmd.Process); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func (m *Machine) startFs(socket, path string) (int, error) {
+	cmd := exec.Command("busybox", "setsid",
+		"virtiofsd-rs",
+		"--socket", socket,
+		"--shared-dir", path,
+	)
+
+	if err := cmd.Start(); err != nil {
+		return 0, errors.Wrap(err, "failed to start virtiofsd-")
+	}
+
+	return cmd.Process.Pid, m.release(cmd.Process)
+}
+
+func (m *Machine) release(ps *os.Process) error {
+	pid := ps.Pid
 	go func() {
 		ps, err := os.FindProcess(pid)
 		if err != nil {
@@ -132,7 +185,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		ps.Wait()
 	}()
 
-	if err := cmd.Process.Release(); err != nil {
+	if err := ps.Release(); err != nil {
 		return errors.Wrap(err, "failed to release cloud-hypervisor process")
 	}
 

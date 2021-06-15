@@ -119,11 +119,17 @@ type Config struct {
 	HTEnabled bool   `json:"ht_enabled"`
 }
 
+type VirtioFS struct {
+	Tag  string
+	Path string
+}
+
 // Machine struct
 type Machine struct {
 	ID         string     `json:"id"`
 	Boot       Boot       `json:"boot-source"`
 	Disks      Disks      `json:"drives"`
+	FS         []VirtioFS `json:"fs"`
 	Interfaces Interfaces `json:"network-interfaces"`
 	Config     Config     `json:"machine-config"`
 	// NoKeepAlive is not used by firecracker, but instead a marker
