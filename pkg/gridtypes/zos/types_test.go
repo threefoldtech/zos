@@ -12,25 +12,24 @@ func TestWorkloadData(t *testing.T) {
 	require := require.New(t)
 
 	wl := gridtypes.Workload{
-		Type: VolumeType,
-		Data: json.RawMessage(`{"size": 10, "type": "ssd"}`),
+		Type: ZMountType,
+		Data: json.RawMessage(`{"size": 10}`),
 	}
 
 	data, err := wl.WorkloadData()
 	require.NoError(err)
 
-	require.IsType(&Volume{}, data)
-	volume := data.(*Volume)
+	require.IsType(&ZMount{}, data)
+	volume := data.(*ZMount)
 
 	require.Equal(gridtypes.Unit(10), volume.Size)
-	require.Equal(SSDDevice, volume.Type)
 }
 
 func TestWorkloadValidation(t *testing.T) {
 	require := require.New(t)
 
 	wl := gridtypes.Workload{
-		Type: VolumeType,
+		Type: ZMountType,
 		Name: "name",
 		Data: json.RawMessage(`{"size": 10, "type": "ssd"}`),
 	}
@@ -39,7 +38,7 @@ func TestWorkloadValidation(t *testing.T) {
 	require.NoError(err)
 
 	wl = gridtypes.Workload{
-		Type: VolumeType,
+		Type: ZMountType,
 		Name: "name",
 		Data: json.RawMessage(`{"size": 10, "type": "abc"}`),
 	}

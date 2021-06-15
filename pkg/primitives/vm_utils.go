@@ -135,6 +135,20 @@ func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID) (ip net.IPNet,
 }
 
 func getFlistInfo(imagePath string) (FListInfo, error) {
+	// entities, err := ioutil.ReadDir(imagePath)
+	// if err != nil {
+	// 	return FListInfo{}, err
+	// }
+	// out, err := exec.Command("mountpoint", imagePath).CombinedOutput()
+	// if err != nil {
+	// 	return FListInfo{}, err
+	// }
+	// log.Debug().Msgf("mountpoint: %s", string(out))
+	// log.Debug().Str("mnt", imagePath).Msg("listing files in")
+	// for _, ent := range entities {
+	// 	log.Debug().Str("file", ent.Name()).Msg("file found")
+	// }
+
 	kernel := filepath.Join(imagePath, "kernel")
 	log.Debug().Str("file", kernel).Msg("checking kernel")
 	if _, err := os.Stat(kernel); os.IsNotExist(err) {

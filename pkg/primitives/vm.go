@@ -130,6 +130,10 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	var disks []pkg.VMDisk
 
 	if imageInfo.Container {
+		return result, fmt.Errorf("fuck off")
+	}
+
+	if imageInfo.Container {
 		// - if Container, remount RW
 		// prepare for container
 		if err := flist.Unmount(ctx, wl.ID.String()); err != nil {
@@ -317,7 +321,7 @@ func (p *Primitives) vmRun(
 }
 
 func constructCMDLine(config VirtualMachine) (string, error) {
-	cmdline := "root=/dev/vda rw console=ttyS0 console=hvc0 reboot=k panic=1"
+	cmdline := "root=/dev/vda rw console=ttyS0 reboot=k panic=1"
 	for _, key := range config.SSHKeys {
 		trimmed := strings.TrimSpace(key)
 		if strings.ContainsAny(trimmed, "\t\r\n\f") {

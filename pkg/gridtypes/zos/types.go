@@ -9,8 +9,8 @@ import (
 const (
 	// ContainerType type
 	ContainerType gridtypes.WorkloadType = "container"
-	// VolumeType type
-	VolumeType gridtypes.WorkloadType = "volume"
+	// ZMountType type
+	ZMountType gridtypes.WorkloadType = "zmount"
 	// NetworkType type
 	NetworkType gridtypes.WorkloadType = "network"
 	// ZDBType type
@@ -25,7 +25,7 @@ const (
 )
 
 func init() {
-	gridtypes.RegisterType(VolumeType, Volume{})
+	gridtypes.RegisterType(ZMountType, ZMount{})
 	gridtypes.RegisterType(NetworkType, Network{})
 	gridtypes.RegisterType(ZDBType, ZDB{})
 	gridtypes.RegisterType(KubernetesType, Kubernetes{})

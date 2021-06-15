@@ -28,6 +28,8 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		"--memory": {m.Config.Mem.String()},
 
 		"--log-file":   {logs},
+		"--console":    {"off"},
+		"--serial":     {fmt.Sprintf("file=%s.console", logs)},
 		"--api-socket": {socket},
 	}
 	if m.Boot.Initrd != "" {
@@ -68,7 +70,6 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 
 	const debug = false
 	if debug {
-		args["--console"] = []string{"off"}
 		args["--serial"] = []string{"tty"}
 	}
 

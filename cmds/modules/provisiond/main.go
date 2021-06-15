@@ -212,7 +212,7 @@ func action(cli *cli.Context) error {
 		// so we always need to make sure all volumes and networks
 		// comes first.
 		provision.WithStartupOrder(
-			zos.VolumeType,
+			zos.ZMountType,
 			zos.NetworkType,
 			zos.PublicIPType,
 		),

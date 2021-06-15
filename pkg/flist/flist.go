@@ -239,6 +239,9 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 		sublog.Error().Err(err).Msg("0-fs daemon did not start properly")
 		return "", err
 	}
+
+	syscall.Sync()
+
 	// the track file is a symlink to the process pid
 	// if the link is broken, then the fs has exited gracefully
 	// otherwise we can get the fs pid from the track path
@@ -251,6 +254,8 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	if err = os.Symlink(pidPath, trackPath); err != nil {
 		sublog.Error().Err(err).Msg("failed track fs pid")
 	}
+
+	syscall.Sync()
 
 	return mountpoint, nil
 }
@@ -273,7 +278,7 @@ func (f *flistModule) mountBind(ctx context.Context, name, ro string) error {
 		"",
 	)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create mount bind")
 	}
 	defer func() {
 		if err != nil {
@@ -351,25 +356,28 @@ func (f *flistModule) mountOverlay(ctx context.Context, name, ro string, size gr
 
 func (f *flistModule) Mount(name, url string, opt pkg.MountOptions) (string, error) {
 	sublog := log.With().Str("name", name).Str("url", url).Str("storage", opt.Storage).Logger()
-	sublog.Info().Msg("request to mount flist in rw")
+	sublog.Info().Msgf("request to mount flist: %+v", opt)
 
 	// mount overlay
 	mountpoint, err := f.mountpath(name)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "invalid mountpoint")
 	}
 
 	if err := f.valid(mountpoint); err == ErrAlreadyMounted {
 		return mountpoint, nil
 	} else if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "validating of mount point failed")
 	}
 
 	ro, err := f.mountRO(url, opt.Storage)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "ro mount of flist failed")
 	}
 
+	if err := f.waitMountpoint(ro, 3); err != nil {
+		return "", errors.Wrap(err, "failed to wait for flist mount")
+	}
 	ctx := context.Background()
 
 	if opt.ReadOnly {
@@ -426,12 +434,9 @@ func (f *flistModule) valid(path string) error {
 
 func (f *flistModule) waitMountpoint(path string, seconds int) error {
 	for ; seconds >= 0; seconds-- {
+		<-time.After(1 * time.Second)
 		if err := f.isMountpoint(path); err == nil {
 			return nil
-		}
-
-		if seconds > 0 {
-			<-time.After(1 * time.Second)
 		}
 	}
 
@@ -439,6 +444,7 @@ func (f *flistModule) waitMountpoint(path string, seconds int) error {
 }
 
 func (f *flistModule) isMountpoint(path string) error {
+	log.Debug().Str("mnt", path).Msg("testing mountpoint")
 	return exec.Command("mountpoint", path).Run()
 }
 
