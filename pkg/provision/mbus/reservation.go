@@ -18,7 +18,7 @@ type deleteOrGetArgs struct {
 	DeploymentID uint32 `json:"deploymentID"`
 }
 
-func (a *Deployments) createOrUpdate(ctx context.Context, payload []byte, create bool) (interface{}, mw.Response) {
+func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, create bool) (interface{}, mw.Response) {
 	var deployment gridtypes.Deployment
 	if err := json.Unmarshal(payload, &deployment); err != nil {
 		return nil, mw.BadRequest(err)
@@ -42,16 +42,16 @@ func (a *Deployments) createOrUpdate(ctx context.Context, payload []byte, create
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request message"))
 	}
 
-	if err := deployment.Verify(a.engine.Twins()); err != nil {
+	if err := deployment.Verify(d.engine.Twins()); err != nil {
 		return nil, mw.UnAuthorized(err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
-	action := a.engine.Provision
+	action := d.engine.Provision
 	if !create {
-		action = a.engine.Update
+		action = d.engine.Update
 	}
 
 	err := action(ctx, deployment)
@@ -71,7 +71,7 @@ func (a *Deployments) createOrUpdate(ctx context.Context, payload []byte, create
 	return nil, mw.Accepted()
 }
 
-func (a *Deployments) delete(ctx context.Context, payload []byte) (interface{}, mw.Response) {
+func (d *Deployments) delete(ctx context.Context, payload []byte) (interface{}, mw.Response) {
 	var args deleteOrGetArgs
 	err := json.Unmarshal(payload, &args)
 	if err != nil {
@@ -89,7 +89,7 @@ func (a *Deployments) delete(ctx context.Context, payload []byte) (interface{}, 
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
 	}
 
-	err = a.engine.Deprovision(ctx, args.TwinID, args.DeploymentID, "requested by user")
+	err = d.engine.Deprovision(ctx, args.TwinID, args.DeploymentID, "requested by user")
 	if err == context.DeadlineExceeded {
 		return nil, mw.Unavailable(ctx.Err())
 	} else if errors.Is(err, provision.ErrDeploymentNotExists) {
@@ -101,7 +101,7 @@ func (a *Deployments) delete(ctx context.Context, payload []byte) (interface{}, 
 	return nil, mw.Accepted()
 }
 
-func (a *Deployments) get(ctx context.Context, payload []byte) (interface{}, mw.Response) {
+func (d *Deployments) get(ctx context.Context, payload []byte) (interface{}, mw.Response) {
 	var args deleteOrGetArgs
 	err := json.Unmarshal(payload, &args)
 	if err != nil {
@@ -116,7 +116,7 @@ func (a *Deployments) get(ctx context.Context, payload []byte) (interface{}, mw.
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
 	}
 
-	deployment, err := a.engine.Storage().Get(args.TwinID, args.DeploymentID)
+	deployment, err := d.engine.Storage().Get(args.TwinID, args.DeploymentID)
 	if errors.Is(err, provision.ErrDeploymentNotExists) {
 		return nil, mw.NotFound(fmt.Errorf("workload not found"))
 	} else if err != nil {

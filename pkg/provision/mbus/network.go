@@ -15,7 +15,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-// Network is provision engine Workloads
+// Network message bus api
 type Network struct {
 	engine provision.Engine
 	cl     zbus.Client
@@ -32,32 +32,32 @@ func NewNetworkMessagebus(router rmb.Router, engine provision.Engine, cl zbus.Cl
 	return api
 }
 
-func (w *Network) listPortsHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := w.listPorts(ctx)
+func (n *Network) listPortsHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := n.listPorts(ctx)
 	if err != nil {
 		return nil, err.Err()
 	}
 	return data, nil
 }
 
-func (w *Network) listPublicIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := w.listPublicIps()
+func (n *Network) listPublicIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := n.listPublicIps()
 	if err != nil {
 		return nil, err.Err()
 	}
 	return data, nil
 }
 
-func (w *Network) getPublicConfigHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := w.getPublicConfig(ctx)
+func (n *Network) getPublicConfigHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := n.getPublicConfig(ctx)
 	if err != nil {
 		return nil, err.Err()
 	}
 	return data, nil
 }
 
-func (w *Network) setPublicConfigHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := w.setPublicConfig(ctx, payload)
+func (n *Network) setPublicConfigHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := n.setPublicConfig(ctx, payload)
 	if err != nil {
 		return nil, err.Err()
 	}
@@ -75,8 +75,8 @@ func (w *Network) setup(router rmb.Router) {
 	sub.WithHandler("public_config_set", w.setPublicConfigHandler)
 }
 
-func (a *Network) listPorts(ctx context.Context) (interface{}, mw.Response) {
-	ports, err := stubs.NewNetworkerStub(a.cl).WireguardPorts(ctx)
+func (n *Network) listPorts(ctx context.Context) (interface{}, mw.Response) {
+	ports, err := stubs.NewNetworkerStub(n.cl).WireguardPorts(ctx)
 	if err != nil {
 		return nil, mw.Error(err)
 	}
@@ -84,8 +84,8 @@ func (a *Network) listPorts(ctx context.Context) (interface{}, mw.Response) {
 	return ports, nil
 }
 
-func (a *Network) listPublicIps() (interface{}, mw.Response) {
-	storage := a.engine.Storage()
+func (n *Network) listPublicIps() (interface{}, mw.Response) {
+	storage := n.engine.Storage()
 	// for efficiency this method should just find out configured public Ips.
 	// but currently the only way to do this is by scanning the nft rules
 	// a nother less efficient but good for now solution is to scan all
@@ -129,8 +129,8 @@ func (a *Network) listPublicIps() (interface{}, mw.Response) {
 	return ips, nil
 }
 
-func (a *Network) getPublicConfig(ctx context.Context) (interface{}, mw.Response) {
-	cfg, err := stubs.NewNetworkerStub(a.cl).GetPublicConfig(ctx)
+func (n *Network) getPublicConfig(ctx context.Context) (interface{}, mw.Response) {
+	cfg, err := stubs.NewNetworkerStub(n.cl).GetPublicConfig(ctx)
 	if err != nil {
 		return nil, mw.NotFound(err)
 	}
@@ -138,14 +138,14 @@ func (a *Network) getPublicConfig(ctx context.Context) (interface{}, mw.Response
 	return cfg, nil
 }
 
-func (a *Network) setPublicConfig(ctx context.Context, payload []byte) (interface{}, mw.Response) {
+func (n *Network) setPublicConfig(ctx context.Context, payload []byte) (interface{}, mw.Response) {
 	var cfg pkg.PublicConfig
 
 	if err := json.Unmarshal(payload, &cfg); err != nil {
 		return nil, mw.BadRequest(err)
 	}
 
-	err := stubs.NewNetworkerStub(a.cl).SetPublicConfig(ctx, cfg)
+	err := stubs.NewNetworkerStub(n.cl).SetPublicConfig(ctx, cfg)
 	if err != nil {
 		return nil, mw.Error(err)
 	}

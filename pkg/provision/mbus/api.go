@@ -7,6 +7,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
+// Deployments message bus API
 type Deployments struct {
 	engine provision.Engine
 }
@@ -30,24 +31,24 @@ func (d *Deployments) setup(router rmb.Router) {
 	sub.WithHandler("get", d.getHandler)
 }
 
-func (w *Deployments) deployHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := w.createOrUpdate(ctx, payload, true)
+func (d *Deployments) deployHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := d.createOrUpdate(ctx, payload, true)
 	if err != nil {
 		return nil, err.Err()
 	}
 	return data, nil
 }
 
-func (w *Deployments) deleteHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := w.delete(ctx, payload)
+func (d *Deployments) deleteHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := d.delete(ctx, payload)
 	if err != nil {
 		return nil, err.Err()
 	}
 	return data, nil
 }
 
-func (w *Deployments) getHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := w.get(ctx, payload)
+func (d *Deployments) getHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := d.get(ctx, payload)
 	if err != nil {
 		return nil, err.Err()
 	}

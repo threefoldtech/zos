@@ -231,6 +231,7 @@ type statisticsMessageBus struct {
 	stats *Statistics
 }
 
+// NewStatisticsMessageBus register statistics handlers for message bus
 func NewStatisticsMessageBus(router rmb.Router, stats *Statistics) error {
 	api := statisticsMessageBus{stats}
 	return api.setup(router)
