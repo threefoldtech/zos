@@ -24,11 +24,11 @@ const (
 	cloudContainerName  = "cloud-container"
 )
 
-// VirtualMachine type
-type VirtualMachine = zos.VirtualMachine
+// ZMachine type
+type ZMachine = zos.ZMachine
 
-// VirtualMachineResult type
-type VirtualMachineResult = zos.VirtualMachineResult
+// ZMachineResult type
+type ZMachineResult = zos.ZMachineResult
 
 // FListInfo virtual machine details
 type FListInfo struct {
@@ -81,7 +81,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		flist   = stubs.NewFlisterStub(p.zbus)
 		vm      = stubs.NewVMModuleStub(p.zbus)
 
-		config VirtualMachine
+		config ZMachine
 	)
 
 	if vm.Exists(ctx, wl.ID.String()) {
@@ -283,7 +283,7 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 		network = stubs.NewNetworkerStub(p.zbus)
 		vm      = stubs.NewVMModuleStub(p.zbus)
 
-		cfg VirtualMachine
+		cfg ZMachine
 	)
 
 	if err := json.Unmarshal(wl.Data, &cfg); err != nil {
@@ -324,7 +324,7 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 func (p *Primitives) vmRun(
 	ctx context.Context,
 	name string,
-	config *VirtualMachine,
+	config *ZMachine,
 	boot pkg.Boot,
 	disks []pkg.VMDisk,
 	imageInfo FListInfo,

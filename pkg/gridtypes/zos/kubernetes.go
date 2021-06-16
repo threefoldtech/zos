@@ -87,7 +87,7 @@ var vmSize = map[uint8]gridtypes.Capacity{
 
 // Kubernetes reservation data
 type Kubernetes struct {
-	VirtualMachine `json:",inline"`
+	ZMachine `json:",inline"`
 	// ClusterSecret is the hex encoded encrypted(?) cluster secret.
 	ClusterSecret string `json:"cluster_secret"`
 	// MasterIPs define the URL's for the kubernetes master nodes. If this
@@ -100,7 +100,7 @@ type Kubernetes struct {
 
 // Challenge implementation
 func (k Kubernetes) Challenge(b io.Writer) error {
-	k.VirtualMachine.Challenge(b)
+	k.ZMachine.Challenge(b)
 
 	if _, err := fmt.Fprintf(b, "%s", k.ClusterSecret); err != nil {
 		return err
@@ -116,7 +116,7 @@ func (k Kubernetes) Challenge(b io.Writer) error {
 
 // Valid implementation
 func (k Kubernetes) Valid(getter gridtypes.WorkloadGetter) error {
-	err := k.VirtualMachine.Valid(getter)
+	err := k.ZMachine.Valid(getter)
 	if err != nil {
 		return err
 	}

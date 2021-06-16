@@ -29,7 +29,7 @@ func init() {
 	gridtypes.RegisterType(NetworkType, Network{})
 	gridtypes.RegisterType(ZDBType, ZDB{})
 	gridtypes.RegisterType(KubernetesType, Kubernetes{})
-	gridtypes.RegisterType(VirtualMachineType, VirtualMachine{})
+	gridtypes.RegisterType(VirtualMachineType, ZMachine{})
 	gridtypes.RegisterType(PublicIPType, PublicIP{})
 }
 

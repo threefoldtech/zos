@@ -72,8 +72,8 @@ func (m *MachineMount) Challenge(w io.Writer) error {
 	return nil
 }
 
-// VirtualMachine reservation data
-type VirtualMachine struct {
+// ZMachine reservation data
+type ZMachine struct {
 	Name            string          `json:"name"`
 	FList           string          `json:"flist"`
 	Network         MachineNetwork  `json:"network"`
@@ -87,7 +87,7 @@ type VirtualMachine struct {
 }
 
 // Valid implementation
-func (v VirtualMachine) Valid(getter gridtypes.WorkloadGetter) error {
+func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 	if matched, _ := regexp.MatchString("^[0-9a-zA-Z-.]*$", v.Name); !matched {
 		return fmt.Errorf("the name must consist of alphanumeric characters, dot, and dash ony")
 	}
@@ -127,7 +127,7 @@ func (v VirtualMachine) Valid(getter gridtypes.WorkloadGetter) error {
 }
 
 // Capacity implementation
-func (v VirtualMachine) Capacity() (gridtypes.Capacity, error) {
+func (v ZMachine) Capacity() (gridtypes.Capacity, error) {
 	if v.Size > 0 {
 		rsu, ok := vmSize[v.Size]
 		if !ok {
@@ -144,7 +144,7 @@ func (v VirtualMachine) Capacity() (gridtypes.Capacity, error) {
 }
 
 // Challenge creates signature challenge
-func (v VirtualMachine) Challenge(b io.Writer) error {
+func (v ZMachine) Challenge(b io.Writer) error {
 	if _, err := fmt.Fprintf(b, "%s", v.Name); err != nil {
 		return err
 	}
@@ -198,8 +198,8 @@ func (v VirtualMachine) Challenge(b io.Writer) error {
 	return nil
 }
 
-// VirtualMachineResult result returned by VM reservation
-type VirtualMachineResult struct {
+// ZMachineResult result returned by VM reservation
+type ZMachineResult struct {
 	ID string `json:"id"`
 	IP string `json:"ip"`
 }
