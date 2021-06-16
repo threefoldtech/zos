@@ -12,6 +12,7 @@ type Deployments struct {
 	engine provision.Engine
 }
 
+// NewDeploymentMessageBus creates and register a new deployment api
 func NewDeploymentMessageBus(router rmb.Router, engine provision.Engine) *Deployments {
 
 	d := Deployments{

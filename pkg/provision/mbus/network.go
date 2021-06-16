@@ -64,15 +64,14 @@ func (n *Network) setPublicConfigHandler(ctx context.Context, payload []byte) (i
 	return data, nil
 }
 
-// Run runs the messagebus for workloads
-func (w *Network) setup(router rmb.Router) {
+func (n *Network) setup(router rmb.Router) {
 
 	// network handlers
 	sub := router.Subroute("network")
-	sub.WithHandler("list_wg_ports", w.listPortsHandler)
-	sub.WithHandler("list_public_ips", w.listPublicIPsHandler)
-	sub.WithHandler("public_config_get", w.getPublicConfigHandler)
-	sub.WithHandler("public_config_set", w.setPublicConfigHandler)
+	sub.WithHandler("list_wg_ports", n.listPortsHandler)
+	sub.WithHandler("list_public_ips", n.listPublicIPsHandler)
+	sub.WithHandler("public_config_get", n.getPublicConfigHandler)
+	sub.WithHandler("public_config_set", n.setPublicConfigHandler)
 }
 
 func (n *Network) listPorts(ctx context.Context) (interface{}, mw.Response) {

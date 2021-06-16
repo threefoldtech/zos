@@ -159,6 +159,7 @@ func New(address string) (*MessageBus, error) {
 	}, nil
 }
 
+// Handlers return full name of all registered handlers
 func (m *MessageBus) Handlers() []string {
 	topics := make([]string, 0)
 	m.getTopics("", &topics)
