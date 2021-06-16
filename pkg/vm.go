@@ -1,9 +1,11 @@
 package pkg
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 
+	"github.com/google/shlex"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
@@ -61,6 +63,44 @@ type Boot struct {
 	Environment map[string]string
 }
 
+// KernelArgs are arguments passed to the kernel
+type KernelArgs map[string]string
+
+func (s KernelArgs) String() string {
+	var buf bytes.Buffer
+	for k, v := range s {
+		if k == "init" {
+			//init must be handled later separately
+			continue
+		}
+		if buf.Len() > 0 {
+			buf.WriteRune(' ')
+		}
+		buf.WriteString(k)
+		if len(v) > 0 {
+			buf.WriteRune('=')
+			buf.WriteString(v)
+		}
+	}
+	init, ok := s["init"]
+	if ok {
+		if buf.Len() > 0 {
+			buf.WriteRune(' ')
+		}
+		parts, _ := shlex.Split(init)
+		if len(parts) > 0 {
+			buf.WriteString("init=")
+			buf.WriteString(parts[0])
+			for _, part := range parts[1:] {
+				buf.WriteRune(' ')
+				buf.WriteString(fmt.Sprintf("\"%s\"", part))
+			}
+		}
+	}
+
+	return buf.String()
+}
+
 // VM config structure
 type VM struct {
 	// virtual machine name, or ID
@@ -76,12 +116,15 @@ type VM struct {
 	// InitrdImage (optiona) path to initrd disk
 	InitrdImage string
 	// KernelArgs to override the default kernel arguments. (default: "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules")
-	KernelArgs string
+	KernelArgs KernelArgs
 	// Disks are a list of disks that are going to
 	// be auto allocated on the provided storage path
 	Disks []VMDisk
-
+	// Boot options
 	Boot Boot
+	// Environment is injected to the VM via container mechanism (virtiofs)
+	// otherwise it's added to the kernel arguments
+	Environment map[string]string
 	// If this flag is set, the VM module will not auto start
 	// this machine hence, also no auto clean up when it exits
 	// it's up to the caller to check for the machine status

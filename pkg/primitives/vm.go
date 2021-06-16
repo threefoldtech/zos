@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/google/shlex"
 	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -43,7 +42,7 @@ func (p *Primitives) virtualMachineProvision(ctx context.Context, wl *gridtypes.
 	return p.virtualMachineProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) mountsToDisks(ctx context.Context, deployment gridtypes.Deployment, disks []zos.MachineMount) ([]pkg.VMDisk, error) {
+func (p *Primitives) mountsToDisks(ctx context.Context, deployment gridtypes.Deployment, disks []zos.MachineMount, format bool) ([]pkg.VMDisk, error) {
 	storage := stubs.NewVDiskModuleStub(p.zbus)
 
 	var results []pkg.VMDisk
@@ -63,6 +62,13 @@ func (p *Primitives) mountsToDisks(ctx context.Context, deployment gridtypes.Dep
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to inspect disk '%s'", disk.Name)
 		}
+
+		if format {
+			if err := storage.EnsureFilesystem(ctx, wl.ID.String()); err != nil {
+				return nil, errors.Wrap(err, "failed to prepare mount")
+			}
+		}
+
 		results = append(results, pkg.VMDisk{Path: info.Path, Target: disk.Mountpoint})
 	}
 
@@ -139,7 +145,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	var disks []pkg.VMDisk
 
 	// "root=/dev/vda rw console=ttyS0 reboot=k panic=1"
-	cmd := cmdline{
+	cmd := pkg.KernelArgs{
 		"rw":      "",
 		"console": "ttyS0",
 		"reboot":  "k",
@@ -173,11 +179,9 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 			Path: mnt,
 		}
 		// change the root boot to use the right virtiofs tag
-		cmd["root"] = "/dev/root"
-		cmd["rootfstype"] = "virtiofs"
 		cmd["init"] = config.Entrypoint
 
-		disks, err = p.mountsToDisks(ctx, deployment, config.Mounts)
+		disks, err = p.mountsToDisks(ctx, deployment, config.Mounts, true)
 		if err != nil {
 			return result, err
 		}
@@ -217,7 +221,8 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 			Type: pkg.BootDisk,
 			Path: info.Path,
 		}
-		disks, err = p.mountsToDisks(ctx, deployment, config.Mounts[1:])
+		// we don't format disks attached to VMs, it's up to the vm to decide that
+		disks, err = p.mountsToDisks(ctx, deployment, config.Mounts[1:], false)
 		if err != nil {
 			return result, err
 		}
@@ -263,7 +268,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		return result, errors.Wrap(err, "could not generate network info")
 	}
 
-	err = p.vmRun(ctx, wl.ID.String(), config.ComputeCapacity, boot, disks, imageInfo, cmd.String(), netInfo)
+	err = p.vmRun(ctx, wl.ID.String(), &config, boot, disks, imageInfo, cmd, netInfo)
 	if err != nil {
 		// attempt to delete the vm, should the process still be lingering
 		vm.Delete(ctx, wl.ID.String())
@@ -319,15 +324,16 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 func (p *Primitives) vmRun(
 	ctx context.Context,
 	name string,
-	cap zos.MachineCapacity,
+	config *VirtualMachine,
 	boot pkg.Boot,
 	disks []pkg.VMDisk,
 	imageInfo FListInfo,
-	cmdline string,
+	cmdline pkg.KernelArgs,
 	networkInfo pkg.VMNetworkInfo) error {
 
 	vm := stubs.NewVMModuleStub(p.zbus)
 
+	cap := config.ComputeCapacity
 	// installed disk
 	kubevm := pkg.VM{
 		Name:        name,
@@ -338,47 +344,11 @@ func (p *Primitives) vmRun(
 		InitrdImage: imageInfo.Initrd,
 		KernelArgs:  cmdline,
 		Boot:        boot,
+		Environment: config.Env,
 		Disks:       disks,
 	}
 
 	return vm.Run(ctx, kubevm)
-}
-
-type cmdline map[string]string
-
-func (s cmdline) String() string {
-	var buf bytes.Buffer
-	for k, v := range s {
-		if k == "init" {
-			//init must be handled later separately
-			continue
-		}
-		if buf.Len() > 0 {
-			buf.WriteRune(' ')
-		}
-		buf.WriteString(k)
-		if len(v) > 0 {
-			buf.WriteRune('=')
-			buf.WriteString(v)
-		}
-	}
-	init, ok := s["init"]
-	if ok {
-		if buf.Len() > 0 {
-			buf.WriteRune(' ')
-		}
-		parts, _ := shlex.Split(init)
-		if len(parts) > 0 {
-			buf.WriteString("init=")
-			buf.WriteString(parts[0])
-			for _, part := range parts[1:] {
-				buf.WriteRune(' ')
-				buf.WriteString(fmt.Sprintf("\"%s\"", part))
-			}
-		}
-	}
-
-	return buf.String()
 }
 
 func hashDeployment(wid gridtypes.WorkloadID) string {

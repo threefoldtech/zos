@@ -30,6 +30,20 @@ const (
 	defaultKernelArgs = "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules"
 )
 
+var (
+	protectedKernelEnv = map[string]struct{}{
+		"init":       {},
+		"root":       {},
+		"rootfstype": {},
+		"console":    {},
+		"net_eth1":   {},
+		"net_eth2":   {},
+		"net_dns":    {},
+		"panic":      {},
+		"reboot":     {},
+	}
+)
+
 // Module implements the VMModule interface
 type Module struct {
 	root     string
@@ -269,14 +283,46 @@ func (m *Module) Run(vm pkg.VM) error {
 		return err
 	}
 
-	// if vm.Boot.Type == pkg.BootVirtioFS {
-	// 	//todo:
-	// }
+	cmdline := vm.KernelArgs
+	if cmdline == nil {
+		cmdline = pkg.KernelArgs{}
+	}
 
-	var kargs strings.Builder
-	kargs.WriteString(vm.KernelArgs)
-	if kargs.Len() == 0 {
-		kargs.WriteString(defaultKernelArgs)
+	var fs []VirtioFS
+	var env map[string]string
+	if vm.Boot.Type == pkg.BootVirtioFS {
+		// booting from a virtiofs. the vm is basically
+		// running as a container. hence we set extra cmdline
+		// arguments
+		cmdline["root"] = virtioRootFsTag
+		cmdline["rootfstype"] = "virtiofs"
+
+		// we add the fs for booting.
+		fs = []VirtioFS{
+			{Tag: virtioRootFsTag, Path: vm.Boot.Path},
+		}
+		// we set the environment
+		env = vm.Environment
+		// add we also add disk mounts
+		for i, mnt := range vm.Disks {
+			name := fmt.Sprintf("vd%c", 'a'+i)
+			cmdline[name] = mnt.Target
+		}
+	} else {
+		// if with no virtio fs we can only
+		// set the given environment to the linux kernel
+		// but this is not safe.
+		// TODO: Should we only allow UPPER_CASE
+		// env to pass to avoid overriding other params ?!
+		for k, v := range vm.Environment {
+			if strings.HasPrefix(k, "vd") {
+				continue
+			}
+			if _, ok := protectedKernelEnv[k]; ok {
+				continue
+			}
+			cmdline[k] = v
+		}
 	}
 
 	nics, args, err := m.makeNetwork(&vm)
@@ -284,17 +330,17 @@ func (m *Module) Run(vm pkg.VM) error {
 		return err
 	}
 
+	var kargs strings.Builder
+	kargs.WriteString(args)
+
 	if kargs.Len() != 0 {
 		kargs.WriteRune(' ')
 	}
 
-	kargs.WriteString(args)
-
-	var fs []VirtioFS
-	if vm.Boot.Type == pkg.BootVirtioFS {
-		fs = []VirtioFS{
-			{Tag: "/dev/root", Path: vm.Boot.Path},
-		}
+	if len(cmdline) > 0 {
+		kargs.WriteString(cmdline.String())
+	} else {
+		kargs.WriteString(defaultKernelArgs)
 	}
 
 	machine := Machine{
@@ -312,6 +358,7 @@ func (m *Module) Run(vm pkg.VM) error {
 		FS:          fs,
 		Interfaces:  nics,
 		Disks:       devices,
+		Environment: env,
 		NoKeepAlive: vm.NoKeepAlive,
 	}
 

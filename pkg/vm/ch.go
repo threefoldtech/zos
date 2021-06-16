@@ -59,6 +59,28 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		args["--fs"] = filesystems
 	}
 
+	if len(m.Environment) > 0 {
+		// as a protection we make sure that an fs with tag /dev/root
+		// is available, and find it's path
+		var root *VirtioFS
+		for i := range m.FS {
+			fs := &m.FS[i]
+			if fs.Tag == virtioRootFsTag {
+				root = fs
+				break
+			}
+		}
+
+		if root != nil {
+			// root fs found
+			if err := m.appendEnv(root.Path); err != nil {
+				return errors.Wrap(err, "failed to inject environment variables")
+			}
+		} else {
+			log.Warn().Msg("can't inject environment to a non virtiofs machine")
+		}
+	}
+
 	if m.Boot.Initrd != "" {
 		args["--initramfs"] = []string{m.Boot.Initrd}
 	}
@@ -159,6 +181,40 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	return nil
 }
 
+func (m *Machine) appendEnv(root string) error {
+	if len(m.Environment) == 0 {
+		return nil
+	}
+
+	stat, err := os.Stat(root)
+	if err != nil {
+		return errors.Wrap(err, "failed to stat vm rootfs")
+	}
+	if !stat.IsDir() {
+		return fmt.Errorf("vm rootfs is not a directory")
+	}
+	if err := os.MkdirAll(filepath.Join(root, "etc"), 0755); err != nil {
+		return errors.Wrap(err, "failed to create <rootfs>/etc directory")
+	}
+	file, err := os.OpenFile(
+		filepath.Join(root, "etc", "environment"),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		0644,
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to open environment file")
+	}
+
+	defer file.Close()
+	file.WriteString("\n")
+	for k, v := range m.Environment {
+		//TODO: need some string escaping here
+		if _, err := fmt.Fprintf(file, "%s=%s\n", k, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (m *Machine) startFs(socket, path string) (int, error) {
 	cmd := exec.Command("busybox", "setsid",
 		"virtiofsd-rs",

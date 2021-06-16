@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/g0rbe/go-chattr"
@@ -48,6 +49,17 @@ func (d *vdiskModule) findDisk(id string) (string, error) {
 	}
 
 	return "", os.ErrNotExist
+}
+
+// EnsureFilesystem ensures that the virtual disk has a valid filesystem
+// currently the fs is btrfs
+func (d *vdiskModule) EnsureFilesystem(id string) error {
+	path, err := d.findDisk(id)
+	if err != nil {
+		return errors.Wrapf(err, "couldnot find disk with id: %s", id)
+	}
+
+	return d.ensureFS(path)
 }
 
 //
@@ -124,6 +136,25 @@ func (d *vdiskModule) Allocate(id string, size gridtypes.Unit) (string, error) {
 
 	err = syscall.Fallocate(int(file.Fd()), 0, 0, int64(size))
 	return path, err
+}
+
+func (d *vdiskModule) ensureFS(disk string) error {
+	output, err := exec.Command("mkfs.btrfs", disk).CombinedOutput()
+	if err == nil {
+		return nil
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		return errors.Wrapf(err, "failed to format disk '%s'", string(output))
+	}
+
+	if exitErr.ProcessState.ExitCode() == 1 &&
+		strings.Contains(string(output), "ERROR: use the -f option to force overwrite") {
+		// disk already have filesystem
+		return nil
+	}
+
+	return errors.Wrapf(err, "unknown btrfs error '%s'", string(output))
 }
 
 func (d *vdiskModule) expandFs(disk string) error {

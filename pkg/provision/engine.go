@@ -216,6 +216,10 @@ func (e *NativeEngine) Admins() Twins {
 
 // Provision workload
 func (e *NativeEngine) Provision(ctx context.Context, deployment gridtypes.Deployment) error {
+	if deployment.Version != 0 {
+		return errors.Wrap(ErrInvalidVersion, "expected version to be 0 on deployment creation")
+	}
+
 	if err := e.storage.Add(deployment); err != nil {
 		return err
 	}

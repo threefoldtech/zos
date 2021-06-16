@@ -187,6 +187,10 @@ type VDiskModule interface {
 	// Writes an image image to disk with id
 	WriteImage(id string, image string) error
 
+	// EnsureFilesystem ensures disk has a valid filesystem
+	// this method is idempotent
+	EnsureFilesystem(id string) error
+
 	// DeallocateVDisk removes a virtual disk
 	Deallocate(id string) error
 	// Exists checks if disk with that ID already allocated

@@ -11,6 +11,10 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+const (
+	virtioRootFsTag = "/dev/root"
+)
+
 // Boot config struct
 type Boot struct {
 	Kernel string `json:"kernel_image_path"`
@@ -126,12 +130,13 @@ type VirtioFS struct {
 
 // Machine struct
 type Machine struct {
-	ID         string     `json:"id"`
-	Boot       Boot       `json:"boot-source"`
-	Disks      Disks      `json:"drives"`
-	FS         []VirtioFS `json:"fs"`
-	Interfaces Interfaces `json:"network-interfaces"`
-	Config     Config     `json:"machine-config"`
+	ID          string            `json:"id"`
+	Boot        Boot              `json:"boot-source"`
+	Disks       Disks             `json:"drives"`
+	FS          []VirtioFS        `json:"fs"`
+	Interfaces  Interfaces        `json:"network-interfaces"`
+	Config      Config            `json:"machine-config"`
+	Environment map[string]string `json:"environment"`
 	// NoKeepAlive is not used by firecracker, but instead a marker
 	// for the vm  mananger to not restart the machine when it stops
 	NoKeepAlive bool `json:"no-keep-alive"`
