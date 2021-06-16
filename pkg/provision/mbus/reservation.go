@@ -18,7 +18,7 @@ type deleteOrGetArgs struct {
 	DeploymentID uint32 `json:"deploymentID"`
 }
 
-func (a *WorkloadsMessagebus) createOrUpdate(ctx context.Context, payload []byte, create bool) (interface{}, mw.Response) {
+func (a *Deployments) createOrUpdate(ctx context.Context, payload []byte, create bool) (interface{}, mw.Response) {
 	var deployment gridtypes.Deployment
 	if err := json.Unmarshal(payload, &deployment); err != nil {
 		return nil, mw.BadRequest(err)
@@ -71,7 +71,7 @@ func (a *WorkloadsMessagebus) createOrUpdate(ctx context.Context, payload []byte
 	return nil, mw.Accepted()
 }
 
-func (a *WorkloadsMessagebus) delete(ctx context.Context, payload []byte) (interface{}, mw.Response) {
+func (a *Deployments) delete(ctx context.Context, payload []byte) (interface{}, mw.Response) {
 	var args deleteOrGetArgs
 	err := json.Unmarshal(payload, &args)
 	if err != nil {
@@ -101,7 +101,7 @@ func (a *WorkloadsMessagebus) delete(ctx context.Context, payload []byte) (inter
 	return nil, mw.Accepted()
 }
 
-func (a *WorkloadsMessagebus) get(ctx context.Context, payload []byte) (interface{}, mw.Response) {
+func (a *Deployments) get(ctx context.Context, payload []byte) (interface{}, mw.Response) {
 	var args deleteOrGetArgs
 	err := json.Unmarshal(payload, &args)
 	if err != nil {

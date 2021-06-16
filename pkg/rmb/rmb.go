@@ -55,8 +55,7 @@ func newSubRouter() messageBusSubrouter {
 	}
 }
 
-func (m *messageBusSubrouter) call(ctx context.Context, route string, payload []byte) (interface{}, error) {
-	var err error
+func (m *messageBusSubrouter) call(ctx context.Context, route string, payload []byte) (result interface{}, err error) {
 	for _, mw := range m.mw {
 		ctx, err = mw(ctx, payload)
 		if err != nil {
@@ -66,7 +65,14 @@ func (m *messageBusSubrouter) call(ctx context.Context, route string, payload []
 
 	handler, ok := m.handlers[route]
 	if ok {
-		return handler(ctx, payload)
+		defer func() {
+			if rec := recover(); rec != nil {
+				err = fmt.Errorf("handler panicked with: %s", err)
+			}
+		}()
+
+		result, err = handler(ctx, payload)
+		return
 	}
 
 	parts := strings.SplitN(route, ".", 2)
@@ -109,9 +115,12 @@ func (m *messageBusSubrouter) Subroute(prefix string) Router {
 }
 
 // WithHandler adds a topic handler to the messagebus
-func (m *messageBusSubrouter) WithHandler(topic string, handler Handler) error {
+func (m *messageBusSubrouter) WithHandler(topic string, handler Handler) {
+	if _, ok := m.handlers[topic]; ok {
+		panic("handler already registered")
+	}
+
 	m.handlers[topic] = handler
-	return nil
 }
 
 func (m *messageBusSubrouter) getTopics(prefix string, l *[]string) {
@@ -134,12 +143,11 @@ func (m *messageBusSubrouter) getTopics(prefix string, l *[]string) {
 // MessageBus is a struct that contains everything required to run the message bus
 type MessageBus struct {
 	messageBusSubrouter
-	Context context.Context
-	pool    *redis.Pool
+	pool *redis.Pool
 }
 
 // New creates a new message bus
-func New(ctx context.Context, address string) (*MessageBus, error) {
+func New(address string) (*MessageBus, error) {
 	pool, err := newRedisPool(address)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to %s", address)
@@ -147,9 +155,32 @@ func New(ctx context.Context, address string) (*MessageBus, error) {
 
 	return &MessageBus{
 		pool:                pool,
-		Context:             ctx,
 		messageBusSubrouter: newSubRouter(),
 	}, nil
+}
+
+func (m *MessageBus) Handlers() []string {
+	topics := make([]string, 0)
+	m.getTopics("", &topics)
+
+	return topics
+}
+
+func (m *MessageBus) getOne(args redis.Args) ([][]byte, error) {
+	con := m.pool.Get()
+	defer con.Close()
+
+	data, err := redis.ByteSlices(con.Do("BLPOP", args...))
+	if err != nil && err != redis.ErrNil {
+		return nil, err
+	}
+
+	if err == redis.ErrNil || data == nil {
+		//timeout, just try again immediately
+		return nil, redis.ErrNil
+	}
+
+	return data, nil
 }
 
 // Run runs listeners to the configured handlers
@@ -158,8 +189,7 @@ func (m *MessageBus) Run(ctx context.Context) error {
 	con := m.pool.Get()
 	defer con.Close()
 
-	topics := make([]string, 0)
-	m.getTopics("", &topics)
+	topics := m.Handlers()
 	for i, topic := range topics {
 		topics[i] = "msgbus." + topic
 	}
@@ -169,15 +199,22 @@ func (m *MessageBus) Run(ctx context.Context) error {
 		go m.worker(ctx, jobs)
 	}
 
+	args := redis.Args{}.AddFlat(topics).Add(10)
 	for {
-		if m.Context.Err() != nil {
-			return nil
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
 
-		data, err := redis.ByteSlices(con.Do("BLPOP", redis.Args{}.AddFlat(topics).Add(0)...))
-		if err != nil {
-			log.Err(err).Msg("failed to read from system local messagebus")
-			return err
+		data, err := m.getOne(args)
+
+		if err == redis.ErrNil {
+			continue
+		} else if err != nil {
+			log.Err(err).Msg("failed to read from system local messagebus, retry in 2 seconds")
+			<-time.After(2 * time.Second)
+			continue
 		}
 
 		var message Message

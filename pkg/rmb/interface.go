@@ -18,7 +18,7 @@ type Middleware func(ctx context.Context, payload []byte) (context.Context, erro
 
 // Router is the router interface
 type Router interface {
-	WithHandler(route string, handler Handler) error
+	WithHandler(route string, handler Handler)
 	Subroute(route string) Router
 	Use(Middleware)
 }
