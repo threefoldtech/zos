@@ -155,8 +155,13 @@ func (d *Deployment) Challenge(w io.Writer) error {
 // Valid validates deployment structure
 func (d *Deployment) Valid() error {
 	names := make(map[Name]struct{})
+	current := d.Version
 	for i := range d.Workloads {
 		wl := &d.Workloads[i]
+		if wl.Version > current {
+			return fmt.Errorf("workload version cannot be higher than deployment version")
+		}
+
 		name := wl.Name
 		if err := IsValidName(name); err != nil {
 			return errors.Wrapf(err, "name '%s' is invalid", name)

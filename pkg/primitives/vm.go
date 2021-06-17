@@ -279,7 +279,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 
 func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
 	var (
-		storage = stubs.NewVDiskModuleStub(p.zbus)
+		flist   = stubs.NewFlisterStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)
 		vm      = stubs.NewVMModuleStub(p.zbus)
 
@@ -294,6 +294,10 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 		if err := vm.Delete(ctx, wl.ID.String()); err != nil {
 			return errors.Wrapf(err, "failed to delete vm %s", wl.ID)
 		}
+	}
+
+	if err := flist.Unmount(ctx, wl.ID.String()); err != nil {
+		log.Error().Err(err).Msg("failed to unmount machine flist")
 	}
 
 	tapName := hashDeployment(wl.ID)
@@ -312,10 +316,6 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 		if err := network.RemovePubTap(ctx, ifName); err != nil {
 			return errors.Wrap(err, "could not clean up public tap device")
 		}
-	}
-
-	if err := storage.Deallocate(ctx, fmt.Sprintf("%s-%s", wl.ID, "vda")); err != nil {
-		return errors.Wrap(err, "could not remove vDisk")
 	}
 
 	return nil
