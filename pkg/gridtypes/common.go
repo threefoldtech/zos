@@ -10,6 +10,7 @@ import (
 // Name is a type for reservation names
 type Name string
 
+// IsEmpty indicates if name is not set
 func (n Name) IsEmpty() bool {
 	return len(string(n)) == 0
 }

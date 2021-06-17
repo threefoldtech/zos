@@ -11,15 +11,19 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
+// MachineInterface structure
 type MachineInterface struct {
 	Network gridtypes.Name `json:"network"`
 	IP      net.IP         `json:"ip"`
 }
+
+// MachineNetwork structure
 type MachineNetwork struct {
 	PublicIP   gridtypes.Name     `json:"public_ip"`
 	Interfaces []MachineInterface `json:"interfaces"`
 }
 
+// Challenge builder
 func (n *MachineNetwork) Challenge(w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "%s", n.PublicIP); err != nil {
 		return err
@@ -38,11 +42,13 @@ func (n *MachineNetwork) Challenge(w io.Writer) error {
 	return nil
 }
 
+// MachineCapacity structure
 type MachineCapacity struct {
 	CPU    uint8          `json:"cpu"`
 	Memory gridtypes.Unit `json:"memory"`
 }
 
+// Challenge builder
 func (c *MachineCapacity) Challenge(w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "%d", c.CPU); err != nil {
 		return err
@@ -55,11 +61,13 @@ func (c *MachineCapacity) Challenge(w io.Writer) error {
 	return nil
 }
 
+// MachineMount structure
 type MachineMount struct {
 	Name       gridtypes.Name `json:"name"`
 	Mountpoint string         `json:"mountpoint"`
 }
 
+// Challenge builder
 func (m *MachineMount) Challenge(w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "%s", m.Name); err != nil {
 		return err

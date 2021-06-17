@@ -56,7 +56,7 @@ func (d *vdiskModule) findDisk(id string) (string, error) {
 func (d *vdiskModule) EnsureFilesystem(id string) error {
 	path, err := d.findDisk(id)
 	if err != nil {
-		return errors.Wrapf(err, "couldnot find disk with id: %s", id)
+		return errors.Wrapf(err, "couldn't find disk with id: %s", id)
 	}
 
 	return d.ensureFS(path)
@@ -66,7 +66,7 @@ func (d *vdiskModule) EnsureFilesystem(id string) error {
 func (d *vdiskModule) WriteImage(id string, image string) error {
 	path, err := d.findDisk(id)
 	if err != nil {
-		return errors.Wrapf(err, "couldnot find disk with id: %s", id)
+		return errors.Wrapf(err, "couldn't find disk with id: %s", id)
 	}
 	source, err := os.Open(image)
 	if err != nil {

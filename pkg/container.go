@@ -29,6 +29,7 @@ type MountInfo struct {
 	Target string // target of mount inside the container
 }
 
+// Stats endpoints
 type Stats struct {
 	Type     string `bson:"type" json:"type"`
 	Endpoint string `bson:"endpoint" json:"endpoint"`

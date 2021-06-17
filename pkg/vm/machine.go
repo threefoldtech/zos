@@ -123,6 +123,7 @@ type Config struct {
 	HTEnabled bool   `json:"ht_enabled"`
 }
 
+// VirtioFS represents a virtiofs mount
 type VirtioFS struct {
 	Tag  string
 	Path string

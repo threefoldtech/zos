@@ -49,13 +49,17 @@ type VMDisk struct {
 	Target string
 }
 
+// BootType for vm
 type BootType uint8
 
 const (
+	// BootDisk booting from a virtual disk
 	BootDisk BootType = iota
+	// BootVirtioFS booting from a virtiofs mount
 	BootVirtioFS
 )
 
+// Boot structure
 type Boot struct {
 	Type BootType
 	Path string
