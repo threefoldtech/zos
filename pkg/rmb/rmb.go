@@ -297,29 +297,9 @@ func (m *MessageBus) sendReply(message Message, data interface{}) error {
 		return err
 	}
 
-	_, err = con.Do("LPUSH", message.Retqueue, string(bytes))
+	_, err = con.Do("LPUSH", replyBus, string(bytes))
 	if err != nil {
 		log.Err(err).Msg("failed to push to reply messagebus")
-		return err
-	}
-
-	return nil
-}
-
-// PushMessage pushes a message to a topic
-// for testing purposes
-func (m *MessageBus) PushMessage(topic string, message Message) error {
-	con := m.pool.Get()
-	defer con.Close()
-
-	bytes, err := json.Marshal(message)
-	if err != nil {
-		return err
-	}
-
-	_, err = con.Do("RPUSH", topic, bytes)
-	if err != nil {
-		log.Err(err).Msg("failed to push to topic")
 		return err
 	}
 
