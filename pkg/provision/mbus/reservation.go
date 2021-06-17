@@ -28,10 +28,7 @@ func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, create
 		return nil, mw.BadRequest(err)
 	}
 
-	twinSrc, ok := ctx.Value(rmb.TwinKeyID{}).(uint32)
-	if !ok {
-		return nil, mw.BadRequest(errors.New("twin src is not found on context"))
-	}
+	twinSrc := rmb.GetTwinID(ctx)
 
 	authorized := false
 	if twinSrc == uint32(deployment.TwinID) {
@@ -81,10 +78,8 @@ func (d *Deployments) delete(ctx context.Context, payload []byte) (interface{}, 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
-	twinID, ok := ctx.Value(rmb.TwinKeyID{}).(uint32)
-	if !ok {
-		return nil, mw.BadRequest(errors.New("twin src is not found on context"))
-	}
+	twinID := rmb.GetTwinID(ctx)
+
 	if args.TwinID != twinID {
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
 	}
@@ -108,10 +103,8 @@ func (d *Deployments) get(ctx context.Context, payload []byte) (interface{}, mw.
 		return nil, mw.Error(err)
 	}
 
-	twinID, ok := ctx.Value(rmb.TwinKeyID{}).(uint32)
-	if !ok {
-		return nil, mw.BadRequest(errors.New("twin src is not found on context"))
-	}
+	twinID := rmb.GetTwinID(ctx)
+
 	if args.TwinID != twinID {
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
 	}

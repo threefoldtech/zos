@@ -20,11 +20,11 @@ const (
 	numWorkers     = 5
 )
 
-// TwinKeyID is where the twin key is stored
-type TwinKeyID struct{}
+// twinKeyID is where the twin key is stored
+type twinKeyID struct{}
 
-// MessageKey is where the original message is stored
-type MessageKey struct{}
+// messageKey is where the original message is stored
+type messageKey struct{}
 
 // Message is an struct used to communicate over the messagebus
 type Message struct {
@@ -244,8 +244,8 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 				log.Err(err).Msg("err while parsing payload reply")
 			}
 
-			requestCtx := context.WithValue(ctx, TwinKeyID{}, message.TwinSrc)
-			requestCtx = context.WithValue(requestCtx, MessageKey{}, message)
+			requestCtx := context.WithValue(ctx, twinKeyID{}, message.TwinSrc)
+			requestCtx = context.WithValue(requestCtx, messageKey{}, message)
 
 			data, err := m.call(requestCtx, message.Command, bytes)
 			if err != nil {
@@ -262,14 +262,23 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 	}
 }
 
+func GetTwinID(ctx context.Context) uint32 {
+	twin, ok := ctx.Value(twinKeyID{}).(uint32)
+	if !ok {
+		panic("failed to load twind from context")
+	}
+
+	return twin
+}
+
 // GetMessage gets a message from the context, panics if it's not there
-func GetMessage(ctx context.Context) (*Message, error) {
-	message, ok := ctx.Value(MessageKey{}).(Message)
+func GetMessage(ctx context.Context) Message {
+	message, ok := ctx.Value(messageKey{}).(Message)
 	if !ok {
 		panic("failed to load message from context")
 	}
 
-	return &message, nil
+	return message
 }
 
 // sendReply send a reply to the message bus with some data
