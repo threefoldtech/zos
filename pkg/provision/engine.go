@@ -448,7 +448,6 @@ func (e *NativeEngine) updateDeployment(ctx context.Context, getter gridtypes.Wo
 			var err error
 			if e.provisioner.CanUpdate(ctx, wl.Type) {
 				result, err = e.provisioner.Update(ctx, wl)
-
 			} else {
 				if err := e.provisioner.Decommission(ctx, wl); err != nil {
 					log.Error().Err(err).Msg("failed to decomission workload")
