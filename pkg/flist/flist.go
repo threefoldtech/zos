@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
-	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -446,7 +445,7 @@ func (f *flistModule) waitMountpoint(path string, seconds int) error {
 
 func (f *flistModule) isMountpoint(path string) error {
 	log.Debug().Str("mnt", path).Msg("testing mountpoint")
-	return exec.Command("mountpoint", path).Run()
+	return f.commander.Command("mountpoint", path).Run()
 }
 
 func (f *flistModule) getPid(pidPath string) (int64, error) {
@@ -646,12 +645,6 @@ func md5Compare(hash string, r io.Reader) (bool, error) {
 		return false, err
 	}
 	return strings.Compare(fmt.Sprintf("%x", h.Sum(nil)), hash) == 0, nil
-}
-
-func random() (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	return fmt.Sprintf("%x", b), err
 }
 
 // waitPidFile wait for a file pointed by path to be created or deleted

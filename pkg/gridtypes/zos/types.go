@@ -17,8 +17,8 @@ const (
 	ZDBType gridtypes.WorkloadType = "zdb"
 	// KubernetesType type
 	KubernetesType gridtypes.WorkloadType = "kubernetes"
-	// VirtualMachineType type
-	VirtualMachineType gridtypes.WorkloadType = "virtualmachine"
+	// ZMachineType type
+	ZMachineType gridtypes.WorkloadType = "virtualmachine"
 
 	//PublicIPType reservation
 	PublicIPType gridtypes.WorkloadType = "ipv4"
@@ -29,7 +29,7 @@ func init() {
 	gridtypes.RegisterType(NetworkType, Network{})
 	gridtypes.RegisterType(ZDBType, ZDB{})
 	gridtypes.RegisterType(KubernetesType, Kubernetes{})
-	gridtypes.RegisterType(VirtualMachineType, ZMachine{})
+	gridtypes.RegisterType(ZMachineType, ZMachine{})
 	gridtypes.RegisterType(PublicIPType, PublicIP{})
 }
 

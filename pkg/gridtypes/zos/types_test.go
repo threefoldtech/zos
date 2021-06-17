@@ -31,19 +31,10 @@ func TestWorkloadValidation(t *testing.T) {
 	wl := gridtypes.Workload{
 		Type: ZMountType,
 		Name: "name",
-		Data: json.RawMessage(`{"size": 10, "type": "ssd"}`),
+		Data: json.RawMessage(`{"size": 10}`),
 	}
 
 	err := wl.Valid(nil)
 	require.NoError(err)
-
-	wl = gridtypes.Workload{
-		Type: ZMountType,
-		Name: "name",
-		Data: json.RawMessage(`{"size": 10, "type": "abc"}`),
-	}
-
-	err = wl.Valid(nil)
-	require.EqualError(err, "invalid device type")
 
 }

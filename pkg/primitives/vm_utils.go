@@ -22,9 +22,6 @@ type Kubernetes = zos.Kubernetes
 // KubernetesResult type
 type KubernetesResult = zos.KubernetesResult
 
-// const k3osFlistURL = "https://hub.grid.tf/tf-official-apps/k3os.flist"
-const k3osFlistURL = "https://hub.grid.tf/lee/k3os-ch.flist"
-
 func (p *Primitives) buildNetworkInfo(ctx context.Context, deployment gridtypes.Deployment, iface string, pubIface string, cfg ZMachine) (pkg.VMNetworkInfo, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 	netConfig := cfg.Network.Interfaces[0]

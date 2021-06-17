@@ -30,8 +30,8 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 		zos.NetworkType: p.networkProvision,
 		zos.ZDBType:     p.zdbProvision,
 		// zos.KubernetesType:     p.kubernetesProvision,
-		zos.VirtualMachineType: p.virtualMachineProvision,
-		zos.PublicIPType:       p.publicIPProvision,
+		zos.ZMachineType: p.virtualMachineProvision,
+		zos.PublicIPType: p.publicIPProvision,
 	}
 	decommissioners := map[gridtypes.WorkloadType]provision.RemoveFunction{
 		// zos.ContainerType:      p.containerDecommission,
@@ -39,8 +39,8 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 		zos.NetworkType: p.networkDecommission,
 		zos.ZDBType:     p.zdbDecommission,
 		// zos.KubernetesType:     p.kubernetesDecomission,
-		zos.VirtualMachineType: p.vmDecomission,
-		zos.PublicIPType:       p.publicIPDecomission,
+		zos.ZMachineType: p.vmDecomission,
+		zos.PublicIPType: p.publicIPDecomission,
 	}
 
 	// only network support update atm

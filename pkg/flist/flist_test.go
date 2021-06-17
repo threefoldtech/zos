@@ -86,6 +86,10 @@ func (t *testCommander) args(args ...string) (map[string]string, []string) {
 }
 
 func (t *testCommander) Command(name string, args ...string) *exec.Cmd {
+	if name == "mountpoint" {
+		return exec.Command("true")
+	}
+
 	if name != "g8ufs" {
 		t.Fatal("invalid command name, expected 'g8ufs'")
 	}
@@ -165,7 +169,7 @@ func TestMountUnmount(t *testing.T) {
 	os.Remove(cmder.m["pid"])
 	strg.On("ReleaseFilesystem", mock.Anything, filepath.Base(mnt)).Return(nil)
 
-	sys.On("Unmount", mnt, uintptr(syscall.MNT_DETACH|syscall.MNT_FORCE)).Return(nil)
+	sys.On("Unmount", mnt, syscall.MNT_DETACH).Return(nil)
 
 	err = flister.Unmount(name)
 	require.NoError(t, err)
@@ -199,7 +203,7 @@ func TestMountUnmountRO(t *testing.T) {
 	os.Remove(cmder.m["pid"])
 	strg.On("ReleaseFilesystem", mock.Anything, filepath.Base(mnt)).Return(nil)
 
-	sys.On("Unmount", mnt, uintptr(syscall.MNT_DETACH|syscall.MNT_FORCE)).Return(nil)
+	sys.On("Unmount", mnt, syscall.MNT_DETACH).Return(nil)
 
 	err = flister.Unmount(name)
 	require.NoError(t, err)
