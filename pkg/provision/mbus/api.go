@@ -28,12 +28,21 @@ func (d *Deployments) setup(router rmb.Router) {
 
 	// zos deployment handlers
 	sub.WithHandler("deploy", d.deployHandler)
+	sub.WithHandler("update", d.updateHandler)
 	sub.WithHandler("delete", d.deleteHandler)
 	sub.WithHandler("get", d.getHandler)
 }
 
-func (d *Deployments) deployHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (d *Deployments) updateHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	data, err := d.createOrUpdate(ctx, payload, true)
+	if err != nil {
+		return nil, err.Err()
+	}
+	return data, nil
+}
+
+func (d *Deployments) deployHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := d.createOrUpdate(ctx, payload, false)
 	if err != nil {
 		return nil, err.Err()
 	}

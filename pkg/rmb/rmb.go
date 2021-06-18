@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	systemLocalBus = "msgbus.system.local"
-	replyBus       = "msgbus.system.reply"
-	numWorkers     = 5
+	replyBus   = "msgbus.system.reply"
+	numWorkers = 5
 )
 
 // twinKeyID is where the twin key is stored
@@ -249,7 +248,11 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 
 			data, err := m.call(requestCtx, message.Command, bytes)
 			if err != nil {
-				log.Err(err).Msg("err while handling job")
+				log.Debug().
+					Err(err).
+					Uint32("twin", message.TwinSrc).
+					Str("handler", message.Command).
+					Msg("error while handling job")
 				// TODO: create an error object
 				message.Err = err.Error()
 			}
@@ -290,18 +293,21 @@ func (m *MessageBus) sendReply(message Message, data interface{}) error {
 	// reply to source
 	message.TwinDest = []uint32{message.TwinSrc}
 	message.TwinSrc = src
+	message.Data = ""
 
-	bytes, err := json.Marshal(data)
-	if err != nil {
-		return err
+	if data != nil {
+		bytes, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		// base 64 encode the response data
+		message.Data = base64.StdEncoding.EncodeToString(bytes)
 	}
-	// base 64 encode the response data
-	message.Data = base64.StdEncoding.EncodeToString(bytes)
 
 	// set the time to now
 	message.Epoch = time.Now().Unix()
 
-	bytes, err = json.Marshal(message)
+	bytes, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}

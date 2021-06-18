@@ -13,12 +13,12 @@ import (
 	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
-type deleteOrGetArgs struct {
-	TwinID       uint32 `json:"twinID"`
-	DeploymentID uint32 `json:"deploymentID"`
+type idArgs struct {
+	TwinID       uint32 `json:"twin_id"`
+	DeploymentID uint32 `json:"deployment_id"`
 }
 
-func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, create bool) (interface{}, mw.Response) {
+func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, update bool) (interface{}, mw.Response) {
 	var deployment gridtypes.Deployment
 	if err := json.Unmarshal(payload, &deployment); err != nil {
 		return nil, mw.BadRequest(err)
@@ -47,7 +47,7 @@ func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, create
 	defer cancel()
 
 	action := d.engine.Provision
-	if !create {
+	if !update {
 		action = d.engine.Update
 	}
 
@@ -69,7 +69,7 @@ func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, create
 }
 
 func (d *Deployments) delete(ctx context.Context, payload []byte) (interface{}, mw.Response) {
-	var args deleteOrGetArgs
+	var args idArgs
 	err := json.Unmarshal(payload, &args)
 	if err != nil {
 		return nil, mw.Error(err)
@@ -97,7 +97,7 @@ func (d *Deployments) delete(ctx context.Context, payload []byte) (interface{}, 
 }
 
 func (d *Deployments) get(ctx context.Context, payload []byte) (interface{}, mw.Response) {
-	var args deleteOrGetArgs
+	var args idArgs
 	err := json.Unmarshal(payload, &args)
 	if err != nil {
 		return nil, mw.Error(err)

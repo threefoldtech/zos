@@ -22,3 +22,7 @@ type Router interface {
 	Subroute(route string) Router
 	Use(Middleware)
 }
+
+type Client interface {
+	Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error
+}
