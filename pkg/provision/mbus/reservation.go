@@ -14,7 +14,6 @@ import (
 )
 
 type idArgs struct {
-	TwinID       uint32 `json:"twin_id"`
 	DeploymentID uint32 `json:"deployment_id"`
 }
 
@@ -28,17 +27,7 @@ func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, update
 		return nil, mw.BadRequest(err)
 	}
 
-	twinSrc := rmb.GetTwinID(ctx)
-
-	authorized := false
-	if twinSrc == uint32(deployment.TwinID) {
-		authorized = true
-	}
-
-	if !authorized {
-		return nil, mw.UnAuthorized(fmt.Errorf("invalid user id in request message"))
-	}
-
+	deployment.TwinID = rmb.GetTwinID(ctx)
 	if err := deployment.Verify(d.engine.Twins()); err != nil {
 		return nil, mw.UnAuthorized(err)
 	}
@@ -78,13 +67,7 @@ func (d *Deployments) delete(ctx context.Context, payload []byte) (interface{}, 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
-	twinID := rmb.GetTwinID(ctx)
-
-	if args.TwinID != twinID {
-		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
-	}
-
-	err = d.engine.Deprovision(ctx, args.TwinID, args.DeploymentID, "requested by user")
+	err = d.engine.Deprovision(ctx, rmb.GetTwinID(ctx), args.DeploymentID, "requested by user")
 	if err == context.DeadlineExceeded {
 		return nil, mw.Unavailable(ctx.Err())
 	} else if errors.Is(err, provision.ErrDeploymentNotExists) {
@@ -103,13 +86,7 @@ func (d *Deployments) get(ctx context.Context, payload []byte) (interface{}, mw.
 		return nil, mw.Error(err)
 	}
 
-	twinID := rmb.GetTwinID(ctx)
-
-	if args.TwinID != twinID {
-		return nil, mw.UnAuthorized(fmt.Errorf("invalid twin id in request url doesn't match http signature"))
-	}
-
-	deployment, err := d.engine.Storage().Get(args.TwinID, args.DeploymentID)
+	deployment, err := d.engine.Storage().Get(rmb.GetTwinID(ctx), args.DeploymentID)
 	if errors.Is(err, provision.ErrDeploymentNotExists) {
 		return nil, mw.NotFound(fmt.Errorf("workload not found"))
 	} else if err != nil {
