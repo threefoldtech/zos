@@ -137,6 +137,8 @@ func action(cli *cli.Context) error {
 	}
 
 	zosRouter := mBus.Subroute("zos")
+	zosRouter.Use(rmb.LoggerMiddleware)
+
 	// the v1 endpoint will be used by all components to register endpoints
 	// that are specific for that component
 	//v1 := router.PathPrefix("/api/v1").Subrouter()

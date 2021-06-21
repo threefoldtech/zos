@@ -87,7 +87,7 @@ func (c *redisClient) Call(ctx context.Context, twin uint32, fn string, data int
 	}
 
 	// errorred ?
-	if len(msg.Err) > 0 {
+	if len(msg.Err) != 0 {
 		return errors.New(msg.Err)
 	}
 
@@ -96,7 +96,7 @@ func (c *redisClient) Call(ctx context.Context, twin uint32, fn string, data int
 		return nil
 	}
 
-	if len(msg.Data) != 0 {
+	if len(msg.Data) == 0 {
 		return fmt.Errorf("no response body was returned")
 	}
 
