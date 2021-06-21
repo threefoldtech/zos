@@ -265,6 +265,7 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 	}
 }
 
+// GetTwinID returns the twin id from context.
 func GetTwinID(ctx context.Context) uint32 {
 	twin, ok := ctx.Value(twinKeyID{}).(uint32)
 	if !ok {
@@ -311,6 +312,12 @@ func (m *MessageBus) sendReply(message Message, data interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	log.Debug().
+		Str("id", message.Retqueue).
+		Uint32("to", message.TwinDest[0]).
+		Str("fn", message.Command).
+		Msg("pushing response")
 
 	_, err = con.Do("LPUSH", replyBus, string(bytes))
 	if err != nil {

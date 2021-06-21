@@ -23,6 +23,7 @@ type Router interface {
 	Use(Middleware)
 }
 
+// Client is an rmb abstract client interface.
 type Client interface {
 	Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error
 }

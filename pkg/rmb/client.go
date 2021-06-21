@@ -13,13 +13,23 @@ import (
 
 const (
 	systemLocalBus = "msgbus.system.local"
+
+	// DefaultAddress default redis address when no address is passed
+	DefaultAddress = "tcp://127.0.0.1:6379"
 )
 
 type redisClient struct {
 	pool *redis.Pool
 }
 
+// NewClient creates a new rmb client. the given address should
+// be to the local redis. If not provided, default redis address
+// is used
 func NewClient(address string) (Client, error) {
+	if len(address) == 0 {
+		address = DefaultAddress
+	}
+
 	pool, err := newRedisPool(address)
 	if err != nil {
 		return nil, err
@@ -71,7 +81,7 @@ func (c *redisClient) Call(ctx context.Context, twin uint32, fn string, data int
 			return errors.Wrap(err, "unexpected error during waiting for the response")
 		}
 
-		if err == redis.ErrNil || data == nil {
+		if err == redis.ErrNil || slice == nil {
 			//timeout, just try again immediately
 			continue
 		}
