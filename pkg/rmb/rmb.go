@@ -199,7 +199,7 @@ func (m *MessageBus) Run(ctx context.Context) error {
 		go m.worker(ctx, jobs)
 	}
 
-	args := redis.Args{}.AddFlat(topics).Add(10)
+	args := redis.Args{}.AddFlat(topics).Add(3)
 	for {
 		select {
 		case <-ctx.Done():
