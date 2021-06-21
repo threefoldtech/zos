@@ -3,10 +3,12 @@ package mbus
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -57,6 +59,12 @@ func (n *Network) getPublicConfigHandler(ctx context.Context, payload []byte) (i
 }
 
 func (n *Network) setPublicConfigHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	twinID := rmb.GetTwinID(ctx)
+	env := environment.MustGet()
+	if uint32(env.FarmerID) == twinID {
+		return nil, fmt.Errorf("not authorized")
+	}
+
 	data, err := n.setPublicConfig(ctx, payload)
 	if err != nil {
 		return nil, err.Err()
