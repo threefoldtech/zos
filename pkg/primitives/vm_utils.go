@@ -16,6 +16,28 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
+func (p *Primitives) newYggNetworkInterface(ctx context.Context, wl *gridtypes.WorkloadWithID) (pkg.VMIface, error) {
+	network := stubs.NewNetworkerStub(p.zbus)
+
+	//TODO: if we use `ygg` as a network name. this will conflict
+	//if the user has a network that is called `ygg`.
+	tapName := tapNameFromName(wl.ID, "ygg")
+	iface, err := network.SetupYggTap(ctx, tapName)
+	if err != nil {
+		return pkg.VMIface{}, errors.Wrap(err, "could not set up tap device")
+	}
+
+	out := pkg.VMIface{
+		Tap:            iface.Name,
+		MAC:            iface.HW.String(),
+		IP6AddressCIDR: iface.IP,
+		IP6GatewayIP:   iface.Gateway.IP,
+		Public:         false,
+	}
+
+	return out, nil
+}
+
 func (p *Primitives) newPrivNetworkInterface(ctx context.Context, dl gridtypes.Deployment, wl *gridtypes.WorkloadWithID, inf zos.MachineInterface) (pkg.VMIface, error) {
 	network := stubs.NewNetworkerStub(p.zbus)
 	netID := zos.NetworkID(dl.TwinID, inf.Network)
@@ -49,7 +71,7 @@ func (p *Primitives) newPrivNetworkInterface(ctx context.Context, dl gridtypes.D
 		return pkg.VMIface{}, errors.Wrap(err, "could not convert private ipv4 to ipv6")
 	}
 
-	tapName := tapNameFromID(wl.ID)
+	tapName := tapNameFromName(wl.ID, string(inf.Network))
 	iface, err := network.SetupPrivTap(ctx, netID, tapName)
 	if err != nil {
 		return pkg.VMIface{}, errors.Wrap(err, "could not set up tap device")

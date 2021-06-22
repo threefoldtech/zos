@@ -370,7 +370,7 @@ func (s *NetworkerStub) SetupPubTap(ctx context.Context, arg0 string) (ret0 stri
 	return
 }
 
-func (s *NetworkerStub) SetupYggTap(ctx context.Context, arg0 string) (ret0 string, ret1 error) {
+func (s *NetworkerStub) SetupYggTap(ctx context.Context, arg0 string) (ret0 pkg.YggdrasilTap, ret1 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "SetupYggTap", args...)
 	if err != nil {

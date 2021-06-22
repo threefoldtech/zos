@@ -382,6 +382,10 @@ func (n *networker) SetupPrivTap(networkID pkg.NetID, name string) (string, erro
 		return "", errors.Wrap(err, "could not get network namespace tap device name")
 	}
 
+	if ifaceutil.Exists(tapIface, nil) {
+		return tapIface, nil
+	}
+
 	_, err = tuntap.CreateTap(tapIface, bridgeName)
 
 	return tapIface, err
@@ -436,17 +440,40 @@ func (n *networker) SetupPubTap(pubIPReservationID string) (string, error) {
 }
 
 // SetupYggTap sets up a tap device in the host namespace for the yggdrasil ip
-func (n *networker) SetupYggTap(name string) (string, error) {
+func (n *networker) SetupYggTap(name string) (tap pkg.YggdrasilTap, err error) {
 	log.Info().Str("pubip-res-id", string(name)).Msg("Setting up public tap interface")
 
 	tapIface, err := tapName(name)
 	if err != nil {
-		return "", errors.Wrap(err, "could not get network namespace tap device name")
+		return tap, errors.Wrap(err, "could not get network namespace tap device name")
+	}
+
+	tap.Name = tapIface
+
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("ygg:" + name))
+	tap.HW = hw
+	ip, err := n.ygg.SubnetFor(hw)
+	if err != nil {
+		return tap, err
+	}
+
+	tap.IP = net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(64, 128),
+	}
+
+	gw, err := n.ygg.Gateway()
+	if err != nil {
+		return tap, err
+	}
+
+	tap.Gateway = gw
+	if ifaceutil.Exists(tapIface, nil) {
+		return tap, nil
 	}
 
 	_, err = tuntap.CreateTap(tapIface, types.YggBridge)
-
-	return tapIface, err
+	return tap, err
 }
 
 // PubTapExists checks if the tap device for the public network exists already

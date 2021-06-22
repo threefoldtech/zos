@@ -26,6 +26,13 @@ type ContainerNetworkConfig struct {
 	YggdrasilIP bool
 }
 
+type YggdrasilTap struct {
+	Name    string
+	HW      net.HardwareAddr
+	IP      net.IPNet
+	Gateway net.IPNet
+}
+
 //Networker is the interface for the network module
 type Networker interface {
 	// Ready return nil is networkd is ready to operate
@@ -65,7 +72,7 @@ type Networker interface {
 	SetupPrivTap(networkID NetID, name string) (string, error)
 
 	// SetupYggTap sets up a tap device in the host namespace for the yggdrasil ip
-	SetupYggTap(name string) (string, error)
+	SetupYggTap(name string) (YggdrasilTap, error)
 
 	// TapExists checks if the tap device with the given name exists already
 	TapExists(name string) (bool, error)

@@ -1,7 +1,6 @@
 package primitives
 
 import (
-	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/json"
@@ -135,6 +134,23 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
 	}
 
+	if !config.Network.PublicIP.IsEmpty() {
+		inf, err := p.newPubNetworkInterface(ctx, deployment, config)
+		if err != nil {
+			return result, err
+		}
+		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
+	}
+
+	if config.Network.Planetary {
+		inf, err := p.newYggNetworkInterface(ctx, wl)
+		if err != nil {
+			return result, err
+		}
+
+		log.Debug().Msgf("Planetary: %+v", inf)
+		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
+	}
 	// - mount flist RO
 	mnt, err := flist.Mount(ctx, wl.ID.String(), config.FList, pkg.ReadOnlyMountOptions)
 	if err != nil {
@@ -272,10 +288,12 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 		log.Error().Err(err).Msg("failed to unmount machine flist")
 	}
 
-	tapName := tapNameFromID(wl.ID)
+	for _, inf := range cfg.Network.Interfaces {
+		tapName := tapNameFromName(wl.ID, string(inf.Network))
 
-	if err := network.RemoveTap(ctx, tapName); err != nil {
-		return errors.Wrap(err, "could not clean up tap device")
+		if err := network.RemoveTap(ctx, tapName); err != nil {
+			return errors.Wrap(err, "could not clean up tap device")
+		}
 	}
 
 	if len(cfg.Network.PublicIP) > 0 {
@@ -323,10 +341,12 @@ func (p *Primitives) vmRun(
 	return vm.Run(ctx, kubevm)
 }
 
-func tapNameFromID(wid gridtypes.WorkloadID) string {
-	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprint(wid))
-	h := md5.Sum(buf.Bytes())
+func tapNameFromName(id gridtypes.WorkloadID, network string) string {
+	m := md5.New()
+
+	fmt.Fprintf(m, "%s:%s", id.String(), network)
+
+	h := m.Sum(nil)
 	b := base58.Encode(h[:])
 	if len(b) > 13 {
 		b = b[:13]
