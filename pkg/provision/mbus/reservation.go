@@ -36,7 +36,7 @@ func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, update
 	defer cancel()
 
 	action := d.engine.Provision
-	if !update {
+	if update {
 		action = d.engine.Update
 	}
 

@@ -130,6 +130,7 @@ func (n *networker) WireguardPorts() ([]uint, error) {
 
 // Join Deprecated
 func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.ContainerNetworkConfig) (join pkg.Member, err error) {
+	panic("deprecated")
 	// TODO:
 	// 1- Make sure this network id is actually deployed
 	// 2- Check if the requested network config is doable
@@ -232,6 +233,7 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.Conta
 
 // Leave deprecated
 func (n *networker) Leave(networkdID pkg.NetID, containerID string) error {
+	panic("deprecated")
 	log.Info().Str("network-id", string(networkdID)).Msg("leaving network")
 
 	localNR, err := n.networkOf(string(networkdID))
