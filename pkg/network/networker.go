@@ -128,6 +128,7 @@ func (n *networker) WireguardPorts() ([]uint, error) {
 	return n.portSet.List()
 }
 
+// Join Deprecated
 func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.ContainerNetworkConfig) (join pkg.Member, err error) {
 	// TODO:
 	// 1- Make sure this network id is actually deployed
@@ -229,6 +230,7 @@ func (n *networker) Join(networkdID pkg.NetID, containerID string, cfg pkg.Conta
 	return join, nil
 }
 
+// Leave deprecated
 func (n *networker) Leave(networkdID pkg.NetID, containerID string) error {
 	log.Info().Str("network-id", string(networkdID)).Msg("leaving network")
 
@@ -355,7 +357,7 @@ func (n networker) createMacVlan(iface string, master string, hw net.HardwareAdd
 
 // SetupTap interface in the network resource. We only allow 1 tap interface to be
 // set up per NR currently
-func (n *networker) SetupTap(networkID pkg.NetID, name string) (string, error) {
+func (n *networker) SetupPrivTap(networkID pkg.NetID, name string) (string, error) {
 	log.Info().Str("network-id", string(networkID)).Msg("Setting up tap interface")
 
 	localNR, err := n.networkOf(string(networkID))
@@ -427,6 +429,20 @@ func (n *networker) SetupPubTap(pubIPReservationID string) (string, error) {
 
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(pubIPReservationID))
 	_, err = macvtap.CreateMACvTap(tapIface, public.PublicBridge, hw)
+
+	return tapIface, err
+}
+
+// SetupYggTap sets up a tap device in the host namespace for the yggdrasil ip
+func (n *networker) SetupYggTap(name string) (string, error) {
+	log.Info().Str("pubip-res-id", string(name)).Msg("Setting up public tap interface")
+
+	tapIface, err := tapName(name)
+	if err != nil {
+		return "", errors.Wrap(err, "could not get network namespace tap device name")
+	}
+
+	_, err = tuntap.CreateTap(tapIface, types.YggBridge)
 
 	return tapIface, err
 }

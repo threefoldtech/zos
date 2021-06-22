@@ -232,7 +232,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	// - boot
 
 	var iface string
-	iface, err = network.SetupTap(ctx, netID, tapName)
+	iface, err = network.SetupPrivTap(ctx, netID, tapName)
 	if err != nil {
 		return result, errors.Wrap(err, "could not set up tap device")
 	}
