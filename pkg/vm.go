@@ -11,6 +11,7 @@ import (
 
 //go:generate zbusc -module vmd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos/pkg+VMModule stubs/vmd_stub.go
 
+// Route structure
 type Route struct {
 	Net net.IPNet
 	// Gateway can be nil, in that
@@ -24,14 +25,13 @@ type VMIface struct {
 	Tap string
 	// Mac address of the device
 	MAC string
-
+	// ips assigned to this interface
 	IPs []net.IPNet
-
+	// extra routes on this interface
 	Routes []Route
-
-	// Gateway address for ipv4
+	// IP4DefaultGateway address for ipv4
 	IP4DefaultGateway net.IP
-	// Gateway address for ipv6
+	// IP6DefaultGateway address for ipv6
 	IP6DefaultGateway net.IP
 	// Private or public network
 	Public bool
@@ -74,6 +74,7 @@ type Boot struct {
 // KernelArgs are arguments passed to the kernel
 type KernelArgs map[string]string
 
+// String builds commandline string
 func (s KernelArgs) String() string {
 	var buf bytes.Buffer
 	for k, v := range s {
@@ -109,6 +110,7 @@ func (s KernelArgs) String() string {
 	return buf.String()
 }
 
+// Extend the arguments with set of extra arguments
 func (s KernelArgs) Extend(k KernelArgs) {
 	for a, b := range k {
 		s[a] = b

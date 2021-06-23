@@ -26,6 +26,7 @@ type ContainerNetworkConfig struct {
 	YggdrasilIP bool
 }
 
+// YggdrasilTap structure
 type YggdrasilTap struct {
 	Name    string
 	HW      net.HardwareAddr
