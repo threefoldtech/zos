@@ -192,7 +192,7 @@ func (p *Primitives) createZdbContainer(ctx context.Context, allocation pkg.Allo
 		return err
 	}
 
-	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data --mode %s  --listen :: --port %d --socket /socket/zdb.sock --dualnet", string(mode), zdbPort)
+	cmd := fmt.Sprintf("/bin/zdb --data /data --index /data  --listen :: --port %d --socket /socket/zdb.sock --dualnet", zdbPort)
 
 	err = p.zdbRun(ctx, string(name), rootFS, cmd, netNsName, volumePath, socketDir)
 	if err != nil {
