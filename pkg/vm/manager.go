@@ -27,10 +27,17 @@ const (
 	socketDir = "/var/run/cloud-hypervisor"
 	configDir = "config"
 	logsDir   = "logs"
-
-	defaultKernelArgs = "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules"
 )
 
+var (
+	//defaultKernelArgs if no args are set
+	defaultKernelArgs = pkg.KernelArgs{
+		"rw":      "",
+		"console": "ttyS0",
+		"reboot":  "k",
+		"panic":   "1",
+	}
+)
 var (
 	protectedKernelEnv = map[string]struct{}{
 		"init":       {},
@@ -317,6 +324,7 @@ func (m *Module) Run(vm pkg.VM) error {
 	cmdline := vm.KernelArgs
 	if cmdline == nil {
 		cmdline = pkg.KernelArgs{}
+		cmdline.Extend(defaultKernelArgs)
 	}
 
 	var fs []VirtioFS
