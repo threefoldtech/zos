@@ -28,11 +28,21 @@ func (p *Primitives) newYggNetworkInterface(ctx context.Context, wl *gridtypes.W
 	}
 
 	out := pkg.VMIface{
-		Tap:            iface.Name,
-		MAC:            iface.HW.String(),
-		IP6AddressCIDR: iface.IP,
-		IP6GatewayIP:   iface.Gateway.IP,
-		Public:         false,
+		Tap: iface.Name,
+		MAC: iface.HW.String(),
+		IPs: []net.IPNet{
+			iface.IP,
+		},
+		Routes: []pkg.Route{
+			{
+				Net: net.IPNet{
+					IP:   net.ParseIP("200::"),
+					Mask: net.CIDRMask(7, 128),
+				},
+				Gateway: iface.Gateway.IP,
+			},
+		},
+		Public: false,
 	}
 
 	return out, nil
@@ -78,14 +88,17 @@ func (p *Primitives) newPrivNetworkInterface(ctx context.Context, dl gridtypes.D
 	}
 
 	out := pkg.VMIface{
-		Tap:            iface,
-		MAC:            "", // rely on static IP configuration so we don't care here
-		IP4AddressCIDR: addrCIDR,
-		IP4GatewayIP:   net.IP(gw4),
-		IP4Net:         privNet,
-		IP6AddressCIDR: privIP6,
-		IP6GatewayIP:   gw6,
-		Public:         false,
+		Tap: iface,
+		MAC: "", // rely on static IP configuration so we don't care here
+		IPs: []net.IPNet{
+			addrCIDR, privIP6,
+		},
+		Routes: []pkg.Route{
+			{Net: privNet, Gateway: gw4},
+		},
+		IP4DefaultGateway: net.IP(gw4),
+		IP6DefaultGateway: gw6,
+		Public:            false,
 	}
 
 	return out, nil
@@ -114,12 +127,13 @@ func (p *Primitives) newPubNetworkInterface(ctx context.Context, deployment grid
 	mac := ifaceutil.HardwareAddrFromInputBytes([]byte(ipWl.ID.String()))
 
 	return pkg.VMIface{
-		Tap:            pubIface,
-		MAC:            mac.String(), // mac so we always get the same IPv6 from slaac
-		IP4AddressCIDR: pubIP,
-		IP4GatewayIP:   pubGw,
+		Tap: pubIface,
+		MAC: mac.String(), // mac so we always get the same IPv6 from slaac
+		IPs: []net.IPNet{
+			pubIP,
+		},
+		IP4DefaultGateway: pubGw,
 		// for now we get ipv6 from slaac, so leave ipv6 stuffs this empty
-		//
 		Public: true,
 	}, nil
 }

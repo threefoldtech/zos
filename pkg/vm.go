@@ -11,24 +11,28 @@ import (
 
 //go:generate zbusc -module vmd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos/pkg+VMModule stubs/vmd_stub.go
 
+type Route struct {
+	Net net.IPNet
+	// Gateway can be nil, in that
+	// case the device is used as a dev instead
+	Gateway net.IP
+}
+
 // VMIface structure
 type VMIface struct {
 	// Tap device name
 	Tap string
 	// Mac address of the device
 	MAC string
-	// Address of the device in the form of cidr for ipv4
-	IP4AddressCIDR net.IPNet
+
+	IPs []net.IPNet
+
+	Routes []Route
+
 	// Gateway address for ipv4
-	IP4GatewayIP net.IP
-	// Full subnet for the IP4 resource. This allows configuration of networking for
-	// non local subnets (i.e. NR on other nodes).
-	// Does not need to be set for public ifaces
-	IP4Net net.IPNet
-	// Address of the device in the form of cidr for ipv6
-	IP6AddressCIDR net.IPNet
+	IP4DefaultGateway net.IP
 	// Gateway address for ipv6
-	IP6GatewayIP net.IP
+	IP6DefaultGateway net.IP
 	// Private or public network
 	Public bool
 }
@@ -103,6 +107,12 @@ func (s KernelArgs) String() string {
 	}
 
 	return buf.String()
+}
+
+func (s KernelArgs) Extend(k KernelArgs) {
+	for a, b := range k {
+		s[a] = b
+	}
 }
 
 // VM config structure
