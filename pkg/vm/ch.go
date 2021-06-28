@@ -109,6 +109,15 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		cmd.ExtraFiles = append(cmd.ExtraFiles, tap)
 	}
 
+	out, err := os.Create(fmt.Sprintf("%s.out", logs))
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create process log file")
+	} else {
+		cmd.Stdout = out
+		cmd.Stderr = out
+		defer out.Close()
+	}
+
 	defer func() {
 		for _, c := range toClose {
 			c.Close()
