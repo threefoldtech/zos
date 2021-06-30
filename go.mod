@@ -11,7 +11,7 @@ require (
 	github.com/alexflint/go-filemutex v1.1.0
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/cenkalti/backoff/v3 v3.2.2
-	github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0
+	github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.1-0.20210302023953-904cb0b931a9
 	github.com/containerd/cgroups v1.0.1
 	github.com/containerd/containerd v1.5.0-rc.2
 	github.com/containerd/typeurl v1.0.2

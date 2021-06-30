@@ -10,7 +10,7 @@ import (
 )
 
 type substrateTwins struct {
-	sub Substrate
+	sub *Substrate
 	mem *lru.Cache
 }
 
@@ -48,7 +48,7 @@ func (s *substrateTwins) GetKey(id uint32) (ed25519.PublicKey, error) {
 }
 
 type substrateAdmins struct {
-	sub  Substrate
+	sub  *Substrate
 	twin uint32
 	pk   ed25519.PublicKey
 }

@@ -48,7 +48,7 @@ type Farm struct {
 	CityID            types.U32
 }
 
-func (s *substrateClient) GetFarm(id uint32) (*Farm, error) {
+func (s *Substrate) GetFarm(id uint32) (*Farm, error) {
 	meta, err := s.cl.RPC.State.GetMetadataLatest()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get substrate meta")

@@ -27,7 +27,7 @@ func (t *Twin) IPAddress() net.IP {
 	return net.ParseIP(t.IP)
 }
 
-func (s *substrateClient) GetTwin(id uint32) (*Twin, error) {
+func (s *Substrate) GetTwin(id uint32) (*Twin, error) {
 	meta, err := s.cl.RPC.State.GetMetadataLatest()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get substrate meta")

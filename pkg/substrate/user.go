@@ -15,7 +15,7 @@ type User struct {
 	Address   AccountID
 }
 
-func (s *substrateClient) GetUser(id uint32) (*User, error) {
+func (s *Substrate) GetUser(id uint32) (*User, error) {
 	meta, err := s.cl.RPC.State.GetMetadataLatest()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get substrate meta")

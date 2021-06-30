@@ -22,23 +22,23 @@ type Versioned struct {
 	Version uint32
 }
 
-type substrateClient struct {
+type Substrate struct {
 	cl *gsrpc.SubstrateAPI
 }
 
 // NewSubstrate creates a substrate client
-func NewSubstrate(url string) (Substrate, error) {
+func NewSubstrate(url string) (*Substrate, error) {
 	cl, err := gsrpc.NewSubstrateAPI(url)
 	if err != nil {
 		return nil, err
 	}
 
-	return &substrateClient{
+	return &Substrate{
 		cl: cl,
 	}, nil
 }
 
-func (s *substrateClient) getVersion(b types.StorageDataRaw) (uint32, error) {
+func (s *Substrate) getVersion(b types.StorageDataRaw) (uint32, error) {
 	var ver Versioned
 	if err := types.DecodeFromBytes(b, &ver); err != nil {
 		return 0, errors.Wrapf(ErrInvalidVersion, "failed to load version (reason: %s)", err)
