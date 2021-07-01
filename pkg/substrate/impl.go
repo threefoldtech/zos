@@ -23,7 +23,8 @@ type Versioned struct {
 }
 
 type Substrate struct {
-	cl *gsrpc.SubstrateAPI
+	cl   *gsrpc.SubstrateAPI
+	meta *types.Metadata
 }
 
 // NewSubstrate creates a substrate client
@@ -32,9 +33,14 @@ func NewSubstrate(url string) (*Substrate, error) {
 	if err != nil {
 		return nil, err
 	}
+	meta, err := cl.RPC.State.GetMetadataLatest()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Substrate{
-		cl: cl,
+		cl:   cl,
+		meta: meta,
 	}, nil
 }
 
