@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/scale"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
 )
 
@@ -289,18 +289,17 @@ func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) error {
 		return err
 	}
 
+	//node.Address =identity.PublicKey
 	account, err := s.getAccount(identity, meta)
 	if err != nil {
 		return errors.Wrap(err, "failed to get account")
 	}
 
-	nonce := uint32(account.Nonce)
-
 	o := types.SignatureOptions{
-		BlockHash:          genesisHash,
+		// BlockHash:          genesisHash,
 		Era:                types.ExtrinsicEra{IsMortalEra: false},
 		GenesisHash:        genesisHash,
-		Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
+		Nonce:              types.NewUCompactFromUInt(uint64(account.Nonce)),
 		SpecVersion:        rv.SpecVersion,
 		Tip:                types.NewUCompactFromUInt(0),
 		TransactionVersion: 1,

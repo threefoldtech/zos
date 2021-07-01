@@ -15,7 +15,7 @@ const (
 // GetFarmTwin gets the IP of a farmer twin given the substrate db url
 // and the farm id
 func GetFarmTwin(url string, id uint32) (*substrate.Twin, error) {
-	sub, err := substrate.NewSubstrate(nil, url)
+	sub, err := substrate.NewSubstrate(url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to connect to substrate")
 	}

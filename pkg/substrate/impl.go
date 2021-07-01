@@ -3,8 +3,8 @@ package substrate
 import (
 	"fmt"
 
-	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
 )
 
