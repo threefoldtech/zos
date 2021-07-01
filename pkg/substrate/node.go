@@ -1,127 +1,13 @@
 package substrate
 
 import (
-	"bytes"
 	"crypto/ed25519"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
 
-	"github.com/cenkalti/backoff/v3"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
-	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
 )
-
-var (
-	errAccountNotFound = fmt.Errorf("account not found")
-)
-
-/*
-curl --header "Content-Type: application/json" \
-  --request POST \
-  --data '{"kycSignature": "", "data": {"name": "", "email": ""}, "substrateAccountID": "5DAprR72N6s7AWGwN7TzV9MyuyGk9ifrq8kVxoXG9EYWpic4"}' \
-  https://api.substrate01.threefold.io/activate
-*/
-
-func (s *Substrate) activateAccount(identity signature.KeyringPair) error {
-	const url = "https://api.substrate01.threefold.io/activate"
-
-	var buf bytes.Buffer
-	json.NewEncoder(&buf).Encode(map[string]string{
-		"substrateAccountID": identity.Address,
-	})
-
-	response, err := http.Post(url, "application/json", &buf)
-	if err != nil {
-		return errors.Wrap(err, "failed to call activation service")
-	}
-
-	defer response.Body.Close()
-
-	if response.StatusCode == http.StatusOK || response.StatusCode == http.StatusConflict {
-		// it went fine.
-		return nil
-	}
-
-	return fmt.Errorf("failed to activate account: %s", response.Status)
-}
-
-func (s *Substrate) EnsureAccount(sk ed25519.PrivateKey) (info types.AccountInfo, err error) {
-	identity, err := s.Identity(sk)
-	if err != nil {
-		return
-	}
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return info, err
-	}
-
-	info, err = s.getAccount(identity, meta)
-	if errors.Is(err, errAccountNotFound) {
-		// account activation
-		if err = s.activateAccount(identity); err != nil {
-			return
-		}
-
-		// after activation this can take up to 10 seconds
-		// before the account is actually there !
-
-		exp := backoff.NewExponentialBackOff()
-		exp.MaxElapsedTime = 10 * time.Second
-		exp.MaxInterval = 3 * time.Second
-
-		err = backoff.Retry(func() error {
-			info, err = s.getAccount(identity, meta)
-			return err
-		}, exp)
-
-		return
-	}
-
-	return
-
-}
-
-func (s *Substrate) Identity(sk ed25519.PrivateKey) (signature.KeyringPair, error) {
-	str := types.HexEncodeToString(sk[:32])
-
-	return signature.KeyringPairFromSecret(str, 0)
-}
-
-func (s *Substrate) getAccount(identity signature.KeyringPair, meta *types.Metadata) (info types.AccountInfo, err error) {
-	key, err := types.CreateStorageKey(meta, "System", "Account", identity.PublicKey, nil)
-	if err != nil {
-		err = errors.Wrap(err, "failed to create storage key")
-		return
-	}
-
-	ok, err := s.cl.RPC.State.GetStorageLatest(key, &info)
-	if err != nil || !ok {
-		if !ok {
-			return info, errAccountNotFound
-		}
-
-		return
-	}
-
-	return
-}
-
-func (s *Substrate) GetAccount(sk ed25519.PrivateKey) (info types.AccountInfo, err error) {
-	identity, err := s.Identity(sk)
-	if err != nil {
-		return
-	}
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return info, err
-	}
-
-	return s.getAccount(identity, meta)
-}
 
 type Resources struct {
 	HRU types.U64
@@ -159,6 +45,16 @@ func (p *Role) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
+func (m Role) Encode(encoder scale.Encoder) (err error) {
+	if m.IsNode {
+		err = encoder.PushByte(0)
+	} else if m.IsGateway {
+		err = encoder.PushByte(1)
+	}
+
+	return
+}
+
 type PublicConfig struct {
 	IPv4 string
 	IPv6 string
@@ -169,6 +65,23 @@ type PublicConfig struct {
 type OptionPublicConfig struct {
 	HasValue bool
 	AsValue  PublicConfig
+}
+
+func (m OptionPublicConfig) Encode(encoder scale.Encoder) (err error) {
+	var i byte
+	if m.HasValue {
+		i = 1
+	}
+	err = encoder.PushByte(i)
+	if err != nil {
+		return err
+	}
+
+	if m.HasValue {
+		err = encoder.Encode(m.AsValue)
+	}
+
+	return
 }
 
 // Farm type
@@ -186,7 +99,8 @@ type Node struct {
 	PublicConfig OptionPublicConfig
 }
 
-func (s *Substrate) GetNodeByPubKey(pk ed25519.PublicKey) (*Node, error) {
+//GetNodeByPubKey by an SS58 address
+func (s *Substrate) GetNodeByPubKey(pk []byte) (*Node, error) {
 	meta, err := s.cl.RPC.State.GetMetadataLatest()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get substrate meta")
@@ -259,15 +173,15 @@ func (s *Substrate) getNode(key types.StorageKey) (*Node, error) {
 	return &node, nil
 }
 
-func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) error {
+func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) (*Node, error) {
 	meta, err := s.cl.RPC.State.GetMetadataLatest()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	c, err := types.NewCall(meta, "TfgridModule.create_node", node)
 	if err != nil {
-		return errors.Wrap(err, "failed to create call")
+		return nil, errors.Wrap(err, "failed to create call")
 	}
 
 	// Create the extrinsic
@@ -275,28 +189,27 @@ func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) error {
 
 	genesisHash, err := s.cl.RPC.Chain.GetBlockHash(0)
 	if err != nil {
-		return errors.Wrap(err, "failed to get genesisHash")
+		return nil, errors.Wrap(err, "failed to get genesisHash")
 	}
 
 	rv, err := s.cl.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	identity, err := s.Identity(sk)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	//node.Address =identity.PublicKey
 	account, err := s.getAccount(identity, meta)
 	if err != nil {
-		return errors.Wrap(err, "failed to get account")
+		return nil, errors.Wrap(err, "failed to get account")
 	}
 
 	o := types.SignatureOptions{
-		// BlockHash:          genesisHash,
+		BlockHash:          genesisHash,
 		Era:                types.ExtrinsicEra{IsMortalEra: false},
 		GenesisHash:        genesisHash,
 		Nonce:              types.NewUCompactFromUInt(uint64(account.Nonce)),
@@ -305,16 +218,29 @@ func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) error {
 		TransactionVersion: 1,
 	}
 
-	err = ext.Sign(identity, o)
+	err = s.sign(&ext, identity, o)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign")
+		return nil, errors.Wrap(err, "failed to sign")
 	}
 
 	// Send the extrinsic
-	_, err = s.cl.RPC.Author.SubmitExtrinsic(ext)
+	sub, err := s.cl.RPC.Author.SubmitAndWatchExtrinsic(ext)
 	if err != nil {
-		return errors.Wrap(err, "failed to submit extrinsic")
+		return nil, errors.Wrap(err, "failed to submit extrinsic")
 	}
 
-	return nil
+	defer sub.Unsubscribe()
+
+	for event := range sub.Chan() {
+		if event.IsFinalized {
+			break
+		}
+	}
+
+	result, err := s.GetNodeByPubKey(identity.PublicKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get node from chain, probably failed to create")
+	}
+
+	return result, nil
 }
