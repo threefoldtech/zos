@@ -114,11 +114,15 @@ func (s *Substrate) EnsureAccount(sk ed25519.PrivateKey) (info types.AccountInfo
 
 }
 
-func (s *Substrate) Identity(sk ed25519.PrivateKey) (signature.KeyringPair, error) {
+func Identity(sk ed25519.PrivateKey) (signature.KeyringPair, error) {
 	str := types.HexEncodeToString(sk.Seed())
 	return keyringPairFromSecret(str, 42)
 	// because 42 is the answer to life the universe and everything
 	// no, seriously, don't change it, it has to be 42.
+}
+
+func (s *Substrate) Identity(sk ed25519.PrivateKey) (signature.KeyringPair, error) {
+	return Identity(sk)
 }
 
 func (s *Substrate) getAccount(identity signature.KeyringPair, meta *types.Metadata) (info types.AccountInfo, err error) {
