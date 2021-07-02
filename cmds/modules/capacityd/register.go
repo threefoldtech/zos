@@ -21,10 +21,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/substrate"
 )
 
-func registration(ctx context.Context, cl zbus.Client) error {
+func registration(ctx context.Context, cl zbus.Client) (uint32, error) {
 	env, err := environment.Get()
 	if err != nil {
-		return errors.Wrap(err, "failed to get runtime environment for zos")
+		return 0, errors.Wrap(err, "failed to get runtime environment for zos")
 	}
 
 	storage := stubs.NewStorageModuleStub(cl)
@@ -36,7 +36,7 @@ func registration(ctx context.Context, cl zbus.Client) error {
 	oracle := capacity.NewResourceOracle(storage)
 	cap, err := oracle.Total()
 	if err != nil {
-		return errors.Wrap(err, "failed to get node capacity")
+		return 0, errors.Wrap(err, "failed to get node capacity")
 	}
 
 	log.Debug().
@@ -48,7 +48,7 @@ func registration(ctx context.Context, cl zbus.Client) error {
 
 	sub, err := env.GetSubstrate()
 	if err != nil {
-		return errors.Wrap(err, "failed to create substrate client")
+		return 0, errors.Wrap(err, "failed to create substrate client")
 	}
 
 	exp := backoff.NewExponentialBackOff()
@@ -60,13 +60,11 @@ func registration(ctx context.Context, cl zbus.Client) error {
 		return err
 	}, bo, retryNotify)
 
-	log.Info().Uint32("twin", twinID).Msg("got twin id")
 	if err != nil {
-		return errors.Wrap(err, "failed to register node")
+		return 0, errors.Wrap(err, "failed to register node")
 	}
 
-	log.Info().Msg("node has been registered")
-	return nil
+	return twinID, nil
 }
 
 func retryNotify(err error, d time.Duration) {
