@@ -23,6 +23,7 @@ const (
 	YggIface = "ygg0"
 )
 
+// NodeConfig type
 type NodeConfig config.NodeConfig
 
 // NodeID returns the yggdrasil node ID of s

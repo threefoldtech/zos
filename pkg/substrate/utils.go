@@ -108,7 +108,7 @@ func (s *Substrate) call(sk ed25519.PrivateKey, call types.Call) error {
 		return err
 	}
 
-	identity, err := s.Identity(sk)
+	identity, err := Identity(sk)
 	if err != nil {
 		return err
 	}

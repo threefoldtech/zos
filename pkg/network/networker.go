@@ -740,7 +740,7 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 		return errors.Wrap(err, "failed to connect to substrate")
 	}
 	sk := n.identity.PrivateKey(context.Background())
-	identity, err := sub.Identity(sk)
+	identity, err := substrate.Identity(sk)
 	if err != nil {
 		return err
 	}

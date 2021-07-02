@@ -15,6 +15,7 @@ type User struct {
 	Address   AccountID
 }
 
+// GetUser with id
 func (s *Substrate) GetUser(id uint32) (*User, error) {
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {

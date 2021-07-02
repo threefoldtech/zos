@@ -82,8 +82,10 @@ func (s *Substrate) activateAccount(identity signature.KeyringPair) error {
 	return fmt.Errorf("failed to activate account: %s", response.Status)
 }
 
+// EnsureAccount makes sure account is available on blockchain
+// if not, it uses activation service to create one
 func (s *Substrate) EnsureAccount(sk ed25519.PrivateKey) (info types.AccountInfo, err error) {
-	identity, err := s.Identity(sk)
+	identity, err := Identity(sk)
 	if err != nil {
 		return
 	}
@@ -114,15 +116,12 @@ func (s *Substrate) EnsureAccount(sk ed25519.PrivateKey) (info types.AccountInfo
 
 }
 
+// Identity derive the correct substrate identity from ed25519 key
 func Identity(sk ed25519.PrivateKey) (signature.KeyringPair, error) {
 	str := types.HexEncodeToString(sk.Seed())
 	return keyringPairFromSecret(str, 42)
 	// because 42 is the answer to life the universe and everything
 	// no, seriously, don't change it, it has to be 42.
-}
-
-func (s *Substrate) Identity(sk ed25519.PrivateKey) (signature.KeyringPair, error) {
-	return Identity(sk)
 }
 
 func (s *Substrate) getAccount(identity signature.KeyringPair, meta *types.Metadata) (info types.AccountInfo, err error) {
@@ -144,8 +143,9 @@ func (s *Substrate) getAccount(identity signature.KeyringPair, meta *types.Metad
 	return
 }
 
+// GetAccount gets account info with secure key
 func (s *Substrate) GetAccount(sk ed25519.PrivateKey) (info types.AccountInfo, err error) {
-	identity, err := s.Identity(sk)
+	identity, err := Identity(sk)
 	if err != nil {
 		return
 	}

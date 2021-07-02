@@ -99,6 +99,7 @@ func Get() (Environment, error) {
 	return getEnvironmentFromParams(params)
 }
 
+// GetSubstrate gets a client to subsrate blockchain
 func (e *Environment) GetSubstrate() (*substrate.Substrate, error) {
 	return substrate.NewSubstrate(e.SubstrateURL)
 }

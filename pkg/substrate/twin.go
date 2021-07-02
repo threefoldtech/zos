@@ -29,6 +29,7 @@ func (t *Twin) IPAddress() net.IP {
 	return net.ParseIP(t.IP)
 }
 
+// GetTwinsByPubKey gets a twin with public key
 func (s *Substrate) GetTwinsByPubKey(pk []byte) ([]uint32, error) {
 	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "TwinsByPubkey", pk, nil)
 	if err != nil {
@@ -52,6 +53,7 @@ func (s *Substrate) GetTwinsByPubKey(pk []byte) ([]uint32, error) {
 	return results, nil
 }
 
+// GetTwin gets a twin
 func (s *Substrate) GetTwin(id uint32) (*Twin, error) {
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
@@ -90,6 +92,7 @@ func (s *Substrate) GetTwin(id uint32) (*Twin, error) {
 	return &twin, nil
 }
 
+// CreateTwin creates a twin
 func (s *Substrate) CreateTwin(sk ed25519.PrivateKey, ip net.IP) (uint32, error) {
 	c, err := types.NewCall(s.meta, "TfgridModule.create_twin", ip.String())
 	if err != nil {
@@ -100,7 +103,7 @@ func (s *Substrate) CreateTwin(sk ed25519.PrivateKey, ip net.IP) (uint32, error)
 		return 0, err
 	}
 
-	identity, err := s.Identity(sk)
+	identity, err := Identity(sk)
 	if err != nil {
 		return 0, err
 	}

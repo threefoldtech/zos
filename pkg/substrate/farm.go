@@ -48,6 +48,7 @@ type Farm struct {
 	CityID            types.U32
 }
 
+// GetFarm gets a farm with ID
 func (s *Substrate) GetFarm(id uint32) (*Farm, error) {
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {

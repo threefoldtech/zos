@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Resources type
 type Resources struct {
 	HRU types.U64
 	SRU types.U64
@@ -16,18 +17,20 @@ type Resources struct {
 	MRU types.U64
 }
 
+// Location type
 type Location struct {
 	Longitude string
 	Latitude  string
 }
 
+// Role type
 type Role struct {
 	IsNode    bool
 	IsGateway bool
 }
 
 // Decode implementation for the enum type
-func (p *Role) Decode(decoder scale.Decoder) error {
+func (r *Role) Decode(decoder scale.Decoder) error {
 	b, err := decoder.ReadOneByte()
 	if err != nil {
 		return err
@@ -35,9 +38,9 @@ func (p *Role) Decode(decoder scale.Decoder) error {
 
 	switch b {
 	case 0:
-		p.IsNode = true
+		r.IsNode = true
 	case 1:
-		p.IsGateway = true
+		r.IsGateway = true
 	default:
 		return fmt.Errorf("unknown CertificateType value")
 	}
@@ -45,16 +48,18 @@ func (p *Role) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
-func (m Role) Encode(encoder scale.Encoder) (err error) {
-	if m.IsNode {
+// Encode implementation
+func (r Role) Encode(encoder scale.Encoder) (err error) {
+	if r.IsNode {
 		err = encoder.PushByte(0)
-	} else if m.IsGateway {
+	} else if r.IsGateway {
 		err = encoder.PushByte(1)
 	}
 
 	return
 }
 
+// PublicConfig type
 type PublicConfig struct {
 	IPv4 string
 	IPv6 string
@@ -62,11 +67,13 @@ type PublicConfig struct {
 	GWv6 string
 }
 
+// OptionPublicConfig type
 type OptionPublicConfig struct {
 	HasValue bool
 	AsValue  PublicConfig
 }
 
+// Encode implementation
 func (m OptionPublicConfig) Encode(encoder scale.Encoder) (err error) {
 	var i byte
 	if m.HasValue {
@@ -84,7 +91,7 @@ func (m OptionPublicConfig) Encode(encoder scale.Encoder) (err error) {
 	return
 }
 
-// Farm type
+// Node type
 type Node struct {
 	Versioned
 	ID           types.U32
@@ -119,6 +126,7 @@ func (s *Substrate) GetNodeByPubKey(pk []byte) (uint32, error) {
 	return uint32(id), nil
 }
 
+// GetNode with id
 func (s *Substrate) GetNode(id uint32) (*Node, error) {
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
@@ -163,6 +171,7 @@ func (s *Substrate) getNode(key types.StorageKey) (*Node, error) {
 	return &node, nil
 }
 
+// CreateNode creates a node
 func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) (uint32, error) {
 	c, err := types.NewCall(s.meta, "TfgridModule.create_node", node)
 	if err != nil {
@@ -173,7 +182,7 @@ func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) (uint32, error)
 		return 0, err
 	}
 
-	identity, err := s.Identity(sk)
+	identity, err := Identity(sk)
 	if err != nil {
 		return 0, err
 	}
@@ -182,6 +191,7 @@ func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) (uint32, error)
 
 }
 
+// UpdateNode updates a node
 func (s *Substrate) UpdateNode(sk ed25519.PrivateKey, node Node) (uint32, error) {
 	c, err := types.NewCall(s.meta, "TfgridModule.update_node", node)
 	if err != nil {
@@ -192,7 +202,7 @@ func (s *Substrate) UpdateNode(sk ed25519.PrivateKey, node Node) (uint32, error)
 		return 0, err
 	}
 
-	identity, err := s.Identity(sk)
+	identity, err := Identity(sk)
 	if err != nil {
 		return 0, err
 	}

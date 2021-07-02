@@ -112,7 +112,7 @@ func registerNode(
 	log.Info().Msg("registering node on blockchain")
 
 	sk := ed25519.PrivateKey(mgr.PrivateKey(ctx))
-	identity, err := sub.Identity(sk)
+	identity, err := substrate.Identity(sk)
 	if err != nil {
 		return 0, err
 	}
@@ -182,7 +182,7 @@ func registerNode(
 }
 
 func ensureTwin(sub *substrate.Substrate, sk ed25519.PrivateKey, ip net.IP) (uint32, error) {
-	identity, err := sub.Identity(sk)
+	identity, err := substrate.Identity(sk)
 	if err != nil {
 		return 0, err
 	}

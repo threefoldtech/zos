@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
-	"github.com/centrifuge/go-substrate-rpc-client/v3/rpc/state"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
 )
@@ -23,6 +22,7 @@ type Versioned struct {
 	Version uint32
 }
 
+// Substrate client
 type Substrate struct {
 	cl   *gsrpc.SubstrateAPI
 	meta *types.Metadata
@@ -55,16 +55,6 @@ func (s *Substrate) Refresh() error {
 
 	s.meta = meta
 	return nil
-}
-
-func (s *Substrate) Subscribe() (*state.StorageSubscription, error) {
-	// Subscribe to system events via storage
-	key, err := types.CreateStorageKey(s.meta, "System", "Events", nil)
-	if err != nil {
-		panic(err)
-	}
-
-	return s.cl.RPC.State.SubscribeStorageRaw([]types.StorageKey{key})
 }
 
 func (s *Substrate) getVersion(b types.StorageDataRaw) (uint32, error) {
