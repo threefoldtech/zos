@@ -181,3 +181,22 @@ func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) (uint32, error)
 	return s.GetNodeByPubKey(identity.PublicKey)
 
 }
+
+func (s *Substrate) UpdateNode(sk ed25519.PrivateKey, node Node) (uint32, error) {
+	c, err := types.NewCall(s.meta, "TfgridModule.update_node", node)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to create call")
+	}
+
+	if err := s.call(sk, c); err != nil {
+		return 0, err
+	}
+
+	identity, err := s.Identity(sk)
+	if err != nil {
+		return 0, err
+	}
+
+	return s.GetNodeByPubKey(identity.PublicKey)
+
+}

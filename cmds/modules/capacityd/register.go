@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"net"
+	"reflect"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
@@ -95,6 +96,18 @@ func registerNode(
 		}
 	}
 
+	resources := substrate.Resources{
+		HRU: types.U64(cap.HRU),
+		SRU: types.U64(cap.SRU),
+		CRU: types.U64(cap.CRU),
+		MRU: types.U64(cap.MRU),
+	}
+
+	location := substrate.Location{
+		Longitude: fmt.Sprint(loc.Longitute),
+		Latitude:  fmt.Sprint(loc.Latitude),
+	}
+
 	log.Info().Str("id", mgr.NodeID(ctx).Identity()).Msg("start registration of the node")
 	log.Info().Msg("registering node on blockchain")
 
@@ -108,14 +121,28 @@ func registerNode(
 	if err != nil && !errors.Is(err, substrate.ErrNotFound) {
 		return 0, err
 	} else if err == nil {
+		log.Debug().Uint32("node", nodeID).Msg("node already found on blockchain")
 		node, err := sub.GetNode(nodeID)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to get node with id: %d", nodeID)
 		}
 
-		// TODO: validate we have the same values
-		// otherwise we need to call update!
-		return uint32(node.TwinID), nil
+		if reflect.DeepEqual(node.PublicConfig, pubCfg) &&
+			reflect.DeepEqual(node.Resources, resources) &&
+			reflect.DeepEqual(node.Location, location) {
+			// so node exists AND pub config, nor resources hasn't changed
+			log.Debug().Msg("node information has not changed")
+			return uint32(node.TwinID), nil
+		}
+
+		// we need to update the node
+		node.PublicConfig = pubCfg
+		node.Resources = resources
+		node.Location = location
+
+		log.Debug().Msg("node data have changing, issuing an update node")
+		_, err = sub.UpdateNode(sk, *node)
+		return uint32(node.TwinID), err
 	}
 
 	if _, err := sub.EnsureAccount(sk); err != nil {
@@ -137,18 +164,10 @@ func registerNode(
 
 	// create node
 	_, err = sub.CreateNode(sk, substrate.Node{
-		FarmID: types.U32(env.FarmerID),
-		TwinID: types.U32(twinID),
-		Resources: substrate.Resources{
-			HRU: types.U64(cap.HRU),
-			SRU: types.U64(cap.SRU),
-			CRU: types.U64(cap.CRU),
-			MRU: types.U64(cap.MRU),
-		},
-		Location: substrate.Location{
-			Longitude: fmt.Sprint(loc.Longitute),
-			Latitude:  fmt.Sprint(loc.Latitude),
-		},
+		FarmID:       types.U32(env.FarmerID),
+		TwinID:       types.U32(twinID),
+		Resources:    resources,
+		Location:     location,
 		CountryID:    0,
 		CityID:       0,
 		Role:         substrate.Role{IsNode: true},
