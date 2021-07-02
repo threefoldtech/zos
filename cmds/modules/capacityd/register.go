@@ -27,7 +27,6 @@ func registration(ctx context.Context, cl zbus.Client) error {
 		return errors.Wrap(err, "failed to get runtime environment for zos")
 	}
 
-	mgr := stubs.NewIdentityManagerStub(cl)
 	storage := stubs.NewStorageModuleStub(cl)
 
 	loc, err := geoip.Fetch()
@@ -57,7 +56,7 @@ func registration(ctx context.Context, cl zbus.Client) error {
 	bo := backoff.WithContext(exp, ctx)
 	var twinID uint32
 	err = backoff.RetryNotify(func() error {
-		twinID, err = registerNode(ctx, env, mgr, sub, cap, loc)
+		twinID, err = registerNode(ctx, env, cl, sub, cap, loc)
 		return err
 	}, bo, retryNotify)
 
@@ -77,14 +76,30 @@ func retryNotify(err error, d time.Duration) {
 func registerNode(
 	ctx context.Context,
 	env environment.Environment,
-	mgr *stubs.IdentityManagerStub,
+	cl zbus.Client,
 	sub *substrate.Substrate,
 	cap gridtypes.Capacity,
 	loc geoip.Location,
 ) (uint32, error) {
+	var (
+		mgr    = stubs.NewIdentityManagerStub(cl)
+		netMgr = stubs.NewNetworkerStub(cl)
+	)
+
+	var pubCfg substrate.OptionPublicConfig
+	if pub, err := netMgr.GetPublicConfig(ctx); err == nil {
+		pubCfg.HasValue = true
+		pubCfg.AsValue = substrate.PublicConfig{
+			IPv4: pub.IPv4.String(),
+			GWv4: pub.GW4.String(),
+			IPv6: pub.IPv6.String(),
+			GWv6: pub.GW6.String(),
+		}
+	}
 
 	log.Info().Str("id", mgr.NodeID(ctx).Identity()).Msg("start registration of the node")
 	log.Info().Msg("registering node on blockchain")
+
 	sk := ed25519.PrivateKey(mgr.PrivateKey(ctx))
 	identity, err := sub.Identity(sk)
 	if err != nil {
@@ -100,6 +115,8 @@ func registerNode(
 			return 0, errors.Wrapf(err, "failed to get node with id: %d", nodeID)
 		}
 
+		// TODO: validate we have the same values
+		// otherwise we need to call update!
 		return uint32(node.TwinID), nil
 	}
 
@@ -134,12 +151,10 @@ func registerNode(
 			Longitude: fmt.Sprint(loc.Longitute),
 			Latitude:  fmt.Sprint(loc.Latitude),
 		},
-		CountryID: 0,
-		CityID:    0,
-		Role:      substrate.Role{IsNode: true},
-
-		// TODO: set or update public config
-		// PublicConfig: substrate.OptionPublicConfig,
+		CountryID:    0,
+		CityID:       0,
+		Role:         substrate.Role{IsNode: true},
+		PublicConfig: pubCfg,
 	})
 
 	if err != nil {
