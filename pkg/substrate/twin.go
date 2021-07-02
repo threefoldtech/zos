@@ -41,7 +41,7 @@ func (s *Substrate) GetTwinsByPubKey(pk []byte) ([]uint32, error) {
 	}
 
 	if !ok {
-		return nil, fmt.Errorf("node not found")
+		return nil, nil
 	}
 
 	results := make([]uint32, 0, len(ids))

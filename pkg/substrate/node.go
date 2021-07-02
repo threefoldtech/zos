@@ -113,7 +113,7 @@ func (s *Substrate) GetNodeByPubKey(pk []byte) (uint32, error) {
 	}
 
 	if !ok || id == 0 {
-		return 0, fmt.Errorf("node not found")
+		return 0, errors.Wrap(ErrNotFound, "node not found")
 	}
 
 	return uint32(id), nil
@@ -157,7 +157,6 @@ func (s *Substrate) getNode(key types.StorageKey) (*Node, error) {
 			return nil, errors.Wrap(err, "failed to load object")
 		}
 	default:
-		fmt.Println("version:", version)
 		return nil, ErrUnknownVersion
 	}
 
