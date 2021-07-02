@@ -87,12 +87,8 @@ func (s *Substrate) EnsureAccount(sk ed25519.PrivateKey) (info types.AccountInfo
 	if err != nil {
 		return
 	}
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return info, err
-	}
 
-	info, err = s.getAccount(identity, meta)
+	info, err = s.getAccount(identity, s.meta)
 	if errors.Is(err, errAccountNotFound) {
 		// account activation
 		if err = s.activateAccount(identity); err != nil {
@@ -107,7 +103,7 @@ func (s *Substrate) EnsureAccount(sk ed25519.PrivateKey) (info types.AccountInfo
 		exp.MaxInterval = 3 * time.Second
 
 		err = backoff.Retry(func() error {
-			info, err = s.getAccount(identity, meta)
+			info, err = s.getAccount(identity, s.meta)
 			return err
 		}, exp)
 

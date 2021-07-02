@@ -30,12 +30,7 @@ func (t *Twin) IPAddress() net.IP {
 }
 
 func (s *Substrate) GetTwinsByPubKey(pk []byte) ([]uint32, error) {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get substrate meta")
-	}
-
-	key, err := types.CreateStorageKey(meta, "TfgridModule", "TwinsByPubkey", pk, nil)
+	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "TwinsByPubkey", pk, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
@@ -56,17 +51,13 @@ func (s *Substrate) GetTwinsByPubKey(pk []byte) ([]uint32, error) {
 
 	return results, nil
 }
-func (s *Substrate) GetTwin(id uint32) (*Twin, error) {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get substrate meta")
-	}
 
+func (s *Substrate) GetTwin(id uint32) (*Twin, error) {
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "substrate: encoding error building query arguments")
 	}
-	key, err := types.CreateStorageKey(meta, "TfgridModule", "Twins", bytes, nil)
+	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "Twins", bytes, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
@@ -99,74 +90,29 @@ func (s *Substrate) GetTwin(id uint32) (*Twin, error) {
 	return &twin, nil
 }
 
-func (s *Substrate) CreateTwin(sk ed25519.PrivateKey, twin Twin) (*Node, error) {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
+func (s *Substrate) CreateTwin(sk ed25519.PrivateKey, ip net.IP) (uint32, error) {
+	c, err := types.NewCall(s.meta, "TfgridModule.create_twin", ip.String())
 	if err != nil {
-		return nil, err
+		return 0, errors.Wrap(err, "failed to create call")
 	}
 
-	c, err := types.NewCall(meta, "TfgridModule.create_twin", twin)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create call")
-	}
-
-	// Create the extrinsic
-	ext := types.NewExtrinsic(c)
-
-	genesisHash, err := s.cl.RPC.Chain.GetBlockHash(0)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get genesisHash")
-	}
-
-	rv, err := s.cl.RPC.State.GetRuntimeVersionLatest()
-	if err != nil {
-		return nil, err
+	if err := s.call(sk, c); err != nil {
+		return 0, err
 	}
 
 	identity, err := s.Identity(sk)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	//node.Address =identity.PublicKey
-	account, err := s.getAccount(identity, meta)
+	result, err := s.GetTwinsByPubKey(identity.PublicKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get account")
+		return 0, errors.Wrap(err, "failed to get node from chain, probably failed to create")
 	}
 
-	o := types.SignatureOptions{
-		BlockHash:          genesisHash,
-		Era:                types.ExtrinsicEra{IsMortalEra: false},
-		GenesisHash:        genesisHash,
-		Nonce:              types.NewUCompactFromUInt(uint64(account.Nonce)),
-		SpecVersion:        rv.SpecVersion,
-		Tip:                types.NewUCompactFromUInt(0),
-		TransactionVersion: 1,
+	if len(result) == 0 {
+		return 0, fmt.Errorf("no twins found")
 	}
 
-	err = s.sign(&ext, identity, o)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to sign")
-	}
-
-	// Send the extrinsic
-	sub, err := s.cl.RPC.Author.SubmitAndWatchExtrinsic(ext)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to submit extrinsic")
-	}
-
-	defer sub.Unsubscribe()
-
-	for event := range sub.Chan() {
-		if event.IsFinalized {
-			break
-		}
-	}
-
-	result, err := s.GetNodeByPubKey(identity.PublicKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get node from chain, probably failed to create")
-	}
-
-	return result, nil
+	return result[len(result)-1], nil
 }

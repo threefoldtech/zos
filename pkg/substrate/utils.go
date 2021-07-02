@@ -1,10 +1,12 @@
 package substrate
 
 import (
+	"crypto/ed25519"
 	"fmt"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/pkg/errors"
 	"github.com/vedhavyas/go-subkey"
 	subkeyEd25519 "github.com/vedhavyas/go-subkey/ed25519"
 	"golang.org/x/crypto/blake2b"
@@ -87,6 +89,64 @@ func (s *Substrate) sign(e *types.Extrinsic, signer signature.KeyringPair, o typ
 
 	// mark the extrinsic as signed
 	e.Version |= types.ExtrinsicBitSigned
+
+	return nil
+}
+
+func (s *Substrate) call(sk ed25519.PrivateKey, call types.Call) error {
+
+	// Create the extrinsic
+	ext := types.NewExtrinsic(call)
+
+	genesisHash, err := s.cl.RPC.Chain.GetBlockHash(0)
+	if err != nil {
+		return errors.Wrap(err, "failed to get genesisHash")
+	}
+
+	rv, err := s.cl.RPC.State.GetRuntimeVersionLatest()
+	if err != nil {
+		return err
+	}
+
+	identity, err := s.Identity(sk)
+	if err != nil {
+		return err
+	}
+
+	//node.Address =identity.PublicKey
+	account, err := s.getAccount(identity, s.meta)
+	if err != nil {
+		return errors.Wrap(err, "failed to get account")
+	}
+
+	o := types.SignatureOptions{
+		BlockHash:          genesisHash,
+		Era:                types.ExtrinsicEra{IsMortalEra: false},
+		GenesisHash:        genesisHash,
+		Nonce:              types.NewUCompactFromUInt(uint64(account.Nonce)),
+		SpecVersion:        rv.SpecVersion,
+		Tip:                types.NewUCompactFromUInt(0),
+		TransactionVersion: 1,
+	}
+
+	err = s.sign(&ext, identity, o)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign")
+	}
+
+	// Send the extrinsic
+	sub, err := s.cl.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	if err != nil {
+		return errors.Wrap(err, "failed to submit extrinsic")
+	}
+
+	defer sub.Unsubscribe()
+
+	for event := range sub.Chan() {
+		if event.IsFinalized {
+			break
+		}
+	}
 
 	return nil
 }

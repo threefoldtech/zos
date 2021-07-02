@@ -100,40 +100,31 @@ type Node struct {
 }
 
 //GetNodeByPubKey by an SS58 address
-func (s *Substrate) GetNodeByPubKey(pk []byte) (*Node, error) {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get substrate meta")
-	}
+func (s *Substrate) GetNodeByPubKey(pk []byte) (uint32, error) {
 
-	key, err := types.CreateStorageKey(meta, "TfgridModule", "NodesByPubkeyID", pk, nil)
+	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "NodesByPubkeyID", pk, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create substrate query key")
+		return 0, errors.Wrap(err, "failed to create substrate query key")
 	}
 	var id types.U32
 	ok, err := s.cl.RPC.State.GetStorageLatest(key, &id)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to lookup entity")
+		return 0, errors.Wrap(err, "failed to lookup entity")
 	}
 
 	if !ok || id == 0 {
-		return nil, fmt.Errorf("node not found")
+		return 0, fmt.Errorf("node not found")
 	}
 
-	return s.GetNode(uint32(id))
+	return uint32(id), nil
 }
 
 func (s *Substrate) GetNode(id uint32) (*Node, error) {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get substrate meta")
-	}
-
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "substrate: encoding error building query arguments")
 	}
-	key, err := types.CreateStorageKey(meta, "TfgridModule", "Nodes", bytes, nil)
+	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "Nodes", bytes, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
@@ -173,74 +164,21 @@ func (s *Substrate) getNode(key types.StorageKey) (*Node, error) {
 	return &node, nil
 }
 
-func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) (*Node, error) {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
+func (s *Substrate) CreateNode(sk ed25519.PrivateKey, node Node) (uint32, error) {
+	c, err := types.NewCall(s.meta, "TfgridModule.create_node", node)
 	if err != nil {
-		return nil, err
+		return 0, errors.Wrap(err, "failed to create call")
 	}
 
-	c, err := types.NewCall(meta, "TfgridModule.create_node", node)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create call")
-	}
-
-	// Create the extrinsic
-	ext := types.NewExtrinsic(c)
-
-	genesisHash, err := s.cl.RPC.Chain.GetBlockHash(0)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get genesisHash")
-	}
-
-	rv, err := s.cl.RPC.State.GetRuntimeVersionLatest()
-	if err != nil {
-		return nil, err
+	if err := s.call(sk, c); err != nil {
+		return 0, err
 	}
 
 	identity, err := s.Identity(sk)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	//node.Address =identity.PublicKey
-	account, err := s.getAccount(identity, meta)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get account")
-	}
+	return s.GetNodeByPubKey(identity.PublicKey)
 
-	o := types.SignatureOptions{
-		BlockHash:          genesisHash,
-		Era:                types.ExtrinsicEra{IsMortalEra: false},
-		GenesisHash:        genesisHash,
-		Nonce:              types.NewUCompactFromUInt(uint64(account.Nonce)),
-		SpecVersion:        rv.SpecVersion,
-		Tip:                types.NewUCompactFromUInt(0),
-		TransactionVersion: 1,
-	}
-
-	err = s.sign(&ext, identity, o)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to sign")
-	}
-
-	// Send the extrinsic
-	sub, err := s.cl.RPC.Author.SubmitAndWatchExtrinsic(ext)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to submit extrinsic")
-	}
-
-	defer sub.Unsubscribe()
-
-	for event := range sub.Chan() {
-		if event.IsFinalized {
-			break
-		}
-	}
-
-	result, err := s.GetNodeByPubKey(identity.PublicKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get node from chain, probably failed to create")
-	}
-
-	return result, nil
 }

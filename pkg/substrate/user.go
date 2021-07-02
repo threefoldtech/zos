@@ -16,16 +16,11 @@ type User struct {
 }
 
 func (s *Substrate) GetUser(id uint32) (*User, error) {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get substrate meta")
-	}
-
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "substrate: encoding error building query arguments")
 	}
-	key, err := types.CreateStorageKey(meta, "TfgridModule", "Entities", bytes, nil)
+	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "Entities", bytes, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}

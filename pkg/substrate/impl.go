@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/rpc/state"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
 )
@@ -42,6 +43,28 @@ func NewSubstrate(url string) (*Substrate, error) {
 		cl:   cl,
 		meta: meta,
 	}, nil
+}
+
+// Refresh reloads meta from chain!
+// not thread safe
+func (s *Substrate) Refresh() error {
+	meta, err := s.cl.RPC.State.GetMetadataLatest()
+	if err != nil {
+		return err
+	}
+
+	s.meta = meta
+	return nil
+}
+
+func (s *Substrate) Subscribe() (*state.StorageSubscription, error) {
+	// Subscribe to system events via storage
+	key, err := types.CreateStorageKey(s.meta, "System", "Events", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	return s.cl.RPC.State.SubscribeStorageRaw([]types.StorageKey{key})
 }
 
 func (s *Substrate) getVersion(b types.StorageDataRaw) (uint32, error) {
