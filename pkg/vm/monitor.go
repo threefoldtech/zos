@@ -57,7 +57,7 @@ func (m *Module) monitor(ctx context.Context) error {
 		return err
 	}
 
-	running, err := findAll()
+	running, err := FindAll()
 	if err != nil {
 		return err
 	}

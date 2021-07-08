@@ -10,11 +10,13 @@ import (
 	"strings"
 )
 
+// Process struct
 type Process struct {
 	Pid  int
 	Args []string
 }
 
+// GetParam gets a value for a parm passed to process cmdline
 func (p *Process) GetParam(arg string) ([]string, bool) {
 	s := -1
 	for i := 0; i < len(p.Args); i++ {
@@ -27,7 +29,7 @@ func (p *Process) GetParam(arg string) ([]string, bool) {
 		// not found
 		return nil, false
 	}
-	s += 1
+	s++
 	var params []string
 	for ; s < len(p.Args); s++ {
 		param := p.Args[s]
@@ -43,7 +45,8 @@ func (p *Process) GetParam(arg string) ([]string, bool) {
 	return params, true
 }
 
-func findAll() (map[string]Process, error) {
+// FindAll finds all running cloud-hypervisor processes
+func FindAll() (map[string]Process, error) {
 	const (
 		proc   = "/proc"
 		search = "cloud-hypervisor"
@@ -100,8 +103,9 @@ func findAll() (map[string]Process, error) {
 	return found, err
 }
 
-func find(name string) (Process, error) {
-	machines, err := findAll()
+// Find find CH process by vm name
+func Find(name string) (Process, error) {
+	machines, err := FindAll()
 	if err != nil {
 		return Process{}, err
 	}

@@ -130,7 +130,7 @@ func (m *Module) logsPath(name string) string {
 
 // Exists checks if firecracker process running for this machine
 func (m *Module) Exists(id string) bool {
-	_, err := find(id)
+	_, err := Find(id)
 	return err == nil
 }
 
@@ -278,7 +278,7 @@ func (m *Module) withLogs(path string, err error) error {
 
 // List all running vms names
 func (m *Module) List() ([]string, error) {
-	machines, err := findAll()
+	machines, err := FindAll()
 	if err != nil {
 		return nil, err
 	}
@@ -439,13 +439,13 @@ func (m *Module) waitAndAdjOom(ctx context.Context, name string) error {
 		return err
 	}
 
-	pid, err := find(name)
+	pid, err := Find(name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find vm with id '%s'", name)
 	}
 
 	if err := ioutil.WriteFile(filepath.Join("/proc/", fmt.Sprint(pid), "oom_adj"), []byte("-17"), 0644); err != nil {
-		return errors.Wrapf(err, "failed to update oom priority for machine '%s' (PID: %d)", name, pid)
+		return errors.Wrapf(err, "failed to update oom priority for machine '%s' (PID: %d)", name, pid.Pid)
 	}
 
 	return nil
@@ -491,7 +491,7 @@ func (m *Module) Delete(name string) error {
 	}
 
 	// normal operation
-	ps, err := find(name)
+	ps, err := Find(name)
 	if err != nil {
 		// machine already gone
 		return nil

@@ -18,8 +18,9 @@ var (
 	errMacVTapNotFound = errors.New("macvtap not found")
 )
 
+// Metrics gets running machines network metrics
 func (m *Module) Metrics() (pkg.MachineMetrics, error) {
-	vms, err := findAll()
+	vms, err := FindAll()
 	if err != nil {
 		return nil, err
 	}
