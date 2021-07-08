@@ -66,6 +66,13 @@ Grid database is a decentralized blockchain database that leverage on substrate 
 
 A farm has one twin, through this twin the peer_id and entity can be requested. This is also the case for nodes as they have one farm.
 
+# Public IPs
+Public IPs are locked by substrate from the farmer IPs pool. for this to be possible, on contract creation the user need to specify how many IPs he needs to lock up.
+
+If the contract creation is successful. It means the contract managed to look up the required number of Ips. the values for the IPs are going to be available for this specific node.
+
+Once the contract is terminated, the Ips are returned back to the farmer pool.
+
 # Pricing
 Each farmer object is assigned a Pricing Policy object:
 The pricing policy defines:
