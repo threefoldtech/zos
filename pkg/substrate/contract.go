@@ -1,4 +1,5 @@
-package substrate
+==== BASE ====
+==== BASE ====package substrate
 
 import (
 	"fmt"
@@ -90,4 +91,33 @@ func (s *Substrate) getContract(key types.StorageKey) (*Contract, error) {
 	}
 
 	return &node, nil
+}
+
+
+type Consumption struct {
+	Twin uint32         `json:"twin"`
+	ID   uint64         `json:"id"`
+	CRU  gridtypes.Unit `json:"cru"`
+	SRU  gridtypes.Unit `json:"sru"`
+	HRU  gridtypes.Unit `json:"hru"`
+	MRU  gridtypes.Unit `json:"mru"`
+	NRU  gridtypes.Unit `json:"nru"`
+}
+
+type Report struct {
+	Timestamp   int64 `json:"timestamp"`
+	Consumption []Consumption
+}
+
+func (s *Substrate) Report(sk ed25519.PrivateKey, report Report) error {
+	c, err := types.NewCall(s.meta, "SmartContractModule.add_reports", report)
+	if err != nil {
+		return errors.Wrap(err, "failed to create call")
+	}
+
+	if err := s.call(sk, c); err != nil {
+		return errors.Wrap(err, "failed to create report")
+	}
+
+	return nil
 }

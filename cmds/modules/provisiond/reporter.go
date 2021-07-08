@@ -3,14 +3,13 @@ package provisiond
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
+	"crypto/ed25519"
 	"time"
 
 	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/farmer"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -56,9 +55,23 @@ func (m many) AsError() error {
 	return m
 }
 
+func fromCapacity(twin uint32, id uint64, cap gridtypes.Capacity) substrate.Consumption {
+	return substrate.Consumption{
+		CRU: gridtypes.Unit(cap.CRU),
+		SRU: cap.SRU,
+		HRU: cap.HRU,
+		MRU: cap.MRU,
+	}
+}
+
+type Report struct {
+	Timestamp   int64 `json:"timestamp"`
+	Consumption []substrate.Consumption
+}
+
 // Reporter structure
 type Reporter struct {
-	identity  *stubs.IdentityManagerStub
+	sk        ed25519.PrivateKey
 	storage   *storage.Fs
 	queue     *dque.DQue
 	substrate *substrate.Substrate
@@ -66,7 +79,7 @@ type Reporter struct {
 }
 
 func reportBuilder() interface{} {
-	return &farmer.Report{}
+	return &Report{}
 }
 
 // NewReporter creates a new capacity reporter
@@ -86,12 +99,13 @@ func NewReporter(store *storage.Fs, identity *stubs.IdentityManagerStub, root st
 		return nil, errors.Wrap(err, "failed to setup report persisted queue")
 	}
 
+	sk := ed25519.PrivateKey(identity.PrivateKey(context.TODO()))
+
 	return &Reporter{
 		storage:   store,
-		identity:  identity,
+		sk:        sk,
 		queue:     queue,
 		substrate: sub,
-		nodeID:    identity.NodeID(context.TODO()).Identity(),
 	}, nil
 }
 
@@ -101,29 +115,41 @@ func (r *Reporter) pushOne() error {
 		return errors.Wrap(err, "failed to peek into capacity queue. #properlyfatal")
 	}
 
-	report := item.(*farmer.Report)
+	report := item.(*substrate.Report)
 
 	// DEBUG
 	log.Debug().Int64("timestamp", report.Timestamp).Msg("sending capacity report")
 	// TODO: push report to chain
-	panic("not implemented")
-	// if err := r.substrate.NodeReport(r.nodeID, *report); err != nil {
-	// 	return errors.Wrap(err, "failed to publish consumption report")
-	// }
 
-	// only removed if report is reported to
-	// farmer
+	if err := r.substrate.Report(r.sk, *report); err != nil {
+		return errors.Wrap(err, "failed to publish consumption report")
+	}
+
+	// only removed if report is reported to substrate
 	// remove item from queue
 	_, err = r.queue.Dequeue()
 
 	return err
 }
 
-func (r *Reporter) pusher() {
+func (r *Reporter) pusher(ctx context.Context) {
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		// problem is pushOne is a blocker call. so if ctx is canceled
+		// while we are inside pushOne, no way to detect that until the pushOne call
+		// returns
 		if err := r.pushOne(); err != nil {
 			log.Error().Err(err).Msg("error while processing capacity report")
-			<-time.After(3 * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(3 * time.Second):
+			}
 		}
 
 		log.Debug().Msg("capacity report pushed to farmer")
@@ -136,7 +162,7 @@ func (r *Reporter) Run(ctx context.Context) error {
 	// take into account the following:
 	// every is in seconds.
 
-	go r.pusher()
+	go r.pusher(ctx)
 
 	ticker := time.NewTicker(every * time.Second)
 	defer ticker.Stop()
@@ -172,14 +198,14 @@ func (r *Reporter) Run(ctx context.Context) error {
 	}
 }
 
-func (r *Reporter) collect(since time.Time) (rep farmer.Report, err error) {
+func (r *Reporter) collect(since time.Time) (rep Report, err error) {
 	users, err := r.storage.Twins()
 	if err != nil {
 		return rep, err
 	}
 
 	rep.Timestamp = since.Unix()
-	rep.Consumption = make(map[uint64]farmer.Consumption)
+	rep.Consumption = make([]substrate.Consumption, 0)
 
 	for _, user := range users {
 		cap, err := r.user(since, user)
@@ -190,41 +216,22 @@ func (r *Reporter) collect(since time.Time) (rep farmer.Report, err error) {
 			// collected some of the user consumption, we still can report that
 		}
 
-		if cap.Capacity.Zero() {
-			continue
-		}
-
-		rep.Consumption[uint64(user)] = cap
+		rep.Consumption = append(rep.Consumption, cap...)
 	}
 
 	return
 }
 
-func (r *Reporter) push(report farmer.Report) error {
-	// create signature
-	var buf bytes.Buffer
-	if err := report.Challenge(&buf); err != nil {
-		return errors.Wrap(err, "failed to create report challenge")
-	}
-
-	signature, err := r.identity.Sign(context.TODO(), buf.Bytes())
-	if err != nil {
-		return errors.Wrap(err, "failed to sign report")
-	}
-
-	report.Signature = hex.EncodeToString(signature)
+func (r *Reporter) push(report Report) error {
 	return r.queue.Enqueue(&report)
 }
 
-func (r *Reporter) user(since time.Time, user uint32) (farmer.Consumption, error) {
+func (r *Reporter) user(since time.Time, user uint32) ([]substrate.Consumption, error) {
 	var m many
 	types := gridtypes.Types()
-	consumption := farmer.Consumption{
-		Workloads: make(map[gridtypes.WorkloadType][]gridtypes.WorkloadID),
-	}
 
+	var consumptions []substrate.Consumption
 	for _, typ := range types {
-		consumption.Workloads[typ] = make([]gridtypes.WorkloadID, 0)
 		ids, err := r.storage.ByTwin(user)
 		if err != nil {
 			m = m.append(errors.Wrapf(err, "failed to get reservation for user '%s' type '%s", user, typ))
@@ -253,9 +260,8 @@ func (r *Reporter) user(since time.Time, user uint32) (farmer.Consumption, error
 						continue
 					}
 
-					wlID, _ := gridtypes.NewWorkloadID(user, id, wl.Name)
-					consumption.Workloads[typ] = append(consumption.Workloads[typ], wlID)
-					consumption.Capacity.Add(&cap)
+					consumption := fromCapacity(user, uint64(id), cap)
+					consumptions = append(consumptions, consumption)
 
 					// special handling for ZMachine types. if they exist
 					// we also need to get network usage.
@@ -264,7 +270,7 @@ func (r *Reporter) user(since time.Time, user uint32) (farmer.Consumption, error
 		}
 	}
 
-	return consumption, m.AsError()
+	return consumptions, m.AsError()
 }
 
 func (r *Reporter) shouldCount(since time.Time, result *gridtypes.Result) bool {
