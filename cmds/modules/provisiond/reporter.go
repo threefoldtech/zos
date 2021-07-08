@@ -9,6 +9,8 @@ import (
 	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zbus"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision/storage"
@@ -71,11 +73,11 @@ type Report struct {
 
 // Reporter structure
 type Reporter struct {
+	cl        zbus.Client
 	sk        ed25519.PrivateKey
 	storage   *storage.Fs
 	queue     *dque.DQue
 	substrate *substrate.Substrate
-	nodeID    string
 }
 
 func reportBuilder() interface{} {
@@ -99,9 +101,11 @@ func NewReporter(store *storage.Fs, identity *stubs.IdentityManagerStub, root st
 		return nil, errors.Wrap(err, "failed to setup report persisted queue")
 	}
 
+	identity := stubs.NewIdentityManagerStub(cl)
 	sk := ed25519.PrivateKey(identity.PrivateKey(context.TODO()))
 
 	return &Reporter{
+		cl:        cl,
 		storage:   store,
 		sk:        sk,
 		queue:     queue,
@@ -118,12 +122,12 @@ func (r *Reporter) pushOne() error {
 	report := item.(*substrate.Report)
 
 	// DEBUG
-	log.Debug().Int64("timestamp", report.Timestamp).Msg("sending capacity report")
-	// TODO: push report to chain
+	log.Debug().Int64("timestamp", report.Timestamp).Msgf("sending capacity report: %+v", report)
 
-	if err := r.substrate.Report(r.sk, *report); err != nil {
-		return errors.Wrap(err, "failed to publish consumption report")
-	}
+	// TODO: push report to chain (uncomment me)
+	// if err := r.substrate.Report(r.sk, *report); err != nil {
+	// 	return errors.Wrap(err, "failed to publish consumption report")
+	// }
 
 	// only removed if report is reported to substrate
 	// remove item from queue
@@ -180,7 +184,7 @@ func (r *Reporter) Run(ctx context.Context) error {
 			// 5 minute slot.
 			// but if it was stopped before that timestamp, then it will
 			// not be counted.
-			report, err := r.collect(time.Unix(u, 0))
+			report, err := r.collect(ctx, time.Unix(u, 0))
 			if err != nil {
 				log.Error().Err(err).Msg("failed to collect users consumptions")
 				continue
@@ -198,7 +202,7 @@ func (r *Reporter) Run(ctx context.Context) error {
 	}
 }
 
-func (r *Reporter) collect(since time.Time) (rep Report, err error) {
+func (r *Reporter) collect(ctx context.Context, since time.Time) (rep Report, err error) {
 	users, err := r.storage.Twins()
 	if err != nil {
 		return rep, err
@@ -206,9 +210,14 @@ func (r *Reporter) collect(since time.Time) (rep Report, err error) {
 
 	rep.Timestamp = since.Unix()
 	rep.Consumption = make([]substrate.Consumption, 0)
+	// to optimize we get ALL vms metrics in one call.
+	metrics, err := stubs.NewVMModuleStub(r.cl).Metrics(ctx)
+	if err != nil {
+		return Report{}, errors.Wrap(err, "failed to get VMs network metrics")
+	}
 
 	for _, user := range users {
-		cap, err := r.user(since, user)
+		cap, err := r.user(since, user, metrics)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to collect all user capacity")
 			// NOTE: we intentionally not doing a 'continue' or 'return'
@@ -226,7 +235,7 @@ func (r *Reporter) push(report Report) error {
 	return r.queue.Enqueue(&report)
 }
 
-func (r *Reporter) user(since time.Time, user uint32) ([]substrate.Consumption, error) {
+func (r *Reporter) user(since time.Time, user uint32, metrics pkg.MachineMetrics) ([]substrate.Consumption, error) {
 	var m many
 	types := gridtypes.Types()
 
@@ -244,12 +253,17 @@ func (r *Reporter) user(since time.Time, user uint32) ([]substrate.Consumption, 
 				m = m.append(errors.Wrapf(err, "failed to get reservation '%s'", id))
 				continue
 			}
-
 			for i := range dl.Workloads {
 				wl := &dl.Workloads[i]
 
 				if wl.Result.IsNil() {
 					// no results yet
+					continue
+				}
+
+				wlID, err := gridtypes.NewWorkloadID(user, id, wl.Name)
+				if err != nil {
+					log.Error().Err(err).Msg("invalid workload id (shouldn't happen here)")
 					continue
 				}
 
@@ -261,16 +275,34 @@ func (r *Reporter) user(since time.Time, user uint32) ([]substrate.Consumption, 
 					}
 
 					consumption := fromCapacity(user, uint64(id), cap)
-					consumptions = append(consumptions, consumption)
 
 					// special handling for ZMachine types. if they exist
 					// we also need to get network usage.
+					metric, ok := metrics[wlID.String()]
+					if ok {
+						// add metric to consumption
+						consumption.NRU = r.computeNU(metric)
+					}
+
+					consumptions = append(consumptions, consumption)
 				}
 			}
 		}
 	}
 
 	return consumptions, m.AsError()
+}
+
+func (r *Reporter) computeNU(m pkg.MachineMetric) gridtypes.Unit {
+	const (
+		// weights knobs for nu calculations
+		public  float64 = 1.0
+		private float64 = 0.5
+	)
+
+	nu := m.Public.Nu()*public + m.Private.Nu()*private
+
+	return gridtypes.Unit(nu)
 }
 
 func (r *Reporter) shouldCount(since time.Time, result *gridtypes.Result) bool {
@@ -280,11 +312,7 @@ func (r *Reporter) shouldCount(since time.Time, result *gridtypes.Result) bool {
 
 	if result.State == gridtypes.StateDeleted {
 		// if it was stopped before the 'since' .
-		if result.Created.Time().Before(since) {
-			return false
-		}
-		// otherwise it's true
-		return true
+		return !result.Created.Time().Before(since)
 	}
 
 	return false

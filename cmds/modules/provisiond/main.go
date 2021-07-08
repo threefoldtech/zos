@@ -257,9 +257,7 @@ func action(cli *cli.Context) error {
 		log.Error().Err(err).Msg("failed to mark module as booted")
 	}
 
-	//TODO: uncomment me
-
-	reporter, err := NewReported(store, identity, queues)
+	reporter, err := NewReported(store, cl, queues)
 	if err != nil {
 		return errors.Wrap(err, "failed to setup capacity reporter")
 	}
