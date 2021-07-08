@@ -6,6 +6,8 @@ This document is about tf-grid 3.0. It shows an overview of the grid regarding o
 - grid-db: a decentralized block chain database that allows nodes and other twins to share trusted data. Anyone can look up nodes and verify their identity, find their corresponding twin IDs to communicate over RMB.
 
 # Overview
+![Overlay](png/grid3-overlay.png)
+
 The operation can be described as follows:
 - Everything that needs to talk to other components should live on the yggdrasil network.
 - Nodes and users have to create a “twin” object on GridDB which is associated with an Yggdrasil IP. Then to communicate with any twin, the IP can be looked up using the twin id. This is basically how RMB works.
