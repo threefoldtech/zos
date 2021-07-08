@@ -491,7 +491,7 @@ func (m *Module) Delete(name string) error {
 	}
 
 	// normal operation
-	pid, err := find(name)
+	ps, err := find(name)
 	if err != nil {
 		// machine already gone
 		return nil
@@ -523,12 +523,12 @@ func (m *Module) Delete(name string) error {
 
 		log.Debug().Str("name", name).Msg("shutting vm down [sigterm]")
 		if time.Since(now) > termAfter {
-			syscall.Kill(pid, syscall.SIGTERM)
+			syscall.Kill(ps.Pid, syscall.SIGTERM)
 		}
 
 		if time.Since(now) > killAfter {
 			log.Debug().Str("name", name).Msg("shutting vm down [sigkill]")
-			syscall.Kill(pid, syscall.SIGKILL)
+			syscall.Kill(ps.Pid, syscall.SIGKILL)
 			break
 		}
 
