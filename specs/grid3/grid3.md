@@ -26,6 +26,7 @@ The operation can be described as follows:
   - The node then can read the deployment data, and apply them. Deployment status can then be queried over RMB directly from the node.
   - Node will also send consumption reports to the contract, the contract then can start billing the user.
 
+![Sequence Diagram](png/sequence.png)
 # 3node
 On first boot the node needs to create a “twin” on the grid, a twin associated with a public key. Hence it can create verifiable signed messages.
 Then, a node will then register itself as a “node” on the grid, and links this twin to the node object.
