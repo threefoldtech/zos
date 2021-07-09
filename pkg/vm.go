@@ -195,6 +195,7 @@ type NetMetric struct {
 	NetTxBytes   uint64 `json:"net_tx_bytes"`
 }
 
+// Nu calculate network units
 func (n *NetMetric) Nu() float64 {
 	const (
 		// weights knobs for nu calculations

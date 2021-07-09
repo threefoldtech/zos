@@ -1,7 +1,7 @@
-==== BASE ====
-==== BASE ====package substrate
+package substrate
 
 import (
+	"crypto/ed25519"
 	"fmt"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
@@ -93,7 +93,7 @@ func (s *Substrate) getContract(key types.StorageKey) (*Contract, error) {
 	return &node, nil
 }
 
-
+// Consumption structure
 type Consumption struct {
 	Twin uint32         `json:"twin"`
 	ID   uint64         `json:"id"`
@@ -104,11 +104,13 @@ type Consumption struct {
 	NRU  gridtypes.Unit `json:"nru"`
 }
 
+// Report structure
 type Report struct {
 	Timestamp   int64 `json:"timestamp"`
 	Consumption []Consumption
 }
 
+// Report send a capacity report to substrate
 func (s *Substrate) Report(sk ed25519.PrivateKey, report Report) error {
 	c, err := types.NewCall(s.meta, "SmartContractModule.add_reports", report)
 	if err != nil {
