@@ -19,11 +19,11 @@ The operation can be described as follows:
 - Once identity has been established, secure and trusted communication can be established between the different parties.
 - For a user to deploy a workload he need to do the following:
   - Create a **contract** on substrate
-    - The **contract** has the deployment body (which is defined in [here](../../pkg/gridtypes/deployment.go)) the deployment data is encrypted with node public key, so only the node can read this definition.
+    - The **contract** is described in more details [here](contract.md)
     - It also has required number of public IPs to be reserved from the farm (in case you have public ips in your deployment definition)
   - Substrate needs to validate the contract, user, funds and lock up required public ips from the farm object.
-  - Once a contract is created, the contract **id** is sent to the node.
-  - The node then can read the deployment data, and apply them. Deployment status can then be queried over RMB directly from the node.
+  - Once a contract is created, the contract **id + deployment** is sent to the node.
+  - The node then can read the contract data, validate and apply them. Deployment status can then be queried over RMB directly from the node.
   - Node will also send consumption reports to the contract, the contract then can start billing the user.
 
 ![Sequence Diagram](png/sequence.png)
