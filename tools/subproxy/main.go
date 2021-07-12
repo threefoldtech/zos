@@ -6,8 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/substrate"
@@ -30,7 +32,8 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	router.Path("/{id}").Methods(http.MethodGet).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	router.Path("/twin/{id}").Methods(http.MethodGet).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idStr := mux.Vars(r)["id"]
 		id, err := strconv.ParseUint(idStr, 10, 32)
 		if err != nil {
@@ -56,7 +59,7 @@ func main() {
 
 	server := http.Server{
 		Addr:    address,
-		Handler: router,
+		Handler: handlers.LoggingHandler(os.Stdout, router),
 	}
 
 	if err := server.ListenAndServe(); err != nil {
