@@ -11,6 +11,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/substrate"
 )
 
+const (
+	SubstrateDefaultURL = "wss://explorer.devnet.grid.tf/ws"
+)
+
 // Environment holds information about running environment of a node
 // it defines the different constant based on the running mode (dev, test, prod)
 type Environment struct {
@@ -60,7 +64,7 @@ const (
 var (
 	envDev = Environment{
 		RunningMode:  RunningDev,
-		SubstrateURL: "wss://dev.substrate01.threefold.io",
+		SubstrateURL: SubstrateDefaultURL,
 		FlistURL:     "zdb://hub.grid.tf:9900",
 		BinRepo:      "tf-zos-bins.dev",
 	}
@@ -68,7 +72,7 @@ var (
 	envTest = Environment{
 		RunningMode: RunningTest,
 		// TODO: this should become a different substrate ?
-		SubstrateURL: "wss://dev.substrate01.threefold.io",
+		SubstrateURL: SubstrateDefaultURL,
 		FlistURL:     "zdb://hub.grid.tf:9900",
 		BinRepo:      "tf-zos-bins.test",
 	}
@@ -76,7 +80,7 @@ var (
 	// same as testnet for now. will be updated the day of the launch of production network
 	envProd = Environment{
 		RunningMode:  RunningMain,
-		SubstrateURL: "wss://dev.substrate01.threefold.io",
+		SubstrateURL: SubstrateDefaultURL,
 		FlistURL:     "zdb://hub.grid.tf:9900",
 		BinRepo:      "tf-zos-bins",
 	}
