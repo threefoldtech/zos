@@ -76,14 +76,14 @@ curl --header "Content-Type: application/json" \
 */
 
 func (s *Substrate) activateAccount(identity signature.KeyringPair) error {
-	const url = "https://api.substrate01.threefold.io/activate"
+	const activationDefaultURL = "https://explorer.devnet.grid.tf/activate"
 
 	var buf bytes.Buffer
 	json.NewEncoder(&buf).Encode(map[string]string{
 		"substrateAccountID": identity.Address,
 	})
 
-	response, err := http.Post(url, "application/json", &buf)
+	response, err := http.Post(activationDefaultURL, "application/json", &buf)
 	if err != nil {
 		return errors.Wrap(err, "failed to call activation service")
 	}
