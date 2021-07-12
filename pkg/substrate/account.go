@@ -24,6 +24,20 @@ func (a AccountID) PublicKey() ed25519.PublicKey {
 	return ed25519.PublicKey(a[:])
 }
 
+func (a AccountID) String() string {
+	address, _ := subkey.SS58Address(a[:], 42)
+	return address
+}
+
+func (a AccountID) MarshalJSON() ([]byte, error) {
+	address, err := subkey.SS58Address(a[:], 42)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(address)
+}
+
 // keyringPairFromSecret creates KeyPair based on seed/phrase and network
 // Leave network empty for default behavior
 func keyringPairFromSecret(seedOrPhrase string, network uint8) (signature.KeyringPair, error) {
