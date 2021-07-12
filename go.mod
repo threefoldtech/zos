@@ -70,6 +70,7 @@ require (
 	github.com/yggdrasil-network/yggdrasil-go v0.3.16
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20210415154028-4f45737414dc
+	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.0.0-20210420210106-798c2154c571 // indirect
 	golang.org/x/sys v0.0.0-20210420205809-ac73e9fd8988
 	golang.zx2c4.com/wireguard v0.0.20200320 // indirect
