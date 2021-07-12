@@ -24,11 +24,13 @@ func (a AccountID) PublicKey() ed25519.PublicKey {
 	return ed25519.PublicKey(a[:])
 }
 
+// String return string representation of account
 func (a AccountID) String() string {
 	address, _ := subkey.SS58Address(a[:], 42)
 	return address
 }
 
+// MarshalJSON implementation
 func (a AccountID) MarshalJSON() ([]byte, error) {
 	address, err := subkey.SS58Address(a[:], 42)
 	if err != nil {

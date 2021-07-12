@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	// SubstrateDefaultURL default substrate url
 	SubstrateDefaultURL = "wss://explorer.devnet.grid.tf/ws"
 )
 
