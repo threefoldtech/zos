@@ -31,6 +31,7 @@ require (
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.2.0
+	github.com/gorilla/handlers v0.0.0-20150720190736-60c7bfde3e33
 	github.com/gorilla/mux v1.8.0
 	github.com/hanwen/go-fuse/v2 v2.1.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
@@ -69,6 +70,7 @@ require (
 	github.com/yggdrasil-network/yggdrasil-go v0.3.16
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20210415154028-4f45737414dc
+	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.0.0-20210420210106-798c2154c571 // indirect
 	golang.org/x/sys v0.0.0-20210420205809-ac73e9fd8988
 	golang.zx2c4.com/wireguard v0.0.20200320 // indirect
