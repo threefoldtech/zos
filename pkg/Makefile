@@ -41,7 +41,7 @@ spelling:
 	@${GOPATH}/bin/misspell -i monitord -error `find .`
 
 static:
-	go run honnef.co/go/tools/cmd/staticcheck -- ./...
+	@${GOPATH}/bin/staticcheck -- ./...
 
 check: test
 test: verifiers build
