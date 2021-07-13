@@ -335,7 +335,8 @@ func (d *Deployment) ByType(typ WorkloadType) []*WorkloadWithID {
 }
 
 // Upgrade validates n as an updated version of d, and return an Upgrade description
-// for the steps that the node needs to take.
+// for the steps that the node needs to take to move from d to n. unchanged workloads results
+// will be set on n as is
 func (d *Deployment) Upgrade(n *Deployment) (*Upgrade, error) {
 	if err := n.Valid(); err != nil {
 		return nil, errors.Wrap(err, "new deployment is invalid")

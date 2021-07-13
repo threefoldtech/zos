@@ -188,8 +188,8 @@ func (n *nullKeyGetter) GetKey(id uint32) (ed25519.PublicKey, error) {
 
 type engineKey struct{}
 type deploymentKey struct{}
-type sourceKey struct{}
 type contractKey struct{}
+type substrateKey struct{}
 
 // GetEngine gets engine from context
 func GetEngine(ctx context.Context) Engine {
@@ -198,18 +198,22 @@ func GetEngine(ctx context.Context) Engine {
 
 // GetDeployment gets a copy of the current deployment
 func GetDeployment(ctx context.Context) gridtypes.Deployment {
-	return ctx.Value(deploymentKey{}).(gridtypes.Deployment)
-}
-
-// GetSourceDeployment gets a copy of the "previous" deployment in case of update
-// note that this return a value only during an update operation, otherwise nil
-func GetSourceDeployment(ctx context.Context) *gridtypes.Deployment {
-	return ctx.Value(sourceKey{}).(*gridtypes.Deployment)
+	// we store the pointer on the context so changed to deployment object
+	// actually reflect into the value.
+	dl := ctx.Value(deploymentKey{}).(*gridtypes.Deployment)
+	// BUT we always return a copy so caller of GetDeployment can NOT manipulate
+	// other attributed on the object.
+	return *dl
 }
 
 // GetContract of deployment. panics if engine has no substrate set.
 func GetContract(ctx context.Context) *substrate.Contract {
 	return ctx.Value(contractKey{}).(*substrate.Contract)
+}
+
+// GetSubstrate if engine has substrate set, panics otherwise
+func GetSubstrate(ctx context.Context) *substrate.Substrate {
+	return ctx.Value(substrateKey{}).(*substrate.Substrate)
 }
 
 // New creates a new engine. Once started, the engine
@@ -342,8 +346,7 @@ func (e *NativeEngine) Run(root context.Context) error {
 		}
 
 		job := obj.(*engineJob)
-		ctx := context.WithValue(root, deploymentKey{}, job.Target)
-		ctx = context.WithValue(ctx, sourceKey{}, job.Source)
+		ctx := context.WithValue(root, deploymentKey{}, &job.Target)
 
 		// contract processing
 		ctx, err = e.contract(ctx, &job.Target)
@@ -407,6 +410,7 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment) (
 		return ctx, nil
 	}
 
+	ctx = context.WithValue(ctx, substrateKey{}, e.sub)
 	// if substrate is set. we need to get contract
 	contract, err := e.sub.GetContract(uint64(dl.ContractID))
 	if err != nil {
