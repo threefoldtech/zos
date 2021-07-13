@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ContractState enum
 type ContractState struct {
 	IsCreated  bool
 	IsDeployed bool
@@ -32,6 +33,7 @@ func (r *ContractState) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
+// Contract structure
 type Contract struct {
 	Versioned
 	TwinID             types.U32
@@ -44,7 +46,7 @@ type Contract struct {
 	PreviousNUReported types.U64
 }
 
-// CreateContract we should not have calls to create contract, instead only get
+// GetContract we should not have calls to create contract, instead only get
 func (s *Substrate) GetContract(id uint64) (*Contract, error) {
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {

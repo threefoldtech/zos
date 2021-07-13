@@ -49,6 +49,7 @@ type Farm struct {
 	PublicIPs         []PublicIP
 }
 
+// PublicIP structure
 type PublicIP struct {
 	IP         string
 	Gateway    string

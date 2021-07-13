@@ -262,6 +262,7 @@ type Result struct {
 	Data json.RawMessage `json:"data"`
 }
 
+// Unmarshal a shortcut for json.Unmarshal
 func (r *Result) Unmarshal(v interface{}) error {
 	return json.Unmarshal(r.Data, v)
 }
