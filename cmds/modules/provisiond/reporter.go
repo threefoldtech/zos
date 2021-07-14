@@ -69,8 +69,8 @@ func reportBuilder() interface{} {
 	return &farmer.Report{}
 }
 
-// NewReported creates a new capacity reporter
-func NewReported(store *storage.Fs, identity *stubs.IdentityManagerStub, root string) (*Reporter, error) {
+// NewReporter creates a new capacity reporter
+func NewReporter(store *storage.Fs, identity *stubs.IdentityManagerStub, root string) (*Reporter, error) {
 	env, err := environment.Get()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get runtime environment")

@@ -3,7 +3,6 @@ package primitives
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -29,7 +28,7 @@ func (p *Primitives) getAssignedPublicIP(ctx context.Context, wl *gridtypes.Work
 	// assigned, hence we can simply use it again. this is usually
 	// the case if the node is rerunning the same workload deployment for
 	// some reason.
-	if wl.Result.IsNil() || wl.Result.State == gridtypes.StateOk {
+	if !wl.Result.IsNil() && wl.Result.State == gridtypes.StateOk {
 		if err := wl.Result.Unmarshal(&result); err != nil {
 			return result, errors.Wrap(err, "failed to load public ip result")
 		}
@@ -76,7 +75,7 @@ func (p *Primitives) getAssignedPublicIP(ctx context.Context, wl *gridtypes.Work
 			// free ip. we can just take it
 			ipNet, err := gridtypes.ParseIPNet(ip.IP)
 			if err != nil {
-				return result, fmt.Errorf("found a mullformed ip address in farm object '%s'", ip.IP)
+				return result, fmt.Errorf("found a mullformed ip address in contract object '%s'", ip.IP)
 			}
 			gw := net.ParseIP(ip.Gateway)
 			if gw == nil {
@@ -91,17 +90,11 @@ func (p *Primitives) getAssignedPublicIP(ctx context.Context, wl *gridtypes.Work
 }
 
 func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.PublicIPResult, err error) {
-	config := zos.PublicIP{}
-
 	network := stubs.NewNetworkerStub(p.zbus)
 	fName := filterName(wl.ID.String())
 
 	if network.PubIPFilterExists(ctx, fName) {
 		return result, provision.ErrDidNotChange
-	}
-
-	if err := json.Unmarshal(wl.Data, &config); err != nil {
-		return zos.PublicIPResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	pubIP6Base, err := network.GetPublicIPv6Subnet(ctx)

@@ -592,6 +592,7 @@ func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.W
 			log.Debug().Msg("provisioning")
 			result, err := e.provisioner.Provision(ctx, wl)
 			if errors.Is(err, ErrDidNotChange) {
+				log.Debug().Msg("result did not change")
 				continue
 			}
 

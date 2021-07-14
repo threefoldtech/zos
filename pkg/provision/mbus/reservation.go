@@ -27,8 +27,8 @@ func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, update
 		return nil, mw.BadRequest(err)
 	}
 
-	if deployment.TwinID == rmb.GetTwinID(ctx) {
-		return nil, mw.UnAuthorized(fmt.Errorf("twin id mismatch"))
+	if deployment.TwinID != rmb.GetTwinID(ctx) {
+		return nil, mw.UnAuthorized(fmt.Errorf("twin id mismatch (deployment: %d, message: %d)", deployment.TwinID, rmb.GetTwinID(ctx)))
 	}
 
 	if err := deployment.Verify(d.engine.Twins()); err != nil {
