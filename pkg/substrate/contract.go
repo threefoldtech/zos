@@ -7,6 +7,7 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // ContractState enum

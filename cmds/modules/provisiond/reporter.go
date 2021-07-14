@@ -85,7 +85,7 @@ func reportBuilder() interface{} {
 }
 
 // NewReporter creates a new capacity reporter
-func NewReporter(store *storage.Fs, identity *stubs.IdentityManagerStub, root string) (*Reporter, error) {
+func NewReporter(store *storage.Fs, cl zbus.Client, root string) (*Reporter, error) {
 	env, err := environment.Get()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get runtime environment")
