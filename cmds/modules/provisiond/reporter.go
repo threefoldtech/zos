@@ -252,6 +252,7 @@ func (r *Reporter) user(since time.Time, user uint32, metrics pkg.MachineMetrics
 
 		consumption := substrate.Consumption{
 			ContractID: types.U64(id),
+			Timestamp:  types.U64(since.Unix()),
 		}
 
 		for i := range dl.Workloads {
@@ -288,9 +289,9 @@ func (r *Reporter) user(since time.Time, user uint32, metrics pkg.MachineMetrics
 					consumption.NRU += types.U64(r.computeNU(metric))
 				}
 			}
-
-			consumptions = append(consumptions, consumption)
 		}
+
+		consumptions = append(consumptions, consumption)
 	}
 
 	return consumptions, m.AsError()

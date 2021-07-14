@@ -29,7 +29,7 @@ func (n *NodeClient) DeploymentUpdate(ctx context.Context, dl gridtypes.Deployme
 	return n.bus.Call(ctx, n.nodeTwin, cmd, dl, nil)
 }
 
-func (n *NodeClient) DeploymentGet(ctx context.Context, contractID uint32) (dl gridtypes.Deployment, err error) {
+func (n *NodeClient) DeploymentGet(ctx context.Context, contractID uint64) (dl gridtypes.Deployment, err error) {
 	const cmd = "zos.deployment.get"
 	in := args{
 		"contract_id": contractID,
@@ -42,7 +42,7 @@ func (n *NodeClient) DeploymentGet(ctx context.Context, contractID uint32) (dl g
 	return dl, nil
 }
 
-func (n *NodeClient) DeploymentDelete(ctx context.Context, contractID uint32) error {
+func (n *NodeClient) DeploymentDelete(ctx context.Context, contractID uint64) error {
 	const cmd = "zos.deployment.delete"
 	in := args{
 		"contract_id": contractID,

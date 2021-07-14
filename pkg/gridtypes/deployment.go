@@ -163,6 +163,10 @@ func (d *Deployment) Challenge(w io.Writer) error {
 		}
 	}
 
+	if err := d.SignatureRequirement.Challenge(w); err != nil {
+		return err
+	}
+
 	return nil
 }
 
