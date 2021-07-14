@@ -48,7 +48,7 @@ type Deployment struct {
 }
 
 // SetError sets an error on ALL workloads. this is mostly
-// an error caused by validation AFTTER the deployment was initally accepted
+// an error caused by validation AFTTER the deployment was initially accepted
 func (d *Deployment) SetError(err error) {
 	for i := range d.Workloads {
 		wl := &d.Workloads[i]
