@@ -7,7 +7,6 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
 // ContractState enum
@@ -96,24 +95,18 @@ func (s *Substrate) getContract(key types.StorageKey) (*Contract, error) {
 
 // Consumption structure
 type Consumption struct {
-	Twin uint32         `json:"twin"`
-	ID   uint64         `json:"id"`
-	CRU  gridtypes.Unit `json:"cru"`
-	SRU  gridtypes.Unit `json:"sru"`
-	HRU  gridtypes.Unit `json:"hru"`
-	MRU  gridtypes.Unit `json:"mru"`
-	NRU  gridtypes.Unit `json:"nru"`
-}
-
-// Report structure
-type Report struct {
-	Timestamp   int64 `json:"timestamp"`
-	Consumption []Consumption
+	ContractID types.U64
+	Timestamp  types.U64
+	CRU        types.U64 `json:"cru"`
+	SRU        types.U64 `json:"sru"`
+	HRU        types.U64 `json:"hru"`
+	MRU        types.U64 `json:"mru"`
+	NRU        types.U64 `json:"nru"`
 }
 
 // Report send a capacity report to substrate
-func (s *Substrate) Report(sk ed25519.PrivateKey, report Report) error {
-	c, err := types.NewCall(s.meta, "SmartContractModule.add_reports", report)
+func (s *Substrate) Report(sk ed25519.PrivateKey, consumptions []Consumption) error {
+	c, err := types.NewCall(s.meta, "SmartContractModule.add_reports", consumptions)
 	if err != nil {
 		return errors.Wrap(err, "failed to create call")
 	}

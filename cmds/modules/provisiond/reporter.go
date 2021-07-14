@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -57,17 +60,7 @@ func (m many) AsError() error {
 	return m
 }
 
-func fromCapacity(twin uint32, id uint64, cap gridtypes.Capacity) substrate.Consumption {
-	return substrate.Consumption{
-		CRU: gridtypes.Unit(cap.CRU),
-		SRU: cap.SRU,
-		HRU: cap.HRU,
-		MRU: cap.MRU,
-	}
-}
-
 type Report struct {
-	Timestamp   int64 `json:"timestamp"`
 	Consumption []substrate.Consumption
 }
 
@@ -95,8 +88,17 @@ func NewReporter(store *storage.Fs, cl zbus.Client, root string) (*Reporter, err
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate client")
 	}
+	const queueName = "consumption"
+	var queue *dque.DQue
+	for i := 0; i < 3; i++ {
+		queue, err = dque.NewOrOpen(queueName, root, 1024, reportBuilder)
+		if err != nil {
+			os.RemoveAll(filepath.Join(root, queueName))
+			continue
+		}
+		break
+	}
 
-	queue, err := dque.NewOrOpen("consumption", root, 1024, reportBuilder)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to setup report persisted queue")
 	}
@@ -119,15 +121,14 @@ func (r *Reporter) pushOne() error {
 		return errors.Wrap(err, "failed to peek into capacity queue. #properlyfatal")
 	}
 
-	report := item.(*substrate.Report)
+	report := item.(*Report)
 
 	// DEBUG
-	log.Debug().Int64("timestamp", report.Timestamp).Msgf("sending capacity report: %+v", report)
+	log.Debug().Int("len", len(report.Consumption)).Msgf("sending capacity report")
 
-	// TODO: push report to chain (uncomment me)
-	// if err := r.substrate.Report(r.sk, *report); err != nil {
-	// 	return errors.Wrap(err, "failed to publish consumption report")
-	// }
+	if err := r.substrate.Report(r.sk, report.Consumption); err != nil {
+		return errors.Wrap(err, "failed to publish consumption report")
+	}
 
 	// only removed if report is reported to substrate
 	// remove item from queue
@@ -156,7 +157,7 @@ func (r *Reporter) pusher(ctx context.Context) {
 			}
 		}
 
-		log.Debug().Msg("capacity report pushed to farmer")
+		log.Debug().Msg("capacity report pushed to chain")
 	}
 }
 
@@ -208,8 +209,6 @@ func (r *Reporter) collect(ctx context.Context, since time.Time) (rep Report, er
 		return rep, err
 	}
 
-	rep.Timestamp = since.Unix()
-	rep.Consumption = make([]substrate.Consumption, 0)
 	// to optimize we get ALL vms metrics in one call.
 	metrics, err := stubs.NewVMModuleStub(r.cl).Metrics(ctx)
 	if err != nil {
@@ -237,56 +236,60 @@ func (r *Reporter) push(report Report) error {
 
 func (r *Reporter) user(since time.Time, user uint32, metrics pkg.MachineMetrics) ([]substrate.Consumption, error) {
 	var m many
-	types := gridtypes.Types()
 
 	var consumptions []substrate.Consumption
-	for _, typ := range types {
-		ids, err := r.storage.ByTwin(user)
+	ids, err := r.storage.ByTwin(user)
+	if err != nil {
+		m = m.append(errors.Wrapf(err, "failed to get reservation for user '%s'", user))
+	}
+
+	for _, id := range ids {
+		dl, err := r.storage.Get(user, id)
 		if err != nil {
-			m = m.append(errors.Wrapf(err, "failed to get reservation for user '%s' type '%s", user, typ))
+			m = m.append(errors.Wrapf(err, "failed to get reservation '%s'", id))
 			continue
 		}
 
-		for _, id := range ids {
-			dl, err := r.storage.Get(user, id)
-			if err != nil {
-				m = m.append(errors.Wrapf(err, "failed to get reservation '%s'", id))
+		consumption := substrate.Consumption{
+			ContractID: types.U64(id),
+		}
+
+		for i := range dl.Workloads {
+			wl := &dl.Workloads[i]
+
+			if wl.Result.IsNil() {
+				// no results yet
 				continue
 			}
-			for i := range dl.Workloads {
-				wl := &dl.Workloads[i]
 
-				if wl.Result.IsNil() {
-					// no results yet
-					continue
-				}
+			wlID, err := gridtypes.NewWorkloadID(user, id, wl.Name)
+			if err != nil {
+				log.Error().Err(err).Msg("invalid workload id (shouldn't happen here)")
+				continue
+			}
 
-				wlID, err := gridtypes.NewWorkloadID(user, id, wl.Name)
+			if r.shouldCount(since, &wl.Result) {
+				cap, err := wl.Capacity()
 				if err != nil {
-					log.Error().Err(err).Msg("invalid workload id (shouldn't happen here)")
+					m = m.append(errors.Wrapf(err, "failed to get reservation '%s' capacity", id))
 					continue
 				}
 
-				if r.shouldCount(since, &wl.Result) {
-					cap, err := wl.Capacity()
-					if err != nil {
-						m = m.append(errors.Wrapf(err, "failed to get reservation '%s' capacity", id))
-						continue
-					}
+				consumption.CRU += types.U64(cap.CRU)
+				consumption.MRU += types.U64(cap.MRU)
+				consumption.HRU += types.U64(cap.HRU)
+				consumption.SRU += types.U64(cap.SRU)
 
-					consumption := fromCapacity(user, uint64(id), cap)
-
-					// special handling for ZMachine types. if they exist
-					// we also need to get network usage.
-					metric, ok := metrics[wlID.String()]
-					if ok {
-						// add metric to consumption
-						consumption.NRU = r.computeNU(metric)
-					}
-
-					consumptions = append(consumptions, consumption)
+				// special handling for ZMachine types. if they exist
+				// we also need to get network usage.
+				metric, ok := metrics[wlID.String()]
+				if ok {
+					// add metric to consumption
+					consumption.NRU += types.U64(r.computeNU(metric))
 				}
 			}
+
+			consumptions = append(consumptions, consumption)
 		}
 	}
 
