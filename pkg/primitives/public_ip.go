@@ -8,16 +8,13 @@ import (
 	"net"
 	"strings"
 
-	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/substrate"
 )
 
 func (p *Primitives) publicIPProvision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
@@ -43,22 +40,10 @@ func (p *Primitives) getAssignedPublicIP(ctx context.Context, wl *gridtypes.Work
 
 	// - We need to get the contract and the farm object this node belongs to
 	deployment := provision.GetDeployment(ctx)
-	// contract := provision.GetContract(ctx)
-	sub := provision.GetSubstrate(ctx)
-
-	farmID := environment.MustGet().FarmerID
-	farm, err := sub.GetFarm(uint32(farmID))
-	if err != nil {
-		return result, errors.Wrap(err, "failed to load farm object")
-	}
+	contract := provision.GetContract(ctx)
 
 	// - now we find out ALL ips belonging to this contract
-	var reserved []substrate.PublicIP
-	for _, ip := range farm.PublicIPs {
-		if ip.ContractID == types.U64(deployment.ContractID) {
-			reserved = append(reserved, ip)
-		}
-	}
+	reserved := contract.PublicIPs
 
 	// make sure we have enough reserved IPs
 	ipWorkloads := deployment.ByType(zos.PublicIPType)
@@ -104,6 +89,7 @@ func (p *Primitives) getAssignedPublicIP(ctx context.Context, wl *gridtypes.Work
 
 	return result, fmt.Errorf("could not allocate public IP address to workload")
 }
+
 func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.PublicIPResult, err error) {
 	config := zos.PublicIP{}
 

@@ -36,14 +36,16 @@ func (r *ContractState) Decode(decoder scale.Decoder) error {
 // Contract structure
 type Contract struct {
 	Versioned
+	ContractID         types.U64
 	TwinID             types.U32
 	Node               AccountID
 	Data               []byte
 	DeploymentHash     string
-	PublicIPs          types.U32
+	PublicIPsCount     types.U32
 	State              ContractState
 	LastUpdated        types.U64
 	PreviousNUReported types.U64
+	PublicIPs          []PublicIP
 }
 
 // GetContract we should not have calls to create contract, instead only get
