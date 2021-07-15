@@ -37,6 +37,19 @@ func (r *ContractState) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
+// Encode implementation
+func (r ContractState) Encode(encoder scale.Encoder) (err error) {
+	if r.IsCreated {
+		err = encoder.PushByte(0)
+	} else if r.IsDeleted {
+		err = encoder.PushByte(1)
+	} else if r.IsOutOfFunds {
+		err = encoder.PushByte(2)
+	}
+
+	return
+}
+
 // Contract structure
 type Contract struct {
 	Versioned
@@ -67,6 +80,27 @@ func (s *Substrate) GetContract(id uint64) (*Contract, error) {
 	return s.getContract(key)
 }
 
+func (s *Substrate) GetNodeContracts(pk []byte, state ContractState) ([]Contract, error) {
+	stateBytes, err := types.EncodeToBytes(state)
+	if err != nil {
+		return nil, err
+	}
+	key, err := types.CreateStorageKey(s.meta, "SmartContractModule", "NodeContracts", pk, stateBytes, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create substrate query key")
+	}
+	var contracts []Contract
+	ok, err := s.cl.RPC.State.GetStorageLatest(key, &contracts)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to lookup contracts")
+	}
+
+	if !ok {
+		return nil, errors.Wrap(ErrNotFound, "contracts not found")
+	}
+
+	return contracts, nil
+}
 func (s *Substrate) getContract(key types.StorageKey) (*Contract, error) {
 	raw, err := s.cl.RPC.State.GetStorageRawLatest(key)
 	if err != nil {

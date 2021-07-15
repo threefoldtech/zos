@@ -115,10 +115,10 @@ func NewReporter(store *storage.Fs, cl zbus.Client, root string) (*Reporter, err
 	}, nil
 }
 
-func (r *Reporter) pushOne() error {
+func (r *Reporter) pushOne() ([]substrate.Consumption, error) {
 	item, err := r.queue.PeekBlock()
 	if err != nil {
-		return errors.Wrap(err, "failed to peek into capacity queue. #properlyfatal")
+		return nil, errors.Wrap(err, "failed to peek into capacity queue. #properlyfatal")
 	}
 
 	report := item.(*Report)
@@ -127,14 +127,14 @@ func (r *Reporter) pushOne() error {
 	log.Debug().Int("len", len(report.Consumption)).Msgf("sending capacity report")
 
 	if err := r.substrate.Report(r.sk, report.Consumption); err != nil {
-		return errors.Wrap(err, "failed to publish consumption report")
+		return nil, errors.Wrap(err, "failed to publish consumption report")
 	}
 
 	// only removed if report is reported to substrate
 	// remove item from queue
 	_, err = r.queue.Dequeue()
 
-	return err
+	return report.Consumption, err
 }
 
 func (r *Reporter) pusher(ctx context.Context) {
@@ -148,17 +148,30 @@ func (r *Reporter) pusher(ctx context.Context) {
 		// problem is pushOne is a blocker call. so if ctx is canceled
 		// while we are inside pushOne, no way to detect that until the pushOne call
 		// returns
-		if err := r.pushOne(); err != nil {
+		reported, err := r.pushOne()
+		if err != nil {
 			log.Error().Err(err).Msg("error while processing capacity report")
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(3 * time.Second):
+				continue
 			}
 		}
 
 		log.Debug().Msg("capacity report pushed to chain")
+		if err := r.synchronize(reported); err != nil {
+			log.Error().Err(err).Msg("failed to synchronize active contracts")
+		}
 	}
+}
+
+// synchronize will make sure that the node only runs
+// active contracts.
+func (r *Reporter) synchronize(reported []substrate.Consumption) error {
+	log.Debug().Msg("synchronize active contracts")
+
+	return nil
 }
 
 // Run runs the reporter
