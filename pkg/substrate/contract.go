@@ -11,8 +11,9 @@ import (
 
 // ContractState enum
 type ContractState struct {
-	IsCreated  bool
-	IsDeployed bool
+	IsCreated    bool
+	IsDeleted    bool
+	IsOutOfFunds bool
 }
 
 // Decode implementation for the enum type
@@ -26,7 +27,9 @@ func (r *ContractState) Decode(decoder scale.Decoder) error {
 	case 0:
 		r.IsCreated = true
 	case 1:
-		r.IsDeployed = true
+		r.IsDeleted = true
+	case 2:
+		r.IsOutOfFunds = true
 	default:
 		return fmt.Errorf("unknown CertificateType value")
 	}
@@ -102,6 +105,11 @@ type Consumption struct {
 	HRU        types.U64 `json:"hru"`
 	MRU        types.U64 `json:"mru"`
 	NRU        types.U64 `json:"nru"`
+}
+
+func (s *Consumption) IsEmpty() bool {
+	//Unit = gridtypes.Megabyte
+	return s.CRU == 0 && s.SRU == 0 && s.HRU == 0 && s.MRU == 0
 }
 
 // Report send a capacity report to substrate

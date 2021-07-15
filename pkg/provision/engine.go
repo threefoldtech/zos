@@ -348,15 +348,19 @@ func (e *NativeEngine) Run(root context.Context) error {
 		job := obj.(*engineJob)
 		ctx := context.WithValue(root, deploymentKey{}, &job.Target)
 
-		// contract processing
-		ctx, err = e.contract(ctx, &job.Target)
-		if err != nil {
-			job.Target.SetError(err)
-			if err := e.storage.Set(job.Target); err != nil {
-				log.Error().Err(err).Msg("failed to set deployment global error")
-			}
+		// contract validation
+		// this should ONLY be done on provosion and update operation
+		if job.Op != opDeprovision {
+			// otherwise, contract validation is needed
+			ctx, err = e.contract(ctx, &job.Target)
+			if err != nil {
+				job.Target.SetError(err)
+				if err := e.storage.Set(job.Target); err != nil {
+					log.Error().Err(err).Msg("failed to set deployment global error")
+				}
 
-			continue
+				continue
+			}
 		}
 
 		switch job.Op {

@@ -291,7 +291,9 @@ func (r *Reporter) user(since time.Time, user uint32, metrics pkg.MachineMetrics
 			}
 		}
 
-		consumptions = append(consumptions, consumption)
+		if !consumption.IsEmpty() {
+			consumptions = append(consumptions, consumption)
+		}
 	}
 
 	return consumptions, m.AsError()
