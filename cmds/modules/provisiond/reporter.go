@@ -16,7 +16,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/provision/storage"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/substrate"
 )
@@ -60,15 +60,20 @@ func (m many) AsError() error {
 	return m
 }
 
+type Consumption struct {
+	substrate.Consumption
+	TwinID uint32
+}
+
 type Report struct {
-	Consumption []substrate.Consumption
+	Consumption []Consumption
 }
 
 // Reporter structure
 type Reporter struct {
 	cl        zbus.Client
 	sk        ed25519.PrivateKey
-	storage   *storage.Fs
+	engine    provision.Engine
 	queue     *dque.DQue
 	substrate *substrate.Substrate
 }
@@ -78,7 +83,7 @@ func reportBuilder() interface{} {
 }
 
 // NewReporter creates a new capacity reporter
-func NewReporter(store *storage.Fs, cl zbus.Client, root string) (*Reporter, error) {
+func NewReporter(engine provision.Engine, cl zbus.Client, root string) (*Reporter, error) {
 	env, err := environment.Get()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get runtime environment")
@@ -108,14 +113,14 @@ func NewReporter(store *storage.Fs, cl zbus.Client, root string) (*Reporter, err
 
 	return &Reporter{
 		cl:        cl,
-		storage:   store,
+		engine:    engine,
 		sk:        sk,
 		queue:     queue,
 		substrate: sub,
 	}, nil
 }
 
-func (r *Reporter) pushOne() ([]substrate.Consumption, error) {
+func (r *Reporter) pushOne() ([]Consumption, error) {
 	item, err := r.queue.PeekBlock()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to peek into capacity queue. #properlyfatal")
@@ -126,7 +131,11 @@ func (r *Reporter) pushOne() ([]substrate.Consumption, error) {
 	// DEBUG
 	log.Debug().Int("len", len(report.Consumption)).Msgf("sending capacity report")
 
-	if err := r.substrate.Report(r.sk, report.Consumption); err != nil {
+	consumptions := make([]substrate.Consumption, 0, len(report.Consumption))
+	for _, cmp := range report.Consumption {
+		consumptions = append(consumptions, cmp.Consumption)
+	}
+	if err := r.substrate.Report(r.sk, consumptions); err != nil {
 		return nil, errors.Wrap(err, "failed to publish consumption report")
 	}
 
@@ -160,16 +169,47 @@ func (r *Reporter) pusher(ctx context.Context) {
 		}
 
 		log.Debug().Msg("capacity report pushed to chain")
-		if err := r.synchronize(reported); err != nil {
-			log.Error().Err(err).Msg("failed to synchronize active contracts")
+		if r.queue.Size() == 0 {
+			// we only synchronize once ALL queued reports are pushed.
+			if err := r.synchronize(ctx, reported); err != nil {
+				log.Error().Err(err).Msg("failed to synchronize active contracts")
+			}
 		}
 	}
 }
 
 // synchronize will make sure that the node only runs
 // active contracts.
-func (r *Reporter) synchronize(reported []substrate.Consumption) error {
+func (r *Reporter) synchronize(ctx context.Context, reported []Consumption) error {
 	log.Debug().Msg("synchronize active contracts")
+
+	local := make(map[types.U64]Consumption)
+	for _, report := range reported {
+		local[report.ContractID] = report
+	}
+
+	identity, err := substrate.Identity(r.sk)
+	if err != nil {
+		return errors.Wrap(err, "failed to get node identity")
+	}
+	// the idea here is that we bring ALL active node contracts from chain.
+	// then compare it with what we have atm (the one we just reported)
+	contracts, err := r.substrate.GetNodeContracts(identity.PublicKey, substrate.ContractState{IsCreated: true})
+	if err != nil {
+		return err
+	}
+
+	for _, contract := range contracts {
+		// is there a consumption report for a contract
+		delete(local, contract.ContractID)
+	}
+	// any LOCAL contract that is not in the map must be decommissioned
+	for _, local := range local {
+		log.Debug().Uint64("contract", uint64(local.ContractID)).Msg("decomission contract because it has been deleted")
+		if err := r.engine.Deprovision(ctx, local.TwinID, uint64(local.ContractID), "contract terminated"); err != nil {
+			log.Error().Err(err).Msgf("failed to decomission contract(%d)", local.ContractID)
+		}
+	}
 
 	return nil
 }
@@ -217,7 +257,7 @@ func (r *Reporter) Run(ctx context.Context) error {
 }
 
 func (r *Reporter) collect(ctx context.Context, since time.Time) (rep Report, err error) {
-	users, err := r.storage.Twins()
+	users, err := r.engine.Storage().Twins()
 	if err != nil {
 		return rep, err
 	}
@@ -247,25 +287,28 @@ func (r *Reporter) push(report Report) error {
 	return r.queue.Enqueue(&report)
 }
 
-func (r *Reporter) user(since time.Time, user uint32, metrics pkg.MachineMetrics) ([]substrate.Consumption, error) {
+func (r *Reporter) user(since time.Time, user uint32, metrics pkg.MachineMetrics) ([]Consumption, error) {
 	var m many
 
-	var consumptions []substrate.Consumption
-	ids, err := r.storage.ByTwin(user)
+	var consumptions []Consumption
+	ids, err := r.engine.Storage().ByTwin(user)
 	if err != nil {
 		m = m.append(errors.Wrapf(err, "failed to get reservation for user '%s'", user))
 	}
 
 	for _, id := range ids {
-		dl, err := r.storage.Get(user, id)
+		dl, err := r.engine.Storage().Get(user, id)
 		if err != nil {
 			m = m.append(errors.Wrapf(err, "failed to get reservation '%s'", id))
 			continue
 		}
 
-		consumption := substrate.Consumption{
-			ContractID: types.U64(id),
-			Timestamp:  types.U64(since.Unix()),
+		consumption := Consumption{
+			TwinID: user,
+			Consumption: substrate.Consumption{
+				ContractID: types.U64(id),
+				Timestamp:  types.U64(since.Unix()),
+			},
 		}
 
 		for i := range dl.Workloads {

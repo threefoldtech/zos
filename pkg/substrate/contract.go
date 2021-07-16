@@ -63,6 +63,7 @@ type Contract struct {
 	LastUpdated        types.U64
 	PreviousNUReported types.U64
 	PublicIPs          []PublicIP
+	UnBilled           types.U64
 }
 
 // GetContract we should not have calls to create contract, instead only get

@@ -354,13 +354,17 @@ func (e *NativeEngine) Run(root context.Context) error {
 			// otherwise, contract validation is needed
 			ctx, err = e.contract(ctx, &job.Target)
 			if err != nil {
+				log.Error().Err(err).Uint64("contract", job.Target.ContractID).Msg("contact validation fails")
 				job.Target.SetError(err)
 				if err := e.storage.Set(job.Target); err != nil {
 					log.Error().Err(err).Msg("failed to set deployment global error")
 				}
+				e.queue.Dequeue()
 
 				continue
 			}
+
+			log.Debug().Uint64("contract", job.Target.ContractID).Msg("contact validation pass")
 		}
 
 		switch job.Op {
@@ -422,6 +426,7 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment) (
 	}
 
 	ctx = context.WithValue(ctx, contractKey{}, contract)
+
 	if contract.Node.String() != e.address {
 		return nil, fmt.Errorf("invalid node address in contract")
 	}
@@ -432,7 +437,7 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment) (
 	}
 
 	if contract.DeploymentHash != hex.EncodeToString(hash) {
-		return nil, errors.Wrap(err, "deployment hash messmatch")
+		return nil, fmt.Errorf("deployment hash messmatch")
 	}
 
 	return ctx, nil
