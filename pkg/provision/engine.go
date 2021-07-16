@@ -437,7 +437,7 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment) (
 	}
 
 	if contract.DeploymentHash != hex.EncodeToString(hash) {
-		return nil, fmt.Errorf("deployment hash messmatch")
+		return nil, fmt.Errorf("contract hash does not match deployment hash")
 	}
 
 	return ctx, nil
