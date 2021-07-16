@@ -81,6 +81,7 @@ func (s *Substrate) GetContract(id uint64) (*Contract, error) {
 	return s.getContract(key)
 }
 
+// GetNodeContracts gets all contracts on a node (pk) in given state
 func (s *Substrate) GetNodeContracts(pk []byte, state ContractState) ([]Contract, error) {
 	stateBytes, err := types.EncodeToBytes(state)
 	if err != nil {
@@ -142,6 +143,7 @@ type Consumption struct {
 	NRU        types.U64 `json:"nru"`
 }
 
+// IsEmpty true if consumption is zero
 func (s *Consumption) IsEmpty() bool {
 	//Unit = gridtypes.Megabyte
 	return s.CRU == 0 && s.SRU == 0 && s.HRU == 0 && s.MRU == 0

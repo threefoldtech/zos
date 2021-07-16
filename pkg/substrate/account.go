@@ -45,6 +45,7 @@ func (a AccountID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(address)
 }
 
+// FromAddress creates an AccountID from a SS58 address
 func FromAddress(address string) (account AccountID, err error) {
 	bytes := base58.Decode(address)
 	if len(bytes) != 3+len(account) {
