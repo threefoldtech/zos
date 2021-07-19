@@ -22,6 +22,8 @@ type redisClient struct {
 	pool *redis.Pool
 }
 
+// Default return instance of to default (local) rmb
+// shortcut for NewClient(DefaultAddress)
 func Default() (Client, error) {
 	return NewClient(DefaultAddress)
 }
