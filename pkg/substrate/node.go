@@ -104,7 +104,7 @@ type Node struct {
 	PublicConfig OptionPublicConfig
 }
 
-//GetNodeByPubKey by an SS58 address
+//GetNodeByTwinID gets a node by twin id
 func (s *Substrate) GetNodeByTwinID(twin uint32) (uint32, error) {
 	bytes, err := types.EncodeToBytes(twin)
 	if err != nil {
