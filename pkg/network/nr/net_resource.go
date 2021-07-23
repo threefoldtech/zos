@@ -260,9 +260,13 @@ func (nr *NetResource) wgPeers() ([]*wireguard.Peer, error) {
 	for _, peer := range nr.resource.Peers {
 		//peer.Subnet.IP.To4()
 		//allowedIPs := make([]string, 0, len(peer.AllowedIPs))
+		rng100 := wgIP(&peer.Subnet.IPNet)
+		rng100.Mask = net.CIDRMask(32, 32)
+		// format it as 100.64.a.b/32
+
 		allowedIPs := []string{
 			peer.Subnet.String(),
-			wgIP(&peer.Subnet.IPNet).String(),
+			rng100.String(),
 		}
 
 		wgPeer := &wireguard.Peer{
