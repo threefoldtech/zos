@@ -110,6 +110,8 @@ func setupPublicBridge(br *netlink.Bridge) error {
 	return nil
 }
 
+// GetPublicSetup gets the public setup from reality
+// or error if node has no public setup
 func GetPublicSetup() (pkg.PublicConfig, error) {
 	if !namespace.Exists(types.PublicNamespace) {
 		return pkg.PublicConfig{}, fmt.Errorf("no public config")
