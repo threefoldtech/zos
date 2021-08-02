@@ -415,7 +415,14 @@ func identityMgr(root string) (pkg.IdentityManager, error) {
 	seedPath := filepath.Join(root, seedName)
 
 	manager, err := identity.NewManager(seedPath)
-	if err != nil {
+	if errors.Is(err, identity.ErrCorruptSeed) {
+		log.Error().Err(err).Msg("failed to load seed, removing")
+		if err := os.Remove(seedPath); err != nil {
+			log.Error().Err(err).Msg("failed to delete corrupt seed file")
+		}
+		// returning an error will force restart of identityd
+		return nil, err
+	} else if err != nil {
 		return nil, err
 	}
 
