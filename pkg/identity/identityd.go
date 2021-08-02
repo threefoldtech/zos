@@ -16,6 +16,7 @@ type identityManager struct {
 }
 
 var (
+	// ErrCorruptSeed is raised if seed file is invalid
 	ErrCorruptSeed = fmt.Errorf("invalid seed file")
 )
 
