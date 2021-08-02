@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/threefoldtech/zos/pkg/crypto"
@@ -13,6 +14,11 @@ import (
 type identityManager struct {
 	key KeyPair
 }
+
+var (
+	// ErrCorruptSeed is raised if seed file is invalid
+	ErrCorruptSeed = fmt.Errorf("invalid seed file")
+)
 
 // NewManager creates an identity daemon from seed
 // The daemon will auto generate a new seed if the path does
@@ -29,7 +35,7 @@ func NewManager(path string) (pkg.IdentityManager, error) {
 			return nil, errors.Wrap(err, "failed to persist key seed")
 		}
 	} else if err != nil {
-		return nil, errors.Wrap(err, "failed to load seed")
+		return nil, errors.Wrapf(ErrCorruptSeed, "failed to load seed: %s", err)
 	} else {
 		pair, err = FromSeed(seed)
 		if err != nil {

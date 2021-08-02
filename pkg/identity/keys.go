@@ -3,6 +3,7 @@ package identity
 import (
 	"encoding/json"
 	"fmt"
+	"syscall"
 
 	"github.com/jbenet/go-base58"
 	"github.com/threefoldtech/zos/pkg/versioned"
@@ -51,6 +52,8 @@ func GenerateKeyPair() (k KeyPair, err error) {
 // Save saves the seed of a key pair in a file located at path
 func (k *KeyPair) Save(path string) error {
 	seed := k.PrivateKey.Seed()
+
+	defer syscall.Sync()
 
 	return versioned.WriteFile(path, SeedVersion1, seed, 0400)
 }
