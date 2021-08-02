@@ -22,8 +22,10 @@ const (
 	YggIface = "ygg0"
 )
 
+// NodeConfig wrapper around yggdrasil node config
 type NodeConfig config.NodeConfig
 
+// Address gets the address from the config
 func (n *NodeConfig) Address() (net.IP, error) {
 	ip := make([]byte, net.IPv6len)
 	pk, err := hex.DecodeString(n.PublicKey)

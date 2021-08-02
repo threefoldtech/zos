@@ -28,7 +28,7 @@ type YggServer struct {
 	cfg   *yggdrasil.NodeConfig
 }
 
-// NewServer create a new yggdrasil Server
+// NewYggServer create a new yggdrasil Server
 func NewYggServer(zinit *zinit.Client, cfg *yggdrasil.NodeConfig) *YggServer {
 	return &YggServer{
 		zinit: zinit,
