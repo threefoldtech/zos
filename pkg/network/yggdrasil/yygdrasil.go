@@ -43,7 +43,7 @@ func (s *Server) Start() error {
 		return nil
 	}
 
-	if err := writeConfig(confPath, *s.cfg); err != nil {
+	if err := writeConfig(confPath, s.cfg); err != nil {
 		return err
 	}
 
@@ -164,7 +164,7 @@ func subnetFor(prefix net.IP, b []byte) (net.IP, error) {
 	return prefix, nil
 }
 
-func writeConfig(path string, cfg config.NodeConfig) error {
+func writeConfig(path string, cfg *config.NodeConfig) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
 		return err
 	}

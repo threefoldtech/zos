@@ -13,11 +13,11 @@ var PeerListFallback = PeerList{
 		Up:       true,
 	},
 	{
-		Endpoint: "tcp://85.17.15.221:35239",
+		Endpoint: "tcp://51.15.204.214:12345",
 		Up:       true,
 	},
 	{
-		Endpoint: "tcp://51.255.223.60:64982",
+		Endpoint: "tcp://45.138.172.192:5001",
 		Up:       true,
 	},
 }
@@ -31,7 +31,7 @@ type NodeInfo struct {
 	ProtoMinor int    `json:"proto_minor"`
 }
 
-// PeersList is yggdrasil peers list
+// PeerList is yggdrasil peers list
 type PeerList []NodeInfo
 
 // FetchPeerList download the list of public yggdrasil peer from https://publicpeers.neilalexander.dev/publicnodes.json
