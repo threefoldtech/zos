@@ -1,6 +1,7 @@
 package yggdrasil
 
 import (
+	"crypto/ed25519"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -14,7 +15,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/yggdrasil-network/yggdrasil-go/src/address"
 	"github.com/yggdrasil-network/yggdrasil-go/src/config"
-	"github.com/yggdrasil-network/yggdrasil-go/src/crypto"
 )
 
 const (
@@ -86,19 +86,12 @@ func (s *Server) Stop() error {
 }
 
 // NodeID returns the yggdrasil node ID of s
-func (s *Server) NodeID() (*crypto.NodeID, error) {
-	if s.cfg.EncryptionPublicKey == "" {
+func (s *Server) NodeID() (ed25519.PublicKey, error) {
+	if s.cfg.PublicKey == "" {
 		panic("EncryptionPublicKey empty")
 	}
 
-	pubkey, err := hex.DecodeString(s.cfg.EncryptionPublicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	var box crypto.BoxPubKey
-	copy(box[:], pubkey[:])
-	return crypto.GetNodeID(&box), nil
+	return hex.DecodeString(s.cfg.PublicKey)
 }
 
 // Address return the address in the 200::/7 subnet allocated by yggdrasil
@@ -109,7 +102,7 @@ func (s *Server) Address() (net.IP, error) {
 	}
 
 	ip := make([]byte, net.IPv6len)
-	copy(ip, address.AddrForNodeID(nodeID)[:])
+	copy(ip, address.AddrForKey(nodeID)[:])
 
 	return ip, nil
 }
@@ -121,7 +114,7 @@ func (s *Server) Subnet() (net.IPNet, error) {
 		return net.IPNet{}, err
 	}
 
-	snet := *address.SubnetForNodeID(nodeID)
+	snet := *address.SubnetForKey(nodeID)
 	ipnet := net.IPNet{
 		IP:   append(snet[:], 0, 0, 0, 0, 0, 0, 0, 0),
 		Mask: net.CIDRMask(len(snet)*8, 128),

@@ -31,6 +31,7 @@ type NodeInfo struct {
 	ProtoMinor int    `json:"proto_minor"`
 }
 
+// PeersList is yggdrasil peers list
 type PeerList []NodeInfo
 
 // FetchPeerList download the list of public yggdrasil peer from https://publicpeers.neilalexander.dev/publicnodes.json
