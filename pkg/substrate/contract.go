@@ -63,6 +63,36 @@ type Contract struct {
 	PublicIPs      []PublicIP
 }
 
+func (s *Substrate) CreateContract(sk ed25519.PrivateKey, node uint32, body []byte, hash []byte, publicIPs uint32) (uint64, error) {
+	c, err := types.NewCall(s.meta, "SmartContractModule.create_contract",
+		node, body, hash, publicIPs,
+	)
+
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to create call")
+	}
+
+	blockHash, err := s.call(sk, c)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to create node")
+	}
+
+	fmt.Printf("hash: %s\n", blockHash.Hex())
+
+	key, err := types.CreateStorageKey(s.meta, "SmartContractModule", "Contracts")
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to create filter key")
+	}
+
+	keys, err := s.cl.RPC.State.GetKeys(key, blockHash)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to list keys")
+	}
+
+	fmt.Println(keys)
+	return 0, nil
+}
+
 // GetContract we should not have calls to create contract, instead only get
 func (s *Substrate) GetContract(id uint64) (*Contract, error) {
 	bytes, err := types.EncodeToBytes(id)
@@ -154,7 +184,7 @@ func (s *Substrate) Report(sk ed25519.PrivateKey, consumptions []Consumption) er
 		return errors.Wrap(err, "failed to create call")
 	}
 
-	if err := s.call(sk, c); err != nil {
+	if _, err := s.call(sk, c); err != nil {
 		return errors.Wrap(err, "failed to create report")
 	}
 
