@@ -36,21 +36,19 @@ type PeerList []NodeInfo
 // FetchPeerList download the list of public yggdrasil peer from https://publicpeers.neilalexander.dev/publicnodes.json
 func FetchPeerList() (PeerList, error) {
 
-	var value struct {
-		peers map[string]map[string]NodeInfo
-	}
+	var values map[string]map[string]NodeInfo
 
 	resp, err := http.Get("https://publicpeers.neilalexander.dev/publicnodes.json")
 	if err != nil {
 		return nil, err
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&value); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&values); err != nil {
 		return nil, err
 	}
 
 	var peers PeerList
-	for _, nodes := range value.peers {
+	for _, nodes := range values {
 		for endpoint, info := range nodes {
 			if info.ProtoMinor != 4 {
 				continue
