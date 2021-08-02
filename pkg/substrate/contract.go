@@ -63,6 +63,7 @@ type Contract struct {
 	PublicIPs      []PublicIP
 }
 
+// CreateContract creates a contract for deployment
 func (s *Substrate) CreateContract(sk ed25519.PrivateKey, node uint32, body []byte, hash string, publicIPs uint32) (uint64, error) {
 	c, err := types.NewCall(s.meta, "SmartContractModule.create_contract",
 		node, body, hash, publicIPs,
@@ -94,7 +95,7 @@ func (s *Substrate) GetContract(id uint64) (*Contract, error) {
 	return s.getContract(key)
 }
 
-// GetNodeContracts gets all contracts on a node (pk) in given state
+// GetContractWithHash gets a contract given the node id and hash
 func (s *Substrate) GetContractWithHash(node uint32, hash string) (uint64, error) {
 	nodeBytes, err := types.EncodeToBytes(node)
 	if err != nil {
