@@ -52,6 +52,9 @@ func FetchPeerList() (PeerList, error) {
 	var peers PeerList
 	for _, nodes := range value.peers {
 		for endpoint, info := range nodes {
+			if info.ProtoMinor != 4 {
+				continue
+			}
 			info.Endpoint = endpoint
 			peers = append(peers, info)
 		}
