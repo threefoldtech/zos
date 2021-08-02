@@ -93,7 +93,7 @@ func (s *Substrate) CreateTwin(sk ed25519.PrivateKey, ip net.IP) (uint32, error)
 		return 0, errors.Wrap(err, "failed to create call")
 	}
 
-	if err := s.call(sk, c); err != nil {
+	if _, err := s.call(sk, c); err != nil {
 		return 0, errors.Wrap(err, "failed to create twin")
 	}
 
@@ -112,7 +112,7 @@ func (s *Substrate) UpdateTwin(sk ed25519.PrivateKey, ip net.IP) (uint32, error)
 		return 0, errors.Wrap(err, "failed to create call")
 	}
 
-	if err := s.call(sk, c); err != nil {
+	if _, err := s.call(sk, c); err != nil {
 		return 0, errors.Wrap(err, "failed to update twin")
 	}
 
