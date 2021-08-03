@@ -15,15 +15,12 @@ func TestDeviceManagerScan(t *testing.T) {
 	ctx := context.Background()
 
 	var devices struct {
-		BlockDevices []Device `json:"blockdevices"`
+		BlockDevices []DeviceImpl `json:"blockdevices"`
 	}
 
-	devices.BlockDevices = []Device{
+	devices.BlockDevices = []DeviceImpl{
 		{Type: "block", Path: "/tmp/dev1", Label: "test"},
-		{Type: "block", Path: "/tmp/dev2", Children: []Device{
-			{Path: "/tmp/dev2-1"},
-			{Path: "/tmp/dev2-2"},
-		}},
+		{Type: "block", Path: "/tmp/dev2"},
 	}
 
 	bytes, err := json.Marshal(devices)

@@ -92,11 +92,11 @@ func (p *testPool) UnMount() error {
 	return fmt.Errorf("UnMount not implemented")
 }
 
-func (p *testPool) AddDevice(_ *filesystem.Device) error {
+func (p *testPool) AddDevice(_ *filesystem.DeviceImpl) error {
 	return fmt.Errorf("AddDevice not implemented")
 }
 
-func (p *testPool) RemoveDevice(_ *filesystem.Device) error {
+func (p *testPool) RemoveDevice(_ *filesystem.DeviceImpl) error {
 	return fmt.Errorf("RemoveDevice not implemented")
 }
 
@@ -123,8 +123,8 @@ func (p *testPool) RemoveVolume(name string) error {
 	return args.Error(1)
 }
 
-func (p *testPool) Devices() []*filesystem.Device {
-	return []*filesystem.Device{}
+func (p *testPool) Devices() []*filesystem.DeviceImpl {
+	return []*filesystem.DeviceImpl{}
 }
 
 func (p *testPool) Shutdown() error {

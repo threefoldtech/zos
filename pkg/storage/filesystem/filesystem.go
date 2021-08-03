@@ -43,9 +43,9 @@ type Pool interface {
 	// UnMount the pool
 	UnMount() error
 	//AddDevice to the pool
-	AddDevice(device *Device) error
+	AddDevice(device *DeviceImpl) error
 	// RemoveDevice from the pool
-	RemoveDevice(device *Device) error
+	RemoveDevice(device *DeviceImpl) error
 	// Type of the physical storage in this pool
 	Type() pkg.DeviceType
 	// Reserved is reserved size of the devices in bytes
@@ -57,7 +57,7 @@ type Pool interface {
 	// RemoveVolume removes a subvolume with the given name
 	RemoveVolume(name string) error
 	// Devices list attached devices
-	Devices() []*Device
+	Devices() []*DeviceImpl
 
 	// Shutdown spins down the device where the pool is mounted
 	Shutdown() error
@@ -78,11 +78,11 @@ type Filesystem interface {
 	// name: name of the filesystem
 	// devices: list of devices to use in the filesystem
 	// profile: Raid profile of the filesystem
-	Create(ctx context.Context, name string, profile pkg.RaidProfile, devices ...*Device) (Pool, error)
+	Create(ctx context.Context, name string, profile pkg.RaidProfile, devices ...*DeviceImpl) (Pool, error)
 
 	// CreateForce creates a new filesystem with force
 	// It will delete existing data and partition tables
-	CreateForce(ctx context.Context, name string, profile pkg.RaidProfile, devices ...*Device) (Pool, error)
+	CreateForce(ctx context.Context, name string, profile pkg.RaidProfile, devices ...*DeviceImpl) (Pool, error)
 	// List all existing filesystems on the node
 	List(ctx context.Context, filter Filter) ([]Pool, error)
 }

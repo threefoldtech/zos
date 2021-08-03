@@ -53,15 +53,15 @@ func NewBtrfs(manager DeviceManager) Filesystem {
 	return newBtrfs(manager, executerFunc(run))
 }
 
-func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*Device) (Pool, error) {
+func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*DeviceImpl) (Pool, error) {
 	return b.create(ctx, name, policy, false, devices)
 }
 
-func (b *btrfs) CreateForce(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*Device) (Pool, error) {
+func (b *btrfs) CreateForce(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*DeviceImpl) (Pool, error) {
 	return b.create(ctx, name, policy, true, devices)
 }
 
-func (b *btrfs) create(ctx context.Context, name string, policy pkg.RaidProfile, force bool, devices []*Device) (Pool, error) {
+func (b *btrfs) create(ctx context.Context, name string, policy pkg.RaidProfile, force bool, devices []*DeviceImpl) (Pool, error) {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {
 		return nil, fmt.Errorf("invalid name")
@@ -149,11 +149,11 @@ func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
 
 type btrfsPool struct {
 	name    string
-	devices []*Device
+	devices []*DeviceImpl
 	utils   *BtrfsUtil
 }
 
-func newBtrfsPool(name string, devices []*Device, utils *BtrfsUtil) *btrfsPool {
+func newBtrfsPool(name string, devices []*DeviceImpl, utils *BtrfsUtil) *btrfsPool {
 	return &btrfsPool{
 		name:    name,
 		devices: devices,
@@ -272,7 +272,7 @@ func (p *btrfsPool) UnMount() error {
 	return syscall.Unmount(mnt, syscall.MNT_DETACH)
 }
 
-func (p *btrfsPool) addDevice(device *Device, root string) error {
+func (p *btrfsPool) addDevice(device *DeviceImpl, root string) error {
 	ctx := context.Background()
 
 	if err := p.utils.DeviceAdd(ctx, device.Path, root); err != nil {
@@ -288,7 +288,7 @@ func (p *btrfsPool) addDevice(device *Device, root string) error {
 	return nil
 }
 
-func (p *btrfsPool) AddDevice(device *Device) error {
+func (p *btrfsPool) AddDevice(device *DeviceImpl) error {
 	mnt, ok := p.Mounted()
 	if !ok {
 		return ErrDeviceNotMounted
@@ -297,7 +297,7 @@ func (p *btrfsPool) AddDevice(device *Device) error {
 	return p.addDevice(device, mnt)
 }
 
-func (p *btrfsPool) removeDevice(device *Device, root string) error {
+func (p *btrfsPool) removeDevice(device *DeviceImpl, root string) error {
 	ctx := context.Background()
 
 	if err := p.utils.DeviceRemove(ctx, device.Path, root); err != nil {
@@ -318,7 +318,7 @@ func (p *btrfsPool) removeDevice(device *Device, root string) error {
 	return nil
 }
 
-func (p *btrfsPool) RemoveDevice(device *Device) error {
+func (p *btrfsPool) RemoveDevice(device *DeviceImpl) error {
 	mnt, ok := p.Mounted()
 	if !ok {
 		return ErrDeviceNotMounted
@@ -441,7 +441,7 @@ func (p *btrfsPool) Type() pkg.DeviceType {
 	return p.devices[0].DiskType
 }
 
-func (p *btrfsPool) Devices() []*Device {
+func (p *btrfsPool) Devices() []*DeviceImpl {
 	return p.devices
 }
 
@@ -511,7 +511,8 @@ func (p *btrfsPool) Shutdown() error {
 			return err
 		}
 
-		device.ShutdownCount.Add(1)
+		//TODO: tracking of shutting down
+		//device.ShutdownCount.Add(1)
 		log.Info().Msgf("Disk %s is shutdown", device.Path)
 	}
 	return nil

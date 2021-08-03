@@ -132,6 +132,73 @@ type Filesystem struct {
 	DiskType DeviceType
 }
 
+type Volume struct {
+	Name  string
+	Path  string
+	Usage Usage
+}
+
+type Device struct {
+	Path  string
+	ID    string
+	Usage Usage
+}
+
+// Storage is the storage subsystem interface
+// this should allow you to work with the following types of storage medium
+// - full disks (device) (these are used by zdb)
+// - subvolumes these are used as a read-write layers for 0-fs mounts
+// - vdisks are used by zmachines
+// this works as following:
+// a storage module maintains a list of ALL disks on the system
+// separated in 2 sets of pools (SSDs, and HDDs)
+// ssd pools can only be used for
+// - subvolumes
+// - vdisks
+// hdd pools are only used by zdb as one disk
+type Storage interface {
+	// Managerial method
+	Cache() (Volume, error)
+	// Volume management
+
+	// VolumeCreate creates a new volume
+	VolumeCreate(name string, size gridtypes.Unit) (Volume, error)
+
+	// VolumeUpdate updates the size of an existing volume
+	VolumeUpdate(name string, size gridtypes.Unit) error
+
+	// VolumeLookup return volume information for given name
+	VolumeLookup(name string) (Volume, error)
+
+	// VolumeDelete deletes a volume by name
+	VolumeDelete(name string) error
+
+	// Virtual disk management
+
+	// DiskCreate creates a virtual disk given name and size
+	DiskCreate(name string, size gridtypes.Unit) (VDisk, error)
+
+	// DiskWrite writes the given raw image to disk
+	DiskWrite(name string, image string) error
+
+	// DiskFormat makes sure disk has filesystem, if it already formatted nothing happens
+	DiskFormat(name string) error
+
+	// DiskLookup looks up vdisk by name
+	DiskLookup(name string) (VDisk, error)
+
+	// DiskExists checks if disk exists
+	DiskExists(name string) bool
+
+	// Device management
+
+	//Devices list all "allocated" devices
+	Devices() ([]Device, error)
+
+	// DeviceAllocate allocates a new device (formats and give a new ID)
+	DeviceAllocate() (Device, error)
+}
+
 // VolumeAllocater is the zbus interface of the storage module responsible
 // for volume allocation
 type VolumeAllocater interface {

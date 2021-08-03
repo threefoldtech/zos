@@ -36,10 +36,10 @@ var (
 
 type TestDevices map[string]string
 
-func (d TestDevices) Loops() DeviceCache {
-	var loops DeviceCache
+func (d TestDevices) Loops() Devices {
+	var loops Devices
 	for _, loop := range d {
-		loops = append(loops, Device{Path: loop})
+		loops = append(loops, DeviceImpl{Path: loop})
 	}
 
 	return loops

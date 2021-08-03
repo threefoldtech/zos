@@ -13,14 +13,14 @@ import (
 )
 
 type TestDeviceManager struct {
-	devices DeviceCache
+	devices Devices
 }
 
 func (m *TestDeviceManager) Reset() DeviceManager {
 	return m
 }
 
-func (m *TestDeviceManager) Device(ctx context.Context, path string) (*Device, error) {
+func (m *TestDeviceManager) Device(ctx context.Context, path string) (*DeviceImpl, error) {
 	for idx := range m.devices {
 		loop := &m.devices[idx]
 		if loop.Path == path {
@@ -31,8 +31,8 @@ func (m *TestDeviceManager) Device(ctx context.Context, path string) (*Device, e
 	return nil, fmt.Errorf("device not found")
 }
 
-func (m *TestDeviceManager) ByLabel(ctx context.Context, label string) ([]*Device, error) {
-	var filterred []*Device
+func (m *TestDeviceManager) ByLabel(ctx context.Context, label string) ([]*DeviceImpl, error) {
+	var filterred []*DeviceImpl
 	for idx := range m.devices {
 		device := &m.devices[idx]
 		if device.Label == label {
@@ -42,19 +42,19 @@ func (m *TestDeviceManager) ByLabel(ctx context.Context, label string) ([]*Devic
 	return filterred, nil
 }
 
-func (m *TestDeviceManager) Devices(ctx context.Context) (DeviceCache, error) {
+func (m *TestDeviceManager) Devices(ctx context.Context) (Devices, error) {
 	return m.devices, nil
 }
 
-func (m *TestDeviceManager) Raw(ctx context.Context) (DeviceCache, error) {
+func (m *TestDeviceManager) Raw(ctx context.Context) (Devices, error) {
 	return m.devices, nil
 }
 
 func TestBtrfsCreateSingle(t *testing.T) {
 	require := require.New(t)
 	mgr := &TestDeviceManager{
-		devices: DeviceCache{
-			Device{Path: "/tmp/dev1", DiskType: zos.SSDDevice},
+		devices: Devices{
+			DeviceImpl{Path: "/tmp/dev1", DiskType: zos.SSDDevice},
 		},
 	}
 
@@ -76,9 +76,9 @@ func TestBtrfsCreateSingle(t *testing.T) {
 func TestBtrfsCreateRaid1(t *testing.T) {
 	require := require.New(t)
 	mgr := &TestDeviceManager{
-		devices: DeviceCache{
-			Device{Path: "/tmp/dev1", DiskType: zos.SSDDevice},
-			Device{Path: "/tmp/dev2", DiskType: zos.SSDDevice},
+		devices: Devices{
+			DeviceImpl{Path: "/tmp/dev1", DiskType: zos.SSDDevice},
+			DeviceImpl{Path: "/tmp/dev2", DiskType: zos.SSDDevice},
 		},
 	}
 

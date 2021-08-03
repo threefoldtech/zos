@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"expvar"
 	"fmt"
 	"os"
 	"os/exec"
@@ -176,7 +175,7 @@ func (s *Module) initialize(policy pkg.StoragePolicy) error {
 		return err
 	}
 
-	freeDisks := filesystem.DeviceCache{}
+	freeDisks := filesystem.Devices{}
 
 	for idx := range disks {
 		if !disks[idx].Used() {
@@ -207,8 +206,8 @@ func (s *Module) initialize(policy pkg.StoragePolicy) error {
 	newPools := []filesystem.Pool{}
 
 	// also make sure pools are homogenous, only 1 type of device per pool
-	ssds := filesystem.DeviceCache{}
-	hdds := filesystem.DeviceCache{}
+	ssds := filesystem.Devices{}
+	hdds := filesystem.Devices{}
 
 	for idx := range freeDisks {
 		if freeDisks[idx].DiskType == zos.SSDDevice {
@@ -219,7 +218,7 @@ func (s *Module) initialize(policy pkg.StoragePolicy) error {
 	}
 
 	createdPools := 0
-	fdisks := []filesystem.DeviceCache{ssds, hdds}
+	fdisks := []filesystem.Devices{ssds, hdds}
 	for idx := range fdisks {
 		possiblePools := len(fdisks[idx]) / int(policy.Disks)
 		// only create up to the specified amount of pools
@@ -230,7 +229,7 @@ func (s *Module) initialize(policy pkg.StoragePolicy) error {
 
 		for i := 0; i < possiblePools; i++ {
 			log.Debug().Msgf("Creating new volume: %d", i)
-			poolDevices := []*filesystem.Device{}
+			poolDevices := []*filesystem.DeviceImpl{}
 
 			for j := 0; j < int(policy.Disks); j++ {
 				log.Debug().Msgf("Grabbing device %d: %s for new volume", i*int(policy.Disks)+j, fdisks[idx][i*int(policy.Disks)+j].Path)
@@ -269,9 +268,10 @@ func (s *Module) initialize(policy pkg.StoragePolicy) error {
 	s.totalSSD = 0
 	s.totalHDD = 0
 	for _, pool := range s.pools {
-		for _, device := range pool.Devices() {
-			device.ShutdownCount = expvar.NewInt(device.Path)
-		}
+		// for _, device := range pool.Devices() {
+
+		// 	device.ShutdownCount = expvar.NewInt(device.Path)
+		// }
 
 		// calculate size for pool
 		usage, err := pool.Usage()
