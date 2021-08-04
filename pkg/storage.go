@@ -14,18 +14,6 @@ import (
 //go:generate zbusc -module storage -version 0.0.1 -name vdisk -package stubs github.com/threefoldtech/zos/pkg+VDiskModule stubs/vdisk_stub.go
 
 // RaidProfile type
-type RaidProfile string
-
-const (
-	// Single profile
-	Single RaidProfile = "single"
-	// Raid0 profile
-	Raid0 RaidProfile = "raid0"
-	// Raid1 profile
-	Raid1 RaidProfile = "raid1"
-	// Raid10 profile
-	Raid10 RaidProfile = "raid10"
-)
 
 // ErrNotEnoughSpace indicates that there is not enough space in a pool
 // of the requested type to create the filesystem
@@ -69,46 +57,6 @@ type (
 		Err error
 	}
 )
-
-// Validate make sure profile is correct
-func (p RaidProfile) Validate() error {
-	if _, ok := raidProfiles[p]; !ok {
-		return fmt.Errorf("not supported raid profile '%s'", p)
-	}
-
-	return nil
-}
-
-var (
-	raidProfiles = map[RaidProfile]struct{}{
-		Single: {}, Raid1: {}, Raid10: {},
-	}
-	// DefaultPolicy value
-	DefaultPolicy = StoragePolicy{
-		Raid: Single,
-	}
-
-	// NullPolicy does not create pools
-	NullPolicy = StoragePolicy{}
-)
-
-// StoragePolicy describes the pool creation policy
-type StoragePolicy struct {
-	// Raid profile for this policy
-	Raid RaidProfile
-	// Number of disks to use in a single pool
-	// note that, the disks count must be valid for
-	// the chosen raid profile.
-	Disks uint8
-
-	// Only create this amount of storage pools. Default to 0 -> unlimited.
-	// The spared disks can later be used in automatic repair if a physical
-	// disk got corrupt or bad.
-	// Note that if it's set to 0 (unlimited), some disks might be spared anyway
-	// in case the number of disks required in the policy doesn't add up to pools
-	// for example, a pool of 2s on a machine with 5 disks.
-	MaxPools uint8
-}
 
 // Usage struct
 type Usage struct {

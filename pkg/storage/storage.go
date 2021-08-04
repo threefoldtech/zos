@@ -31,14 +31,6 @@ const (
 	cacheSize  = 100 * gib
 )
 
-var (
-	diskBase = map[pkg.RaidProfile]int{
-		pkg.Single: 1,
-		pkg.Raid1:  2,
-		pkg.Raid10: 4,
-	}
-)
-
 // Module implements functionality for pkg.StorageModule
 type Module struct {
 	devices filesystem.DeviceManager
@@ -69,11 +61,7 @@ func New() (*Module, error) {
 	}
 
 	// go for a simple linear setup right now
-	err := s.initialize(pkg.StoragePolicy{
-		Raid:     pkg.Single,
-		Disks:    1,
-		MaxPools: 0,
-	})
+	err := s.initialize()
 
 	if err == nil {
 		log.Info().Msgf("Finished initializing storage module")
@@ -132,7 +120,7 @@ What Initialize will do is the following:
  - Scan free devices, apply the policy.
  - If new pools were created, the pool is going to be mounted automatically
 **/
-func (s *Module) initialize(policy pkg.StoragePolicy) error {
+func (s *Module) initialize() error {
 	// lock for the entire initialization method, so other code which relies
 	// on this observes this as an atomic operation
 	s.mu.Lock()
