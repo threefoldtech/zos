@@ -128,8 +128,6 @@ type Filesystem struct {
 	Name string
 	// FsType of the Filesystem
 	FsType string
-	// DiskType of the Filesystem
-	DiskType DeviceType
 }
 
 type Volume struct {

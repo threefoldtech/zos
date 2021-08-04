@@ -2,23 +2,12 @@ package filesystem
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-type M map[string]interface{}
-
-func (m M) Bytes() []byte {
-	bytes, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-
-	return bytes
-}
 func TestDeviceManagerScan(t *testing.T) {
 	require := require.New(t)
 	var exec TestExecuter
@@ -26,8 +15,8 @@ func TestDeviceManagerScan(t *testing.T) {
 
 	// we expect this call to lsblk
 	exec.On("run", ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path").
-		Return(M{
-			"blockdevices": []M{
+		Return(TestMap{
+			"blockdevices": []TestMap{
 				{"subsystems": "block:scsi:pci", "path": "/tmp/dev1", "name": "dev1"},
 				{"subsystems": "block:scsi:pci", "path": "/tmp/dev2", "name": "dev2"},
 			},
@@ -35,15 +24,15 @@ func TestDeviceManagerScan(t *testing.T) {
 
 	// then other calls per device for extended details
 	exec.On("run", ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path", "/tmp/dev1").
-		Return(M{
-			"blockdevices": []M{
+		Return(TestMap{
+			"blockdevices": []TestMap{
 				{"subsystems": "block:scsi:pci", "path": "/tmp/dev1", "name": "dev1", "label": "test"},
 			},
 		}.Bytes(), nil)
 
 	exec.On("run", ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path", "/tmp/dev2").
-		Return(M{
-			"blockdevices": []M{
+		Return(TestMap{
+			"blockdevices": []TestMap{
 				{"subsystems": "block:scsi:pci", "path": "/tmp/dev2", "name": "dev2", "label": "test2"},
 			},
 		}.Bytes(), nil)

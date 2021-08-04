@@ -1,78 +1,104 @@
 package filesystem
 
-// import (
-// 	"context"
-// 	"fmt"
-// 	"testing"
+import (
+	"context"
+	"testing"
 
-// 	"github.com/threefoldtech/zos/pkg"
-// 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 
-// 	"github.com/stretchr/testify/mock"
-// 	"github.com/stretchr/testify/require"
-// )
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+)
 
-// type TestDeviceManager struct {
-// 	devices Devices
-// }
+type TestDevice struct {
+	path       string
+	name       string
+	deviceType zos.DeviceType
+	info       DeviceInfo
+	readTime   uint64
+}
 
-// func (m *TestDeviceManager) Reset() DeviceManager {
-// 	return m
-// }
+// Path returns path to the device like /dev/sda
+func (t *TestDevice) Path() string {
+	return t.path
+}
 
-// func (m *TestDeviceManager) Device(ctx context.Context, path string) (Device, error) {
-// 	for _, loop := range m.devices {
-// 		if loop.Path() == path {
-// 			return loop, nil
-// 		}
-// 	}
+// Name returns name of the device like sda
+func (t *TestDevice) Name() string {
+	return t.name
+}
 
-// 	return nil, fmt.Errorf("device not found")
-// }
+// Type returns detected device type (hdd, ssd)
+func (t *TestDevice) Type() zos.DeviceType {
+	return t.deviceType
+}
 
-// func (m *TestDeviceManager) ByLabel(ctx context.Context, label string) ([]Device, error) {
-// 	var filterred []Device
-// 	for _, device := range m.devices {
-// 		info, err := device.Info()
-// 		if err != nil {
-// 			return nil, err
-// 		}
+// Info is current device information, this should not be cached because
+// it might change over time
+func (t *TestDevice) Info() (DeviceInfo, error) {
+	return t.info, nil
+}
 
-// 		if info.Label == label {
-// 			filterred = append(filterred, device)
-// 		}
-// 	}
+// ReadTime detected read time of the device
+func (t *TestDevice) ReadTime() uint64 {
+	return t.readTime
+}
 
-// 	return filterred, nil
-// }
+func TestBtrfsCreatePoolExists(t *testing.T) {
+	require := require.New(t)
 
-// func (m *TestDeviceManager) Devices(ctx context.Context) (Devices, error) {
-// 	return m.devices, nil
-// }
+	exe := &TestExecuter{}
+	dev := TestDevice{
+		path:       "/tmp/disk",
+		name:       "disk",
+		deviceType: zos.SSDDevice,
+		readTime:   0,
+		info: DeviceInfo{
+			Path:       "/tmp/disk",
+			Label:      "some-label",
+			Mountpoint: "/mnt/some-label",
+			Filesystem: BtrfsFSType,
+		},
+	}
+	pool, err := newBtrfsPool(&dev, exe)
+	require.NoError(err)
+	require.NotNil(pool)
 
-// func (m *TestDeviceManager) Raw(ctx context.Context) (Devices, error) {
-// 	return m.devices, nil
-// }
+	mnt, err := pool.Mounted()
+	require.NoError(err)
+	require.Equal("/mnt/some-label", mnt)
 
-// func TestBtrfsCreateSingle(t *testing.T) {
-// 	require := require.New(t)
-// 	mgr := &TestDeviceManager{
-// 		devices: Devices{
-// 			DeviceImpl{Path: "/tmp/dev1", DiskType: zos.SSDDevice},
-// 		},
-// 	}
+	// if not mounted!
+	dev.info.Mountpoint = ""
+	pool, err = newBtrfsPool(&dev, exe)
+	require.NoError(err)
+	require.NotNil(pool)
 
-// 	var exec TestExecuter
+	_, err = pool.Mounted()
+	require.ErrorIs(err, ErrDeviceNotMounted)
+}
 
-// 	exec.On("run", mock.Anything, "mkfs.btrfs", "-L", "test-single", "-d", "single", "-m", "single", "/tmp/dev1").
-// 		Return([]byte{}, nil)
+func TestBtrfsCreatePoolNotExist(t *testing.T) {
+	// this should actually create a btrfs pool
+	require := require.New(t)
 
-// 	fs := newBtrfs(mgr, &exec)
-// 	_, err := fs.Create(context.Background(), "test-single", pkg.Single, &mgr.devices[0])
-// 	require.NoError(err)
+	exe := &TestExecuter{}
+	dev := TestDevice{
+		path:       "/tmp/disk",
+		name:       "disk",
+		deviceType: zos.SSDDevice,
+		readTime:   0,
+		info: DeviceInfo{
+			Path: "/tmp/disk",
+		},
+	}
 
-// 	require.Equal("test-single", mgr.devices[0].Label)
-// 	require.Equal(BtrfsFSType, mgr.devices[0].Filesystem)
+	// expected formating of the device
+	ctx := context.Background()
+	exe.On("run", ctx, "mkfs.btrfs", "-L", mock.AnythingOfType("string"), dev.path).
+		Return([]byte{}, nil)
 
-// 	//basePoolTest(t, &exec, pool)
-// }
+	pool, err := newBtrfsPool(&dev, exe)
+	require.NoError(err)
+	require.NotNil(pool)
+}

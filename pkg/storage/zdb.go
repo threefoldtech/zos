@@ -19,8 +19,8 @@ import (
 
 // Find finds a zdb namespace allocation
 func (s *Module) Find(nsID string) (allocation pkg.Allocation, err error) {
-	for _, pool := range s.pools {
-		if _, mounted := pool.Mounted(); !mounted {
+	for _, pool := range s.ssds {
+		if _, err := pool.Mounted(); err != nil {
 			continue
 		}
 
@@ -72,8 +72,8 @@ func (s *Module) Allocate(nsID string, diskType pkg.DeviceType, size gridtypes.U
 
 	// Initially check if the namespace already exists
 	// if so, return the allocation
-	for _, pool := range s.pools {
-		if _, mounted := pool.Mounted(); !mounted {
+	for _, pool := range s.hdds {
+		if _, err := pool.Mounted(); err != nil {
 			continue
 		}
 
@@ -142,7 +142,7 @@ func (s *Module) Allocate(nsID string, diskType pkg.DeviceType, size gridtypes.U
 
 		// we create the zdb volume without configuring a quota
 		// the used size will the computed from the 0-db namespaces themselves
-		volume, err = s.createSubvol(size, name, diskType)
+		volume, err = s.createSubvol(size, name)
 		if err != nil {
 			return allocation, errors.Wrap(err, "failed to create sub-volume")
 		}
@@ -168,9 +168,9 @@ type zdbcandidate struct {
 
 func (s *Module) checkForZDBCandidateVolumes(size gridtypes.Unit, poolType pkg.DeviceType, targetMode zdbpool.IndexMode) ([]zdbcandidate, error) {
 	var candidates []zdbcandidate
-	for _, pool := range s.pools {
+	for _, pool := range s.ssds {
 		// ignore pools that are not mounted for now
-		if _, mounted := pool.Mounted(); !mounted {
+		if _, err := pool.Mounted(); err != nil {
 			continue
 		}
 

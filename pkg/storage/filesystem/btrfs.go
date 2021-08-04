@@ -44,9 +44,13 @@ type btrfsPool struct {
 }
 
 func NewBtrfsPool(device Device) (Pool, error) {
+	return newBtrfsPool(device, executerFunc(run))
+}
+
+func newBtrfsPool(device Device, exe executer) (Pool, error) {
 	pool := &btrfsPool{
 		device: device,
-		utils:  newUtils(executerFunc(run)),
+		utils:  newUtils(exe),
 	}
 
 	return pool, pool.prepare()
@@ -54,6 +58,10 @@ func NewBtrfsPool(device Device) (Pool, error) {
 
 func (p *btrfsPool) ID() int {
 	return 0
+}
+
+func (p *btrfsPool) Device() Device {
+	return p.device
 }
 
 func (p *btrfsPool) prepare() error {

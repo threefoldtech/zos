@@ -3,7 +3,6 @@ package provisiond
 import (
 	"context"
 	"crypto/ed25519"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -317,17 +316,7 @@ func getNodeReserved(cl zbus.Client, available gridtypes.Capacity) (counter prim
 		return counter, err
 	}
 
-	var v *primitives.AtomicUnit
-	switch fs.DiskType {
-	case zos.HDDDevice:
-		v = &counter.HRU
-	case zos.SSDDevice:
-		v = &counter.SRU
-	default:
-		return counter, fmt.Errorf("unknown cache disk type '%s'", fs.DiskType)
-	}
-
-	v.Increment(fs.Usage.Size)
+	counter.SRU.Increment(fs.Usage.Size)
 
 	// we reserve 10% of memory to ZOS itself, with a min of 2G
 	counter.MRU.Increment(
