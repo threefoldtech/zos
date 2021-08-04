@@ -37,9 +37,10 @@ func GenerateConfig(privateKey ed25519.PrivateKey) (cfg config.NodeConfig) {
 
 	cfg.MulticastInterfaces = []config.MulticastInterfaceConfig{
 		{
-			Regex:  `npub\d`,
+			Regex:  ".*",
 			Listen: true,
-			Port:   YggListenLinkLocal,
+			Beacon: true,
+			Port:   0,
 		},
 	}
 
