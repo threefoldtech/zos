@@ -9,26 +9,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type M map[string]interface{}
+
+func (m M) Bytes() []byte {
+	bytes, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+
+	return bytes
+}
 func TestDeviceManagerScan(t *testing.T) {
 	require := require.New(t)
 	var exec TestExecuter
 	ctx := context.Background()
 
-	var devices struct {
-		BlockDevices []DeviceImpl `json:"blockdevices"`
-	}
-
-	devices.BlockDevices = []DeviceImpl{
-		{Type: "block", Path: "/tmp/dev1", Label: "test"},
-		{Type: "block", Path: "/tmp/dev2"},
-	}
-
-	bytes, err := json.Marshal(devices)
-	require.NoError(err)
-
 	// we expect this call to lsblk
 	exec.On("run", ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path").
-		Return(bytes, nil)
+		Return(M{
+			"blockdevices": []M{
+				{"subsystems": "block:scsi:pci", "path": "/tmp/dev1", "name": "dev1"},
+				{"subsystems": "block:scsi:pci", "path": "/tmp/dev2", "name": "dev2"},
+			},
+		}.Bytes(), nil)
+
+	// then other calls per device for extended details
+	exec.On("run", ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path", "/tmp/dev1").
+		Return(M{
+			"blockdevices": []M{
+				{"subsystems": "block:scsi:pci", "path": "/tmp/dev1", "name": "dev1", "label": "test"},
+			},
+		}.Bytes(), nil)
+
+	exec.On("run", ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path", "/tmp/dev2").
+		Return(M{
+			"blockdevices": []M{
+				{"subsystems": "block:scsi:pci", "path": "/tmp/dev2", "name": "dev2", "label": "test2"},
+			},
+		}.Bytes(), nil)
 
 	// then the devices will be tested for types (per device)
 	exec.On("run", mock.Anything, "seektime", "-j", "/tmp/dev1").
@@ -38,21 +56,20 @@ func TestDeviceManagerScan(t *testing.T) {
 		Return([]byte(`{"type": "HDD", "elapsed": 5000}`), nil)
 
 	mgr := defaultDeviceManager(ctx, &exec)
-	require.NoError(err)
 
 	cached, err := mgr.Devices(ctx)
 	require.NoError(err)
 
-	require.Len(cached, 4)
+	require.Len(cached, 2)
 	// make sure all types are set.
 	for _, dev := range cached {
-		require.NotEmpty(dev.DiskType, "device: %s", dev.Path)
+		require.NotEmpty(dev.Type(), "device: %s", dev.Path)
 	}
 
 	filtered, err := mgr.ByLabel(ctx, "test")
 	require.NoError(err)
 	require.Len(filtered, 1)
 
-	require.Equal("/tmp/dev1", cached[0].Path)
+	require.Equal("/tmp/dev1", filtered[0].Path())
 
 }

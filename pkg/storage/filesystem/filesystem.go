@@ -34,18 +34,13 @@ type Pool interface {
 	Volume
 	// Mounted returns whether the pool is mounted or not. If it is mounted,
 	// the mountpoint is returned
-	Mounted() (string, bool)
+	Mounted() (string, error)
 	// Mount the pool, the mountpoint is returned
 	Mount() (string, error)
-	// MountWithoutScan the pool, the mountpoint is returned.
-	// Does not scan for btrfs
-	MountWithoutScan() (string, error)
 	// UnMount the pool
 	UnMount() error
 	//AddDevice to the pool
-	AddDevice(device *DeviceImpl) error
 	// RemoveDevice from the pool
-	RemoveDevice(device *DeviceImpl) error
 	// Type of the physical storage in this pool
 	Type() pkg.DeviceType
 	// Reserved is reserved size of the devices in bytes
@@ -56,9 +51,6 @@ type Pool interface {
 	AddVolume(name string) (Volume, error)
 	// RemoveVolume removes a subvolume with the given name
 	RemoveVolume(name string) error
-	// Devices list attached devices
-	Devices() []*DeviceImpl
-
 	// Shutdown spins down the device where the pool is mounted
 	Shutdown() error
 }
@@ -69,22 +61,6 @@ type Filter func(pool Pool) bool
 // All is default filter
 func All(Pool) bool {
 	return true
-}
-
-// Filesystem defines a filesystem interface
-type Filesystem interface {
-	// Create a new filesystem.
-	//
-	// name: name of the filesystem
-	// devices: list of devices to use in the filesystem
-	// profile: Raid profile of the filesystem
-	Create(ctx context.Context, name string, profile pkg.RaidProfile, devices ...*DeviceImpl) (Pool, error)
-
-	// CreateForce creates a new filesystem with force
-	// It will delete existing data and partition tables
-	CreateForce(ctx context.Context, name string, profile pkg.RaidProfile, devices ...*DeviceImpl) (Pool, error)
-	// List all existing filesystems on the node
-	List(ctx context.Context, filter Filter) ([]Pool, error)
 }
 
 // Partprobe runs partprobe

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
@@ -17,8 +18,6 @@ import (
 )
 
 var (
-	_ Filesystem = (*btrfs)(nil)
-
 	// ErrDeviceAlreadyMounted indicates that a mounted device is attempted
 	// to be mounted again (without MS_BIND flag).
 	ErrDeviceAlreadyMounted = fmt.Errorf("device is already mounted")
@@ -38,155 +37,78 @@ var (
 	}
 )
 
-// btrfs is the filesystem implementation for btrfs
-type btrfs struct {
-	devices DeviceManager
-	utils   BtrfsUtil
+type btrfsPool struct {
+	device Device
+	utils  BtrfsUtil
+	name   string
 }
 
-func newBtrfs(manager DeviceManager, exec executer) *btrfs {
-	return &btrfs{devices: manager, utils: newUtils(exec)}
-}
-
-// NewBtrfs creates a new filesystem that implements btrfs
-func NewBtrfs(manager DeviceManager) Filesystem {
-	return newBtrfs(manager, executerFunc(run))
-}
-
-func (b *btrfs) Create(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*DeviceImpl) (Pool, error) {
-	return b.create(ctx, name, policy, false, devices)
-}
-
-func (b *btrfs) CreateForce(ctx context.Context, name string, policy pkg.RaidProfile, devices ...*DeviceImpl) (Pool, error) {
-	return b.create(ctx, name, policy, true, devices)
-}
-
-func (b *btrfs) create(ctx context.Context, name string, policy pkg.RaidProfile, force bool, devices []*DeviceImpl) (Pool, error) {
-	name = strings.TrimSpace(name)
-	if len(name) == 0 {
-		return nil, fmt.Errorf("invalid name")
+func NewBtrfsPool(device Device) (Pool, error) {
+	pool := &btrfsPool{
+		device: device,
+		utils:  newUtils(executerFunc(run)),
 	}
 
-	block, err := b.devices.ByLabel(ctx, name)
+	return pool, pool.prepare()
+}
+
+func (p *btrfsPool) ID() int {
+	return 0
+}
+
+func (p *btrfsPool) prepare() error {
+	info, err := p.device.Info()
 	if err != nil {
-		return nil, err
+		return errors.Wrapf(err, "failed to get device '%s' info", p.device.Path())
 	}
 
-	if len(block) != 0 {
-		return nil, fmt.Errorf("unique name is required")
+	p.name = info.Label
+	if info.Used() {
+		// device already have filesystem
+		return nil
 	}
 
-	paths := []string{}
-	for _, device := range devices {
-		if device.Used() {
-			return nil, fmt.Errorf("device '%v' is already used", device.Path)
-		}
+	ctx := context.Background()
 
-		paths = append(paths, device.Path)
+	// otherwise format
+	if err := p.format(ctx); err != nil {
+		return err
 	}
+	// make sure kernel knows about this
+	return Partprobe(ctx)
+}
+
+func (p *btrfsPool) format(ctx context.Context) error {
+	name := uuid.New().String()
+	p.name = name
 
 	args := []string{
 		"-L", name,
-		"-d", string(policy),
-		"-m", string(policy),
+		p.device.Path(),
 	}
 
-	if force {
-		args = append(args, "-f")
+	if _, err := p.utils.run(ctx, "mkfs.btrfs", args...); err != nil {
+		return errors.Wrapf(err, "failed to format device '%s'", p.device.Path())
 	}
 
-	args = append(args, paths...)
-	if _, err := b.utils.run(ctx, "mkfs.btrfs", args...); err != nil {
-		return nil, err
-	}
-
-	// update cached devices
-	for _, dev := range devices {
-		dev.Label = name
-		dev.Filesystem = BtrfsFSType
-	}
-
-	return newBtrfsPool(name, devices, &b.utils), nil
-}
-
-func (b *btrfs) List(ctx context.Context, filter Filter) ([]Pool, error) {
-	if filter == nil {
-		filter = All
-	}
-	var pools []Pool
-	available, err := b.utils.List(ctx, "", false)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, fs := range available {
-		if len(fs.Label) == 0 {
-			// we only assume labeled devices are managed
-			continue
-		}
-
-		devices, err := b.devices.ByLabel(ctx, fs.Label)
-		if err != nil {
-			return nil, err
-		}
-
-		pool := newBtrfsPool(fs.Label, devices, &b.utils)
-
-		if !filter(pool) {
-			continue
-		}
-
-		if len(devices) == 0 {
-			// since this should not be able to happen consider it an error
-			return nil, fmt.Errorf("pool %v has no corresponding devices on the system", fs.Label)
-		}
-
-		pools = append(pools, pool)
-	}
-
-	return pools, nil
-}
-
-type btrfsPool struct {
-	name    string
-	devices []*DeviceImpl
-	utils   *BtrfsUtil
-}
-
-func newBtrfsPool(name string, devices []*DeviceImpl, utils *BtrfsUtil) *btrfsPool {
-	return &btrfsPool{
-		name:    name,
-		devices: devices,
-		utils:   utils,
-	}
+	return nil
 }
 
 // Mounted checks if the pool is mounted
 // It doesn't check the default mount location of the pool
 // but instead check if any of the pool devices is mounted
 // under any location
-func (p *btrfsPool) Mounted() (string, bool) {
-	ctx := context.Background()
-	list, _ := p.utils.List(ctx, p.Name(), true)
-	if len(list) != 1 {
-		return "", false
+func (p *btrfsPool) Mounted() (string, error) {
+	info, err := p.device.Info()
+	if err != nil {
+		return "", err
 	}
 
-	return p.mounted(&list[0])
-}
-
-func (p *btrfsPool) mounted(fs *Btrfs) (string, bool) {
-	for _, device := range fs.Devices {
-		if target, ok := GetMountTarget(device.Path); ok {
-			return target, true
-		}
+	if len(info.Mountpoint) != 0 {
+		return info.Mountpoint, nil
 	}
 
-	return "", false
-}
-
-func (p *btrfsPool) ID() int {
-	return 0
+	return "", ErrDeviceNotMounted
 }
 
 func (p *btrfsPool) Name() string {
@@ -209,50 +131,21 @@ func (p *btrfsPool) FsType() string {
 
 // Mount mounts the pool in it's default mount location under /mnt/name
 func (p *btrfsPool) Mount() (string, error) {
-	ctx := context.Background()
-	list, _ := p.utils.List(ctx, p.name, false)
-	if len(list) != 1 {
-		return "", fmt.Errorf("unknown pool '%s'", p.name)
-	}
-
-	fs := list[0]
-
-	if len(fs.Devices) == 0 {
-		return "", nil
-	}
-
-	if mnt, mounted := p.mounted(&fs); mounted {
+	mnt, err := p.Mounted()
+	if err != nil && !errors.Is(err, ErrDeviceNotMounted) {
+		return "", err
+	} else if err == nil {
 		return mnt, nil
 	}
+	// device is not mounted
 
-	mnt := p.Path()
-	if err := os.MkdirAll(mnt, 0755); err != nil {
-		return "", err
-	}
-
-	if err := syscall.Mount(fs.Devices[0].Path, mnt, "btrfs", 0, ""); err != nil {
-		return "", err
-	}
-
-	if err := p.utils.QGroupEnable(ctx, mnt); err != nil {
-		return "", fmt.Errorf("failed to enable qgroup: %w", err)
-	}
-
-	return mnt, p.maintenance()
-}
-
-// MountWithoutScan mounts the pool in it's default mount location under /mnt/name
-// This wont trigger a btrfs filesystem scan and leaves unused disks in standby mode
-// We mount the pool based on the path and the device it has saved
-func (p *btrfsPool) MountWithoutScan() (string, error) {
 	ctx := context.Background()
-
-	mnt := p.Path()
+	mnt = p.Path()
 	if err := os.MkdirAll(mnt, 0755); err != nil {
 		return "", err
 	}
 
-	if err := syscall.Mount(p.devices[0].Path, mnt, "btrfs", 0, ""); err != nil {
+	if err := syscall.Mount(p.device.Path(), mnt, "btrfs", 0, ""); err != nil {
 		return "", err
 	}
 
@@ -264,73 +157,20 @@ func (p *btrfsPool) MountWithoutScan() (string, error) {
 }
 
 func (p *btrfsPool) UnMount() error {
-	mnt, ok := p.Mounted()
-	if !ok {
+	mnt, err := p.Mounted()
+	if errors.Is(err, ErrDeviceNotMounted) {
 		return nil
+	} else if err != nil {
+		return err
 	}
 
 	return syscall.Unmount(mnt, syscall.MNT_DETACH)
 }
 
-func (p *btrfsPool) addDevice(device *DeviceImpl, root string) error {
-	ctx := context.Background()
-
-	if err := p.utils.DeviceAdd(ctx, device.Path, root); err != nil {
-		return err
-	}
-
-	// update cached device
-	device.Label = p.name
-	device.Filesystem = BtrfsFSType
-
-	p.devices = append(p.devices, device)
-
-	return nil
-}
-
-func (p *btrfsPool) AddDevice(device *DeviceImpl) error {
-	mnt, ok := p.Mounted()
-	if !ok {
-		return ErrDeviceNotMounted
-	}
-
-	return p.addDevice(device, mnt)
-}
-
-func (p *btrfsPool) removeDevice(device *DeviceImpl, root string) error {
-	ctx := context.Background()
-
-	if err := p.utils.DeviceRemove(ctx, device.Path, root); err != nil {
-		return err
-	}
-
-	for idx, d := range p.devices {
-		if d.Path == device.Path {
-			// remove device from list
-			p.devices = append(p.devices[:idx], p.devices[idx+1:]...)
-		}
-	}
-
-	// update cached device
-	device.Filesystem = ""
-	device.Label = ""
-
-	return nil
-}
-
-func (p *btrfsPool) RemoveDevice(device *DeviceImpl) error {
-	mnt, ok := p.Mounted()
-	if !ok {
-		return ErrDeviceNotMounted
-	}
-
-	return p.removeDevice(device, mnt)
-}
-
 func (p *btrfsPool) Volumes() ([]Volume, error) {
-	mnt, ok := p.Mounted()
-	if !ok {
-		return nil, ErrDeviceNotMounted
+	mnt, err := p.Mounted()
+	if err != nil {
+		return nil, err
 	}
 
 	var volumes []Volume
@@ -366,9 +206,9 @@ func (p *btrfsPool) addVolume(root string) (Volume, error) {
 }
 
 func (p *btrfsPool) AddVolume(name string) (Volume, error) {
-	mnt, ok := p.Mounted()
-	if !ok {
-		return nil, ErrDeviceNotMounted
+	mnt, err := p.Mounted()
+	if err != nil {
+		return nil, err
 	}
 
 	root := filepath.Join(mnt, name)
@@ -396,9 +236,9 @@ func (p *btrfsPool) removeVolume(root string) error {
 }
 
 func (p *btrfsPool) RemoveVolume(name string) error {
-	mnt, ok := p.Mounted()
-	if !ok {
-		return ErrDeviceNotMounted
+	mnt, err := p.Mounted()
+	if err != nil {
+		return err
 	}
 
 	root := filepath.Join(mnt, name)
@@ -407,9 +247,9 @@ func (p *btrfsPool) RemoveVolume(name string) error {
 
 // Size return the pool size
 func (p *btrfsPool) Usage() (usage Usage, err error) {
-	mnt, ok := p.Mounted()
-	if !ok {
-		return usage, ErrDeviceNotMounted
+	mnt, err := p.Mounted()
+	if err != nil {
+		return usage, err
 	}
 
 	du, err := p.utils.GetDiskUsage(context.Background(), mnt)
@@ -438,11 +278,7 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 // Type of the physical storage used for this pool
 func (p *btrfsPool) Type() pkg.DeviceType {
 	// We only create heterogenous pools for now
-	return p.devices[0].DiskType
-}
-
-func (p *btrfsPool) Devices() []*DeviceImpl {
-	return p.devices
+	return p.device.Type()
 }
 
 // Reserved is reserved size of the devices in bytes
@@ -501,30 +337,21 @@ func (p *btrfsPool) maintenance() error {
 }
 
 func (p *btrfsPool) Shutdown() error {
-	for _, device := range p.Devices() {
-		log.Info().Msgf("Shutting down disk %s ...", device.Path)
-		cmd := exec.Command("hdparm", "-y", device.Path)
-
-		err := cmd.Run()
-		if err != nil {
-			log.Error().Err(err).Msgf("Error shutting down device %s", device.Path)
-			return err
-		}
-
-		//TODO: tracking of shutting down
-		//device.ShutdownCount.Add(1)
-		log.Info().Msgf("Disk %s is shutdown", device.Path)
+	cmd := exec.Command("hdparm", "-y", p.device.Path())
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "failed to shutdown device '%s'", p.device.Path())
 	}
+
 	return nil
 }
 
 type btrfsVolume struct {
 	id    int
 	path  string
-	utils *BtrfsUtil
+	utils BtrfsUtil
 }
 
-func newBtrfsVolume(ID int, path string, utils *BtrfsUtil) Volume {
+func newBtrfsVolume(ID int, path string, utils BtrfsUtil) Volume {
 	dir := filepath.Base(path)
 	vol := btrfsVolume{
 		id:    ID,

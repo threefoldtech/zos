@@ -22,10 +22,16 @@ var (
 
 // Device
 type Device interface {
+	// Path returns path to the device like /dev/sda
+	Path() string
+	// Name returns name of the device like sda
+	Name() string
+	// Type returns detected device type (hdd, ssd)
 	Type() zos.DeviceType
-	ID() (string, error)
-	IsPool() bool
-	Label() (string, error)
+	// Info is current device information, this should not be cached because
+	// it might change over time
+	Info() (DeviceInfo, error)
+	// ReadTime detected read time of the device
 	ReadTime() uint64
 }
 
@@ -50,46 +56,35 @@ const (
 	BtrfsFSType FSType = "btrfs"
 )
 
-// DeviceImpl represents a physical device
-type DeviceImpl struct {
-	Type       string         `json:"type"`
-	Path       string         `json:"name"`
-	Label      string         `json:"label"`
-	Filesystem FSType         `json:"fstype"`
-	DiskType   zos.DeviceType `json:"-"`
-	ReadTime   uint64         `json:"-"`
-	Subsystems string         `json:"subsystems"`
-	Mountpoint string         `json:"mountpoint"`
-}
-
-func (d *DeviceImpl) ID() (id string, err error) {
-	// check if it's a pool using the label format.
-	// if it has a filesystem then it should have the label in correct format
-	if _, err = fmt.Sscanf(d.Label, PoolLabelPrefix+"%s", &id); err != nil {
-		return id, ErrInvalidLabel
-	}
-
-	return
-}
-
-func (d *DeviceImpl) IsPool() bool {
-	id, err := d.ID()
-	if err != nil {
-		return false
-	}
-
-	return len(id) != 0
-}
-
-// Used assumes that the device is used if it has custom label or fstype or children
-func (d *DeviceImpl) Used() bool {
-	return len(d.Label) != 0 || len(d.Filesystem) != 0
-}
-
-type deviceInfo struct {
+type DeviceInfo struct {
 	Path       string `json:"name"`
 	Label      string `json:"label"`
 	Mountpoint string `json:"mountpoint"`
+	Filesystem FSType `json:"fstype"`
+}
+
+// func (i *DeviceInfo) ID() (id string, err error) {
+// 	// check if it's a pool using the label format.
+// 	// if it has a filesystem then it should have the label in correct format
+// 	if _, err = fmt.Sscanf(i.Label, PoolLabelPrefix+"%s", &id); err != nil {
+// 		return id, ErrInvalidLabel
+// 	}
+
+// 	return
+// }
+
+// func (i *DeviceInfo) IsPool() bool {
+// 	id, err := i.ID()
+// 	if err != nil {
+// 		return false
+// 	}
+
+// 	return len(id) != 0
+// }
+
+// Used assumes that the device is used if it has custom label or fstype or children
+func (i *DeviceInfo) Used() bool {
+	return len(i.Label) != 0 || len(i.Filesystem) != 0
 }
 
 type deviceImpl struct {
@@ -97,54 +92,19 @@ type deviceImpl struct {
 	mgr *lsblkDeviceManager
 }
 
-func (d *deviceImpl) info() (deviceInfo, error) {
-
+func (d *deviceImpl) Info() (DeviceInfo, error) {
 	var devices struct {
-		BlockDevices []deviceInfo `json:"blockdevices"`
+		BlockDevices []DeviceInfo `json:"blockdevices"`
 	}
 
-	if err := d.mgr.lsblk(context.Background(), &devices, d.Path); err != nil {
-		return deviceInfo{}, err
+	if err := d.mgr.lsblk(context.Background(), &devices, d.IPath); err != nil {
+		return DeviceInfo{}, err
 	}
 	if len(devices.BlockDevices) != 1 {
-		return deviceInfo{}, fmt.Errorf("device not found")
+		return DeviceInfo{}, fmt.Errorf("device not found")
 	}
 
 	return devices.BlockDevices[0], nil
-}
-
-func (d *deviceImpl) ID() (id string, err error) {
-
-	info, err := d.info()
-	if err != nil {
-		return "", err
-	}
-
-	// check if it's a pool using the label format.
-	// if it has a filesystem then it should have the label in correct format
-	if _, err = fmt.Sscanf(info.Label, PoolLabelPrefix+"%s", &id); err != nil {
-		return id, ErrInvalidLabel
-	}
-
-	return
-}
-
-func (d *deviceImpl) IsPool() bool {
-	id, err := d.ID()
-	if err != nil {
-		return false
-	}
-
-	return len(id) != 0
-}
-
-func (d *deviceImpl) Label() (string, error) {
-	info, err := d.info()
-	if err != nil {
-		return "", err
-	}
-
-	return info.Label, nil
 }
 
 func (d *deviceImpl) Type() zos.DeviceType {
@@ -156,8 +116,8 @@ func (d *deviceImpl) ReadTime() uint64 {
 }
 
 type minDevice struct {
-	Path       string         `json:"path"`
-	Name       string         `json:"name"`
+	IPath      string         `json:"path"`
+	IName      string         `json:"name"`
 	DiskType   zos.DeviceType `json:"-"`
 	RTime      uint64         `json:"-"`
 	Subsystems string         `json:"subsystems"`
@@ -168,6 +128,14 @@ func (m minDevice) toDevice(mgr *lsblkDeviceManager) Device {
 		minDevice: m,
 		mgr:       mgr,
 	}
+}
+
+func (m *minDevice) Path() string {
+	return m.IPath
+}
+
+func (m *minDevice) Name() string {
+	return m.IName
 }
 
 // lsblkDeviceManager uses the lsblk utility to scann the disk for devices, and
@@ -217,12 +185,12 @@ func (l *lsblkDeviceManager) ByLabel(ctx context.Context, label string) (Devices
 	var filtered Devices
 
 	for _, device := range devices {
-		value, err := device.Label()
+		info, err := device.Info()
 		if err != nil {
 			return nil, err
 		}
 
-		if value == label {
+		if info.Label == label {
 			filtered = append(filtered, device)
 		}
 	}
@@ -237,7 +205,7 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 	}
 
 	for _, dev := range devices {
-		if dev.Path == path {
+		if dev.IPath == path {
 			return dev.toDevice(l), nil
 		}
 	}
@@ -248,7 +216,6 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 
 func (l *lsblkDeviceManager) lsblk(ctx context.Context, output interface{}, device ...string) error {
 	args := []string{
-		"lsblk",
 		"--json",
 		"--output-all",
 		"--bytes",
@@ -263,7 +230,7 @@ func (l *lsblkDeviceManager) lsblk(ctx context.Context, output interface{}, devi
 		return fmt.Errorf("only one device is supported")
 	}
 
-	bytes, err := l.run(ctx, "lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2,11", "--path")
+	bytes, err := l.run(ctx, "lsblk", args...)
 	if err != nil {
 		return err
 	}
@@ -347,7 +314,7 @@ func (l *lsblkDeviceManager) setDeviceTypes(devices []minDevice) error {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		typ, rt, err := l.seektime(ctx, d.Path)
+		typ, rt, err := l.seektime(ctx, d.IPath)
 		if err != nil {
 			// don't include errored devices in the result
 			log.Error().Msgf("Failed to get disk read time: %v", err)
