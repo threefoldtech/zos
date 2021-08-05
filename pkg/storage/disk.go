@@ -240,8 +240,8 @@ func (d *Module) safePath(base, id string) (string, error) {
 }
 
 // DeallocateVDisk removes a virtual disk
-func (d *Module) Deallocate(id string) error {
-	path, err := d.findDisk(id)
+func (d *Module) DiskDelete(name string) error {
+	path, err := d.findDisk(name)
 	if os.IsNotExist(err) {
 		return nil
 	} else if err != nil {

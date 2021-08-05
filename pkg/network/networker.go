@@ -749,7 +749,7 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 		return errors.Wrap(err, "failed to connect to substrate")
 	}
 	sk := n.identity.PrivateKey(context.Background())
-	identity, err := substrate.Identity(sk)
+	identity, err := substrate.IdentityFromSecureKey(sk)
 	if err != nil {
 		return err
 	}
@@ -789,7 +789,7 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 	}
 	// update the node
 	node.PublicConfig = subCfg
-	_, err = sub.UpdateNode(sk, *node)
+	_, err = sub.UpdateNode(&identity, *node)
 	return err
 }
 

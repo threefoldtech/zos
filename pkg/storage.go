@@ -134,6 +134,9 @@ type StorageModule interface {
 	// DiskExists checks if disk exists
 	DiskExists(name string) bool
 
+	// DiskDelete deletes a disk
+	DiskDelete(name string) error
+
 	DiskList() ([]VDisk, error)
 	// Device management
 

@@ -208,7 +208,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create substrate admins database")
 	}
 
-	kp, err := substrate.Identity(sk)
+	kp, err := substrate.IdentityFromSecureKey(sk)
 	if err != nil {
 		return errors.Wrap(err, "failed to get substrate keypair from secure key")
 	}
@@ -311,7 +311,7 @@ func action(cli *cli.Context) error {
 func getNodeReserved(cl zbus.Client, available gridtypes.Capacity) (counter primitives.Counters, err error) {
 	// fill in reserved storage
 	storage := stubs.NewStorageModuleStub(cl)
-	fs, err := storage.GetCacheFS(context.TODO())
+	fs, err := storage.Cache(context.TODO())
 	if err != nil {
 		return counter, err
 	}

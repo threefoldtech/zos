@@ -111,7 +111,7 @@ func main() {
 		fmt.Println("NodeID:", nodeID)
 
 		sk := stub.PrivateKey(ctx)
-		identity, err := substrate.Identity(sk)
+		identity, err := substrate.IdentityFromSecureKey(sk)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "failed to get node identity:", err)
 			os.Exit(1)
