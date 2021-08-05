@@ -12,6 +12,7 @@ import (
 
 	"github.com/g0rbe/go-chattr"
 	"github.com/pkg/errors"
+	log "github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
@@ -21,17 +22,63 @@ const (
 	vdiskVolumeName = "vdisks"
 )
 
-type vdiskModule struct {
-	module *Module
+// VDiskPools return a list of all vdisk pools
+func (s *Module) diskPools() ([]string, error) {
+	var paths []string
+	for _, pool := range s.ssds {
+		if _, err := pool.Mounted(); err != nil {
+			continue
+		}
+
+		volumes, err := pool.Volumes()
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list pool '%s' volumes", pool.Path())
+		}
+
+		for _, volume := range volumes {
+			if volume.Name() == vdiskVolumeName {
+				paths = append(paths, volume.Path())
+			}
+		}
+	}
+
+	return paths, nil
 }
 
-// NewVDiskModule creates a new disk allocator
-func NewVDiskModule(module *Module) (pkg.VDiskModule, error) {
-	return &vdiskModule{module: module}, nil
+// VDiskFindCandidate find a suitbale location for creating a vdisk of the given size
+func (s *Module) diskFindCandidate(size gridtypes.Unit) (path string, err error) {
+	candidates, err := s.findCandidates(size)
+	if err != nil {
+		return path, err
+	}
+	// does anyone have a vdisk subvol
+	for _, candidate := range candidates {
+		volumes, err := candidate.Pool.Volumes()
+		if err != nil {
+			log.Error().Str("pool", candidate.Pool.Path()).Err(err).Msg("failed to list pool volumes")
+			continue
+		}
+		for _, volume := range volumes {
+			if volume.Name() != vdiskVolumeName {
+				continue
+			}
+
+			return volume.Path(), nil
+		}
+	}
+	// none has a vdiks subvolume, we need to
+	// create one.
+	candidate := candidates[0]
+	volume, err := candidate.Pool.AddVolume(vdiskVolumeName)
+	if err != nil {
+		return path, errors.Wrap(err, "failed to create vdisk pool")
+	}
+
+	return volume.Path(), nil
 }
 
-func (d *vdiskModule) findDisk(id string) (string, error) {
-	pools, err := d.module.VDiskPools()
+func (d *Module) findDisk(id string) (string, error) {
+	pools, err := d.diskPools()
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to find disk with id '%s'", id)
 	}
@@ -53,20 +100,20 @@ func (d *vdiskModule) findDisk(id string) (string, error) {
 
 // EnsureFilesystem ensures that the virtual disk has a valid filesystem
 // currently the fs is btrfs
-func (d *vdiskModule) EnsureFilesystem(id string) error {
-	path, err := d.findDisk(id)
+func (d *Module) DiskFormat(name string) error {
+	path, err := d.findDisk(name)
 	if err != nil {
-		return errors.Wrapf(err, "couldn't find disk with id: %s", id)
+		return errors.Wrapf(err, "couldn't find disk with id: %s", name)
 	}
 
 	return d.ensureFS(path)
 }
 
 //
-func (d *vdiskModule) WriteImage(id string, image string) error {
-	path, err := d.findDisk(id)
+func (d *Module) DiskWrite(name string, image string) error {
+	path, err := d.findDisk(name)
 	if err != nil {
-		return errors.Wrapf(err, "couldn't find disk with id: %s", id)
+		return errors.Wrapf(err, "couldn't find disk with id: %s", name)
 	}
 	source, err := os.Open(image)
 	if err != nil {
@@ -100,20 +147,20 @@ func (d *vdiskModule) WriteImage(id string, image string) error {
 }
 
 // AllocateDisk with given size and an optional source disk, return path to virtual disk (size in MB)
-func (d *vdiskModule) Allocate(id string, size gridtypes.Unit) (string, error) {
-	path, err := d.findDisk(id)
+func (d *Module) DiskCreate(name string, size gridtypes.Unit) (disk pkg.VDisk, err error) {
+	path, err := d.findDisk(name)
 	if err == nil {
-		return path, errors.Wrapf(os.ErrExist, "disk with id '%s' already exists", id)
+		return disk, errors.Wrapf(os.ErrExist, "disk with id '%s' already exists", name)
 	}
 
-	base, err := d.module.VDiskFindCandidate(size)
+	base, err := d.diskFindCandidate(size)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to find a candidate to host vdisk of size '%d'", size)
+		return disk, errors.Wrapf(err, "failed to find a candidate to host vdisk of size '%d'", size)
 	}
 
-	path, err = d.safePath(base, id)
+	path, err = d.safePath(base, name)
 	if err != nil {
-		return "", err
+		return disk, err
 	}
 
 	defer func() {
@@ -126,19 +173,19 @@ func (d *vdiskModule) Allocate(id string, size gridtypes.Unit) (string, error) {
 	var file *os.File
 	file, err = os.Create(path)
 	if err != nil {
-		return "", err
+		return disk, err
 	}
 
 	defer file.Close()
 	if err = chattr.SetAttr(file, chattr.FS_NOCOW_FL); err != nil {
-		return "", err
+		return disk, err
 	}
 
 	err = syscall.Fallocate(int(file.Fd()), 0, 0, int64(size))
-	return path, err
+	return pkg.VDisk{Path: path, Size: int64(size)}, err
 }
 
-func (d *vdiskModule) ensureFS(disk string) error {
+func (d *Module) ensureFS(disk string) error {
 	output, err := exec.Command("mkfs.btrfs", disk).CombinedOutput()
 	if err == nil {
 		return nil
@@ -157,7 +204,7 @@ func (d *vdiskModule) ensureFS(disk string) error {
 	return errors.Wrapf(err, "unknown btrfs error '%s'", string(output))
 }
 
-func (d *vdiskModule) expandFs(disk string) error {
+func (d *Module) expandFs(disk string) error {
 	dname, err := ioutil.TempDir("", "btrfs-resize")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create a temp dir to mount the btrfs fs to resize it")
@@ -179,7 +226,7 @@ func (d *vdiskModule) expandFs(disk string) error {
 	return nil
 }
 
-func (d *vdiskModule) safePath(base, id string) (string, error) {
+func (d *Module) safePath(base, id string) (string, error) {
 	path := filepath.Join(base, id)
 	// this to avoid passing an `injection` id like '../name'
 	// and end up deleting a file on the system. so only delete
@@ -193,7 +240,7 @@ func (d *vdiskModule) safePath(base, id string) (string, error) {
 }
 
 // DeallocateVDisk removes a virtual disk
-func (d *vdiskModule) Deallocate(id string) error {
+func (d *Module) Deallocate(id string) error {
 	path, err := d.findDisk(id)
 	if os.IsNotExist(err) {
 		return nil
@@ -209,14 +256,14 @@ func (d *vdiskModule) Deallocate(id string) error {
 }
 
 // DeallocateVDisk removes a virtual disk
-func (d *vdiskModule) Exists(id string) bool {
+func (d *Module) DiskExists(id string) bool {
 	_, err := d.findDisk(id)
 
 	return err == nil
 }
 
 // Inspect return info about the disk
-func (d *vdiskModule) Inspect(id string) (disk pkg.VDisk, err error) {
+func (d *Module) DiskLookup(id string) (disk pkg.VDisk, err error) {
 	path, err := d.findDisk(id)
 
 	if err != nil {
@@ -233,8 +280,8 @@ func (d *vdiskModule) Inspect(id string) (disk pkg.VDisk, err error) {
 	return
 }
 
-func (d *vdiskModule) List() ([]pkg.VDisk, error) {
-	pools, err := d.module.VDiskPools()
+func (d *Module) DiskList() ([]pkg.VDisk, error) {
+	pools, err := d.diskPools()
 	if err != nil {
 		return nil, err
 	}

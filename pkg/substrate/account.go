@@ -154,9 +154,13 @@ func (s *Substrate) EnsureAccount(sk ed25519.PrivateKey) (info types.AccountInfo
 // Identity derive the correct substrate identity from ed25519 key
 func Identity(sk ed25519.PrivateKey) (signature.KeyringPair, error) {
 	str := types.HexEncodeToString(sk.Seed())
-	return keyringPairFromSecret(str, 42)
+	return keyringPairFromSecret(str, network)
 	// because 42 is the answer to life the universe and everything
 	// no, seriously, don't change it, it has to be 42.
+}
+
+func IdentityFromPhrase(seedOrPhrase string) (signature.KeyringPair, error) {
+	return keyringPairFromSecret(seedOrPhrase, network)
 }
 
 func (s *Substrate) getAccount(identity signature.KeyringPair, meta *types.Metadata) (info types.AccountInfo, err error) {

@@ -31,6 +31,10 @@ const (
 	cacheSize  = 100 * gib
 )
 
+var (
+	_ pkg.StorageModule = (*Module)(nil)
+)
+
 // Module implements functionality for pkg.StorageModule
 type Module struct {
 	devices filesystem.DeviceManager
@@ -227,42 +231,39 @@ func (s *Module) shutdownUnusedPools() error {
 }
 
 // UpdateFilesystem updates filesystem size
-func (s *Module) UpdateFilesystem(name string, size gridtypes.Unit) (pkg.Filesystem, error) {
-	_, volume, fs, err := s.path(name)
+func (s *Module) VolumeUpdate(name string, size gridtypes.Unit) error {
+	_, volume, _, err := s.path(name)
 	if err != nil {
-		return pkg.Filesystem{}, err
+		return err
 	}
 
 	if err := volume.Limit(uint64(size)); err != nil {
-		return fs, err
+		return err
 	}
 
-	fs.Usage.Size = size
-	return fs, nil
+	return nil
 }
 
 // CreateFilesystem with the given size in a storage pool.
-func (s *Module) CreateFilesystem(name string, size gridtypes.Unit) (pkg.Filesystem, error) {
+func (s *Module) VolumeCreate(name string, size gridtypes.Unit) (pkg.Volume, error) {
 	log.Info().Msgf("Creating new volume with size %d", size)
 	if strings.HasPrefix(name, "zdb") {
-		return pkg.Filesystem{}, fmt.Errorf("invalid volume name. zdb prefix is reserved")
+		return pkg.Volume{}, fmt.Errorf("invalid volume name. zdb prefix is reserved")
 	}
 
 	fs, err := s.createSubvolWithQuota(size, name)
 	if err != nil {
-		return pkg.Filesystem{}, err
+		return pkg.Volume{}, err
 	}
 
 	usage, err := fs.Usage()
 	if err != nil {
-		return pkg.Filesystem{}, err
+		return pkg.Volume{}, err
 	}
 
-	return pkg.Filesystem{
-		ID:     fs.ID(),
-		FsType: fs.FsType(),
-		Name:   fs.Name(),
-		Path:   fs.Path(),
+	return pkg.Volume{
+		Name: fs.Name(),
+		Path: fs.Path(),
 		Usage: pkg.Usage{
 			Size: gridtypes.Unit(usage.Size),
 			Used: gridtypes.Unit(usage.Used),
@@ -273,7 +274,7 @@ func (s *Module) CreateFilesystem(name string, size gridtypes.Unit) (pkg.Filesys
 // ReleaseFilesystem with the given name, this will unmount and then delete
 // the filesystem. After this call, the caller must not perform any more actions
 // on this filesystem
-func (s *Module) ReleaseFilesystem(name string) error {
+func (s *Module) VolumeDelete(name string) error {
 	log.Info().Msgf("Deleting volume %v", name)
 
 	for _, pool := range s.ssds {
@@ -318,8 +319,8 @@ func (s *Module) ReleaseFilesystem(name string) error {
 }
 
 // ListFilesystems return all the filesystem managed by storeaged present on the nodes
-func (s *Module) ListFilesystems() ([]pkg.Filesystem, error) {
-	fss := make([]pkg.Filesystem, 0, 10)
+func (s *Module) VolumeList() ([]pkg.Volume, error) {
+	fss := make([]pkg.Volume, 0, 10)
 
 	for _, pool := range s.ssds {
 		if _, err := pool.Mounted(); err != nil {
@@ -343,11 +344,9 @@ func (s *Module) ListFilesystems() ([]pkg.Filesystem, error) {
 				return nil, err
 			}
 
-			fss = append(fss, pkg.Filesystem{
-				ID:     v.ID(),
-				FsType: v.FsType(),
-				Name:   v.Name(),
-				Path:   v.Path(),
+			fss = append(fss, pkg.Volume{
+				Name: v.Name(),
+				Path: v.Path(),
 				Usage: pkg.Usage{
 					Size: gridtypes.Unit(usage.Size),
 					Used: gridtypes.Unit(usage.Used),
@@ -361,34 +360,32 @@ func (s *Module) ListFilesystems() ([]pkg.Filesystem, error) {
 
 // Path return the path of the mountpoint of the named filesystem
 // if no volume with name exists, an empty path and an error is returned
-func (s *Module) Path(name string) (pkg.Filesystem, error) {
+func (s *Module) VolumeLookup(name string) (pkg.Volume, error) {
 	_, _, fs, err := s.path(name)
 	return fs, err
 }
 
 // Path return the path of the mountpoint of the named filesystem
 // if no volume with name exists, an empty path and an error is returned
-func (s *Module) path(name string) (filesystem.Pool, filesystem.Volume, pkg.Filesystem, error) {
+func (s *Module) path(name string) (filesystem.Pool, filesystem.Volume, pkg.Volume, error) {
 	for _, pool := range s.ssds {
 		if _, err := pool.Mounted(); err != nil {
 			continue
 		}
 		filesystems, err := pool.Volumes()
 		if err != nil {
-			return nil, nil, pkg.Filesystem{}, err
+			return nil, nil, pkg.Volume{}, err
 		}
 		for _, fs := range filesystems {
 			if fs.Name() == name {
 				usage, err := fs.Usage()
 				if err != nil {
-					return nil, nil, pkg.Filesystem{}, err
+					return nil, nil, pkg.Volume{}, err
 				}
 
-				return pool, fs, pkg.Filesystem{
-					ID:     fs.ID(),
-					FsType: fs.FsType(),
-					Name:   fs.Name(),
-					Path:   fs.Path(),
+				return pool, fs, pkg.Volume{
+					Name: fs.Name(),
+					Path: fs.Path(),
 					Usage: pkg.Usage{
 						Size: gridtypes.Unit(usage.Size),
 						Used: gridtypes.Unit(usage.Used),
@@ -398,71 +395,12 @@ func (s *Module) path(name string) (filesystem.Pool, filesystem.Volume, pkg.File
 		}
 	}
 
-	return nil, nil, pkg.Filesystem{}, errors.Wrapf(os.ErrNotExist, "subvolume '%s' not found", name)
-}
-
-// VDiskFindCandidate find a suitbale location for creating a vdisk of the given size
-func (s *Module) VDiskFindCandidate(size gridtypes.Unit) (path string, err error) {
-	candidates, err := s.findCandidates(size)
-	if err != nil {
-		return path, err
-	}
-	// does anyone have a vdisk subvol
-	for _, candidate := range candidates {
-		volumes, err := candidate.Pool.Volumes()
-		if err != nil {
-			log.Error().Str("pool", candidate.Pool.Path()).Err(err).Msg("failed to list pool volumes")
-			continue
-		}
-		for _, volume := range volumes {
-			if volume.Name() != vdiskVolumeName {
-				continue
-			}
-
-			return volume.Path(), nil
-		}
-	}
-	// none has a vdiks subvolume, we need to
-	// create one.
-	candidate := candidates[0]
-	volume, err := candidate.Pool.AddVolume(vdiskVolumeName)
-	if err != nil {
-		return path, errors.Wrap(err, "failed to create vdisk pool")
-	}
-
-	return volume.Path(), nil
-}
-
-// VDiskPools return a list of all vdisk pools
-func (s *Module) VDiskPools() ([]string, error) {
-	var paths []string
-	for _, pool := range s.ssds {
-		if pool.Type() != zos.SSDDevice {
-			continue
-		}
-
-		if _, err := pool.Mounted(); err != nil {
-			continue
-		}
-
-		volumes, err := pool.Volumes()
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list pool '%s' volumes", pool.Path())
-		}
-
-		for _, volume := range volumes {
-			if volume.Name() == vdiskVolumeName {
-				paths = append(paths, volume.Path())
-			}
-		}
-	}
-
-	return paths, nil
+	return nil, nil, pkg.Volume{}, errors.Wrapf(os.ErrNotExist, "subvolume '%s' not found", name)
 }
 
 // GetCacheFS return the special filesystem used by 0-OS to store internal state and flist cache
-func (s *Module) GetCacheFS() (pkg.Filesystem, error) {
-	return s.Path(cacheLabel)
+func (s *Module) Cache() (pkg.Volume, error) {
+	return s.VolumeLookup(cacheLabel)
 }
 
 // ensureCache creates a "cache" subvolume and mounts it in /var

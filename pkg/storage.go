@@ -11,7 +11,6 @@ import (
 
 //go:generate mkdir -p stubs
 //go:generate zbusc -module storage -version 0.0.1 -name storage -package stubs github.com/threefoldtech/zos/pkg+StorageModule stubs/storage_stub.go
-//go:generate zbusc -module storage -version 0.0.1 -name vdisk -package stubs github.com/threefoldtech/zos/pkg+VDiskModule stubs/vdisk_stub.go
 
 // RaidProfile type
 
@@ -64,20 +63,6 @@ type Usage struct {
 	Used gridtypes.Unit
 }
 
-// Filesystem represents a storage space that can be used as a filesystem
-type Filesystem struct {
-	// Filesystem ID
-	ID int
-	// Path of the Filesystem
-	Path string
-	// Usage reports the current usage of the Filesystem
-	Usage Usage
-	// Name of the Filesystem
-	Name string
-	// FsType of the Filesystem
-	FsType string
-}
-
 type Volume struct {
 	Name  string
 	Path  string
@@ -102,9 +87,19 @@ type Device struct {
 // - subvolumes
 // - vdisks
 // hdd pools are only used by zdb as one disk
-type Storage interface {
+type StorageModule interface {
 	// Managerial method
 	Cache() (Volume, error)
+
+	// Total gives the total amount of storage available for a device type
+	Total(kind DeviceType) (uint64, error)
+	// BrokenPools lists the broken storage pools that have been detected
+	BrokenPools() []BrokenPool
+	// BrokenDevices lists the broken devices that have been detected
+	BrokenDevices() []BrokenDevice
+	//Monitor returns stats stream about pools
+	Monitor(ctx context.Context) <-chan PoolsStats
+
 	// Volume management
 
 	// VolumeCreate creates a new volume
@@ -118,6 +113,9 @@ type Storage interface {
 
 	// VolumeDelete deletes a volume by name
 	VolumeDelete(name string) error
+
+	// VolumeList list all volumes
+	VolumeList() ([]Volume, error)
 
 	// Virtual disk management
 
@@ -136,6 +134,7 @@ type Storage interface {
 	// DiskExists checks if disk exists
 	DiskExists(name string) bool
 
+	DiskList() ([]VDisk, error)
 	// Device management
 
 	//Devices list all "allocated" devices
@@ -143,40 +142,6 @@ type Storage interface {
 
 	// DeviceAllocate allocates a new device (formats and give a new ID)
 	DeviceAllocate() (Device, error)
-}
-
-// VolumeAllocater is the zbus interface of the storage module responsible
-// for volume allocation
-type VolumeAllocater interface {
-	// CreateFilesystem creates a filesystem with a given size. The filesystem
-	// is mounted, and the path to the mountpoint is returned. The filesystem
-	// is only attempted to be created in a pool of the given type. If no
-	// more space is available in such a pool, `ErrNotEnoughSpace` is returned.
-	// It is up to the caller to handle such a situation and decide if he wants
-	// to try again on a different devicetype
-	CreateFilesystem(name string, size gridtypes.Unit, poolType DeviceType) (Filesystem, error)
-
-	// UpdateFilesystem changes a filesystem size to given value.
-	UpdateFilesystem(name string, size gridtypes.Unit) (Filesystem, error)
-	// ReleaseFilesystem signals that the named filesystem is no longer needed.
-	// The filesystem will be unmounted and subsequently removed.
-	// All data contained in the filesystem will be lost, and the
-	// space which has been reserved for this filesystem will be reclaimed.
-	ReleaseFilesystem(name string) error
-
-	// ListFilesystems return all the filesystem managed by storeaged present on the nodes
-	// this can be an expensive call on server with a lot of disk, don't use it in a
-	// intensive loop
-	// Special filesystem like internal cache and vdisk are not return by this function
-	// to access them use the GetCacheFS or GetVdiskFS
-	ListFilesystems() ([]Filesystem, error)
-
-	// Path return the filesystem named name
-	// if no filesystem with this name exists, an error is returned
-	Path(name string) (Filesystem, error)
-
-	// GetCacheFS return the special filesystem used by 0-OS to store internal state and flist cache
-	GetCacheFS() (Filesystem, error)
 }
 
 // VDisk info returned by a call to inspect
@@ -190,42 +155,4 @@ type VDisk struct {
 // Name returns the Name part of the disk path
 func (d *VDisk) Name() string {
 	return filepath.Base(d.Path)
-}
-
-// VDiskModule interface
-type VDiskModule interface {
-	// AllocateDisk with given id and size and an optional source disk, return path to virtual disk
-	Allocate(id string, size gridtypes.Unit) (string, error)
-
-	// Writes an image image to disk with id
-	WriteImage(id string, image string) error
-
-	// EnsureFilesystem ensures disk has a valid filesystem
-	// this method is idempotent
-	EnsureFilesystem(id string) error
-
-	// DeallocateVDisk removes a virtual disk
-	Deallocate(id string) error
-	// Exists checks if disk with that ID already allocated
-	Exists(id string) bool
-	// Inspect return info about the disk
-	Inspect(id string) (VDisk, error)
-	// List lists all the available vdisks
-	List() ([]VDisk, error)
-}
-
-// StorageModule defines the api for storage
-type StorageModule interface {
-	VolumeAllocater
-	ZDBAllocater
-
-	// Total gives the total amount of storage available for a device type
-	Total(kind DeviceType) (uint64, error)
-	// BrokenPools lists the broken storage pools that have been detected
-	BrokenPools() []BrokenPool
-	// BrokenDevices lists the broken devices that have been detected
-	BrokenDevices() []BrokenDevice
-
-	//Monitor returns stats stream about pools
-	Monitor(ctx context.Context) <-chan PoolsStats
 }

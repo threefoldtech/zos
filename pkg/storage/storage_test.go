@@ -325,7 +325,7 @@ func TestVDiskFindCandidatesHasEnoughSpace(t *testing.T) {
 	pool2.On("Volumes").Return([]filesystem.Volume{}, nil)
 	pool3.On("Volumes").Return([]filesystem.Volume{}, nil)
 
-	_, err := mod.VDiskFindCandidate(500)
+	_, err := mod.diskFindCandidate(500)
 
 	require.NoError(err)
 }
@@ -379,7 +379,7 @@ func TestVDiskFindCandidatesNoSpace(t *testing.T) {
 	pool2.On("Volumes").Return([]filesystem.Volume{}, nil)
 	pool3.On("Volumes").Return([]filesystem.Volume{}, nil)
 
-	_, err := mod.VDiskFindCandidate(10000)
+	_, err := mod.diskFindCandidate(10000)
 	require.NoError(err)
 
 	if ok := pool3.AssertCalled(t, "AddVolume", vdiskVolumeName); !ok {
