@@ -26,17 +26,6 @@ var (
 	ErrDeviceNotMounted = fmt.Errorf("device is not mounted")
 )
 
-var (
-	// divisors for the total usable size of a filesystem
-	// an efficiency multiplier would probably make slightly more sense,
-	// but this way we don't have to cast uints to floats later
-	raidSizeDivisor = map[pkg.RaidProfile]uint64{
-		pkg.Single: 1,
-		pkg.Raid1:  2,
-		pkg.Raid10: 2,
-	}
-)
-
 type btrfsPool struct {
 	device Device
 	utils  BtrfsUtil
@@ -265,22 +254,7 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 		return Usage{}, err
 	}
 
-	fsi, err := p.utils.List(context.Background(), p.name, true)
-	if err != nil {
-		return Usage{}, err
-	}
-
-	if len(fsi) == 0 {
-		return Usage{}, fmt.Errorf("could not find total size of pool %v", p.name)
-	}
-
-	var totalSize uint64
-	for _, dev := range fsi[0].Devices {
-		log.Debug().Int64("size", dev.Size).Str("device", dev.Path).Msg("pool usage")
-		totalSize += uint64(dev.Size)
-	}
-
-	return Usage{Size: totalSize / raidSizeDivisor[du.Data.Profile], Used: uint64(fsi[0].Used)}, nil
+	return Usage{Size: du.Data.Total, Used: du.Data.Used}, nil
 }
 
 // Type of the physical storage used for this pool

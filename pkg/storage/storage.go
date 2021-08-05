@@ -671,7 +671,7 @@ func (s *Module) checkForCandidates(size gridtypes.Unit, mounted bool) ([]candid
 
 		candidates = append(candidates, candidate{
 			Pool:      pool,
-			Available: usage.Size,
+			Available: usage.Size - (reserved + uint64(size)),
 		})
 
 		// if we are looking for not mounted pools, break here
@@ -765,7 +765,7 @@ func (s *Module) periodicallyCheckDiskShutdown() {
 func (s *Module) shutdownDisks() {
 	for _, pool := range s.ssds {
 		device := pool.Device()
-		log.Debug().Msgf("checking device: %s", device.Path)
+		log.Debug().Msgf("checking device: %s", device.Path())
 		on, err := checkDiskPowerStatus(device.Path())
 		if err != nil {
 			log.Err(err).Msgf("error occurred while checking disk power status")
@@ -777,10 +777,10 @@ func (s *Module) shutdownDisks() {
 			continue
 		}
 
-		log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path)
+		log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path())
 		err = pool.Shutdown()
 		if err != nil {
-			log.Err(err).Msgf("failed to shutdown device %s", device.Path)
+			log.Err(err).Msgf("failed to shutdown device %s", device.Path())
 			continue
 		}
 	}
