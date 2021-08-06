@@ -65,8 +65,8 @@ func (s *StorageModuleStub) Cache(ctx context.Context) (ret0 pkg.Volume, ret1 er
 	return
 }
 
-func (s *StorageModuleStub) DeviceAllocate(ctx context.Context) (ret0 pkg.Device, ret1 error) {
-	args := []interface{}{}
+func (s *StorageModuleStub) DeviceAllocate(ctx context.Context, arg0 gridtypes.Unit) (ret0 pkg.Device, ret1 error) {
+	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "DeviceAllocate", args...)
 	if err != nil {
 		panic(err)

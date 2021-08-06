@@ -144,7 +144,7 @@ type StorageModule interface {
 	Devices() ([]Device, error)
 
 	// DeviceAllocate allocates a new device (formats and give a new ID)
-	DeviceAllocate() (Device, error)
+	DeviceAllocate(min gridtypes.Unit) (Device, error)
 
 	// DeviceLookup inspects a previously allocated device
 	DeviceLookup(name string) (Device, error)

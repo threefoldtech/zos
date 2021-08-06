@@ -13,6 +13,7 @@ import (
 type TestDevice struct {
 	path       string
 	name       string
+	size       uint64
 	deviceType zos.DeviceType
 	info       DeviceInfo
 	readTime   uint64
@@ -21,6 +22,11 @@ type TestDevice struct {
 // Path returns path to the device like /dev/sda
 func (t *TestDevice) Path() string {
 	return t.path
+}
+
+// Size device size
+func (t *TestDevice) Size() uint64 {
+	return t.size
 }
 
 // Name returns name of the device like sda

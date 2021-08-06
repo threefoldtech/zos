@@ -84,7 +84,8 @@ func (p *Primitives) zdbListContainers(ctx context.Context) (map[pkg.ContainerID
 
 func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (zos.ZDBResult, error) {
 	var (
-		contmod = stubs.NewContainerModuleStub(p.zbus)
+		//contmod = stubs.NewContainerModuleStub(p.zbus)
+		storage = stubs.NewStorageModuleStub(p.zbus)
 		nsID    = wl.ID.String()
 		config  ZDB
 	)
@@ -107,6 +108,7 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 		return zos.ZDBResult{}, errors.Wrap(err, "failed to list container data volumes")
 	}
 
+	var candidates []ZDBContainer
 	// check if namespace already exist
 	for id, container := range containers {
 		dataPath, _ := container.DataMount() // the error should not happen
@@ -135,49 +137,59 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 				Port:      zdbPort,
 			}, nil
 		}
+
+		// we did not find the namespace, but is this container
+		// a possible candidate to hold the new namespace?
+		reserved, err := index.Reserved()
+		if err != nil {
+			return zos.ZDBResult{}, errors.Wrap(err, "failed to check total reserved size")
+		}
+
+		device, err := storage.DeviceLookup(ctx, container.Name)
+		if err != nil {
+			log.Error().Err(err).Str("container", string(id)).Msg("failed to inspect zdb device")
+			continue
+		}
+
+		if reserved+uint64(config.Size) <= uint64(device.Usage.Size) {
+			candidates = append(candidates, container)
+		}
 	}
 
-	// otherwise, we check if we can fit this namespace into  one of the running zdbs.
-
-	// if we reached here, we need to create the 0-db namespace
-	log.Debug().Msg("allocating storage for namespace")
-	allocation, err := storage.Allocate(ctx, nsID, config.DiskType, config.Size, config.Mode)
-	if err != nil {
-		return zos.ZDBResult{}, errors.Wrap(err, "failed to allocate storage")
-	}
-
-	containerID := pkg.ContainerID(allocation.VolumeID)
-
-	cont, err := p.ensureZdbContainer(ctx, allocation)
-	if err != nil {
-		return zos.ZDBResult{}, errors.Wrapf(err, "failed to ensure zdb containe running")
+	var cont ZDBContainer
+	if len(candidates) > 0 {
+		cont = candidates[0]
+	} else {
+		// allocate new disk
+		device, err := storage.DeviceAllocate(ctx, config.Size)
+		if err != nil {
+			return zos.ZDBResult{}, errors.Wrap(err, "couldn't allocate device to satisfy namespace size")
+		}
+		cont, err = p.ensureZdbContainer(ctx, device)
+		if err != nil {
+			return zos.ZDBResult{}, errors.Wrap(err, "failed to start zdb container")
+		}
 	}
 
 	containerIPs, err := p.waitZDBIPs(ctx, cont.Network.Namespace)
 	if err != nil {
 		return zos.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
 	}
-	log.Warn().Msgf("ip for zdb containers %s", containerIPs)
 
+	log.Warn().Msgf("ip for zdb containers %s", containerIPs)
 	// this call will actually configure the namespace in zdb and set the password
-	if err := p.createZDBNamespace(containerID, nsID, config); err != nil {
+	if err := p.createZDBNamespace(pkg.ContainerID(cont.Name), nsID, config); err != nil {
 		return zos.ZDBResult{}, errors.Wrap(err, "failed to create zdb namespace")
 	}
 
 	return zos.ZDBResult{
 		Namespace: nsID,
-		IPs: func() []string {
-			ips := make([]string, len(containerIPs))
-			for i, ip := range containerIPs {
-				ips[i] = ip.String()
-			}
-			return ips
-		}(),
-		Port: zdbPort,
+		IPs:       ipsToString(containerIPs),
+		Port:      zdbPort,
 	}, nil
 }
 
-func (p *Primitives) ensureZdbContainer(ctx context.Context, device pkg.Device) (pkg.Container, error) {
+func (p *Primitives) ensureZdbContainer(ctx context.Context, device pkg.Device) (ZDBContainer, error) {
 	var container = stubs.NewContainerModuleStub(p.zbus)
 
 	name := pkg.ContainerID(device.ID)
@@ -186,18 +198,18 @@ func (p *Primitives) ensureZdbContainer(ctx context.Context, device pkg.Device) 
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		// container not found, create one
 		if err := p.createZdbContainer(ctx, device); err != nil {
-			return cont, err
+			return ZDBContainer(cont), err
 		}
 		cont, err = container.Inspect(ctx, zdbContainerNS, name)
 		if err != nil {
-			return pkg.Container{}, err
+			return ZDBContainer{}, err
 		}
 	} else if err != nil {
 		// other error
-		return pkg.Container{}, err
+		return ZDBContainer{}, err
 	}
 
-	return cont, nil
+	return ZDBContainer(cont), nil
 
 }
 
@@ -402,6 +414,10 @@ func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string
 	if !exists {
 		if err := zdbCl.CreateNamespace(nsID); err != nil {
 			return errors.Wrapf(err, "failed to create namespace in 0-db: %s", containerID)
+		}
+
+		if err := zdbCl.NamespaceSetMode(nsID, string(config.Mode)); err != nil {
+			return errors.Wrap(err, "failed to set namespace mode")
 		}
 	}
 

@@ -50,7 +50,7 @@ func (m *Module) Devices() ([]pkg.Device, error) {
 	return devices, nil
 }
 
-func (m *Module) DeviceInspect(name string) (pkg.Device, error) {
+func (m *Module) DeviceLookup(name string) (pkg.Device, error) {
 	for _, hdd := range m.hdds {
 		if hdd.Name() != name {
 			continue
@@ -92,10 +92,14 @@ func (m *Module) DeviceInspect(name string) (pkg.Device, error) {
 
 // DeviceAllocate allocates a new free device, allocation is done
 // by creation a zdb subvolume
-func (m *Module) DeviceAllocate() (pkg.Device, error) {
+func (m *Module) DeviceAllocate(min gridtypes.Unit) (pkg.Device, error) {
 	for _, hdd := range m.hdds {
 		if _, err := hdd.Mounted(); err == nil {
 			// mounted pool. skip
+			continue
+		}
+
+		if hdd.Device().Size() < uint64(min) {
 			continue
 		}
 

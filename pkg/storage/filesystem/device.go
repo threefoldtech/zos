@@ -26,6 +26,8 @@ type Device interface {
 	Path() string
 	// Name returns name of the device like sda
 	Name() string
+	// Size device size
+	Size() uint64
 	// Type returns detected device type (hdd, ssd)
 	Type() zos.DeviceType
 	// Info is current device information, this should not be cached because
@@ -119,6 +121,7 @@ func (d *deviceImpl) ReadTime() uint64 {
 type minDevice struct {
 	IPath      string         `json:"path"`
 	IName      string         `json:"name"`
+	ISize      uint64         `json:"size"`
 	DiskType   zos.DeviceType `json:"-"`
 	RTime      uint64         `json:"-"`
 	Subsystems string         `json:"subsystems"`
@@ -133,6 +136,10 @@ func (m minDevice) toDevice(mgr *lsblkDeviceManager) Device {
 
 func (m *minDevice) Path() string {
 	return m.IPath
+}
+
+func (m *minDevice) Size() uint64 {
+	return m.ISize
 }
 
 func (m *minDevice) Name() string {
