@@ -21,11 +21,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 var (
@@ -35,12 +37,22 @@ var (
 type TestDevices map[string]string
 
 func (d TestDevices) Loops() Devices {
-	var loops Devices
+	mgr := lsblkDeviceManager{
+		executer: executerFunc(run),
+	}
 	for _, loop := range d {
-		loops = append(loops, &TestDevice{path: loop})
+		mgr.cache = append(mgr.cache, minDevice{
+			IPath:    loop,
+			IName:    filepath.Base(loop),
+			DiskType: zos.SSDDevice,
+		})
 	}
 
-	return loops
+	devices, err := mgr.Devices(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	return devices
 }
 
 func (d TestDevices) Destroy() {
@@ -97,6 +109,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		// we can't create devices. we need to skip
 		// CI test
+		fmt.Println("skipping ci tests")
 		SkipCITests = true
 	} else {
 		devices.Destroy()
@@ -235,7 +248,7 @@ func TestCLeanUpQgroupsCI(t *testing.T) {
 
 	qgroups, err := btrfsVol.utils.QGroupList(context.TODO(), pool.Path())
 	require.NoError(t, err)
-	assert.Equal(t, 2, len(qgroups))
+	assert.Equal(t, 1, len(qgroups))
 	t.Logf("qgroups before delete: %v", qgroups)
 
 	_, ok = qgroups[fmt.Sprintf("0/%d", btrfsVol.id)]
@@ -248,5 +261,5 @@ func TestCLeanUpQgroupsCI(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf("remaining qgroups: %+v", qgroups)
-	assert.Equal(t, 1, len(qgroups), "qgroups should have been deleted with the subvolume")
+	assert.Equal(t, 0, len(qgroups), "qgroups should have been deleted with the subvolume")
 }

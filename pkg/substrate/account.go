@@ -149,6 +149,16 @@ func (s *Substrate) EnsureAccount(identity *Identity) (info types.AccountInfo, e
 
 type Identity signature.KeyringPair
 
+func (i *Identity) SecureKey() (ed25519.PrivateKey, error) {
+	scheme := subkeyEd25519.Scheme{}
+	kyr, err := subkey.DeriveKeyPair(scheme, i.URI)
+	if err != nil {
+		return nil, err
+	}
+
+	return ed25519.NewKeyFromSeed(kyr.Seed()), nil
+}
+
 // Identity derive the correct substrate identity from ed25519 key
 func IdentityFromSecureKey(sk ed25519.PrivateKey) (Identity, error) {
 	str := types.HexEncodeToString(sk.Seed())

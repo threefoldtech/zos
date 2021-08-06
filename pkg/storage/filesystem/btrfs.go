@@ -129,13 +129,13 @@ func (p *btrfsPool) FsType() string {
 // Mount mounts the pool in it's default mount location under /mnt/name
 func (p *btrfsPool) Mount() (string, error) {
 	mnt, err := p.Mounted()
-	if err != nil && !errors.Is(err, ErrDeviceNotMounted) {
-		return "", err
-	} else if err == nil {
+	if err == nil {
 		return mnt, nil
+	} else if !errors.Is(err, ErrDeviceNotMounted) {
+		return "", errors.Wrap(err, "failed to check device mount status")
 	}
-	// device is not mounted
 
+	// device is not mounted
 	ctx := context.Background()
 	mnt = p.Path()
 	if err := os.MkdirAll(mnt, 0755); err != nil {
@@ -254,7 +254,12 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 		return Usage{}, err
 	}
 
-	return Usage{Size: du.Data.Total, Used: du.Data.Used}, nil
+	info, err := p.device.Info()
+	if err != nil {
+		return Usage{}, err
+	}
+
+	return Usage{Size: info.Size, Used: du.Data.Used}, nil
 }
 
 // Type of the physical storage used for this pool

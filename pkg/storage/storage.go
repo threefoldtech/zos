@@ -205,6 +205,7 @@ func (s *Module) initialize() error {
 }
 
 func (s *Module) shutdownUnusedPools() error {
+	log.Debug().Msg("shutting down unused disks")
 	for _, pool := range s.ssds {
 		if _, err := pool.Mounted(); err == nil {
 			volumes, err := pool.Volumes()
@@ -596,14 +597,13 @@ func (s *Module) checkForCandidates(size gridtypes.Unit, mounted bool) ([]candid
 				err = pool.UnMount()
 				if err != nil {
 					log.Error().Err(err).Msgf("failed to unmount pool %s", pool.Name())
-					return nil, err
 				}
 				err = pool.Shutdown()
 				if err != nil {
 					log.Error().Err(err).Msgf("failed to shutdown pool %s", pool.Name())
-					return nil, err
 				}
 			}
+
 			continue
 		}
 

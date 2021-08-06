@@ -57,8 +57,9 @@ const (
 )
 
 type DeviceInfo struct {
-	Path       string `json:"name"`
+	Path       string `json:"path"`
 	Label      string `json:"label"`
+	Size       uint64 `json:"size"`
 	Mountpoint string `json:"mountpoint"`
 	Filesystem FSType `json:"fstype"`
 }
