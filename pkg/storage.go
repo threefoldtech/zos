@@ -145,6 +145,9 @@ type StorageModule interface {
 
 	// DeviceAllocate allocates a new device (formats and give a new ID)
 	DeviceAllocate() (Device, error)
+
+	// DeviceLookup inspects a previously allocated device
+	DeviceLookup(name string) (Device, error)
 }
 
 // VDisk info returned by a call to inspect

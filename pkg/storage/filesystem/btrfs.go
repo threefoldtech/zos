@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/google/uuid"
@@ -14,7 +13,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/storage/zdbpool"
 )
 
 var (
@@ -339,15 +337,10 @@ type btrfsVolume struct {
 }
 
 func newBtrfsVolume(ID int, path string, utils BtrfsUtil) Volume {
-	dir := filepath.Base(path)
 	vol := btrfsVolume{
 		id:    ID,
 		path:  path,
 		utils: utils,
-	}
-
-	if strings.HasPrefix(dir, "zdb") {
-		return &zdbBtrfsVolume{vol}
 	}
 
 	return &vol
@@ -413,42 +406,42 @@ func (v *btrfsVolume) Limit(size uint64) error {
 	return v.utils.QGroupLimit(ctx, size, v.Path())
 }
 
-type zdbBtrfsVolume struct {
-	btrfsVolume
-}
+// type zdbBtrfsVolume struct {
+// 	btrfsVolume
+// }
 
-func (v *zdbBtrfsVolume) Usage() (usage Usage, err error) {
-	ctx := context.Background()
-	info, err := v.utils.SubvolumeInfo(ctx, v.Path())
-	if err != nil {
-		return usage, err
-	}
+// func (v *zdbBtrfsVolume) Usage() (usage Usage, err error) {
+// 	ctx := context.Background()
+// 	info, err := v.utils.SubvolumeInfo(ctx, v.Path())
+// 	if err != nil {
+// 		return usage, err
+// 	}
 
-	groups, err := v.utils.QGroupList(ctx, v.Path())
-	if err != nil {
-		return usage, err
-	}
+// 	groups, err := v.utils.QGroupList(ctx, v.Path())
+// 	if err != nil {
+// 		return usage, err
+// 	}
 
-	group, ok := groups[fmt.Sprintf("0/%d", info.ID)]
-	if !ok {
-		// no qgroup associated with the subvolume id! means no limit, but we also
-		// cannot read the usage.
-		return
-	}
+// 	group, ok := groups[fmt.Sprintf("0/%d", info.ID)]
+// 	if !ok {
+// 		// no qgroup associated with the subvolume id! means no limit, but we also
+// 		// cannot read the usage.
+// 		return
+// 	}
 
-	zdb := zdbpool.New(v.Path())
-	size, err := zdb.Reserved()
-	if err != nil {
-		return usage, errors.Wrapf(err, "failed to calculate namespaces size")
-	}
-	// otherwise, we return the size as maxrefer and usage as the rfer of the
-	// associated group
-	// todo: size should be the size of the pool, if maxrfer is 0
-	return Usage{Used: group.Rfer, Size: size}, nil
-}
+// 	zdb := zdbpool.New(v.Path())
+// 	size, err := zdb.Reserved()
+// 	if err != nil {
+// 		return usage, errors.Wrapf(err, "failed to calculate namespaces size")
+// 	}
+// 	// otherwise, we return the size as maxrefer and usage as the rfer of the
+// 	// associated group
+// 	// todo: size should be the size of the pool, if maxrfer is 0
+// 	return Usage{Used: group.Rfer, Size: size}, nil
+// }
 
-// IsZDBVolume checks if this is a zdb subvolume
-func IsZDBVolume(v Volume) bool {
-	_, ok := v.(*zdbBtrfsVolume)
-	return ok
-}
+// // IsZDBVolume checks if this is a zdb subvolume
+// func IsZDBVolume(v Volume) bool {
+// 	_, ok := v.(*zdbBtrfsVolume)
+// 	return ok
+// }

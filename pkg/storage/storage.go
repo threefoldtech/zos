@@ -168,6 +168,29 @@ func (s *Module) initialize() error {
 		}
 	}
 
+	// clean up hdd disks to make sure only zdb subvolumes exists
+	// this code makes sure HDDs only have volumes for zdb. Or none
+	for _, hdd := range s.hdds {
+		// we know that all pools are mounted already so it's okay
+		// to access them direction
+		volumes, err := hdd.Volumes()
+		if err != nil {
+			log.Error().Err(err).Str("pool", hdd.Name()).Msg("failed to list pool volumes")
+			continue
+		}
+
+		for _, vol := range volumes {
+			if vol.Name() != zdbVolume {
+				if err := hdd.RemoveVolume(vol.Name()); err != nil {
+					log.Error().Err(err).
+						Str("volume", vol.Name()).
+						Str("pool", hdd.Name()).
+						Msg("failed to delete non zdb volume from harddisk")
+				}
+			}
+		}
+	}
+
 	log.Info().
 		Int("ssd-pools", len(s.ssds)).
 		Int("hdd-pools", len(s.hdds)).

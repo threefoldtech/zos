@@ -1,4 +1,4 @@
-package zdbpool
+package zdb
 
 import (
 	"io/ioutil"
@@ -13,14 +13,15 @@ import (
 // to storge 0-db namespaces
 const Prefix = "zdb"
 
-// ZDBPool represent a part of a disk that is reserved to store 0-db data
-type ZDBPool struct {
+// ZdbIndex represent a part of a disk that is reserved to store 0-db data
+type ZdbIndex struct {
 	path string
 }
 
-// New creates a ZDBPool with path
-func New(path string) ZDBPool {
-	return ZDBPool{path}
+// New creates a ZDBPool with path. the path should point
+// to a valid zdb index directory
+func NewIndex(path string) ZdbIndex {
+	return ZdbIndex{path}
 }
 
 // NSInfo is a struct containing information about a 0-db namespace
@@ -31,7 +32,7 @@ type NSInfo struct {
 
 // Reserved return the amount of storage that has been reserved by all the
 // namespace in the pool
-func (p *ZDBPool) Reserved() (uint64, error) {
+func (p *ZdbIndex) Reserved() (uint64, error) {
 	ns, err := p.Namespaces()
 	if err != nil {
 		return 0, err
@@ -48,7 +49,7 @@ func (p *ZDBPool) Reserved() (uint64, error) {
 // Create a namespace. Note that this create only reserve the name
 // space size (and create namespace descriptor) this must be followed
 // by an actual zdb NSNEW call to create the database files.
-func (p *ZDBPool) Create(name, password string, size gridtypes.Unit) error {
+func (p *ZdbIndex) Create(name, password string, size gridtypes.Unit) error {
 	dir := filepath.Join(p.path, name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return errors.Wrapf(err, "namespace '%s' directory creation failed", dir)
@@ -68,7 +69,7 @@ func (p *ZDBPool) Create(name, password string, size gridtypes.Unit) error {
 }
 
 // Namespace gets a namespace info from pool
-func (p *ZDBPool) Namespace(name string) (info NSInfo, err error) {
+func (p *ZdbIndex) Namespace(name string) (info NSInfo, err error) {
 	path := filepath.Join(p.path, name, "zdb-namespace")
 	f, err := os.Open(path)
 	if err != nil {
@@ -90,7 +91,7 @@ func (p *ZDBPool) Namespace(name string) (info NSInfo, err error) {
 }
 
 // Namespaces returns a list of NSinfo of all the namespace present in the pool
-func (p *ZDBPool) Namespaces() ([]NSInfo, error) {
+func (p *ZdbIndex) Namespaces() ([]NSInfo, error) {
 
 	dirs, err := ioutil.ReadDir(p.path)
 	if err != nil {
@@ -123,7 +124,7 @@ func (p *ZDBPool) Namespaces() ([]NSInfo, error) {
 
 // Exists checks if a namespace exists in the pool or not
 // this method is way faster then using Namespaces cause it doesn't have to read any data
-func (p *ZDBPool) Exists(name string) bool {
+func (p *ZdbIndex) Exists(name string) bool {
 	path := filepath.Join(p.path, name, "zdb-namespace")
 
 	_, err := os.Stat(path)
@@ -131,7 +132,7 @@ func (p *ZDBPool) Exists(name string) bool {
 }
 
 // IndexMode return the mode of the index of the namespace called name
-func (p *ZDBPool) IndexMode(name string) (mode IndexMode, err error) {
+func (p *ZdbIndex) IndexMode(name string) (mode IndexMode, err error) {
 	path := filepath.Join(p.path, name, "zdb-index-00000")
 
 	f, err := os.Open(path)
