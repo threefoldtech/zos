@@ -187,47 +187,53 @@ func (s *Module) initialize() error {
 		return err
 	}
 
+	vm := true
 	hyperVisor, err := capacity.NewResourceOracle(nil).GetHypervisor()
 	if err == nil {
 		// Disable disk shutdown when running in a VM
-		if len(hyperVisor) > 0 {
-			return nil
-		}
+		vm = len(hyperVisor) > 0
 	}
 
-	if err := s.shutdownUnusedPools(); err != nil {
+	if err := s.shutdownUnusedPools(vm); err != nil {
 		log.Error().Err(err).Msg("Error shutting down unused pools")
 	}
 
-	s.periodicallyCheckDiskShutdown()
+	s.periodicallyCheckDiskShutdown(vm)
 
 	return nil
 }
 
-func (s *Module) shutdownUnusedPools() error {
+func (s *Module) shutdownUnusedPools(vm bool) error {
 	log.Debug().Msg("shutting down unused disks")
-	for _, pool := range s.ssds {
-		if _, err := pool.Mounted(); err == nil {
-			volumes, err := pool.Volumes()
-			if err != nil {
-				log.Error().Err(err).Msgf("Failed to retrieve subvolumes on pool %s", pool.Name())
-				return err
-			}
-			log.Debug().Msgf("Pool %s has: %d subvolumes", pool.Name(), len(volumes))
+	for _, sets := range [][]filesystem.Pool{s.ssds, s.hdds} {
+		for _, pool := range sets {
+			if _, err := pool.Mounted(); err == nil {
+				volumes, err := pool.Volumes()
+				if err != nil {
+					log.Error().Err(err).Msgf("Failed to retrieve subvolumes on pool %s", pool.Name())
+					return err
+				}
+				log.Debug().Msgf("Pool %s has: %d subvolumes", pool.Name(), len(volumes))
 
-			if len(volumes) > 0 {
-				continue
+				if len(volumes) > 0 {
+					continue
+				}
+				err = pool.UnMount()
+				if err != nil {
+					log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
+					return err
+				}
 			}
-			err = pool.UnMount()
-			if err != nil {
-				log.Error().Err(err).Msgf("Failed to unmount volume %s", pool.Name())
-				return err
+
+			if !vm {
+				// only shutdown on physical machine
+				if err := pool.Shutdown(); err != nil {
+					log.Error().Err(err).Msgf("Error shutting down pool %s", pool.Name())
+				}
 			}
-		}
-		if err := pool.Shutdown(); err != nil {
-			log.Error().Err(err).Msgf("Error shutting down pool %s", pool.Name())
 		}
 	}
+
 	return nil
 }
 
@@ -686,40 +692,46 @@ func (s *Module) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 	return ch
 }
 
-func (s *Module) periodicallyCheckDiskShutdown() {
+func (s *Module) periodicallyCheckDiskShutdown(vm bool) {
 	ticker := time.NewTicker(5 * time.Minute)
 
 	go func() {
 		for {
 			<-ticker.C
 			log.Info().Msg("Checking pools for disks that should be shutdown...")
-			s.shutdownDisks()
+			s.shutdownDisks(vm)
 		}
 	}()
 }
 
 // shutdownDisks will check the disks power status.
 // If a disk is on and it is not mounted then it is not supposed to be on, turn it off
-func (s *Module) shutdownDisks() {
-	for _, pool := range s.ssds {
-		device := pool.Device()
-		log.Debug().Msgf("checking device: %s", device.Path())
-		on, err := checkDiskPowerStatus(device.Path())
-		if err != nil {
-			log.Err(err).Msgf("error occurred while checking disk power status")
-			continue
-		}
+func (s *Module) shutdownDisks(vm bool) {
+	for _, set := range [][]filesystem.Pool{s.ssds, s.hdds} {
+		for _, pool := range set {
+			device := pool.Device()
+			log.Debug().Msgf("checking device: %s", device.Path())
+			on, err := checkDiskPowerStatus(device.Path())
+			if err != nil {
+				log.Err(err).Msgf("error occurred while checking disk power status")
+				continue
+			}
 
-		_, err = pool.Mounted()
-		if err == nil || !on {
-			continue
-		}
+			_, err = pool.Mounted()
+			if err == nil || !on {
+				continue
+			}
 
-		log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path())
-		err = pool.Shutdown()
-		if err != nil {
-			log.Err(err).Msgf("failed to shutdown device %s", device.Path())
-			continue
+			if vm {
+				continue
+			}
+
+			log.Debug().Msgf("shutting down device %s because it is not mounted and the device is on", device.Path())
+			err = pool.Shutdown()
+			if err != nil {
+				log.Err(err).Msgf("failed to shutdown device %s", device.Path())
+				continue
+			}
 		}
 	}
 }
