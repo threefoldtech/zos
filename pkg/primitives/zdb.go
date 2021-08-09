@@ -218,13 +218,18 @@ func (p *Primitives) zdbRootFS(ctx context.Context) (string, error) {
 	var err error
 	var rootFS string
 
-	rootFS, err = flist.Mount(ctx, zdbFlistURL, "", pkg.MountOptions{
+	hash, err := flist.FlistHash(ctx, zdbFlistURL)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get flist hash")
+	}
+
+	rootFS, err = flist.Mount(ctx, hash, zdbFlistURL, pkg.MountOptions{
 		Limit:    10 * gridtypes.Megabyte,
 		ReadOnly: false,
 	})
 
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to allocate rootfs for zdb container: %s", err)
+		return "", errors.Wrap(err, "failed to mount zdb flist")
 	}
 
 	return rootFS, nil
@@ -313,26 +318,31 @@ func (p *Primitives) createZdbContainer(ctx context.Context, device pkg.Device) 
 func (p *Primitives) zdbRun(ctx context.Context, name string, rootfs string, cmd string, netns string, volumepath string, socketdir string) error {
 	var cont = stubs.NewContainerModuleStub(p.zbus)
 
+	conf := pkg.Container{
+		Name:        name,
+		RootFS:      rootfs,
+		Entrypoint:  cmd,
+		Interactive: false,
+		Network:     pkg.NetworkInfo{Namespace: netns},
+		Mounts: []pkg.MountInfo{
+			{
+				Source: volumepath,
+				Target: zdbContainerDataMnt,
+			},
+			{
+				Source: socketdir,
+				Target: "/socket",
+			},
+		},
+	}
+
+	fmt.Printf("Container: %+v\n", conf)
+
 	_, err := cont.Run(
 		ctx,
 		zdbContainerNS,
-		pkg.Container{
-			Name:        name,
-			RootFS:      rootfs,
-			Entrypoint:  cmd,
-			Interactive: false,
-			Network:     pkg.NetworkInfo{Namespace: netns},
-			Mounts: []pkg.MountInfo{
-				{
-					Source: volumepath,
-					Target: zdbContainerDataMnt,
-				},
-				{
-					Source: socketdir,
-					Target: "/socket",
-				},
-			},
-		})
+		conf,
+	)
 
 	return err
 }

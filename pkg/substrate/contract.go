@@ -79,6 +79,23 @@ func (s *Substrate) CreateContract(identity *Identity, node uint32, body []byte,
 	return s.GetContractWithHash(node, hash)
 }
 
+// CreateContract creates a contract for deployment
+func (s *Substrate) UpdateContract(identity *Identity, contract uint64, body []byte, hash string) (uint64, error) {
+	c, err := types.NewCall(s.meta, "SmartContractModule.update_contract",
+		contract, body, hash,
+	)
+
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to create call")
+	}
+
+	if _, err := s.call(identity, c); err != nil {
+		return 0, errors.Wrap(err, "failed to create node")
+	}
+
+	return contract, nil
+}
+
 // GetContract we should not have calls to create contract, instead only get
 func (s *Substrate) GetContract(id uint64) (*Contract, error) {
 	bytes, err := types.EncodeToBytes(id)

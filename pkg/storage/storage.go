@@ -131,6 +131,12 @@ func (s *Module) initialize() error {
 	defer s.mu.Unlock()
 	log.Info().Msgf("Initializing storage module")
 
+	vm := true
+	hyperVisor, err := capacity.NewResourceOracle(nil).GetHypervisor()
+	if err == nil {
+		// Disable disk shutdown when running in a VM
+		vm = len(hyperVisor) > 0
+	}
 	// Make sure we finish in 1 minute
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
 	defer cancel()
@@ -158,7 +164,17 @@ func (s *Module) initialize() error {
 			log.Error().Err(err).Str("pool", pool.Name()).Str("device", device.Path()).Msg("failed to get usage of pool")
 		}
 
-		switch device.Type() {
+		typ := device.Type()
+		if vm {
+			// force ssd device for vms
+			typ = zos.SSDDevice
+		}
+
+		// TODO: this is a debugging code and should not be committed
+		if device.Path() == "/dev/vdd" || device.Path() == "/dev/vde" {
+			typ = zos.HDDDevice
+		}
+		switch typ {
 		case zos.SSDDevice:
 			s.totalSSD += usage.Size
 			s.ssds = append(s.ssds, pool)
@@ -208,13 +224,6 @@ func (s *Module) initialize() error {
 	if err := s.ensureCache(); err != nil {
 		log.Error().Err(err).Msg("Error ensuring cache")
 		return err
-	}
-
-	vm := true
-	hyperVisor, err := capacity.NewResourceOracle(nil).GetHypervisor()
-	if err == nil {
-		// Disable disk shutdown when running in a VM
-		vm = len(hyperVisor) > 0
 	}
 
 	if err := s.shutdownUnusedPools(vm); err != nil {

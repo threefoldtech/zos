@@ -1,8 +1,6 @@
 package primitives
 
 import (
-	"context"
-
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
@@ -47,10 +45,4 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 	p.Provisioner = provision.NewMapProvisioner(provisioners, decommissioners, updaters)
 
 	return p
-}
-
-// RuntimeUpgrade runs upgrade needed when provision daemon starts
-func (p *Primitives) RuntimeUpgrade(ctx context.Context) {
-
-	//p.upgradeRunningZdb(ctx)
 }
