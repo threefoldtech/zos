@@ -25,7 +25,7 @@ import (
 const (
 	// https://hub.grid.tf/api/flist/tf-autobuilder/threefoldtech-0-db-development.flist/light
 	// To get the latest symlink pointer
-	zdbFlistURL         = "https://hub.grid.tf/tf-autobuilder/threefoldtech-0-db-development-b5155357d5.flist"
+	zdbFlistURL         = "https://hub.grid.tf/tf-autobuilder/threefoldtech-0-db-release-development-c81c68391d.flist"
 	zdbContainerNS      = "zdb"
 	zdbContainerDataMnt = "/zdb"
 	zdbPort             = 9900
@@ -290,7 +290,7 @@ func (p *Primitives) createZdbContainer(ctx context.Context, device pkg.Device) 
 		return err
 	}
 
-	cmd := fmt.Sprintf("/bin/zdb --data /zdb/data --index /zdb/index  --listen :: --port %d --socket /socket/zdb.sock --dualnet", zdbPort)
+	cmd := fmt.Sprintf("/bin/zdb --protect --admin '%s' --data /zdb/data --index /zdb/index  --listen :: --port %d --socket /socket/zdb.sock --dualnet", device.ID, zdbPort)
 
 	err = p.zdbRun(ctx, string(name), rootFS, cmd, netNsName, volumePath, socketDir)
 	if err != nil {
@@ -336,8 +336,6 @@ func (p *Primitives) zdbRun(ctx context.Context, name string, rootfs string, cmd
 		},
 	}
 
-	fmt.Printf("Container: %+v\n", conf)
-
 	_, err := cont.Run(
 		ctx,
 		zdbContainerNS,
@@ -361,7 +359,7 @@ func (p *Primitives) waitZDBIPs(ctx context.Context, namespace string) ([]net.IP
 
 		ips, err := network.Addrs(ctx, nwmod.ZDBPubIface, namespace)
 		if err != nil {
-			log.Debug().Err(err).Msg("not ip public found, waiting")
+			log.Debug().Err(err).Msg("no public ip found, waiting")
 			return err
 		}
 		yggIps, err := network.Addrs(ctx, nwmod.ZDBYggIface, namespace)
@@ -449,68 +447,43 @@ func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string
 }
 
 func (p *Primitives) zdbDecommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
-	return fmt.Errorf("not implemented")
+	containers, err := p.zdbListContainers(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to list running zdbs")
+	}
 
-	// var (
-	// 	storage       = stubs.NewStorageModuleStub(p.zbus)
-	// 	storageClient = stubs.NewStorageModuleStub(p.zbus)
+	for id, container := range containers {
+		con := zdbConnection(id)
+		if con.Connect(); err == nil {
+			if ok, _ := con.Exist(wl.ID.String()); ok {
+				if err := con.DeleteNamespace(wl.ID.String()); err != nil {
+					return errors.Wrap(err, "failed to delete namespace")
+				}
+			}
 
-	// 	config zos.ZDB
-	// 	nsID   = wl.ID.String()
-	// )
+			continue
+		}
+		// if we failed to connect, may be check the data directory if the namespace exists
+		data, err := container.DataMount()
+		if err != nil {
+			log.Error().Err(err).Str("container-id", string(id)).Msg("failed to get container data directory")
+			return err
+		}
 
-	// if err := json.Unmarshal(wl.Data, &config); err != nil {
-	// 	return errors.Wrap(err, "failed to decode reservation schema")
-	// }
+		idx := zdb.NewIndex(data)
+		if !idx.Exists(wl.ID.String()) {
+			continue
+		}
 
-	// device, err := storage.Find(ctx, wl.ID.String())
-	// if err != nil && strings.Contains(err.Error(), "not found") {
-	// 	return nil
-	// } else if err != nil {
-	// 	return err
-	// }
+		return idx.Delete(wl.ID.String())
+	}
 
-	// _, err = p.ensureZdbContainer(ctx, device)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to find namespace zdb container")
-	// }
-
-	// containerID := pkg.ContainerID(device.VolumeID)
-
-	// zdbCl := zdbConnection(containerID)
-	// defer zdbCl.Close()
-	// if err := zdbCl.Connect(); err != nil {
-	// 	return errors.Wrapf(err, "failed to connect to 0-db: %s", containerID)
-	// }
-
-	// if err := zdbCl.DeleteNamespace(nsID); err != nil {
-	// 	return errors.Wrapf(err, "failed to delete namespace in 0-db: %s", containerID)
-	// }
-
-	// ns, err := zdbCl.Namespaces()
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to retrieve zdb namespaces")
-	// }
-
-	// log.Info().Msgf("zdb has %d namespaces left", len(ns))
-
-	// // If there are no more namespaces left except for the default namespace, we can delete this subvolume
-	// if len(ns) == 1 && ns[0] == "default" {
-	// 	log.Info().Msg("decommissioning zdb container because there are no more namespaces left")
-	// 	err = p.deleteZdbContainer(ctx, containerID)
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "failed to decommission zdb container")
-	// 	}
-
-	// 	log.Info().Msgf("deleting subvolumes of reservation: %s", device.VolumeID)
-	// 	// we also need to delete the flist volume
-	// 	return storageClient.ReleaseFilesystem(ctx, device.VolumeID)
-	// }
-
-	// return nil
+	return nil
 }
 
 func (p *Primitives) deleteZdbContainer(ctx context.Context, containerID pkg.ContainerID) error {
+	// TODO: if a zdb container is not serving any namespaces, should we delete it?
+
 	container := stubs.NewContainerModuleStub(p.zbus)
 	flist := stubs.NewFlisterStub(p.zbus)
 
@@ -548,7 +521,7 @@ func socketFile(containerID pkg.ContainerID) string {
 // we declare this method as a variable so we can
 // mock it in testing.
 var zdbConnection = func(id pkg.ContainerID) zdb.Client {
-	socket := fmt.Sprintf("unix://%s", socketFile(id))
+	socket := fmt.Sprintf("unix://%s@%s", string(id), socketFile(id))
 	return zdb.New(socket)
 }
 

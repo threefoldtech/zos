@@ -259,7 +259,7 @@ func action(cli *cli.Context) error {
 		Msg("starting provision module")
 
 	// call the runtime upgrade before running engine
-	provisioners.RuntimeUpgrade(ctx)
+	provisioners.InitializeZDB(ctx)
 
 	// spawn the engine
 	go func() {
