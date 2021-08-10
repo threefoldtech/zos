@@ -16,7 +16,7 @@ import (
 const Prefix = "zdb"
 
 var (
-	nRegex = regexp.MustCompile(`^\w+$`)
+	nRegex = regexp.MustCompile(`^[\w-]+$`)
 )
 
 // ZdbIndex represent a part of a disk that is reserved to store 0-db data
