@@ -96,6 +96,21 @@ func (s *Substrate) UpdateContract(identity *Identity, contract uint64, body []b
 	return contract, nil
 }
 
+// CancelContract creates a contract for deployment
+func (s *Substrate) CancelContract(identity *Identity, contract uint64) error {
+	c, err := types.NewCall(s.meta, "SmartContractModule.cancel_contract", contract)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to cancel call")
+	}
+
+	if _, err := s.call(identity, c); err != nil {
+		return errors.Wrap(err, "failed to cancel contract")
+	}
+
+	return nil
+}
+
 // GetContract we should not have calls to create contract, instead only get
 func (s *Substrate) GetContract(id uint64) (*Contract, error) {
 	bytes, err := types.EncodeToBytes(id)
