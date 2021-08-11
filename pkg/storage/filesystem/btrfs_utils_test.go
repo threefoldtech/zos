@@ -4,8 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/threefoldtech/zos/pkg"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -159,16 +157,16 @@ GlobalReserve, single: total=16777216, used=0
 
 	assert.Equal(t, BtrfsDiskUsage{
 		Data: DiskUsage{
-			Profile: pkg.Single, Total: 8388608, Used: 65536,
+			Total: 8388608, Used: 65536,
 		},
 		System: DiskUsage{
-			Profile: pkg.Single, Total: 4194304, Used: 16384,
+			Total: 4194304, Used: 16384,
 		},
 		Metadata: DiskUsage{
-			Profile: pkg.Single, Total: 276824064, Used: 163840,
+			Total: 276824064, Used: 163840,
 		},
 		GlobalReserve: DiskUsage{
-			Profile: pkg.Single, Total: 16777216, Used: 0,
+			Total: 16777216, Used: 0,
 		},
 	}, df)
 

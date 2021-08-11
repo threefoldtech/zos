@@ -1,9 +1,11 @@
-package zdbpool
+package zdb
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
@@ -13,14 +15,19 @@ import (
 // to storge 0-db namespaces
 const Prefix = "zdb"
 
-// ZDBPool represent a part of a disk that is reserved to store 0-db data
-type ZDBPool struct {
+var (
+	nRegex = regexp.MustCompile(`^[\w-]+$`)
+)
+
+// Index represent a part of a disk that is reserved to store 0-db data
+type Index struct {
 	path string
 }
 
-// New creates a ZDBPool with path
-func New(path string) ZDBPool {
-	return ZDBPool{path}
+// NewIndex creates a ZDBPool with path. the path should point
+// where both 'index' and 'data' folders exists.
+func NewIndex(path string) Index {
+	return Index{path}
 }
 
 // NSInfo is a struct containing information about a 0-db namespace
@@ -29,9 +36,29 @@ type NSInfo struct {
 	Size gridtypes.Unit
 }
 
+func (p *Index) index() string {
+	return filepath.Join(p.path, "index")
+}
+
+func (p *Index) data() string {
+	return filepath.Join(p.path, "data")
+}
+
+func (p *Index) valid(n string) error {
+	if len(n) == 0 {
+		return fmt.Errorf("invalid name can't be empty")
+	}
+
+	if !nRegex.MatchString(n) {
+		return fmt.Errorf("name contains invalid characters")
+	}
+
+	return nil
+}
+
 // Reserved return the amount of storage that has been reserved by all the
 // namespace in the pool
-func (p *ZDBPool) Reserved() (uint64, error) {
+func (p *Index) Reserved() (uint64, error) {
 	ns, err := p.Namespaces()
 	if err != nil {
 		return 0, err
@@ -48,8 +75,12 @@ func (p *ZDBPool) Reserved() (uint64, error) {
 // Create a namespace. Note that this create only reserve the name
 // space size (and create namespace descriptor) this must be followed
 // by an actual zdb NSNEW call to create the database files.
-func (p *ZDBPool) Create(name, password string, size gridtypes.Unit) error {
-	dir := filepath.Join(p.path, name)
+func (p *Index) Create(name, password string, size gridtypes.Unit) error {
+	if err := p.valid(name); err != nil {
+		return err
+	}
+
+	dir := filepath.Join(p.index(), name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return errors.Wrapf(err, "namespace '%s' directory creation failed", dir)
 	}
@@ -68,8 +99,12 @@ func (p *ZDBPool) Create(name, password string, size gridtypes.Unit) error {
 }
 
 // Namespace gets a namespace info from pool
-func (p *ZDBPool) Namespace(name string) (info NSInfo, err error) {
-	path := filepath.Join(p.path, name, "zdb-namespace")
+func (p *Index) Namespace(name string) (info NSInfo, err error) {
+	if err := p.valid(name); err != nil {
+		return NSInfo{}, err
+	}
+
+	path := filepath.Join(p.index(), name, "zdb-namespace")
 	f, err := os.Open(path)
 	if err != nil {
 		return info, err
@@ -90,9 +125,8 @@ func (p *ZDBPool) Namespace(name string) (info NSInfo, err error) {
 }
 
 // Namespaces returns a list of NSinfo of all the namespace present in the pool
-func (p *ZDBPool) Namespaces() ([]NSInfo, error) {
-
-	dirs, err := ioutil.ReadDir(p.path)
+func (p *Index) Namespaces() ([]NSInfo, error) {
+	dirs, err := ioutil.ReadDir(p.index())
 	if err != nil {
 		return nil, err
 	}
@@ -123,16 +157,20 @@ func (p *ZDBPool) Namespaces() ([]NSInfo, error) {
 
 // Exists checks if a namespace exists in the pool or not
 // this method is way faster then using Namespaces cause it doesn't have to read any data
-func (p *ZDBPool) Exists(name string) bool {
-	path := filepath.Join(p.path, name, "zdb-namespace")
+func (p *Index) Exists(name string) bool {
+	path := filepath.Join(p.index(), name, "zdb-namespace")
 
 	_, err := os.Stat(path)
 	return err == nil
 }
 
 // IndexMode return the mode of the index of the namespace called name
-func (p *ZDBPool) IndexMode(name string) (mode IndexMode, err error) {
-	path := filepath.Join(p.path, name, "zdb-index-00000")
+func (p *Index) IndexMode(name string) (mode IndexMode, err error) {
+	if err := p.valid(name); err != nil {
+		return IndexMode(0), err
+	}
+
+	path := filepath.Join(p.index(), name, "zdb-index-00000")
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -146,4 +184,21 @@ func (p *ZDBPool) IndexMode(name string) (mode IndexMode, err error) {
 	}
 
 	return index.Mode, nil
+}
+
+// Delete both the data and an index of a namespace
+func (p *Index) Delete(name string) error {
+	if err := p.valid(name); err != nil {
+		return err
+	}
+	idx := filepath.Join(p.index(), name)
+	dat := filepath.Join(p.data(), name)
+
+	for _, dir := range []string{idx, dat} {
+		if err := os.RemoveAll(dir); err != nil {
+			return errors.Wrap(err, "failed to delete directory")
+		}
+	}
+
+	return nil
 }
