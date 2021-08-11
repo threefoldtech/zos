@@ -147,8 +147,10 @@ func (s *Substrate) EnsureAccount(identity *Identity) (info types.AccountInfo, e
 
 }
 
+// Identity is a user identity
 type Identity signature.KeyringPair
 
+// SecureKey returns the ed25519 key from identity
 func (i *Identity) SecureKey() (ed25519.PrivateKey, error) {
 	scheme := subkeyEd25519.Scheme{}
 	kyr, err := subkey.DeriveKeyPair(scheme, i.URI)
@@ -159,7 +161,7 @@ func (i *Identity) SecureKey() (ed25519.PrivateKey, error) {
 	return ed25519.NewKeyFromSeed(kyr.Seed()), nil
 }
 
-// Identity derive the correct substrate identity from ed25519 key
+// IdentityFromSecureKey derive the correct substrate identity from ed25519 key
 func IdentityFromSecureKey(sk ed25519.PrivateKey) (Identity, error) {
 	str := types.HexEncodeToString(sk.Seed())
 	krp, err := keyringPairFromSecret(str, network)
@@ -172,6 +174,7 @@ func IdentityFromSecureKey(sk ed25519.PrivateKey) (Identity, error) {
 	// no, seriously, don't change it, it has to be 42.
 }
 
+//IdentityFromPhrase gets identity from hex seed or mnemonics
 func IdentityFromPhrase(seedOrPhrase string) (Identity, error) {
 	krp, err := keyringPairFromSecret(seedOrPhrase, network)
 	if err != nil {

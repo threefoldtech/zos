@@ -50,6 +50,7 @@ func (m *Module) Devices() ([]pkg.Device, error) {
 	return devices, nil
 }
 
+// DeviceLookup looks up device by name
 func (m *Module) DeviceLookup(name string) (pkg.Device, error) {
 	for _, hdd := range m.hdds {
 		if hdd.Name() != name {

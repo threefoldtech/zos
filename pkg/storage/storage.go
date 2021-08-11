@@ -269,7 +269,7 @@ func (s *Module) shutdownUnusedPools(vm bool) error {
 	return nil
 }
 
-// UpdateFilesystem updates filesystem size
+// VolumeUpdate updates filesystem size
 func (s *Module) VolumeUpdate(name string, size gridtypes.Unit) error {
 	_, volume, _, err := s.path(name)
 	if err != nil {
@@ -283,7 +283,7 @@ func (s *Module) VolumeUpdate(name string, size gridtypes.Unit) error {
 	return nil
 }
 
-// CreateFilesystem with the given size in a storage pool.
+// VolumeCreate with the given size in a storage pool.
 func (s *Module) VolumeCreate(name string, size gridtypes.Unit) (pkg.Volume, error) {
 	log.Info().Msgf("Creating new volume with size %d", size)
 	if strings.HasPrefix(name, "zdb") {
@@ -310,7 +310,7 @@ func (s *Module) VolumeCreate(name string, size gridtypes.Unit) (pkg.Volume, err
 	}, nil
 }
 
-// ReleaseFilesystem with the given name, this will unmount and then delete
+// VolumeDelete with the given name, this will unmount and then delete
 // the filesystem. After this call, the caller must not perform any more actions
 // on this filesystem
 func (s *Module) VolumeDelete(name string) error {
@@ -357,7 +357,7 @@ func (s *Module) VolumeDelete(name string) error {
 	return nil
 }
 
-// ListFilesystems return all the filesystem managed by storeaged present on the nodes
+// VolumeList return all the filesystem managed by storeaged present on the nodes
 func (s *Module) VolumeList() ([]pkg.Volume, error) {
 	fss := make([]pkg.Volume, 0, 10)
 
@@ -397,7 +397,7 @@ func (s *Module) VolumeList() ([]pkg.Volume, error) {
 	return fss, nil
 }
 
-// Path return the path of the mountpoint of the named filesystem
+// VolumeLookup return the path of the mountpoint of the named filesystem
 // if no volume with name exists, an empty path and an error is returned
 func (s *Module) VolumeLookup(name string) (pkg.Volume, error) {
 	_, _, fs, err := s.path(name)
@@ -437,7 +437,7 @@ func (s *Module) path(name string) (filesystem.Pool, filesystem.Volume, pkg.Volu
 	return nil, nil, pkg.Volume{}, errors.Wrapf(os.ErrNotExist, "subvolume '%s' not found", name)
 }
 
-// GetCacheFS return the special filesystem used by 0-OS to store internal state and flist cache
+// Cache return the special filesystem used by 0-OS to store internal state and flist cache
 func (s *Module) Cache() (pkg.Volume, error) {
 	return s.VolumeLookup(cacheLabel)
 }

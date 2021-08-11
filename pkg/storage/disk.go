@@ -77,14 +77,14 @@ func (s *Module) diskFindCandidate(size gridtypes.Unit) (path string, err error)
 	return volume.Path(), nil
 }
 
-func (d *Module) findDisk(id string) (string, error) {
-	pools, err := d.diskPools()
+func (s *Module) findDisk(id string) (string, error) {
+	pools, err := s.diskPools()
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to find disk with id '%s'", id)
 	}
 
 	for _, pool := range pools {
-		path, err := d.safePath(pool, id)
+		path, err := s.safePath(pool, id)
 		if err != nil {
 			return "", err
 		}
@@ -98,20 +98,20 @@ func (d *Module) findDisk(id string) (string, error) {
 	return "", os.ErrNotExist
 }
 
-// EnsureFilesystem ensures that the virtual disk has a valid filesystem
+// DiskFormat ensures that the virtual disk has a valid filesystem
 // currently the fs is btrfs
-func (d *Module) DiskFormat(name string) error {
-	path, err := d.findDisk(name)
+func (s *Module) DiskFormat(name string) error {
+	path, err := s.findDisk(name)
 	if err != nil {
 		return errors.Wrapf(err, "couldn't find disk with id: %s", name)
 	}
 
-	return d.ensureFS(path)
+	return s.ensureFS(path)
 }
 
-//
-func (d *Module) DiskWrite(name string, image string) error {
-	path, err := d.findDisk(name)
+// DiskWrite writes image to disk
+func (s *Module) DiskWrite(name string, image string) error {
+	path, err := s.findDisk(name)
 	if err != nil {
 		return errors.Wrapf(err, "couldn't find disk with id: %s", name)
 	}
@@ -143,22 +143,22 @@ func (d *Module) DiskWrite(name string, image string) error {
 		return errors.Wrap(err, "failed to write disk image")
 	}
 
-	return d.expandFs(path)
+	return s.expandFs(path)
 }
 
-// AllocateDisk with given size and an optional source disk, return path to virtual disk (size in MB)
-func (d *Module) DiskCreate(name string, size gridtypes.Unit) (disk pkg.VDisk, err error) {
-	path, err := d.findDisk(name)
+// DiskCreate with given size, return path to virtual disk (size in MB)
+func (s *Module) DiskCreate(name string, size gridtypes.Unit) (disk pkg.VDisk, err error) {
+	path, err := s.findDisk(name)
 	if err == nil {
 		return disk, errors.Wrapf(os.ErrExist, "disk with id '%s' already exists", name)
 	}
 
-	base, err := d.diskFindCandidate(size)
+	base, err := s.diskFindCandidate(size)
 	if err != nil {
 		return disk, errors.Wrapf(err, "failed to find a candidate to host vdisk of size '%d'", size)
 	}
 
-	path, err = d.safePath(base, name)
+	path, err = s.safePath(base, name)
 	if err != nil {
 		return disk, err
 	}
@@ -185,7 +185,7 @@ func (d *Module) DiskCreate(name string, size gridtypes.Unit) (disk pkg.VDisk, e
 	return pkg.VDisk{Path: path, Size: int64(size)}, err
 }
 
-func (d *Module) ensureFS(disk string) error {
+func (s *Module) ensureFS(disk string) error {
 	output, err := exec.Command("mkfs.btrfs", disk).CombinedOutput()
 	if err == nil {
 		return nil
@@ -204,7 +204,7 @@ func (d *Module) ensureFS(disk string) error {
 	return errors.Wrapf(err, "unknown btrfs error '%s'", string(output))
 }
 
-func (d *Module) expandFs(disk string) error {
+func (s *Module) expandFs(disk string) error {
 	dname, err := ioutil.TempDir("", "btrfs-resize")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create a temp dir to mount the btrfs fs to resize it")
@@ -226,7 +226,7 @@ func (d *Module) expandFs(disk string) error {
 	return nil
 }
 
-func (d *Module) safePath(base, id string) (string, error) {
+func (s *Module) safePath(base, id string) (string, error) {
 	path := filepath.Join(base, id)
 	// this to avoid passing an `injection` id like '../name'
 	// and end up deleting a file on the system. so only delete
@@ -239,9 +239,9 @@ func (d *Module) safePath(base, id string) (string, error) {
 	return path, nil
 }
 
-// DeallocateVDisk removes a virtual disk
-func (d *Module) DiskDelete(name string) error {
-	path, err := d.findDisk(name)
+// DiskDelete removes a virtual disk
+func (s *Module) DiskDelete(name string) error {
+	path, err := s.findDisk(name)
 	if os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
@@ -255,16 +255,16 @@ func (d *Module) DiskDelete(name string) error {
 	return nil
 }
 
-// DeallocateVDisk removes a virtual disk
-func (d *Module) DiskExists(id string) bool {
-	_, err := d.findDisk(id)
+// DiskExists checks if a disk exists
+func (s *Module) DiskExists(id string) bool {
+	_, err := s.findDisk(id)
 
 	return err == nil
 }
 
-// Inspect return info about the disk
-func (d *Module) DiskLookup(id string) (disk pkg.VDisk, err error) {
-	path, err := d.findDisk(id)
+// DiskLookup return info about the disk
+func (s *Module) DiskLookup(id string) (disk pkg.VDisk, err error) {
+	path, err := s.findDisk(id)
 
 	if err != nil {
 		return disk, err
@@ -280,8 +280,9 @@ func (d *Module) DiskLookup(id string) (disk pkg.VDisk, err error) {
 	return
 }
 
-func (d *Module) DiskList() ([]pkg.VDisk, error) {
-	pools, err := d.diskPools()
+// DiskList list all created disks
+func (s *Module) DiskList() ([]pkg.VDisk, error) {
+	pools, err := s.diskPools()
 	if err != nil {
 		return nil, err
 	}

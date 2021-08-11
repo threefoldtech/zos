@@ -63,19 +63,21 @@ type Usage struct {
 	Used gridtypes.Unit
 }
 
+// Volume struct is a btrfs subvolume
 type Volume struct {
 	Name  string
 	Path  string
 	Usage Usage
 }
 
+// Device struct is a full hdd
 type Device struct {
 	Path  string
 	ID    string
 	Usage Usage
 }
 
-// Storage is the storage subsystem interface
+// StorageModule is the storage subsystem interface
 // this should allow you to work with the following types of storage medium
 // - full disks (device) (these are used by zdb)
 // - subvolumes these are used as a read-write layers for 0-fs mounts
@@ -88,7 +90,7 @@ type Device struct {
 // - vdisks
 // hdd pools are only used by zdb as one disk
 type StorageModule interface {
-	// Managerial method
+	// Cache method return information about zos cache volume
 	Cache() (Volume, error)
 
 	// Total gives the total amount of storage available for a device type

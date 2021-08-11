@@ -19,15 +19,15 @@ var (
 	nRegex = regexp.MustCompile(`^[\w-]+$`)
 )
 
-// ZdbIndex represent a part of a disk that is reserved to store 0-db data
-type ZdbIndex struct {
+// Index represent a part of a disk that is reserved to store 0-db data
+type Index struct {
 	path string
 }
 
-// New creates a ZDBPool with path. the path should point
+// NewIndex creates a ZDBPool with path. the path should point
 // where both 'index' and 'data' folders exists.
-func NewIndex(path string) ZdbIndex {
-	return ZdbIndex{path}
+func NewIndex(path string) Index {
+	return Index{path}
 }
 
 // NSInfo is a struct containing information about a 0-db namespace
@@ -36,15 +36,15 @@ type NSInfo struct {
 	Size gridtypes.Unit
 }
 
-func (p *ZdbIndex) index() string {
+func (p *Index) index() string {
 	return filepath.Join(p.path, "index")
 }
 
-func (p *ZdbIndex) data() string {
+func (p *Index) data() string {
 	return filepath.Join(p.path, "data")
 }
 
-func (p *ZdbIndex) valid(n string) error {
+func (p *Index) valid(n string) error {
 	if len(n) == 0 {
 		return fmt.Errorf("invalid name can't be empty")
 	}
@@ -58,7 +58,7 @@ func (p *ZdbIndex) valid(n string) error {
 
 // Reserved return the amount of storage that has been reserved by all the
 // namespace in the pool
-func (p *ZdbIndex) Reserved() (uint64, error) {
+func (p *Index) Reserved() (uint64, error) {
 	ns, err := p.Namespaces()
 	if err != nil {
 		return 0, err
@@ -75,7 +75,7 @@ func (p *ZdbIndex) Reserved() (uint64, error) {
 // Create a namespace. Note that this create only reserve the name
 // space size (and create namespace descriptor) this must be followed
 // by an actual zdb NSNEW call to create the database files.
-func (p *ZdbIndex) Create(name, password string, size gridtypes.Unit) error {
+func (p *Index) Create(name, password string, size gridtypes.Unit) error {
 	if err := p.valid(name); err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (p *ZdbIndex) Create(name, password string, size gridtypes.Unit) error {
 }
 
 // Namespace gets a namespace info from pool
-func (p *ZdbIndex) Namespace(name string) (info NSInfo, err error) {
+func (p *Index) Namespace(name string) (info NSInfo, err error) {
 	if err := p.valid(name); err != nil {
 		return NSInfo{}, err
 	}
@@ -125,7 +125,7 @@ func (p *ZdbIndex) Namespace(name string) (info NSInfo, err error) {
 }
 
 // Namespaces returns a list of NSinfo of all the namespace present in the pool
-func (p *ZdbIndex) Namespaces() ([]NSInfo, error) {
+func (p *Index) Namespaces() ([]NSInfo, error) {
 	dirs, err := ioutil.ReadDir(p.index())
 	if err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func (p *ZdbIndex) Namespaces() ([]NSInfo, error) {
 
 // Exists checks if a namespace exists in the pool or not
 // this method is way faster then using Namespaces cause it doesn't have to read any data
-func (p *ZdbIndex) Exists(name string) bool {
+func (p *Index) Exists(name string) bool {
 	path := filepath.Join(p.index(), name, "zdb-namespace")
 
 	_, err := os.Stat(path)
@@ -165,7 +165,7 @@ func (p *ZdbIndex) Exists(name string) bool {
 }
 
 // IndexMode return the mode of the index of the namespace called name
-func (p *ZdbIndex) IndexMode(name string) (mode IndexMode, err error) {
+func (p *Index) IndexMode(name string) (mode IndexMode, err error) {
 	if err := p.valid(name); err != nil {
 		return IndexMode(0), err
 	}
@@ -186,7 +186,8 @@ func (p *ZdbIndex) IndexMode(name string) (mode IndexMode, err error) {
 	return index.Mode, nil
 }
 
-func (p *ZdbIndex) Delete(name string) error {
+// Delete both the data and an index of a namespace
+func (p *Index) Delete(name string) error {
 	if err := p.valid(name); err != nil {
 		return err
 	}

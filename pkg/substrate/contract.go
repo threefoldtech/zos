@@ -79,7 +79,7 @@ func (s *Substrate) CreateContract(identity *Identity, node uint32, body []byte,
 	return s.GetContractWithHash(node, hash)
 }
 
-// CreateContract creates a contract for deployment
+// UpdateContract updates existing contract
 func (s *Substrate) UpdateContract(identity *Identity, contract uint64, body []byte, hash string) (uint64, error) {
 	c, err := types.NewCall(s.meta, "SmartContractModule.update_contract",
 		contract, body, hash,

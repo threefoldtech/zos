@@ -9,7 +9,7 @@ import (
 )
 
 func TestNamespaces(t *testing.T) {
-	pool := ZdbIndex{
+	pool := Index{
 		path: "./test_data/pool_layout",
 	}
 
@@ -25,7 +25,7 @@ func TestNamespaces(t *testing.T) {
 }
 
 func TestReserved(t *testing.T) {
-	pool := ZdbIndex{
+	pool := Index{
 		path: "./test_data/pool_layout",
 	}
 
@@ -35,7 +35,7 @@ func TestReserved(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	pool := ZdbIndex{
+	pool := Index{
 		path: "./test_data/pool_layout",
 	}
 
@@ -44,7 +44,7 @@ func TestExists(t *testing.T) {
 }
 
 func TestIndexMode(t *testing.T) {
-	pool := ZdbIndex{
+	pool := Index{
 		path: "./test_data/pool_layout",
 	}
 

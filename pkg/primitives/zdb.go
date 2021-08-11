@@ -34,9 +34,9 @@ const (
 // ZDB types
 type ZDB = zos.ZDB
 
-type ZDBContainer pkg.Container
+type tZDBContainer pkg.Container
 
-func (z *ZDBContainer) DataMount() (string, error) {
+func (z *tZDBContainer) DataMount() (string, error) {
 	for _, mnt := range z.Mounts {
 		if mnt.Target == zdbContainerDataMnt {
 			return mnt.Source, nil
@@ -50,7 +50,7 @@ func (p *Primitives) zdbProvision(ctx context.Context, wl *gridtypes.WorkloadWit
 	return p.zdbProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) zdbListContainers(ctx context.Context) (map[pkg.ContainerID]ZDBContainer, error) {
+func (p *Primitives) zdbListContainers(ctx context.Context) (map[pkg.ContainerID]tZDBContainer, error) {
 	var (
 		contmod = stubs.NewContainerModuleStub(p.zbus)
 	)
@@ -62,7 +62,7 @@ func (p *Primitives) zdbListContainers(ctx context.Context) (map[pkg.ContainerID
 
 	// for each container we try to find a free space to jam in this new zdb namespace
 	// request
-	m := make(map[pkg.ContainerID]ZDBContainer)
+	m := make(map[pkg.ContainerID]tZDBContainer)
 
 	for _, containerID := range containerIDs {
 		container, err := contmod.Inspect(ctx, zdbContainerNS, containerID)
@@ -70,7 +70,7 @@ func (p *Primitives) zdbListContainers(ctx context.Context) (map[pkg.ContainerID
 			log.Error().Err(err).Str("container-id", string(containerID)).Msg("failed to inspect zdb container")
 			continue
 		}
-		cont := ZDBContainer(container)
+		cont := tZDBContainer(container)
 
 		if _, err = cont.DataMount(); err != nil {
 			log.Error().Err(err).Msg("failed to get data directory of zdb container")
@@ -108,7 +108,7 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 		return zos.ZDBResult{}, errors.Wrap(err, "failed to list container data volumes")
 	}
 
-	var candidates []ZDBContainer
+	var candidates []tZDBContainer
 	// check if namespace already exist
 	for id, container := range containers {
 		dataPath, _ := container.DataMount() // the error should not happen
@@ -156,7 +156,7 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 		}
 	}
 
-	var cont ZDBContainer
+	var cont tZDBContainer
 	if len(candidates) > 0 {
 		cont = candidates[0]
 	} else {
@@ -189,7 +189,7 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 	}, nil
 }
 
-func (p *Primitives) ensureZdbContainer(ctx context.Context, device pkg.Device) (ZDBContainer, error) {
+func (p *Primitives) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZDBContainer, error) {
 	var container = stubs.NewContainerModuleStub(p.zbus)
 
 	name := pkg.ContainerID(device.ID)
@@ -198,18 +198,18 @@ func (p *Primitives) ensureZdbContainer(ctx context.Context, device pkg.Device) 
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		// container not found, create one
 		if err := p.createZdbContainer(ctx, device); err != nil {
-			return ZDBContainer(cont), err
+			return tZDBContainer(cont), err
 		}
 		cont, err = container.Inspect(ctx, zdbContainerNS, name)
 		if err != nil {
-			return ZDBContainer{}, err
+			return tZDBContainer{}, err
 		}
 	} else if err != nil {
 		// other error
-		return ZDBContainer{}, err
+		return tZDBContainer{}, err
 	}
 
-	return ZDBContainer(cont), nil
+	return tZDBContainer(cont), nil
 
 }
 
@@ -483,34 +483,34 @@ func (p *Primitives) zdbDecommission(ctx context.Context, wl *gridtypes.Workload
 	return nil
 }
 
-func (p *Primitives) deleteZdbContainer(ctx context.Context, containerID pkg.ContainerID) error {
-	// TODO: if a zdb container is not serving any namespaces, should we delete it?
+// func (p *Primitives) deleteZdbContainer(ctx context.Context, containerID pkg.ContainerID) error {
+// 	// TODO: if a zdb container is not serving any namespaces, should we delete it?
 
-	container := stubs.NewContainerModuleStub(p.zbus)
-	flist := stubs.NewFlisterStub(p.zbus)
+// 	container := stubs.NewContainerModuleStub(p.zbus)
+// 	flist := stubs.NewFlisterStub(p.zbus)
 
-	info, err := container.Inspect(ctx, "zdb", containerID)
-	if err != nil && strings.Contains(err.Error(), "not found") {
-		return nil
-	} else if err != nil {
-		return errors.Wrapf(err, "failed to inspect container '%s'", containerID)
-	}
+// 	info, err := container.Inspect(ctx, "zdb", containerID)
+// 	if err != nil && strings.Contains(err.Error(), "not found") {
+// 		return nil
+// 	} else if err != nil {
+// 		return errors.Wrapf(err, "failed to inspect container '%s'", containerID)
+// 	}
 
-	if err := container.Delete(ctx, "zdb", containerID); err != nil {
-		return errors.Wrapf(err, "failed to delete container %s", containerID)
-	}
+// 	if err := container.Delete(ctx, "zdb", containerID); err != nil {
+// 		return errors.Wrapf(err, "failed to delete container %s", containerID)
+// 	}
 
-	network := stubs.NewNetworkerStub(p.zbus)
-	if err := network.ZDBDestroy(ctx, info.Network.Namespace); err != nil {
-		return errors.Wrapf(err, "failed to destroy zdb network namespace")
-	}
+// 	network := stubs.NewNetworkerStub(p.zbus)
+// 	if err := network.ZDBDestroy(ctx, info.Network.Namespace); err != nil {
+// 		return errors.Wrapf(err, "failed to destroy zdb network namespace")
+// 	}
 
-	if err := flist.Unmount(ctx, string(containerID)); err != nil {
-		return errors.Wrapf(err, "failed to unmount flist at %s", info.RootFS)
-	}
+// 	if err := flist.Unmount(ctx, string(containerID)); err != nil {
+// 		return errors.Wrapf(err, "failed to unmount flist at %s", info.RootFS)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func socketDir(containerID pkg.ContainerID) string {
 	return fmt.Sprintf("/var/run/zdb_%s", containerID)
@@ -549,6 +549,7 @@ func isYgg(ip net.IP) bool {
 	return yggNet.Contains(ip)
 }
 
+// InitializeZDB makes sure all required zdbs are running
 func (p *Primitives) InitializeZDB(ctx context.Context) error {
 	var (
 		storage  = stubs.NewStorageModuleStub(p.zbus)

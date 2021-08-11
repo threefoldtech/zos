@@ -30,6 +30,8 @@ type btrfsPool struct {
 	name   string
 }
 
+// NewBtrfsPool creates a btrfs pool associated with device.
+// if device does not have a filesystem one is created
 func NewBtrfsPool(device Device) (Pool, error) {
 	return newBtrfsPool(device, executerFunc(run))
 }

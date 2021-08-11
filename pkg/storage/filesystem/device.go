@@ -12,15 +12,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
-const (
-	PoolLabelPrefix = "3:btrfs:"
-)
-
-var (
-	ErrInvalidLabel = fmt.Errorf("invalid label format")
-)
-
-// Device
+// Device interface
 type Device interface {
 	// Path returns path to the device like /dev/sda
 	Path() string
@@ -58,6 +50,7 @@ const (
 	BtrfsFSType FSType = "btrfs"
 )
 
+// DeviceInfo contains information about the device
 type DeviceInfo struct {
 	Path       string `json:"path"`
 	Label      string `json:"label"`
