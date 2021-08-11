@@ -126,7 +126,7 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 				continue
 			}
 
-			containerIPs, err := p.waitZDBIPs(ctx, container.Network.Namespace)
+			containerIPs, err := p.waitZDBIPs(ctx, container.Network.Namespace, container.CreatedAt)
 			if err != nil {
 				return zos.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
 			}
@@ -171,7 +171,7 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 		}
 	}
 
-	containerIPs, err := p.waitZDBIPs(ctx, cont.Network.Namespace)
+	containerIPs, err := p.waitZDBIPs(ctx, cont.Network.Namespace, cont.CreatedAt)
 	if err != nil {
 		return zos.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
 	}
@@ -345,7 +345,7 @@ func (p *Primitives) zdbRun(ctx context.Context, name string, rootfs string, cmd
 	return err
 }
 
-func (p *Primitives) waitZDBIPs(ctx context.Context, namespace string) ([]net.IP, error) {
+func (p *Primitives) waitZDBIPs(ctx context.Context, namespace string, created time.Time) ([]net.IP, error) {
 	// TODO: this method need to be abstracted, since it's now depends on the knewledge
 	// of the networking daemon internal (interfaces names)
 	// may be at least just get all ips from all interfaces inside the namespace
@@ -355,8 +355,8 @@ func (p *Primitives) waitZDBIPs(ctx context.Context, namespace string) ([]net.IP
 		containerIPs []net.IP
 	)
 
+	log.Debug().Time("created-at", created).Str("namespace", namespace).Msg("checking zdb container ips")
 	getIP := func() error {
-
 		ips, err := network.Addrs(ctx, nwmod.ZDBPubIface, namespace)
 		if err != nil {
 			log.Debug().Err(err).Msg("no public ip found, waiting")
@@ -389,7 +389,9 @@ func (p *Primitives) waitZDBIPs(ctx context.Context, namespace string) ([]net.IP
 		}
 
 		log.Warn().Msgf("public %v ygg: %v", public, ygg)
-		if public && ygg {
+		if public && ygg || time.Since(created) > 2*time.Minute {
+			// if we have all ips detected or if the container is older than 2 minutes
+			// so it's safe we assume ips are final
 			return nil
 		}
 		return fmt.Errorf("waiting for more addresses")
