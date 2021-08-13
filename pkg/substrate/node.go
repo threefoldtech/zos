@@ -90,7 +90,7 @@ func (m OptionPublicConfig) Encode(encoder scale.Encoder) (err error) {
 	return
 }
 
-// Encode implementation
+// Decode implementation
 func (m *OptionPublicConfig) Decode(decoder scale.Decoder) (err error) {
 	var i byte
 	if err := decoder.Decode(&i); err != nil {
@@ -236,6 +236,7 @@ func (s *Substrate) UpdateNode(identity *Identity, node Node) (uint32, error) {
 	return s.GetNodeByTwinID(uint32(node.TwinID))
 }
 
+// UpdateNodeUptime updates the node uptime to given value
 func (s *Substrate) UpdateNodeUptime(identity *Identity, uptime uint64) error {
 	c, err := types.NewCall(s.meta, "TfgridModule.report_uptime", uptime)
 
