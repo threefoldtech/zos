@@ -10,6 +10,26 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+// https://github.com/threefoldtech/tfchain_pallets/blob/bc9c5d322463aaf735212e428da4ea32b117dc24/pallet-smart-contract/src/lib.rs#L58
+var SmartContractModuleErrors = []string{
+	"TwinNotExists",
+	"NodeNotExists",
+	"FarmNotExists",
+	"FarmHasNotEnoughPublicIPs",
+	"FarmHasNotEnoughPublicIPsFree",
+	"FailedToReserveIP",
+	"FailedToFreeIPs",
+	"ContractNotExists",
+	"TwinNotAuthorizedToUpdateContract",
+	"TwinNotAuthorizedToCancelContract",
+	"NodeNotAuthorizedToDeployContract",
+	"NodeNotAuthorizedToComputeReport",
+	"PricingPolicyNotExists",
+	"ContractIsNotUnique",
+	"NameExists",
+	"NameNotValid",
+}
+
 // Sign signs data with the private key under the given derivation path, returning the signature. Requires the subkey
 // command to be in path
 func signBytes(data []byte, privateKeyURI string) ([]byte, error) {
@@ -144,4 +164,43 @@ func (s *Substrate) call(identity *Identity, call types.Call) (hash types.Hash, 
 	}
 
 	return hash, nil
+}
+
+func (s *Substrate) checkForError(blockHash types.Hash, signer types.AccountID) error {
+	meta, err := s.cl.RPC.State.GetMetadataLatest()
+	if err != nil {
+		return err
+	}
+
+	key, err := types.CreateStorageKey(meta, "System", "Events", nil, nil)
+	if err != nil {
+		return err
+	}
+
+	raw, err := s.cl.RPC.State.GetStorageRaw(key, blockHash)
+	if err != nil {
+		return err
+	}
+
+	block, err := s.cl.RPC.Chain.GetBlock(blockHash)
+	if err != nil {
+		return err
+	}
+
+	events := types.EventRecords{}
+	err = types.EventRecordsRaw(*raw).DecodeEventRecords(meta, &events)
+	if err != nil {
+		return errors.Wrap(err, "failed to decode events")
+	}
+
+	if len(events.System_ExtrinsicFailed) > 0 {
+		for _, e := range events.System_ExtrinsicFailed {
+			who := block.Block.Extrinsics[e.Phase.AsApplyExtrinsic].Signature.Signer.AsID
+			if signer == who {
+				return fmt.Errorf(SmartContractModuleErrors[e.DispatchError.Error])
+			}
+		}
+	}
+
+	return nil
 }
