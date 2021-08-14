@@ -11,7 +11,7 @@ import (
 )
 
 // https://github.com/threefoldtech/tfchain_pallets/blob/bc9c5d322463aaf735212e428da4ea32b117dc24/pallet-smart-contract/src/lib.rs#L58
-var SmartContractModuleErrors = []string{
+var smartContractModuleErrors = []string{
 	"TwinNotExists",
 	"NodeNotExists",
 	"FarmNotExists",
@@ -197,7 +197,7 @@ func (s *Substrate) checkForError(blockHash types.Hash, signer types.AccountID) 
 		for _, e := range events.System_ExtrinsicFailed {
 			who := block.Block.Extrinsics[e.Phase.AsApplyExtrinsic].Signature.Signer.AsID
 			if signer == who {
-				return fmt.Errorf(SmartContractModuleErrors[e.DispatchError.Error])
+				return fmt.Errorf(smartContractModuleErrors[e.DispatchError.Error])
 			}
 		}
 	}
