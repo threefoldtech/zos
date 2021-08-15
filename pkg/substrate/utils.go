@@ -5,6 +5,7 @@ import (
 
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/vedhavyas/go-subkey"
 	subkeyEd25519 "github.com/vedhavyas/go-subkey/ed25519"
 	"golang.org/x/crypto/blake2b"
@@ -28,6 +29,37 @@ var smartContractModuleErrors = []string{
 	"ContractIsNotUnique",
 	"NameExists",
 	"NameNotValid",
+}
+
+// TODO: add all events from SmartContractModule and TfgridModule
+
+// ContractCreated is the contract created event
+type ContractCreated struct {
+	Phase    types.Phase
+	Contract Contract
+	Topics   []types.Hash
+}
+
+// ContractUpdated is the contract updated event
+type ContractUpdated struct {
+	Phase    types.Phase
+	Contract Contract
+	Topics   []types.Hash
+}
+
+// ContractCanceled is the contract canceled event
+type ContractCanceled struct {
+	Phase      types.Phase
+	ContractID types.U64
+	Topics     []types.Hash
+}
+
+// EventRecords is a struct that extends the default events with our events
+type EventRecords struct {
+	types.EventRecords
+	SmartContractModule_ContractCreated  []ContractCreated
+	SmartContractModule_ContractUpdated  []ContractUpdated
+	SmartContractModule_ContractCanceled []ContractCanceled
 }
 
 // Sign signs data with the private key under the given derivation path, returning the signature. Requires the subkey
@@ -187,10 +219,11 @@ func (s *Substrate) checkForError(blockHash types.Hash, signer types.AccountID) 
 		return err
 	}
 
-	events := types.EventRecords{}
+	events := EventRecords{}
 	err = types.EventRecordsRaw(*raw).DecodeEventRecords(meta, &events)
 	if err != nil {
-		return errors.Wrap(err, "failed to decode events")
+		log.Debug().Msgf("Failed to decode event %+v", err)
+		return nil
 	}
 
 	if len(events.System_ExtrinsicFailed) > 0 {
