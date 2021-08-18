@@ -57,9 +57,9 @@ type ContractCanceled struct {
 // EventRecords is a struct that extends the default events with our events
 type EventRecords struct {
 	types.EventRecords
-	SmartContractModule_ContractCreated  []ContractCreated
-	SmartContractModule_ContractUpdated  []ContractUpdated
-	SmartContractModule_ContractCanceled []ContractCanceled
+	SmartContractModule_ContractCreated  []ContractCreated  //nolint:stylecheck,golint
+	SmartContractModule_ContractUpdated  []ContractUpdated  //nolint:stylecheck,golint
+	SmartContractModule_ContractCanceled []ContractCanceled //nolint:stylecheck,golint
 }
 
 // Sign signs data with the private key under the given derivation path, returning the signature. Requires the subkey
