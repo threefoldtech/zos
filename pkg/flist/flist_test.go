@@ -358,11 +358,6 @@ func Test_forceStop(t *testing.T) {
 		_ = cmd.Wait()
 	}()
 
-	go func() {
-		<-ctx.Done()
-		t.Error("didn't stop the process in time")
-	}()
-
 	err = forceStop(cmd.Process.Pid)
 	assert.NoError(t, err)
 }
