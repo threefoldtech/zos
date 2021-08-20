@@ -98,9 +98,11 @@ func (s *Substrate) activateAccount(identity *Identity) error {
 	const activationDefaultURL = "https://explorer.devnet.grid.tf/activation/activate"
 
 	var buf bytes.Buffer
-	json.NewEncoder(&buf).Encode(map[string]string{
+	if err := json.NewEncoder(&buf).Encode(map[string]string{
 		"substrateAccountID": identity.Address,
-	})
+	}); err != nil {
+		return errors.Wrap(err, "failed to build required body")
+	}
 
 	response, err := http.Post(activationDefaultURL, "application/json", &buf)
 	if err != nil {
