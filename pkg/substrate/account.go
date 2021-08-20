@@ -13,6 +13,7 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/vedhavyas/go-subkey"
 	subkeyEd25519 "github.com/vedhavyas/go-subkey/ed25519"
 )
@@ -126,6 +127,7 @@ func (s *Substrate) EnsureAccount(identity *Identity) (info types.AccountInfo, e
 	info, err = s.getAccount(identity, s.meta)
 	if errors.Is(err, errAccountNotFound) {
 		// account activation
+		log.Debug().Msg("account not found ... activating")
 		if err = s.activateAccount(identity); err != nil {
 			return
 		}
