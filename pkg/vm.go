@@ -35,6 +35,8 @@ type VMIface struct {
 	IP6DefaultGateway net.IP
 	// Private or public network
 	Public bool
+	// OriginalTapName without prefixes to help in decommissioning
+	OriginalTapName string
 }
 
 // VMNetworkInfo structure

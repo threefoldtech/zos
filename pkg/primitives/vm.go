@@ -118,9 +118,9 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		if err != nil {
 			for _, nic := range networkInfo.Ifaces {
 				if nic.Public {
-					_ = network.DisconnectPubTap(ctx, nic.Tap)
+					_ = network.DisconnectPubTap(ctx, nic.OriginalTapName)
 				} else {
-					_ = network.RemoveTap(ctx, nic.Tap)
+					_ = network.RemoveTap(ctx, nic.OriginalTapName)
 				}
 			}
 		}
@@ -315,7 +315,7 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 		if err != nil {
 			return err
 		}
-		ifName := ipWl.ID.String()
+		ifName := tapNameFromName(ipWl.ID, "pub")
 		if err := network.RemovePubTap(ctx, ifName); err != nil {
 			return errors.Wrap(err, "could not clean up public tap device")
 		}
