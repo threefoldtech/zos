@@ -126,7 +126,8 @@ func (p *Primitives) publicIPDecomission(ctx context.Context, wl *gridtypes.Work
 	if err := network.RemovePubIPFilter(ctx, fName); err != nil {
 		log.Error().Err(err).Msg("could not remove filter rules")
 	}
-	return network.DisconnectPubTap(ctx, wl.ID.String())
+	tapName := tapNameFromName(wl.ID, "pub")
+	return network.DisconnectPubTap(ctx, tapName)
 }
 
 func filterName(reservationID string) string {
