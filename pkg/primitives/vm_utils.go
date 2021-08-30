@@ -109,7 +109,6 @@ func (p *Primitives) newPrivNetworkInterface(ctx context.Context, dl gridtypes.D
 		IP4DefaultGateway: net.IP(gw4),
 		IP6DefaultGateway: gw6,
 		Public:            false,
-		OriginalTapName:   tapName,
 	}
 
 	return out, nil
@@ -144,8 +143,7 @@ func (p *Primitives) newPubNetworkInterface(ctx context.Context, deployment grid
 		},
 		IP4DefaultGateway: pubGw,
 		// for now we get ipv6 from slaac, so leave ipv6 stuffs this empty
-		Public:          true,
-		OriginalTapName: tapName,
+		Public: true,
 	}, nil
 }
 
