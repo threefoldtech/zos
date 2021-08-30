@@ -133,7 +133,7 @@ func (p *Primitives) newPubNetworkInterface(ctx context.Context, deployment grid
 
 	// the mac address uses the global workload id
 	// this needs to be the same as how we get it in the actual IP reservation
-	mac := ifaceutil.HardwareAddrFromInputBytes([]byte(ipWl.ID.String()))
+	mac := ifaceutil.HardwareAddrFromInputBytes([]byte(tapName))
 
 	return pkg.VMIface{
 		Tap: pubIface,
