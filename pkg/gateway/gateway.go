@@ -110,13 +110,12 @@ func (g *gatewayModule) startTraefik() error {
 }
 
 func (g *gatewayModule) SetNamedProxy(fqdn string, backends []string) error {
+	if !namespace.Exists(types.PublicNamespace) {
+		return errors.New("node doesn't support gateway workloads as it doesn't have public config")
+	}
 	if !g.traefikStarted {
-		if namespace.Exists(types.PublicNamespace) {
-			if err := g.startTraefik(); err != nil {
-				return errors.Wrap(err, "couldn't start traefik")
-			}
-		} else {
-			return errors.New("node doesn't support gateway workloads as it doesn't have public config")
+		if err := g.startTraefik(); err != nil {
+			return errors.Wrap(err, "couldn't start traefik")
 		}
 	}
 
