@@ -24,7 +24,8 @@ const (
 	publicNsMACDerivationSuffix = "-public"
 
 	// PublicBridge public bridge name, exists only after a call to EnsurePublicSetup
-	PublicBridge = types.PublicBridge
+	PublicBridge    = types.PublicBridge
+	PublicNamespace = types.PublicNamespace
 )
 
 // EnsurePublicBridge makes sure that the public bridge exists
@@ -51,7 +52,7 @@ func ensurePublicBridge() (*netlink.Bridge, error) {
 //not setup or does not exist. the caller must be able to handle
 //this case
 func getPublicNamespace() ns.NetNS {
-	ns, _ := namespace.GetByName(types.PublicNamespace)
+	ns, _ := namespace.GetByName(PublicNamespace)
 	return ns
 }
 
@@ -110,14 +111,18 @@ func setupPublicBridge(br *netlink.Bridge) error {
 	return nil
 }
 
+func HasPublicSetup() bool {
+	return namespace.Exists(PublicNamespace)
+}
+
 // GetPublicSetup gets the public setup from reality
 // or error if node has no public setup
 func GetPublicSetup() (pkg.PublicConfig, error) {
-	if !namespace.Exists(types.PublicNamespace) {
+	if !namespace.Exists(PublicNamespace) {
 		return pkg.PublicConfig{}, fmt.Errorf("no public config")
 	}
 
-	namespace, err := namespace.GetByName(types.PublicNamespace)
+	namespace, err := namespace.GetByName(PublicNamespace)
 	if err != nil {
 		return pkg.PublicConfig{}, err
 	}
@@ -239,12 +244,12 @@ func findPossibleExit() (string, error) {
 }
 
 func ensureNamespace() (ns.NetNS, error) {
-	if !namespace.Exists(types.PublicNamespace) {
-		log.Info().Str("namespace", types.PublicNamespace).Msg("Create network namespace")
-		return namespace.Create(types.PublicNamespace)
+	if !namespace.Exists(PublicNamespace) {
+		log.Info().Str("namespace", PublicNamespace).Msg("Create network namespace")
+		return namespace.Create(PublicNamespace)
 	}
 
-	return namespace.GetByName(types.PublicNamespace)
+	return namespace.GetByName(PublicNamespace)
 }
 
 func ensurePublicMacvlan(iface *pkg.PublicConfig, pubNS ns.NetNS) (*netlink.Macvlan, error) {
@@ -341,11 +346,15 @@ func setupPublicNS(nodeID pkg.Identifier, iface *pkg.PublicConfig) error {
 
 	err = pubNS.Do(func(_ ns.NetNS) error {
 		if err := options.SetIPv6AcceptRA(options.RAAcceptIfForwardingIsEnabled); err != nil {
-			return errors.Wrapf(err, "failed to accept_ra=2 in public namespace")
+			return errors.Wrap(err, "failed to accept_ra=2 in public namespace")
 		}
 
 		if err := options.SetIPv6LearnDefaultRouteInRA(true); err != nil {
-			return errors.Wrapf(err, "failed to enable enable_defrtr=1 in public namespace")
+			return errors.Wrap(err, "failed to enable enable_defrtr=1 in public namespace")
+		}
+
+		if err := options.SetIPv6Forwarding(true); err != nil {
+			return errors.Wrap(err, "failed to enable ipv6 forwarding in public namespace")
 		}
 
 		return nil

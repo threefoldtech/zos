@@ -191,16 +191,24 @@ func (s *YggServer) Tun() string {
 
 // SubnetFor return an IP address out of the node allocated subnet by hasing b and using it
 // to generate the last 64 bits of the IPV6 address
-func (s *YggServer) SubnetFor(b []byte) (net.IP, error) {
+func (s *YggServer) SubnetFor(b []byte) (net.IPNet, error) {
 	subnet, err := s.Subnet()
 	if err != nil {
-		return nil, err
+		return net.IPNet{}, err
 	}
 
 	ip := make([]byte, net.IPv6len)
 	copy(ip, subnet.IP)
 
-	return subnetFor(ip, b)
+	subIP, err := subnetFor(ip, b)
+	if err != nil {
+		return net.IPNet{}, err
+	}
+
+	return net.IPNet{
+		IP:   subIP,
+		Mask: net.CIDRMask(64, 128),
+	}, nil
 }
 
 func subnetFor(prefix net.IP, b []byte) (net.IP, error) {

@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	yggInf    = "nygg6"
+	// YggNSInf inside the namespace
+	YggNSInf  = "nygg6"
 	yggBridge = types.YggBridge
 )
 
@@ -34,7 +35,7 @@ type YggdrasilNamespace interface {
 	// GetIPs return a list of all IPv6 inside this namespace.
 	GetIPs() ([]net.IPNet, error)
 	// SetYggIP sets the ygg ipv6 on the nygg6 iterface.
-	SetYggIP(ip net.IPNet) error
+	SetYggIP(ip net.IPNet, gw net.IP) error
 }
 
 // ensureYggPlumbing this ensures that the yggdrasil plumbing is in place inside this namespace
@@ -45,14 +46,14 @@ func ensureYggPlumbing(netNS ns.NetNS) error {
 		}
 	}
 
-	if !ifaceutil.Exists(yggInf, netNS) {
-		if _, err := macvlan.Create(yggInf, yggBridge, netNS); err != nil {
-			return errors.Wrapf(err, "couldn't create %s inside", yggInf)
+	if !ifaceutil.Exists(YggNSInf, netNS) {
+		if _, err := macvlan.Create(YggNSInf, yggBridge, netNS); err != nil {
+			return errors.Wrapf(err, "couldn't create %s inside", YggNSInf)
 		}
 	}
 
 	return netNS.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(yggInf)
+		link, err := netlink.LinkByName(YggNSInf)
 		if err != nil {
 			return err
 		}
@@ -81,7 +82,32 @@ func (d *yggNS) Name() string {
 	return d.ns
 }
 
-func (d *yggNS) SetYggIP(subnet net.IPNet) error {
+func (d *yggNS) setGw(gw net.IP) error {
+	ipv6routes, err := netlink.RouteList(nil, netlink.FAMILY_V6)
+	if err != nil {
+		return err
+	}
+
+	for _, route := range ipv6routes {
+		if route.Dst == nil {
+			//default route!
+			continue
+		}
+		if route.Dst.String() == yggRange.String() {
+			// we found a match
+			if err := netlink.RouteDel(&route); err != nil {
+				return err
+			}
+		}
+	}
+
+	// now add route
+	return netlink.RouteAdd(&netlink.Route{
+		Dst: &yggRange,
+		Gw:  gw,
+	})
+}
+func (d *yggNS) SetYggIP(subnet net.IPNet, gw net.IP) error {
 	netns, err := namespace.GetByName(d.ns)
 	if err != nil {
 		return err
@@ -93,7 +119,7 @@ func (d *yggNS) SetYggIP(subnet net.IPNet) error {
 	}
 
 	err = netns.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(yggInf)
+		link, err := netlink.LinkByName(YggNSInf)
 		if err != nil {
 			return err
 		}
@@ -114,7 +140,13 @@ func (d *yggNS) SetYggIP(subnet net.IPNet) error {
 		}); err != nil && !os.IsExist(err) {
 			return err
 		}
-		return nil
+
+		if gw == nil {
+			return nil
+		}
+		// set gw for entire ygg range
+
+		return d.setGw(gw)
 	})
 	return err
 }

@@ -20,6 +20,7 @@ const (
 
 // DMZ is an interface used to create an DMZ network namespace
 type DMZ interface {
+	Namespace() string
 	// create the ndmz network namespace and all requires network interfaces
 	Create(ctx context.Context) error
 	// delete the ndmz network namespace and clean up all network interfaces

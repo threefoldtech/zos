@@ -161,10 +161,7 @@ func (n networker) ZDBPrepare(id string) (string, error) {
 	}
 
 	ips := []*net.IPNet{
-		{
-			IP:   ip,
-			Mask: net.CIDRMask(64, 128),
-		},
+		&ip,
 	}
 
 	gw, err := n.ygg.Gateway()
@@ -338,10 +335,7 @@ func (n *networker) SetupYggTap(name string) (tap pkg.YggdrasilTap, err error) {
 		return tap, err
 	}
 
-	tap.IP = net.IPNet{
-		IP:   ip,
-		Mask: net.CIDRMask(64, 128),
-	}
+	tap.IP = ip
 
 	gw, err := n.ygg.Gateway()
 	if err != nil {
@@ -886,7 +880,7 @@ func (n *networker) YggAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 			case <-ctx.Done():
 				return
 			case <-time.After(30 * time.Second):
-				ips, err := n.ndmz.GetIPFor(yggdrasil.YggIface)
+				ips, err := n.ndmz.GetIPFor(yggdrasil.YggNSInf)
 				if err != nil {
 					log.Error().Err(err).Str("inf", yggdrasil.YggIface).Msg("failed to get public IPs")
 				}

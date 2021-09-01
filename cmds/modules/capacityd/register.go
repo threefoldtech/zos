@@ -116,6 +116,9 @@ func registerNode(
 		return 0, 0, errors.Wrap(err, "failed to ensure account")
 	}
 
+	// todo: this must reflect the actual IP of the nygg0 interface
+	// inside ndmz
+
 	// make sure the node twin exists
 	cfg := yggdrasil.GenerateConfig(sk)
 	address, err := cfg.Address()

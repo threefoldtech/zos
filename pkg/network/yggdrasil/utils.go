@@ -107,7 +107,7 @@ func EnsureYggdrasil(ctx context.Context, privateKey ed25519.PrivateKey, ns Yggd
 		return nil, errors.Wrap(err, "fail read yggdrasil subnet")
 	}
 
-	if err := ns.SetYggIP(gw); err != nil {
+	if err := ns.SetYggIP(gw, nil); err != nil {
 		return nil, errors.Wrap(err, "fail to configure yggdrasil subnet gateway IP")
 	}
 

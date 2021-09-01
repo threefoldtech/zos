@@ -2,6 +2,7 @@ package networkd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -98,13 +99,44 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to host firewall rules")
 	}
 	log.Debug().Msg("starting yggdrasil")
-	yggNs, err := yggdrasil.NewYggdrasilNamespace("ndmz")
+	yggNamespace := dmz.Namespace()
+	if public.HasPublicSetup() {
+		yggNamespace = public.PublicNamespace
+	}
+
+	yggNs, err := yggdrasil.NewYggdrasilNamespace(yggNamespace)
 	if err != nil {
 		return errors.Wrap(err, "failed to create yggdrasil namespace")
 	}
+
 	ygg, err := yggdrasil.EnsureYggdrasil(ctx, identity.PrivateKey(cli.Context), yggNs)
 	if err != nil {
 		return errors.Wrap(err, "fail to start yggdrasil")
+	}
+
+	if public.HasPublicSetup() {
+		// if yggdrasil is living inside public namespace
+		// we still need to setup ndmz to also have yggdrasil but we set the yggdrasil interface
+		// a different Ip that lives inside the yggdrasil range.
+		dmzYgg, err := yggdrasil.NewYggdrasilNamespace(dmz.Namespace())
+		if err != nil {
+			return errors.Wrap(err, "failed to setup ygg for dmz namespace")
+		}
+
+		//TODO: get ygg ip for this interface.
+		ip, err := ygg.SubnetFor([]byte(fmt.Sprintf("ygg:%s", dmz.Namespace())))
+		if err != nil {
+			return errors.Wrap(err, "failed to calculate ip for ygg inside dmz")
+		}
+
+		gw, err := ygg.Gateway()
+		if err != nil {
+			return err
+		}
+
+		if err := dmzYgg.SetYggIP(ip, gw.IP); err != nil {
+			return errors.Wrap(err, "failed to set yggdrasil ip for dmz")
+		}
 	}
 
 	log.Info().Msg("start zbus server")
@@ -155,31 +187,4 @@ func waitYggdrasilBin() {
 	}, bo, func(err error, d time.Duration) {
 		log.Warn().Err(err).Msgf("yggdrasil binary not found, retying in %s", d.String())
 	})
-}
-
-func fetchPeerList() yggdrasil.Peers {
-	// Try to fetch public peer
-	// If we failed to do so, use the fallback hardcoded peer list
-	var pl yggdrasil.Peers
-
-	// Do not retry more than 4 times
-	bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 4)
-
-	fetchPeerList := func() error {
-		p, err := yggdrasil.FetchPeerList()
-		if err != nil {
-			log.Debug().Err(err).Msg("failed to fetch yggdrasil peers")
-			return err
-		}
-		pl = p
-		return nil
-	}
-
-	err := backoff.Retry(fetchPeerList, bo)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to read yggdrasil public peer list online, using fallback")
-		pl = yggdrasil.PeerListFallback
-	}
-
-	return pl
 }

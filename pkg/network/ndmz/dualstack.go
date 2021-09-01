@@ -69,6 +69,10 @@ func New(nodeID string, public *netlink.Bridge) DMZ {
 	}
 }
 
+func (d *dmzImpl) Namespace() string {
+	return dmzNamespace
+}
+
 // Create create the NDMZ network namespace and configure its default routes and addresses
 func (d *dmzImpl) Create(ctx context.Context) error {
 	// There are 2 options for the master:
