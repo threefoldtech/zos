@@ -1,4 +1,4 @@
-package network
+package yggdrasil
 
 import (
 	"crypto/ed25519"
@@ -10,9 +10,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
-	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/yggdrasil-network/yggdrasil-go/src/address"
 )
@@ -24,25 +27,71 @@ const (
 
 // YggServer represent a yggdrasil server
 type YggServer struct {
-	zinit *zinit.Client
-	cfg   *yggdrasil.NodeConfig
+	cfg *NodeConfig
 }
 
 // NewYggServer create a new yggdrasil Server
-func NewYggServer(zinit *zinit.Client, cfg *yggdrasil.NodeConfig) *YggServer {
+func NewYggServer(cfg *NodeConfig) *YggServer {
 	return &YggServer{
-		zinit: zinit,
-		cfg:   cfg,
+		cfg: cfg,
 	}
 }
 
+func (s *YggServer) pidsOf(ns string) ([]uint32, error) {
+	output, err := exec.Command("ip", "netns", "pids", ns).CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list namespace '%s' pids", ns)
+	}
+	parts := strings.Fields(string(output))
+	results := make([]uint32, 0, len(parts))
+	for _, str := range parts {
+		pid, err := strconv.ParseUint(str, 10, 32)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse pid '%s'", str)
+		}
+		results = append(results, uint32(pid))
+	}
+	return results, nil
+}
+
 // Start creates an yggdrasil zinit service and starts it
-func (s *YggServer) Start() error {
-	status, err := s.zinit.Status(zinitService)
-	if err == nil && status.State.Is(zinit.ServiceStateRunning) {
-		return nil
+func (s *YggServer) Ensure(z *zinit.Client, ns string) error {
+	if !namespace.Exists(ns) {
+		return fmt.Errorf("invalid namespace '%s'", ns)
 	}
 
+	status, err := z.Status(zinitService)
+
+	if err == nil && status.State.Is(zinit.ServiceStateRunning) {
+		pids, err := s.pidsOf(ns)
+		if err != nil {
+			return errors.Wrap(err, "failed to check if yggdrasil is running in the correct namespace")
+		}
+
+		in := func(pid uint32) bool {
+			for _, p := range pids {
+				if p == pid {
+					return true
+				}
+			}
+
+			return false
+		}
+
+		if in(uint32(status.Pid)) {
+			return nil
+		}
+
+		// not here we need to stop it
+		if err := z.StopWait(5*time.Second, zinitService); err != nil {
+			return errors.Wrap(err, "failed to stop yggdrasil service")
+		}
+		if err := z.Forget(zinitService); err != nil {
+			return errors.Wrap(err, "failed to forget yggdrasil service")
+		}
+	}
+
+	//TODO: what if it runs in the correct namespace but wrong config ?
 	if err := writeConfig(confPath, s.cfg); err != nil {
 		return err
 	}
@@ -53,7 +102,7 @@ func (s *YggServer) Start() error {
 	}
 
 	err = zinit.AddService(zinitService, zinit.InitService{
-		Exec: fmt.Sprintf("ip netns exec ndmz %s -useconffile %s -loglevel trace", bin, confPath),
+		Exec: fmt.Sprintf("ip netns exec %s %s -useconffile %s -loglevel trace", ns, bin, confPath),
 		After: []string{
 			"node-ready",
 			"networkd",
@@ -64,26 +113,26 @@ func (s *YggServer) Start() error {
 		return err
 	}
 
-	if err := s.zinit.Monitor(zinitService); err != nil {
+	if err := z.Monitor(zinitService); err != nil {
 		return err
 	}
 
-	return s.zinit.StartWait(time.Second*20, zinitService)
+	return z.StartWait(time.Second*20, zinitService)
 }
 
-// Stop stop the yggdrasil zinit service
-func (s *YggServer) Stop() error {
-	status, err := s.zinit.Status(zinitService)
-	if err != nil {
-		return err
-	}
+// // Stop stop the yggdrasil zinit service
+// func (s *YggServer) Stop(z *zinit.Client) error {
+// 	status, err := z.Status(zinitService)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	if !status.State.Is(zinit.ServiceStateRunning) {
-		return nil
-	}
+// 	if !status.State.Is(zinit.ServiceStateRunning) {
+// 		return nil
+// 	}
 
-	return s.zinit.StopWait(time.Second*5, zinitService)
-}
+// 	return z.StopWait(time.Second*5, zinitService)
+// }
 
 // NodeID returns the yggdrasil node ID of s
 func (s *YggServer) NodeID() (ed25519.PublicKey, error) {
@@ -164,7 +213,7 @@ func subnetFor(prefix net.IP, b []byte) (net.IP, error) {
 	return prefix, nil
 }
 
-func writeConfig(path string, cfg *yggdrasil.NodeConfig) error {
+func writeConfig(path string, cfg *NodeConfig) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
 		return err
 	}
