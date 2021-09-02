@@ -884,7 +884,13 @@ func (n *networker) YggAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 				if err != nil {
 					log.Error().Err(err).Str("inf", yggdrasil.YggIface).Msg("failed to get public IPs")
 				}
-				ch <- ips
+				filtered := ips[:0]
+				for _, ip := range ips {
+					if yggdrasil.YggRange.Contains(ip.IP) {
+						filtered = append(filtered, ip)
+					}
+				}
+				ch <- filtered
 			}
 		}
 	}()

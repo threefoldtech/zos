@@ -116,17 +116,15 @@ func registerNode(
 		return 0, 0, errors.Wrap(err, "failed to ensure account")
 	}
 
-	// todo: this must reflect the actual IP of the nygg0 interface
-	// inside ndmz
-
-	// make sure the node twin exists
-	cfg := yggdrasil.GenerateConfig(sk)
-	address, err := cfg.Address()
+	address, err := netMgr.Addrs(ctx, yggdrasil.YggNSInf, "ndmz")
 	if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to get yggdrasil address")
+		return 0, 0, errors.Wrap(err, "failed to listen to yggdrasil ip")
+	}
+	if len(address) == 0 {
+		return 0, 0, fmt.Errorf("no yggdrasil ips found")
 	}
 
-	twinID, err = ensureTwin(sub, sk, address)
+	twinID, err = ensureTwin(sub, sk, net.IP(address[0]))
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "failed to ensure twin")
 	}

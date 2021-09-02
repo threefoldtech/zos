@@ -36,7 +36,12 @@ func (s *SystemMonitorStub) CPU(ctx context.Context) (<-chan pkg.TimesStat, erro
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}
-			ch <- obj
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
 		}
 	}()
 	return ch, nil
@@ -55,7 +60,12 @@ func (s *SystemMonitorStub) Disks(ctx context.Context) (<-chan pkg.DisksIOCounte
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}
-			ch <- obj
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
 		}
 	}()
 	return ch, nil
@@ -74,7 +84,12 @@ func (s *SystemMonitorStub) Memory(ctx context.Context) (<-chan pkg.VirtualMemor
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}
-			ch <- obj
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
 		}
 	}()
 	return ch, nil
@@ -93,7 +108,12 @@ func (s *SystemMonitorStub) Nics(ctx context.Context) (<-chan pkg.NicsIOCounterS
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}
-			ch <- obj
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
 		}
 	}()
 	return ch, nil

@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	yggRange = net.IPNet{
+	YggRange = net.IPNet{
 		IP:   net.ParseIP("200::"),
 		Mask: net.CIDRMask(7, 128),
 	}
@@ -93,7 +93,7 @@ func (d *yggNS) setGw(gw net.IP) error {
 			//default route!
 			continue
 		}
-		if route.Dst.String() == yggRange.String() {
+		if route.Dst.String() == YggRange.String() {
 			// we found a match
 			if err := netlink.RouteDel(&route); err != nil {
 				return err
@@ -103,7 +103,7 @@ func (d *yggNS) setGw(gw net.IP) error {
 
 	// now add route
 	return netlink.RouteAdd(&netlink.Route{
-		Dst: &yggRange,
+		Dst: &YggRange,
 		Gw:  gw,
 	})
 }
@@ -130,7 +130,7 @@ func (d *yggNS) SetYggIP(subnet net.IPNet, gw net.IP) error {
 		}
 
 		for _, ip := range ips {
-			if yggRange.Contains(ip.IP) {
+			if YggRange.Contains(ip.IP) {
 				netlink.AddrDel(link, &ip)
 			}
 		}
@@ -207,7 +207,7 @@ func (n *yggNS) IsIPv4Only() (bool, error) {
 			}
 
 			for _, ip := range ips {
-				if yggRange.Contains(ip.IP) {
+				if YggRange.Contains(ip.IP) {
 					continue
 				}
 

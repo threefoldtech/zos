@@ -70,7 +70,12 @@ func (s *NetworkerStub) DMZAddresses(ctx context.Context) (<-chan pkg.NetlinkAdd
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}
-			ch <- obj
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
 		}
 	}()
 	return ch, nil
@@ -242,7 +247,12 @@ func (s *NetworkerStub) PublicAddresses(ctx context.Context) (<-chan pkg.Netlink
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}
-			ch <- obj
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
 		}
 	}()
 	return ch, nil
@@ -431,7 +441,12 @@ func (s *NetworkerStub) YggAddresses(ctx context.Context) (<-chan pkg.NetlinkAdd
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}
-			ch <- obj
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
 		}
 	}()
 	return ch, nil
@@ -479,7 +494,12 @@ func (s *NetworkerStub) ZOSAddresses(ctx context.Context) (<-chan pkg.NetlinkAdd
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}
-			ch <- obj
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
 		}
 	}()
 	return ch, nil
