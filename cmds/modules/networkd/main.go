@@ -123,7 +123,6 @@ func action(cli *cli.Context) error {
 			return errors.Wrap(err, "failed to setup ygg for dmz namespace")
 		}
 
-		//TODO: get ygg ip for this interface.
 		ip, err := ygg.SubnetFor([]byte(fmt.Sprintf("ygg:%s", dmz.Namespace())))
 		if err != nil {
 			return errors.Wrap(err, "failed to calculate ip for ygg inside dmz")
