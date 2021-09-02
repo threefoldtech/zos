@@ -69,15 +69,14 @@ type networker struct {
 	ipamLeaseDir string
 	portSet      *set.UIntSet
 
-	publicConfig string
-	ndmz         ndmz.DMZ
-	ygg          *yggdrasil.YggServer
+	ndmz ndmz.DMZ
+	ygg  *yggdrasil.YggServer
 }
 
 var _ pkg.Networker = (*networker)(nil)
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity *stubs.IdentityManagerStub, publicCfgPath string, ndmz ndmz.DMZ, ygg *yggdrasil.YggServer) (pkg.Networker, error) {
+func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdrasil.YggServer) (pkg.Networker, error) {
 	vd, err := cache.VolatileDir("networkd", 50*mib)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("failed to create networkd cache directory: %w", err)
@@ -98,9 +97,8 @@ func NewNetworker(identity *stubs.IdentityManagerStub, publicCfgPath string, ndm
 		ipamLeaseDir: ipamLease,
 		portSet:      set.NewInt(),
 
-		publicConfig: publicCfgPath,
-		ygg:          ygg,
-		ndmz:         ndmz,
+		ygg:  ygg,
+		ndmz: ndmz,
 	}
 
 	// always add the reserved yggdrasil port to the port set so we make sure they are never
@@ -729,7 +727,7 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 		return errors.Wrap(err, "failed to apply public config")
 	}
 
-	if err := public.SavePublicConfig(n.publicConfig, &cfg); err != nil {
+	if err := public.SavePublicConfig(cfg); err != nil {
 		return errors.Wrap(err, "failed to store public config")
 	}
 

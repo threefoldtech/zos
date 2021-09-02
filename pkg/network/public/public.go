@@ -127,6 +127,13 @@ func GetPublicSetup() (pkg.PublicConfig, error) {
 		return pkg.PublicConfig{}, err
 	}
 	var cfg pkg.PublicConfig
+	if set, err := LoadPublicConfig(); err != nil {
+		return pkg.PublicConfig{}, errors.Wrap(err, "failed to load configuration")
+	} else {
+		// we only need the domain name from the config
+		cfg.Domain = set.Domain
+	}
+	// everything else is loaded from the actual state of the node.
 	err = namespace.Do(func(_ ns.NetNS) error {
 		link, err := netlink.LinkByName(types.PublicIface)
 		if err != nil {
@@ -261,12 +268,13 @@ func ensurePublicMacvlan(iface *pkg.PublicConfig, pubNS ns.NetNS) (*netlink.Macv
 	if !ifaceutil.Exists(types.PublicIface, pubNS) {
 
 		switch iface.Type {
+		case "":
+			fallthrough
 		case pkg.MacVlanIface:
 			pubIface, err = macvlan.Create(types.PublicIface, types.PublicBridge, pubNS)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create public mac vlan interface")
 			}
-
 		default:
 			return nil, fmt.Errorf("unsupported public interface type %s", iface.Type)
 		}

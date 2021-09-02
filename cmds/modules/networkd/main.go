@@ -78,7 +78,8 @@ func action(cli *cli.Context) error {
 	})
 
 	publicCfgPath := filepath.Join(root, publicConfigFile)
-	pub, err := public.LoadPublicConfig(publicCfgPath)
+	public.SetPersistence(publicCfgPath)
+	pub, err := public.LoadPublicConfig()
 	log.Debug().Err(err).Msgf("public interface configred: %+v", pub)
 	if err != nil && err != public.ErrNoPublicConfig {
 		return errors.Wrap(err, "failed to get node public_config")
@@ -143,7 +144,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "fail to create module root")
 	}
 
-	networker, err := network.NewNetworker(identity, publicCfgPath, dmz, ygg)
+	networker, err := network.NewNetworker(identity, dmz, ygg)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
 	}

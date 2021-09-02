@@ -186,7 +186,9 @@ type PublicConfig struct {
 	GW4 net.IP `json:"gw4"`
 	GW6 net.IP `json:"gw6"`
 
-	// Version int `json:"version"`
+	// Domain is the node domain name like gent01.devnet.grid.tf
+	// or similar
+	Domain string `json:"domain"`
 }
 
 type OptionPublicConfig struct {
