@@ -26,7 +26,7 @@ func getPersistencePath() string {
 
 // ErrNoPublicConfig is the error returns by ReadPubIface when no public
 // interface is configured
-var ErrNoPublicConfig = errors.New("no public interface configured for this node")
+var ErrNoPublicConfig = errors.New("no public configuration")
 
 // LoadPublicConfig loads public config from file
 func LoadPublicConfig() (*pkg.PublicConfig, error) {

@@ -119,7 +119,7 @@ func HasPublicSetup() bool {
 // or error if node has no public setup
 func GetPublicSetup() (pkg.PublicConfig, error) {
 	if !namespace.Exists(PublicNamespace) {
-		return pkg.PublicConfig{}, fmt.Errorf("no public config")
+		return pkg.PublicConfig{}, ErrNoPublicConfig
 	}
 
 	namespace, err := namespace.GetByName(PublicNamespace)
