@@ -149,7 +149,7 @@ type Networker interface {
 	// YggAddresses monitoring streams for yggdrasil interface
 	YggAddresses(ctx context.Context) <-chan NetlinkAddresses
 
-	PublicAddresses(ctx context.Context) <-chan NetlinkAddresses
+	PublicAddresses(ctx context.Context) <-chan OptionPublicConfig
 }
 
 // Network type
@@ -187,4 +187,9 @@ type PublicConfig struct {
 	GW6 net.IP `json:"gw6"`
 
 	// Version int `json:"version"`
+}
+
+type OptionPublicConfig struct {
+	PublicConfig
+	HasPublicConfig bool
 }
