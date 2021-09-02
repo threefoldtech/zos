@@ -234,8 +234,8 @@ func (s *NetworkerStub) PubTapExists(ctx context.Context, arg0 string) (ret0 boo
 	return
 }
 
-func (s *NetworkerStub) PublicAddresses(ctx context.Context) (<-chan pkg.NetlinkAddresses, error) {
-	ch := make(chan pkg.NetlinkAddresses)
+func (s *NetworkerStub) PublicAddresses(ctx context.Context) (<-chan pkg.OptionPublicConfig, error) {
+	ch := make(chan pkg.OptionPublicConfig)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "PublicAddresses")
 	if err != nil {
 		return nil, err
@@ -243,7 +243,7 @@ func (s *NetworkerStub) PublicAddresses(ctx context.Context) (<-chan pkg.Netlink
 	go func() {
 		defer close(ch)
 		for event := range recv {
-			var obj pkg.NetlinkAddresses
+			var obj pkg.OptionPublicConfig
 			if err := event.Unmarshal(&obj); err != nil {
 				panic(err)
 			}

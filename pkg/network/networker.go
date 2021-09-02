@@ -898,19 +898,19 @@ func (n *networker) YggAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 	return ch
 }
 
-func (n *networker) PublicAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
-	ch := make(chan pkg.NetlinkAddresses)
+func (n *networker) PublicAddresses(ctx context.Context) <-chan pkg.OptionPublicConfig {
+	ch := make(chan pkg.OptionPublicConfig)
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(30 * time.Second):
-				ips, err := public.IPs()
-				if err != nil {
-					log.Error().Err(err).Msg("failed to get public IPs")
+				cfg, err := n.GetPublicConfig()
+				ch <- pkg.OptionPublicConfig{
+					PublicConfig:    cfg,
+					HasPublicConfig: err == nil,
 				}
-				ch <- ips
 			}
 		}
 	}()
