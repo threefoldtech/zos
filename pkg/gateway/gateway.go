@@ -25,6 +25,7 @@ type gatewayModule struct {
 
 	proxyConfigPath  string
 	staticConfigPath string
+	binPath          string
 }
 
 type ProxyConfig struct {
@@ -61,6 +62,11 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		return nil, errors.Wrap(err, "couldn't make gateway config dir")
 	}
 
+	bin, err := ensureTraefikBin(ctx, cl)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to ensure traefik binary")
+	}
+
 	staticCfgPath := filepath.Join(root, "traefik.yaml")
 	if err := staticConfig(staticCfgPath, root); err != nil {
 		return nil, errors.Wrap(err, "failed to create static config")
@@ -70,8 +76,8 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		cl:               cl,
 		proxyConfigPath:  configPath,
 		staticConfigPath: staticCfgPath,
+		binPath:          bin,
 	}
-
 	// in case there are already active configurations we should always try to ensure running traefik
 	if _, err := gw.ensureGateway(ctx); err != nil {
 		log.Error().Err(err).Msg("gateway is not supported")
@@ -128,7 +134,8 @@ func (g *gatewayModule) ensureGateway(ctx context.Context) (string, error) {
 
 func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 	cmd := fmt.Sprintf(
-		"ip netns exec public traefik --configfile %s --log.level=DEBUG",
+		"ip netns exec public %s --configfile %s --log.level=DEBUG",
+		g.binPath,
 		g.staticConfigPath,
 	)
 
