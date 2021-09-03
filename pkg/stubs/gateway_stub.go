@@ -35,14 +35,17 @@ func (s *GatewayStub) DeleteNamedProxy(ctx context.Context, arg0 string) (ret0 e
 	return
 }
 
-func (s *GatewayStub) SetNamedProxy(ctx context.Context, arg0 string, arg1 []string) (ret0 error) {
-	args := []interface{}{arg0, arg1}
+func (s *GatewayStub) SetNamedProxy(ctx context.Context, arg0 string, arg1 string, arg2 []string) (ret0 string, ret1 error) {
+	args := []interface{}{arg0, arg1, arg2}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "SetNamedProxy", args...)
 	if err != nil {
 		panic(err)
 	}
-	ret0 = new(zbus.RemoteError)
 	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
 		panic(err)
 	}
 	return
