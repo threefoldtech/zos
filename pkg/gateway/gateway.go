@@ -23,7 +23,8 @@ const (
 type gatewayModule struct {
 	cl zbus.Client
 
-	proxyConfigPath string
+	proxyConfigPath  string
+	staticConfigPath string
 }
 
 type ProxyConfig struct {
@@ -60,10 +61,25 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		return nil, errors.Wrap(err, "couldn't make gateway config dir")
 	}
 
-	return &gatewayModule{
-		cl:              cl,
-		proxyConfigPath: configPath,
-	}, nil
+	staticCfgPath := filepath.Join(root, "traefik.yaml")
+	if err := staticConfig(staticCfgPath, root); err != nil {
+		return nil, errors.Wrap(err, "failed to create static config")
+	}
+
+	gw := &gatewayModule{
+		cl:               cl,
+		proxyConfigPath:  configPath,
+		staticConfigPath: staticCfgPath,
+	}
+
+	// in case there are already active configurations we should always try to ensure running traefik
+	if _, err := gw.ensureGateway(ctx); err != nil {
+		log.Error().Err(err).Msg("gateway is not supported")
+		// this is not a failure because supporting of the gateway can happen
+		// later if the farmer set the correct network configuration!
+	}
+
+	return gw, nil
 }
 
 func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
@@ -111,7 +127,11 @@ func (g *gatewayModule) ensureGateway(ctx context.Context) (string, error) {
 }
 
 func (g *gatewayModule) startTraefik(z *zinit.Client) error {
-	cmd := fmt.Sprintf("ip netns exec public traefik --log.level=DEBUG --providers.file.directory=%s --providers.file.watch=true", g.proxyConfigPath)
+	cmd := fmt.Sprintf(
+		"ip netns exec public traefik --configfile %s --log.level=DEBUG",
+		g.staticConfigPath,
+	)
+
 	zinit.AddService(traefikService, zinit.InitService{
 		Exec: cmd,
 	})
@@ -139,7 +159,7 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 
 	fqdn := fmt.Sprintf("%s.%s", prefix, domain)
 
-	rule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/`)", fqdn)
+	rule := fmt.Sprintf("Host(`%s`)", fqdn)
 	servers := make([]Server, len(backends))
 	for idx, backend := range backends {
 		servers[idx] = Server{
@@ -176,6 +196,7 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 
 	return fqdn, nil
 }
+
 func (g *gatewayModule) DeleteNamedProxy(wlID string) error {
 	if err := os.Remove(g.configPath(wlID)); err != nil {
 		return errors.Wrap(err, "couldn't remove config file")

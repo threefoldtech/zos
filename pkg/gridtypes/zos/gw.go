@@ -3,7 +3,7 @@ package zos
 import (
 	"fmt"
 	"io"
-	"net"
+	"net/url"
 	"regexp"
 
 	"github.com/pkg/errors"
@@ -16,10 +16,14 @@ var (
 
 type Backend string
 
-// check if valid x.x.x.x:port or [::]:port
+// check if valid http://x.x.x.x:port or [::]:port
 func (b Backend) Valid() error {
-	if _, err := net.ResolveTCPAddr("tcp", string(b)); err != nil {
-		return errors.Wrap(err, "invalid backend address")
+	u, err := url.Parse(string(b))
+	if err != nil {
+		return errors.Wrap(err, "failed to parse backend")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("invalid scheme expected http, or https")
 	}
 
 	return nil
@@ -40,6 +44,11 @@ func (g GatewayNameProxy) Valid(getter gridtypes.WorkloadGetter) error {
 	}
 	if len(g.Backends) == 0 {
 		return fmt.Errorf("backends list can not be empty")
+	}
+	for _, backend := range g.Backends {
+		if err := backend.Valid(); err != nil {
+			return errors.Wrapf(err, "failed to validate backend '%s'", backend)
+		}
 	}
 
 	return nil
