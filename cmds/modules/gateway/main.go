@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/gateway"
-	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/urfave/cli/v2"
 
@@ -59,8 +58,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to connect to zbus broker")
 	}
 
-	networker := stubs.NewNetworkerStub(client)
-	mod, err := gateway.New(cli.Context, networker, moduleRoot)
+	mod, err := gateway.New(cli.Context, client, moduleRoot)
 	if err != nil {
 		return errors.Wrap(err, "failed to construct gateway object")
 	}

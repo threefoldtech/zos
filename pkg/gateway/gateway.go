@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -20,10 +21,9 @@ const (
 )
 
 type gatewayModule struct {
-	networker *stubs.NetworkerStub
+	cl zbus.Client
 
 	proxyConfigPath string
-	traefikStarted  bool
 }
 
 type ProxyConfig struct {
@@ -52,7 +52,7 @@ type Server struct {
 	Url string
 }
 
-func New(ctx context.Context, networker *stubs.NetworkerStub, root string) (pkg.Gateway, error) {
+func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) {
 	configPath := filepath.Join(root, "proxy")
 	// where should service-restart/node-reboot recovery be handled?
 	err := os.MkdirAll(configPath, 0644)
@@ -60,67 +60,57 @@ func New(ctx context.Context, networker *stubs.NetworkerStub, root string) (pkg.
 		return nil, errors.Wrap(err, "couldn't make gateway config dir")
 	}
 
-	g := &gatewayModule{
-		networker:       networker,
+	return &gatewayModule{
+		cl:              cl,
 		proxyConfigPath: configPath,
-		traefikStarted:  false,
-	}
-	traefikStarted, err := isTraefikStarted()
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't check traefik status")
-	}
-	supported, err := g.isGatewaySupported(ctx)
-	if err != nil {
-		supported = false
-		log.Warn().Err(err).Msg("failed to get public config")
-	}
-	if !traefikStarted && supported {
-		err := g.startTraefik()
-		if err != nil {
-			log.Error().Err(err).Msg("couldn't start traefik")
-		}
-	}
-	return g, nil
+	}, nil
 }
 
-func isTraefikStarted() (bool, error) {
-	z, err := zinit.New("")
-	if err != nil {
-		return false, errors.Wrap(err, "couldn't get zinit client")
-	}
-	defer z.Close()
-	started := true
+func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
 	traefikStatus, err := z.Status(traefikService)
-	if err != nil {
-		started = false
+	if errors.Is(err, zinit.ErrUnknownService) {
+		return false, nil
+	} else if err != nil {
+		return false, errors.Wrap(err, "failed to check traefik status")
 	}
-	log.Debug().Str("state", traefikStatus.State.String()).Msg("checking traefik state")
-	started = traefikStatus.State.Is(zinit.ServiceStateRunning)
-	return started, nil
+
+	return traefikStatus.State.Is(zinit.ServiceStateRunning), nil
 }
 
-func (g *gatewayModule) isGatewaySupported(ctx context.Context) (bool, error) {
-	cfg, err := g.networker.GetPublicConfig(ctx)
+// ensureGateway makes sure that gateway infrastructure is in place and
+// that it is supported.
+func (g *gatewayModule) ensureGateway(ctx context.Context) (string, error) {
+	var (
+		networker = stubs.NewNetworkerStub(g.cl)
+	)
+	cfg, err := networker.GetPublicConfig(ctx)
 	if err != nil {
-		return false, errors.Wrap(err, "couldn't get public config")
+		return "", errors.Wrap(err, "gateway is not supported on this node")
 	}
-	return cfg.Domain != "", err
-}
 
-func (g *gatewayModule) getDomainName(ctx context.Context) (string, error) {
-	cfg, err := g.networker.GetPublicConfig(ctx)
-	if err != nil {
-		return "", errors.Wrap(err, "couldn't get public config")
+	if cfg.Domain == "" {
+		return "", errors.Errorf("gateway is not supported. missing domain configuration")
 	}
-	return cfg.Domain, err
-}
 
-func (g *gatewayModule) startTraefik() error {
-	z, err := zinit.New("")
+	z, err := zinit.Default()
 	if err != nil {
-		return errors.Wrap(err, "couldn't get zinit client")
+		return "", errors.Wrap(err, "failed to connect to zinit")
 	}
 	defer z.Close()
+	running, err := g.isTraefikStarted(z)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to check traefik status")
+	}
+
+	if running {
+		return cfg.Domain, nil
+	}
+
+	//other wise we start traefik
+	return cfg.Domain, g.startTraefik(z)
+}
+
+func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 	cmd := fmt.Sprintf("ip netns exec public traefik --log.level=DEBUG --providers.file.directory=%s --providers.file.watch=true", g.proxyConfigPath)
 	zinit.AddService(traefikService, zinit.InitService{
 		Exec: cmd,
@@ -131,25 +121,24 @@ func (g *gatewayModule) startTraefik() error {
 	if err := z.StartWait(time.Second*20, traefikService); err != nil {
 		return errors.Wrap(err, "waiting for trafik start timed out")
 	}
-	g.traefikStarted = true
 	return nil
 }
 
+func (g *gatewayModule) configPath(name string) string {
+	return filepath.Join(g.proxyConfigPath, fmt.Sprintf("%s.yaml", name))
+}
+
 func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []string) (string, error) {
-	ctx := context.TODO()
-	domain, err := g.getDomainName(ctx)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	domain, err := g.ensureGateway(ctx)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get node's domain")
-	} else if domain == "" {
-		return "", errors.New("node doesn't support gateway workloads")
+		return "", err
 	}
+
 	fqdn := fmt.Sprintf("%s.%s", prefix, domain)
 
-	if !g.traefikStarted {
-		if err := g.startTraefik(); err != nil {
-			return "", errors.Wrap(err, "couldn't start traefik")
-		}
-	}
 	rule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/`)", fqdn)
 	servers := make([]Server, len(backends))
 	for idx, backend := range backends {
@@ -157,6 +146,7 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 			Url: backend,
 		}
 	}
+
 	config := ProxyConfig{
 		Http: HTTPConfig{
 			Routers: map[string]Router{
@@ -179,17 +169,15 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	if err != nil {
 		return "", errors.Wrap(err, "failed to convert config to yaml")
 	}
-	log.Debug().Str("yaml_config", string(yamlString)).Msg("configuration file")
-	filename := filepath.Join(g.proxyConfigPath, fmt.Sprintf("%s.yaml", wlID))
-	if err = os.WriteFile(filename, yamlString, 0644); err != nil {
+	log.Debug().Str("yaml-config", string(yamlString)).Msg("configuration file")
+	if err = os.WriteFile(g.configPath(wlID), yamlString, 0644); err != nil {
 		return "", errors.Wrap(err, "couldn't open config file for writing")
 	}
 
 	return fqdn, nil
 }
 func (g *gatewayModule) DeleteNamedProxy(wlID string) error {
-	filename := filepath.Join(g.proxyConfigPath, fmt.Sprintf("%s.yaml", wlID))
-	if err := os.Remove(filename); err != nil {
+	if err := os.Remove(g.configPath(wlID)); err != nil {
 		return errors.Wrap(err, "couldn't remove config file")
 	}
 	return nil
