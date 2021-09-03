@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/gateway"
+	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/urfave/cli/v2"
 
@@ -53,7 +54,16 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
-	mod := gateway.New(moduleRoot)
+	client, err := zbus.NewRedisClient(msgBrokerCon)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect to zbus broker")
+	}
+
+	networker := stubs.NewNetworkerStub(client)
+	mod, err := gateway.New(cli.Context, networker, moduleRoot)
+	if err != nil {
+		return errors.Wrap(err, "failed to construct gateway object")
+	}
 	server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, mod)
 
 	ctx, _ := utils.WithSignal(context.Background())

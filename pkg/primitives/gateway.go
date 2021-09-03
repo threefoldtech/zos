@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -17,22 +18,12 @@ func validateNameContract(twinID uint32, name string) error {
 	return nil
 }
 
-func getNodeDomain() (string, error) {
-	// TODO: how to get
-	return "omar.com", nil
-}
-
 func (p *Primitives) gwProvision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
-
+	result := zos.GatewayProxyResult{}
 	var proxy zos.GatewayNameProxy
 	if err := json.Unmarshal(wl.Data, &proxy); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal gateway proxy from reservation: %w", err)
 	}
-	baseDomain, err := getNodeDomain()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get domain base domain")
-	}
-	fqdn := fmt.Sprintf("%s.%s", proxy.Name, baseDomain)
 	backends := make([]string, len(proxy.Backends))
 	for idx, backend := range proxy.Backends {
 		backends[idx] = string(backend)
@@ -53,31 +44,18 @@ func (p *Primitives) gwProvision(ctx context.Context, wl *gridtypes.WorkloadWith
 	// gateway := stubs.NewGatewayStub(p.zbus)
 	// gateway.SetNamedProxy(ctx context.Context, arg0 string, arg1 []string)
 	gateway := stubs.NewGatewayStub(p.zbus)
-	if err := gateway.SetNamedProxy(ctx, fqdn, backends); err != nil {
+	fqdn, err := gateway.SetNamedProxy(ctx, wl.ID.String(), proxy.Name, backends)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to setup name proxy")
 	}
-	return nil, nil
+	result.FQDN = fqdn
+	log.Debug().Str("domain", fqdn).Msg("domain reserved")
+	return result, nil
 }
 
 func (p *Primitives) wgDecommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
-	deployment := provision.GetDeployment(ctx)
-	twinID := deployment.TwinID
-	var proxy zos.GatewayNameProxy
-	if err := json.Unmarshal(wl.Data, &proxy); err != nil {
-		return fmt.Errorf("failed to unmarshal gateway proxy from reservation: %w", err)
-	}
-	if err := validateNameContract(twinID, proxy.Name); err != nil {
-		return errors.Wrap(err, "failed to validate name contract")
-	}
-
-	baseDomain, err := getNodeDomain()
-	if err != nil {
-		return errors.Wrap(err, "failed to get domain base domain")
-	}
-	fqdn := fmt.Sprintf("%s.%s", proxy.Name, baseDomain)
-
 	gateway := stubs.NewGatewayStub(p.zbus)
-	if err := gateway.DeleteNamedProxy(ctx, fqdn); err != nil {
+	if err := gateway.DeleteNamedProxy(ctx, wl.ID.String()); err != nil {
 		return errors.Wrap(err, "failed to delete name proxy")
 	}
 	return nil
