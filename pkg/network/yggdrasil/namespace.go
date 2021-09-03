@@ -131,7 +131,7 @@ func (d *yggNS) SetYggIP(subnet net.IPNet, gw net.IP) error {
 
 		for _, ip := range ips {
 			if YggRange.Contains(ip.IP) {
-				netlink.AddrDel(link, &ip)
+				_ = netlink.AddrDel(link, &ip)
 			}
 		}
 

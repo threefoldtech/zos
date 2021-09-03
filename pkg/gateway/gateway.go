@@ -139,15 +139,20 @@ func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 		g.staticConfigPath,
 	)
 
-	zinit.AddService(traefikService, zinit.InitService{
+	if err := zinit.AddService(traefikService, zinit.InitService{
 		Exec: cmd,
-	})
+	}); err != nil {
+		return errors.Wrap(err, "failed to add traefik to zinit")
+	}
+
 	if err := z.Monitor(traefikService); err != nil {
 		return errors.Wrap(err, "couldn't monitor traefik service")
 	}
+
 	if err := z.StartWait(time.Second*20, traefikService); err != nil {
 		return errors.Wrap(err, "waiting for trafik start timed out")
 	}
+
 	return nil
 }
 
