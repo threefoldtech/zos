@@ -104,7 +104,6 @@ func (g *gatewayModule) isGatewaySupported(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "couldn't get public config")
 	}
-	cfg.Domain = "omar.com"
 	return cfg.Domain != "", err
 }
 
@@ -113,7 +112,6 @@ func (g *gatewayModule) getDomainName(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "couldn't get public config")
 	}
-	cfg.Domain = "omar.com"
 	return cfg.Domain, err
 }
 
