@@ -18,6 +18,7 @@ import (
 
 const (
 	traefikService = "traefik"
+	CertResolver   = "le"
 )
 
 type gatewayModule struct {
@@ -40,8 +41,11 @@ type HTTPConfig struct {
 type Router struct {
 	Rule    string
 	Service string
+	Tls     TlsConfig `yaml:"tls,omitempty"`
 }
-
+type TlsConfig struct {
+	CertResolver string `yaml:"certResolver"`
+}
 type Service struct {
 	LoadBalancer LoadBalancer
 }
@@ -55,11 +59,17 @@ type Server struct {
 }
 
 func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) {
-	configPath := filepath.Join(root, "proxy")
 	// where should service-restart/node-reboot recovery be handled?
+	configPath := filepath.Join(root, "proxy")
 	err := os.MkdirAll(configPath, 0644)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't make gateway config dir")
+	}
+
+	traefikMetadata := filepath.Join(root, "traefik")
+	err = os.MkdirAll(traefikMetadata, 0644)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't make traefik metadata directory")
 	}
 
 	bin, err := ensureTraefikBin(ctx, cl)
@@ -134,7 +144,7 @@ func (g *gatewayModule) ensureGateway(ctx context.Context) (string, error) {
 
 func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 	cmd := fmt.Sprintf(
-		"ip netns exec public %s --configfile %s --log.level=DEBUG",
+		"ip netns exec public %s --configfile %s",
 		g.binPath,
 		g.staticConfigPath,
 	)
@@ -178,11 +188,19 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 			Url: backend,
 		}
 	}
-
+	httpRoute := fmt.Sprintf("%s-http", wlID)
+	httpsRoute := fmt.Sprintf("%s-https", wlID)
 	config := ProxyConfig{
 		Http: HTTPConfig{
 			Routers: map[string]Router{
-				wlID: {
+				httpsRoute: {
+					Rule:    rule,
+					Service: wlID,
+					Tls: TlsConfig{
+						CertResolver: CertResolver,
+					},
+				},
+				httpRoute: {
 					Rule:    rule,
 					Service: wlID,
 				},
