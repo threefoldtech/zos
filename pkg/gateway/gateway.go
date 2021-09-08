@@ -87,12 +87,6 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		return nil, errors.Wrap(err, "failed to create static config")
 	}
 
-	if updated {
-		// we have new static config we need to restart traefik. best thing
-		// is to just try to send it a signal zinit will take care of restarting it
-		zinit.Default()
-	}
-
 	gw := &gatewayModule{
 		cl:               cl,
 		proxyConfigPath:  configPath,
