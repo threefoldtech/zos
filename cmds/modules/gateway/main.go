@@ -64,7 +64,8 @@ func action(cli *cli.Context) error {
 	}
 	server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, mod)
 
-	ctx, _ := utils.WithSignal(context.Background())
+	ctx, cancel := utils.WithSignal(context.Background())
+	defer cancel()
 
 	log.Info().
 		Str("broker", msgBrokerCon).

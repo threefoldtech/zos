@@ -18,6 +18,10 @@ import (
 
 const (
 	traefikService = "traefik"
+	// letsencrypt email need to customizable by he farmer.
+	letsencryptEmail = "letsencrypt@threefold.tech"
+	// certResolver must match the one defined in static config
+	certResolver = "resolver"
 )
 
 type gatewayModule struct {
@@ -40,6 +44,10 @@ type HTTPConfig struct {
 type Router struct {
 	Rule    string
 	Service string
+	Tls     *TlsConfig `yaml:"tls,omitempty"`
+}
+type TlsConfig struct {
+	CertResolver string `yaml:"certResolver,omitempty"`
 }
 
 type Service struct {
@@ -55,11 +63,17 @@ type Server struct {
 }
 
 func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) {
-	configPath := filepath.Join(root, "proxy")
 	// where should service-restart/node-reboot recovery be handled?
+	configPath := filepath.Join(root, "proxy")
 	err := os.MkdirAll(configPath, 0644)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't make gateway config dir")
+	}
+
+	traefikMetadata := filepath.Join(root, "traefik")
+	err = os.MkdirAll(traefikMetadata, 0644)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't make traefik metadata directory")
 	}
 
 	bin, err := ensureTraefikBin(ctx, cl)
@@ -68,7 +82,8 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 	}
 
 	staticCfgPath := filepath.Join(root, "traefik.yaml")
-	if err := staticConfig(staticCfgPath, root); err != nil {
+	updated, err := staticConfig(staticCfgPath, root, letsencryptEmail)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to create static config")
 	}
 
@@ -79,7 +94,7 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		binPath:          bin,
 	}
 	// in case there are already active configurations we should always try to ensure running traefik
-	if _, err := gw.ensureGateway(ctx); err != nil {
+	if _, err := gw.ensureGateway(ctx, updated); err != nil {
 		log.Error().Err(err).Msg("gateway is not supported")
 		// this is not a failure because supporting of the gateway can happen
 		// later if the farmer set the correct network configuration!
@@ -101,7 +116,7 @@ func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
 
 // ensureGateway makes sure that gateway infrastructure is in place and
 // that it is supported.
-func (g *gatewayModule) ensureGateway(ctx context.Context) (string, error) {
+func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (string, error) {
 	var (
 		networker = stubs.NewNetworkerStub(g.cl)
 	)
@@ -123,6 +138,14 @@ func (g *gatewayModule) ensureGateway(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to check traefik status")
 	}
+	if running && forceResstart {
+		// note: a kill is basically a singal to traefik process to
+		// die. but zinit will restart it again anyway. so this is
+		// enough to force restart it.
+		if err := z.Kill(traefikService, zinit.SIGTERM); err != nil {
+			return "", errors.Wrap(err, "failed to restart traefik")
+		}
+	}
 
 	if running {
 		return cfg.Domain, nil
@@ -134,7 +157,7 @@ func (g *gatewayModule) ensureGateway(ctx context.Context) (string, error) {
 
 func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 	cmd := fmt.Sprintf(
-		"ip netns exec public %s --configfile %s --log.level=DEBUG",
+		"ip netns exec public %s --configfile %s",
 		g.binPath,
 		g.staticConfigPath,
 	)
@@ -164,7 +187,7 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	domain, err := g.ensureGateway(ctx)
+	domain, err := g.ensureGateway(ctx, false)
 	if err != nil {
 		return "", err
 	}
@@ -178,11 +201,19 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 			Url: backend,
 		}
 	}
-
+	httpRoute := fmt.Sprintf("%s-http", wlID)
+	httpsRoute := fmt.Sprintf("%s-https", wlID)
 	config := ProxyConfig{
 		Http: HTTPConfig{
 			Routers: map[string]Router{
-				wlID: {
+				httpsRoute: {
+					Rule:    rule,
+					Service: wlID,
+					Tls: &TlsConfig{
+						CertResolver: certResolver,
+					},
+				},
+				httpRoute: {
 					Rule:    rule,
 					Service: wlID,
 				},
