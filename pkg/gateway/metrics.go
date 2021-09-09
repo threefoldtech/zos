@@ -2,28 +2,32 @@ package gateway
 
 import (
 	"bufio"
+	"context"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 )
 
 const (
 	publicNS   = "public"
-	metricsURL = "http://172.0.0.1:8082"
+	metricsURL = "http://127.0.0.1:8082/metrics"
 
 	metricReceived = "traefik_service_bytes_received_total"
 	metricSent     = "traefik_service_bytes_sent_total"
 )
 
 var (
-	ErrMetricsNotAvailable = errors.New("errors not available")
+	ErrMetricsNotAvailable = errors.New("metrics not available")
 
 	metricM = regexp.MustCompile(`^(\w+)({[^}]+})? ([0-9e\+-]+)`)
 	tagsM   = regexp.MustCompile(`([^,={]+)="([^"]+)"`)
@@ -102,9 +106,46 @@ func parseMetrics(in io.Reader) (map[string]*metric, error) {
 
 	return results, nil
 }
-func metrics(url string) (map[string]*metric, error) {
-	//"http://localhost:9090/metrics"
-	response, err := http.Get(url)
+
+func metrics(rawUrl string) (map[string]*metric, error) {
+	// so. why this is done like this you may ask?
+	// and we don't have a straight answer to you. but here is the deal
+	// traefik is running (always) inside the public namespace
+	// this is why we call `metrics` method from inside that namespace
+	// we expected this to work since the go routine now is locked to
+	// the OS thread that is running inside this namespace.
+	// seems that is wrong, using the http client (default or custom)
+	// will always use the host namespace, so we assume there is a go routine
+	// spawned in the client somewhere which is not fixed to the same os thread.
+	//
+	// we tried to disable keep-alive so we create new connection always.
+	// and other tricks as well. but nothing worked.
+	//
+	// the only way was to create a tcp connection ourselves and then
+	// use this int he http client.
+	u, err := url.Parse(rawUrl)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse url")
+	}
+
+	con, err := net.Dial("tcp", u.Host)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to connect to url")
+	}
+
+	defer con.Close()
+
+	cl := http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return con, err
+			},
+		},
+	}
+
+	response, err := cl.Get(rawUrl)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
@@ -135,9 +176,10 @@ func (g *gatewayModule) Metrics() (result pkg.GatewayMetrics, err error) {
 	defer pubNS.Close()
 	var values map[string]*metric
 	err = pubNS.Do(func(_ ns.NetNS) error {
+		log.Debug().Str("namespace", publicNS).Str("url", metricsURL).Msg("requesting metrics from traefik")
 		values, err = metrics(metricsURL)
 		if err != nil {
-			return ErrMetricsNotAvailable
+			return errors.Wrap(ErrMetricsNotAvailable, err.Error())
 		}
 
 		return nil
