@@ -3,6 +3,7 @@ package gateway
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -29,7 +30,7 @@ const (
 var (
 	ErrMetricsNotAvailable = errors.New("metrics not available")
 
-	metricM = regexp.MustCompile(`^(\w+)({[^}]+})? ([0-9e\+-]+)`)
+	metricM = regexp.MustCompile(`^(\w+)({[^}]+})? ([0-9\.e\+-]+)`)
 	tagsM   = regexp.MustCompile(`([^,={]+)="([^"]+)"`)
 )
 
@@ -139,7 +140,7 @@ func metrics(rawUrl string) (map[string]*metric, error) {
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return con, err
+				return con, nil
 			},
 		},
 	}

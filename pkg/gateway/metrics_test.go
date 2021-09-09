@@ -59,6 +59,10 @@ traefik_service_request_duration_seconds_count{code="502",method="POST",protocol
 # HELP traefik_service_requests_total How many HTTP requests processed on a service, partitioned by status code, protocol, and method.
 # TYPE traefik_service_requests_total counter
 traefik_service_requests_total{code="502",method="POST",protocol="http",service="foo@file"} 1`
+
+	bigNumber = `
+traefik_service_bytes_sent_total{service="50-715-gw@file"} 8.95470206e+08
+`
 )
 
 func TestParseMetrics(t *testing.T) {
@@ -91,4 +95,20 @@ func TestParseMetrics(t *testing.T) {
 	fmt.Println(fst.labels)
 	require.Equal(t, "502", fst.labels["code"])
 	require.Equal(t, "0.1", fst.labels["le"])
+}
+
+func TestParseBigMetrics(t *testing.T) {
+
+	buf := bytes.NewBuffer([]byte(bigNumber))
+
+	results, err := parseMetrics(buf)
+	require.NoError(t, err)
+
+	// single value, no tags
+	m, ok := results["traefik_service_bytes_sent_total"]
+	require.True(t, ok)
+
+	require.Equal(t, "traefik_service_bytes_sent_total", m.key)
+	require.Len(t, m.values, 1)
+	require.EqualValues(t, float64(8.95470206e+08), m.values[0].value)
 }
