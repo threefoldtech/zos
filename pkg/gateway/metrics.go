@@ -45,10 +45,14 @@ type metric struct {
 
 // group group values by label, if multiple values in this
 // metric has the same value for the label, values are added.
-func (m *metric) group(l string) map[string]float64 {
+// applies the mapping function on the value of the label
+func (m *metric) group(l string, mapping func(string) string) map[string]float64 {
 	result := make(map[string]float64)
+	if mapping == nil {
+		mapping = func(s string) string { return s }
+	}
 	for _, v := range m.values {
-		result[v.labels[l]] += v.value
+		result[mapping(v.labels[l])] += v.value
 	}
 	return result
 }
@@ -188,14 +192,16 @@ func (g *gatewayModule) Metrics() (result pkg.GatewayMetrics, err error) {
 	if err != nil {
 		return result, err
 	}
-
+	mapping := func(s string) string {
+		return strings.TrimSuffix(s, "@file")
+	}
 	if m, ok := values[metricSent]; ok {
 		// sent metrics.
-		result.Sent = m.group("service")
+		result.Sent = m.group("service", mapping)
 	}
 
 	if m, ok := values[metricReceived]; ok {
-		result.Received = m.group("service")
+		result.Received = m.group("service", mapping)
 	}
 
 	return
