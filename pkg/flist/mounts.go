@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -16,17 +15,17 @@ const (
 	fsTypeOverlay = "overlay"
 )
 
-//nolint
-type filter func(i *mountInfo) bool
+// //nolint
+// type filter func(i *mountInfo) bool
 
-//nolint
-func withParentDir(path string) filter {
-	path = filepath.Clean(path)
-	return func(mnt *mountInfo) bool {
-		base := filepath.Base(mnt.Target)
-		return path == base
-	}
-}
+// //nolint
+// func withParentDir(path string) filter {
+// 	path = filepath.Clean(path)
+// 	return func(mnt *mountInfo) bool {
+// 		base := filepath.Base(mnt.Target)
+// 		return path == base
+// 	}
+// }
 
 type mountInfo struct {
 	Target  string `json:"target"`
@@ -112,35 +111,35 @@ func (f *flistModule) resolve(path string) (g8ufsInfo, error) {
 	}
 }
 
-//nolint
-func (f *flistModule) mounts(filter ...filter) ([]mountInfo, error) {
-	output, err := f.commander.Command("findmnt", "-J", "-l").Output()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list system mounts")
-	}
+// //nolint
+// func (f *flistModule) mounts(filter ...filter) ([]mountInfo, error) {
+// 	output, err := f.commander.Command("findmnt", "-J", "-l").Output()
+// 	if err != nil {
+// 		return nil, errors.Wrap(err, "failed to list system mounts")
+// 	}
 
-	var result struct {
-		Filesystems []mountInfo `json:"filesystems"`
-	}
+// 	var result struct {
+// 		Filesystems []mountInfo `json:"filesystems"`
+// 	}
 
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, errors.Wrap(err, "failed to parse findmnt output")
-	}
+// 	if err := json.Unmarshal(output, &result); err != nil {
+// 		return nil, errors.Wrap(err, "failed to parse findmnt output")
+// 	}
 
-	if len(filter) == 0 {
-		return result.Filesystems, nil
-	}
+// 	if len(filter) == 0 {
+// 		return result.Filesystems, nil
+// 	}
 
-	mounts := result.Filesystems[:0]
-next:
-	for _, mnt := range result.Filesystems {
-		for _, f := range filter {
-			if !f(&mnt) {
-				continue next
-			}
-		}
-		mounts = append(mounts, mnt)
-	}
+// 	mounts := result.Filesystems[:0]
+// next:
+// 	for _, mnt := range result.Filesystems {
+// 		for _, f := range filter {
+// 			if !f(&mnt) {
+// 				continue next
+// 			}
+// 		}
+// 		mounts = append(mounts, mnt)
+// 	}
 
-	return mounts, nil
-}
+// 	return mounts, nil
+// }
