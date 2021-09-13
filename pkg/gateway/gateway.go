@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -33,7 +34,8 @@ type gatewayModule struct {
 }
 
 type ProxyConfig struct {
-	Http HTTPConfig
+	Http *HTTPConfig `yaml:"http,omitempty"`
+	TCP  *HTTPConfig `yaml:"tcp,omitempty"`
 }
 
 type HTTPConfig struct {
@@ -48,6 +50,7 @@ type Router struct {
 }
 type TlsConfig struct {
 	CertResolver string `yaml:"certResolver,omitempty"`
+	Passthrough  bool   `yaml:"passthrough"`
 }
 
 type Service struct {
@@ -59,7 +62,8 @@ type LoadBalancer struct {
 }
 
 type Server struct {
-	Url string
+	Url     string `yaml:"url,omitempty"`
+	Address string `yaml:"address,omitempty"`
 }
 
 func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) {
@@ -183,7 +187,7 @@ func (g *gatewayModule) configPath(name string) string {
 	return filepath.Join(g.proxyConfigPath, fmt.Sprintf("%s.yaml", name))
 }
 
-func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []string) (string, error) {
+func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []string, TLSPassthrough bool) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
@@ -193,51 +197,81 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	}
 
 	fqdn := fmt.Sprintf("%s.%s", prefix, domain)
+	if err := g.SetFQDNProxy(wlID, fqdn, backends, TLSPassthrough); err != nil {
+		return "", err
+	} else {
+		return fqdn, nil
+	}
+}
 
-	rule := fmt.Sprintf("Host(`%s`)", fqdn)
-	servers := make([]Server, len(backends))
-	for idx, backend := range backends {
-		servers[idx] = Server{
-			Url: backend,
+func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string, TLSPassthrough bool) error {
+	var rule string
+	var tlsConfig *TlsConfig
+	if TLSPassthrough {
+		rule = fmt.Sprintf("HostSNI(`%s`)", fqdn)
+		tlsConfig = &TlsConfig{
+			Passthrough: true,
+		}
+	} else {
+		rule = fmt.Sprintf("Host(`%s`)", fqdn)
+		tlsConfig = &TlsConfig{
+			CertResolver: certResolver,
 		}
 	}
-	httpRoute := fmt.Sprintf("%s-http", wlID)
-	httpsRoute := fmt.Sprintf("%s-https", wlID)
-	config := ProxyConfig{
-		Http: HTTPConfig{
-			Routers: map[string]Router{
-				httpsRoute: {
-					Rule:    rule,
-					Service: wlID,
-					Tls: &TlsConfig{
-						CertResolver: certResolver,
-					},
-				},
-				httpRoute: {
-					Rule:    rule,
-					Service: wlID,
-				},
+	servers := make([]Server, len(backends))
+	for idx, backend := range backends {
+		if TLSPassthrough {
+			u, err := url.Parse(backend)
+			log.Debug().Str("hostname", u.Host).Str("backend", backend).Msg("tls passthrough")
+			if err != nil {
+				return errors.Wrap(err, "couldn't parse backend host")
+			}
+			if u.Scheme != "https" {
+				return errors.New("enabling tls passthrough requires backends to have https scheme")
+			}
+			servers[idx] = Server{
+				Address: u.Host,
+			}
+		} else {
+			servers[idx] = Server{
+				Url: backend,
+			}
+		}
+	}
+	route := fmt.Sprintf("%s-route", wlID)
+	proxyConfig := ProxyConfig{}
+
+	routingconfig := &HTTPConfig{
+		Routers: map[string]Router{
+			route: {
+				Rule:    rule,
+				Service: wlID,
+				Tls:     tlsConfig,
 			},
-			Services: map[string]Service{
-				wlID: {
-					LoadBalancer: LoadBalancer{
-						Servers: servers,
-					},
+		},
+		Services: map[string]Service{
+			wlID: {
+				LoadBalancer: LoadBalancer{
+					Servers: servers,
 				},
 			},
 		},
 	}
-
-	yamlString, err := yaml.Marshal(&config)
+	if TLSPassthrough {
+		proxyConfig.TCP = routingconfig
+	} else {
+		proxyConfig.Http = routingconfig
+	}
+	yamlString, err := yaml.Marshal(&proxyConfig)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to convert config to yaml")
+		return errors.Wrap(err, "failed to convert config to yaml")
 	}
 	log.Debug().Str("yaml-config", string(yamlString)).Msg("configuration file")
 	if err = os.WriteFile(g.configPath(wlID), yamlString, 0644); err != nil {
-		return "", errors.Wrap(err, "couldn't open config file for writing")
+		return errors.Wrap(err, "couldn't open config file for writing")
 	}
 
-	return fqdn, nil
+	return nil
 }
 
 func (g *gatewayModule) DeleteNamedProxy(wlID string) error {
