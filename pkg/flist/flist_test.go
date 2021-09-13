@@ -261,10 +261,8 @@ func TestDownloadFlist(t *testing.T) {
 
 	sys := &testSystem{}
 
-	x := newFlister(root, strg, cmder, sys)
+	f := newFlister(root, strg, cmder, sys)
 
-	f, ok := x.(*flistModule)
-	require.True(ok)
 	path1, err := f.downloadFlist("https://hub.grid.tf/thabet/redis.flist")
 	require.NoError(err)
 

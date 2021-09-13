@@ -101,7 +101,7 @@ type flistModule struct {
 	system    system
 }
 
-func newFlister(root string, storage volumeAllocator, commander commander, system system) pkg.Flister {
+func newFlister(root string, storage volumeAllocator, commander commander, system system) *flistModule {
 	if root == "" {
 		root = defaultRoot
 	}
