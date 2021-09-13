@@ -21,7 +21,6 @@ import (
 
 var (
 	templ = template.Must(template.New("script").Parse(`
-echo $PPID > {{.pid}}
 echo "mount ready" > {{.log}}
 `))
 )
@@ -95,7 +94,6 @@ func (t *testCommander) Command(name string, args ...string) *exec.Cmd {
 	m, _ := t.args(args...)
 	var script bytes.Buffer
 	err := templ.Execute(&script, map[string]string{
-		"pid": m["pid"],
 		"log": m["log"],
 	})
 
@@ -121,11 +119,10 @@ func (t *testSystem) Unmount(target string, flags int) error {
 func TestCommander(t *testing.T) {
 	cmder := testCommander{T: t}
 
-	m, r := cmder.args("-pid", "pid-file", "-log", "log-file", "remaining")
+	m, r := cmder.args("-log", "log-file", "remaining")
 
 	require.Equal(t, []string{"remaining"}, r)
 	require.Equal(t, map[string]string{
-		"pid": "pid-file",
 		"log": "log-file",
 	}, m)
 }
