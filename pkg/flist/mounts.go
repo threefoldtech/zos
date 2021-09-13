@@ -16,8 +16,10 @@ const (
 	fsTypeOverlay = "overlay"
 )
 
+//nolint
 type filter func(i *mountInfo) bool
 
+//nolint
 func withParentDir(path string) filter {
 	path = filepath.Clean(path)
 	return func(mnt *mountInfo) bool {
@@ -110,6 +112,7 @@ func (f *flistModule) resolve(path string) (g8ufsInfo, error) {
 	}
 }
 
+//nolint
 func (f *flistModule) mounts(filter ...filter) ([]mountInfo, error) {
 	output, err := f.commander.Command("findmnt", "-J", "-l").Output()
 	if err != nil {
