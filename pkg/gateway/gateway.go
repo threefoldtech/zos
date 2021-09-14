@@ -3,9 +3,12 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,8 +29,10 @@ const (
 )
 
 type gatewayModule struct {
-	cl zbus.Client
+	cl       zbus.Client
+	resolver *net.Resolver
 
+	reservedDomains  map[string]bool
 	proxyConfigPath  string
 	staticConfigPath string
 	binPath          string
@@ -50,7 +55,7 @@ type Router struct {
 }
 type TlsConfig struct {
 	CertResolver string `yaml:"certResolver,omitempty"`
-	Passthrough  bool   `yaml:"passthrough"`
+	Passthrough  string `yaml:"passthrough,omitempty"`
 }
 
 type Service struct {
@@ -66,6 +71,61 @@ type Server struct {
 	Address string `yaml:"address,omitempty"`
 }
 
+// domainFromRule gets domain from rules in the form Host(`domain`) or HostSNI(`domain`)
+func domainFromRule(rule string) string {
+	rule = strings.TrimPrefix(rule, "Host(`")
+	rule = strings.TrimPrefix(rule, "HostSNI(`")
+	rule = strings.TrimSuffix(rule, "`)")
+	return rule
+}
+
+func domainFromConfig(path string) (string, error) {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read file")
+	}
+
+	c := &ProxyConfig{}
+	err = yaml.Unmarshal(buf, c)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to unmarshal yaml file")
+	}
+	var routers map[string]Router
+	if c.TCP != nil {
+		routers = c.TCP.Routers
+	} else if c.Http != nil {
+		routers = c.Http.Routers
+	} else {
+		return "", errors.New(fmt.Sprintf("yaml file doesn't contain valid http or tcp config %s", path))
+	}
+	if len(routers) > 1 {
+		log.Warn().Str("path", path).Msg("found multiple routes, only one expected, only one returned")
+	}
+	for _, router := range routers {
+		return domainFromRule(router.Rule), nil
+	}
+	return "", errors.New("no domains found")
+}
+
+func loadDomains(ctx context.Context, dir string) (map[string]bool, error) {
+	domains := make(map[string]bool)
+	entries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, errors.New("failed to read dir")
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
+			path := filepath.Join(dir, entry.Name())
+			domain, err := domainFromConfig(path)
+			if err != nil {
+				log.Warn().Err(err).Str("path", path).Msg("failed to load domain from config file")
+				continue
+			}
+			domains[domain] = true
+		}
+	}
+	return domains, nil
+}
 func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) {
 	// where should service-restart/node-reboot recovery be handled?
 	configPath := filepath.Join(root, "proxy")
@@ -90,13 +150,28 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create static config")
 	}
-
+	r := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout: time.Millisecond * time.Duration(10000),
+			}
+			return d.DialContext(ctx, network, "8.8.8.8:53")
+		},
+	}
+	domains, err := loadDomains(ctx, configPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load old domains")
+	}
 	gw := &gatewayModule{
 		cl:               cl,
 		proxyConfigPath:  configPath,
 		staticConfigPath: staticCfgPath,
 		binPath:          bin,
+		resolver:         r,
+		reservedDomains:  domains,
 	}
+
 	// in case there are already active configurations we should always try to ensure running traefik
 	if _, err := gw.ensureGateway(ctx, updated); err != nil {
 		log.Error().Err(err).Msg("gateway is not supported")
@@ -120,41 +195,52 @@ func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
 
 // ensureGateway makes sure that gateway infrastructure is in place and
 // that it is supported.
-func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (string, error) {
+func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (pkg.PublicConfig, error) {
 	var (
 		networker = stubs.NewNetworkerStub(g.cl)
 	)
 	cfg, err := networker.GetPublicConfig(ctx)
 	if err != nil {
-		return "", errors.Wrap(err, "gateway is not supported on this node")
+		return pkg.PublicConfig{}, errors.Wrap(err, "gateway is not supported on this node")
 	}
 
 	z, err := zinit.Default()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to connect to zinit")
+		return pkg.PublicConfig{}, errors.Wrap(err, "failed to connect to zinit")
 	}
 	defer z.Close()
 	running, err := g.isTraefikStarted(z)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to check traefik status")
+		return pkg.PublicConfig{}, errors.Wrap(err, "failed to check traefik status")
 	}
 	if running && forceResstart {
 		// note: a kill is basically a singal to traefik process to
 		// die. but zinit will restart it again anyway. so this is
 		// enough to force restart it.
 		if err := z.Kill(traefikService, zinit.SIGTERM); err != nil {
-			return "", errors.Wrap(err, "failed to restart traefik")
+			return pkg.PublicConfig{}, errors.Wrap(err, "failed to restart traefik")
 		}
 	}
 
 	if running {
-		return cfg.Domain, nil
+		return cfg, nil
 	}
 
 	//other wise we start traefik
-	return cfg.Domain, g.startTraefik(z)
+	return cfg, g.startTraefik(z)
 }
-
+func (g *gatewayModule) verifyDomainDestination(ctx context.Context, cfg pkg.PublicConfig, domain string) error {
+	ips, err := g.resolver.LookupHost(ctx, domain)
+	if err != nil {
+		return err
+	}
+	for _, ip := range ips {
+		if ip == cfg.IPv4.IP.String() || ip == cfg.IPv6.IP.String() {
+			return nil
+		}
+	}
+	return errors.New("host doesn't point to the gateway ip")
+}
 func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 	cmd := fmt.Sprintf(
 		"ip netns exec public %s --configfile %s",
@@ -187,15 +273,15 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	domain, err := g.ensureGateway(ctx, false)
+	cfg, err := g.ensureGateway(ctx, false)
 	if err != nil {
 		return "", err
 	}
-	if domain == "" {
+	if cfg.Domain == "" {
 		return "", errors.New("node doesn't support name proxy (doesn't have a domain)")
 	}
-	fqdn := fmt.Sprintf("%s.%s", prefix, domain)
-	if err := g.SetFQDNProxy(wlID, fqdn, backends, TLSPassthrough); err != nil {
+	fqdn := fmt.Sprintf("%s.%s", prefix, cfg.Domain)
+	if err := g.setupRouting(wlID, fqdn, backends, TLSPassthrough); err != nil {
 		return "", err
 	} else {
 		return fqdn, nil
@@ -206,16 +292,29 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	_, err := g.ensureGateway(ctx, false)
+	cfg, err := g.ensureGateway(ctx, false)
 	if err != nil {
 		return err
+	}
+
+	if cfg.Domain != "" && strings.HasSuffix(fqdn, cfg.Domain) {
+		return errors.New("can't create a fqdn workload with a subdomain of the gateway's managed domain")
+	}
+	if err := g.verifyDomainDestination(ctx, cfg, fqdn); err != nil {
+		return errors.Wrap(err, "failed to verify domain dns record")
+	}
+	return g.setupRouting(wlID, fqdn, backends, TLSPassthrough)
+}
+func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string, TLSPassthrough bool) error {
+	if _, ok := g.reservedDomains[fqdn]; ok {
+		return errors.New("domain already registered")
 	}
 	var rule string
 	var tlsConfig *TlsConfig
 	if TLSPassthrough {
 		rule = fmt.Sprintf("HostSNI(`%s`)", fqdn)
 		tlsConfig = &TlsConfig{
-			Passthrough: true,
+			Passthrough: "true",
 		}
 	} else {
 		rule = fmt.Sprintf("Host(`%s`)", fqdn)
@@ -275,13 +374,21 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string
 	if err = os.WriteFile(g.configPath(wlID), yamlString, 0644); err != nil {
 		return errors.Wrap(err, "couldn't open config file for writing")
 	}
-
+	g.reservedDomains[fqdn] = true
 	return nil
 }
 
 func (g *gatewayModule) DeleteNamedProxy(wlID string) error {
-	if err := os.Remove(g.configPath(wlID)); err != nil {
+	path := g.configPath(wlID)
+	domain, err := domainFromConfig(path)
+	if err != nil {
+		log.Warn().Err(err).Str("path", path).Msg("failed to load domain from config file")
+		return nil
+	}
+	if err := os.Remove(path); err != nil {
 		return errors.Wrap(err, "couldn't remove config file")
 	}
+
+	delete(g.reservedDomains, domain)
 	return nil
 }
