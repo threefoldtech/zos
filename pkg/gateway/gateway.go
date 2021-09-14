@@ -129,10 +129,6 @@ func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (
 		return "", errors.Wrap(err, "gateway is not supported on this node")
 	}
 
-	if cfg.Domain == "" {
-		return "", errors.Errorf("gateway is not supported. missing domain configuration")
-	}
-
 	z, err := zinit.Default()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to connect to zinit")
@@ -195,7 +191,9 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	if err != nil {
 		return "", err
 	}
-
+	if domain == "" {
+		return "", errors.New("node doesn't support name proxy (doesn't have a domain)")
+	}
 	fqdn := fmt.Sprintf("%s.%s", prefix, domain)
 	if err := g.SetFQDNProxy(wlID, fqdn, backends, TLSPassthrough); err != nil {
 		return "", err
@@ -205,6 +203,13 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 }
 
 func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string, TLSPassthrough bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	_, err := g.ensureGateway(ctx, false)
+	if err != nil {
+		return err
+	}
 	var rule string
 	var tlsConfig *TlsConfig
 	if TLSPassthrough {
