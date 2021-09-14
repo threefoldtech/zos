@@ -2,7 +2,6 @@ package stubs
 
 import (
 	"context"
-
 	zbus "github.com/threefoldtech/zbus"
 	pkg "github.com/threefoldtech/zos/pkg"
 )
@@ -53,6 +52,19 @@ func (s *GatewayStub) Metrics(ctx context.Context) (ret0 pkg.GatewayMetrics, ret
 	return
 }
 
+func (s *GatewayStub) SetFQDNProxy(ctx context.Context, arg0 string, arg1 string, arg2 []string, arg3 bool) (ret0 error) {
+	args := []interface{}{arg0, arg1, arg2, arg3}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "SetFQDNProxy", args...)
+	if err != nil {
+		panic(err)
+	}
+	ret0 = new(zbus.RemoteError)
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *GatewayStub) SetNamedProxy(ctx context.Context, arg0 string, arg1 string, arg2 []string, arg3 bool) (ret0 string, ret1 error) {
 	args := []interface{}{arg0, arg1, arg2, arg3}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "SetNamedProxy", args...)
@@ -64,19 +76,6 @@ func (s *GatewayStub) SetNamedProxy(ctx context.Context, arg0 string, arg1 strin
 	}
 	ret1 = new(zbus.RemoteError)
 	if err := result.Unmarshal(1, &ret1); err != nil {
-		panic(err)
-	}
-	return
-}
-
-func (s *GatewayStub) SetFQDNProxy(ctx context.Context, arg0 string, arg1 string, arg2 []string, arg3 bool) (ret0 error) {
-	args := []interface{}{arg0, arg1, arg2, arg3}
-	result, err := s.client.RequestContext(ctx, s.module, s.object, "SetFQDNProxy", args...)
-	if err != nil {
-		panic(err)
-	}
-	ret0 = new(zbus.RemoteError)
-	if err := result.Unmarshal(0, &ret0); err != nil {
 		panic(err)
 	}
 	return
