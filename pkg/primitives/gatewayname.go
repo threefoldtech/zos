@@ -44,7 +44,7 @@ func (p *Primitives) gwProvision(ctx context.Context, wl *gridtypes.WorkloadWith
 	// gateway := stubs.NewGatewayStub(p.zbus)
 	// gateway.SetNamedProxy(ctx context.Context, arg0 string, arg1 []string)
 	gateway := stubs.NewGatewayStub(p.zbus)
-	fqdn, err := gateway.SetNamedProxy(ctx, wl.ID.String(), proxy.Name, backends)
+	fqdn, err := gateway.SetNamedProxy(ctx, wl.ID.String(), proxy.Name, backends, proxy.TLSPassthrough)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to setup name proxy")
 	}
@@ -53,7 +53,7 @@ func (p *Primitives) gwProvision(ctx context.Context, wl *gridtypes.WorkloadWith
 	return result, nil
 }
 
-func (p *Primitives) wgDecommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+func (p *Primitives) gwDecommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
 	gateway := stubs.NewGatewayStub(p.zbus)
 	if err := gateway.DeleteNamedProxy(ctx, wl.ID.String()); err != nil {
 		return errors.Wrap(err, "failed to delete name proxy")
