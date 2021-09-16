@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,6 +19,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"gopkg.in/yaml.v2"
+)
+
+var (
+	domainRe = regexp.MustCompile("^Host(?:SNI)?\\(`([^`]+)`\\)$")
 )
 
 const (
@@ -32,7 +37,7 @@ type gatewayModule struct {
 	cl       zbus.Client
 	resolver *net.Resolver
 
-	reservedDomains  map[string]bool
+	reservedDomains  map[string]struct{}
 	proxyConfigPath  string
 	staticConfigPath string
 	binPath          string
@@ -72,11 +77,13 @@ type Server struct {
 }
 
 // domainFromRule gets domain from rules in the form Host(`domain`) or HostSNI(`domain`)
-func domainFromRule(rule string) string {
-	rule = strings.TrimPrefix(rule, "Host(`")
-	rule = strings.TrimPrefix(rule, "HostSNI(`")
-	rule = strings.TrimSuffix(rule, "`)")
-	return rule
+func domainFromRule(rule string) (string, error) {
+	m := domainRe.FindStringSubmatch(rule)
+	if len(m) == 2 {
+		return m[1], nil
+	}
+	// no match
+	return "", fmt.Errorf("failed to extract domain from routing rule '%s'", rule)
 }
 
 func domainFromConfig(path string) (string, error) {
@@ -85,8 +92,8 @@ func domainFromConfig(path string) (string, error) {
 		return "", errors.Wrap(err, "failed to read file")
 	}
 
-	c := &ProxyConfig{}
-	err = yaml.Unmarshal(buf, c)
+	var c ProxyConfig
+	err = yaml.Unmarshal(buf, &c)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to unmarshal yaml file")
 	}
@@ -96,23 +103,26 @@ func domainFromConfig(path string) (string, error) {
 	} else if c.Http != nil {
 		routers = c.Http.Routers
 	} else {
-		return "", errors.New(fmt.Sprintf("yaml file doesn't contain valid http or tcp config %s", path))
+		return "", fmt.Errorf("yaml file doesn't contain valid http or tcp config %s", path)
 	}
 	if len(routers) > 1 {
-		log.Warn().Str("path", path).Msg("found multiple routes, only one expected, only one returned")
+		return "", fmt.Errorf("only one router expected, found more: %s", path)
 	}
+
 	for _, router := range routers {
-		return domainFromRule(router.Rule), nil
+		return domainFromRule(router.Rule)
 	}
-	return "", errors.New("no domains found")
+
+	return "", fmt.Errorf("no routes defined in: %s", path)
 }
 
-func loadDomains(ctx context.Context, dir string) (map[string]bool, error) {
-	domains := make(map[string]bool)
+func loadDomains(ctx context.Context, dir string) (map[string]struct{}, error) {
+	domains := make(map[string]struct{})
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return nil, errors.New("failed to read dir")
+		return nil, errors.Wrap(err, "failed to read dir")
 	}
+
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
 			path := filepath.Join(dir, entry.Name())
@@ -121,7 +131,7 @@ func loadDomains(ctx context.Context, dir string) (map[string]bool, error) {
 				log.Warn().Err(err).Str("path", path).Msg("failed to load domain from config file")
 				continue
 			}
-			domains[domain] = true
+			domains[domain] = struct{}{}
 		}
 	}
 	return domains, nil
@@ -241,6 +251,7 @@ func (g *gatewayModule) verifyDomainDestination(ctx context.Context, cfg pkg.Pub
 	}
 	return errors.New("host doesn't point to the gateway ip")
 }
+
 func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 	cmd := fmt.Sprintf(
 		"ip netns exec public %s --configfile %s",
@@ -374,7 +385,7 @@ func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string
 	if err = os.WriteFile(g.configPath(wlID), yamlString, 0644); err != nil {
 		return errors.Wrap(err, "couldn't open config file for writing")
 	}
-	g.reservedDomains[fqdn] = true
+	g.reservedDomains[fqdn] = struct{}{}
 	return nil
 }
 
