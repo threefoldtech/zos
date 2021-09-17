@@ -304,7 +304,7 @@ func (r *Reporter) user(since time.Time, user uint32, vmMetrics pkg.MachineMetri
 	for _, id := range ids {
 		dl, err := r.engine.Storage().Get(user, id)
 		if err != nil {
-			m = m.append(errors.Wrapf(err, "failed to get reservation '%s'", id))
+			m = m.append(errors.Wrapf(err, "failed to get reservation '%d'", id))
 			continue
 		}
 

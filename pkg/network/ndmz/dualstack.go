@@ -33,8 +33,8 @@ import (
 
 const (
 
-	//ndmzBridge is the name of the ipv4 routing bridge in the ndmz namespace
-	ndmzBridge = "br-ndmz"
+	//NdmzBridge is the name of the ipv4 routing bridge in the host namespace
+	NdmzBridge = "br-ndmz"
 
 	//dmzNamespace name of the dmz namespace
 	dmzNamespace = "ndmz"
@@ -94,7 +94,7 @@ func (d *dmzImpl) Create(ctx context.Context) error {
 
 	defer netNS.Close()
 
-	if err := createRoutingBridge(ndmzBridge, netNS); err != nil {
+	if err := createRoutingBridge(NdmzBridge, netNS); err != nil {
 		return errors.Wrapf(err, "ndmz: createRoutingBridge error")
 	}
 
@@ -165,7 +165,7 @@ func (d *dmzImpl) AttachNR(networkID, nrNSName string, ipamLeaseDir string) erro
 	}
 
 	if !ifaceutil.Exists(nrPubIface, nrNS) {
-		if _, err = macvlan.Create(nrPubIface, ndmzBridge, nrNS); err != nil {
+		if _, err = macvlan.Create(nrPubIface, NdmzBridge, nrNS); err != nil {
 			return err
 		}
 	}

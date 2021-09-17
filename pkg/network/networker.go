@@ -44,14 +44,15 @@ import (
 )
 
 const (
-	// ZDBPubIface is pub interface name of the interface used in the 0-db network namespace
-	ZDBPubIface = "zdb0"
+	// PubIface is pub interface name of the interface used in the 0-db network namespace
+	PubIface = "eth0"
 	// ZDBYggIface is ygg interface name of the interface used in the 0-db network namespace
 	ZDBYggIface = "ygg0"
 
-	networkDir         = "networks"
-	ipamLeaseDir       = "ndmz-lease"
-	zdbNamespacePrefix = "zdb-ns-"
+	networkDir          = "networks"
+	ipamLeaseDir        = "ndmz-lease"
+	zdbNamespacePrefix  = "zdb-ns-"
+	qsfsNamespacePrefix = "qfs-ns-"
 )
 
 const (
@@ -127,35 +128,13 @@ func (n *networker) WireguardPorts() ([]uint, error) {
 	return n.portSet.List()
 }
 
-//func (n networker) NSPrepare(id string, )
-// ZDBPrepare sends a macvlan interface into the
-// network namespace of a ZDB container
-func (n networker) ZDBPrepare(id string) (string, error) {
-
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("pub:" + id))
-
-	netNSName := zdbNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
-
-	netNs, err := createNetNS(netNSName)
-	if err != nil {
-		return "", err
-	}
-	defer netNs.Close()
-
-	if err := n.createMacVlan(ZDBPubIface, types.PublicBridge, hw, nil, nil, netNs); err != nil {
-		return "", errors.Wrap(err, "failed to setup zdb public interface")
-	}
-
-	if n.ygg == nil {
-		return netNSName, nil
-	}
-
+func (n networker) attachYgg(id string, netNs ns.NetNS) error {
 	// new hardware address for the ygg interface
-	hw = ifaceutil.HardwareAddrFromInputBytes([]byte("ygg:" + id))
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("ygg:" + id))
 
 	ip, err := n.ygg.SubnetFor(hw)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate ygg subnet IP: %w", err)
+		return fmt.Errorf("failed to generate ygg subnet IP: %w", err)
 	}
 
 	ips := []*net.IPNet{
@@ -164,7 +143,7 @@ func (n networker) ZDBPrepare(id string) (string, error) {
 
 	gw, err := n.ygg.Gateway()
 	if err != nil {
-		return "", fmt.Errorf("failed to get ygg gateway IP: %w", err)
+		return fmt.Errorf("failed to get ygg gateway IP: %w", err)
 	}
 
 	routes := []*netlink.Route{
@@ -179,19 +158,37 @@ func (n networker) ZDBPrepare(id string) (string, error) {
 	}
 
 	if err := n.createMacVlan(ZDBYggIface, types.YggBridge, hw, ips, routes, netNs); err != nil {
-		return "", errors.Wrap(err, "failed to setup zdb ygg interface")
+		return errors.Wrap(err, "failed to setup zdb ygg interface")
 	}
 
-	return netNSName, nil
+	return nil
 }
 
-// ZDBDestroy is the opposite of ZDPrepare, it makes sure network setup done
-// for zdb is rewind. ns param is the namespace return by the ZDBPrepare
-func (n networker) ZDBDestroy(ns string) error {
-	if !strings.HasPrefix(ns, zdbNamespacePrefix) {
-		return fmt.Errorf("invalid zdb namespace name '%s'", ns)
+// prepare creates a unique namespace (based on id) with "prefix"
+// and make sure it's wired to the bridge on host namespace
+func (n networker) prepare(id, prefix, bridge string) (string, error) {
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("pub:" + id))
+
+	netNSName := prefix + strings.Replace(hw.String(), ":", "", -1)
+
+	netNs, err := createNetNS(netNSName)
+	if err != nil {
+		return "", err
+	}
+	defer netNs.Close()
+
+	if err := n.createMacVlan(PubIface, bridge, hw, nil, nil, netNs); err != nil {
+		return "", errors.Wrap(err, "failed to setup zdb public interface")
 	}
 
+	if n.ygg == nil {
+		return netNSName, nil
+	}
+
+	return netNSName, n.attachYgg(id, netNs)
+}
+
+func (n networker) destroy(ns string) error {
 	if !namespace.Exists(ns) {
 		return nil
 	}
@@ -204,6 +201,59 @@ func (n networker) ZDBDestroy(ns string) error {
 	}
 
 	return namespace.Delete(nSpace)
+}
+
+//func (n networker) NSPrepare(id string, )
+// ZDBPrepare sends a macvlan interface into the
+// network namespace of a ZDB container
+func (n networker) ZDBPrepare(id string) (string, error) {
+	return n.prepare(id, zdbNamespacePrefix, types.PublicBridge)
+}
+
+// ZDBDestroy is the opposite of ZDPrepare, it makes sure network setup done
+// for zdb is rewind. ns param is the namespace return by the ZDBPrepare
+func (n networker) ZDBDestroy(ns string) error {
+	panic("not implemented")
+	// if !strings.HasPrefix(ns, zdbNamespacePrefix) {
+	// 	return fmt.Errorf("invalid zdb namespace name '%s'", ns)
+	// }
+
+	// return n.destroy(ns)
+}
+
+func (n networker) QSFSPrepare(id string) (string, error) {
+	netId := "qsfs:" + id
+
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
+	netNSName := qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
+
+	netNs, err := createNetNS(netNSName)
+	if err != nil {
+		return "", err
+	}
+	defer netNs.Close()
+	if err := n.ndmz.AttachNR(netId, netNSName, n.ipamLeaseDir); err != nil {
+		return "", errors.Wrap(err, "failed to prepare qsfs namespace")
+	}
+
+	if n.ygg == nil {
+		return netNSName, nil
+	}
+
+	return netNSName, n.attachYgg(id, netNs)
+}
+
+func (n networker) QSFSDestroy(id string) error {
+	netId := "qsfs:" + id
+
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
+	netNSName := qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
+
+	if err := n.ndmz.DetachNR(netId, n.ipamLeaseDir); err != nil {
+		log.Err(err).Str("namespace", netNSName).Msg("failed to detach qsfs namespace from ndmz")
+	}
+
+	return n.destroy(netNSName)
 }
 
 func (n networker) createMacVlan(iface string, master string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {

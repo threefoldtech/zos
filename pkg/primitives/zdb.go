@@ -357,7 +357,7 @@ func (p *Primitives) waitZDBIPs(ctx context.Context, namespace string, created t
 
 	log.Debug().Time("created-at", created).Str("namespace", namespace).Msg("checking zdb container ips")
 	getIP := func() error {
-		ips, err := network.Addrs(ctx, nwmod.ZDBPubIface, namespace)
+		ips, err := network.Addrs(ctx, nwmod.PubIface, namespace)
 		if err != nil {
 			log.Debug().Err(err).Msg("no public ip found, waiting")
 			return err
