@@ -127,6 +127,7 @@ func (n *networker) WireguardPorts() ([]uint, error) {
 	return n.portSet.List()
 }
 
+//func (n networker) NSPrepare(id string, )
 // ZDBPrepare sends a macvlan interface into the
 // network namespace of a ZDB container
 func (n networker) ZDBPrepare(id string) (string, error) {
@@ -658,7 +659,12 @@ func (n *networker) CreateNR(netNR pkg.Network) (string, error) {
 		}
 	}
 
-	if err = n.ndmz.AttachNR(string(netNR.NetID), netr, n.ipamLeaseDir); err != nil {
+	nsName, err := netr.Namespace()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get network resource namespace")
+	}
+
+	if err = n.ndmz.AttachNR(string(netNR.NetID), nsName, n.ipamLeaseDir); err != nil {
 		return "", errors.Wrapf(err, "failed to attach network resource to DMZ bridge")
 	}
 
@@ -709,6 +715,10 @@ func (n *networker) DeleteNR(netNR pkg.Network) error {
 	if err := n.releasePort(netNR.WGListenPort); err != nil {
 		log.Error().Err(err).Msg("release wireguard port failed")
 		// TODO: should we return the error ?
+	}
+
+	if err := n.ndmz.DetachNR(string(netNR.NetID), n.ipamLeaseDir); err != nil {
+		log.Error().Err(err).Msg("failed to detach network from ndmz")
 	}
 
 	// map the network ID to the network namespace

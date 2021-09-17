@@ -21,8 +21,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
-	"github.com/threefoldtech/zos/pkg/network/nr"
-
 	"github.com/threefoldtech/zos/pkg/network/macvlan"
 
 	"github.com/rs/zerolog/log"
@@ -154,13 +152,13 @@ func (d *dmzImpl) Delete() error {
 	return nil
 }
 
-// AttachNR links a network resource to the NDMZ
-func (d *dmzImpl) AttachNR(networkID string, nr *nr.NetResource, ipamLeaseDir string) error {
-	nrNSName, err := nr.Namespace()
-	if err != nil {
-		return err
-	}
+func (d *dmzImpl) DetachNR(networkID, ipamLeaseDir string) error {
+	// so far this is only used to deallocate reserved IP
+	return deAllocateIPv4(networkID, ipamLeaseDir)
+}
 
+// AttachNR links a network resource to the NDMZ
+func (d *dmzImpl) AttachNR(networkID, nrNSName string, ipamLeaseDir string) error {
 	nrNS, err := namespace.GetByName(nrNSName)
 	if err != nil {
 		return err

@@ -62,3 +62,27 @@ func allocateIPv4(networkID, leaseDir string) (*net.IPNet, error) {
 	}
 	return &ipConfig.Address, nil
 }
+
+// allocateIPv4 allocates a unique IPv4 for the entity defines by the given id (for example container id, or a vm).
+// in the network with netID, and NetResource.
+func deAllocateIPv4(networkID, leaseDir string) error {
+	store, err := disk.New("ndmz", leaseDir)
+	if err != nil {
+		return err
+	}
+
+	defer store.Close()
+
+	// unfortunately, calling the allocator Get() directly will try to allocate
+	// a new IP. if the ID/nic already has an ip allocated it will just fail instead of returning
+	// the same IP.
+	// So we have to check the store ourselves to see if there is already an IP allocated
+	// to this container, and if one found, we return it.
+	if err := store.Lock(); err != nil {
+		return err
+	}
+
+	defer store.Unlock()
+
+	return store.ReleaseByID(networkID, "eth0")
+}
