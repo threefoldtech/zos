@@ -6,7 +6,7 @@ Gateway module is available on zbus over the following channel
 
 | module | object | version |
 |--------|--------|---------|
-| gateway|[container](#interface)| 0.0.1|
+| gateway|[gateway](#interface)| 0.0.1|
 
 ## Home Directory
 
