@@ -30,7 +30,7 @@ const (
 	// letsencrypt email need to customizable by he farmer.
 	letsencryptEmail = "letsencrypt@threefold.tech"
 	// certResolver must match the one defined in static config
-	httpCertResolver = "httpresolver"
+	httpCertResolver = "resolver"
 	dnsCertResolver  = "dnsresolver"
 )
 
@@ -67,8 +67,8 @@ type TlsConfig struct {
 }
 
 type Domain struct {
-	Sans   []string `yaml:"sans,omitempty"`
-	Domain string   `yaml:"domain,omitempty"`
+	Sans []string `yaml:"sans,omitempty"`
+	Main string   `yaml:"main,omitempty"`
 }
 
 type Service struct {
@@ -315,7 +315,7 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	fqdn := fmt.Sprintf("%s.%s", prefix, cfg.Domain)
 
 	gateawyTLSConfig := TlsConfig{
-		CertResolver: httpCertResolver,
+		CertResolver: dnsCertResolver,
 		Domains: []Domain{
 			{
 				Sans: []string{fmt.Sprintf("*.%s", cfg.Domain)},
@@ -345,10 +345,10 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string
 		return errors.Wrap(err, "failed to verify domain dns record")
 	}
 	gateawyTLSConfig := TlsConfig{
-		CertResolver: dnsCertResolver,
+		CertResolver: httpCertResolver,
 		Domains: []Domain{
 			{
-				Domain: fqdn,
+				Main: fqdn,
 			},
 		},
 	}

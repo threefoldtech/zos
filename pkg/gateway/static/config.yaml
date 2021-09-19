@@ -19,7 +19,7 @@ providers:
     directory: "%[1]s/proxy"
     watch: true
 certificatesResolvers:
-  httpresolver:
+  resolver:
     acme:
       email: "%[2]s"
       storage: "%[1]s/traefik/acme.json"

@@ -12,7 +12,7 @@ import (
 //go:embed static/config.yaml
 var config string
 
-//go:embed static/config.yaml
+//go:embed static/dnsmasq.conf
 var dConfig string
 
 //go:embed static/cert.sh
@@ -41,5 +41,5 @@ func updateCertScript(p, root string) error {
 }
 
 func dnsmasqConfig(p string) error {
-	return os.WriteFile(p, []byte(dConfig), 0644)
+	return os.WriteFile(p, []byte(dConfig), 0744)
 }
