@@ -314,7 +314,7 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	}
 	fqdn := fmt.Sprintf("%s.%s", prefix, cfg.Domain)
 
-	gateawyTLSConfig := TlsConfig{
+	gatewayTLSConfig := TlsConfig{
 		CertResolver: dnsCertResolver,
 		Domains: []Domain{
 			{
@@ -322,7 +322,7 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 			},
 		},
 	}
-	if err := g.setupRouting(wlID, fqdn, backends, gateawyTLSConfig, TLSPassthrough); err != nil {
+	if err := g.setupRouting(wlID, fqdn, backends, gatewayTLSConfig, TLSPassthrough); err != nil {
 		return "", err
 	} else {
 		return fqdn, nil
@@ -344,7 +344,7 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string
 	if err := g.verifyDomainDestination(ctx, cfg, fqdn); err != nil {
 		return errors.Wrap(err, "failed to verify domain dns record")
 	}
-	gateawyTLSConfig := TlsConfig{
+	gatewayTLSConfig := TlsConfig{
 		CertResolver: httpCertResolver,
 		Domains: []Domain{
 			{
@@ -352,7 +352,7 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string
 			},
 		},
 	}
-	return g.setupRouting(wlID, fqdn, backends, gateawyTLSConfig, TLSPassthrough)
+	return g.setupRouting(wlID, fqdn, backends, gatewayTLSConfig, TLSPassthrough)
 }
 func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string, TLSConfig TlsConfig, TLSPassthrough bool) error {
 	if _, ok := g.reservedDomains[fqdn]; ok {
