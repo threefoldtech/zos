@@ -37,9 +37,9 @@ func staticConfig(p, root, email string) (bool, error) {
 
 func updateCertScript(p, root string) error {
 	certScript := fmt.Sprintf(certScript, root)
-	return os.WriteFile(p, []byte(certScript), 0644)
+	return os.WriteFile(p, []byte(certScript), 0744)
 }
 
 func dnsmasqConfig(p string) error {
-	return os.WriteFile(p, []byte(dConfig), 0744)
+	return os.WriteFile(p, []byte(dConfig), 0644)
 }
