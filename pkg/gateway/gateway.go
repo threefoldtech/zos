@@ -274,14 +274,16 @@ func (g *gatewayModule) verifyDomainDestination(ctx context.Context, cfg pkg.Pub
 func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 
 	cmd := fmt.Sprintf(
-		"EXEC_PATH=%s ip netns exec public %s --configfile %s",
-		g.certScriptPath,
+		"ip netns exec public %s --configfile %s",
 		g.binPath,
 		g.staticConfigPath,
 	)
 
 	if err := zinit.AddService(traefikService, zinit.InitService{
 		Exec: cmd,
+		Env: map[string]string{
+			"EXEC_PATH": g.certScriptPath,
+		},
 	}); err != nil {
 		return errors.Wrap(err, "failed to add traefik to zinit")
 	}
@@ -354,20 +356,18 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string
 	}
 	return g.setupRouting(wlID, fqdn, backends, gatewayTLSConfig, TLSPassthrough)
 }
-func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string, TLSConfig TlsConfig, TLSPassthrough bool) error {
+func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string, tlsConfig TlsConfig, TLSPassthrough bool) error {
 	if _, ok := g.reservedDomains[fqdn]; ok {
 		return errors.New("domain already registered")
 	}
 	var rule string
-	var tlsConfig *TlsConfig
 	if TLSPassthrough {
 		rule = fmt.Sprintf("HostSNI(`%s`)", fqdn)
-		tlsConfig = &TlsConfig{
+		tlsConfig = TlsConfig{
 			Passthrough: "true",
 		}
 	} else {
 		rule = fmt.Sprintf("Host(`%s`)", fqdn)
-		tlsConfig = &TLSConfig
 	}
 	servers := make([]Server, len(backends))
 	for idx, backend := range backends {
@@ -397,7 +397,7 @@ func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string
 			route: {
 				Rule:    rule,
 				Service: wlID,
-				Tls:     tlsConfig,
+				Tls:     &tlsConfig,
 			},
 		},
 		Services: map[string]Service{

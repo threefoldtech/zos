@@ -28,7 +28,8 @@ if [ $1 == "present" ]; then
     dnsmasq -C $CONFFILE
 elif [ $1 == "timeout" ]; then
     echo '{"timeout": 30, "interval": 5}'
-else
+else [ $1 == "cleanup" ]; then
+    # kill dnsmasq and remove related files
     [ -f $PIDFILE ] && kill `cat $PIDFILE`
     rm -rf $CONFFILE $PIDFILE
 fi
