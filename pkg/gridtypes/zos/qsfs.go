@@ -70,13 +70,14 @@ func (z *ZdbBackend) Challenge(w io.Writer) error {
 	return nil
 }
 
-type QuantumSafeMeta struct {
+type QuantumSafeConfig struct {
 	Prefix     string       `json:"prefix" toml:"prefix"`
 	Encryption Encryption   `json:"encryption" toml:"encryption"`
 	Backends   []ZdbBackend `json:"backends" toml:"backends"`
 }
 
-func (m *QuantumSafeMeta) Challenge(w io.Writer) error {
+func (m *QuantumSafeConfig) Challenge(w io.Writer) error {
+
 	if _, err := fmt.Fprintf(w, "%s", m.Prefix); err != nil {
 		return err
 	}
@@ -89,6 +90,23 @@ func (m *QuantumSafeMeta) Challenge(w io.Writer) error {
 		if err := be.Challenge(w); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// TODO: fix challenge (and validation?)
+type QuantumSafeMeta struct {
+	Type   string            `json:"type" toml:"type"`
+	Config QuantumSafeConfig `json:"config" toml:"config"`
+}
+
+func (m *QuantumSafeMeta) Challenge(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "%s", m.Type); err != nil {
+		return err
+	}
+
+	if err := m.Config.Challenge(w); err != nil {
+		return err
 	}
 
 	return nil
@@ -107,14 +125,27 @@ func (z *ZdbGroup) Challenge(w io.Writer) error {
 	return nil
 }
 
+type QuantumCompression struct {
+	Algorithm string `json:"algorithm" toml:"algorithm"`
+}
+
+func (c *QuantumCompression) Challenge(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "%s", c.Algorithm); err != nil {
+		return err
+	}
+	return nil
+}
+
 type QuantumSafeFSConfig struct {
-	DataShards      uint32          `json:"jsondata_shards" toml:"jsondata_shards"`
-	ParityShards    uint32          `json:"parity_shards" toml:"parity_shards"`
-	RedundantGroups uint32          `json:"redundant_groups" toml:"redundant_groups"`
-	RedundantNodes  uint32          `json:"redundant_nodes" toml:"redundant_nodes"`
-	Encryption      Encryption      `json:"encryption" toml:"encryption"`
-	Meta            QuantumSafeMeta `json:"meta" toml:"meta"`
-	Groups          []ZdbGroup      `json:"groups" toml:"groups"`
+	DataShards      uint32             `json:"data_shards" toml:"data_shards"`
+	ParityShards    uint32             `json:"parity_shards" toml:"parity_shards"`
+	RedundantGroups uint32             `json:"redundant_groups" toml:"redundant_groups"`
+	RedundantNodes  uint32             `json:"redundant_nodes" toml:"redundant_nodes"`
+	Socket          string             `json:"socket" toml:"socket"`
+	Encryption      Encryption         `json:"encryption" toml:"encryption"`
+	Meta            QuantumSafeMeta    `json:"meta" toml:"meta"`
+	Groups          []ZdbGroup         `json:"groups" toml:"groups"`
+	Compression     QuantumCompression `json:"compression" toml:"compression"`
 }
 
 func (c *QuantumSafeFSConfig) Challenge(w io.Writer) error {
@@ -134,6 +165,10 @@ func (c *QuantumSafeFSConfig) Challenge(w io.Writer) error {
 		return err
 	}
 
+	if _, err := fmt.Fprintf(w, "%s", c.Socket); err != nil {
+		return err
+	}
+
 	if err := c.Encryption.Challenge(w); err != nil {
 		return err
 	}
@@ -146,6 +181,10 @@ func (c *QuantumSafeFSConfig) Challenge(w io.Writer) error {
 		if err := g.Challenge(w); err != nil {
 			return err
 		}
+	}
+
+	if err := c.Compression.Challenge(w); err != nil {
+		return err
 	}
 
 	return nil
@@ -165,9 +204,17 @@ func (q QuatumSafeFS) Challenge(w io.Writer) error {
 		return err
 	}
 
+	if err := q.Config.Challenge(w); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (q QuatumSafeFS) Capacity() (gridtypes.Capacity, error) {
 	return gridtypes.Capacity{}, nil
+}
+
+type QuatumSafeFSResult struct {
+	Path string `json:"string"`
 }

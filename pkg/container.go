@@ -29,6 +29,7 @@ type NetworkInfo struct {
 type MountInfo struct {
 	Source string // source of the mount point on the host
 	Target string // target of mount inside the container
+	Shared bool
 }
 
 // Stats endpoints
