@@ -270,7 +270,10 @@ func (n networker) QSFSDestroy(id string) error {
 		return errors.Wrap(err, "didn't find qsfs namespace")
 	}
 	defer netNs.Close()
-	n.detachYgg(id, netNs)
+	if err := n.detachYgg(id, netNs); err != nil {
+		// log and continue cleaning up
+		log.Error().Err(err).Msg("couldn't detach ygg interface")
+	}
 	return n.destroy(netNSName)
 }
 

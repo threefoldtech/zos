@@ -64,9 +64,11 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
 		Limit:    cfg.Cache,
 		Storage:  "zdb://hub.grid.tf:9900",
 	})
-	q.writeQSFSConfig(flistPath, cfg.Config)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to mount qsfs flist")
+	}
+	if err := q.writeQSFSConfig(flistPath, cfg.Config); err != nil {
+		return "", errors.Wrap(err, "couldn't write qsfs config")
 	}
 	mountPath := q.mountPath(wlID)
 	err = q.prepareMountPath(mountPath)
@@ -74,7 +76,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
 		return "", errors.Wrap(err, "failed to prepare mount path")
 	}
 	cont := pkg.Container{
-		Name:        wlID, // what should the name be?
+		Name:        wlID,
 		RootFS:      flistPath,
 		Entrypoint:  "/sbin/zinit init",
 		Interactive: false,
@@ -86,7 +88,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
 			},
 		},
 		Elevated: true,
-		// the default is rslave which recursively sets all mounts points to slave
+		// the default is rslave which recursively sets all mountpoints to slave
 		// we don't care about the rootfs propagation, it just has to be non-recursive
 		RootFsPropagation: "slave",
 	}
