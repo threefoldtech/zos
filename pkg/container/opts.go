@@ -57,8 +57,6 @@ func withCoreX() oci.SpecOpts {
 }
 
 func withMounts(mounts []pkg.MountInfo) oci.SpecOpts {
-	var opts oci.SpecOpts
-	var shared bool
 	mnts := make([]specs.Mount, len(mounts))
 
 	for i, mount := range mounts {
@@ -68,22 +66,14 @@ func withMounts(mounts []pkg.MountInfo) oci.SpecOpts {
 			Source:      mount.Source,
 			Options:     []string{"rbind"},
 		}
-		if mount.Shared {
-			mnts[i].Options = append(mnts[i].Options, "rshared")
-			shared = true
-		}
 	}
-	opts = oci.WithMounts(mnts)
-	if shared {
-		opts = oci.Compose(opts, WithRootfsPropagation())
-	}
-	return opts
+	return oci.WithMounts(mnts)
 }
 
 // WithRootfsPropagation makes the
-func WithRootfsPropagation() oci.SpecOpts {
+func WithRootfsPropagation(rootfsPropagation string) oci.SpecOpts {
 	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
-		s.Linux.RootfsPropagation = "shared"
+		s.Linux.RootfsPropagation = rootfsPropagation
 		return nil
 	}
 }

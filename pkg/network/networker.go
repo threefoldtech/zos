@@ -164,6 +164,19 @@ func (n networker) attachYgg(id string, netNs ns.NetNS) error {
 	return nil
 }
 
+func (n networker) detachYgg(id string, netNs ns.NetNS) error {
+	return netNs.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(ZDBYggIface)
+		if err != nil {
+			return err
+		}
+		if err := netlink.LinkDel(link); err != nil {
+			return errors.Wrap(err, "failed to delete zdb ygg interface")
+		}
+		return nil
+	})
+}
+
 // prepare creates a unique namespace (based on id) with "prefix"
 // and make sure it's wired to the bridge on host namespace
 func (n networker) prepare(id, prefix, bridge string) (string, error) {
@@ -252,7 +265,12 @@ func (n networker) QSFSDestroy(id string) error {
 	if err := n.ndmz.DetachNR(netId, n.ipamLeaseDir); err != nil {
 		log.Err(err).Str("namespace", netNSName).Msg("failed to detach qsfs namespace from ndmz")
 	}
-
+	netNs, err := namespace.GetByName(netNSName)
+	if err != nil {
+		return errors.Wrap(err, "didn't find qsfs namespace")
+	}
+	defer netNs.Close()
+	n.detachYgg(id, netNs)
 	return n.destroy(netNSName)
 }
 

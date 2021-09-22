@@ -29,7 +29,6 @@ type NetworkInfo struct {
 type MountInfo struct {
 	Source string // source of the mount point on the host
 	Target string // target of mount inside the container
-	Shared bool
 }
 
 // Stats endpoints
@@ -68,6 +67,8 @@ type Container struct {
 	Elevated bool
 	// CreatedAt time
 	CreatedAt time.Time
+	// RootfsPropagation root fs propagation mode (rshared,shared,slave,...)
+	RootFsPropagation string
 }
 
 // ContainerModule defines rpc interface to containerd

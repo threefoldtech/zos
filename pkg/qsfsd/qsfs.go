@@ -69,7 +69,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
 		return "", errors.Wrap(err, "failed to mount qsfs flist")
 	}
 	mountPath := q.mountPath(wlID)
-	fusePath, err := q.prepareMountPath(mountPath)
+	err = q.prepareMountPath(mountPath)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to prepare mount path")
 	}
@@ -81,19 +81,21 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
 		Network:     pkg.NetworkInfo{Namespace: netns},
 		Mounts: []pkg.MountInfo{
 			{
-				Source: fusePath,
+				Source: mountPath,
 				Target: "/mnt",
-				Shared: true,
 			},
 		},
 		Elevated: true,
+		// the default is rslave which recursively sets all mounts points to slave
+		// we don't care about the rootfs propagation, it just has to be non-recursive
+		RootFsPropagation: "slave",
 	}
 	_, err = contd.Run(
 		ctx,
 		qsfsContainerNS,
 		cont,
 	)
-	return fusePath, nil
+	return mountPath, nil
 }
 func (q *QSFS) Unmount(wlID string) error {
 	networkd := stubs.NewNetworkerStub(q.cl)
@@ -107,12 +109,12 @@ func (q *QSFS) Unmount(wlID string) error {
 		log.Error().Err(err).Msg("failed to delete qsfs container")
 	}
 	mountPath := q.mountPath(wlID)
-	fusePath := filepath.Join(mountPath, "mnt")
-	if err := syscall.Unmount(fusePath, 0); err != nil {
-		log.Error().Err(err).Msg("failed to unmount mount path")
+	// unmount twice, once for the zdbfs and the self-mount
+	if err := syscall.Unmount(mountPath, 0); err != nil {
+		log.Error().Err(err).Msg("failed to unmount mount path 1st time")
 	}
 	if err := syscall.Unmount(mountPath, 0); err != nil {
-		log.Error().Err(err).Msg("failed to unmount mount path")
+		log.Error().Err(err).Msg("failed to unmount mount path 2nd time")
 	}
 	if err := os.RemoveAll(mountPath); err != nil {
 		log.Error().Err(err).Msg("failed to remove mountpath dir")
@@ -122,7 +124,7 @@ func (q *QSFS) Unmount(wlID string) error {
 	}
 
 	if err := networkd.QSFSDestroy(ctx, wlID); err != nil {
-		log.Error().Err(err).Msg("failed to unmount flist")
+		log.Error().Err(err).Msg("failed to destrpy qsfs network")
 	}
 	return nil
 }
@@ -131,24 +133,19 @@ func (q *QSFS) mountPath(wlID string) string {
 	return filepath.Join(q.mountsPath, wlID)
 }
 
-func (q *QSFS) prepareMountPath(path string) (string, error) {
-	fusePath := filepath.Join(path, "mnt")
+func (q *QSFS) prepareMountPath(path string) error {
 	if err := os.Mkdir(path, 0644); err != nil {
-		return "", err
+		return err
 	}
-	if err := os.Mkdir(fusePath, 0644); err != nil {
-		return "", err
-	}
+
+	// container mounts doesn't appear on the host if this is not mounted
 	if err := syscall.Mount(path, path, "bind", syscall.MS_BIND, ""); err != nil {
-		return "", err
+		return err
 	}
-	if err := syscall.Mount("none", path, "", syscall.MS_SHARED, ""); err != nil {
-		if err := syscall.Unmount(path, 0); err != nil {
-			log.Error().Err(err).Msg("failed to unmount after failure")
-		}
-		return "", err
+	if err := syscall.Mount("", path, "", syscall.MS_SHARED, ""); err != nil {
+		return err
 	}
-	return fusePath, nil
+	return nil
 }
 
 func (q *QSFS) writeQSFSConfig(root string, cfg zos.QuantumSafeFSConfig) error {
