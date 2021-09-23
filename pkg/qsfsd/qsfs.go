@@ -40,7 +40,14 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.QSFSD, error) {
 	}, nil
 }
 
-func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
+func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (mountPath string, err error) {
+	defer func() {
+		if err != nil {
+			if err := q.Unmount(wlID); err != nil {
+				log.Error().Err(err).Msg("error cleaning up after qsfs setup failure")
+			}
+		}
+	}()
 	networkd := stubs.NewNetworkerStub(q.cl)
 	flistd := stubs.NewFlisterStub(q.cl)
 	contd := stubs.NewContainerModuleStub(q.cl)
@@ -48,14 +55,6 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 	netns, err := networkd.QSFSPrepare(ctx, wlID)
-	defer func() {
-		if err != nil {
-			err := networkd.QSFSDestroy(ctx, wlID)
-			if err != nil {
-				log.Error().Err(err).Msg("failed to cleanup qsfs after failure")
-			}
-		}
-	}()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to prepare qsfs")
 	}
@@ -65,15 +64,18 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
 		Storage:  "zdb://hub.grid.tf:9900",
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "failed to mount qsfs flist")
+		err = errors.Wrap(err, "failed to mount qsfs flist")
+		return
 	}
-	if err := q.writeQSFSConfig(flistPath, cfg.Config); err != nil {
-		return "", errors.Wrap(err, "couldn't write qsfs config")
+	if lerr := q.writeQSFSConfig(flistPath, cfg.Config); lerr != nil {
+		err = errors.Wrap(lerr, "couldn't write qsfs config")
+		return
 	}
-	mountPath := q.mountPath(wlID)
+	mountPath = q.mountPath(wlID)
 	err = q.prepareMountPath(mountPath)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to prepare mount path")
+		err = errors.Wrap(err, "failed to prepare mount path")
+		return
 	}
 	cont := pkg.Container{
 		Name:        wlID,
@@ -97,7 +99,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (string, error) {
 		qsfsContainerNS,
 		cont,
 	)
-	return mountPath, nil
+	return
 }
 func (q *QSFS) Unmount(wlID string) error {
 	networkd := stubs.NewNetworkerStub(q.cl)

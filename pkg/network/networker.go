@@ -234,12 +234,15 @@ func (n networker) ZDBDestroy(ns string) error {
 	// return n.destroy(ns)
 }
 
+func (n networker) QSFSNamespace(id string) string {
+	netId := "qsfs:" + id
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
+	return qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
+}
+
 func (n networker) QSFSPrepare(id string) (string, error) {
 	netId := "qsfs:" + id
-
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
-	netNSName := qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
-
+	netNSName := n.QSFSNamespace(id)
 	netNs, err := createNetNS(netNSName)
 	if err != nil {
 		return "", err
@@ -259,8 +262,7 @@ func (n networker) QSFSPrepare(id string) (string, error) {
 func (n networker) QSFSDestroy(id string) error {
 	netId := "qsfs:" + id
 
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
-	netNSName := qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
+	netNSName := n.QSFSNamespace(id)
 
 	if err := n.ndmz.DetachNR(netId, n.ipamLeaseDir); err != nil {
 		log.Err(err).Str("namespace", netNSName).Msg("failed to detach qsfs namespace from ndmz")

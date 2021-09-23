@@ -212,7 +212,11 @@ func (q QuatumSafeFS) Challenge(w io.Writer) error {
 }
 
 func (q QuatumSafeFS) Capacity() (gridtypes.Capacity, error) {
-	return gridtypes.Capacity{}, nil
+	return gridtypes.Capacity{
+		CRU: 1,
+		MRU: 256 * gridtypes.Megabyte,
+		SRU: q.Cache, // is it HRU or SRU?
+	}, nil
 }
 
 type QuatumSafeFSResult struct {
