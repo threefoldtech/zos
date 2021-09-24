@@ -6,8 +6,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -47,13 +45,8 @@ type ServiceState struct {
 }
 
 // UnmarshalYAML implements the  yaml.Unmarshaler interface
-func (s *ServiceState) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var buf string
-	if err := unmarshal(&buf); err != nil {
-		return err
-	}
-
-	m := statusRegex.FindStringSubmatch(buf)
+func (s *ServiceState) UnmarshalText(text []byte) error {
+	m := statusRegex.FindStringSubmatch(string(text))
 	if len(m) != 3 {
 		return fmt.Errorf("invalid service state value")
 	}
@@ -117,65 +110,34 @@ const (
 
 // ServiceStatus represent the status of a service
 type ServiceStatus struct {
-	Name   string
-	Pid    int
-	State  ServiceState
-	Target ServiceTarget
-	// Deps is the list of dependent services
-	// all dependencies needs to be running before a service
-	// can starts
-	Deps map[string]string
+	Name   string            `json:"name"`
+	Pid    int               `json:"pid"`
+	State  ServiceState      `json:"state"`
+	Target ServiceTarget     `json:"target"`
+	After  map[string]string `json:"after"`
 }
 
 // List returns all the service monitored and their status
-func (c *Client) List() (map[string]ServiceState, error) {
-	resp, err := c.cmd("list")
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) List() (out map[string]ServiceState, err error) {
+	err = c.cmd("list", &out)
+	return
 
-	return parseList(resp)
-}
-
-func parseList(s string) (map[string]ServiceState, error) {
-	l := make(map[string]ServiceState)
-	if err := yaml.Unmarshal([]byte(s), &l); err != nil {
-		return nil, err
-	}
-	return l, nil
 }
 
 // Status returns the status of a service
-func (c *Client) Status(service string) (ServiceStatus, error) {
-	resp, err := c.cmd(fmt.Sprintf("status %s", service))
-	if err != nil {
-		if strings.HasPrefix(err.Error(), "unknown service") {
-			return ServiceStatus{}, ErrUnknownService
-		}
-		return ServiceStatus{}, err
-	}
-
-	return parseStatus(resp)
-}
-
-func parseStatus(s string) (ServiceStatus, error) {
-	status := ServiceStatus{}
-	if err := yaml.Unmarshal([]byte(s), &status); err != nil {
-		return status, err
-	}
-	return status, nil
+func (c *Client) Status(service string) (result ServiceStatus, err error) {
+	err = c.cmd(fmt.Sprintf("status %s", service), &result)
+	return
 }
 
 // Start start service. has no effect if the service is already running
 func (c *Client) Start(service string) error {
-	_, err := c.cmd(fmt.Sprintf("start %s", service))
-	return err
+	return c.cmd(fmt.Sprintf("start %s", service), nil)
 }
 
 // Stop stops a service
 func (c *Client) Stop(service string) error {
-	_, err := c.cmd(fmt.Sprintf("stop %s", service))
-	return err
+	return c.cmd(fmt.Sprintf("stop %s", service), nil)
 }
 
 // StartWait starts a service and wait until its running, or until the timeout
@@ -270,21 +232,15 @@ func (c *Client) StopWait(timeout time.Duration, service string) error {
 
 // Monitor starts monitoring a service
 func (c *Client) Monitor(service string) error {
-	_, err := c.cmd(fmt.Sprintf("monitor %s", service))
-	if err != nil && strings.Contains(err.Error(), "already monitored") {
-		return nil
-	}
-	return err
+	return c.cmd(fmt.Sprintf("monitor %s", service), nil)
 }
 
 // Forget forgets a service. you can only forget a stopped service
 func (c *Client) Forget(service string) error {
-	_, err := c.cmd(fmt.Sprintf("forget %s", service))
-	return err
+	return c.cmd(fmt.Sprintf("forget %s", service), nil)
 }
 
 // Kill sends a signal to a running service. sig must be a valid signal (SIGINT, SIGKILL,...)
 func (c *Client) Kill(service string, sig Signal) error {
-	_, err := c.cmd(fmt.Sprintf("kill %s %s", service, string(sig)))
-	return err
+	return c.cmd(fmt.Sprintf("kill %s %s", service, string(sig)), nil)
 }
