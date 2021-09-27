@@ -6,6 +6,7 @@ import (
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/plugins/plugins/ipam/host-local/backend/allocator"
 	"github.com/containernetworking/plugins/plugins/ipam/host-local/backend/disk"
+	"github.com/rs/zerolog/log"
 )
 
 // allocateIPv4 allocates a unique IPv4 for the entity defines by the given id (for example container id, or a vm).
@@ -82,7 +83,10 @@ func deAllocateIPv4(networkID, leaseDir string) error {
 		return err
 	}
 
-	defer store.Unlock()
-
+	defer func() {
+		if err := store.Unlock(); err != nil {
+			log.Error().Err(err).Msg("failed to unlock store while deallocating ipv4")
+		}
+	}()
 	return store.ReleaseByID(networkID, "eth0")
 }

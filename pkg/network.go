@@ -68,6 +68,9 @@ type Networker interface {
 	// for zdb is rewind. ns param is the namespace return by the ZDBPrepare
 	ZDBDestroy(ns string) error
 
+	// QSFSNamespace returns the namespace of the qsfs workload
+	QSFSNamespace(id string) string
+
 	// QSFSPrepare creates a network namespace with a macvlan interface into it
 	// to allow qsfs container to reach the internet but not be reachable itself
 	// it return the name of the network namespace created.

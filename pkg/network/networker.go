@@ -164,6 +164,19 @@ func (n networker) attachYgg(id string, netNs ns.NetNS) error {
 	return nil
 }
 
+func (n networker) detachYgg(id string, netNs ns.NetNS) error {
+	return netNs.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(ZDBYggIface)
+		if err != nil {
+			return err
+		}
+		if err := netlink.LinkDel(link); err != nil {
+			return errors.Wrap(err, "failed to delete zdb ygg interface")
+		}
+		return nil
+	})
+}
+
 // prepare creates a unique namespace (based on id) with "prefix"
 // and make sure it's wired to the bridge on host namespace
 func (n networker) prepare(id, prefix, bridge string) (string, error) {
@@ -221,12 +234,15 @@ func (n networker) ZDBDestroy(ns string) error {
 	// return n.destroy(ns)
 }
 
+func (n networker) QSFSNamespace(id string) string {
+	netId := "qsfs:" + id
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
+	return qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
+}
+
 func (n networker) QSFSPrepare(id string) (string, error) {
 	netId := "qsfs:" + id
-
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
-	netNSName := qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
-
+	netNSName := n.QSFSNamespace(id)
 	netNs, err := createNetNS(netNSName)
 	if err != nil {
 		return "", err
@@ -246,13 +262,20 @@ func (n networker) QSFSPrepare(id string) (string, error) {
 func (n networker) QSFSDestroy(id string) error {
 	netId := "qsfs:" + id
 
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
-	netNSName := qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
+	netNSName := n.QSFSNamespace(id)
 
 	if err := n.ndmz.DetachNR(netId, n.ipamLeaseDir); err != nil {
 		log.Err(err).Str("namespace", netNSName).Msg("failed to detach qsfs namespace from ndmz")
 	}
-
+	netNs, err := namespace.GetByName(netNSName)
+	if err != nil {
+		return errors.Wrap(err, "didn't find qsfs namespace")
+	}
+	defer netNs.Close()
+	if err := n.detachYgg(id, netNs); err != nil {
+		// log and continue cleaning up
+		log.Error().Err(err).Msg("couldn't detach ygg interface")
+	}
 	return n.destroy(netNSName)
 }
 
