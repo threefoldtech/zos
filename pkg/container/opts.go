@@ -71,9 +71,9 @@ func withMounts(mounts []pkg.MountInfo) oci.SpecOpts {
 }
 
 // WithRootfsPropagation makes the
-func WithRootfsPropagation(rootfsPropagation string) oci.SpecOpts {
+func WithRootfsPropagation(rootfsPropagation pkg.RootFSPropagation) oci.SpecOpts {
 	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
-		s.Linux.RootfsPropagation = rootfsPropagation
+		s.Linux.RootfsPropagation = string(rootfsPropagation)
 		return nil
 	}
 }

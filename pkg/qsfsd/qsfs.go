@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	qsfsFlist       = "https://hub.grid.tf/azmy.3bot/qsfs.flist"
-	qsfsContainerNS = "qsfs"
+	qsfsFlist             = "https://hub.grid.tf/azmy.3bot/qsfs.flist"
+	qsfsContainerNS       = "qsfs"
+	qsfsRootFsPropagation = pkg.RootFSPropagationSlave
 )
 
 type QSFS struct {
@@ -92,7 +93,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (mountPath string, err e
 		Elevated: true,
 		// the default is rslave which recursively sets all mountpoints to slave
 		// we don't care about the rootfs propagation, it just has to be non-recursive
-		RootFsPropagation: "slave",
+		RootFsPropagation: qsfsRootFsPropagation,
 	}
 	_, err = contd.Run(
 		ctx,
