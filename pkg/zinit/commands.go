@@ -12,6 +12,8 @@ var (
 	statusRegex = regexp.MustCompile(`^(\w+)(?:\((.+)\))?$`)
 	// ErrUnknownService is an error that is returned when a service is unknown to zinit
 	ErrUnknownService = errors.New("unknown service")
+
+	ErrAlreadyMonitored = errors.New("already monitored")
 )
 
 // PossibleState represents the state of a service managed by zinit
@@ -103,9 +105,9 @@ func (s *ServiceTarget) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 const (
 	// ServiceTargetUp means the service has been asked to start
-	ServiceTargetUp ServiceTarget = "up"
+	ServiceTargetUp ServiceTarget = "Up"
 	// ServiceTargetDown means the service has been asked to stop
-	ServiceTargetDown = "down"
+	ServiceTargetDown = "Down"
 )
 
 // ServiceStatus represent the status of a service
@@ -232,7 +234,11 @@ func (c *Client) StopWait(timeout time.Duration, service string) error {
 
 // Monitor starts monitoring a service
 func (c *Client) Monitor(service string) error {
-	return c.cmd(fmt.Sprintf("monitor %s", service), nil)
+	err := c.cmd(fmt.Sprintf("monitor %s", service), nil)
+	if err != nil && strings.Contains(err.Error(), ErrAlreadyMonitored.Error()) {
+		return ErrAlreadyMonitored
+	}
+	return err
 }
 
 // Forget forgets a service. you can only forget a stopped service
