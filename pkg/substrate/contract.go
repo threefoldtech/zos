@@ -49,17 +49,79 @@ func (r ContractState) Encode(encoder scale.Encoder) (err error) {
 	return
 }
 
-// Contract structure
-type Contract struct {
-	Versioned
-	ContractID     types.U64
-	TwinID         types.U32
+type NodeContract struct {
 	Node           types.U32
 	DeploymentData []byte
 	DeploymentHash string
 	PublicIPsCount types.U32
-	State          ContractState
 	PublicIPs      []PublicIP
+}
+
+type NameContract struct {
+	Name string
+}
+
+type ContractType struct {
+	IsNodeContract bool
+	NodeContract   NodeContract
+	IsNameContract bool
+	NameContract   NameContract
+}
+
+// Decode implementation for the enum type
+func (r *ContractType) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		r.IsNodeContract = true
+		if err := decoder.Decode(&r.NodeContract); err != nil {
+			return err
+		}
+	case 1:
+		r.IsNameContract = true
+		if err := decoder.Decode(&r.NameContract); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unknown contract type value")
+	}
+
+	return nil
+}
+
+// Encode implementation
+func (r ContractType) Encode(encoder scale.Encoder) (err error) {
+	if r.IsNodeContract {
+		if err = encoder.PushByte(0); err != nil {
+			return err
+		}
+		if err = encoder.Encode(r.NodeContract); err != nil {
+			return err
+		}
+	} else if r.IsNameContract {
+		if err = encoder.PushByte(1); err != nil {
+			return err
+		}
+
+		if err = encoder.Encode(r.NameContract); err != nil {
+			return err
+		}
+	}
+
+	return
+}
+
+// Contract structure
+type Contract struct {
+	Versioned
+	State        ContractState
+	ContractID   types.U64
+	TwinID       types.U32
+	ContractType ContractType
 }
 
 // CreateContract creates a contract for deployment
