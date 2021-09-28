@@ -26,12 +26,9 @@ build_msgbusd() {
     pushd "${DISTDIR}"
 
     download_msgbusd
-
     popd
-    pushd ${WORKDIR}/msgbusd-${MSGBUSD_VERSION}
 
     prepare_msgbusd
     install_msgbusd
 
-    popd
 }
