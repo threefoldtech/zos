@@ -124,9 +124,9 @@ type Contract struct {
 	ContractType ContractType
 }
 
-// CreateContract creates a contract for deployment
-func (s *Substrate) CreateContract(identity *Identity, node uint32, body []byte, hash string, publicIPs uint32) (uint64, error) {
-	c, err := types.NewCall(s.meta, "SmartContractModule.create_contract",
+// CreateNodeContract creates a contract for deployment
+func (s *Substrate) CreateNodeContract(identity *Identity, node uint32, body []byte, hash string, publicIPs uint32) (uint64, error) {
+	c, err := types.NewCall(s.meta, "SmartContractModule.create_node_contract",
 		node, body, hash, publicIPs,
 	)
 
@@ -146,9 +146,9 @@ func (s *Substrate) CreateContract(identity *Identity, node uint32, body []byte,
 	return s.GetContractWithHash(node, hash)
 }
 
-// UpdateContract updates existing contract
-func (s *Substrate) UpdateContract(identity *Identity, contract uint64, body []byte, hash string) (uint64, error) {
-	c, err := types.NewCall(s.meta, "SmartContractModule.update_contract",
+// UpdateNodeContract updates existing contract
+func (s *Substrate) UpdateNodeContract(identity *Identity, contract uint64, body []byte, hash string) (uint64, error) {
+	c, err := types.NewCall(s.meta, "SmartContractModule.update_node_contract",
 		contract, body, hash,
 	)
 
