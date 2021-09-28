@@ -452,3 +452,40 @@ jobs:
           user: tf-zos-v3-bins
           name: cloudhypervisor.flist
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+  msgbusd:
+    name: "Package: msgbusd"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
+
+      - name: Setup basesystem
+        run: |
+          cd bins
+          sudo ./bins-extra.sh --package basesystem
+
+      - name: Build package
+        id: package
+        run: |
+          cd bins
+          sudo ./bins-extra.sh --package msgbusd
+
+      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
+        if: success()
+        uses: threefoldtech/publish-flist@master
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: publish
+          user: tf-autobuilder
+          root: bins/releases/msgbusd
+          name: ${{ steps.package.outputs.name }}.flist
+
+      - name: Crosslink flist (tf-zos-v3-bins.dev)
+        if: success()
+        uses: threefoldtech/publish-flist@master
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: tf-zos-v3-bins
+          name: msgbusd.flist
+          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
