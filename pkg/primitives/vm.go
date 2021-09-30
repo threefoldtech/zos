@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"path/filepath"
+	"strings"
 
 	"github.com/jbenet/go-base58"
 	"github.com/pkg/errors"
@@ -20,7 +21,7 @@ import (
 
 const (
 	// this probably need a way to update. for now just hard code it
-	cloudContainerFlist = "https://hub.grid.tf/azmy.3bot/cloud-container.flist"
+	cloudContainerFlist = "https://hub.grid.tf/omar0.3bot/omarelawady-cloud-container-latest.flist"
 	cloudContainerName  = "cloud-container"
 )
 
@@ -52,7 +53,7 @@ func (p *Primitives) mountsToDisks(ctx context.Context, deployment gridtypes.Dep
 			return nil, errors.Wrapf(err, "failed to get disk '%s' workload", disk.Name)
 		}
 		if wl.Type != zos.ZMountType {
-			return nil, fmt.Errorf("expecting a reservation of type '%s' for disk '%s'", zos.ZMountType, disk.Name)
+			continue
 		}
 		if wl.Result.State != gridtypes.StateOk {
 			return nil, fmt.Errorf("invalid disk '%s' state", disk.Name)
@@ -74,6 +75,32 @@ func (p *Primitives) mountsToDisks(ctx context.Context, deployment gridtypes.Dep
 
 	return results, nil
 }
+
+func (p *Primitives) mountsToQsfs(ctx context.Context, deployment gridtypes.Deployment, mounts []zos.MachineMount) ([]pkg.Qsfs, error) {
+
+	var results []pkg.Qsfs
+	for _, mount := range mounts {
+		wl, err := deployment.Get(mount.Name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get qsfs '%s' workload", mount.Name)
+		}
+		if wl.Type != zos.QuantumSafeFSType {
+			continue
+		}
+		if wl.Result.State != gridtypes.StateOk {
+			return nil, fmt.Errorf("invalid qsfs '%s' state", mount.Name)
+		}
+		var info zos.QuatumSafeFSResult
+		if err := wl.Result.Unmarshal(&info); err != nil {
+			return nil, fmt.Errorf("invalid qsfs result '%s': %w", mount.Name, err)
+		}
+		wlID := wl.ID.String()
+		results = append(results, pkg.Qsfs{ID: strings.ReplaceAll(wlID, "-", ""), Path: info.Path, Target: mount.Mountpoint})
+	}
+
+	return results, nil
+}
+
 func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.ZMachineResult, err error) {
 	var (
 		storage = stubs.NewStorageModuleStub(p.zbus)
@@ -175,6 +202,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 
 	var boot pkg.Boot
 	var disks []pkg.VMDisk
+	var qsfs []pkg.Qsfs
 
 	// "root=/dev/vda rw console=ttyS0 reboot=k panic=1"
 	cmd := pkg.KernelArgs{
@@ -223,6 +251,13 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		if err != nil {
 			return result, err
 		}
+		qsfs, err = p.mountsToQsfs(ctx, deployment, config.Mounts)
+		if err != nil {
+			return result, err
+		}
+		if len(disks)+len(qsfs) != len(config.Mounts) {
+			return result, errors.New("mount workload must be linked qsfs or disk")
+		}
 	} else {
 		// if a VM the vm has to have at least one mount
 		if len(config.Mounts) == 0 {
@@ -264,12 +299,18 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		if err != nil {
 			return result, err
 		}
+		qsfs, err = p.mountsToQsfs(ctx, deployment, config.Mounts)
+		if err != nil {
+			return result, err
+		}
+		if len(disks)+len(qsfs) != len(config.Mounts)-1 {
+			return result, errors.New("mount workload must be linked qsfs or disk")
+		}
 	}
-
 	// - Attach mounts
 	// - boot
 
-	err = p.vmRun(ctx, wl.ID.String(), &config, boot, disks, imageInfo, cmd, networkInfo)
+	err = p.vmRun(ctx, wl.ID.String(), &config, boot, disks, qsfs, imageInfo, cmd, networkInfo)
 	if err != nil {
 		// attempt to delete the vm, should the process still be lingering
 		_ = vm.Delete(ctx, wl.ID.String())
@@ -337,6 +378,7 @@ func (p *Primitives) vmRun(
 	config *ZMachine,
 	boot pkg.Boot,
 	disks []pkg.VMDisk,
+	qsfs []pkg.Qsfs,
 	imageInfo FListInfo,
 	cmdline pkg.KernelArgs,
 	networkInfo pkg.VMNetworkInfo) error {
@@ -356,6 +398,7 @@ func (p *Primitives) vmRun(
 		Boot:        boot,
 		Environment: config.Env,
 		Disks:       disks,
+		Qsfs:        qsfs,
 	}
 
 	return vm.Run(ctx, kubevm)

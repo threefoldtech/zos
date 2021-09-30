@@ -53,6 +53,16 @@ type VMDisk struct {
 	Target string
 }
 
+// VMDisk specifies vm disk params
+type Qsfs struct {
+	// ID unique qsfs identifier
+	ID string
+	// Path raw disk path
+	Path string
+	// Target is mount point. Only in container mode
+	Target string
+}
+
 // BootType for vm
 type BootType uint8
 
@@ -136,6 +146,8 @@ type VM struct {
 	// Disks are a list of disks that are going to
 	// be auto allocated on the provided storage path
 	Disks []VMDisk
+	// Qsfs are a list of qsfs that are going to
+	Qsfs []Qsfs
 	// Boot options
 	Boot Boot
 	// Environment is injected to the VM via container mechanism (virtiofs)
