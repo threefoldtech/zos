@@ -5,10 +5,10 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zos/pkg"
 
 	"github.com/threefoldtech/zos/pkg/kernel"
-	"github.com/threefoldtech/zos/pkg/substrate"
 )
 
 const (

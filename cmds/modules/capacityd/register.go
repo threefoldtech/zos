@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/host"
+	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
@@ -20,7 +21,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/network/yggdrasil"
 	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/substrate"
 )
 
 const (
