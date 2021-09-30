@@ -121,8 +121,11 @@ func (s *Substrate) activateAccount(identity *Identity, activationURL string) er
 // EnsureAccount makes sure account is available on blockchain
 // if not, it uses activation service to create one
 func (s *Substrate) EnsureAccount(identity *Identity, activationURL string) (info types.AccountInfo, err error) {
-
-	info, err = s.getAccount(identity, s.meta)
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return info, err
+	}
+	info, err = s.getAccount(cl, meta, identity)
 	if errors.Is(err, errAccountNotFound) {
 		// account activation
 		log.Debug().Msg("account not found ... activating")
@@ -138,7 +141,7 @@ func (s *Substrate) EnsureAccount(identity *Identity, activationURL string) (inf
 		exp.MaxInterval = 3 * time.Second
 
 		err = backoff.Retry(func() error {
-			info, err = s.getAccount(identity, s.meta)
+			info, err = s.getAccount(cl, meta, identity)
 			return err
 		}, exp)
 
@@ -186,14 +189,14 @@ func IdentityFromPhrase(seedOrPhrase string) (Identity, error) {
 	return Identity(krp), nil
 }
 
-func (s *Substrate) getAccount(identity *Identity, meta *types.Metadata) (info types.AccountInfo, err error) {
+func (s *Substrate) getAccount(cl Conn, meta Meta, identity *Identity) (info types.AccountInfo, err error) {
 	key, err := types.CreateStorageKey(meta, "System", "Account", identity.PublicKey, nil)
 	if err != nil {
 		err = errors.Wrap(err, "failed to create storage key")
 		return
 	}
 
-	ok, err := s.cl.RPC.State.GetStorageLatest(key, &info)
+	ok, err := cl.RPC.State.GetStorageLatest(key, &info)
 	if err != nil || !ok {
 		if !ok {
 			return info, errAccountNotFound
@@ -207,10 +210,10 @@ func (s *Substrate) getAccount(identity *Identity, meta *types.Metadata) (info t
 
 // GetAccount gets account info with secure key
 func (s *Substrate) GetAccount(identity *Identity) (info types.AccountInfo, err error) {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
+	cl, meta, err := s.pool.Get()
 	if err != nil {
 		return info, err
 	}
 
-	return s.getAccount(identity, meta)
+	return s.getAccount(cl, meta, identity)
 }
