@@ -10,14 +10,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func runMsgBus(ctx context.Context, twin uint32) error {
+func runMsgBus(ctx context.Context, twin uint32, substrate string) error {
 	// todo: make it argument or parse from broker
 	const redis = "/var/run/redis.sock"
 	for {
 		cmd := exec.CommandContext(ctx,
 			"msgbusd",
-			"--twin", fmt.Sprint(twin),
-			"--redis", redis)
+			"-twin", fmt.Sprint(twin),
+			"-substrate", substrate,
+			"-redis", redis)
 
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
