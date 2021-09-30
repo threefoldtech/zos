@@ -17,16 +17,21 @@ type User struct {
 
 // GetUser with id
 func (s *Substrate) GetUser(id uint32) (*User, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return nil, err
+	}
+
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "substrate: encoding error building query arguments")
 	}
-	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "Entities", bytes, nil)
+	key, err := types.CreateStorageKey(meta, "TfgridModule", "Entities", bytes, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
 
-	raw, err := s.cl.RPC.State.GetStorageRawLatest(key)
+	raw, err := cl.RPC.State.GetStorageRawLatest(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to lookup entity")
 	}

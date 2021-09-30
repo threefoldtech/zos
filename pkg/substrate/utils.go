@@ -143,22 +143,22 @@ func (s *Substrate) sign(e *types.Extrinsic, signer *Identity, o types.Signature
 	return nil
 }
 
-func (s *Substrate) call(identity *Identity, call types.Call) (hash types.Hash, err error) {
+func (s *Substrate) call(cl Conn, meta Meta, identity *Identity, call types.Call) (hash types.Hash, err error) {
 	// Create the extrinsic
 	ext := types.NewExtrinsic(call)
 
-	genesisHash, err := s.cl.RPC.Chain.GetBlockHash(0)
+	genesisHash, err := cl.RPC.Chain.GetBlockHash(0)
 	if err != nil {
 		return hash, errors.Wrap(err, "failed to get genesisHash")
 	}
 
-	rv, err := s.cl.RPC.State.GetRuntimeVersionLatest()
+	rv, err := cl.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
 		return hash, err
 	}
 
 	//node.Address =identity.PublicKey
-	account, err := s.getAccount(identity, s.meta)
+	account, err := s.getAccount(cl, meta, identity)
 	if err != nil {
 		return hash, errors.Wrap(err, "failed to get account")
 	}
@@ -179,7 +179,7 @@ func (s *Substrate) call(identity *Identity, call types.Call) (hash types.Hash, 
 	}
 
 	// Send the extrinsic
-	sub, err := s.cl.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	sub, err := cl.RPC.Author.SubmitAndWatchExtrinsic(ext)
 	if err != nil {
 		return hash, errors.Wrap(err, "failed to submit extrinsic")
 	}
@@ -198,23 +198,18 @@ func (s *Substrate) call(identity *Identity, call types.Call) (hash types.Hash, 
 	return hash, nil
 }
 
-func (s *Substrate) checkForError(blockHash types.Hash, signer types.AccountID) error {
-	meta, err := s.cl.RPC.State.GetMetadataLatest()
-	if err != nil {
-		return err
-	}
-
+func (s *Substrate) checkForError(cl Conn, meta Meta, blockHash types.Hash, signer types.AccountID) error {
 	key, err := types.CreateStorageKey(meta, "System", "Events", nil, nil)
 	if err != nil {
 		return err
 	}
 
-	raw, err := s.cl.RPC.State.GetStorageRaw(key, blockHash)
+	raw, err := cl.RPC.State.GetStorageRaw(key, blockHash)
 	if err != nil {
 		return err
 	}
 
-	block, err := s.cl.RPC.Chain.GetBlock(blockHash)
+	block, err := cl.RPC.Chain.GetBlock(blockHash)
 	if err != nil {
 		return err
 	}

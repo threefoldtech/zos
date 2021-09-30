@@ -127,16 +127,21 @@ type Node struct {
 
 //GetNodeByTwinID gets a node by twin id
 func (s *Substrate) GetNodeByTwinID(twin uint32) (uint32, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return 0, err
+	}
+
 	bytes, err := types.EncodeToBytes(twin)
 	if err != nil {
 		return 0, err
 	}
-	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "NodeIdByTwinID", bytes, nil)
+	key, err := types.CreateStorageKey(meta, "TfgridModule", "NodeIdByTwinID", bytes, nil)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to create substrate query key")
 	}
 	var id types.U32
-	ok, err := s.cl.RPC.State.GetStorageLatest(key, &id)
+	ok, err := cl.RPC.State.GetStorageLatest(key, &id)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to lookup entity")
 	}
@@ -150,20 +155,25 @@ func (s *Substrate) GetNodeByTwinID(twin uint32) (uint32, error) {
 
 // GetNode with id
 func (s *Substrate) GetNode(id uint32) (*Node, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return nil, err
+	}
+
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "substrate: encoding error building query arguments")
 	}
-	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "Nodes", bytes, nil)
+	key, err := types.CreateStorageKey(meta, "TfgridModule", "Nodes", bytes, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
 
-	return s.getNode(key)
+	return s.getNode(cl, key)
 }
 
-func (s *Substrate) getNode(key types.StorageKey) (*Node, error) {
-	raw, err := s.cl.RPC.State.GetStorageRawLatest(key)
+func (s *Substrate) getNode(cl Conn, key types.StorageKey) (*Node, error) {
+	raw, err := cl.RPC.State.GetStorageRawLatest(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to lookup entity")
 	}
@@ -195,11 +205,16 @@ func (s *Substrate) getNode(key types.StorageKey) (*Node, error) {
 
 // CreateNode creates a node
 func (s *Substrate) CreateNode(identity *Identity, node Node) (uint32, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return 0, err
+	}
+
 	if node.TwinID == 0 {
 		return 0, fmt.Errorf("twin id is required")
 	}
 
-	c, err := types.NewCall(s.meta, "TfgridModule.create_node",
+	c, err := types.NewCall(meta, "TfgridModule.create_node",
 		node.FarmID, node.Resources, node.Location,
 		node.Country, node.City, node.PublicConfig,
 	)
@@ -208,7 +223,7 @@ func (s *Substrate) CreateNode(identity *Identity, node Node) (uint32, error) {
 		return 0, errors.Wrap(err, "failed to create call")
 	}
 
-	if _, err := s.call(identity, c); err != nil {
+	if _, err := s.call(cl, meta, identity, c); err != nil {
 		return 0, errors.Wrap(err, "failed to create node")
 	}
 
@@ -218,11 +233,16 @@ func (s *Substrate) CreateNode(identity *Identity, node Node) (uint32, error) {
 
 // UpdateNode updates a node
 func (s *Substrate) UpdateNode(identity *Identity, node Node) (uint32, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return 0, err
+	}
+
 	if node.TwinID == 0 {
 		return 0, fmt.Errorf("twin id is required")
 	}
 
-	c, err := types.NewCall(s.meta, "TfgridModule.update_node", node.ID, node.FarmID, node.Resources, node.Location,
+	c, err := types.NewCall(meta, "TfgridModule.update_node", node.ID, node.FarmID, node.Resources, node.Location,
 		node.Country, node.City, node.PublicConfig,
 	)
 
@@ -230,7 +250,7 @@ func (s *Substrate) UpdateNode(identity *Identity, node Node) (uint32, error) {
 		return 0, errors.Wrap(err, "failed to create call")
 	}
 
-	if _, err := s.call(identity, c); err != nil {
+	if _, err := s.call(cl, meta, identity, c); err != nil {
 		return 0, errors.Wrap(err, "failed to update node")
 	}
 
@@ -239,13 +259,18 @@ func (s *Substrate) UpdateNode(identity *Identity, node Node) (uint32, error) {
 
 // UpdateNodeUptime updates the node uptime to given value
 func (s *Substrate) UpdateNodeUptime(identity *Identity, uptime uint64) error {
-	c, err := types.NewCall(s.meta, "TfgridModule.report_uptime", uptime)
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return err
+	}
+
+	c, err := types.NewCall(meta, "TfgridModule.report_uptime", uptime)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create call")
 	}
 
-	if _, err := s.call(identity, c); err != nil {
+	if _, err := s.call(cl, meta, identity, c); err != nil {
 		return errors.Wrap(err, "failed to update node uptime")
 	}
 

@@ -53,16 +53,21 @@ type PublicIP struct {
 
 // GetFarm gets a farm with ID
 func (s *Substrate) GetFarm(id uint32) (*Farm, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return nil, err
+	}
+
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "substrate: encoding error building query arguments")
 	}
-	key, err := types.CreateStorageKey(s.meta, "TfgridModule", "Farms", bytes, nil)
+	key, err := types.CreateStorageKey(meta, "TfgridModule", "Farms", bytes, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
 
-	raw, err := s.cl.RPC.State.GetStorageRawLatest(key)
+	raw, err := cl.RPC.State.GetStorageRawLatest(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to lookup entity")
 	}

@@ -126,7 +126,12 @@ type Contract struct {
 
 // CreateNodeContract creates a contract for deployment
 func (s *Substrate) CreateNodeContract(identity *Identity, node uint32, body []byte, hash string, publicIPs uint32) (uint64, error) {
-	c, err := types.NewCall(s.meta, "SmartContractModule.create_node_contract",
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return 0, err
+	}
+
+	c, err := types.NewCall(meta, "SmartContractModule.create_node_contract",
 		node, body, hash, publicIPs,
 	)
 
@@ -134,12 +139,12 @@ func (s *Substrate) CreateNodeContract(identity *Identity, node uint32, body []b
 		return 0, errors.Wrap(err, "failed to create call")
 	}
 
-	blockHash, err := s.call(identity, c)
+	blockHash, err := s.call(cl, meta, identity, c)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to create contract")
 	}
 
-	if err := s.checkForError(blockHash, types.NewAccountID(identity.PublicKey)); err != nil {
+	if err := s.checkForError(cl, meta, blockHash, types.NewAccountID(identity.PublicKey)); err != nil {
 		return 0, err
 	}
 
@@ -148,7 +153,12 @@ func (s *Substrate) CreateNodeContract(identity *Identity, node uint32, body []b
 
 // UpdateNodeContract updates existing contract
 func (s *Substrate) UpdateNodeContract(identity *Identity, contract uint64, body []byte, hash string) (uint64, error) {
-	c, err := types.NewCall(s.meta, "SmartContractModule.update_node_contract",
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return 0, err
+	}
+
+	c, err := types.NewCall(meta, "SmartContractModule.update_node_contract",
 		contract, body, hash,
 	)
 
@@ -156,12 +166,12 @@ func (s *Substrate) UpdateNodeContract(identity *Identity, contract uint64, body
 		return 0, errors.Wrap(err, "failed to create call")
 	}
 
-	blockHash, err := s.call(identity, c)
+	blockHash, err := s.call(cl, meta, identity, c)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to update contract")
 	}
 
-	if err := s.checkForError(blockHash, types.NewAccountID(identity.PublicKey)); err != nil {
+	if err := s.checkForError(cl, meta, blockHash, types.NewAccountID(identity.PublicKey)); err != nil {
 		return 0, err
 	}
 
@@ -170,18 +180,23 @@ func (s *Substrate) UpdateNodeContract(identity *Identity, contract uint64, body
 
 // CancelContract creates a contract for deployment
 func (s *Substrate) CancelContract(identity *Identity, contract uint64) error {
-	c, err := types.NewCall(s.meta, "SmartContractModule.cancel_contract", contract)
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return err
+	}
+
+	c, err := types.NewCall(meta, "SmartContractModule.cancel_contract", contract)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to cancel call")
 	}
 
-	blockHash, err := s.call(identity, c)
+	blockHash, err := s.call(cl, meta, identity, c)
 	if err != nil {
 		return errors.Wrap(err, "failed to cancel contract")
 	}
 
-	if err := s.checkForError(blockHash, types.NewAccountID(identity.PublicKey)); err != nil {
+	if err := s.checkForError(cl, meta, blockHash, types.NewAccountID(identity.PublicKey)); err != nil {
 		return err
 	}
 
@@ -190,21 +205,31 @@ func (s *Substrate) CancelContract(identity *Identity, contract uint64) error {
 
 // GetContract we should not have calls to create contract, instead only get
 func (s *Substrate) GetContract(id uint64) (*Contract, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return nil, err
+	}
+
 	bytes, err := types.EncodeToBytes(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "substrate: encoding error building query arguments")
 	}
 
-	key, err := types.CreateStorageKey(s.meta, "SmartContractModule", "Contracts", bytes, nil)
+	key, err := types.CreateStorageKey(meta, "SmartContractModule", "Contracts", bytes, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
 
-	return s.getContract(key)
+	return s.getContract(cl, key)
 }
 
 // GetContractWithHash gets a contract given the node id and hash
 func (s *Substrate) GetContractWithHash(node uint32, hash string) (uint64, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return 0, err
+	}
+
 	nodeBytes, err := types.EncodeToBytes(node)
 	if err != nil {
 		return 0, err
@@ -213,12 +238,12 @@ func (s *Substrate) GetContractWithHash(node uint32, hash string) (uint64, error
 	if err != nil {
 		return 0, err
 	}
-	key, err := types.CreateStorageKey(s.meta, "SmartContractModule", "ContractIDByNodeIDAndHash", nodeBytes, hashBytes, nil)
+	key, err := types.CreateStorageKey(meta, "SmartContractModule", "ContractIDByNodeIDAndHash", nodeBytes, hashBytes, nil)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to create substrate query key")
 	}
 	var contract types.U64
-	_, err = s.cl.RPC.State.GetStorageLatest(key, &contract)
+	_, err = cl.RPC.State.GetStorageLatest(key, &contract)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to lookup contracts")
 	}
@@ -232,6 +257,11 @@ func (s *Substrate) GetContractWithHash(node uint32, hash string) (uint64, error
 
 // GetNodeContracts gets all contracts on a node (pk) in given state
 func (s *Substrate) GetNodeContracts(node uint32, state ContractState) ([]Contract, error) {
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return nil, err
+	}
+
 	nodeBytes, err := types.EncodeToBytes(node)
 	if err != nil {
 		return nil, err
@@ -240,12 +270,12 @@ func (s *Substrate) GetNodeContracts(node uint32, state ContractState) ([]Contra
 	if err != nil {
 		return nil, err
 	}
-	key, err := types.CreateStorageKey(s.meta, "SmartContractModule", "NodeContracts", nodeBytes, stateBytes, nil)
+	key, err := types.CreateStorageKey(meta, "SmartContractModule", "NodeContracts", nodeBytes, stateBytes, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create substrate query key")
 	}
 	var contracts []Contract
-	_, err = s.cl.RPC.State.GetStorageLatest(key, &contracts)
+	_, err = cl.RPC.State.GetStorageLatest(key, &contracts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to lookup contracts")
 	}
@@ -253,8 +283,8 @@ func (s *Substrate) GetNodeContracts(node uint32, state ContractState) ([]Contra
 	return contracts, nil
 }
 
-func (s *Substrate) getContract(key types.StorageKey) (*Contract, error) {
-	raw, err := s.cl.RPC.State.GetStorageRawLatest(key)
+func (s *Substrate) getContract(cl Conn, key types.StorageKey) (*Contract, error) {
+	raw, err := cl.RPC.State.GetStorageRawLatest(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to lookup contract")
 	}
@@ -301,12 +331,17 @@ func (s *Consumption) IsEmpty() bool {
 
 // Report send a capacity report to substrate
 func (s *Substrate) Report(identity *Identity, consumptions []Consumption) error {
-	c, err := types.NewCall(s.meta, "SmartContractModule.add_reports", consumptions)
+	cl, meta, err := s.pool.Get()
+	if err != nil {
+		return err
+	}
+
+	c, err := types.NewCall(meta, "SmartContractModule.add_reports", consumptions)
 	if err != nil {
 		return errors.Wrap(err, "failed to create call")
 	}
 
-	if _, err := s.call(identity, c); err != nil {
+	if _, err := s.call(cl, meta, identity, c); err != nil {
 		return errors.Wrap(err, "failed to create report")
 	}
 
