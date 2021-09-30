@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"path/filepath"
 
 	"github.com/google/shlex"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
@@ -182,6 +183,17 @@ func (vm *VM) Validate() error {
 		return fmt.Errorf("invalid cpu must be between 1 and 32")
 	}
 
+	for _, qsfs := range vm.Qsfs {
+		if filepath.Clean(qsfs.Target) == "/" {
+			return fmt.Errorf("validating qsfs %s: mount target can't be /", qsfs.Target)
+		}
+	}
+
+	for _, disk := range vm.Disks {
+		if filepath.Clean(disk.Target) == "/" {
+			return fmt.Errorf("validating disk %s: mount target can't be /", disk.Target)
+		}
+	}
 	return nil
 }
 
