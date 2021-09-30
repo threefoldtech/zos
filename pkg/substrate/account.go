@@ -95,9 +95,7 @@ curl --header "Content-Type: application/json" \
   https://api.substrate01.threefold.io/activate
 */
 
-func (s *Substrate) activateAccount(identity *Identity) error {
-	const activationDefaultURL = "https://explorer.devnet.grid.tf/activation/activate"
-
+func (s *Substrate) activateAccount(identity *Identity, activationURL string) error {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(map[string]string{
 		"substrateAccountID": identity.Address,
@@ -105,7 +103,7 @@ func (s *Substrate) activateAccount(identity *Identity) error {
 		return errors.Wrap(err, "failed to build required body")
 	}
 
-	response, err := http.Post(activationDefaultURL, "application/json", &buf)
+	response, err := http.Post(activationURL, "application/json", &buf)
 	if err != nil {
 		return errors.Wrap(err, "failed to call activation service")
 	}
@@ -122,13 +120,13 @@ func (s *Substrate) activateAccount(identity *Identity) error {
 
 // EnsureAccount makes sure account is available on blockchain
 // if not, it uses activation service to create one
-func (s *Substrate) EnsureAccount(identity *Identity) (info types.AccountInfo, err error) {
+func (s *Substrate) EnsureAccount(identity *Identity, activationURL string) (info types.AccountInfo, err error) {
 
 	info, err = s.getAccount(identity, s.meta)
 	if errors.Is(err, errAccountNotFound) {
 		// account activation
 		log.Debug().Msg("account not found ... activating")
-		if err = s.activateAccount(identity); err != nil {
+		if err = s.activateAccount(identity, activationURL); err != nil {
 			return
 		}
 

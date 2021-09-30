@@ -224,7 +224,7 @@ func registerNode(
 	if err != nil {
 		return 0, 0, err
 	}
-	if _, err := sub.EnsureAccount(&id); err != nil {
+	if _, err := sub.EnsureAccount(&id, env.ActivationURL); err != nil {
 		return 0, 0, errors.Wrap(err, "failed to ensure account")
 	}
 
@@ -258,7 +258,7 @@ func registerNode(
 		node.Resources = resources
 		node.Location = location
 
-		log.Debug().Msg("node data have changing, issuing an update node")
+		log.Debug().Msgf("node data have changing, issuing an update node: %+v", node)
 		_, err = sub.UpdateNode(&id, *node)
 		return uint32(node.ID), uint32(node.TwinID), err
 	}
