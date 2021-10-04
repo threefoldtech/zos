@@ -304,7 +304,7 @@ func (g *gatewayModule) validateNameContracts() error {
 			if err := e.DecommissionCached(ctx, id, err.Error()); err != nil {
 				log.Error().
 					Err(err).
-					Msgf("failed to decommission invalid gateway name workload", id)
+					Msgf("failed to decommission invalid gateway name workload %s", id)
 			}
 		}
 	}
