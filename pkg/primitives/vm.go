@@ -361,38 +361,6 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 	return nil
 }
 
-func (p *Primitives) vmRun(
-	ctx context.Context,
-	name string,
-	config *ZMachine,
-	boot pkg.Boot,
-	disks []pkg.VMDisk,
-	qsfs []pkg.SharedDir,
-	imageInfo FListInfo,
-	cmdline pkg.KernelArgs,
-	networkInfo pkg.VMNetworkInfo) error {
-
-	vm := stubs.NewVMModuleStub(p.zbus)
-
-	cap := config.ComputeCapacity
-	// installed disk
-	kubevm := pkg.VM{
-		Name:        name,
-		CPU:         cap.CPU,
-		Memory:      cap.Memory,
-		Network:     networkInfo,
-		KernelImage: imageInfo.Kernel,
-		InitrdImage: imageInfo.Initrd,
-		KernelArgs:  cmdline,
-		Boot:        boot,
-		Environment: config.Env,
-		Disks:       disks,
-		Shared:      qsfs,
-	}
-
-	return vm.Run(ctx, kubevm)
-}
-
 func tapNameFromName(id gridtypes.WorkloadID, network string) string {
 	m := md5.New()
 
