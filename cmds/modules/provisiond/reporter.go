@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	every = 60 * 60 // 1 hour
+	every = 15 * 60 // 15 minute (random([5, 10, 15, 30, 60]))
 )
 
 type many []error
