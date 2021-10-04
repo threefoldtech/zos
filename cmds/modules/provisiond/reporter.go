@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,13 +18,12 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 const (
-	every = 15 * 60 // 15 minute (random([5, 10, 15, 30, 60]))
+	every = 60 * 60 // 1 hour
 )
 
 type many []error
@@ -184,42 +182,6 @@ func (r *Reporter) pusher(ctx context.Context) {
 	}
 }
 
-func (r *Reporter) contractByName(name string) (*substrate.Contract, error) {
-	contractID, err := r.substrate.GetContractIDByNameRegistration(string(name))
-	if err != nil {
-		return nil, err
-	}
-	return r.substrate.GetContract(contractID)
-}
-
-func (r *Reporter) containsExpiredNameWorkloads(deployment gridtypes.Deployment) bool {
-	for _, wl := range deployment.Workloads {
-		if wl.Type != zos.GatewayNameProxyType {
-			continue
-		}
-		var data zos.GatewayNameProxy
-		if err := json.Unmarshal(wl.Data, &data); err != nil {
-			log.Error().
-				Err(err).
-				Msg("failed to unmarshal deployment data to get workload data")
-			continue
-		}
-		contract, err := r.contractByName(data.Name)
-		if errors.Is(err, substrate.ErrNotFound) {
-			return true
-		}
-		if err != nil {
-			log.Error().Err(err).Str("name", string(wl.Name)).Msgf("failed to get name contract for validation")
-			continue
-		}
-
-		if uint32(contract.TwinID) != deployment.TwinID {
-			return true
-		}
-	}
-	return false
-}
-
 // synchronize will make sure that the node only runs
 // active contracts.
 func (r *Reporter) synchronize(ctx context.Context, reported []Consumption) error {
@@ -232,21 +194,12 @@ func (r *Reporter) synchronize(ctx context.Context, reported []Consumption) erro
 
 	// the idea here is that we bring ALL active node contracts from chain.
 	// then compare it with what we have atm (the one we just reported)
-	nodeContracts, err := r.substrate.GetNodeContracts(r.nodeID, substrate.ContractState{IsCreated: true})
+	contracts, err := r.substrate.GetNodeContracts(r.nodeID, substrate.ContractState{IsCreated: true})
 	if err != nil {
 		return err
 	}
 
-	for _, contract := range nodeContracts {
-		deployment, err := r.engine.Storage().Get(uint32(contract.TwinID), uint64(contract.ContractID))
-		if err != nil && !errors.Is(err, provision.ErrDeploymentNotExists) {
-			log.Error().
-				Err(err).
-				Msgf("failed to get deployment %d for name contract validation", contract.ContractID)
-		} else if err == nil && r.containsExpiredNameWorkloads(deployment) {
-			// delete it
-			continue
-		}
+	for _, contract := range contracts {
 		// is there a consumption report for a contract
 		delete(local, contract.ContractID)
 	}

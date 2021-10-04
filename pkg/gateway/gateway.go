@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -18,6 +19,7 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"gopkg.in/yaml.v2"
@@ -34,14 +36,17 @@ const (
 	// certResolver must match the one defined in static config
 	httpCertResolver = "resolver"
 	dnsCertResolver  = "dnsresolver"
+	validationPeriod = 1 * time.Hour
 )
 
 type gatewayModule struct {
 	cl       zbus.Client
 	resolver *net.Resolver
 	sub      *substrate.Substrate
+	// maps domain to workload id
+	reservedDomains map[string]string
+	domainLock      sync.RWMutex
 
-	reservedDomains  map[string]struct{}
 	proxyConfigPath  string
 	staticConfigPath string
 	binPath          string
@@ -97,16 +102,17 @@ func domainFromRule(rule string) (string, error) {
 	return "", fmt.Errorf("failed to extract domain from routing rule '%s'", rule)
 }
 
-func domainFromConfig(path string) (string, error) {
+// domainFromConfig returns workloadID, domain, error
+func domainFromConfig(path string) (string, string, error) {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read file")
+		return "", "", errors.Wrap(err, "failed to read file")
 	}
 
 	var c ProxyConfig
 	err = yaml.Unmarshal(buf, &c)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to unmarshal yaml file")
+		return "", "", errors.Wrap(err, "failed to unmarshal yaml file")
 	}
 	var routers map[string]Router
 	if c.TCP != nil {
@@ -114,21 +120,22 @@ func domainFromConfig(path string) (string, error) {
 	} else if c.Http != nil {
 		routers = c.Http.Routers
 	} else {
-		return "", fmt.Errorf("yaml file doesn't contain valid http or tcp config %s", path)
+		return "", "", fmt.Errorf("yaml file doesn't contain valid http or tcp config %s", path)
 	}
 	if len(routers) > 1 {
-		return "", fmt.Errorf("only one router expected, found more: %s", path)
+		return "", "", fmt.Errorf("only one router expected, found more: %s", path)
 	}
 
 	for _, router := range routers {
-		return domainFromRule(router.Rule)
+		domain, err := domainFromRule(router.Rule)
+		return router.Service, domain, err
 	}
 
-	return "", fmt.Errorf("no routes defined in: %s", path)
+	return "", "", fmt.Errorf("no routes defined in: %s", path)
 }
 
-func loadDomains(ctx context.Context, dir string) (map[string]struct{}, error) {
-	domains := make(map[string]struct{})
+func loadDomains(ctx context.Context, dir string) (map[string]string, error) {
+	domains := make(map[string]string)
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read dir")
@@ -137,12 +144,12 @@ func loadDomains(ctx context.Context, dir string) (map[string]struct{}, error) {
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
 			path := filepath.Join(dir, entry.Name())
-			domain, err := domainFromConfig(path)
+			wlID, domain, err := domainFromConfig(path)
 			if err != nil {
 				log.Warn().Err(err).Str("path", path).Msg("failed to load domain from config file")
 				continue
 			}
-			domains[domain] = struct{}{}
+			domains[domain] = wlID
 		}
 	}
 	return domains, nil
@@ -211,6 +218,7 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		certScriptPath:   certScriptPath,
 		binPath:          bin,
 		reservedDomains:  domains,
+		domainLock:       sync.RWMutex{},
 	}
 
 	// in case there are already active configurations we should always try to ensure running traefik
@@ -219,8 +227,99 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		// this is not a failure because supporting of the gateway can happen
 		// later if the farmer set the correct network configuration!
 	}
-
+	go gw.nameContractsValidator()
 	return gw, nil
+}
+
+func (g *gatewayModule) getReservedDomain(domain string) (string, bool) {
+	g.domainLock.RLock()
+	defer g.domainLock.RUnlock()
+	v, ok := g.reservedDomains[domain]
+	return v, ok
+}
+
+func (g *gatewayModule) setReservedDomain(domain string, wlID string) {
+	g.domainLock.Lock()
+	defer g.domainLock.Unlock()
+	log.Debug().
+		Str("domain", domain).
+		Str("wlID", wlID).
+		Msg("setting domain")
+	g.reservedDomains[domain] = wlID
+}
+
+func (g *gatewayModule) deleteReservedDomain(domain string) {
+	g.domainLock.Lock()
+	defer g.domainLock.Unlock()
+	log.Debug().
+		Str("domain", domain).
+		Msg("deleting domain")
+	delete(g.reservedDomains, domain)
+}
+
+func (g *gatewayModule) copyReservedDomain() map[string]string {
+	g.domainLock.RLock()
+	defer g.domainLock.RUnlock()
+	res := make(map[string]string, len(g.reservedDomains))
+	for k, v := range g.reservedDomains {
+		res[k] = v
+	}
+	return res
+}
+
+func (g *gatewayModule) validateNameContracts() error {
+	ctx, cancel := context.WithTimeout(context.Background(), validationPeriod/2)
+	defer cancel()
+	e := stubs.NewProvisionStub(g.cl)
+	networker := stubs.NewNetworkerStub(g.cl)
+	cfg, err := networker.GetPublicConfig(ctx)
+	if err != nil {
+		return errors.Wrapf(err, "gateway is not supported on this node, why are names are getting validated?")
+	}
+
+	baseDomain := cfg.Domain
+	if baseDomain == "" {
+		return errors.New("why is domain is empty while validating name contracts?")
+	}
+	reservedDomains := g.copyReservedDomain()
+	for domain, id := range reservedDomains {
+		wlID := gridtypes.WorkloadID(id)
+		twinID, _, _, err := wlID.Parts()
+		if err != nil {
+			log.Error().
+				Err(err).
+				Msgf("failed to parse wlID %s parts", id)
+			continue
+		}
+		if !strings.HasSuffix(domain, baseDomain) {
+			// a fqdn workload, skip validating it
+			continue
+		}
+		name := strings.TrimSuffix(domain, fmt.Sprintf(".%s", baseDomain))
+		if err := g.validateNameContract(name, twinID); err != nil {
+			log.Debug().
+				Str("reason", string(name)).
+				Str("wlID", id).
+				Msg("removing domain in name contract validation")
+			if err := e.DecommissionCached(ctx, id, err.Error()); err != nil {
+				log.Error().
+					Err(err).
+					Msgf("failed to decommission invalid gateway name workload", id)
+			}
+		}
+	}
+	return nil
+}
+
+func (g *gatewayModule) nameContractsValidator() {
+	// no context?
+	ticker := time.NewTicker(validationPeriod)
+	defer ticker.Stop()
+	for range ticker.C {
+		if err := g.validateNameContracts(); err != nil {
+			log.Error().Err(err).Msg("a round of failed name contract validation")
+		}
+	}
 }
 
 func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
@@ -326,6 +425,9 @@ func (g *gatewayModule) validateNameContract(name string, twinID uint32) error {
 	if err != nil {
 		return err
 	}
+	if !contract.State.IsCreated {
+		return fmt.Errorf("contract is not in created state: %d", contractID)
+	}
 	if uint32(contract.TwinID) != twinID {
 		return errors.New("twin id mismatch")
 	}
@@ -389,7 +491,7 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string
 	return g.setupRouting(wlID, fqdn, backends, gatewayTLSConfig, TLSPassthrough)
 }
 func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string, tlsConfig TlsConfig, TLSPassthrough bool) error {
-	if _, ok := g.reservedDomains[fqdn]; ok {
+	if _, ok := g.getReservedDomain(fqdn); ok {
 		return errors.New("domain already registered")
 	}
 	var rule string
@@ -453,13 +555,13 @@ func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string
 	if err = os.WriteFile(g.configPath(wlID), yamlString, 0644); err != nil {
 		return errors.Wrap(err, "couldn't open config file for writing")
 	}
-	g.reservedDomains[fqdn] = struct{}{}
+	g.setReservedDomain(fqdn, wlID)
 	return nil
 }
 
 func (g *gatewayModule) DeleteNamedProxy(wlID string) error {
 	path := g.configPath(wlID)
-	domain, err := domainFromConfig(path)
+	_, domain, err := domainFromConfig(path)
 	if err != nil {
 		log.Warn().Err(err).Str("path", path).Msg("failed to load domain from config file")
 	}
@@ -467,7 +569,7 @@ func (g *gatewayModule) DeleteNamedProxy(wlID string) error {
 		return errors.Wrap(err, "couldn't remove config file")
 	}
 	if domain != "" {
-		delete(g.reservedDomains, domain)
+		g.deleteReservedDomain(domain)
 	}
 	return nil
 }
