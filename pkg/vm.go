@@ -54,8 +54,8 @@ type VMDisk struct {
 	Target string
 }
 
-// VMDisk specifies vm disk params
-type Qsfs struct {
+// SharedDir specifies virtio shared dir params
+type SharedDir struct {
 	// ID unique qsfs identifier
 	ID string
 	// Path raw disk path
@@ -147,8 +147,8 @@ type VM struct {
 	// Disks are a list of disks that are going to
 	// be auto allocated on the provided storage path
 	Disks []VMDisk
-	// Qsfs are a list of qsfs that are going to
-	Qsfs []Qsfs
+	// Shared are a list of qsfs that are going to
+	Shared []SharedDir
 	// Boot options
 	Boot Boot
 	// Environment is injected to the VM via container mechanism (virtiofs)
@@ -183,9 +183,9 @@ func (vm *VM) Validate() error {
 		return fmt.Errorf("invalid cpu must be between 1 and 32")
 	}
 
-	for _, qsfs := range vm.Qsfs {
-		if filepath.Clean(qsfs.Target) == "/" {
-			return fmt.Errorf("validating qsfs %s: mount target can't be /", qsfs.Target)
+	for _, shared := range vm.Shared {
+		if filepath.Clean(shared.Target) == "/" {
+			return fmt.Errorf("validating virtiofs %s: mount target can't be /", shared.Target)
 		}
 	}
 

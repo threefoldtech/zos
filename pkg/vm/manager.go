@@ -118,11 +118,11 @@ func (m *Module) makeDevices(vm *pkg.VM) ([]Disk, error) {
 
 func (m *Module) makeVirtioFilesystems(vm *pkg.VM) ([]VirtioFS, error) {
 	var result []VirtioFS
-	for _, qsfs := range vm.Qsfs {
+	for _, shared := range vm.Shared {
 
 		result = append(result, VirtioFS{
-			Tag:  qsfs.ID,
-			Path: qsfs.Path,
+			Tag:  shared.ID,
+			Path: shared.Path,
 		})
 	}
 
@@ -363,7 +363,7 @@ func (m *Module) Run(vm pkg.VM) error {
 			name := fmt.Sprintf("vd%c", 'a'+i)
 			cmdline[name] = mnt.Target
 		}
-		for _, q := range vm.Qsfs {
+		for _, q := range vm.Shared {
 			key := fmt.Sprintf("qsfs_%s", q.ID)
 			cmdline[key] = q.Target
 		}

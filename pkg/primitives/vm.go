@@ -43,62 +43,60 @@ func (p *Primitives) virtualMachineProvision(ctx context.Context, wl *gridtypes.
 	return p.virtualMachineProvisionImpl(ctx, wl)
 }
 
-func (p *Primitives) mountsToDisks(ctx context.Context, deployment gridtypes.Deployment, disks []zos.MachineMount, format bool) ([]pkg.VMDisk, error) {
-	storage := stubs.NewStorageModuleStub(p.zbus)
-
-	var results []pkg.VMDisk
-	for _, disk := range disks {
-		wl, err := deployment.Get(disk.Name)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get disk '%s' workload", disk.Name)
-		}
-		if wl.Type != zos.ZMountType {
-			continue
-		}
-		if wl.Result.State != gridtypes.StateOk {
-			return nil, fmt.Errorf("invalid disk '%s' state", disk.Name)
-		}
-
-		info, err := storage.DiskLookup(ctx, wl.ID.String())
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to inspect disk '%s'", disk.Name)
-		}
-
-		if format {
-			if err := storage.DiskFormat(ctx, wl.ID.String()); err != nil {
-				return nil, errors.Wrap(err, "failed to prepare mount")
-			}
-		}
-
-		results = append(results, pkg.VMDisk{Path: info.Path, Target: disk.Mountpoint})
-	}
-
-	return results, nil
-}
-
-func (p *Primitives) mountsToQsfs(ctx context.Context, deployment gridtypes.Deployment, mounts []zos.MachineMount) ([]pkg.Qsfs, error) {
-
-	var results []pkg.Qsfs
+func (p *Primitives) vmMounts(ctx context.Context, deployment gridtypes.Deployment, mounts []zos.MachineMount, format bool, vm *pkg.VM) error {
 	for _, mount := range mounts {
+		log.Debug().Str("mount", string(mount.Name)).Msg("why this")
 		wl, err := deployment.Get(mount.Name)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get qsfs '%s' workload", mount.Name)
-		}
-		if wl.Type != zos.QuantumSafeFSType {
-			continue
+			return errors.Wrapf(err, "failed to get mount '%s' workload", mount.Name)
 		}
 		if wl.Result.State != gridtypes.StateOk {
-			return nil, fmt.Errorf("invalid qsfs '%s' state", mount.Name)
+			return fmt.Errorf("invalid disk '%s' state", mount.Name)
 		}
-		var info zos.QuatumSafeFSResult
-		if err := wl.Result.Unmarshal(&info); err != nil {
-			return nil, fmt.Errorf("invalid qsfs result '%s': %w", mount.Name, err)
+		switch wl.Type {
+		case zos.ZMountType:
+			if err := p.mountDisk(ctx, wl, mount, format, vm); err != nil {
+				return err
+			}
+		case zos.QuantumSafeFSType:
+			if err := p.mountQsfs(wl, mount, vm); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("expecting a reservation of type '%s' or '%s' for disk '%s'", zos.ZMountType, zos.QuantumSafeFSType, mount.Name)
 		}
-		wlID := wl.ID.String()
-		results = append(results, pkg.Qsfs{ID: strings.ReplaceAll(wlID, "-", ""), Path: info.Path, Target: mount.Mountpoint})
+	}
+	return nil
+}
+
+func (p *Primitives) mountDisk(ctx context.Context, wl *gridtypes.WorkloadWithID, mount zos.MachineMount, format bool, vm *pkg.VM) error {
+	storage := stubs.NewStorageModuleStub(p.zbus)
+
+	info, err := storage.DiskLookup(ctx, wl.ID.String())
+	if err != nil {
+		return errors.Wrapf(err, "failed to inspect disk '%s'", mount.Name)
 	}
 
-	return results, nil
+	if format {
+		if err := storage.DiskFormat(ctx, wl.ID.String()); err != nil {
+			return errors.Wrap(err, "failed to prepare mount")
+		}
+	}
+
+	vm.Disks = append(vm.Disks, pkg.VMDisk{Path: info.Path, Target: mount.Mountpoint})
+
+	return nil
+}
+
+func (p *Primitives) mountQsfs(wl *gridtypes.WorkloadWithID, mount zos.MachineMount, vm *pkg.VM) error {
+
+	var info zos.QuatumSafeFSResult
+	if err := wl.Result.Unmarshal(&info); err != nil {
+		return fmt.Errorf("invalid qsfs result '%s': %w", mount.Name, err)
+	}
+	wlID := wl.ID.String()
+	vm.Shared = append(vm.Shared, pkg.SharedDir{ID: strings.ReplaceAll(wlID, "-", ""), Path: info.Path, Target: mount.Mountpoint})
+	return nil
 }
 
 func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.ZMachineResult, err error) {
@@ -110,13 +108,18 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 
 		config ZMachine
 	)
-
 	if vm.Exists(ctx, wl.ID.String()) {
 		return result, provision.ErrDidNotChange
 	}
 
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return result, errors.Wrap(err, "failed to decode reservation schema")
+	}
+	machine := pkg.VM{
+		Name:        wl.ID.String(),
+		CPU:         config.ComputeCapacity.CPU,
+		Memory:      config.ComputeCapacity.Memory,
+		Environment: config.Env,
 	}
 	// Should config.Vaid() be called here?
 
@@ -201,8 +204,6 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 	log.Debug().Msgf("detected flist type: %+v", imageInfo)
 
 	var boot pkg.Boot
-	var disks []pkg.VMDisk
-	var qsfs []pkg.Qsfs
 
 	// "root=/dev/vda rw console=ttyS0 reboot=k panic=1"
 	cmd := pkg.KernelArgs{
@@ -246,17 +247,8 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		cmd["host"] = string(wl.Name)
 		// change the root boot to use the right virtiofs tag
 		cmd["init"] = config.Entrypoint
-
-		disks, err = p.mountsToDisks(ctx, deployment, config.Mounts, true)
-		if err != nil {
+		if err := p.vmMounts(ctx, deployment, config.Mounts, true, &machine); err != nil {
 			return result, err
-		}
-		qsfs, err = p.mountsToQsfs(ctx, deployment, config.Mounts)
-		if err != nil {
-			return result, err
-		}
-		if len(disks)+len(qsfs) != len(config.Mounts) {
-			return result, errors.New("mount workload must be linked qsfs or disk")
 		}
 	} else {
 		// if a VM the vm has to have at least one mount
@@ -294,24 +286,21 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 			Type: pkg.BootDisk,
 			Path: info.Path,
 		}
-		// we don't format disks attached to VMs, it's up to the vm to decide that
-		disks, err = p.mountsToDisks(ctx, deployment, config.Mounts[1:], false)
-		if err != nil {
+		config.Mounts = config.Mounts[1:]
+		if err := p.vmMounts(ctx, deployment, config.Mounts, false, &machine); err != nil {
 			return result, err
-		}
-		qsfs, err = p.mountsToQsfs(ctx, deployment, config.Mounts)
-		if err != nil {
-			return result, err
-		}
-		if len(disks)+len(qsfs) != len(config.Mounts)-1 {
-			return result, errors.New("mount workload must be linked qsfs or disk")
 		}
 	}
+
 	// - Attach mounts
 	// - boot
+	machine.Network = networkInfo
+	machine.KernelImage = imageInfo.Kernel
+	machine.InitrdImage = imageInfo.Initrd
+	machine.KernelArgs = cmd
+	machine.Boot = boot
 
-	err = p.vmRun(ctx, wl.ID.String(), &config, boot, disks, qsfs, imageInfo, cmd, networkInfo)
-	if err != nil {
+	if err := vm.Run(ctx, machine); err != nil {
 		// attempt to delete the vm, should the process still be lingering
 		_ = vm.Delete(ctx, wl.ID.String())
 	}
@@ -378,7 +367,7 @@ func (p *Primitives) vmRun(
 	config *ZMachine,
 	boot pkg.Boot,
 	disks []pkg.VMDisk,
-	qsfs []pkg.Qsfs,
+	qsfs []pkg.SharedDir,
 	imageInfo FListInfo,
 	cmdline pkg.KernelArgs,
 	networkInfo pkg.VMNetworkInfo) error {
@@ -398,7 +387,7 @@ func (p *Primitives) vmRun(
 		Boot:        boot,
 		Environment: config.Env,
 		Disks:       disks,
-		Qsfs:        qsfs,
+		Shared:      qsfs,
 	}
 
 	return vm.Run(ctx, kubevm)
