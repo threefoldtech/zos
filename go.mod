@@ -55,8 +55,8 @@ require (
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
-	github.com/threefoldtech/go-rmb v0.1.3 // indirect
-	github.com/threefoldtech/substrate-client v0.0.0-20211007134519-74137b8f68ec // indirect
+	github.com/threefoldtech/go-rmb v0.1.3 
+	github.com/threefoldtech/substrate-client v0.0.0-20211007134519-74137b8f68ec
 	github.com/threefoldtech/zbus v0.1.5
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/urfave/cli v1.22.5
@@ -80,5 +80,3 @@ require (
 )
 
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
-
-replace github.com/threefoldtech/substrate-client => ../substrate-client
