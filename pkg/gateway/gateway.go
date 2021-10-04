@@ -14,8 +14,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"gopkg.in/yaml.v2"
@@ -37,6 +39,7 @@ const (
 type gatewayModule struct {
 	cl       zbus.Client
 	resolver *net.Resolver
+	sub      *substrate.Substrate
 
 	reservedDomains  map[string]struct{}
 	proxyConfigPath  string
@@ -191,13 +194,22 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load old domains")
 	}
+	env, err := environment.Get()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get env")
+	}
+	sub, err := env.GetSubstrate()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get substrate client")
+	}
 	gw := &gatewayModule{
 		cl:               cl,
+		resolver:         r,
+		sub:              sub,
 		proxyConfigPath:  configPath,
 		staticConfigPath: staticCfgPath,
 		certScriptPath:   certScriptPath,
 		binPath:          bin,
-		resolver:         r,
 		reservedDomains:  domains,
 	}
 
@@ -299,7 +311,28 @@ func (g *gatewayModule) configPath(name string) string {
 	return filepath.Join(g.proxyConfigPath, fmt.Sprintf("%s.yaml", name))
 }
 
-func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []string, TLSPassthrough bool) (string, error) {
+func (g *gatewayModule) validateNameContract(name string, twinID uint32) error {
+	contractID, err := g.sub.GetContractIDByNameRegistration(string(name))
+	if errors.Is(err, substrate.ErrNotFound) {
+		return errors.New("a name contract must be reserved first")
+	}
+	if err != nil {
+		return err
+	}
+	contract, err := g.sub.GetContract(contractID)
+	if errors.Is(err, substrate.ErrNotFound) {
+		return errors.New("a name contract must be reserved first")
+	}
+	if err != nil {
+		return err
+	}
+	if uint32(contract.TwinID) != twinID {
+		return errors.New("twin id mismatch")
+	}
+	return nil
+}
+
+func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []string, TLSPassthrough bool, twinID uint32) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
@@ -309,6 +342,9 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	}
 	if cfg.Domain == "" {
 		return "", errors.New("node doesn't support name proxy (doesn't have a domain)")
+	}
+	if err := g.validateNameContract(prefix, twinID); err != nil {
+		return "", errors.Wrap(err, "failed to verify name contract")
 	}
 	fqdn := fmt.Sprintf("%s.%s", prefix, cfg.Domain)
 
