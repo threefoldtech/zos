@@ -615,14 +615,14 @@ func (n networker) GetIPv6From4(networkID pkg.NetID, ip net.IP) (net.IPNet, erro
 }
 
 // Addrs return the IP addresses of interface
-func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
-	var ips []net.IP
-
+func (n networker) Addrs(iface string, netns string) (ips []net.IP, mac string, err error) {
 	f := func(_ ns.NetNS) error {
 		link, err := netlink.LinkByName(iface)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get interface %s", iface)
 		}
+
+		mac = link.Attrs().HardwareAddr.String()
 
 		addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
 		if err != nil {
@@ -648,20 +648,20 @@ func (n networker) Addrs(iface string, netns string) ([]net.IP, error) {
 	if netns != "" {
 		netNS, err := namespace.GetByName(netns)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get network namespace %s", netns)
+			return nil, mac, errors.Wrapf(err, "failed to get network namespace %s", netns)
 		}
 		defer netNS.Close()
 
 		if err := netNS.Do(f); err != nil {
-			return nil, err
+			return nil, mac, err
 		}
 	} else {
 		if err := f(nil); err != nil {
-			return nil, err
+			return nil, mac, err
 		}
 	}
 
-	return ips, nil
+	return ips, mac, nil
 }
 
 // CreateNR implements pkg.Networker interface

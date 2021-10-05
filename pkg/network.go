@@ -138,7 +138,7 @@ type Networker interface {
 
 	// Addrs return the IP addresses of interface
 	// if the interface is in a network namespace netns needs to be not empty
-	Addrs(iface string, netns string) ([]net.IP, error)
+	Addrs(iface string, netns string) (ips []net.IP, mac string, err error)
 
 	WireguardPorts() ([]uint, error)
 

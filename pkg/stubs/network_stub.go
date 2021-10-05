@@ -25,7 +25,7 @@ func NewNetworkerStub(client zbus.Client) *NetworkerStub {
 	}
 }
 
-func (s *NetworkerStub) Addrs(ctx context.Context, arg0 string, arg1 string) (ret0 [][]uint8, ret1 error) {
+func (s *NetworkerStub) Addrs(ctx context.Context, arg0 string, arg1 string) (ret0 [][]uint8, ret1 string, ret2 error) {
 	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "Addrs", args...)
 	if err != nil {
@@ -34,8 +34,11 @@ func (s *NetworkerStub) Addrs(ctx context.Context, arg0 string, arg1 string) (re
 	if err := result.Unmarshal(0, &ret0); err != nil {
 		panic(err)
 	}
-	ret1 = new(zbus.RemoteError)
 	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	ret2 = new(zbus.RemoteError)
+	if err := result.Unmarshal(2, &ret2); err != nil {
 		panic(err)
 	}
 	return
