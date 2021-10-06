@@ -204,7 +204,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		}
 
 		// if the name changes (because flist changed, a new mount will be created)
-		name := fmt.Sprintf("cloud-container:%s", hash)
+		name := fmt.Sprintf("%s:%s", cloudContainerName, hash)
 
 		// now mount cloud image also
 		cloudImage, err := flist.Mount(ctx, name, cloudContainerFlist, pkg.ReadOnlyMountOptions)
