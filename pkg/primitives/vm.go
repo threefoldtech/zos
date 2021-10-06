@@ -286,8 +286,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 			Type: pkg.BootDisk,
 			Path: info.Path,
 		}
-		config.Mounts = config.Mounts[1:]
-		if err := p.vmMounts(ctx, deployment, config.Mounts, false, &machine); err != nil {
+		if err := p.vmMounts(ctx, deployment, config.Mounts[1:], false, &machine); err != nil {
 			return result, err
 		}
 	}
