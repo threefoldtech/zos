@@ -39,6 +39,12 @@ const (
 	validationPeriod = 1 * time.Hour
 )
 
+var (
+	ErrTwinIDMismatch       = fmt.Errorf("twin id mismatch")
+	ErrContractNotReserved  = fmt.Errorf("a name contract with the given name must be reserved first")
+	ErrInvalidContractState = fmt.Errorf("the name contract must be in Created state")
+)
+
 type gatewayModule struct {
 	cl       zbus.Client
 	resolver *net.Resolver
@@ -296,16 +302,24 @@ func (g *gatewayModule) validateNameContracts() error {
 			continue
 		}
 		name := strings.TrimSuffix(domain, fmt.Sprintf(".%s", baseDomain))
-		if err := g.validateNameContract(name, twinID); err != nil {
+		err = g.validateNameContract(name, twinID)
+		if errors.Is(err, ErrContractNotReserved) || errors.Is(err, ErrInvalidContractState) || errors.Is(err, ErrTwinIDMismatch) {
 			log.Debug().
-				Str("reason", string(name)).
+				Str("reason", err.Error()).
 				Str("wlID", id).
+				Str("name", name).
 				Msg("removing domain in name contract validation")
 			if err := e.DecommissionCached(ctx, id, err.Error()); err != nil {
 				log.Error().
 					Err(err).
 					Msgf("failed to decommission invalid gateway name workload %s", id)
 			}
+		} else if err != nil {
+			log.Error().
+				Str("reason", err.Error()).
+				Str("wlID", id).
+				Str("name", name).
+				Msg("validating name contract failed because of a non-user error")
 		}
 	}
 	return nil
@@ -413,23 +427,23 @@ func (g *gatewayModule) configPath(name string) string {
 func (g *gatewayModule) validateNameContract(name string, twinID uint32) error {
 	contractID, err := g.sub.GetContractIDByNameRegistration(string(name))
 	if errors.Is(err, substrate.ErrNotFound) {
-		return errors.New("a name contract must be reserved first")
+		return ErrContractNotReserved
 	}
 	if err != nil {
 		return err
 	}
 	contract, err := g.sub.GetContract(contractID)
 	if errors.Is(err, substrate.ErrNotFound) {
-		return errors.New("a name contract must be reserved first")
+		return fmt.Errorf("contract by name returned %d, but retreiving it results in 'not found' error", contractID)
 	}
 	if err != nil {
 		return err
 	}
 	if !contract.State.IsCreated {
-		return fmt.Errorf("contract is not in created state: %d", contractID)
+		return ErrInvalidContractState
 	}
 	if uint32(contract.TwinID) != twinID {
-		return errors.New("twin id mismatch")
+		return ErrTwinIDMismatch
 	}
 	return nil
 }
