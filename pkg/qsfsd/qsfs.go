@@ -140,11 +140,12 @@ func (f *QSFS) isMounted(path string) (bool, error) {
 	if err := json.Unmarshal(output, &result); err != nil {
 		return false, errors.Wrap(err, "failed to parse findmnt output")
 	}
-	l := len(result.Filesystems)
-	if result.Filesystems[l-1].Fstype != "fuse.zdbfs" {
-		return false, nil
+	for _, fs := range result.Filesystems {
+		if fs.Fstype == "fuse.zdbfs" {
+			return true, nil
+		}
 	}
-	return true, nil
+	return false, nil
 }
 
 func (q *QSFS) Unmount(wlID string) error {
