@@ -2,7 +2,10 @@ package qsfsd
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -100,8 +103,51 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (mountPath string, err e
 		qsfsContainerNS,
 		cont,
 	)
+	if lerr := q.waitUntilMounted(mountPath, 2*time.Minute); lerr != nil {
+		err = lerr
+		return
+	}
 	return
 }
+
+func (f *QSFS) waitUntilMounted(path string, timeout time.Duration) error {
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(1 * time.Second) {
+		mounted, err := f.isMounted(path)
+		if err != nil {
+			return errors.Wrap(err, "failed to check if zdbfs is mounted")
+		}
+		if mounted {
+			return nil
+		}
+	}
+	return fmt.Errorf("waiting for zdbfs mount %s timedout", path)
+
+}
+
+func (f *QSFS) isMounted(path string) (bool, error) {
+	output, err := exec.Command("findmnt", "-J", path).Output()
+	if err, ok := err.(*exec.ExitError); ok && err != nil {
+		if err.ExitCode() == 1 {
+			return false, nil
+		}
+	}
+	var result struct {
+		Filesystems []struct {
+			Fstype string `json:"fstype"`
+		} `json:"filesystems"`
+	}
+
+	if err := json.Unmarshal(output, &result); err != nil {
+		return false, errors.Wrap(err, "failed to parse findmnt output")
+	}
+	for _, fs := range result.Filesystems {
+		if fs.Fstype == "fuse.zdbfs" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (q *QSFS) Unmount(wlID string) error {
 	networkd := stubs.NewNetworkerStub(q.cl)
 	flistd := stubs.NewFlisterStub(q.cl)
