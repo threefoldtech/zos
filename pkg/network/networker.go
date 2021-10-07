@@ -234,51 +234,6 @@ func (n networker) ZDBDestroy(ns string) error {
 	// return n.destroy(ns)
 }
 
-func (n networker) QSFSNamespace(id string) string {
-	netId := "qsfs:" + id
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
-	return qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
-}
-
-func (n networker) QSFSPrepare(id string) (string, error) {
-	netId := "qsfs:" + id
-	netNSName := n.QSFSNamespace(id)
-	netNs, err := createNetNS(netNSName)
-	if err != nil {
-		return "", err
-	}
-	defer netNs.Close()
-	if err := n.ndmz.AttachNR(netId, netNSName, n.ipamLeaseDir); err != nil {
-		return "", errors.Wrap(err, "failed to prepare qsfs namespace")
-	}
-
-	if n.ygg == nil {
-		return netNSName, nil
-	}
-
-	return netNSName, n.attachYgg(id, netNs)
-}
-
-func (n networker) QSFSDestroy(id string) error {
-	netId := "qsfs:" + id
-
-	netNSName := n.QSFSNamespace(id)
-
-	if err := n.ndmz.DetachNR(netId, n.ipamLeaseDir); err != nil {
-		log.Err(err).Str("namespace", netNSName).Msg("failed to detach qsfs namespace from ndmz")
-	}
-	netNs, err := namespace.GetByName(netNSName)
-	if err != nil {
-		return errors.Wrap(err, "didn't find qsfs namespace")
-	}
-	defer netNs.Close()
-	if err := n.detachYgg(id, netNs); err != nil {
-		// log and continue cleaning up
-		log.Error().Err(err).Msg("couldn't detach ygg interface")
-	}
-	return n.destroy(netNSName)
-}
-
 func (n networker) createMacVlan(iface string, master string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {
 	var macVlan *netlink.Macvlan
 	err := netNs.Do(func(_ ns.NetNS) error {

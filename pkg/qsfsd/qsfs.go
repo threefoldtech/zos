@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +24,10 @@ const (
 	qsfsFlist             = "https://hub.grid.tf/azmy.3bot/qsfs.flist"
 	qsfsContainerNS       = "qsfs"
 	qsfsRootFsPropagation = pkg.RootFSPropagationSlave
+	zstorSocket           = "/var/run/zstor.sock"
+	zstorZDBFSMountPoint  = "/mnt" // hardcoded in the container
+	zstorPrometheusPort   = 9100
+	zstorZDBDataDirPath   = "/data"
 )
 
 type QSFS struct {
@@ -31,7 +36,17 @@ type QSFS struct {
 	mountsPath string
 }
 
+type zstorConfig struct {
+	zos.QuantumSafeFSConfig
+	ZDBDataDirPath  string `toml:"zdb_data_dir_path"`
+	Socket          string `toml:"socket"`
+	PrometheusPort  uint32 `toml:"prometheus_port"`
+	ZDBFSMountpoint string `toml:"zdbfs_mountpoint"`
+	Root            string `toml:"root"`
+}
+
 func New(ctx context.Context, cl zbus.Client, root string) (pkg.QSFSD, error) {
+
 	mountPath := filepath.Join(root, "mounts")
 	err := os.MkdirAll(mountPath, 0644)
 	if err != nil {
@@ -44,7 +59,18 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.QSFSD, error) {
 	}, nil
 }
 
-func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (mountPath string, err error) {
+func setQSFSDefaults(cfg *zos.QuantumSafeFS) zstorConfig {
+	return zstorConfig{
+		QuantumSafeFSConfig: cfg.Config,
+		Socket:              zstorSocket,
+		PrometheusPort:      zstorPrometheusPort,
+		ZDBFSMountpoint:     zstorZDBFSMountPoint,
+		ZDBDataDirPath:      zstorZDBDataDirPath,
+		Root:                zstorZDBFSMountPoint,
+	}
+}
+
+func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err error) {
 	defer func() {
 		if err != nil {
 			if err := q.Unmount(wlID); err != nil {
@@ -52,6 +78,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (mountPath string, err e
 			}
 		}
 	}()
+	zstorConfig := setQSFSDefaults(&cfg)
 	networkd := stubs.NewNetworkerStub(q.cl)
 	flistd := stubs.NewFlisterStub(q.cl)
 	contd := stubs.NewContainerModuleStub(q.cl)
@@ -60,7 +87,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (mountPath string, err e
 	defer cancel()
 	netns, err := networkd.QSFSPrepare(ctx, wlID)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to prepare qsfs")
+		return info, errors.Wrap(err, "failed to prepare qsfs")
 	}
 	flistPath, err := flistd.Mount(ctx, wlID, qsfsFlist, pkg.MountOptions{
 		ReadOnly: false,
@@ -71,11 +98,11 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (mountPath string, err e
 		err = errors.Wrap(err, "failed to mount qsfs flist")
 		return
 	}
-	if lerr := q.writeQSFSConfig(flistPath, cfg.Config); lerr != nil {
+	if lerr := q.writeQSFSConfig(flistPath, zstorConfig); lerr != nil {
 		err = errors.Wrap(lerr, "couldn't write qsfs config")
 		return
 	}
-	mountPath = q.mountPath(wlID)
+	mountPath := q.mountPath(wlID)
 	err = q.prepareMountPath(mountPath)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare mount path")
@@ -103,24 +130,62 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuatumSafeFS) (mountPath string, err e
 		qsfsContainerNS,
 		cont,
 	)
-	if lerr := q.waitUntilMounted(mountPath, 2*time.Minute); lerr != nil {
+	if lerr := q.waitUntilMounted(ctx, mountPath); lerr != nil {
 		err = lerr
 		return
 	}
+	info.Path = mountPath
+	info.PrometheusPort = 9100
+	info.PrometheusEndpoint, err = q.waitYggIPs(ctx, networkd, netns)
+
 	return
 }
 
-func (f *QSFS) waitUntilMounted(path string, timeout time.Duration) error {
-	for start := time.Now(); time.Since(start) < timeout; time.Sleep(1 * time.Second) {
-		mounted, err := f.isMounted(path)
-		if err != nil {
-			return errors.Wrap(err, "failed to check if zdbfs is mounted")
-		}
-		if mounted {
-			return nil
+func (q *QSFS) waitYggIPs(ctx context.Context, networkd *stubs.NetworkerStub, netns string) (string, error) {
+	var yggNet = net.IPNet{
+		IP:   net.ParseIP("200::"),
+		Mask: net.CIDRMask(7, 128),
+	}
+
+	isYgg := func(ip net.IP) bool {
+		return yggNet.Contains(ip)
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			ips, _, err := networkd.Addrs(ctx, "ygg0", netns)
+			if err != nil {
+				return "", errors.Wrap(err, "failed to get ygg0 address")
+			}
+			for _, ip := range ips {
+				if isYgg(ip) {
+					return net.IP(ip).String(), nil
+				}
+			}
+		case <-ctx.Done():
+			return "", fmt.Errorf("waiting for ygg ips timedout: context cancelled")
 		}
 	}
-	return fmt.Errorf("waiting for zdbfs mount %s timedout", path)
+}
+
+func (f *QSFS) waitUntilMounted(ctx context.Context, path string) error {
+	ticker := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			mounted, err := f.isMounted(path)
+			if err != nil {
+				return errors.Wrap(err, "failed to check if zdbfs is mounted")
+			}
+			if mounted {
+				return nil
+			}
+		case <-ctx.Done():
+			return fmt.Errorf("waiting for zdbfs mount %s timedout: context cancelled", path)
+		}
+	}
 
 }
 
@@ -199,7 +264,7 @@ func (q *QSFS) prepareMountPath(path string) error {
 	return nil
 }
 
-func (q *QSFS) writeQSFSConfig(root string, cfg zos.QuantumSafeFSConfig) error {
+func (q *QSFS) writeQSFSConfig(root string, cfg zstorConfig) error {
 	cfgPath := filepath.Join(root, "data/zstor.toml")
 	f, err := os.OpenFile(cfgPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {

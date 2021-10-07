@@ -45,7 +45,6 @@ func (p *Primitives) virtualMachineProvision(ctx context.Context, wl *gridtypes.
 
 func (p *Primitives) vmMounts(ctx context.Context, deployment gridtypes.Deployment, mounts []zos.MachineMount, format bool, vm *pkg.VM) error {
 	for _, mount := range mounts {
-		log.Debug().Str("mount", string(mount.Name)).Msg("why this")
 		wl, err := deployment.Get(mount.Name)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get mount '%s' workload", mount.Name)
