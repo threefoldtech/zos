@@ -13,9 +13,9 @@ type QSFSMetrics struct {
 }
 
 type QSFSInfo struct {
-	Path               string
-	PrometheusEndpoint string
-	PrometheusPort     int
+	Path            string
+	MetricsEndpoint string
+	MetricsPort     int
 }
 
 func (q *QSFSMetrics) Nu(wlID string) (result uint64) {

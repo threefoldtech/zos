@@ -223,7 +223,7 @@ func (q QuantumSafeFS) Capacity() (gridtypes.Capacity, error) {
 }
 
 type QuatumSafeFSResult struct {
-	Path               string `json:"path"`
-	PrometheusEndpoint string `json:"prometheus_endpoint"`
-	PrometheusPort     int    `json:"prometheus_port"`
+	Path            string `json:"path"`
+	MetricsEndpoint string `json:"metrics_endpoint"`
+	MetricsPort     int    `json:"metrics_port"`
 }

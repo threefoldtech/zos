@@ -26,7 +26,7 @@ const (
 	qsfsRootFsPropagation = pkg.RootFSPropagationSlave
 	zstorSocket           = "/var/run/zstor.sock"
 	zstorZDBFSMountPoint  = "/mnt" // hardcoded in the container
-	zstorPrometheusPort   = 9100
+	zstorMetricsPort      = 9100
 	zstorZDBDataDirPath   = "/data"
 )
 
@@ -40,7 +40,7 @@ type zstorConfig struct {
 	zos.QuantumSafeFSConfig
 	ZDBDataDirPath  string `toml:"zdb_data_dir_path"`
 	Socket          string `toml:"socket"`
-	PrometheusPort  uint32 `toml:"prometheus_port"`
+	MetricsPort     uint32 `toml:"prometheus_port"`
 	ZDBFSMountpoint string `toml:"zdbfs_mountpoint"`
 	Root            string `toml:"root"`
 }
@@ -63,7 +63,7 @@ func setQSFSDefaults(cfg *zos.QuantumSafeFS) zstorConfig {
 	return zstorConfig{
 		QuantumSafeFSConfig: cfg.Config,
 		Socket:              zstorSocket,
-		PrometheusPort:      zstorPrometheusPort,
+		MetricsPort:         zstorMetricsPort,
 		ZDBFSMountpoint:     zstorZDBFSMountPoint,
 		ZDBDataDirPath:      zstorZDBDataDirPath,
 		Root:                zstorZDBFSMountPoint,
@@ -135,8 +135,8 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 		return
 	}
 	info.Path = mountPath
-	info.PrometheusPort = 9100
-	info.PrometheusEndpoint, err = q.waitYggIPs(ctx, networkd, netns)
+	info.MetricsPort = 9100
+	info.MetricsEndpoint, err = q.waitYggIPs(ctx, networkd, netns)
 
 	return
 }

@@ -4,11 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"syscall"
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -17,6 +12,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/vishvananda/netlink"
 )
 
 // Metrics gets running qsfs network metrics
@@ -41,25 +37,7 @@ func (m *QSFS) Metrics() (pkg.QSFSMetrics, error) {
 			defer netNs.Close()
 			metrics := pkg.NetMetric{}
 			err = netNs.Do(func(_ ns.NetNS) error {
-				dir, err := ioutil.TempDir("/tmp", "qsfs-sysfs")
-				if err != nil {
-					return errors.Wrap(err, "coudln't create temp dir")
-				}
-				defer func() {
-					if err := os.RemoveAll(dir); err != nil {
-						log.Error().Err(err).Msg(fmt.Sprintf("qsfs metrics: couldn't remove: %s", dir))
-					}
-				}()
-				if err := syscall.Mount("newns", dir, "sysfs", 0, ""); err != nil {
-					return errors.Wrap(err, "couldn't mount sysfs")
-				}
-				defer func() {
-					if err := syscall.Unmount(dir, syscall.MNT_DETACH); err != nil {
-						log.Error().Err(err).Msg("qsfs metrics: couldn't detach sysfs: %s")
-					}
-				}()
-
-				metrics, err = metricsForNics(dir, []string{"public", "ygg0"})
+				metrics, err = metricsForNics([]string{"public", "ygg0"})
 				return err
 			})
 			if err != nil {
@@ -72,37 +50,19 @@ func (m *QSFS) Metrics() (pkg.QSFSMetrics, error) {
 	return pkg.QSFSMetrics{Consumption: result}, nil
 }
 
-func readFileUint64(p string) (uint64, error) {
-	bytes, err := ioutil.ReadFile(p)
-	if err != nil {
-		// we do skip but may be this is not crre
-		return 0, err
-	}
-
-	return strconv.ParseUint(strings.TrimSpace(string(bytes)), 10, 64)
-}
-
-func metricsForNics(sysfsPath string, nics []string) (m pkg.NetMetric, err error) {
-	template := filepath.Join(sysfsPath, "class/net/%s/statistics/")
-	dict := map[string]*uint64{
-		"rx_bytes":   &m.NetRxBytes,
-		"rx_packets": &m.NetRxPackets,
-		"tx_bytes":   &m.NetTxBytes,
-		"tx_packets": &m.NetTxPackets,
-	}
+func metricsForNics(nics []string) (pkg.NetMetric, error) {
+	var m pkg.NetMetric
 	for _, nic := range nics {
-		base := fmt.Sprintf(template, nic)
-		for metric, ptr := range dict {
-			path := filepath.Join(base, metric)
-			value, err := readFileUint64(path)
-			if err != nil {
-				log.Error().Err(err).Str("path", path).Msg("failed to read statistics")
-				continue
-			}
-
-			*ptr += value
+		link, err := netlink.LinkByName(nic)
+		if err != nil {
+			return m, errors.Wrapf(err, "couldn't get nic %s info", nic)
 		}
+		stats := link.Attrs().Statistics
+		m.NetRxBytes += stats.RxBytes
+		m.NetRxPackets += stats.RxPackets
+		m.NetTxBytes += stats.TxBytes
+		m.NetTxPackets += stats.TxPackets
 	}
 
-	return
+	return m, nil
 }

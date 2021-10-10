@@ -23,8 +23,8 @@ func (p *Primitives) qsfsProvision(ctx context.Context, wl *gridtypes.WorkloadWi
 		return nil, errors.Wrap(err, "failed to setup create qsfs mount")
 	}
 	result.Path = info.Path
-	result.PrometheusEndpoint = info.PrometheusEndpoint
-	result.PrometheusPort = info.PrometheusPort
+	result.MetricsEndpoint = info.MetricsEndpoint
+	result.MetricsPort = info.MetricsPort
 	return result, nil
 }
 
