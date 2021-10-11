@@ -55,13 +55,12 @@ require (
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
-	github.com/threefoldtech/go-rmb v0.1.4-0.20211001084350-a0f5b8f508f5
+	github.com/threefoldtech/go-rmb v0.1.4
 	github.com/threefoldtech/substrate-client v0.0.0-20211007134519-74137b8f68ec
 	github.com/threefoldtech/zbus v0.1.5
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/urfave/cli v1.22.5
 	github.com/urfave/cli/v2 v2.3.0
-	github.com/vedhavyas/go-subkey v1.0.2
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect

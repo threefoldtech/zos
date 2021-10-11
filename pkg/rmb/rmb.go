@@ -38,6 +38,7 @@ type Message struct {
 	Retqueue   string   `json:"ret"`
 	Schema     string   `json:"shm"`
 	Epoch      int64    `json:"now"`
+	Proxy      bool     `json:"pxy"`
 	Err        string   `json:"err"`
 }
 
