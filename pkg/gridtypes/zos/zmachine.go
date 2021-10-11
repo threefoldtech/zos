@@ -160,14 +160,14 @@ func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 
 // Capacity implementation
 func (v ZMachine) Capacity() (gridtypes.Capacity, error) {
-	var hru uint64
+	var sru uint64
 	if v.Size > 250*gridtypes.Megabyte {
-		hru += uint64(v.Size) - 250*uint64(gridtypes.Megabyte)
+		sru += uint64(v.Size) - 250*uint64(gridtypes.Megabyte)
 	}
 	return gridtypes.Capacity{
 		CRU: uint64(v.ComputeCapacity.CPU),
 		MRU: v.ComputeCapacity.Memory,
-		HRU: gridtypes.Unit(hru),
+		SRU: gridtypes.Unit(sru),
 	}, nil
 }
 
