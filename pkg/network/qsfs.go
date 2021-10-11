@@ -31,9 +31,9 @@ table inet filter {
     jump base_checks
     # port for prometheus
     tcp dport 9100 iifname ygg0 accept
-	# accept only locally generated packets
-	meta iif lo ct state new accept
-	ip6 nexthdr icmpv6 accept
+    # accept only locally generated packets
+    meta iif lo ct state new accept
+    ip6 nexthdr icmpv6 accept
   }
 
   chain forward {
