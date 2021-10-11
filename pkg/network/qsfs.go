@@ -1,9 +1,11 @@
 package network
 
 import (
-	"bytes"
+	"context"
+	"fmt"
+	"net"
 	"strings"
-	"text/template"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -11,8 +13,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/threefoldtech/zos/pkg/network/nft"
 )
-
-var qsfsNFTTmpl *template.Template = template.Must(template.New("").Parse(_nft))
 
 var _nft = `
 flush ruleset
@@ -31,9 +31,9 @@ table inet filter {
     jump base_checks
     # port for prometheus
     tcp dport 9100 iifname ygg0 accept
-	# accept only locally generated packets to zdbs
-    tcp dport 9900 iifname lo accept
-    ip6 nexthdr icmpv6 accept
+	# accept only locally generated packets
+	meta iif lo ct state new accept
+	ip6 nexthdr icmpv6 accept
   }
 
   chain forward {
@@ -46,17 +46,41 @@ table inet filter {
 `
 
 func applyQSFSFirewall(netns string) error {
-	buf := bytes.Buffer{}
-
-	if err := qsfsNFTTmpl.Execute(&buf, nil); err != nil {
-		return errors.Wrap(err, "failed to build nft rule set")
-	}
-
-	if err := nft.Apply(&buf, netns); err != nil {
+	if err := nft.Apply(strings.NewReader(_nft), netns); err != nil {
 		return errors.Wrap(err, "failed to apply nft rule set")
 	}
 
 	return nil
+}
+
+func (n *networker) waitYggIPs(netns string) (string, error) {
+	var yggNet = net.IPNet{
+		IP:   net.ParseIP("200::"),
+		Mask: net.CIDRMask(7, 128),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	isYgg := func(ip net.IP) bool {
+		return yggNet.Contains(ip)
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			ips, _, err := n.Addrs("ygg0", netns)
+			if err != nil {
+				return "", errors.Wrap(err, "failed to get ygg0 address")
+			}
+			for _, ip := range ips {
+				if isYgg(ip) {
+					return net.IP(ip).String(), nil
+				}
+			}
+		case <-ctx.Done():
+			return "", fmt.Errorf("waiting for ygg ips timedout: context cancelled")
+		}
+	}
 }
 
 func (n networker) QSFSNamespace(id string) string {
@@ -65,27 +89,35 @@ func (n networker) QSFSNamespace(id string) string {
 	return qsfsNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
 }
 
-func (n networker) QSFSPrepare(id string) (string, error) {
+func (n networker) QSFSPrepare(id string) (string, string, error) {
 	netId := "qsfs:" + id
 	netNSName := n.QSFSNamespace(id)
 	netNs, err := createNetNS(netNSName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer netNs.Close()
 	if err := n.ndmz.AttachNR(netId, netNSName, n.ipamLeaseDir); err != nil {
-		return "", errors.Wrap(err, "failed to prepare qsfs namespace")
+		return "", "", errors.Wrap(err, "failed to prepare qsfs namespace")
 	}
 
 	if err := applyQSFSFirewall(netNSName); err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if n.ygg == nil {
-		return netNSName, nil
+		return netNSName, "", nil
+	}
+	err = n.attachYgg(id, netNs)
+	if err != nil {
+		return "", "", err
+	}
+	ip, err := n.waitYggIPs(netNSName)
+	if err != nil {
+		return "", "", err
 	}
 
-	return netNSName, n.attachYgg(id, netNs)
+	return netNSName, ip, err
 }
 
 func (n networker) QSFSDestroy(id string) error {

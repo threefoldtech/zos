@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -85,7 +84,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
-	netns, err := networkd.QSFSPrepare(ctx, wlID)
+	netns, yggIP, err := networkd.QSFSPrepare(ctx, wlID)
 	if err != nil {
 		return info, errors.Wrap(err, "failed to prepare qsfs")
 	}
@@ -135,39 +134,9 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 		return
 	}
 	info.Path = mountPath
-	info.MetricsPort = 9100
-	info.MetricsEndpoint, err = q.waitYggIPs(ctx, networkd, netns)
+	info.MetricsEndpoint = fmt.Sprintf("http://[%s]:%d/metrics", yggIP, zstorMetricsPort)
 
 	return
-}
-
-func (q *QSFS) waitYggIPs(ctx context.Context, networkd *stubs.NetworkerStub, netns string) (string, error) {
-	var yggNet = net.IPNet{
-		IP:   net.ParseIP("200::"),
-		Mask: net.CIDRMask(7, 128),
-	}
-
-	isYgg := func(ip net.IP) bool {
-		return yggNet.Contains(ip)
-	}
-
-	ticker := time.NewTicker(1 * time.Second)
-	for {
-		select {
-		case <-ticker.C:
-			ips, _, err := networkd.Addrs(ctx, "ygg0", netns)
-			if err != nil {
-				return "", errors.Wrap(err, "failed to get ygg0 address")
-			}
-			for _, ip := range ips {
-				if isYgg(ip) {
-					return net.IP(ip).String(), nil
-				}
-			}
-		case <-ctx.Done():
-			return "", fmt.Errorf("waiting for ygg ips timedout: context cancelled")
-		}
-	}
 }
 
 func (f *QSFS) waitUntilMounted(ctx context.Context, path string) error {
@@ -250,7 +219,7 @@ func (q *QSFS) mountPath(wlID string) string {
 }
 
 func (q *QSFS) prepareMountPath(path string) error {
-	if err := os.Mkdir(path, 0644); err != nil {
+	if err := os.MkdirAll(path, 0644); err != nil {
 		return err
 	}
 

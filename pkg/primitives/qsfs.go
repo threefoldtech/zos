@@ -24,7 +24,6 @@ func (p *Primitives) qsfsProvision(ctx context.Context, wl *gridtypes.WorkloadWi
 	}
 	result.Path = info.Path
 	result.MetricsEndpoint = info.MetricsEndpoint
-	result.MetricsPort = info.MetricsPort
 	return result, nil
 }
 
