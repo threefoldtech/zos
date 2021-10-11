@@ -128,13 +128,13 @@ func (n *networker) WireguardPorts() ([]uint, error) {
 	return n.portSet.List()
 }
 
-func (n networker) attachYgg(id string, netNs ns.NetNS) error {
+func (n networker) attachYgg(id string, netNs ns.NetNS) (net.IPNet, error) {
 	// new hardware address for the ygg interface
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("ygg:" + id))
 
 	ip, err := n.ygg.SubnetFor(hw)
 	if err != nil {
-		return fmt.Errorf("failed to generate ygg subnet IP: %w", err)
+		return net.IPNet{}, fmt.Errorf("failed to generate ygg subnet IP: %w", err)
 	}
 
 	ips := []*net.IPNet{
@@ -143,7 +143,7 @@ func (n networker) attachYgg(id string, netNs ns.NetNS) error {
 
 	gw, err := n.ygg.Gateway()
 	if err != nil {
-		return fmt.Errorf("failed to get ygg gateway IP: %w", err)
+		return net.IPNet{}, fmt.Errorf("failed to get ygg gateway IP: %w", err)
 	}
 
 	routes := []*netlink.Route{
@@ -158,10 +158,10 @@ func (n networker) attachYgg(id string, netNs ns.NetNS) error {
 	}
 
 	if err := n.createMacVlan(ZDBYggIface, types.YggBridge, hw, ips, routes, netNs); err != nil {
-		return errors.Wrap(err, "failed to setup zdb ygg interface")
+		return net.IPNet{}, errors.Wrap(err, "failed to setup zdb ygg interface")
 	}
 
-	return nil
+	return ip, nil
 }
 
 func (n networker) detachYgg(id string, netNs ns.NetNS) error {
@@ -197,8 +197,8 @@ func (n networker) prepare(id, prefix, bridge string) (string, error) {
 	if n.ygg == nil {
 		return netNSName, nil
 	}
-
-	return netNSName, n.attachYgg(id, netNs)
+	_, err = n.attachYgg(id, netNs)
+	return netNSName, err
 }
 
 func (n networker) destroy(ns string) error {

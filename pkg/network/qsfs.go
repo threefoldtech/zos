@@ -1,11 +1,7 @@
 package network
 
 import (
-	"context"
-	"fmt"
-	"net"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -53,36 +49,6 @@ func applyQSFSFirewall(netns string) error {
 	return nil
 }
 
-func (n *networker) waitYggIPs(netns string) (string, error) {
-	var yggNet = net.IPNet{
-		IP:   net.ParseIP("200::"),
-		Mask: net.CIDRMask(7, 128),
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-	isYgg := func(ip net.IP) bool {
-		return yggNet.Contains(ip)
-	}
-
-	ticker := time.NewTicker(1 * time.Second)
-	for {
-		select {
-		case <-ticker.C:
-			ips, _, err := n.Addrs("ygg0", netns)
-			if err != nil {
-				return "", errors.Wrap(err, "failed to get ygg0 address")
-			}
-			for _, ip := range ips {
-				if isYgg(ip) {
-					return net.IP(ip).String(), nil
-				}
-			}
-		case <-ctx.Done():
-			return "", fmt.Errorf("waiting for ygg ips timedout: context cancelled")
-		}
-	}
-}
-
 func (n networker) QSFSNamespace(id string) string {
 	netId := "qsfs:" + id
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(netId))
@@ -108,16 +74,12 @@ func (n networker) QSFSPrepare(id string) (string, string, error) {
 	if n.ygg == nil {
 		return netNSName, "", nil
 	}
-	err = n.attachYgg(id, netNs)
-	if err != nil {
-		return "", "", err
-	}
-	ip, err := n.waitYggIPs(netNSName)
+	ip, err := n.attachYgg(id, netNs)
 	if err != nil {
 		return "", "", err
 	}
 
-	return netNSName, ip, err
+	return netNSName, ip.IP.String(), err
 }
 
 func (n networker) QSFSDestroy(id string) error {
