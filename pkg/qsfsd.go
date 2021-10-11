@@ -12,6 +12,11 @@ type QSFSMetrics struct {
 	Consumption map[string]NetMetric
 }
 
+type QSFSInfo struct {
+	Path            string
+	MetricsEndpoint string
+}
+
 func (q *QSFSMetrics) Nu(wlID string) (result uint64) {
 	if v, ok := q.Consumption[wlID]; ok {
 		result += v.NetRxBytes
@@ -21,7 +26,7 @@ func (q *QSFSMetrics) Nu(wlID string) (result uint64) {
 }
 
 type QSFSD interface {
-	Mount(wlID string, cfg zos.QuatumSafeFS) (string, error)
+	Mount(wlID string, cfg zos.QuantumSafeFS) (QSFSInfo, error)
 	Unmount(wlID string) error
 	Metrics() (QSFSMetrics, error)
 }

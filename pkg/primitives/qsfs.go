@@ -11,23 +11,19 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-const (
-	zstorSocket = "/var/run/zstor.sock"
-)
-
 func (p *Primitives) qsfsProvision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
 	var result zos.QuatumSafeFSResult
-	var proxy zos.QuatumSafeFS
+	var proxy zos.QuantumSafeFS
 	if err := json.Unmarshal(wl.Data, &proxy); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal qsfs data from reservation: %w", err)
 	}
-	proxy.Config.Socket = zstorSocket
 	qsfs := stubs.NewQSFSDStub(p.zbus)
-	path, err := qsfs.Mount(ctx, wl.ID.String(), proxy)
+	info, err := qsfs.Mount(ctx, wl.ID.String(), proxy)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to setup create qsfs mount")
 	}
-	result.Path = path
+	result.Path = info.Path
+	result.MetricsEndpoint = info.MetricsEndpoint
 	return result, nil
 }
 

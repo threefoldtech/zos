@@ -40,7 +40,7 @@ func (s *QSFSDStub) Metrics(ctx context.Context) (ret0 pkg.QSFSMetrics, ret1 err
 	return
 }
 
-func (s *QSFSDStub) Mount(ctx context.Context, arg0 string, arg1 zos.QuatumSafeFS) (ret0 string, ret1 error) {
+func (s *QSFSDStub) Mount(ctx context.Context, arg0 string, arg1 zos.QuantumSafeFS) (ret0 pkg.QSFSInfo, ret1 error) {
 	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "Mount", args...)
 	if err != nil {
