@@ -17,6 +17,7 @@ install_zufs() {
 
     mkdir -p "${ROOTDIR}/sbin"
     cp -av rfs-${ZUFS_VERSION} "${ROOTDIR}/sbin/g8ufs"
+    chmod +x "${ROOTDIR}/sbin/g8ufs"
 }
 
 build_zufs() {
