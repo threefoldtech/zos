@@ -623,17 +623,15 @@ func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.W
 }
 
 func (e *NativeEngine) updateDeployment(ctx context.Context, ops []gridtypes.UpgradeOp) (changed bool) {
-	sort.SliceStable(ops, func(i, j int) bool {
-		if ops[i].WlID.Type != ops[j].WlID.Type {
-			if ops[i].Op == gridtypes.OpRemove && ops[j].Op == gridtypes.OpRemove {
-				// deletes are in reverse order (delete the zmachine before deleting its disk)
-				return e.revOrder[ops[i].WlID.Type] > e.revOrder[ops[j].WlID.Type]
-			} else {
-				return e.revOrder[ops[i].WlID.Type] < e.revOrder[ops[j].WlID.Type]
-			}
+	opMap := func(op gridtypes.UpgradeOp) int {
+		if op.Op == gridtypes.OpRemove {
+			return -e.revOrder[op.WlID.Type]
+		} else {
+			return e.revOrder[op.WlID.Type]
 		}
-		// same workload type (shouldn't matter)
-		return ops[i].Op < ops[j].Op
+	}
+	sort.SliceStable(ops, func(i, j int) bool {
+		return opMap(ops[i]) < opMap(ops[j])
 	})
 	for _, op := range ops {
 		switch op.Op {
