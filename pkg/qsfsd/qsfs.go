@@ -181,6 +181,48 @@ func (f *QSFS) isMounted(path string) (bool, error) {
 	return false, nil
 }
 
+func (q *QSFS) UpdateMount(wlID string, cfg zos.QuantumSafeFS) (pkg.QSFSInfo, error) {
+	var info pkg.QSFSInfo
+	zstorConfig := setQSFSDefaults(&cfg)
+	networkd := stubs.NewNetworkerStub(q.cl)
+	flistd := stubs.NewFlisterStub(q.cl)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	netns := networkd.QSFSNamespace(ctx, wlID)
+	ips, _, err := networkd.Addrs(ctx, "ygg0", netns)
+	if err != nil {
+		return info, errors.Wrap(err, "failed to get ygg ip")
+	}
+	if len(ips) != 1 {
+		return info, errors.Wrap(err, "multiple ips found at ygg interface")
+	}
+	yggIP := ips[0]
+	flistPath, err := flistd.Mount(ctx, wlID, qsfsFlist, pkg.MountOptions{
+		ReadOnly: false,
+		Limit:    cfg.Cache,
+	})
+	if err != nil {
+		return info, errors.Wrap(err, "failed to get qsfs flist mountpoint")
+	}
+	if err := q.writeQSFSConfig(flistPath, zstorConfig); err != nil {
+		return info, errors.Wrap(err, "couldn't write qsfs config")
+	}
+	mountPath := q.mountPath(wlID)
+	cmd := exec.Command("runc", "--root", fmt.Sprintf("/run/containerd/runc/%s/", qsfsContainerNS), "exec", wlID, "/sbin/zinit", "kill", "zstor")
+	cmd.Stderr = cmd.Stdout
+	err = cmd.Run()
+	log.Debug().Str("cmd", cmd.String()).Msg("kill zstor")
+	if err != nil {
+		op, _ := cmd.Output()
+		log.Error().Err(err).Str("stdout", string(op)).Msg("failed to restart zstor process inside qsfs")
+		return info, errors.Wrap(err, "failed to restart zstor process")
+	}
+	info.Path = mountPath
+	info.MetricsEndpoint = fmt.Sprintf("http://[%s]:%d/metrics", yggIP, zstorMetricsPort)
+	return info, nil
+}
+
 func (q *QSFS) Unmount(wlID string) error {
 	networkd := stubs.NewNetworkerStub(q.cl)
 	flistd := stubs.NewFlisterStub(q.cl)
