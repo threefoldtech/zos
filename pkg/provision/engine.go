@@ -93,11 +93,11 @@ type NativeEngine struct {
 
 	//options
 	// janitor Janitor
-	twins    Twins
-	admins   Twins
-	order    []gridtypes.WorkloadType
-	revOrder map[gridtypes.WorkloadType]int
-	rerunAll bool
+	twins     Twins
+	admins    Twins
+	order     []gridtypes.WorkloadType
+	typeIndex map[gridtypes.WorkloadType]int
+	rerunAll  bool
 	//substrate specific attributes
 	nodeID uint32
 	sub    *substrate.Substrate
@@ -157,12 +157,12 @@ func (w *withStartupOrder) apply(e *NativeEngine) {
 		}
 		delete(all, typ)
 		ordered = append(ordered, typ)
-		e.revOrder[typ] = len(ordered)
+		e.typeIndex[typ] = len(ordered)
 	}
 	// now move everything else
 	for typ := range all {
 		ordered = append(ordered, typ)
-		e.revOrder[typ] = len(ordered)
+		e.typeIndex[typ] = len(ordered)
 	}
 
 	e.order = ordered
@@ -241,7 +241,7 @@ func New(storage Storage, provisioner Provisioner, root string, opts ...EngineOp
 		twins:       &nullKeyGetter{},
 		admins:      &nullKeyGetter{},
 		order:       gridtypes.Types(),
-		revOrder:    make(map[gridtypes.WorkloadType]int),
+		typeIndex:   make(map[gridtypes.WorkloadType]int),
 	}
 
 	for _, opt := range opts {
@@ -622,17 +622,26 @@ func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.W
 	return
 }
 
-func (e *NativeEngine) updateDeployment(ctx context.Context, ops []gridtypes.UpgradeOp) (changed bool) {
+// sortOperations sortes the operations, removes first in reverse type order, then upgrades/creates in type order
+func (e *NativeEngine) sortOperations(ops []gridtypes.UpgradeOp) {
+	// maps an operation to an integer, less comes first in sorting
 	opMap := func(op gridtypes.UpgradeOp) int {
 		if op.Op == gridtypes.OpRemove {
-			return -e.revOrder[op.WlID.Type]
+			// removes are negative (typeIndex starts from 1) so they are always before creations/updates
+			// negated to apply in reverse order
+			return -e.typeIndex[op.WlID.Type]
 		} else {
-			return e.revOrder[op.WlID.Type]
+			// updates/creates are considered the same
+			return e.typeIndex[op.WlID.Type]
 		}
 	}
 	sort.SliceStable(ops, func(i, j int) bool {
 		return opMap(ops[i]) < opMap(ops[j])
 	})
+}
+
+func (e *NativeEngine) updateDeployment(ctx context.Context, ops []gridtypes.UpgradeOp) (changed bool) {
+	e.sortOperations(ops)
 	for _, op := range ops {
 		switch op.Op {
 		case gridtypes.OpRemove:
