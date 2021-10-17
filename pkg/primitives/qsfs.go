@@ -37,7 +37,6 @@ func (p *Primitives) qsfsDecommision(ctx context.Context, wl *gridtypes.Workload
 }
 
 func (p *Primitives) qsfsUpdate(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
-	// can i read the old workload data? cache is ignored until then
 	var result zos.QuatumSafeFSResult
 	var proxy zos.QuantumSafeFS
 	if err := json.Unmarshal(wl.Data, &proxy); err != nil {

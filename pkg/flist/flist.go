@@ -71,6 +71,9 @@ type volumeAllocator interface {
 	// to try again on a different devicetype
 	VolumeCreate(ctx context.Context, name string, size gridtypes.Unit) (pkg.Volume, error)
 
+	// VolumeUpdate changes the size of an already existing volume
+	VolumeUpdate(ctx context.Context, name string, size gridtypes.Unit) error
+
 	// ReleaseFilesystem signals that the named filesystem is no longer needed.
 	// The filesystem will be unmounted and subsequently removed.
 	// All data contained in the filesystem will be lost, and the
@@ -353,7 +356,10 @@ func (f *flistModule) Mount(name, url string, opt pkg.MountOptions) (string, err
 	}
 
 	if err := f.valid(mountpoint); err == ErrAlreadyMounted {
-		return mountpoint, nil
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		err := f.storage.VolumeUpdate(ctx, name, opt.Limit)
+		return mountpoint, err
 	} else if err != nil {
 		return "", errors.Wrap(err, "validating of mount point failed")
 	}
