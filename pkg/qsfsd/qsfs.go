@@ -212,11 +212,15 @@ func (q *QSFS) UpdateMount(wlID string, cfg zos.QuantumSafeFS) (pkg.QSFSInfo, er
 	cmd := exec.Command("runc", "--root", fmt.Sprintf("/run/containerd/runc/%s/", qsfsContainerNS), "exec", wlID, "/sbin/zinit", "kill", "zstor")
 	cmd.Stderr = cmd.Stdout
 	err = cmd.Run()
-	log.Debug().Str("cmd", cmd.String()).Msg("kill zstor")
 	if err != nil {
 		op, _ := cmd.Output()
 		log.Error().Err(err).Str("stdout", string(op)).Msg("failed to restart zstor process inside qsfs")
 		return info, errors.Wrap(err, "failed to restart zstor process")
+	}
+	// until threefoldtech/0-stor_v2#71 is fixed
+	out, err := exec.Command("rm", "-f", filepath.Join(flistPath, "var/run/zstor.sock")).Output()
+	if err != nil {
+		log.Warn().Err(err).Str("stdout", string(out)).Msg("failed to remove zstor socket")
 	}
 	info.Path = mountPath
 	info.MetricsEndpoint = fmt.Sprintf("http://[%s]:%d/metrics", yggIP, zstorMetricsPort)
