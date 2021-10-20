@@ -75,7 +75,6 @@ func (c *Module) handleEvent(ctx context.Context, ns string, event interface{}) 
 		// - we don't want the restarts to slow down the event stream processing
 		// - this method does not return any useful value anyway, so safe to run
 		//   it in the background.
-		log.Debug().Msgf("handled event: %+v", event)
 		go c.handlerEventTaskExit(ctx, ns, event)
 	default:
 		log.Debug().Msgf("unhandled event: %+v", event)
