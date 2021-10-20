@@ -384,6 +384,22 @@ func (f *flistModule) Mount(name, url string, opt pkg.MountOptions) (string, err
 	return mountpoint, f.mountOverlay(ctx, name, ro, opt.Limit)
 }
 
+func (f *flistModule) UpdateMountSize(name string, limit gridtypes.Unit) (string, error) {
+	// mount overlay
+	mountpoint, err := f.mountpath(name)
+	if err != nil {
+		return "", errors.Wrap(err, "invalid mountpoint")
+	}
+
+	if err := f.isMountpoint(mountpoint); err != nil {
+		return "", errors.Wrap(err, "flist not mounted")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = f.storage.VolumeUpdate(ctx, name, limit)
+	return mountpoint, err
+}
+
 func (f *flistModule) mountpath(name string) (string, error) {
 	mountpath := filepath.Join(f.mountpoint, name)
 	if filepath.Dir(mountpath) != f.mountpoint {

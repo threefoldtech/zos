@@ -20,6 +20,11 @@ func (c *Module) handlerEventTaskExit(ctx context.Context, ns string, event *eve
 
 	log.Debug().Msg("task exited")
 
+	if event.ID != event.ContainerID {
+		// something other than the main container task, ignore it
+		return
+	}
+
 	marker, ok := c.failures.Get(event.ContainerID)
 	if !ok {
 		// no previous value. so this is the first failure
@@ -70,6 +75,7 @@ func (c *Module) handleEvent(ctx context.Context, ns string, event interface{}) 
 		// - we don't want the restarts to slow down the event stream processing
 		// - this method does not return any useful value anyway, so safe to run
 		//   it in the background.
+		log.Debug().Msgf("handled event: %+v", event)
 		go c.handlerEventTaskExit(ctx, ns, event)
 	default:
 		log.Debug().Msgf("unhandled event: %+v", event)

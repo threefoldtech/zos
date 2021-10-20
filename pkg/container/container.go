@@ -25,6 +25,7 @@ import (
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/runtime/restart"
 	"github.com/google/shlex"
+	"github.com/google/uuid"
 	"github.com/patrickmn/go-cache"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
@@ -296,6 +297,53 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 	return pkg.ContainerID(container.ID()), nil
 }
 
+// Exec executes a command inside the container
+func (c *Module) Exec(ns string, containerID string, timeout time.Duration, args ...string) error {
+	client, err := containerd.New(c.containerd)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	ctx = namespaces.WithNamespace(ctx, ns)
+
+	container, err := client.LoadContainer(ctx, containerID)
+	if err != nil {
+		return errors.Wrap(err, "couldn't load container")
+	}
+	t, err := container.Task(ctx, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to create task")
+	}
+	var p specs.Process
+	p.Cwd = "/"
+	p.Args = args
+	taskID, err := uuid.NewUUID()
+	if err != nil {
+		return errors.Wrap(err, "failed to generate a uuid")
+	}
+	pr, err := t.Exec(ctx, taskID.String(), &p, cio.NullIO)
+	if err != nil {
+		return errors.Wrap(err, "failed to exec new porcess")
+	}
+	if err := pr.Start(ctx); err != nil {
+		return errors.Wrap(err, "failed to start process")
+	}
+	ch, err := pr.Wait(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to wait for process")
+	}
+	<-ch
+	ex, err := pr.Delete(ctx)
+	if err != nil {
+		return errors.Wrap(err, "error deleting the created task")
+	}
+	if ex.ExitCode() != 0 {
+		return fmt.Errorf("non-zero exit code: %d", ex.ExitCode())
+	}
+	return nil
+}
 func (c *Module) ensureTask(ctx context.Context, container containerd.Container) error {
 	uri, err := url.Parse("binary://" + binaryLogsShim)
 	if err != nil {
