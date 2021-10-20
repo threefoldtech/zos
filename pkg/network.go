@@ -72,7 +72,7 @@ type Networker interface {
 	QSFSNamespace(id string) string
 
 	// QSFSYggIP returns the ygg ip of the qsfs workload
-	QSFSYggIP(id string) (net.IPNet, error)
+	QSFSYggIP(id string) (string, error)
 
 	// QSFSPrepare creates a network namespace with a macvlan interface into it
 	// to allow qsfs container to reach the internet but not be reachable itself

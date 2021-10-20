@@ -317,7 +317,7 @@ func (s *NetworkerStub) QSFSPrepare(ctx context.Context, arg0 string) (ret0 stri
 	return
 }
 
-func (s *NetworkerStub) QSFSYggIP(ctx context.Context, arg0 string) (ret0 net.IPNet, ret1 error) {
+func (s *NetworkerStub) QSFSYggIP(ctx context.Context, arg0 string) (ret0 string, ret1 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "QSFSYggIP", args...)
 	if err != nil {
