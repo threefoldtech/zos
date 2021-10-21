@@ -299,20 +299,21 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 
 // Exec executes a command inside the container
 func (c *Module) Exec(ns string, containerID string, timeout time.Duration, args ...string) error {
+	var timedout bool
 	client, err := containerd.New(c.containerd)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx := namespaces.WithNamespace(context.Background(), ns)
+	createctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	ctx = namespaces.WithNamespace(ctx, ns)
 
-	container, err := client.LoadContainer(ctx, containerID)
+	container, err := client.LoadContainer(createctx, containerID)
 	if err != nil {
 		return errors.Wrap(err, "couldn't load container")
 	}
-	t, err := container.Task(ctx, nil)
+	t, err := container.Task(createctx, nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to create task")
 	}
@@ -323,23 +324,38 @@ func (c *Module) Exec(ns string, containerID string, timeout time.Duration, args
 	if err != nil {
 		return errors.Wrap(err, "failed to generate a uuid")
 	}
-	pr, err := t.Exec(ctx, taskID.String(), &p, cio.NullIO)
+	pr, err := t.Exec(createctx, taskID.String(), &p, cio.NullIO)
 	if err != nil {
 		return errors.Wrap(err, "failed to exec new porcess")
 	}
-	if err := pr.Start(ctx); err != nil {
+	if err := pr.Start(createctx); err != nil {
 		return errors.Wrap(err, "failed to start process")
 	}
-	ch, err := pr.Wait(ctx)
+	ch, err := pr.Wait(createctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for process")
 	}
-	<-ch
-	ex, err := pr.Delete(ctx)
+	select {
+	case <-ch:
+	case <-createctx.Done():
+	}
+	deleteCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	// if still running => execution timedout
+	st, err := pr.Status(deleteCtx)
+	if err != nil {
+		return errors.Wrap(err, "couldn't check task state")
+	}
+	if st.Status != containerd.Stopped {
+		timedout = true
+	}
+	ex, err := pr.Delete(deleteCtx, containerd.WithProcessKill)
 	if err != nil {
 		return errors.Wrap(err, "error deleting the created task")
 	}
-	if ex.ExitCode() != 0 {
+	if timedout {
+		return errors.New("execution timed out")
+	} else if ex.ExitCode() != 0 {
 		return fmt.Errorf("non-zero exit code: %d", ex.ExitCode())
 	}
 	return nil
