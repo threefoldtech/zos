@@ -356,7 +356,7 @@ func (f *flistModule) Mount(name, url string, opt pkg.MountOptions) (string, err
 	}
 
 	if err := f.valid(mountpoint); err == ErrAlreadyMounted {
-		return mountpoint, err
+		return mountpoint, nil
 	} else if err != nil {
 		return "", errors.Wrap(err, "validating of mount point failed")
 	}
