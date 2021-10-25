@@ -124,9 +124,11 @@ func action(cli *cli.Context) error {
 	log.Info().Uint32("node", node).Uint32("twin", twin).Msg("node registered")
 
 	go func() {
-		if err := public(ctx, node, redis); err != nil {
-			log.Error().Err(err).Msg("sending uptime failed")
-			<-time.After(10 * time.Second)
+		for {
+			if err := public(ctx, node, redis); err != nil {
+				log.Error().Err(err).Msg("setting public config failed")
+				<-time.After(10 * time.Second)
+			}
 		}
 	}()
 
