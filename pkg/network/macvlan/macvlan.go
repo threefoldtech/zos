@@ -122,17 +122,19 @@ func Install(link *netlink.Macvlan, hw net.HardwareAddr, ips []*net.IPNet, route
 			}
 		}
 
-		if current, err := netlink.RouteList(link, netlink.FAMILY_ALL); err == nil {
-			for _, route := range current {
-				if _, ok := routesMap[route.String()]; ok {
-					// only delete routes that are not to be installed
-					continue
-				}
-				if err := netlink.RouteDel(&route); err != nil {
-					log.Error().Err(err).Str("route", route.String()).Msg("failed to delete route")
-				}
-			}
-		}
+		// NOTE: this is dangerous because it also deletes default network routes. this then must
+		// be rewritten.
+		// if current, err := netlink.RouteList(link, netlink.FAMILY_ALL); err == nil {
+		// 	for _, route := range current {
+		// 		if _, ok := routesMap[route.String()]; ok {
+		// 			// only delete routes that are not to be installed
+		// 			continue
+		// 		}
+		// 		if err := netlink.RouteDel(&route); err != nil {
+		// 			log.Error().Err(err).Str("route", route.String()).Msg("failed to delete route")
+		// 		}
+		// 	}
+		// }
 
 		for _, ip := range ips {
 			if err := netlink.AddrAdd(link, &netlink.Addr{
