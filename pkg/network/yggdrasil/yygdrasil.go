@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/yggdrasil-network/yggdrasil-go/src/address"
 	"github.com/yggdrasil-network/yggdrasil-go/src/config"
@@ -62,6 +63,16 @@ func (s *Server) Start() error {
 	})
 	if err != nil {
 		return err
+	}
+
+	// we add this to make sure yggdraisl zinit
+	// config is reloaded.
+	if err := s.zinit.Stop("yggdrasil"); err != nil {
+		log.Error().Err(err).Msg("failed to stop yggdrasil")
+	}
+
+	if err := s.zinit.Forget("yggdrasil"); err != nil {
+		log.Error().Err(err).Msg("failed to forget yggdrasil")
 	}
 
 	if err := s.zinit.Monitor(zinitService); err != nil {
