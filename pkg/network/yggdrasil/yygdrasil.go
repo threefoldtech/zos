@@ -53,7 +53,7 @@ func (s *Server) Start() error {
 	}
 
 	err = zinit.AddService(zinitService, zinit.InitService{
-		Exec: fmt.Sprintf("ip netns exec ndmz %s -useconffile %s -loglevel trace", bin, confPath),
+		Exec: fmt.Sprintf("ip netns exec ndmz %s -useconffile %s", bin, confPath),
 		After: []string{
 			"node-ready",
 			"networkd",
