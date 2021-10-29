@@ -15,7 +15,7 @@ type SystemMonitorStub struct {
 func NewSystemMonitorStub(client zbus.Client) *SystemMonitorStub {
 	return &SystemMonitorStub{
 		client: client,
-		module: "monitor",
+		module: "node",
 		object: zbus.ObjectID{
 			Name:    "system",
 			Version: "0.0.1",

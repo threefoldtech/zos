@@ -20,7 +20,7 @@ var (
 	// validation
 	PossibleModules = map[string]struct{}{
 		"storage":   {},
-		"monitor":   {},
+		"node":      {},
 		"identityd": {},
 		"vmd":       {},
 		"flist":     {},
