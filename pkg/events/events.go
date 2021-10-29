@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/pkg/errors"
@@ -20,8 +21,8 @@ type Manager struct {
 	o sync.Once
 }
 
-func New(sub *substrate.Substrate, node uint32) Manager {
-	return Manager{
+func New(sub *substrate.Substrate, node uint32) pkg.Events {
+	return &Manager{
 		sub:           sub,
 		node:          node,
 		pubCfg:        make(chan pkg.PublicConfigEvent),
@@ -29,8 +30,18 @@ func New(sub *substrate.Substrate, node uint32) Manager {
 	}
 }
 
+func (m *Manager) start(ctx context.Context) {
+	log.Info().Msg("start listening to chain events")
+	for {
+		if err := m.listen(ctx); err != nil {
+			log.Error().Err(err).Msg("setting public config failed")
+			<-time.After(10 * time.Second)
+		}
+	}
+}
+
 // Start subscribing and producing events
-func (m *Manager) start(ctx context.Context) error {
+func (m *Manager) listen(ctx context.Context) error {
 reconnect:
 	for {
 		subClient, meta, err := m.sub.GetClient()
@@ -77,11 +88,15 @@ reconnect:
 						}
 					}
 
-					for _, e := range events.SmartContractModule_ContractCanceled {
-						// TODO: filter event
+					for _, e := range events.SmartContractModule_NodeContractCanceled {
+						if e.Node != types.U32(m.node) {
+							continue
+						}
+						log.Info().Uint64("contract", uint64(e.ContractID)).Msg("got contract cancel update")
 						m.contactCancel <- pkg.ContractCancelledEvent{
 							Kind:     pkg.EventReceived,
 							Contract: uint64(e.ContractID),
+							TwinId:   uint32(e.Twin),
 						}
 					}
 				}

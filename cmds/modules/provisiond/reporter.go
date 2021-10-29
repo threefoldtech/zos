@@ -140,6 +140,7 @@ func (r *Reporter) pushOne() ([]Consumption, error) {
 
 	consumptions := make([]substrate.Consumption, 0, len(report.Consumption))
 	for _, cmp := range report.Consumption {
+		log.Debug().Uint64("contract", uint64(cmp.ContractID)).Msg("has consumption to report")
 		consumptions = append(consumptions, cmp.Consumption)
 	}
 	if err := r.substrate.Report(&r.identity, consumptions); err != nil {
@@ -222,6 +223,11 @@ func (r *Reporter) Run(ctx context.Context) error {
 	// go over all user reservations
 	// take into account the following:
 	// every is in seconds.
+	events := stubs.NewEventsStub(r.cl)
+	stream, err := events.ContractCancelledEvent(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to register to node events")
+	}
 
 	go r.pusher(ctx)
 
@@ -230,6 +236,7 @@ func (r *Reporter) Run(ctx context.Context) error {
 
 	// we always start by reporting capacity, and then once each
 	// `every` seconds
+report:
 	for {
 		// align time.
 		u := time.Now().Unix()
@@ -255,11 +262,31 @@ func (r *Reporter) Run(ctx context.Context) error {
 			log.Error().Err(err).Msg("failed to push capacity report")
 		}
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			continue
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case event := <-stream:
+				log.Debug().Msgf("received a cancel contract event %+v", event)
+				if event.Kind == pkg.EventSubscribed {
+					// TODO:
+					// possible loss of events. either we synchronize
+					// all contracts now. Or we wait until next timer
+
+					// for now, wait until next report cycle
+					continue
+				}
+
+				// otherwise we know what contract to be deleted
+				if err := r.engine.Deprovision(ctx, event.TwinId, event.Contract, "contract canceled"); err != nil {
+					log.Error().Err(err).
+						Uint32("twin", event.TwinId).
+						Uint64("contract", event.Contract).
+						Msg("failed to decomission contract")
+				}
+			case <-ticker.C:
+				continue report
+			}
 		}
 	}
 }

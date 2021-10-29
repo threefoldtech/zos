@@ -78,15 +78,16 @@ type PoolStats struct {
 // PoolsStats alias for map[string]PoolStats
 type PoolsStats map[string]PoolStats
 
-//SystemMonitor interface (provided by monitord)
+//SystemMonitor interface (provided by noded)
 type SystemMonitor interface {
+	NodeID() uint32
 	Memory(ctx context.Context) <-chan VirtualMemoryStat
 	CPU(ctx context.Context) <-chan TimesStat
 	Disks(ctx context.Context) <-chan DisksIOCountersStat
 	Nics(ctx context.Context) <-chan NicsIOCounterStat
 }
 
-// HostMonitor interface (provided by monitord)
+// HostMonitor interface (provided by noded)
 type HostMonitor interface {
 	Uptime(ctx context.Context) <-chan time.Duration
 }

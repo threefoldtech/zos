@@ -35,6 +35,7 @@ type PublicConfigEvent struct {
 type ContractCancelledEvent struct {
 	Kind     EventKind
 	Contract uint64
+	TwinId   uint32
 }
 
 type Events interface {

@@ -105,7 +105,7 @@ func action(cli *cli.Context) error {
 	}
 	events := events.New(sub, node)
 
-	system, err := monitord.NewSystemMonitor(2 * time.Second)
+	system, err := monitord.NewSystemMonitor(node, 2*time.Second)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize system monitor")
 	}
@@ -129,7 +129,7 @@ func action(cli *cli.Context) error {
 
 	go func() {
 		for {
-			if err := public(ctx, node, redis); err != nil {
+			if err := public(ctx, node, env, redis); err != nil {
 				log.Error().Err(err).Msg("setting public config failed")
 				<-time.After(10 * time.Second)
 			}

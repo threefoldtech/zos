@@ -28,6 +28,7 @@ var (
 		"container": {},
 		"provision": {},
 		"gateway":   {},
+		"qsfsd":     {},
 	}
 
 	//Module entry point
