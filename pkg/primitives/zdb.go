@@ -367,7 +367,6 @@ func (p *Primitives) waitZDBIPs(ctx context.Context, namespace string, created t
 				log.Debug().Err(err).Msg("no public ip found, waiting")
 				return err
 			}
-			err = nil
 		}
 
 		yggIps, _, err := network.Addrs(ctx, nwmod.ZDBYggIface, namespace)
