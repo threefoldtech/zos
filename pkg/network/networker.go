@@ -15,7 +15,6 @@ import (
 	"github.com/blang/semver"
 
 	"github.com/threefoldtech/zos/pkg/cache"
-	"github.com/threefoldtech/zos/pkg/network/macvtap"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
@@ -291,7 +290,7 @@ func (n *networker) SetupPrivTap(networkID pkg.NetID, name string) (string, erro
 		return tapIface, nil
 	}
 
-	_, err = tuntap.CreateTap(tapIface, bridgeName)
+	_, err = tuntap.CreateTap(tapIface, bridgeName, nil)
 
 	return tapIface, err
 }
@@ -339,7 +338,7 @@ func (n *networker) SetupPubTap(name string) (string, error) {
 	}
 
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(name))
-	_, err = macvtap.CreateMACvTap(tapIface, public.PublicBridge, hw)
+	_, err = tuntap.CreateTap(tapIface, public.PublicBridge, hw)
 
 	return tapIface, err
 }
@@ -374,7 +373,7 @@ func (n *networker) SetupYggTap(name string) (tap pkg.YggdrasilTap, err error) {
 		return tap, nil
 	}
 
-	_, err = tuntap.CreateTap(tapIface, types.YggBridge)
+	_, err = tuntap.CreateTap(tapIface, types.YggBridge, nil)
 	return tap, err
 }
 
@@ -481,12 +480,10 @@ nft 'delete chain arp filter handle '${a}`, filterName))
 // itself is not removed and will need to be cleaned up later
 func (n *networker) DisconnectPubTap(name string) error {
 	log.Info().Str("pubtap-name", string(name)).Msg("Disconnecting public tap interface")
-
 	tapIfaceName, err := pubTapName(name)
 	if err != nil {
 		return errors.Wrap(err, "could not get network namespace tap device name")
 	}
-
 	tap, err := netlink.LinkByName(tapIfaceName)
 	if _, ok := err.(netlink.LinkNotFoundError); ok {
 		return nil
@@ -497,9 +494,7 @@ func (n *networker) DisconnectPubTap(name string) error {
 		return errors.Wrap(err, "could not load tap device")
 	}
 
-	//setting the txqueue on a macvtap will prevent traffic from
-	//going over the device, effectively disconnecting it.
-	return netlink.LinkSetTxQLen(tap, 0)
+	return netlink.LinkSetNoMaster(tap)
 }
 
 // GetPublicIPv6Subnet returns the IPv6 prefix op the public subnet of the host
