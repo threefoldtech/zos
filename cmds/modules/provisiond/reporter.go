@@ -250,14 +250,11 @@ report:
 		report, err := r.collect(ctx, time.Unix(u, 0))
 		if err != nil {
 			log.Error().Err(err).Msg("failed to collect users consumptions")
+			<-time.After(3 * time.Second)
 			continue
 		}
 
-		if len(report.Consumption) == 0 {
-			// nothing to report
-			continue
-		}
-
+		log.Debug().Int("size", len(report.Consumption)).Msg("queue consumption report for reproting")
 		if err := r.push(report); err != nil {
 			log.Error().Err(err).Msg("failed to push capacity report")
 		}
@@ -329,6 +326,9 @@ func (r *Reporter) collect(ctx context.Context, since time.Time) (rep Report, er
 }
 
 func (r *Reporter) push(report Report) error {
+	if len(report.Consumption) == 0 {
+		return nil
+	}
 	return r.queue.Enqueue(&report)
 }
 
