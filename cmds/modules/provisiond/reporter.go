@@ -267,7 +267,6 @@ report:
 			case <-ctx.Done():
 				return ctx.Err()
 			case event := <-stream:
-				log.Debug().Msgf("received a cancel contract event %+v", event)
 				if event.Kind == pkg.EventSubscribed {
 					// TODO:
 					// possible loss of events. either we synchronize
@@ -276,6 +275,7 @@ report:
 					// for now, wait until next report cycle
 					continue
 				}
+				log.Debug().Msgf("received a cancel contract event %+v", event)
 
 				// otherwise we know what contract to be deleted
 				if err := r.engine.Deprovision(ctx, event.TwinId, event.Contract, "contract canceled"); err != nil {
