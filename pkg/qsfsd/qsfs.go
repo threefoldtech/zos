@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
@@ -26,7 +27,8 @@ const (
 	zstorSocket           = "/var/run/zstor.sock"
 	zstorZDBFSMountPoint  = "/mnt" // hardcoded in the container
 	zstorMetricsPort      = 9100
-	zstorZDBDataDirPath   = "/data"
+	zstorZDBDataDirPath   = "/data/data/zdbfs-data"
+	zstorZDBIndexDirPath  = "/data/index/zdbfs-data"
 )
 
 type QSFS struct {
@@ -38,10 +40,10 @@ type QSFS struct {
 type zstorConfig struct {
 	zos.QuantumSafeFSConfig
 	ZDBDataDirPath  string `toml:"zdb_data_dir_path"`
+	ZDBIndexDirPath string `toml:"zdb_index_dir_path"`
 	Socket          string `toml:"socket"`
 	MetricsPort     uint32 `toml:"prometheus_port"`
 	ZDBFSMountpoint string `toml:"zdbfs_mountpoint"`
-	Root            string `toml:"root"`
 }
 
 func New(ctx context.Context, cl zbus.Client, root string) (pkg.QSFSD, error) {
@@ -65,7 +67,7 @@ func setQSFSDefaults(cfg *zos.QuantumSafeFS) zstorConfig {
 		MetricsPort:         zstorMetricsPort,
 		ZDBFSMountpoint:     zstorZDBFSMountPoint,
 		ZDBDataDirPath:      zstorZDBDataDirPath,
-		Root:                zstorZDBFSMountPoint,
+		ZDBIndexDirPath:     zstorZDBIndexDirPath,
 	}
 }
 
@@ -112,6 +114,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 		Entrypoint:  "/sbin/zinit init",
 		Interactive: false,
 		Network:     pkg.NetworkInfo{Namespace: netns},
+		Memory:      gridtypes.Gigabyte,
 		Mounts: []pkg.MountInfo{
 			{
 				Source: mountPath,
