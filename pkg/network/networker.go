@@ -1,10 +1,12 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net"
 	"os"
 	"os/exec"
@@ -402,32 +404,61 @@ func (n *networker) RemovePubTap(name string) error {
 	return ifaceutil.Delete(tapIface, nil)
 }
 
+const (
+	pubIpTemplateStr = `# add vm
+# add a chain for the vm public interface in arp and bridge
+nft 'add chain arp filter {{.Name}}'
+nft 'add chain bridge filter {{.Name}}'
+
+# make nft jump to vm chain
+nft 'add rule arp filter input iifname "{{.Iface}}" jump {{.Name}}'
+nft 'add rule bridge filter forward iifname "{{.Iface}}" jump {{.Name}}'
+
+# arp rule for vm
+nft 'add rule arp filter {{.Name}} arp operation reply arp saddr ip . arp saddr ether != { {{.IPv4}} . {{.Mac}} } drop'
+
+# filter on L2 fowarding of non-matching ip/mac, drop RA,dhcpv6,dhcp
+nft 'add rule bridge filter {{.Name}} ip saddr . ether saddr != { {{.IPv4}} . {{.Mac}} } counter drop'
+{{if .IPv6}}
+nft 'add rule bridge filter {{.Name}} ip6 saddr . ether saddr != { {{.IPv6}} . {{.Mac}} } counter drop'
+{{end}}
+nft 'add rule bridge filter {{.Name}} icmpv6 type nd-router-advert drop'
+nft 'add rule bridge filter {{.Name}} ip6 version 6 udp sport 547 drop'
+nft 'add rule bridge filter {{.Name}} ip version 4 udp sport 67 drop'
+`
+)
+
+var (
+	pubIpTemplate = template.Must(template.New("filter").Parse(pubIpTemplateStr))
+)
+
 // SetupPubIPFilter sets up filter for this public ip
 func (n *networker) SetupPubIPFilter(filterName string, iface string, ip string, ipv6 string, mac string) error {
 	if n.PubIPFilterExists(filterName) {
 		return nil
 	}
 
+	data := struct {
+		Name  string
+		Iface string
+		Mac   string
+		IPv4  string
+		IPv6  string
+	}{
+		Name:  filterName,
+		Iface: iface,
+		Mac:   mac,
+		IPv4:  ip,
+		IPv6:  ipv6,
+	}
+
+	var buffer bytes.Buffer
+	if err := pubIpTemplate.Execute(&buffer, data); err != nil {
+		return errors.Wrap(err, "failed to execute filter template")
+	}
+
 	//TODO: use nft.Apply
-	cmd := exec.Command("/bin/sh", "-c",
-		fmt.Sprintf(`# add vm
-# add a chain for the vm public interface in arp and bridge
-nft 'add chain arp filter %[1]s'
-nft 'add chain bridge filter %[1]s'
-
-# make nft jump to vm chain
-nft 'add rule arp filter input iifname "%[2]s" jump %[1]s'
-nft 'add rule bridge filter forward iifname "%[2]s" jump %[1]s'
-
-# arp rule for vm
-nft 'add rule arp filter %[1]s arp operation reply arp saddr ip . arp saddr ether != { %[3]s . %[4]s } drop'
-
-# filter on L2 fowarding of non-matching ip/mac, drop RA,dhcpv6,dhcp
-nft 'add rule bridge filter %[1]s ip saddr . ether saddr != { %[3]s . %[4]s } counter drop'
-nft 'add rule bridge filter %[1]s ip6 saddr . ether saddr != { %[5]s . %[4]s } counter drop'
-nft 'add rule bridge filter %[1]s icmpv6 type nd-router-advert drop'
-nft 'add rule bridge filter %[1]s ip6 version 6 udp sport 547 drop'
-nft 'add rule bridge filter %[1]s ip version 4 udp sport 67 drop'`, filterName, iface, ip, mac, ipv6))
+	cmd := exec.Command("/bin/sh", "-c", buffer.String())
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
