@@ -7,14 +7,66 @@ import (
 	"fmt"
 	"io"
 
+	sr25519 "github.com/ChainSafe/go-schnorrkel"
+	"github.com/gtank/merlin"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
 var (
 	// ErrWorkloadNotFound error
-	ErrWorkloadNotFound = fmt.Errorf("workload not found")
+	ErrWorkloadNotFound  = fmt.Errorf("workload not found")
+	SignatureTypeEd25519 = "ed25519"
+	SignatureTypeSr25519 = "sr25519"
 )
+
+type SigningKey interface {
+	Sign(msg []byte) ([]byte, error)
+}
+type VerifyingKey interface {
+	Verify(msg []byte, sig []byte) bool
+}
+
+type Ed25519VerifyingKey []byte
+type Sr25519VerifyingKey []byte
+
+func (k Ed25519VerifyingKey) Verify(msg []byte, sig []byte) bool {
+	return ed25519.Verify([]byte(k), msg, sig)
+}
+
+func signingContext(msg []byte) *merlin.Transcript {
+	return sr25519.NewSigningContext([]byte("substrate"), msg)
+}
+
+func (k Sr25519VerifyingKey) verify(pub sr25519.PublicKey, msg []byte, signature []byte) bool {
+	var sigs [64]byte
+	copy(sigs[:], signature)
+	sig := new(sr25519.Signature)
+	if err := sig.Decode(sigs); err != nil {
+		return false
+	}
+	return pub.Verify(sig, signingContext(msg))
+}
+
+func (k Sr25519VerifyingKey) pubKey() (*sr25519.PublicKey, error) {
+	var pubBytes [32]byte
+	copy(pubBytes[:], k)
+	pk := new(sr25519.PublicKey)
+
+	if err := pk.Decode(pubBytes); err != nil {
+		return nil, err
+	}
+	return pk, nil
+}
+
+func (k Sr25519VerifyingKey) Verify(msg []byte, sig []byte) bool {
+	pk, err := k.pubKey()
+	if err != nil {
+		log.Error().Str("pk", hex.EncodeToString(k)).Err(err).Msg("failed to get sr25519 key from bytes returned from substrate")
+		return false
+	}
+	return k.verify(*pk, msg, sig)
+}
 
 // https://github.com/threefoldtech/vgrid/blob/main/zosreq/req_deployment_root.v
 
@@ -32,7 +84,7 @@ type WorkloadByTypeGetter interface {
 
 // KeyGetter interface to get key by twin ids
 type KeyGetter interface {
-	GetKey(twin uint32) (ed25519.PublicKey, error)
+	GetKey(twin uint32) ([]byte, error)
 }
 
 // Deployment structure
@@ -110,8 +162,9 @@ func (r *SignatureRequest) Challenge(w io.Writer) error {
 
 // Signature struct
 type Signature struct {
-	TwinID    uint32 `json:"twin_id"`
-	Signature string `json:"signature"`
+	TwinID        uint32 `json:"twin_id"`
+	Signature     string `json:"signature"`
+	SignatureType string `json:"signature_type"`
 }
 
 // SignatureRequirement struct describes the signatures that are needed to be valid
@@ -257,12 +310,15 @@ func (d *Deployment) Valid() error {
 }
 
 // Sign adds a signature to deployment given twin id
-func (d *Deployment) Sign(twin uint32, sk ed25519.PrivateKey) error {
+func (d *Deployment) Sign(twin uint32, sk SigningKey, keyType string) error {
 	message, err := d.ChallengeHash()
 	if err != nil {
 		return err
 	}
-	signatureBytes := ed25519.Sign(sk, message)
+	signatureBytes, err := sk.Sign(message)
+	if err != nil {
+		return err
+	}
 	signature := hex.EncodeToString(signatureBytes)
 	for i := range d.SignatureRequirement.Signatures {
 		sig := &d.SignatureRequirement.Signatures[i]
@@ -275,8 +331,9 @@ func (d *Deployment) Sign(twin uint32, sk ed25519.PrivateKey) error {
 
 	d.SignatureRequirement.Signatures = append(
 		d.SignatureRequirement.Signatures, Signature{
-			TwinID:    twin,
-			Signature: signature,
+			TwinID:        twin,
+			Signature:     signature,
+			SignatureType: keyType,
 		})
 	return nil
 }
@@ -312,16 +369,22 @@ func (d *Deployment) Verify(getter KeyGetter) error {
 			return fmt.Errorf("missing required signature for twin '%d'", request.TwinID)
 		}
 
-		pk, err := getter.GetKey(request.TwinID)
+		pkBytes, err := getter.GetKey(request.TwinID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get public key for twin '%d'", request.TwinID)
+		}
+		var pk VerifyingKey
+		if signature.SignatureType == "sr25519" {
+			pk = Sr25519VerifyingKey(pkBytes)
+		} else {
+			pk = Ed25519VerifyingKey(pkBytes)
 		}
 		bytes, err := hex.DecodeString(signature.Signature)
 		if err != nil {
 			return errors.Wrap(err, "invalid signature")
 		}
 
-		if !ed25519.Verify(pk, message, bytes) {
+		if !pk.Verify(message, bytes) {
 			return fmt.Errorf("failed to verify signature")
 		}
 		weight += request.Weight
