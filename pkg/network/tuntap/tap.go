@@ -2,7 +2,6 @@ package tuntap
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/network/options"
@@ -10,7 +9,7 @@ import (
 )
 
 // CreateTap creates a new tap device with the given name, and sets the master interface
-func CreateTap(name string, master string, hw net.HardwareAddr) (*netlink.Tuntap, error) {
+func CreateTap(name string, master string) (*netlink.Tuntap, error) {
 	masterIface, err := netlink.LinkByName(master)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to look up tap master")
@@ -33,12 +32,6 @@ func CreateTap(name string, master string, hw net.HardwareAddr) (*netlink.Tuntap
 			_ = netlink.LinkDel(tap)
 		}
 	}()
-
-	if hw != nil {
-		if err = netlink.LinkSetHardwareAddr(tap, hw); err != nil {
-			return nil, errors.Wrap(err, "could not set hw address")
-		}
-	}
 
 	// Setting the master iface on the link attrs at creation time seems to not work
 	// (at least not always), so explicitly set the master again once the iface is added.

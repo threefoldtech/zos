@@ -87,6 +87,11 @@ func NewVMModule(cl zbus.Client, root string) (*Module, error) {
 		legacyMonitor: LegacyMonitor{root},
 	}
 
+	// make sure all configured vms are running.
+	if err := mod.monitor(context.Background()); err != nil {
+		return nil, errors.Wrap(err, "failed to restore vms")
+	}
+
 	// run legacy monitor
 	go mod.legacyMonitor.Monitor(context.Background())
 
@@ -417,6 +422,7 @@ func (m *Module) Run(vm pkg.VM) error {
 
 	defer func() {
 		if err != nil {
+			log.Error().Err(err).Msg("decomission duo to failure to create the VM")
 			_ = m.Delete(machine.ID)
 		}
 	}()

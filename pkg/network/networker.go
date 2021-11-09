@@ -292,7 +292,7 @@ func (n *networker) SetupPrivTap(networkID pkg.NetID, name string) (string, erro
 		return tapIface, nil
 	}
 
-	_, err = tuntap.CreateTap(tapIface, bridgeName, nil)
+	_, err = tuntap.CreateTap(tapIface, bridgeName)
 
 	return tapIface, err
 }
@@ -339,8 +339,7 @@ func (n *networker) SetupPubTap(name string) (string, error) {
 		return "", errors.Wrap(err, "could not get network namespace tap device name")
 	}
 
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(name))
-	_, err = tuntap.CreateTap(tapIface, public.PublicBridge, hw)
+	_, err = tuntap.CreateTap(tapIface, public.PublicBridge)
 
 	return tapIface, err
 }
@@ -375,7 +374,7 @@ func (n *networker) SetupYggTap(name string) (tap pkg.YggdrasilTap, err error) {
 		return tap, nil
 	}
 
-	_, err = tuntap.CreateTap(tapIface, types.YggBridge, nil)
+	_, err = tuntap.CreateTap(tapIface, types.YggBridge)
 	return tap, err
 }
 
