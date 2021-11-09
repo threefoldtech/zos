@@ -404,7 +404,7 @@ func (n *networker) RemovePubTap(name string) error {
 }
 
 var (
-	pubIpTemplate = template.Must(template.New("filter").Parse(
+	pubIpTemplateSetup = template.Must(template.New("filter-setup").Parse(
 		`# add vm
 # add a chain for the vm public interface in arp and bridge
 nft 'add chain bridge filter {{.Name}}-pre'
@@ -412,20 +412,44 @@ nft 'add chain bridge filter {{.Name}}-post'
 
 # make nft jump to vm chain
 nft 'add rule bridge filter prerouting iifname "{{.Iface}}" jump {{.Name}}-pre'
-nft 'add rule bridge filter postrouting iifname "{{.Iface}}" jump {{.Name}}-post'
+nft 'add rule bridge filter postrouting oifname "{{.Iface}}" jump {{.Name}}-post'
 
-nft 'add rule bridge filter {{.Name}}-pre ip saddr . ether saddr != { {{.IPv4}} . {{.Mac}} } counter log prefix "bfpre" drop'
+nft 'add rule bridge filter {{.Name}}-pre ip saddr . ether saddr != { {{.IPv4}} . {{.Mac}} } counter drop'
 {{if .IPv6}}
-nft 'add rule bridge filter {{.Name}}-pre ip6 saddr . ether saddr != { {{.IPv6}} . {{.Mac}} } counter log prefix "bfpre" drop'
+nft 'add rule bridge filter {{.Name}}-pre ip6 saddr . ether saddr != { {{.IPv6}} . {{.Mac}} } counter drop'
 {{end}}
 
-nft 'add rule bridge filter {{.Name}}-pre arp operation reply arp saddr ip != {{.IPv4}} counter log prefix reply drop'
-nft 'add rule bridge filter {{.Name}}-pre arp operation request arp saddr ip != {{.IPv4}} counter log prefix request drop'
+nft 'add rule bridge filter {{.Name}}-pre arp operation reply arp saddr ip != {{.IPv4}} counter drop'
+nft 'add rule bridge filter {{.Name}}-pre arp operation request arp saddr ip != {{.IPv4}} counter drop'
 
-nft 'add rule bridge filter {{.Name}}-post ip daddr . ether daddr != { {{.IPv4}} . {{.Mac}} } counter log prefix "brpost" drop'
+nft 'add rule bridge filter {{.Name}}-post ip daddr . ether daddr != { {{.IPv4}} . {{.Mac}} } counter drop'
 {{if .IPv6}}
-nft 'add rule bridge filter {{.Name}}-post ip6 saddr . ether saddr != { {{.IPv6}} . {{.Mac}} } counter log prefix "brpost" drop'
+nft 'add rule bridge filter {{.Name}}-post ip6 saddr . ether saddr != { {{.IPv6}} . {{.Mac}} } counter drop'
 {{end}}
+`))
+
+	pubIpTemplateDestroy = template.Must(template.New("filter-destroy").Parse(
+		`# in bridge table
+nft 'flush chain bridge filter {{.Name}}-pre'
+nft 'flush chain bridge filter {{.Name}}-post'
+
+# jump to chain rule
+a=$( nft -a list table bridge filter | awk '/jump {{.Name}}-pre/{ print $NF}' )
+nft delete rule bridge filter prerouting handle ${a}
+a=$( nft -a list table bridge filter | awk '/jump {{.Name}}-post/{ print $NF}' )
+nft delete rule bridge filter postrouting handle ${a}
+# chain itself
+a=$( nft -a list table bridge filter | awk '/chain {{.Name}}/{ print $NF}' )
+nft delete chain bridge filter handle ${a}
+
+# in arp table
+nft 'flush chain arp filter {{.Name}}'
+# jump to chain rule
+a=$( nft -a list table arp filter | awk '/jump {{.Name}}/{ print $NF}' )
+nft delete rule arp filter input handle ${a}
+# chain itself
+a=$( nft -a list table arp filter | awk '/chain {{.Name}}/{ print $NF}' )
+nft delete chain arp filter handle ${a}
 `))
 )
 
@@ -450,7 +474,7 @@ func (n *networker) SetupPubIPFilter(filterName string, iface string, ip string,
 	}
 
 	var buffer bytes.Buffer
-	if err := pubIpTemplate.Execute(&buffer, data); err != nil {
+	if err := pubIpTemplateSetup.Execute(&buffer, data); err != nil {
 		return errors.Wrap(err, "failed to execute filter template")
 	}
 
