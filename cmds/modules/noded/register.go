@@ -201,11 +201,11 @@ func registerNode(
 	log.Info().Msg("registering node on blockchain")
 
 	sk := ed25519.PrivateKey(mgr.PrivateKey(ctx))
-	id, err := substrate.IdentityFromSecureKey(sk)
+	id, err := substrate.NewIdentityFromEd25519Key(sk)
 	if err != nil {
 		return 0, 0, err
 	}
-	if _, err := sub.EnsureAccount(&id, env.ActivationURL); err != nil {
+	if _, err := sub.EnsureAccount(id, env.ActivationURL); err != nil {
 		return 0, 0, errors.Wrap(err, "failed to ensure account")
 	}
 
@@ -245,12 +245,12 @@ func registerNode(
 		node.Interfaces = interfaces
 
 		log.Debug().Msgf("node data have changing, issuing an update node: %+v", node)
-		_, err = sub.UpdateNode(&id, *node)
+		_, err = sub.UpdateNode(id, *node)
 		return uint32(node.ID), uint32(node.TwinID), err
 	}
 
 	// create node
-	nodeID, err = sub.CreateNode(&id, substrate.Node{
+	nodeID, err = sub.CreateNode(id, substrate.Node{
 		FarmID:     types.U32(env.FarmerID),
 		TwinID:     types.U32(twinID),
 		Resources:  resources,
@@ -268,13 +268,13 @@ func registerNode(
 }
 
 func ensureTwin(sub *substrate.Substrate, sk ed25519.PrivateKey, ip net.IP) (uint32, error) {
-	identity, err := substrate.IdentityFromSecureKey(sk)
+	identity, err := substrate.NewIdentityFromEd25519Key(sk)
 	if err != nil {
 		return 0, err
 	}
-	twinID, err := sub.GetTwinByPubKey(identity.PublicKey)
+	twinID, err := sub.GetTwinByPubKey(identity.PublicKey())
 	if errors.Is(err, substrate.ErrNotFound) {
-		return sub.CreateTwin(&identity, ip)
+		return sub.CreateTwin(identity, ip)
 	} else if err != nil {
 		return 0, errors.Wrap(err, "failed to list twins")
 	}
@@ -289,7 +289,7 @@ func ensureTwin(sub *substrate.Substrate, sk ed25519.PrivateKey, ip net.IP) (uin
 	}
 
 	// update twin to new ip
-	return sub.UpdateTwin(&identity, ip)
+	return sub.UpdateTwin(identity, ip)
 }
 
 func uptime(ctx context.Context, cl zbus.Client) error {
@@ -307,7 +307,7 @@ func uptime(ctx context.Context, cl zbus.Client) error {
 	}
 
 	sk := ed25519.PrivateKey(mgr.PrivateKey(ctx))
-	id, err := substrate.IdentityFromSecureKey(sk)
+	id, err := substrate.NewIdentityFromEd25519Key(sk)
 	if err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func uptime(ctx context.Context, cl zbus.Client) error {
 			return errors.Wrap(err, "failed to get uptime")
 		}
 		log.Debug().Msg("updating node uptime")
-		if err := sub.UpdateNodeUptime(&id, uptime); err != nil {
+		if err := sub.UpdateNodeUptime(id, uptime); err != nil {
 			log.Error().Err(err).Msg("failed to report uptime")
 		}
 
