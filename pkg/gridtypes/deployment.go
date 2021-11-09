@@ -15,15 +15,18 @@ import (
 
 var (
 	// ErrWorkloadNotFound error
-	ErrWorkloadNotFound  = fmt.Errorf("workload not found")
+	ErrWorkloadNotFound = fmt.Errorf("workload not found")
+)
+
+const (
 	SignatureTypeEd25519 = "ed25519"
 	SignatureTypeSr25519 = "sr25519"
 )
 
-type SigningKey interface {
+type Signer interface {
 	Sign(msg []byte) ([]byte, error)
 }
-type VerifyingKey interface {
+type Verifier interface {
 	Verify(msg []byte, sig []byte) bool
 }
 
@@ -310,7 +313,7 @@ func (d *Deployment) Valid() error {
 }
 
 // Sign adds a signature to deployment given twin id
-func (d *Deployment) Sign(twin uint32, sk SigningKey, keyType string) error {
+func (d *Deployment) Sign(twin uint32, sk Signer, keyType string) error {
 	message, err := d.ChallengeHash()
 	if err != nil {
 		return err
@@ -373,8 +376,8 @@ func (d *Deployment) Verify(getter KeyGetter) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to get public key for twin '%d'", request.TwinID)
 		}
-		var pk VerifyingKey
-		if signature.SignatureType == "sr25519" {
+		var pk Verifier
+		if signature.SignatureType == SignatureTypeSr25519 {
 			pk = Sr25519VerifyingKey(pkBytes)
 		} else {
 			pk = Ed25519VerifyingKey(pkBytes)
