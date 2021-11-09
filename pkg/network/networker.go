@@ -403,32 +403,30 @@ func (n *networker) RemovePubTap(name string) error {
 	return ifaceutil.Delete(tapIface, nil)
 }
 
-const (
-	pubIpTemplateStr = `# add vm
+var (
+	pubIpTemplate = template.Must(template.New("filter").Parse(
+		`# add vm
 # add a chain for the vm public interface in arp and bridge
-nft 'add chain arp filter {{.Name}}'
-nft 'add chain bridge filter {{.Name}}'
+nft 'add chain bridge filter {{.Name}}-pre'
+nft 'add chain bridge filter {{.Name}}-post'
 
 # make nft jump to vm chain
-nft 'add rule arp filter input iifname "{{.Iface}}" jump {{.Name}}'
-nft 'add rule bridge filter forward iifname "{{.Iface}}" jump {{.Name}}'
+nft 'add rule bridge filter prerouting iifname "{{.Iface}}" jump {{.Name}}-pre'
+nft 'add rule bridge filter postrouting iifname "{{.Iface}}" jump {{.Name}}-post'
 
-# arp rule for vm
-nft 'add rule arp filter {{.Name}} arp operation reply arp saddr ip . arp saddr ether != { {{.IPv4}} . {{.Mac}} } drop'
-
-# filter on L2 fowarding of non-matching ip/mac, drop RA,dhcpv6,dhcp
-nft 'add rule bridge filter {{.Name}} ip saddr . ether saddr != { {{.IPv4}} . {{.Mac}} } counter drop'
+nft 'add rule bridge filter {{.Name}}-pre ip saddr . ether saddr != { {{.IPv4}} . {{.Mac}} } counter log prefix "bfpre" drop'
 {{if .IPv6}}
-nft 'add rule bridge filter {{.Name}} ip6 saddr . ether saddr != { {{.IPv6}} . {{.Mac}} } counter drop'
+nft 'add rule bridge filter {{.Name}}-pre ip6 saddr . ether saddr != { {{.IPv6}} . {{.Mac}} } counter log prefix "bfpre" drop'
 {{end}}
-nft 'add rule bridge filter {{.Name}} icmpv6 type nd-router-advert drop'
-nft 'add rule bridge filter {{.Name}} ip6 version 6 udp sport 547 drop'
-nft 'add rule bridge filter {{.Name}} ip version 4 udp sport 67 drop'
-`
-)
 
-var (
-	pubIpTemplate = template.Must(template.New("filter").Parse(pubIpTemplateStr))
+nft 'add rule bridge filter {{.Name}}-pre arp operation reply arp saddr ip != {{.IPv4}} counter log prefix reply drop'
+nft 'add rule bridge filter {{.Name}}-pre arp operation request arp saddr ip != {{.IPv4}} counter log prefix request drop'
+
+nft 'add rule bridge filter {{.Name}}-post ip daddr . ether daddr != { {{.IPv4}} . {{.Mac}} } counter log prefix "brpost" drop'
+{{if .IPv6}}
+nft 'add rule bridge filter {{.Name}}-post ip6 saddr . ether saddr != { {{.IPv6}} . {{.Mac}} } counter log prefix "brpost" drop'
+{{end}}
+`))
 )
 
 // SetupPubIPFilter sets up filter for this public ip
