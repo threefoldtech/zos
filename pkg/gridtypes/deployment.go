@@ -25,6 +25,7 @@ const (
 
 type Signer interface {
 	Sign(msg []byte) ([]byte, error)
+	Type() string
 }
 type Verifier interface {
 	Verify(msg []byte, sig []byte) bool
@@ -313,7 +314,7 @@ func (d *Deployment) Valid() error {
 }
 
 // Sign adds a signature to deployment given twin id
-func (d *Deployment) Sign(twin uint32, sk Signer, keyType string) error {
+func (d *Deployment) Sign(twin uint32, sk Signer) error {
 	message, err := d.ChallengeHash()
 	if err != nil {
 		return err
@@ -336,7 +337,7 @@ func (d *Deployment) Sign(twin uint32, sk Signer, keyType string) error {
 		d.SignatureRequirement.Signatures, Signature{
 			TwinID:        twin,
 			Signature:     signature,
-			SignatureType: keyType,
+			SignatureType: sk.Type(),
 		})
 	return nil
 }
