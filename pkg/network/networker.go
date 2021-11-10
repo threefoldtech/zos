@@ -430,26 +430,46 @@ nft 'add rule bridge filter {{.Name}}-post ip6 saddr . ether saddr != { {{.IPv6}
 
 	pubIpTemplateDestroy = template.Must(template.New("filter-destroy").Parse(
 		`# in bridge table
-nft 'flush chain bridge filter {{.Name}}-pre'
 nft 'flush chain bridge filter {{.Name}}-post'
+nft 'flush chain bridge filter {{.Name}}-pre'
 
+# the .name rule is for backward compatibility
+# to make sure older chains are deleted
+nft 'flush chain bridge filter {{.Name}}' || true
+
+# we need to make sure this clean up can also work on older setup
 # jump to chain rule
 a=$( nft -a list table bridge filter | awk '/jump {{.Name}}-pre/{ print $NF}' )
-nft delete rule bridge filter prerouting handle ${a}
+if [ -n "${a}" ]; then
+	nft delete rule bridge filter prerouting handle ${a}
+fi
 a=$( nft -a list table bridge filter | awk '/jump {{.Name}}-post/{ print $NF}' )
-nft delete rule bridge filter postrouting handle ${a}
-# chain itself
-a=$( nft -a list table bridge filter | awk '/chain {{.Name}}/{ print $NF}' )
-nft delete chain bridge filter handle ${a}
+if [ -n "${a}" ]; then
+	nft delete rule bridge filter postrouting handle ${a}
+fi
+a=$( nft -a list table bridge filter | awk '/jump {{.Name}}/{ print $NF}' )
+if [ -n "${a}" ]; then
+	nft delete rule bridge filter forward handle ${a}
+fi
 
+# chain itself
+for chain in $( nft -a list table bridge filter | awk '/chain {{.Name}}/{ print $NF}' ); do
+	nft delete chain bridge filter handle ${chain}
+done
+
+# the next section is only for backward compatability
 # in arp table
 nft 'flush chain arp filter {{.Name}}'
 # jump to chain rule
 a=$( nft -a list table arp filter | awk '/jump {{.Name}}/{ print $NF}' )
-nft delete rule arp filter input handle ${a}
+if [ -n "${a}" ]; then
+	nft delete rule arp filter input handle ${a}
+fi
 # chain itself
 a=$( nft -a list table arp filter | awk '/chain {{.Name}}/{ print $NF}' )
-nft delete chain arp filter handle ${a}
+if [ -n "${a}" ]; then
+	nft delete chain arp filter handle ${a}
+fi
 `))
 )
 
@@ -502,24 +522,18 @@ func (n *networker) PubIPFilterExists(filterName string) bool {
 
 // RemovePubIPFilter removes the filter setted up by SetupPubIPFilter
 func (n *networker) RemovePubIPFilter(filterName string) error {
-	cmd := exec.Command("/bin/sh", "-c",
-		fmt.Sprintf(`# in bridge table
-nft 'flush chain bridge filter %[1]s'
-# jump to chain rule
-a=$( nft -a list table bridge filter | awk '/jump %[1]s/{ print $NF}' )
-nft 'delete rule bridge filter forward handle '${a}
-# chain itself
-a=$( nft -a list table bridge filter | awk '/chain %[1]s/{ print $NF}' )
-nft 'delete chain bridge filter handle '${a}
+	data := struct {
+		Name string
+	}{
+		Name: filterName,
+	}
 
-# in arp table
-nft 'flush chain arp filter %[1]s'
-# jump to chain rule
-a=$( nft -a list table arp filter | awk '/jump %[1]s/{ print $NF}' )
-nft 'delete rule arp filter input handle '${a}
-# chain itself
-a=$( nft -a list table arp filter | awk '/chain %[1]s/{ print $NF}' )
-nft 'delete chain arp filter handle '${a}`, filterName))
+	var buffer bytes.Buffer
+	if err := pubIpTemplateDestroy.Execute(&buffer, data); err != nil {
+		return errors.Wrap(err, "failed to execute filter template")
+	}
+
+	cmd := exec.Command("/bin/sh", "-c", buffer.String())
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

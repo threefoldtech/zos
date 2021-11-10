@@ -26,7 +26,12 @@ nft 'add chain bridge filter input   { type filter hook input priority filter; p
 nft 'add chain bridge filter forward { type filter hook input priority filter; policy accept; }'
 nft 'add chain bridge filter prerouting { type filter hook prerouting priority filter; policy accept; }'
 nft 'add chain bridge filter postrouting { type filter hook postrouting priority filter; policy accept; }'
-nft 'add chain bridge filter output  { type filter hook input priority filter; policy accept; }'`)
+nft 'add chain bridge filter output  { type filter hook input priority filter; policy accept; }'
+nft 'flush chain bridge filter forward'
+nft 'add rule bridge filter forward icmpv6 type nd-router-advert drop'
+nft 'add rule bridge filter forward ip6 version 6 udp sport 547 drop'
+nft 'add rule bridge filter forward ip version 4 udp sport 67 drop'
+`)
 
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "could not set up host nft rules")
