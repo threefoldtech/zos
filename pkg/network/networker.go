@@ -457,7 +457,7 @@ for chain in $( nft -a list table bridge filter | awk '/chain {{.Name}}/{ print 
 	nft delete chain bridge filter handle ${chain}
 done
 
-# the next section is only for backward compatability
+# the next section is only for backward compatibility
 # in arp table
 nft 'flush chain arp filter {{.Name}}'
 # jump to chain rule
