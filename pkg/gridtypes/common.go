@@ -15,6 +15,10 @@ func (n Name) IsEmpty() bool {
 	return len(string(n)) == 0
 }
 
+func (n Name) String() string {
+	return string(n)
+}
+
 // Unit defines a capacity unit in "bytes"
 // Any "value" of type Unit must be in bytes only
 // hence use the Unit mutliplies below to set the

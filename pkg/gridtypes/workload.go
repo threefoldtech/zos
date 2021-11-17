@@ -16,6 +16,10 @@ type WorkloadType string
 var (
 	// workloadTypes with built in known types
 	workloadTypes = map[WorkloadType]WorkloadData{}
+	// sharableWorkloadTypes are workload types that can be
+	// accessed from other deployments (as read only)
+	// but only modifiable from deployments that creates it.
+	sharableWorkloadTypes = map[WorkloadType]struct{}{}
 )
 
 // RegisterType register a new workload type. This is used by zos to "declare"
@@ -31,6 +35,15 @@ func RegisterType(t WorkloadType, d WorkloadData) {
 	}
 
 	workloadTypes[t] = d
+}
+
+// RegisterSharableType same as RegisterType, but also register
+// this type as sharable, which means this type can be accessed (referenced)
+// from other deploments. But only modifiable from the type deployment
+// that created it.
+func RegisterSharableType(t WorkloadType, d WorkloadData) {
+	RegisterType(t, d)
+	sharableWorkloadTypes[t] = struct{}{}
 }
 
 //Types return a list of all registered types

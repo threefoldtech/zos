@@ -36,8 +36,11 @@ type Provisioner interface {
 // Filter is filtering function for Purge method
 
 var (
-	//ErrDeploymentExists returned if object exist
+	// ErrDeploymentExists returned if object exist
 	ErrDeploymentExists = fmt.Errorf("exists")
+	// ErrDeploymentConflict returned if deployment cannot be stored because
+	// it conflicts with another deployment
+	ErrDeploymentConflict = fmt.Errorf("conflict")
 	//ErrDeploymentNotExists returned if object not exists
 	ErrDeploymentNotExists = fmt.Errorf("not exists")
 	// ErrDidNotChange special error that can be returned by the provisioner
