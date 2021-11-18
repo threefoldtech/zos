@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -197,7 +198,7 @@ func (m *Machine) appendEnv(root string) error {
 		return errors.Wrap(err, "failed to create <rootfs>/etc directory")
 	}
 	file, err := os.OpenFile(
-		filepath.Join(root, "etc", "environment"),
+		filepath.Join(root, ".zosrc"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0644,
 	)
@@ -206,12 +207,8 @@ func (m *Machine) appendEnv(root string) error {
 	}
 
 	defer file.Close()
-	if _, err := file.WriteString("\n"); err != nil {
-		return err
-	}
 	for k, v := range m.Environment {
-		//TODO: need some string escaping here
-		if _, err := fmt.Fprintf(file, "%s=%s\n", k, v); err != nil {
+		if _, err := fmt.Fprintf(file, "export %s=%s\n", k, quote(v)); err != nil {
 			return err
 		}
 	}
@@ -248,4 +245,12 @@ func (m *Machine) release(ps *os.Process) error {
 	}
 
 	return nil
+}
+
+// transpiled from https://github.com/python/cpython/blob/3.10/Lib/shlex.py#L325
+func quote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }

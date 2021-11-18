@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/shlex"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
@@ -111,9 +112,14 @@ func (s KernelArgs) String() string {
 		if len(parts) > 0 {
 			buf.WriteString("init=")
 			buf.WriteString(parts[0])
+			if len(parts) > 1 {
+				buf.WriteString(" --")
+			}
 			for _, part := range parts[1:] {
 				buf.WriteRune(' ')
-				buf.WriteString(fmt.Sprintf("\"%s\"", part))
+				// other escaping is done by shlex
+				escaped := strings.ReplaceAll(part, "\n", "\\n")
+				buf.WriteString(fmt.Sprintf("\"%s\"", escaped))
 			}
 		}
 	}
