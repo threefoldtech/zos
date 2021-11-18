@@ -60,6 +60,10 @@ type Storage interface {
 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
 	Twins() ([]uint32, error)
 	ByTwin(twin uint32) ([]uint64, error)
+
+	// manage of shared workloads
+	GetShared(twinID uint32, name gridtypes.Name) (gridtypes.WorkloadID, error)
+	SharedByTwin(twinID uint32) ([]gridtypes.WorkloadID, error)
 }
 
 // Janitor interface

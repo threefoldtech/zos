@@ -101,6 +101,11 @@ func TestStorageAddSharable(t *testing.T) {
 	stat, err := os.Lstat(filepath.Join(root, fmt.Sprint(twin), fmt.Sprint(id)))
 	require.NoError(err)
 	require.True(stat.Mode().IsRegular())
+
+	shared, err := store.SharedByTwin(twin)
+	require.NoError(err)
+	require.Len(shared, 1)
+	require.Equal(gridtypes.NewUncheckedWorkloadID(twin, 1, "shared"), shared[0])
 }
 
 func TestStorageAddConflictingSharable(t *testing.T) {
@@ -155,6 +160,103 @@ func TestStorageAddConflictingSharable(t *testing.T) {
 	wlID, err := store.GetShared(twin, "shared")
 	require.NoError(err)
 	require.Equal(gridtypes.NewUncheckedWorkloadID(twin, id, "shared"), wlID)
+}
+
+func TestStorageSetSharable(t *testing.T) {
+	require := require.New(t)
+	root, err := ioutil.TempDir("", "storage-")
+	require.NoError(err)
+	defer os.RemoveAll(root)
+
+	store, err := NewFSStore(root)
+	require.NoError(err)
+
+	twin := uint32(1)
+	id := uint64(1)
+	err = store.Add(gridtypes.Deployment{
+		TwinID:      twin,
+		ContractID:  id,
+		Metadata:    "meta",
+		Description: "descriptions",
+		Workloads: []gridtypes.Workload{
+			{
+				Name: "shared",
+				Type: TestSharableType,
+				Data: gridtypes.MustMarshal(TestData{}),
+			},
+		},
+	})
+
+	require.NoError(err)
+
+	shared, err := store.SharedByTwin(twin)
+	require.NoError(err)
+	require.Len(shared, 1)
+	require.Equal(gridtypes.NewUncheckedWorkloadID(twin, 1, "shared"), shared[0])
+
+	err = store.Set(gridtypes.Deployment{
+		TwinID:      twin,
+		ContractID:  id,
+		Metadata:    "meta",
+		Description: "descriptions",
+		Workloads: []gridtypes.Workload{
+			{
+				Name: "shared",
+				Type: TestSharableType,
+				Data: gridtypes.MustMarshal(TestData{}),
+				Result: gridtypes.Result{
+					Created: gridtypes.Now(),
+					State:   gridtypes.StateDeleted,
+				},
+			},
+			{
+				Name: "new",
+				Type: TestSharableType,
+				Data: gridtypes.MustMarshal(TestData{}),
+				Result: gridtypes.Result{
+					Created: gridtypes.Now(),
+					State:   gridtypes.StateOk,
+				},
+			},
+			{
+				Name: "errord",
+				Type: TestSharableType,
+				Data: gridtypes.MustMarshal(TestData{}),
+				Result: gridtypes.Result{
+					Created: gridtypes.Now(),
+					State:   gridtypes.StateError,
+				},
+			},
+		},
+	})
+
+	require.NoError(err)
+
+	shared, err = store.SharedByTwin(twin)
+	require.NoError(err)
+	require.Len(shared, 1)
+	require.Equal(gridtypes.NewUncheckedWorkloadID(twin, 1, "new"), shared[0])
+
+	err = store.Add(gridtypes.Deployment{
+		TwinID:      twin,
+		ContractID:  2,
+		Metadata:    "meta",
+		Description: "descriptions",
+		Workloads: []gridtypes.Workload{
+			{
+				Name: "new",
+				Type: TestSharableType,
+				Data: gridtypes.MustMarshal(TestData{}),
+			},
+		},
+	})
+
+	require.Error(err)
+	require.True(errors.Is(err, provision.ErrDeploymentConflict))
+
+	wlID, err := store.GetShared(twin, "new")
+	require.NoError(err)
+	require.Equal(gridtypes.NewUncheckedWorkloadID(twin, id, "new"), wlID)
 }
 
 func TestStorageSet(t *testing.T) {

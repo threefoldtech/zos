@@ -251,7 +251,7 @@ func (r *Result) IsNil() bool {
 	// (like the type)
 	// so instead we gonna check the Data and the Created filed
 
-	return r.Created == 0 && (len(r.Data) == 0 || bytes.Equal(r.Data, nullRaw))
+	return r.State == "" && r.Created == 0 && (len(r.Data) == 0 || bytes.Equal(r.Data, nullRaw))
 }
 
 var (

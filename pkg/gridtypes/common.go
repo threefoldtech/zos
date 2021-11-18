@@ -57,6 +57,11 @@ func Min(u, v Unit) Unit {
 // Timestamp type
 type Timestamp int64
 
+// Now returns timestamp of now
+func Now() Timestamp {
+	return Timestamp(time.Now().Unix())
+}
+
 // Time gets time from timestamp
 func (t *Timestamp) Time() time.Time {
 	return time.Unix(int64(*t), 0)

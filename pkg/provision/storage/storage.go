@@ -179,14 +179,18 @@ func (s *Fs) Set(dl gridtypes.Deployment) error {
 		// if workload result is not set yet. or if the state is OK
 		// it means the workload still need to be treated as shared object
 		if wl.Result.IsNil() || wl.Result.State == gridtypes.StateOk {
-			// workload with no results, so we
+			// workload with no results, so we should keep the link
 			if _, ok := this[wl.Name]; ok {
 				// avoid unlinking
 				delete(this, wl.Name)
 			} else {
+				// or if new, add to tolink
 				tolink = append(tolink, wl.Name)
 			}
 		}
+		// if result state is set to anything else (deleted, or error)
+		// we then leave it in the `this` map which means they
+		// get to be unlinked. so the name can be used again by the same twin
 	}
 	// we either removed the names that should be kept (state = ok or no result yet)
 	// and new ones have been added to tolink. so it's safe to clean up all links
