@@ -212,7 +212,7 @@ func (m *Machine) appendEnv(root string) error {
 		return errors.Wrap(err, "invalid entrypoint")
 	}
 	if len(parts) != 0 {
-		fmt.Fprintf(file, "export init=%s\n", quote(parts[0]))
+		fmt.Fprintf(file, "init=%s\n", quote(parts[0]))
 	}
 	if len(parts) > 1 {
 		var buf bytes.Buffer
