@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/google/shlex"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -60,7 +62,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		args["--fs"] = filesystems
 	}
 
-	if len(m.Environment) > 0 {
+	if len(m.Environment) > 0 || m.Entrypoint != "" {
 		// as a protection we make sure that an fs with tag /dev/root
 		// is available, and find it's path
 		var root *VirtioFS
@@ -81,7 +83,6 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 			log.Warn().Msg("can't inject environment to a non virtiofs machine")
 		}
 	}
-
 	if m.Boot.Initrd != "" {
 		args["--initramfs"] = []string{m.Boot.Initrd}
 	}
@@ -211,6 +212,21 @@ func (m *Machine) appendEnv(root string) error {
 		if _, err := fmt.Fprintf(file, "export %s=%s\n", k, quote(v)); err != nil {
 			return err
 		}
+	}
+	parts, err := shlex.Split(m.Entrypoint)
+	if err != nil {
+		return errors.Wrap(err, "invalid entrypoint")
+	}
+	fmt.Fprintf(file, "export init=%s\n", quote(parts[0]))
+	if len(parts) > 1 {
+
+		var buf bytes.Buffer
+		buf.WriteString("set --")
+		for _, part := range parts {
+			buf.WriteRune(' ')
+			buf.WriteString(quote(part))
+		}
+		fmt.Fprint(file, buf.String())
 	}
 	return nil
 }
