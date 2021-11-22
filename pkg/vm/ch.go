@@ -184,10 +184,6 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 }
 
 func (m *Machine) appendEnv(root string) error {
-	if len(m.Environment) == 0 {
-		return nil
-	}
-
 	stat, err := os.Stat(root)
 	if err != nil {
 		return errors.Wrap(err, "failed to stat vm rootfs")
@@ -195,16 +191,14 @@ func (m *Machine) appendEnv(root string) error {
 	if !stat.IsDir() {
 		return fmt.Errorf("vm rootfs is not a directory")
 	}
-	if err := os.MkdirAll(filepath.Join(root, "etc"), 0755); err != nil {
-		return errors.Wrap(err, "failed to create <rootfs>/etc directory")
-	}
+
 	file, err := os.OpenFile(
 		filepath.Join(root, ".zosrc"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0644,
 	)
 	if err != nil {
-		return errors.Wrap(err, "failed to open environment file")
+		return errors.Wrap(err, "failed to open zosrc file")
 	}
 
 	defer file.Close()
@@ -217,9 +211,10 @@ func (m *Machine) appendEnv(root string) error {
 	if err != nil {
 		return errors.Wrap(err, "invalid entrypoint")
 	}
-	fmt.Fprintf(file, "export init=%s\n", quote(parts[0]))
+	if len(parts) != 0 {
+		fmt.Fprintf(file, "export init=%s\n", quote(parts[0]))
+	}
 	if len(parts) > 1 {
-
 		var buf bytes.Buffer
 		buf.WriteString("set --")
 		for _, part := range parts {
