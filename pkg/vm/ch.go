@@ -1,14 +1,17 @@
 package vm
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 
+	"github.com/google/shlex"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -58,29 +61,9 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	if len(filesystems) > 0 {
 		args["--fs"] = filesystems
 	}
-
-	if len(m.Environment) > 0 {
-		// as a protection we make sure that an fs with tag /dev/root
-		// is available, and find it's path
-		var root *VirtioFS
-		for i := range m.FS {
-			fs := &m.FS[i]
-			if fs.Tag == virtioRootFsTag {
-				root = fs
-				break
-			}
-		}
-
-		if root != nil {
-			// root fs found
-			if err := m.appendEnv(root.Path); err != nil {
-				return errors.Wrap(err, "failed to inject environment variables")
-			}
-		} else {
-			log.Warn().Msg("can't inject environment to a non virtiofs machine")
-		}
+	if err := m.buildZosRC(); err != nil {
+		return errors.Wrap(err, "couldn't build zosrc")
 	}
-
 	if m.Boot.Initrd != "" {
 		args["--initramfs"] = []string{m.Boot.Initrd}
 	}
@@ -181,11 +164,31 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	return nil
 }
 
-func (m *Machine) appendEnv(root string) error {
-	if len(m.Environment) == 0 {
+func (m *Machine) findVirtioFsMount() (*VirtioFS, error) {
+	var root *VirtioFS
+	for i := range m.FS {
+		fs := &m.FS[i]
+		if fs.Tag == virtioRootFsTag {
+			root = fs
+			break
+		}
+	}
+	if root == nil {
+		return nil, errors.New("no virtiofs mounts found")
+	}
+	return root, nil
+}
+
+func (m *Machine) buildZosRC() error {
+	if len(m.Environment) == 0 || m.Entrypoint == "" {
+		// nothing to add in .zosrc
 		return nil
 	}
-
+	fs, err := m.findVirtioFsMount()
+	if err != nil {
+		return err
+	}
+	root := fs.Path
 	stat, err := os.Stat(root)
 	if err != nil {
 		return errors.Wrap(err, "failed to stat vm rootfs")
@@ -193,30 +196,59 @@ func (m *Machine) appendEnv(root string) error {
 	if !stat.IsDir() {
 		return fmt.Errorf("vm rootfs is not a directory")
 	}
-	if err := os.MkdirAll(filepath.Join(root, "etc"), 0755); err != nil {
-		return errors.Wrap(err, "failed to create <rootfs>/etc directory")
-	}
+
 	file, err := os.OpenFile(
-		filepath.Join(root, "etc", "environment"),
+		filepath.Join(root, ".zosrc"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0644,
 	)
 	if err != nil {
-		return errors.Wrap(err, "failed to open environment file")
+		return errors.Wrap(err, "failed to open zosrc file")
 	}
 
 	defer file.Close()
-	if _, err := file.WriteString("\n"); err != nil {
-		return err
+	if err := m.appendEnv(file); err != nil {
+		return errors.Wrap(err, "couldn't append environment variables to zosrc")
 	}
+	if err := m.appendEntrypoint(file); err != nil {
+		return errors.Wrap(err, "couldn't append entrypoint data to zosrc")
+	}
+	return nil
+}
+
+func (m *Machine) appendEnv(file *os.File) error {
 	for k, v := range m.Environment {
-		//TODO: need some string escaping here
-		if _, err := fmt.Fprintf(file, "%s=%s\n", k, v); err != nil {
+		if _, err := fmt.Fprintf(file, "export %s=%s\n", k, quote(v)); err != nil {
 			return err
 		}
 	}
 	return nil
 }
+
+func (m *Machine) appendEntrypoint(file *os.File) error {
+	parts, err := shlex.Split(m.Entrypoint)
+	if err != nil {
+		return errors.Wrap(err, "invalid entrypoint")
+	}
+	if len(parts) != 0 {
+		if _, err := fmt.Fprintf(file, "init=%s\n", quote(parts[0])); err != nil {
+			return err
+		}
+	}
+	if len(parts) > 1 {
+		var buf bytes.Buffer
+		buf.WriteString("set --")
+		for _, part := range parts {
+			buf.WriteRune(' ')
+			buf.WriteString(quote(part))
+		}
+		if _, err := fmt.Fprint(file, buf.String()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (m *Machine) startFs(socket, path string) (int, error) {
 	cmd := exec.Command("busybox", "setsid",
 		"virtiofsd-rs",
@@ -248,4 +280,12 @@ func (m *Machine) release(ps *os.Process) error {
 	}
 
 	return nil
+}
+
+// transpiled from https://github.com/python/cpython/blob/3.10/Lib/shlex.py#L325
+func quote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }
