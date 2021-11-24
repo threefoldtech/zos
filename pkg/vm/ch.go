@@ -61,27 +61,8 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	if len(filesystems) > 0 {
 		args["--fs"] = filesystems
 	}
-
-	if len(m.Environment) > 0 || m.Entrypoint != "" {
-		// as a protection we make sure that an fs with tag /dev/root
-		// is available, and find it's path
-		var root *VirtioFS
-		for i := range m.FS {
-			fs := &m.FS[i]
-			if fs.Tag == virtioRootFsTag {
-				root = fs
-				break
-			}
-		}
-
-		if root != nil {
-			// root fs found
-			if err := m.appendEnv(root.Path); err != nil {
-				return errors.Wrap(err, "failed to inject environment variables")
-			}
-		} else {
-			log.Warn().Msg("can't inject environment to a non virtiofs machine")
-		}
+	if err := m.buildZosRC(); err != nil {
+		return errors.Wrap(err, "couldn't build zosrc")
 	}
 	if m.Boot.Initrd != "" {
 		args["--initramfs"] = []string{m.Boot.Initrd}
@@ -183,7 +164,31 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	return nil
 }
 
-func (m *Machine) appendEnv(root string) error {
+func (m *Machine) findVirtioFsMount() (*VirtioFS, error) {
+	var root *VirtioFS
+	for i := range m.FS {
+		fs := &m.FS[i]
+		if fs.Tag == virtioRootFsTag {
+			root = fs
+			break
+		}
+	}
+	if root == nil {
+		return nil, errors.New("no virtiofs mounts found")
+	}
+	return root, nil
+}
+
+func (m *Machine) buildZosRC() error {
+	if len(m.Environment) == 0 || m.Entrypoint == "" {
+		// nothing to add in .zosrc
+		return nil
+	}
+	fs, err := m.findVirtioFsMount()
+	if err != nil {
+		return err
+	}
+	root := fs.Path
 	stat, err := os.Stat(root)
 	if err != nil {
 		return errors.Wrap(err, "failed to stat vm rootfs")
@@ -202,17 +207,33 @@ func (m *Machine) appendEnv(root string) error {
 	}
 
 	defer file.Close()
+	if err := m.appendEnv(file); err != nil {
+		return errors.Wrap(err, "couldn't append environment variables to zosrc")
+	}
+	if err := m.appendEntrypoint(file); err != nil {
+		return errors.Wrap(err, "couldn't append entrypoint data to zosrc")
+	}
+	return nil
+}
+
+func (m *Machine) appendEnv(file *os.File) error {
 	for k, v := range m.Environment {
 		if _, err := fmt.Fprintf(file, "export %s=%s\n", k, quote(v)); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func (m *Machine) appendEntrypoint(file *os.File) error {
 	parts, err := shlex.Split(m.Entrypoint)
 	if err != nil {
 		return errors.Wrap(err, "invalid entrypoint")
 	}
 	if len(parts) != 0 {
-		fmt.Fprintf(file, "init=%s\n", quote(parts[0]))
+		if _, err := fmt.Fprintf(file, "init=%s\n", quote(parts[0])); err != nil {
+			return err
+		}
 	}
 	if len(parts) > 1 {
 		var buf bytes.Buffer
@@ -221,10 +242,13 @@ func (m *Machine) appendEnv(root string) error {
 			buf.WriteRune(' ')
 			buf.WriteString(quote(part))
 		}
-		fmt.Fprint(file, buf.String())
+		if _, err := fmt.Fprint(file, buf.String()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
+
 func (m *Machine) startFs(socket, path string) (int, error) {
 	cmd := exec.Command("busybox", "setsid",
 		"virtiofsd-rs",
