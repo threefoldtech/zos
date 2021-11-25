@@ -238,7 +238,7 @@ func (m *Machine) appendEntrypoint(file *os.File) error {
 	if len(parts) > 1 {
 		var buf bytes.Buffer
 		buf.WriteString("set --")
-		for _, part := range parts {
+		for _, part := range parts[1:] {
 			buf.WriteRune(' ')
 			buf.WriteString(quote(part))
 		}
