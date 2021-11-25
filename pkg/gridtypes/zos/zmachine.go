@@ -24,11 +24,6 @@ type MachineNetwork struct {
 	// PublicIP optional public IP attached to this machine. If set
 	// it must be a valid name of a PublicIP workload in the same deployment
 	PublicIP gridtypes.Name `json:"public_ip"`
-	// PublicIPv6 specify if the machine should also get a public ipv6
-	// this doesn't require reservation of IP but requires that the farm
-	// infra structure to have IP6 support. If true and ipv6 is not supported
-	// the vm provision must fail.
-	PublicIPv6 bool `json:"public_ip6"`
 	// Planetary support planetary network
 	Planetary bool `json:"planetary"`
 	// Interfaces list of user znets to join
@@ -38,10 +33,6 @@ type MachineNetwork struct {
 // Challenge builder
 func (n *MachineNetwork) Challenge(w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "%s", n.PublicIP); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintf(w, "%t", n.PublicIPv6); err != nil {
 		return err
 	}
 

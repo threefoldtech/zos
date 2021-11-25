@@ -150,7 +150,7 @@ func (p *Primitives) newPubNetworkInterface(ctx context.Context, deployment grid
 
 // Get the public ip, and the gateway from the reservation ID
 func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID) (ip net.IPNet, gw net.IP, err error) {
-	if wl.Type != zos.PublicIPv4Type {
+	if wl.Type != zos.PublicIPv4Type && wl.Type != zos.PublicIPType {
 		return ip, gw, fmt.Errorf("workload for public IP is of wrong type")
 	}
 
@@ -167,20 +167,6 @@ func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID) (ip net.IPNet,
 }
 
 func getFlistInfo(imagePath string) (FListInfo, error) {
-	// entities, err := ioutil.ReadDir(imagePath)
-	// if err != nil {
-	// 	return FListInfo{}, err
-	// }
-	// out, err := exec.Command("mountpoint", imagePath).CombinedOutput()
-	// if err != nil {
-	// 	return FListInfo{}, err
-	// }
-	// log.Debug().Msgf("mountpoint: %s", string(out))
-	// log.Debug().Str("mnt", imagePath).Msg("listing files in")
-	// for _, ent := range entities {
-	// 	log.Debug().Str("file", ent.Name()).Msg("file found")
-	// }
-
 	kernel := filepath.Join(imagePath, "kernel")
 	log.Debug().Str("file", kernel).Msg("checking kernel")
 	if _, err := os.Stat(kernel); os.IsNotExist(err) {
