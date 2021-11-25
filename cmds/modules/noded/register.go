@@ -228,7 +228,8 @@ func registerNode(
 
 		if reflect.DeepEqual(node.Resources, resources) &&
 			reflect.DeepEqual(node.Location, location) &&
-			reflect.DeepEqual(node.Interfaces, interfaces) {
+			reflect.DeepEqual(node.Interfaces, interfaces) &&
+			node.Country == loc.Country {
 			// so node exists AND pub config, nor resources hasn't changed
 			log.Debug().Msg("node information has not changed")
 			return uint32(node.ID), uint32(node.TwinID), nil
