@@ -83,7 +83,7 @@ type WorkloadGetter interface {
 // WorkloadByTypeGetter is used to get a list of workloads
 // of specific type from a workload container like a deployment
 type WorkloadByTypeGetter interface {
-	ByType(typ WorkloadType) []*WorkloadWithID
+	ByType(typ ...WorkloadType) []*WorkloadWithID
 }
 
 // KeyGetter interface to get key by twin ids
@@ -439,11 +439,21 @@ func (d *Deployment) GetType(name Name, typ WorkloadType) (*WorkloadWithID, erro
 }
 
 // ByType gets all workloads from this reservation by type.
-func (d *Deployment) ByType(typ WorkloadType) []*WorkloadWithID {
+func (d *Deployment) ByType(typ ...WorkloadType) []*WorkloadWithID {
+	in := func(t WorkloadType) bool {
+		for _, m := range typ {
+			if m == t {
+				return true
+			}
+		}
+		return false
+	}
+
 	var results []*WorkloadWithID
 	for i := range d.Workloads {
 		wl := &d.Workloads[i]
-		if wl.Type == typ {
+
+		if in(wl.Type) {
 			id, err := NewWorkloadID(d.TwinID, d.ContractID, wl.Name)
 			if err != nil {
 				log.Warn().Err(err).Msg("deployment has invalid name. please run validation")

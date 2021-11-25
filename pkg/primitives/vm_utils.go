@@ -120,6 +120,7 @@ func (p *Primitives) newPubNetworkInterface(ctx context.Context, deployment grid
 	if err != nil {
 		return pkg.VMIface{}, err
 	}
+
 	tapName := tapNameFromName(ipWl.ID, "pub")
 
 	pubIP, pubGw, err := p.getPubIPConfig(ipWl)
@@ -149,7 +150,7 @@ func (p *Primitives) newPubNetworkInterface(ctx context.Context, deployment grid
 
 // Get the public ip, and the gateway from the reservation ID
 func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID) (ip net.IPNet, gw net.IP, err error) {
-	if wl.Type != zos.PublicIPType {
+	if wl.Type != zos.PublicIPv4Type {
 		return ip, gw, fmt.Errorf("workload for public IP is of wrong type")
 	}
 

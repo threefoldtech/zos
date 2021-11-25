@@ -243,7 +243,7 @@ func action(cli *cli.Context) error {
 			zos.ZMountType,
 			zos.QuantumSafeFSType,
 			zos.NetworkType,
-			zos.PublicIPType,
+			zos.PublicIPv4Type,
 		),
 		// if this is a node reboot, the node needs to
 		// recreate all reservations. so we set rerun = true
