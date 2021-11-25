@@ -78,11 +78,6 @@ func (k Sr25519VerifyingKey) Verify(msg []byte, sig []byte) bool {
 // the deployment context. Mainly used to validate dependency
 type WorkloadGetter interface {
 	Get(name Name) (*WorkloadWithID, error)
-}
-
-// WorkloadByTypeGetter is used to get a list of workloads
-// of specific type from a workload container like a deployment
-type WorkloadByTypeGetter interface {
 	ByType(typ ...WorkloadType) []*WorkloadWithID
 }
 

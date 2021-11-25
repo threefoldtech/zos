@@ -608,7 +608,7 @@ func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.Workloa
 	return true
 }
 
-func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes.WorkloadByTypeGetter, reason string) {
+func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, reason string) {
 	for i := len(e.order) - 1; i >= 0; i-- {
 		typ := e.order[i]
 
@@ -619,7 +619,7 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes
 	}
 }
 
-func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.WorkloadByTypeGetter) (changed bool) {
+func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.WorkloadGetter) (changed bool) {
 	for _, typ := range e.order {
 		workloads := getter.ByType(typ)
 
