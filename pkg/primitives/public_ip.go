@@ -97,7 +97,6 @@ func (p *Primitives) getPublicIPData(ctx context.Context, wl *gridtypes.Workload
 	case zos.PublicIPv4Type:
 		// backword compatibility with older ipv4 type
 		result.V4 = true
-		result.V6 = true
 	case zos.PublicIPType:
 		err = json.Unmarshal(wl.Data, &result)
 	default:
