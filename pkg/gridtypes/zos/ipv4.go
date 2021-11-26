@@ -41,7 +41,7 @@ type PublicIP struct {
 // Valid validate public ip input
 func (p PublicIP) Valid(getter gridtypes.WorkloadGetter) error {
 	if !p.V4 && !p.V6 {
-		return fmt.Errorf("public ip workload with no data")
+		return fmt.Errorf("public ip workload with no selections")
 	}
 
 	return nil
