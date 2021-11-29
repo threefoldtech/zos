@@ -173,7 +173,7 @@ func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID) (result zos.Pu
 	}
 
 	if err := wl.Result.Unmarshal(&result); err != nil {
-		return result, errors.Wrap(err, "failed to load ip config")
+		return result, errors.Wrap(err, "failed to load ip result")
 	}
 
 	return result, nil

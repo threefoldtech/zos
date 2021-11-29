@@ -49,7 +49,18 @@ func (p *Primitives) getAssignedPublicIP(ctx context.Context, wl *gridtypes.Work
 	// make sure we have enough reserved IPs
 	// we process both ipv4 type and ip type to be backward compatible
 	ipWorkloads := deployment.ByType(zos.PublicIPv4Type, zos.PublicIPType)
-	if len(ipWorkloads) > len(reserved) {
+	reservedCount := 0
+	for _, wl := range ipWorkloads {
+		config, err := p.getPublicIPData(ctx, wl)
+		if err != nil {
+			return gridtypes.IPNet{}, nil, err
+		}
+		if config.V4 {
+			reservedCount += 1
+		}
+	}
+
+	if reservedCount > len(reserved) {
 		return ip, gw, fmt.Errorf("required %d ips while contract has %d ip reserved", len(ipWorkloads), len(reserved))
 	}
 
@@ -64,9 +75,10 @@ func (p *Primitives) getAssignedPublicIP(ctx context.Context, wl *gridtypes.Work
 		if ipWl.Result.IsNil() || ipWl.Result.State != gridtypes.StateOk {
 			continue
 		}
-		var used zos.PublicIPResult
-		if err := ipWl.Result.Unmarshal(&used); err != nil {
-			return ip, gw, errors.Wrap(err, "failed to ")
+
+		used, err := p.getPubIPConfig(ipWl)
+		if err != nil {
+			return ip, gw, err
 		}
 
 		usedIPs[used.IP.String()] = struct{}{}
