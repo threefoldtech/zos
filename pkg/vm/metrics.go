@@ -3,7 +3,6 @@ package vm
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/vishvananda/netlink"
 )
 
 var (
@@ -134,30 +132,4 @@ func metricsForNics(nics []string) (m pkg.NetMetric, err error) {
 	}
 
 	return
-}
-
-func readMacVTap(pid, fd int) (string, error) {
-	const template = "/proc/%d/fd/%d"
-
-	path := fmt.Sprintf(template, pid, fd)
-
-	target, err := os.Readlink(path)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to read link of '%s'", path)
-	}
-
-	// the target should be in this format /dev/tap544
-	var index int
-	if _, err := fmt.Sscanf(target, "/dev/tap%d", &index); err != nil {
-		return "", errors.Wrap(err, "failed to parse tap index")
-	}
-
-	link, err := netlink.LinkByIndex(index)
-	if _, ok := err.(netlink.LinkNotFoundError); ok {
-		return "", errMacVTapNotFound
-	} else if err != nil {
-		return "", errors.Wrap(err, "failed to get the error")
-	}
-
-	return link.Attrs().Name, nil
 }
