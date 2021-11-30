@@ -235,6 +235,7 @@ func NewStatisticsStream(s *Statistics) pkg.Statistics {
 func (s *statsStream) Reserved(ctx context.Context) <-chan gridtypes.Capacity {
 	ch := make(chan gridtypes.Capacity)
 	go func(ctx context.Context) {
+		defer close(ch)
 		for {
 			select {
 			case <-ctx.Done():
