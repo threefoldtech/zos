@@ -12,10 +12,6 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 )
 
-var (
-	errMacVTapNotFound = errors.New("macvtap not found")
-)
-
 // Metrics gets running machines network metrics
 func (m *Module) Metrics() (pkg.MachineMetrics, error) {
 	vms, err := FindAll()
