@@ -23,13 +23,6 @@ type EngineOption interface {
 	apply(e *NativeEngine)
 }
 
-// WithJanitor sets a janitor for the engine.
-// a janitor is executed periodically to clean up
-// the deployed resources.
-func WithJanitor(j Janitor) EngineOption {
-	return &withJanitorOpt{j}
-}
-
 // WithTwins sets the user key getter on the
 // engine
 func WithTwins(g Twins) EngineOption {
@@ -104,15 +97,6 @@ type NativeEngine struct {
 
 var _ Engine = (*NativeEngine)(nil)
 var _ pkg.Provision = (*NativeEngine)(nil)
-
-type withJanitorOpt struct {
-	j Janitor
-}
-
-func (o *withJanitorOpt) apply(e *NativeEngine) {
-	panic("not imple=nted")
-	// e.janitor = o.j
-}
 
 type withUserKeyGetter struct {
 	g Twins
@@ -662,23 +646,6 @@ func (e *NativeEngine) updateDeployment(ctx context.Context, ops []gridtypes.Upg
 		}
 	}
 	return
-}
-
-// Counters implements the zbus interface
-func (e *NativeEngine) Counters(ctx context.Context) <-chan pkg.ProvisionCounters {
-	//TODO: implement counters
-	// this is probably need to be moved to statistics
-	ch := make(chan pkg.ProvisionCounters)
-	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(5 * time.Minute):
-			ch <- pkg.ProvisionCounters{}
-		}
-	}()
-
-	return ch
 }
 
 // DecommissionCached implements the zbus interface
