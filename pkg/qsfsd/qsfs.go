@@ -21,14 +21,14 @@ import (
 )
 
 const (
-	qsfsFlist             = "https://hub.grid.tf/azmy.3bot/qsfs.flist"
+	qsfsFlist             = "https://hub.grid.tf/omar0.3bot/qsfs.flist"
 	qsfsContainerNS       = "qsfs"
 	qsfsRootFsPropagation = pkg.RootFSPropagationSlave
 	zstorSocket           = "/var/run/zstor.sock"
 	zstorZDBFSMountPoint  = "/mnt" // hardcoded in the container
 	zstorMetricsPort      = 9100
-	zstorZDBDataDirPath   = "/data/data/zdbfs-data"
-	zstorZDBIndexDirPath  = "/data/index/zdbfs-data"
+	zstorZDBDataDirPath   = "/data/data"
+	zstorZDBIndexDirPath  = "/data/index"
 )
 
 type QSFS struct {
