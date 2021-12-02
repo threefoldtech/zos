@@ -111,7 +111,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 	cont := pkg.Container{
 		Name:        wlID,
 		RootFS:      flistPath,
-		Entrypoint:  "/sbin/zinit init",
+		Entrypoint:  "/sbin/zinit init --container",
 		Interactive: false,
 		Network:     pkg.NetworkInfo{Namespace: netns},
 		Memory:      gridtypes.Gigabyte,
