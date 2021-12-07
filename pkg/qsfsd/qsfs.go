@@ -29,6 +29,9 @@ const (
 	zstorMetricsPort      = 9100
 	zstorZDBDataDirPath   = "/data/data"
 	zstorZDBIndexDirPath  = "/data/index"
+	// 30 * two significant uploads (zstor configured timeout)
+	// it's a lot and shouldn't be reached at all
+	qsfsShutdownTimeout = 65 * time.Second
 )
 
 type QSFS struct {
@@ -125,6 +128,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 		// the default is rslave which recursively sets all mountpoints to slave
 		// we don't care about the rootfs propagation, it just has to be non-recursive
 		RootFsPropagation: qsfsRootFsPropagation,
+		ShutdownTimeout:   qsfsShutdownTimeout,
 	}
 	_, err = contd.Run(
 		ctx,
