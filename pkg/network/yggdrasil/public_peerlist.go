@@ -43,7 +43,7 @@ type Filter func(ip net.IP) bool
 // Ranges is a list of net.IPNet
 type Ranges []net.IPNet
 
-// Excluse ranges, return IPs that are NOT in the given ranges
+// Exclude ranges, return IPs that are NOT in the given ranges
 func Exclude(ranges Ranges) Filter {
 	return func(ip net.IP) bool {
 		for _, n := range ranges {
