@@ -10,7 +10,7 @@ import (
 
 func TestNamespaces(t *testing.T) {
 	pool := Index{
-		path: "./test_data/pool_layout",
+		root: "./test_data/pool_layout",
 	}
 
 	ns, err := pool.Namespaces()
@@ -26,7 +26,7 @@ func TestNamespaces(t *testing.T) {
 
 func TestReserved(t *testing.T) {
 	pool := Index{
-		path: "./test_data/pool_layout",
+		root: "./test_data/pool_layout",
 	}
 
 	size, err := pool.Reserved()
@@ -36,7 +36,7 @@ func TestReserved(t *testing.T) {
 
 func TestExists(t *testing.T) {
 	pool := Index{
-		path: "./test_data/pool_layout",
+		root: "./test_data/pool_layout",
 	}
 
 	assert.True(t, pool.Exists("test"))
@@ -45,7 +45,7 @@ func TestExists(t *testing.T) {
 
 func TestIndexMode(t *testing.T) {
 	pool := Index{
-		path: "./test_data/pool_layout",
+		root: "./test_data/pool_layout",
 	}
 
 	mode, err := pool.IndexMode("test")
