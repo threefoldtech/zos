@@ -8,12 +8,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-const (
-	nsFlagsPublic   = 1
-	nsFlagsWorm     = 2
-	nsFlagsExtended = 4
-)
-
 type internalHeaderV2 struct {
 	Version        uint32 // version of the namespace descriptor
 	NameLength     uint8  // length of the namespace name
