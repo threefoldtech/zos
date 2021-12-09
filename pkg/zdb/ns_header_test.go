@@ -1,7 +1,6 @@
 package zdb
 
 import (
-	"bytes"
 	"os"
 	"testing"
 
@@ -15,7 +14,7 @@ func TestReadHeader(t *testing.T) {
 	require.NoError(t, err)
 	defer f.Close()
 
-	h, err := ReadHeader(f)
+	h, err := ReadHeaderV2(f)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", h.Name)
@@ -28,31 +27,11 @@ func TestReadHeaderExtended(t *testing.T) {
 	require.NoError(t, err)
 	defer f.Close()
 
-	h, err := ReadHeader(f)
+	h, err := ReadHeaderV2(f)
 	require.NoError(t, err)
 
 	assert.Equal(t, uint32(1), h.Version)
 	assert.Equal(t, "test", h.Name)
 	assert.Equal(t, "password", h.Password)
 	assert.Equal(t, gridtypes.Unit(1073741824), h.MaxSize) // 1G
-}
-
-func TestWriteHeader(t *testing.T) {
-	var buffer bytes.Buffer
-	head := Header{
-		Name:     "created",
-		Password: "password",
-		MaxSize:  10 * 1024 * 1024 * 1024, // 10G
-	}
-
-	err := WriteHeader(&buffer, head)
-	require.NoError(t, err)
-
-	loaded, err := ReadHeader(&buffer)
-	require.NoError(t, err)
-
-	assert.Equal(t, head.Name, loaded.Name)
-	assert.Equal(t, head.Password, loaded.Password)
-	assert.Equal(t, head.MaxSize, loaded.MaxSize)
-	assert.Equal(t, uint32(1), loaded.Version)
 }
