@@ -18,7 +18,7 @@ type internalHeaderV2 struct {
 	Version        uint32 // version of the namespace descriptor
 	NameLength     uint8  // length of the namespace name
 	PasswordLength uint8  // length of the password
-	MaxSize        uint32 // maximum datasize allowed on that namespace
+	MaxSize        uint64 // maximum datasize allowed on that namespace
 	Flags          uint8
 }
 
@@ -36,7 +36,7 @@ func ReadHeaderV2(r io.Reader) (header Header, err error) {
 	if err := binary.Read(r, binary.LittleEndian, &bh); err != nil {
 		return header, err
 	}
-	header.Version = 0
+	header.Version = bh.Version
 	header.MaxSize = gridtypes.Unit(bh.MaxSize)
 	name := make([]byte, bh.NameLength)
 	password := make([]byte, bh.PasswordLength)
