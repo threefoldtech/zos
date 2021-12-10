@@ -29,9 +29,11 @@ const (
 	zstorMetricsPort      = 9100
 	zstorZDBDataDirPath   = "/data/data"
 	zstorZDBIndexDirPath  = "/data/index"
-	// 30 * two significant uploads (zstor configured timeout)
+	// 30 * two significant uploads at close (zstor configured timeout)
 	// it's a lot and shouldn't be reached at all
-	qsfsShutdownTimeout = 65 * time.Second
+	// zdb doesn't wait for jump-* hooks to finish
+	// so we might need to wait more, but how much?
+	qsfsShutdownTimeout = 3 * time.Minute
 )
 
 type QSFS struct {
