@@ -1,10 +1,13 @@
 exec: |
-  sh -c 'zinit log | NODEID=$(noded -id) promtail \
+  sh -c '
+  zinit log | NODEID=$(noded -id) promtail \
             -stdin \
+            -server.disable \
             -config.expand-env=true \
             -config.file /etc/promtail/promtail.yaml \
             -client.url http://explorer.devnet.grid.tf:3100/loki/api/v1/push \
-            -client.external-labels=network=$(noded -net)'
+            -client.external-labels=network=$(noded -net)
+  '
 log: stdout
 after:
   - logger
