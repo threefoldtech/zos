@@ -5,7 +5,7 @@ exec: |
   pkill -HUP promtail
 
   zinit log | NODEID=$(noded -id) NETWORK=$(noded -net) exec promtail \
-            -stdin -dry-run \
+            -stdin \
             -config.file /etc/promtail/promtail.yaml \
             -server.disable \
             -config.expand-env=true \
