@@ -2,6 +2,7 @@ package noded
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"strings"
 	"time"
@@ -34,6 +35,14 @@ var Module cli.Command = cli.Command{
 			Usage: "connection string to the message `BROKER`",
 			Value: "unix:///var/run/redis.sock",
 		},
+		&cli.BoolFlag{
+			Name:  "id",
+			Usage: "print node id and exit",
+		},
+		&cli.BoolFlag{
+			Name:  "net",
+			Usage: "print node network and exit",
+		},
 	},
 	Action: action,
 }
@@ -41,6 +50,8 @@ var Module cli.Command = cli.Command{
 func action(cli *cli.Context) error {
 	var (
 		msgBrokerCon string = cli.String("broker")
+		printID      bool   = cli.Bool("id")
+		printNet     bool   = cli.Bool("net")
 	)
 
 	env := environment.MustGet()
@@ -48,6 +59,17 @@ func action(cli *cli.Context) error {
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
+	}
+
+	if printID {
+		sysCl := stubs.NewSystemMonitorStub(redis)
+		fmt.Println(sysCl.NodeID(cli.Context))
+		return nil
+	}
+
+	if printNet {
+		fmt.Println(env.RunningMode.String())
+		return nil
 	}
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, 1)
