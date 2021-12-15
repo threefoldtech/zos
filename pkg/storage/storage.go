@@ -110,6 +110,12 @@ func (s *Module) dump() {
 		path, err := pool.Mounted()
 		if err == nil {
 			log.Debug().Msgf("pool %s is mounted at: %s", pool.Name(), path)
+			usage, err := pool.Usage()
+			if err != nil {
+				log.Error().Err(err).Str("pool", pool.Name()).Msg("failed to get pool usage")
+			} else {
+				log.Debug().Msgf("pool %s capacity %+v", pool.Name(), usage)
+			}
 		}
 		device := pool.Device()
 		log.Debug().Str("path", device.Path()).Str("label", pool.Name()).Str("type", string(zos.SSDDevice)).Send()
@@ -119,6 +125,12 @@ func (s *Module) dump() {
 		path, err := pool.Mounted()
 		if err == nil {
 			log.Debug().Msgf("pool %s is mounted at: %s", pool.Name(), path)
+			usage, err := pool.Usage()
+			if err != nil {
+				log.Error().Err(err).Str("pool", pool.Name()).Msg("failed to get pool usage")
+			} else {
+				log.Debug().Msgf("pool %s capacity %+v", pool.Name(), usage)
+			}
 		}
 		device := pool.Device()
 		log.Debug().Str("path", device.Path()).Str("label", pool.Name()).Str("type", string(zos.HDDDevice)).Send()

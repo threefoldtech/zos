@@ -254,12 +254,7 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 		return Usage{}, err
 	}
 
-	info, err := p.device.Info()
-	if err != nil {
-		return Usage{}, err
-	}
-
-	return Usage{Size: info.Size, Used: du.Data.Used}, nil
+	return Usage{Size: du.Total, Used: du.Used}, nil
 }
 
 // Type of the physical storage used for this pool

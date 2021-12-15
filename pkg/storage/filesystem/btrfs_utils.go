@@ -1,11 +1,15 @@
 package filesystem
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -55,8 +59,8 @@ type DiskUsage struct {
 	Used  uint64 `json:"used"`
 }
 
-// BtrfsDiskUsage is parsed information form btrfs fi df
-type BtrfsDiskUsage struct {
+// BtrfsDFUsage is parsed information form btrfs fi df
+type BtrfsDFUsage struct {
 	Data          DiskUsage `json:"data"`
 	System        DiskUsage `json:"system"`
 	Metadata      DiskUsage `json:"metadata"`
@@ -184,13 +188,23 @@ func (u *BtrfsUtil) QGroupDestroy(ctx context.Context, id, path string) error {
 }
 
 // GetDiskUsage get btrfs usage
-func (u *BtrfsUtil) GetDiskUsage(ctx context.Context, path string) (usage BtrfsDiskUsage, err error) {
+func (u *BtrfsUtil) GetDiskDf(ctx context.Context, path string) (usage BtrfsDFUsage, err error) {
 	output, err := u.run(ctx, "btrfs", "filesystem", "df", "--raw", path)
 	if err != nil {
 		return usage, err
 	}
 
 	return parseFilesystemDF(string(output))
+}
+
+// GetDiskUsage get btrfs usage
+func (u *BtrfsUtil) GetDiskUsage(ctx context.Context, path string) (usage DiskUsage, err error) {
+	output, err := u.run(ctx, "btrfs", "filesystem", "usage", "--raw", path)
+	if err != nil {
+		return usage, err
+	}
+
+	return parseFilesystemUsage(string(output))
 }
 
 func parseSubvolInfo(output string) (volume BtrfsVolume, err error) {
@@ -349,7 +363,41 @@ func parseQGroups(output string) map[string]BtrfsQGroup {
 	return qgroups
 }
 
-func parseFilesystemDF(output string) (usage BtrfsDiskUsage, err error) {
+func parseFilesystemUsage(output string) (usage DiskUsage, err error) {
+	//lines := reBtrfsFilesystemDf.FindAllStringSubmatch(output, -1)
+	buf := bufio.NewScanner(bytes.NewBufferString(output))
+	for buf.Scan() {
+		line := buf.Text()
+		if line == "Overall:" {
+			continue
+		} else if line == "" {
+			break
+		}
+
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		var f uint64
+		if _, err := fmt.Sscanf(value, "%d", &f); err != nil {
+			return usage, errors.Wrapf(err, "failed to parse usage information: '%s: %s'", key, value)
+		}
+
+		switch key {
+		case "Device size":
+			usage.Total = f
+		case "Device allocated":
+			usage.Used = f
+		}
+	}
+
+	return
+}
+
+func parseFilesystemDF(output string) (usage BtrfsDFUsage, err error) {
 	lines := reBtrfsFilesystemDf.FindAllStringSubmatch(output, -1)
 	for _, line := range lines {
 		name := line[1]

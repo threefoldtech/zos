@@ -155,7 +155,7 @@ GlobalReserve, single: total=16777216, used=0
 	df, err := parseFilesystemDF(dfString)
 	require.NoError(t, err)
 
-	assert.Equal(t, BtrfsDiskUsage{
+	assert.Equal(t, BtrfsDFUsage{
 		Data: DiskUsage{
 			Total: 8388608, Used: 65536,
 		},
@@ -257,7 +257,7 @@ devid    1 size 462713520128 used 211548110848 path /dev/sdb2
 	require.Len(fs, 1)
 }
 
-func TestBtrfsGetDiskUsage(t *testing.T) {
+func TestBtrfsGetDiskDf(t *testing.T) {
 	const tmp = `Data, single: total=8388608, used=65536
 System, single: total=4194304, used=16384
 Metadata, single: total=276824064, used=163840
@@ -272,11 +272,51 @@ GlobalReserve, single: total=16777216, used=0
 	exec.On("run", mock.Anything, "btrfs", "filesystem", "df", "--raw", "/mnt/pool").
 		Return([]byte(tmp), nil)
 
-	usage, err := utils.GetDiskUsage(context.Background(), "/mnt/pool")
+	usage, err := utils.GetDiskDf(context.Background(), "/mnt/pool")
 	require.NoError(err)
 
 	require.EqualValues(65536, usage.Data.Used)
 	require.EqualValues(163840, usage.Metadata.Used)
+}
+
+func TestBtrfsGetDiskUsage(t *testing.T) {
+	const tmp = `Overall:
+    Device size:		      536870912000
+    Device allocated:		       23643291648
+    Device unallocated:		      513227620352
+    Device missing:		                 0
+    Used:			       22152159232
+    Free (estimated):		      513633427456	(min: 513633427456)
+    Data ratio:			              1.00
+    Metadata ratio:		              1.00
+    Global reserve:		           3407872	(used: 0)
+
+Data,single: Size:22556966912, Used:22151159808
+   /dev/vda	22556966912
+
+Metadata,single: Size:1082130432, Used:983040
+   /dev/vda	1082130432
+
+System,single: Size:4194304, Used:16384
+   /dev/vda	   4194304
+
+Unallocated:
+   /dev/vda	513227620352
+	`
+
+	require := require.New(t)
+
+	var exec TestExecuter
+	utils := newUtils(&exec)
+
+	exec.On("run", mock.Anything, "btrfs", "filesystem", "usage", "--raw", "/mnt/pool").
+		Return([]byte(tmp), nil)
+
+	usage, err := utils.GetDiskUsage(context.Background(), "/mnt/pool")
+	require.NoError(err)
+
+	require.EqualValues(536870912000, usage.Total)
+	require.EqualValues(23643291648, usage.Used)
 }
 
 func TestBtrfsAddDevice(t *testing.T) {
