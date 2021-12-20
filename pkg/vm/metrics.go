@@ -71,9 +71,9 @@ func (m *Module) metrics(ps Process) (pkg.MachineMetric, error) {
 			continue
 		}
 
-		if strings.HasPrefix("t-", tap) {
+		if strings.HasPrefix(tap, "t-") {
 			priv = append(priv, tap)
-		} else if strings.HasPrefix("p-", tap) {
+		} else if strings.HasPrefix(tap, "p-") {
 			pub = append(pub, tap)
 		} else {
 			log.Error().Str("name", tap).Msg("tap device with wrong name")
