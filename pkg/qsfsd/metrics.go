@@ -2,7 +2,6 @@ package qsfsd
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"time"
 
@@ -31,7 +30,8 @@ func (m *QSFS) Metrics() (pkg.QSFSMetrics, error) {
 		nsName := networker.QSFSNamespace(ctx, name)
 		netNs, err := namespace.GetByName(nsName)
 		if err != nil {
-			return pkg.QSFSMetrics{}, errors.Wrap(err, "didn't find qsfs namespace")
+			log.Error().Err(err).Str("workload", name).Msg("didn't find qsfs namespace")
+			continue
 		}
 		defer netNs.Close()
 		metrics := pkg.NetMetric{}
@@ -40,7 +40,7 @@ func (m *QSFS) Metrics() (pkg.QSFSMetrics, error) {
 			return err
 		})
 		if err != nil {
-			log.Error().Err(err).Msg(fmt.Sprintf("failed to read workload %s's metrics", name))
+			log.Error().Err(err).Str("workload", name).Msg("failed to read metrics")
 			continue
 		}
 		result[name] = metrics
