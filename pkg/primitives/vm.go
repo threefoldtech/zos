@@ -226,11 +226,29 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		if rootfsSize < 250*gridtypes.Megabyte {
 			rootfsSize = 250 * gridtypes.Megabyte
 		}
+		// create a persisted volume for the vm. we don't do it automatically
+		// via the flist, so we have control over when to decomission this volume.
 		// remounting in RW mode
+		volName := fmt.Sprintf("rootfs:%s", wl.ID.String())
+		volume, err := storage.VolumeCreate(ctx, volName, rootfsSize)
+		if err != nil {
+			return zos.ZMachineResult{}, errors.Wrap(err, "failed to create vm rootfs")
+		}
+
+		defer func() {
+			if err != nil {
+				// vm creation failed,
+				if err := storage.VolumeDelete(ctx, volName); err != nil {
+					log.Error().Err(err).Str("volume", volName).Msg("failed to delete persisted volume")
+				}
+			}
+		}()
+
 		mnt, err = flist.Mount(ctx, wl.ID.String(), config.FList, pkg.MountOptions{
-			ReadOnly: false,
-			Limit:    rootfsSize,
+			ReadOnly:        false,
+			PersistedVolume: volume.Path,
 		})
+
 		if err != nil {
 			return result, errors.Wrapf(err, "failed to mount flist: %s", wl.ID.String())
 		}
