@@ -348,6 +348,7 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 		flist   = stubs.NewFlisterStub(p.zbus)
 		network = stubs.NewNetworkerStub(p.zbus)
 		vm      = stubs.NewVMModuleStub(p.zbus)
+		storage = stubs.NewStorageModuleStub(p.zbus)
 
 		cfg ZMachine
 	)
@@ -364,6 +365,11 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 
 	if err := flist.Unmount(ctx, wl.ID.String()); err != nil {
 		log.Error().Err(err).Msg("failed to unmount machine flist")
+	}
+
+	volName := fmt.Sprintf("rootfs:%s", wl.ID.String())
+	if err := storage.VolumeDelete(ctx, volName); err != nil {
+		log.Error().Err(err).Str("name", volName).Msg("failed to delete rootfs volume")
 	}
 
 	for _, inf := range cfg.Network.Interfaces {
