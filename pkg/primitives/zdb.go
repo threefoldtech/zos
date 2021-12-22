@@ -32,6 +32,10 @@ const (
 	zdbPort             = 9900
 )
 
+var (
+	uuidRegex = regexp.MustCompile(`([0-9a-f]{8})\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}`)
+)
+
 // ZDB types
 type ZDB = zos.ZDB
 
@@ -48,9 +52,7 @@ func newSafeError(err error) error {
 	return &safeError{err}
 }
 func (se *safeError) Error() string {
-	return regexp.
-		MustCompile(`([0-9a-f]{8})\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}`).
-		ReplaceAllString(se.error.Error(), `$1-***`)
+	return uuidRegex.ReplaceAllString(se.error.Error(), `$1-***`)
 }
 
 func (z *tZDBContainer) DataMount() (string, error) {
