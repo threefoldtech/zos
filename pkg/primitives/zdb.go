@@ -36,6 +36,19 @@ type ZDB = zos.ZDB
 
 type tZDBContainer pkg.Container
 
+type safeError struct {
+	error
+	sensitive []string
+}
+
+func (se *safeError) Error() string {
+	res := se.error.Error()
+	for _, entry := range se.sensitive {
+		res = strings.ReplaceAll(res, entry, "<redacted>")
+	}
+	return res
+}
+
 func (z *tZDBContainer) DataMount() (string, error) {
 	for _, mnt := range z.Mounts {
 		if mnt.Target == zdbContainerDataMnt {
@@ -45,11 +58,26 @@ func (z *tZDBContainer) DataMount() (string, error) {
 
 	return "", fmt.Errorf("container '%s' does not have a valid data mount", z.Name)
 }
-
-func (p *Primitives) zdbProvision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
-	return p.zdbProvisionImpl(ctx, wl)
+func (p *Primitives) safeError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	storaged := stubs.NewStorageModuleStub(p.zbus)
+	devices, err2 := storaged.Devices(ctx)
+	if err2 != nil {
+		log.Error().Err(err2).Msg("couldn't list allocated devices")
+		return err2
+	}
+	deviceNames := make([]string, 0)
+	for _, d := range devices {
+		deviceNames = append(deviceNames, d.ID)
+	}
+	return &safeError{err, deviceNames}
 }
-
+func (p *Primitives) zdbProvision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
+	res, err := p.zdbProvisionImpl(ctx, wl)
+	return res, p.safeError(ctx, err)
+}
 func (p *Primitives) zdbListContainers(ctx context.Context) (map[pkg.ContainerID]tZDBContainer, error) {
 	var (
 		contmod = stubs.NewContainerModuleStub(p.zbus)
@@ -479,6 +507,10 @@ func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string
 }
 
 func (p *Primitives) zdbDecommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	return p.safeError(ctx, p.zdbDecommissionImpl(ctx, wl))
+}
+
+func (p *Primitives) zdbDecommissionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
 	containers, err := p.zdbListContainers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to list running zdbs")
