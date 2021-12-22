@@ -66,7 +66,7 @@ func (p *Primitives) safeError(ctx context.Context, err error) error {
 	devices, err2 := storaged.Devices(ctx)
 	if err2 != nil {
 		log.Error().Err(err2).Msg("couldn't list allocated devices")
-		return err2
+		return errors.New("couldn't list allocated devices")
 	}
 	deviceNames := make([]string, 0)
 	for _, d := range devices {
