@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -38,15 +39,18 @@ type tZDBContainer pkg.Container
 
 type safeError struct {
 	error
-	sensitive []string
 }
 
-func (se *safeError) Error() string {
-	res := se.error.Error()
-	for _, entry := range se.sensitive {
-		res = strings.ReplaceAll(res, entry, "<redacted>")
+func newSafeError(err error) error {
+	if err == nil {
+		return nil
 	}
-	return res
+	return &safeError{err}
+}
+func (se *safeError) Error() string {
+	return regexp.
+		MustCompile(`([0-9a-f]{8})\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}`).
+		ReplaceAllString(se.error.Error(), `$1-***`)
 }
 
 func (z *tZDBContainer) DataMount() (string, error) {
@@ -58,26 +62,12 @@ func (z *tZDBContainer) DataMount() (string, error) {
 
 	return "", fmt.Errorf("container '%s' does not have a valid data mount", z.Name)
 }
-func (p *Primitives) safeError(ctx context.Context, err error) error {
-	if err == nil {
-		return nil
-	}
-	storaged := stubs.NewStorageModuleStub(p.zbus)
-	devices, err2 := storaged.Devices(ctx)
-	if err2 != nil {
-		log.Error().Err(err2).Msg("couldn't list allocated devices")
-		return errors.New("couldn't list allocated devices")
-	}
-	deviceNames := make([]string, 0)
-	for _, d := range devices {
-		deviceNames = append(deviceNames, d.ID)
-	}
-	return &safeError{err, deviceNames}
-}
+
 func (p *Primitives) zdbProvision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
 	res, err := p.zdbProvisionImpl(ctx, wl)
-	return res, p.safeError(ctx, err)
+	return res, newSafeError(err)
 }
+
 func (p *Primitives) zdbListContainers(ctx context.Context) (map[pkg.ContainerID]tZDBContainer, error) {
 	var (
 		contmod = stubs.NewContainerModuleStub(p.zbus)
@@ -507,7 +497,7 @@ func (p *Primitives) createZDBNamespace(containerID pkg.ContainerID, nsID string
 }
 
 func (p *Primitives) zdbDecommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
-	return p.safeError(ctx, p.zdbDecommissionImpl(ctx, wl))
+	return newSafeError(p.zdbDecommissionImpl(ctx, wl))
 }
 
 func (p *Primitives) zdbDecommissionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
