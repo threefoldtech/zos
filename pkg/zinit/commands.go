@@ -141,8 +141,7 @@ func (c *Client) Exists(service string) (bool, error) {
 	err := c.cmd(fmt.Sprintf("status %s", service), &status)
 	if errors.Is(err, ErrUnknownService) {
 		return false, nil
-	}
-	if err == nil {
+	} else if err == nil {
 		return true, nil
 	}
 	return false, err
