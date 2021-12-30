@@ -559,10 +559,6 @@ func (c *Module) SignalDelete(ns string, id pkg.ContainerID) error {
 	task, err := container.Task(ctx, nil)
 	if err == nil {
 		// err == nil, there is a task running inside the container
-		_, err := task.Wait(ctx)
-		if err != nil {
-			return err
-		}
 		log.Debug().Str("id", string(id)).Int("signal", int(syscall.SIGTERM)).Msg("sending signal")
 		_ = task.Kill(ctx, syscall.SIGTERM)
 	}
