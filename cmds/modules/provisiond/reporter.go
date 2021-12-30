@@ -135,8 +135,7 @@ func (r *Reporter) pushOne() ([]Consumption, error) {
 
 	report := item.(*Report)
 
-	// DEBUG
-	log.Debug().Int("len", len(report.Consumption)).Msgf("sending capacity report")
+	log.Info().Int("len", len(report.Consumption)).Msgf("sending capacity report")
 
 	consumptions := make([]substrate.Consumption, 0, len(report.Consumption))
 	for _, cmp := range report.Consumption {
