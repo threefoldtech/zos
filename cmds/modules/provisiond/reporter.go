@@ -142,9 +142,12 @@ func (r *Reporter) pushOne() ([]Consumption, error) {
 		log.Debug().Uint64("contract", uint64(cmp.ContractID)).Msg("has consumption to report")
 		consumptions = append(consumptions, cmp.Consumption)
 	}
-	if err := r.substrate.Report(r.identity, consumptions); err != nil {
+	hash, err := r.substrate.Report(r.identity, consumptions)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to publish consumption report")
 	}
+
+	log.Info().Str("hash", hash).Msg("report block hash")
 
 	// only removed if report is reported to substrate
 	// remove item from queue
@@ -237,6 +240,7 @@ func (r *Reporter) Run(ctx context.Context) error {
 	// `every` seconds
 report:
 	for {
+		log.Info().Msg("collecting consumption")
 		// align time.
 		u := time.Now().Unix()
 		u = (u / every) * every
@@ -253,11 +257,12 @@ report:
 			continue
 		}
 
-		log.Debug().Int("size", len(report.Consumption)).Msg("queue consumption report for reproting")
+		log.Info().Int("size", len(report.Consumption)).Msg("queue consumption report for reproting")
 		if err := r.push(report); err != nil {
 			log.Error().Err(err).Msg("failed to push capacity report")
 		}
 
+		log.Info().Msg("consumption report queued")
 		for {
 			select {
 			case <-ctx.Done():
