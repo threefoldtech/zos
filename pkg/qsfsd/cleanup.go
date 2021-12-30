@@ -110,7 +110,7 @@ func tombstone(rootfs string) string {
 	return path.Join(rootfs, tombstoneFile)
 }
 
-func (q *QSFS) Unmount(wlID string) error {
+func (q *QSFS) Unmount(wlID string) {
 	networkd := stubs.NewNetworkerStub(q.cl)
 	flistd := stubs.NewFlisterStub(q.cl)
 	contd := stubs.NewContainerModuleStub(q.cl)
@@ -141,5 +141,4 @@ func (q *QSFS) Unmount(wlID string) error {
 			log.Error().Err(err).Msg("failed to destrpy qsfs network")
 		}
 	}
-	return nil
 }

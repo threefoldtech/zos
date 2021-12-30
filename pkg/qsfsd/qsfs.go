@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
@@ -74,9 +73,7 @@ func setQSFSDefaults(cfg *zos.QuantumSafeFS) zstorConfig {
 func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err error) {
 	defer func() {
 		if err != nil {
-			if err := q.Unmount(wlID); err != nil {
-				log.Error().Err(err).Msg("error cleaning up after qsfs setup failure")
-			}
+			q.Unmount(wlID)
 		}
 	}()
 	zstorConfig := setQSFSDefaults(&cfg)
@@ -239,14 +236,11 @@ func (q *QSFS) SignalDelete(wlID string) error {
 	if marked {
 		return errors.New("already marked for deletion")
 	}
-	if errors.Is(err, errdefs.ErrNotFound) {
-		// containr deleted
-		return nil
-	}
 	if err != nil {
 		return errors.Wrap(err, "failed to check deletion mark")
 	}
 	if err := q.markDelete(ctx, wlID); err != nil {
+		// container dead, no need to continue
 		return err
 	}
 	if err := contd.SignalDelete(ctx, qsfsContainerNS, pkg.ContainerID(wlID)); err != nil {
