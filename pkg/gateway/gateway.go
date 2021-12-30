@@ -26,7 +26,8 @@ import (
 )
 
 var (
-	domainRe = regexp.MustCompile("^Host(?:SNI)?\\(`([^`]+)`\\)$")
+	domainRe        = regexp.MustCompile("^Host(?:SNI)?\\(`([^`]+)`\\)$")
+	traefikBinRegex = regexp.MustCompile("/var/cache/modules/flistd/mountpoint/([a-z0-9:]+)/traefik")
 )
 
 const (
@@ -174,7 +175,7 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		return nil, errors.Wrap(err, "couldn't make traefik metadata directory")
 	}
 
-	bin, binUpdated, err := ensureTraefikBin(ctx, cl)
+	bin, err := ensureTraefikBin(ctx, cl)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure traefik binary")
 	}
@@ -228,7 +229,7 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 	}
 
 	// in case there are already active configurations we should always try to ensure running traefik
-	if _, err := gw.ensureGateway(ctx, updated || binUpdated); err != nil {
+	if _, err := gw.ensureGateway(ctx, updated); err != nil {
 		log.Error().Err(err).Msg("gateway is not supported")
 		// this is not a failure because supporting of the gateway can happen
 		// later if the farmer set the correct network configuration!
@@ -351,11 +352,30 @@ func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
 	return traefikStatus.State.Is(zinit.ServiceStateRunning), nil
 }
 
+func (g *gatewayModule) traefikBinary(ctx context.Context) (string, string, error) { // path, name, err
+	var exec struct{ Exec string }
+	f, err := os.Open("/etc/zinit/traefik.yaml")
+	if err != nil {
+		return "", "", errors.Wrap(err, "couldn't open teaefik service file")
+	}
+	err = yaml.NewDecoder(f).Decode(&exec)
+	if err != nil {
+		return "", "", errors.Wrap(err, "couldn't decode traefik service file")
+	}
+	matches := traefikBinRegex.FindAllStringSubmatch(exec.Exec, -1)
+	if len(matches) != 1 {
+		return "", "", errors.Wrapf(err, "find %d matches in %s", len(matches), exec.Exec)
+	}
+
+	return matches[0][0], matches[0][1], nil
+}
+
 // ensureGateway makes sure that gateway infrastructure is in place and
 // that it is supported.
 func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (pkg.PublicConfig, error) {
 	var (
 		networker = stubs.NewNetworkerStub(g.cl)
+		flistd    = stubs.NewFlisterStub(g.cl)
 	)
 	cfg, err := networker.GetPublicConfig(ctx)
 	if err != nil {
@@ -367,7 +387,23 @@ func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (
 	if err != nil {
 		return pkg.PublicConfig{}, errors.Wrap(err, "failed to check traefik status")
 	}
-	if running && forceResstart {
+	path, name, err := g.traefikBinary(ctx)
+	if err != nil {
+		return pkg.PublicConfig{}, errors.Wrap(err, "failed to get old traefik binary path")
+	}
+	if running && path != g.binPath {
+
+		if err := z.StopWait(10*time.Second, traefikService); err != nil {
+			return pkg.PublicConfig{}, errors.Wrap(err, "failed to stop old traefik")
+		}
+		if err := z.Forget(traefikService); err != nil {
+			return pkg.PublicConfig{}, errors.Wrap(err, "failed to forget old traefik")
+		}
+		if err := flistd.Unmount(ctx, name); err != nil {
+			log.Error().Err(err).Msg("failed to unmount old traefik")
+		}
+		running = false
+	} else if running && forceResstart {
 		// note: a kill is basically a singal to traefik process to
 		// die. but zinit will restart it again anyway. so this is
 		// enough to force restart it.
