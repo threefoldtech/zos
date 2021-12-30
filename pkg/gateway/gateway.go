@@ -174,7 +174,7 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		return nil, errors.Wrap(err, "couldn't make traefik metadata directory")
 	}
 
-	bin, err := ensureTraefikBin(ctx, cl)
+	bin, binUpdated, err := ensureTraefikBin(ctx, cl)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure traefik binary")
 	}
@@ -228,7 +228,7 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 	}
 
 	// in case there are already active configurations we should always try to ensure running traefik
-	if _, err := gw.ensureGateway(ctx, updated); err != nil {
+	if _, err := gw.ensureGateway(ctx, updated || binUpdated); err != nil {
 		log.Error().Err(err).Msg("gateway is not supported")
 		// this is not a failure because supporting of the gateway can happen
 		// later if the farmer set the correct network configuration!
@@ -341,6 +341,7 @@ func (g *gatewayModule) nameContractsValidator() {
 
 func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
 	traefikStatus, err := z.Status(traefikService)
+
 	if errors.Is(err, zinit.ErrUnknownService) {
 		return false, nil
 	} else if err != nil {
