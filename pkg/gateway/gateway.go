@@ -342,7 +342,6 @@ func (g *gatewayModule) nameContractsValidator() {
 
 func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
 	traefikStatus, err := z.Status(traefikService)
-
 	if errors.Is(err, zinit.ErrUnknownService) {
 		return false, nil
 	} else if err != nil {
@@ -386,7 +385,6 @@ func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (
 	if err != nil {
 		return pkg.PublicConfig{}, errors.Wrap(err, "couldn't get traefik service status")
 	}
-	log.Debug().Bool("exists", exists).Msg("checking if traefik exists")
 	if exists {
 		path, name, err := g.traefikBinary(ctx, z)
 		if err != nil {
