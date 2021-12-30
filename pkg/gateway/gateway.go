@@ -352,19 +352,14 @@ func (g *gatewayModule) isTraefikStarted(z *zinit.Client) (bool, error) {
 	return traefikStatus.State.Is(zinit.ServiceStateRunning), nil
 }
 
-func (g *gatewayModule) traefikBinary(ctx context.Context) (string, string, error) { // path, name, err
-	var exec struct{ Exec string }
-	f, err := os.Open("/etc/zinit/traefik.yaml")
+func (g *gatewayModule) traefikBinary(ctx context.Context, z *zinit.Client) (string, string, error) { // path, name, err
+	info, err := z.Get(traefikService)
 	if err != nil {
-		return "", "", errors.Wrap(err, "couldn't open teaefik service file")
+		return "", "", err
 	}
-	err = yaml.NewDecoder(f).Decode(&exec)
-	if err != nil {
-		return "", "", errors.Wrap(err, "couldn't decode traefik service file")
-	}
-	matches := traefikBinRegex.FindAllStringSubmatch(exec.Exec, -1)
+	matches := traefikBinRegex.FindAllStringSubmatch(info.Exec, -1)
 	if len(matches) != 1 {
-		return "", "", errors.Wrapf(err, "find %d matches in %s", len(matches), exec.Exec)
+		return "", "", errors.Wrapf(err, "find %d matches in %s", len(matches), info.Exec)
 	}
 
 	return matches[0][0], matches[0][1], nil
@@ -387,23 +382,34 @@ func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (
 	if err != nil {
 		return pkg.PublicConfig{}, errors.Wrap(err, "failed to check traefik status")
 	}
-	path, name, err := g.traefikBinary(ctx)
+	exists, err := z.Exists(traefikService)
 	if err != nil {
-		return pkg.PublicConfig{}, errors.Wrap(err, "failed to get old traefik binary path")
+		return pkg.PublicConfig{}, errors.Wrap(err, "couldn't get traefik service status")
 	}
-	if running && path != g.binPath {
+	log.Debug().Bool("exists", exists).Msg("checking if traefik exists")
+	if exists {
+		path, name, err := g.traefikBinary(ctx, z)
+		if err != nil {
+			return pkg.PublicConfig{}, errors.Wrap(err, "failed to get old traefik binary path")
+		}
+		if path != g.binPath {
+			if err := z.StopWait(10*time.Second, traefikService); err != nil {
+				return pkg.PublicConfig{}, errors.Wrap(err, "failed to stop old traefik")
+			}
+			running = false
+			if err := flistd.Unmount(ctx, name); err != nil {
+				log.Error().Err(err).Msg("failed to unmount old traefik")
+			}
+		}
 
-		if err := z.StopWait(10*time.Second, traefikService); err != nil {
-			return pkg.PublicConfig{}, errors.Wrap(err, "failed to stop old traefik")
+		if !running {
+			if err := z.Forget(traefikService); err != nil {
+				return pkg.PublicConfig{}, errors.Wrap(err, "failed to forget old traefik")
+			}
 		}
-		if err := z.Forget(traefikService); err != nil {
-			return pkg.PublicConfig{}, errors.Wrap(err, "failed to forget old traefik")
-		}
-		if err := flistd.Unmount(ctx, name); err != nil {
-			log.Error().Err(err).Msg("failed to unmount old traefik")
-		}
-		running = false
-	} else if running && forceResstart {
+	}
+
+	if running && forceResstart {
 		// note: a kill is basically a singal to traefik process to
 		// die. but zinit will restart it again anyway. so this is
 		// enough to force restart it.
