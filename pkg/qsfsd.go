@@ -29,5 +29,6 @@ type QSFSD interface {
 	Mount(wlID string, cfg zos.QuantumSafeFS) (QSFSInfo, error)
 	UpdateMount(wlID string, cfg zos.QuantumSafeFS) (QSFSInfo, error)
 	Unmount(wlID string) error
+	SignalDelete(wlID string) error
 	Metrics() (QSFSMetrics, error)
 }

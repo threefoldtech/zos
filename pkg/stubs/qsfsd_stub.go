@@ -56,6 +56,19 @@ func (s *QSFSDStub) Mount(ctx context.Context, arg0 string, arg1 zos.QuantumSafe
 	return
 }
 
+func (s *QSFSDStub) SignalDelete(ctx context.Context, arg0 string) (ret0 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "SignalDelete", args...)
+	if err != nil {
+		panic(err)
+	}
+	ret0 = new(zbus.RemoteError)
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *QSFSDStub) Unmount(ctx context.Context, arg0 string) (ret0 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "Unmount", args...)
