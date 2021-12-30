@@ -43,12 +43,12 @@ func (q *QSFS) checkDeadQSFSs(ctx context.Context, lastUploadMap map[pkg.Contain
 		return errors.Wrap(err, "couldn't list qsfs containers")
 	}
 	for _, contID := range containers {
-		deleted, err := q.isMarkedForDeletion(ctx, string(contID))
+		marked, err := q.isMarkedForDeletion(ctx, string(contID))
 		if err != nil {
 			log.Err(err).Msg("mark check failed")
 			continue
 		}
-		if !deleted {
+		if !marked {
 			continue
 		}
 		metrics, err := q.qsfsMetrics(ctx, string(contID))

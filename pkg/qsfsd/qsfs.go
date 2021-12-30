@@ -81,7 +81,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 	flistd := stubs.NewFlisterStub(q.cl)
 	contd := stubs.NewContainerModuleStub(q.cl)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 	marked, _ := q.isMarkedForDeletion(ctx, wlID)
 	if marked {
