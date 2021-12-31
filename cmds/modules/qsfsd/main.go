@@ -58,15 +58,15 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to connect to zbus broker")
 	}
 
-	mod, err := qsfsd.New(cli.Context, client, moduleRoot)
+	ctx, cancel := utils.WithSignal(cli.Context)
+	defer cancel()
+
+	mod, err := qsfsd.New(ctx, client, moduleRoot)
 	if err != nil {
 		return errors.Wrap(err, "failed to construct qsfsd object")
 	}
+
 	server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, mod)
-
-	ctx, cancel := utils.WithSignal(context.Background())
-	defer cancel()
-
 	log.Info().
 		Str("broker", msgBrokerCon).
 		Uint("worker nr", workerNr).
