@@ -56,7 +56,7 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.QSFSD, error) {
 		cl:         cl,
 		mountsPath: mountPath,
 	}
-	go qsfs.periodicCleanup(context.Background())
+	go qsfs.periodicCleanup(ctx)
 	return qsfs, nil
 }
 
