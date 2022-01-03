@@ -107,7 +107,8 @@ func (q *QSFS) markDelete(ctx context.Context, wlID string) error {
 }
 
 func tombstone(rootfs string) string {
-	return path.Join(rootfs, tombstoneFile)
+	// in dev to create in a tmpfs fs in case the rootfs quota was exceeded
+	return path.Join(rootfs, "dev", tombstoneFile)
 }
 
 func (q *QSFS) Unmount(wlID string) {
