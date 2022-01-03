@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,13 +17,12 @@ import (
 )
 
 const (
-	tombstoneFile = ".death.scheduled"
-	UploadLimit   = 100 * 1024 * 1024 // kill it for less 100 MB every 10 minutes
-	checkPeriod   = 10 * time.Minute
+	UploadLimit = 100 * 1024 * 1024 // kill it for less 100 MB every 10 minutes
+	checkPeriod = 10 * time.Minute
 )
 
 func (q *QSFS) periodicCleanup(ctx context.Context) {
-	lastUploadMap := make(map[pkg.ContainerID]uint64)
+	lastUploadMap := make(map[string]uint64)
 	t := time.NewTicker(checkPeriod)
 	for {
 		select {
@@ -36,39 +36,44 @@ func (q *QSFS) periodicCleanup(ctx context.Context) {
 	}
 }
 
-func (q *QSFS) checkDeadQSFSs(ctx context.Context, lastUploadMap map[pkg.ContainerID]uint64) error {
-	contd := stubs.NewContainerModuleStub(q.cl)
-	containers, err := contd.List(ctx, qsfsContainerNS)
+func (q *QSFS) checkDeadQSFSs(ctx context.Context, lastUploadMap map[string]uint64) error {
+	paths, err := filepath.Glob(filepath.Join(q.tombstonesPath, "*"))
 	if err != nil {
-		return errors.Wrap(err, "couldn't list qsfs containers")
+		return errors.Wrap(err, "couldn't list deleted containers")
 	}
-	for _, contID := range containers {
-		marked, err := q.isMarkedForDeletion(ctx, string(contID))
+	for _, path := range paths {
+		wlID := filepath.Base(path)
+		metrics, err := q.qsfsMetrics(ctx, string(wlID))
 		if err != nil {
-			log.Err(err).Msg("mark check failed")
-			continue
-		}
-		if !marked {
-			continue
-		}
-		metrics, err := q.qsfsMetrics(ctx, string(contID))
-		if err != nil {
-			log.Err(err).Str("id", string(contID)).Msg("couldn't get qsfs metrics")
+			log.Err(err).Str("id", string(wlID)).Msg("couldn't get qsfs metrics")
 			continue
 		}
 		uploaded := metrics.NetTxBytes
-		if lastUploaded, ok := lastUploadMap[contID]; ok && uploaded-lastUploaded < UploadLimit {
+		if lastUploaded, ok := lastUploadMap[wlID]; ok && uploaded-lastUploaded < UploadLimit {
 			// didn't upload enough => dead
-			q.Unmount(string(contID))
-			delete(lastUploadMap, contID)
+			q.Unmount(wlID)
+			delete(lastUploadMap, wlID)
 		} else {
 			// first time or uploaded a lot in the last 10 minutes
-			lastUploadMap[contID] = uploaded
+			lastUploadMap[wlID] = uploaded
 		}
 	}
 	return nil
 }
+
 func (q *QSFS) isMarkedForDeletion(ctx context.Context, wlID string) (bool, error) {
+	tombstonePath := q.tombstone(wlID)
+	_, err := os.Stat(tombstonePath)
+	if errors.Is(err, os.ErrNotExist) {
+		// not dead
+		return false, nil
+	} else if err != nil {
+		return false, errors.Wrap(err, "failed to check the container death mark")
+	}
+	return true, nil
+}
+
+func (q *QSFS) isOldMarkedForDeletion(ctx context.Context, wlID string) (bool, error) {
 	contd := stubs.NewContainerModuleStub(q.cl)
 	contID := pkg.ContainerID(wlID)
 	cont, err := contd.Inspect(ctx, qsfsContainerNS, contID)
@@ -81,7 +86,7 @@ func (q *QSFS) isMarkedForDeletion(ctx context.Context, wlID string) (bool, erro
 	if err != nil {
 		return false, errors.Wrap(err, "failed to fetch qsfs container for a cleanup check")
 	}
-	tombstonePath := tombstone(cont.RootFS)
+	tombstonePath := filepath.Join(cont.RootFS, ".death.scheduled")
 	_, err = os.Stat(tombstonePath)
 	if errors.Is(err, os.ErrNotExist) {
 		// not dead
@@ -91,13 +96,9 @@ func (q *QSFS) isMarkedForDeletion(ctx context.Context, wlID string) (bool, erro
 	}
 	return true, nil
 }
+
 func (q *QSFS) markDelete(ctx context.Context, wlID string) error {
-	contd := stubs.NewContainerModuleStub(q.cl)
-	cont, err := contd.Inspect(ctx, qsfsContainerNS, pkg.ContainerID(wlID))
-	if err != nil {
-		return errors.Wrap(err, "couldn't get the qsfs container")
-	}
-	tombstonePath := tombstone(cont.RootFS)
+	tombstonePath := q.tombstone(wlID)
 	file, err := os.Create(tombstonePath)
 	if err != nil {
 		return errors.Wrap(err, "couldn't mark qsfs container for deletion")
@@ -106,9 +107,8 @@ func (q *QSFS) markDelete(ctx context.Context, wlID string) error {
 	return nil
 }
 
-func tombstone(rootfs string) string {
-	// in dev to create in a tmpfs fs in case the rootfs quota was exceeded
-	return path.Join(rootfs, "dev", tombstoneFile)
+func (q *QSFS) tombstone(wlID string) string {
+	return path.Join(q.tombstonesPath, wlID)
 }
 
 func (q *QSFS) Unmount(wlID string) {
@@ -131,6 +131,9 @@ func (q *QSFS) Unmount(wlID string) {
 	}
 	if err := os.RemoveAll(mountPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		log.Error().Err(err).Msg("failed to remove mountpath dir")
+	}
+	if err := os.RemoveAll(q.tombstone(wlID)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Error().Err(err).Msg("failed to remove tombstone path")
 	}
 	if err := flistd.Unmount(ctx, wlID); err != nil {
 		log.Error().Err(err).Msg("failed to unmount flist")
