@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	sizeInGBPerSU = 50 // GB
+	sizeInGBPerCU = 50 // GB
 )
 
 // MachineInterface structure
@@ -131,7 +131,7 @@ func (m *ZMachine) MinRootSize() gridtypes.Unit {
 	// sru = (cpu * mem_in_gb) / 8
 	// each 1 SRU is 50GB of storage
 	su := gridtypes.Unit(m.ComputeCapacity.CPU) * m.ComputeCapacity.Memory / 8
-	return gridtypes.Unit(su * sizeInGBPerSU)
+	return gridtypes.Unit(su * sizeInGBPerCU)
 }
 
 func (m *ZMachine) RootSize() gridtypes.Unit {
