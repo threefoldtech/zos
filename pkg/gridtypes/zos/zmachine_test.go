@@ -74,6 +74,16 @@ func TestZMachineSRU(t *testing.T) {
 				},
 			},
 		},
+		{
+			Expected: 1600000 * gridtypes.Kilobyte, // ~= 1562.5 Megabytes
+			VM: ZMachine{
+
+				ComputeCapacity: MachineCapacity{
+					CPU:    1,
+					Memory: 250 * gridtypes.Megabyte,
+				},
+			},
+		},
 	}
 
 	for _, test := range cases {
