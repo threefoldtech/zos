@@ -11,6 +11,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
+const (
+	MinVmRootSize = 1 * gridtypes.Gigabyte
+)
+
 // MachineInterface structure
 type MachineInterface struct {
 	// Network name (znet name) to join
@@ -119,6 +123,14 @@ type ZMachine struct {
 	Env map[string]string `json:"env"`
 }
 
+func (m *ZMachine) RootSize() gridtypes.Unit {
+	if m.Size > MinVmRootSize {
+		return m.Size
+	}
+
+	return MinVmRootSize
+}
+
 // Valid implementation
 func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 	if len(v.Network.Interfaces) != 1 {
@@ -136,8 +148,8 @@ func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 	if v.ComputeCapacity.Memory < 250*gridtypes.Megabyte {
 		return fmt.Errorf("mem capacity can't be less that 250M")
 	}
-	if v.Size != 0 && v.Size < 250*gridtypes.Megabyte {
-		return fmt.Errorf("disk size can't be less that 250M")
+	if v.Size != 0 && v.Size < MinVmRootSize {
+		return fmt.Errorf("disk size can't be less that %d", MinVmRootSize)
 	}
 	if !v.Network.PublicIP.IsEmpty() {
 		wl, err := getter.Get(v.Network.PublicIP)
@@ -182,14 +194,10 @@ func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 
 // Capacity implementation
 func (v ZMachine) Capacity() (gridtypes.Capacity, error) {
-	var sru uint64
-	if v.Size > 250*gridtypes.Megabyte {
-		sru += uint64(v.Size) - 250*uint64(gridtypes.Megabyte)
-	}
 	return gridtypes.Capacity{
 		CRU: uint64(v.ComputeCapacity.CPU),
 		MRU: v.ComputeCapacity.Memory,
-		SRU: gridtypes.Unit(sru),
+		SRU: v.RootSize(),
 	}, nil
 }
 
