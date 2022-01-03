@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	MinVmRootSize = 1 * gridtypes.Gigabyte
+	sizeInGBPerSU = 50 // GB
 )
 
 // MachineInterface structure
@@ -62,6 +62,10 @@ func (n *MachineNetwork) Challenge(w io.Writer) error {
 type MachineCapacity struct {
 	CPU    uint8          `json:"cpu"`
 	Memory gridtypes.Unit `json:"memory"`
+}
+
+func (c *MachineCapacity) String() string {
+	return fmt.Sprintf("cpu(%d)+mem(%d)", c.CPU, c.Memory)
 }
 
 // Challenge builder
@@ -123,12 +127,20 @@ type ZMachine struct {
 	Env map[string]string `json:"env"`
 }
 
+func (m *ZMachine) MinRootSize() gridtypes.Unit {
+	// sru = (cpu * mem_in_gb) / 8
+	// each 1 SRU
+	su := gridtypes.Unit(m.ComputeCapacity.CPU) * m.ComputeCapacity.Memory / 8
+	return gridtypes.Unit(su * sizeInGBPerSU)
+}
+
 func (m *ZMachine) RootSize() gridtypes.Unit {
-	if m.Size > MinVmRootSize {
+	min := m.MinRootSize()
+	if m.Size > min {
 		return m.Size
 	}
 
-	return MinVmRootSize
+	return min
 }
 
 // Valid implementation
@@ -148,8 +160,9 @@ func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 	if v.ComputeCapacity.Memory < 250*gridtypes.Megabyte {
 		return fmt.Errorf("mem capacity can't be less that 250M")
 	}
-	if v.Size != 0 && v.Size < MinVmRootSize {
-		return fmt.Errorf("disk size can't be less that %d", MinVmRootSize)
+	minRoot := v.MinRootSize()
+	if v.Size != 0 && v.Size < minRoot {
+		return fmt.Errorf("disk size can't be less that %d. Set to 0 for minimum", minRoot)
 	}
 	if !v.Network.PublicIP.IsEmpty() {
 		wl, err := getter.Get(v.Network.PublicIP)
