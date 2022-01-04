@@ -21,13 +21,29 @@ const (
 	checkPeriod = 10 * time.Minute
 )
 
+type failedQSFSState struct {
+	lastUploadMap       map[string]uint64
+	metricsFailureCount map[string]uint
+}
+
+func newState() *failedQSFSState {
+	return &failedQSFSState{
+		lastUploadMap:       make(map[string]uint64),
+		metricsFailureCount: make(map[string]uint),
+	}
+}
+func (f *failedQSFSState) delete(wlID string) {
+	delete(f.lastUploadMap, wlID)
+	delete(f.metricsFailureCount, wlID)
+}
+
 func (q *QSFS) periodicCleanup(ctx context.Context) {
-	lastUploadMap := make(map[string]uint64)
+	state := newState()
 	t := time.NewTicker(checkPeriod)
 	for {
 		select {
 		case <-t.C:
-			if err := q.checkDeadQSFSs(ctx, lastUploadMap); err != nil {
+			if err := q.checkDeadQSFSs(ctx, state); err != nil {
 				log.Error().Err(err).Msg("a failed qsfs cleanup round")
 			}
 		case <-ctx.Done():
@@ -36,7 +52,7 @@ func (q *QSFS) periodicCleanup(ctx context.Context) {
 	}
 }
 
-func (q *QSFS) checkDeadQSFSs(ctx context.Context, lastUploadMap map[string]uint64) error {
+func (q *QSFS) checkDeadQSFSs(ctx context.Context, state *failedQSFSState) error {
 	paths, err := filepath.Glob(filepath.Join(q.tombstonesPath, "*"))
 	if err != nil {
 		return errors.Wrap(err, "couldn't list deleted containers")
@@ -46,16 +62,21 @@ func (q *QSFS) checkDeadQSFSs(ctx context.Context, lastUploadMap map[string]uint
 		metrics, err := q.qsfsMetrics(ctx, string(wlID))
 		if err != nil {
 			log.Err(err).Str("id", string(wlID)).Msg("couldn't get qsfs metrics")
+			state.metricsFailureCount[string(wlID)] += 1
+			if state.metricsFailureCount[string(wlID)] >= 10 {
+				q.Unmount(wlID)
+				state.delete(wlID)
+			}
 			continue
 		}
 		uploaded := metrics.NetTxBytes
-		if lastUploaded, ok := lastUploadMap[wlID]; ok && uploaded-lastUploaded < UploadLimit {
+		if lastUploaded, ok := state.lastUploadMap[wlID]; ok && uploaded-lastUploaded < UploadLimit {
 			// didn't upload enough => dead
 			q.Unmount(wlID)
-			delete(lastUploadMap, wlID)
+			state.delete(wlID)
 		} else {
 			// first time or uploaded a lot in the last 10 minutes
-			lastUploadMap[wlID] = uploaded
+			state.lastUploadMap[wlID] = uploaded
 		}
 	}
 	return nil
@@ -142,7 +163,7 @@ func (q *QSFS) Unmount(wlID string) {
 	if err := networkd.QSFSDestroy(ctx, wlID); err != nil {
 		if _, ok := err.(ns.NSPathNotExistErr); !ok {
 			// log any error other than that the namespace doesn't exist
-			log.Error().Err(err).Msg("failed to destrpy qsfs network")
+			log.Error().Err(err).Msg("failed to destroy qsfs network")
 		}
 	}
 }
