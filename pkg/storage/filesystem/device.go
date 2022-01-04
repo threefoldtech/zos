@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -50,6 +51,10 @@ type FSType string
 const (
 	// BtrfsFSType btrfs filesystem type
 	BtrfsFSType FSType = "btrfs"
+)
+
+var (
+	subvolFindmntOption = regexp.MustCompile(`(^|,)subvol=/($|,)`)
 )
 
 // blockDevices lsblk output
@@ -300,7 +305,7 @@ func (l *lsblkDeviceManager) fillMountpointInfo(ctx context.Context, devices *bl
 	}
 	mountpoints := make(map[string]string)
 	for _, m := range mounts.Filesystems {
-		if strings.HasSuffix(m.Options, "subvol=/") {
+		if subvolFindmntOption.MatchString(m.Options) {
 			mountpoints[m.Source] = m.Target
 		}
 	}
