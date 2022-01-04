@@ -79,11 +79,11 @@ func (q *QSFS) migrateTombstones(ctx context.Context, cl zbus.Client) error {
 	for _, contID := range containers {
 		marked, err := q.isOldMarkedForDeletion(ctx, string(contID))
 		if err != nil {
-			return errors.Wrap(err, "failed to check container old mark")
+			log.Error().Err(err).Str("id", string(contID)).Msg("failed to check container old mark")
 		}
 		if marked {
 			if err := q.markDelete(ctx, string(contID)); err != nil {
-				return errors.Wrap(err, "failed to mark container for deletion")
+				log.Error().Err(err).Str("id", string(contID)).Msg("failed to mark container for deletion")
 			}
 		}
 	}
@@ -111,7 +111,8 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 	flistd := stubs.NewFlisterStub(q.cl)
 	contd := stubs.NewContainerModuleStub(q.cl)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	t := time.Now()
 	defer cancel()
 	marked, _ := q.isMarkedForDeletion(ctx, wlID)
 	if marked {
@@ -162,7 +163,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 		qsfsContainerNS,
 		cont,
 	)
-	t := time.Now()
+	log.Debug().Str("duration", time.Since(t).String()).Msg("time before waiting for qsfs mountpoint")
 	if lerr := q.waitUntilMounted(ctx, mountPath); lerr != nil {
 		logs, containerErr := contd.Logs(ctx, qsfsContainerNS, wlID)
 		if containerErr != nil {
@@ -171,7 +172,7 @@ func (q *QSFS) Mount(wlID string, cfg zos.QuantumSafeFS) (info pkg.QSFSInfo, err
 		err = errors.Wrapf(lerr, fmt.Sprintf("Container Logs:\n%s", logs))
 		return
 	}
-	log.Info().Str("duration", time.Since(t).String()).Msg("waiting for qsfs deployment took")
+	log.Debug().Str("duration", time.Since(t).String()).Msg("waiting for qsfs deployment took")
 	info.Path = mountPath
 	info.MetricsEndpoint = fmt.Sprintf("http://[%s]:%d/metrics", yggIP, zstorMetricsPort)
 
