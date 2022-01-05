@@ -11,10 +11,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-const (
-	sizeInGBPerCU = 50 // GB
-)
-
 // MachineInterface structure
 type MachineInterface struct {
 	// Network name (znet name) to join

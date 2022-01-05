@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -52,6 +53,15 @@ const (
 	BtrfsFSType FSType = "btrfs"
 )
 
+var (
+	subvolFindmntOption = regexp.MustCompile(`(^|,)subvol=/($|,)`)
+)
+
+// blockDevices lsblk output
+type blockDevices struct {
+	BlockDevices []DeviceInfo `json:"blockdevices"`
+}
+
 // DeviceInfo contains information about the device
 type DeviceInfo struct {
 	Path       string `json:"path"`
@@ -59,6 +69,7 @@ type DeviceInfo struct {
 	Size       uint64 `json:"size"`
 	Mountpoint string `json:"mountpoint"`
 	Filesystem FSType `json:"fstype"`
+	Subsystems string `json:"subsystems"`
 }
 
 // func (i *DeviceInfo) ID() (id string, err error) {
@@ -218,15 +229,17 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 }
 
 func (l *lsblkDeviceManager) lsblk(ctx context.Context, output interface{}, device ...string) error {
+	var devices blockDevices
+
 	args := []string{
 		"--json",
-		"--output-all",
+		"-o",
+		"PATH,NAME,SIZE,SUBSYSTEMS,FSTYPE,LABEL",
 		"--bytes",
 		"--exclude",
 		"1,2,11",
 		"--path",
 	}
-
 	if len(device) == 1 {
 		args = append(args, device[0])
 	} else if len(device) > 1 {
@@ -245,11 +258,65 @@ func (l *lsblkDeviceManager) lsblk(ctx context.Context, output interface{}, devi
 	}
 
 	// parsing lsblk response
+	if err := json.Unmarshal(bytes, &devices); err != nil {
+		return err
+	}
+	// lsblk blocks for blocking file systems
+	if err := l.fillMountpointInfo(ctx, &devices, device...); err != nil {
+		return err
+	}
+	bytes, err = json.Marshal(devices)
+	if err != nil {
+		return err
+	}
 	if err := json.Unmarshal(bytes, output); err != nil {
 		return err
 	}
-
 	return nil
+}
+
+func (l *lsblkDeviceManager) fillMountpointInfo(ctx context.Context, devices *blockDevices, device ...string) error {
+	// to not pollute global namespace with ugly hack types
+	type findmntOutput struct {
+		Filesystems []struct {
+			Source  string
+			Target  string
+			Options string
+		}
+	}
+	args := []string{
+		"-J",
+	}
+	if len(device) == 1 {
+		args = append(args, "-S", device[0])
+	} else if len(device) > 1 {
+		return fmt.Errorf("only one device is supported")
+	}
+	bytes, err := l.run(ctx, "findmnt", args...)
+	if err != nil {
+		// empty output and exit code 1 in case the device is not found
+		return nil
+	}
+	var mounts findmntOutput
+	if len(bytes) != 0 {
+		if err := json.Unmarshal(bytes, &mounts); err != nil {
+			return err
+		}
+	}
+	mountpoints := make(map[string]string)
+	for _, m := range mounts.Filesystems {
+		if subvolFindmntOption.MatchString(m.Options) {
+			mountpoints[m.Source] = m.Target
+		}
+	}
+	for idx := range devices.BlockDevices {
+		source := devices.BlockDevices[idx].Path
+		if target, ok := mountpoints[source]; ok {
+			devices.BlockDevices[idx].Mountpoint = target
+		}
+	}
+	return nil
+
 }
 
 func (l *lsblkDeviceManager) raw(ctx context.Context) ([]minDevice, error) {
