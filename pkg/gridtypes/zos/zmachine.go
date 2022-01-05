@@ -130,8 +130,13 @@ type ZMachine struct {
 func (m *ZMachine) MinRootSize() gridtypes.Unit {
 	// sru = (cpu * mem_in_gb) / 8
 	// each 1 SRU is 50GB of storage
-	su := gridtypes.Unit(m.ComputeCapacity.CPU) * m.ComputeCapacity.Memory / 8
-	return gridtypes.Unit(su * sizeInGBPerCU)
+	cu := gridtypes.Unit(m.ComputeCapacity.CPU) * m.ComputeCapacity.Memory / (8 * gridtypes.Gigabyte)
+
+	if cu == 0 {
+		return 500 * gridtypes.Megabyte
+	}
+
+	return 2 * gridtypes.Gigabyte
 }
 
 func (m *ZMachine) RootSize() gridtypes.Unit {
