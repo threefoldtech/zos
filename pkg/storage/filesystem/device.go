@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -289,12 +291,33 @@ func (l *lsblkDeviceManager) scan(ctx context.Context) ([]minDevice, error) {
 	return l.cache, nil
 }
 
+func isTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		if status, ok := exitErr.ProcessState.Sys().(syscall.WaitStatus); ok {
+			return status.Signaled() && status.Signal() == syscall.SIGKILL
+		}
+	}
+
+	return false
+}
+
 // seektime uses the seektime binary to try and determine the type of a disk
 // This function returns the type of the device, as reported by seektime,
 // and the elapsed time in microseconds (also reported by seektime)
 func (l *lsblkDeviceManager) seektime(ctx context.Context, path string) (string, uint64, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
 	bytes, err := l.run(ctx, "seektime", "-j", path)
-	if err != nil {
+	if isTimeout(err) {
+		// the seektime is taking too long that's defintely a HDD
+		log.Warn().Str("device", path).Msg("checking readtime for device timedout. assuming HDD")
+		return "HDD", 5 * 60, nil
+	} else if err != nil {
 		return "", 0, err
 	}
 
@@ -312,13 +335,11 @@ func (l *lsblkDeviceManager) seektime(ctx context.Context, path string) (string,
 func (l *lsblkDeviceManager) setDeviceTypes(devices []minDevice) error {
 	for idx := range devices {
 		d := &devices[idx]
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
 
-		typ, rt, err := l.seektime(ctx, d.IPath)
+		typ, rt, err := l.seektime(context.Background(), d.IPath)
 		if err != nil {
 			// don't include errored devices in the result
-			log.Error().Msgf("Failed to get disk read time: %v", err)
+			log.Error().Err(err).Msgf("failed to get disk read time")
 			return err
 		}
 
