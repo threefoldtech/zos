@@ -226,6 +226,8 @@ const (
 	// StateUnChanged is a special state means state was not changed from previous
 	// state
 	StateUnChanged ResultState = "unchanged"
+	// StateScheduled state
+	StateScheduled ResultState = "scheduled"
 	// StateError constant
 	StateError ResultState = "error"
 	// StateOk constant

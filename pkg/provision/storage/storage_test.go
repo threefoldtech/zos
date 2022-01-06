@@ -186,5 +186,69 @@ func TestTransactions(t *testing.T) {
 	require.Equal(gridtypes.Name("vm1"), wl.Name)
 	require.Equal(testType1, wl.Type)
 	require.Equal(gridtypes.StateOk, wl.Result.State)
+}
 
+func TestTwins(t *testing.T) {
+	require := require.New(t)
+	path := filepath.Join(os.TempDir(), fmt.Sprint(rand.Int63()))
+	defer os.RemoveAll(path)
+
+	db, err := New(path)
+	require.NoError(err)
+
+	dl := gridtypes.Deployment{
+		Version:     1,
+		TwinID:      1,
+		ContractID:  10,
+		Description: "description",
+		Metadata:    "some metadata",
+	}
+
+	err = db.Create(&dl)
+	require.NoError(err)
+
+	dl.TwinID = 2
+
+	err = db.Create(&dl)
+	require.NoError(err)
+
+	twins, err := db.Twins()
+	require.NoError(err)
+
+	require.Len(twins, 2)
+	require.EqualValues(1, twins[0])
+	require.EqualValues(2, twins[1])
+}
+
+func TestGet(t *testing.T) {
+	require := require.New(t)
+	path := filepath.Join(os.TempDir(), fmt.Sprint(rand.Int63()))
+	defer os.RemoveAll(path)
+
+	db, err := New(path)
+	require.NoError(err)
+
+	dl := gridtypes.Deployment{
+		Version:     1,
+		TwinID:      1,
+		ContractID:  10,
+		Description: "description",
+		Metadata:    "some metadata",
+	}
+
+	err = db.Create(&dl)
+	require.NoError(err)
+
+	require.NoError(db.Add(dl.TwinID, dl.ContractID, "vm1", testType1, false))
+	require.NoError(db.Add(dl.TwinID, dl.ContractID, "vm2", testType2, false))
+
+	loaded, err := db.Get(1, 10)
+	require.NoError(err)
+
+	require.EqualValues(1, loaded.Version)
+	require.EqualValues(1, loaded.TwinID)
+	require.EqualValues(10, loaded.ContractID)
+	require.EqualValues("description", loaded.Description)
+	require.EqualValues("some metadata", loaded.Metadata)
+	require.Len(loaded.Workloads, 2)
 }
