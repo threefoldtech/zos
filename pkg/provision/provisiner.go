@@ -43,7 +43,7 @@ func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWi
 		return nil, err
 	}
 
-	return p.buildResult(wl, data, err)
+	return p.buildResult(data, err)
 }
 
 // Decommission implementation for provision.Provisioner
@@ -68,7 +68,7 @@ func (p *mapProvisioner) Update(ctx context.Context, wl *gridtypes.WorkloadWithI
 		return nil, err
 	}
 
-	return p.buildResult(wl, data, err)
+	return p.buildResult(data, err)
 }
 
 func (p *mapProvisioner) CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool {
@@ -76,7 +76,7 @@ func (p *mapProvisioner) CanUpdate(ctx context.Context, typ gridtypes.WorkloadTy
 	return ok
 }
 
-func (p *mapProvisioner) buildResult(wl *gridtypes.WorkloadWithID, data interface{}, err error) (*gridtypes.Result, error) {
+func (p *mapProvisioner) buildResult(data interface{}, err error) (*gridtypes.Result, error) {
 	result := &gridtypes.Result{
 		Created: gridtypes.Timestamp(time.Now().Unix()),
 	}

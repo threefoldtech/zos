@@ -42,7 +42,9 @@ var (
 	// it conflicts with another deployment
 	ErrDeploymentConflict = fmt.Errorf("conflict")
 	//ErrDeploymentNotExists returned if object not exists
-	ErrDeploymentNotExists = fmt.Errorf("not exists")
+	ErrDeploymentNotExists = fmt.Errorf("workload does not exist")
+	// ErrWorkloadNotExist returned by storage if workload does not exist
+	ErrWorkloadNotExist = fmt.Errorf("workload does not exist")
 	// ErrDidNotChange special error that can be returned by the provisioner
 	// if returned the engine does no update workload data
 	ErrDidNotChange = fmt.Errorf("did not change")
@@ -54,16 +56,44 @@ var (
 )
 
 // Storage interface
+// type Storage interface {
+// 	Add(wl gridtypes.Deployment) error
+// 	Set(wl gridtypes.Deployment) error
+// 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
+// 	Twins() ([]uint32, error)
+// 	ByTwin(twin uint32) ([]uint64, error)
+
+// 	// manage of shared workloads
+// 	GetShared(twinID uint32, name gridtypes.Name) (gridtypes.WorkloadID, error)
+// 	SharedByTwin(twinID uint32) ([]gridtypes.WorkloadID, error)
+// }
+
+// type TransactionState string
+
+// const (
+// 	StateOK        = TransactionState(gridtypes.StateOk)
+// 	StateError     = TransactionState(gridtypes.StateError)
+// 	StateDeleted   = TransactionState(gridtypes.StateDeleted)
+// 	StateUnchanged = TransactionState("unchanged")
+// )
+
+type Transaction = gridtypes.Workload
+
 type Storage interface {
-	Add(wl gridtypes.Deployment) error
-	Set(wl gridtypes.Deployment) error
+	Create(deployment *gridtypes.Deployment) error
+	Delete(twin uint32, deployment uint64) error
 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
+	Error(twin uint32, deployment uint64, err error) error
+
+	Add(twin uint32, deployment uint64, name gridtypes.Name, typ gridtypes.WorkloadType) error
+	Remove(twin uint32, deployment uint64, name gridtypes.Name) error
+	Transaction(twin uint32, deployment uint64, transaction Transaction) error
+	Current(twin uint32, deployment uint64, name gridtypes.Name) (*Transaction, error)
+
 	Twins() ([]uint32, error)
 	ByTwin(twin uint32) ([]uint64, error)
 
-	// manage of shared workloads
-	GetShared(twinID uint32, name gridtypes.Name) (gridtypes.WorkloadID, error)
-	SharedByTwin(twinID uint32) ([]gridtypes.WorkloadID, error)
+	// TODO: Add methods to update metadata of a deployment and a workload
 }
 
 // Janitor interface

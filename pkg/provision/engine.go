@@ -255,7 +255,7 @@ func (e *NativeEngine) Provision(ctx context.Context, deployment gridtypes.Deplo
 		return errors.Wrap(ErrInvalidVersion, "expected version to be 0 on deployment creation")
 	}
 
-	if err := e.storage.Add(deployment); err != nil {
+	if err := e.storage.Create(&deployment); err != nil {
 		return err
 	}
 
@@ -354,8 +354,8 @@ func (e *NativeEngine) Run(root context.Context) error {
 			ctx, err = e.contract(ctx, &job.Target)
 			if err != nil {
 				log.Error().Err(err).Uint64("contract", job.Target.ContractID).Msg("contact validation fails")
-				job.Target.SetError(err)
-				if err := e.storage.Set(job.Target); err != nil {
+				//job.Target.SetError(err)
+				if err := e.storage.Error(job.Target.TwinID, job.Target.ContractID, err); err != nil {
 					log.Error().Err(err).Msg("failed to set deployment global error")
 				}
 				_, _ = e.queue.Dequeue()
@@ -369,15 +369,8 @@ func (e *NativeEngine) Run(root context.Context) error {
 		switch job.Op {
 		case opProvision:
 			e.installDeployment(ctx, &job.Target)
-			// update the state of the deployment in one go.
-			if err := e.storage.Set(job.Target); err != nil {
-				log.Error().Err(err).Msg("failed to set workload result")
-			}
 		case opDeprovision:
 			e.uninstallDeployment(ctx, &job.Target, job.Message)
-			if err := e.storage.Set(job.Target); err != nil {
-				log.Error().Err(err).Msg("failed to set workload result")
-			}
 		case opUpdate:
 			// update is tricky because we need to work against
 			// 2 versions of the object. Once that reflects the current state
@@ -397,9 +390,6 @@ func (e *NativeEngine) Run(root context.Context) error {
 				break
 			}
 			e.updateDeployment(ctx, update)
-			if err := e.storage.Set(job.Target); err != nil {
-				log.Error().Err(err).Msg("failed to set workload result")
-			}
 		}
 
 		_, err = e.queue.Dequeue()
@@ -469,11 +459,7 @@ func (e *NativeEngine) boot(root context.Context) error {
 			// since the boot runs outside the engine queue.
 
 			ctx := withDeployment(root, &dl)
-			if e.installDeployment(ctx, &dl) {
-				if err := e.storage.Set(dl); err != nil {
-					log.Error().Err(err).Msg("failed to set workload result")
-				}
-			}
+			e.installDeployment(ctx, &dl)
 		}
 	}
 
@@ -489,71 +475,91 @@ func (e *NativeEngine) uninstallWorkload(ctx context.Context, wl *gridtypes.Work
 		Str("type", wl.Type.String()).
 		Logger()
 
-	log.Debug().Str("workload", string(wl.Name)).Msg("de-provisioning")
-	if wl.Result.State == gridtypes.StateDeleted {
-		//nothing to do!
+	_, err := e.storage.Current(twin, deployment, name)
+	if errors.Is(err, ErrWorkloadNotExist) {
 		return nil
+	} else if err != nil {
+		return err
 	}
 
-	err := e.provisioner.Decommission(ctx, wl)
-	result := &gridtypes.Result{
-		Error: reason,
+	log.Debug().Str("workload", string(wl.Name)).Msg("de-provisioning")
+
+	result := gridtypes.Result{
 		State: gridtypes.StateDeleted,
 	}
-
-	if err != nil {
-		log.Error().Err(err).Stringer("global-id", wl.ID).Msg("failed to uninstall workload")
+	if err := e.provisioner.Decommission(ctx, wl); err != nil {
+		log.Error().Err(err).Stringer("id", wl.ID).Msg("failed to uninstall workload")
 		result.State = gridtypes.StateError
-		result.Error = errors.Wrapf(err, "error while decommission reservation because of: '%s'", result.Error).Error()
+		result.Error = err.Error()
 	}
 
 	result.Created = gridtypes.Timestamp(time.Now().Unix())
-	wl.Result = *result
-	return err
-}
 
-func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.WorkloadWithID) bool {
-	// this workload is already deleted or in error state
-	// we don't try again
-	if wl.Result.State == gridtypes.StateDeleted ||
-		wl.Result.State == gridtypes.StateError {
-		//nothing to do!
-		return false
+	wl.Result = result
+	if err := e.storage.Transaction(twin, deployment, *wl.Workload); err != nil {
+		return err
 	}
 
+	return e.storage.Remove(twin, deployment, name)
+}
+
+func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	// this workload is already deleted or in error state
+	// we don't try again
 	twin, deployment, name, _ := wl.ID.Parts()
+
+	current, err := e.storage.Current(twin, deployment, name)
+	if errors.Is(err, ErrWorkloadNotExist) {
+		// installing a new workload, create the workload data
+		// in the storage.
+		if err := e.storage.Add(twin, deployment, wl.Name, wl.Type); err != nil {
+			return errors.Wrap(err, "failed to add workload to storage")
+		}
+	} else if err != nil {
+		// another error
+		return errors.Wrapf(err, "failed to get last transaction for '%s'", wl.ID.String())
+	} else {
+		// workload exists, but we trying to re-install it so this might be
+		// after a reboot. hence we need to check last state.
+		// if it has been deleted,  error state, we do nothing.
+		// otherwise, we-reinstall it
+		if current.Result.State == gridtypes.StateDeleted ||
+			current.Result.State == gridtypes.StateError {
+			//nothing to do!
+			return nil
+		}
+	}
+
 	log := log.With().
 		Uint32("twin", twin).
 		Uint64("deployment", deployment).
-		Stringer("name", name).
+		Stringer("name", wl.Name).
 		Str("type", wl.Type.String()).
 		Logger()
 
 	log.Debug().Msg("provisioning")
 	result, err := e.provisioner.Provision(ctx, wl)
 	if errors.Is(err, ErrDidNotChange) {
-		log.Debug().Msg("result did not change")
-		return false
-	}
-
-	if err != nil {
-		log.Error().Err(err).Msg("failed to deploy workload")
-		result = &gridtypes.Result{
-			Error: err.Error(),
-			State: gridtypes.StateError,
-		}
+		// workload already exist, so no need to create a new transaction
+		return nil
+	} else if err != nil {
+		return err
 	}
 
 	if result.State == gridtypes.StateError {
 		log.Error().Str("error", result.Error).Msg("failed to deploy workload")
 	}
 
-	result.Created = gridtypes.Timestamp(time.Now().Unix())
 	wl.Result = *result
-	return true
+
+	return e.storage.Transaction(
+		twin,
+		deployment,
+		wl.Name,
+		*wl.Workload)
 }
 
-func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.WorkloadWithID) bool {
+func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
 	twin, deployment, name, _ := wl.ID.Parts()
 	log := log.With().
 		Uint32("twin", twin).
@@ -576,20 +582,12 @@ func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.Workloa
 	}
 
 	if err != nil {
-		log.Error().Err(err).Msg("failed to deploy workload")
-		result = &gridtypes.Result{
-			Error: err.Error(),
-			State: gridtypes.StateError,
-		}
+		return err
 	}
 
-	if result.State == gridtypes.StateError {
-		log.Error().Str("error", result.Error).Msg("failed to deploy workload")
-	}
-
-	result.Created = gridtypes.Timestamp(time.Now().Unix())
 	wl.Result = *result
-	return true
+
+	return e.storage.Transaction(twin, deployment, *wl.Workload)
 }
 
 func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, reason string) {
@@ -598,21 +596,23 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes
 
 		workloads := getter.ByType(typ)
 		for _, wl := range workloads {
-			_ = e.uninstallWorkload(ctx, wl, reason)
+			if err := e.uninstallWorkload(ctx, wl, reason); err != nil {
+				log.Error().Err(err).Stringer("id", wl.ID).Msg("failed to un-install workload")
+			}
 		}
 	}
 }
 
-func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.WorkloadGetter) (changed bool) {
+func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.WorkloadGetter) {
 	for _, typ := range e.order {
 		workloads := getter.ByType(typ)
 
 		for _, wl := range workloads {
-			changed = e.installWorkload(ctx, wl) || changed
+			if err := e.installWorkload(ctx, wl); err != nil {
+				log.Error().Err(err).Stringer("id", wl.ID).Msg("failed to install workload")
+			}
 		}
 	}
-
-	return
 }
 
 // sortOperations sortes the operations, removes first in reverse type order, then upgrades/creates in type order
@@ -636,13 +636,18 @@ func (e *NativeEngine) sortOperations(ops []gridtypes.UpgradeOp) {
 func (e *NativeEngine) updateDeployment(ctx context.Context, ops []gridtypes.UpgradeOp) (changed bool) {
 	e.sortOperations(ops)
 	for _, op := range ops {
+		var err error
 		switch op.Op {
 		case gridtypes.OpRemove:
-			_ = e.uninstallWorkload(ctx, op.WlID, "deleted by an update")
+			err = e.uninstallWorkload(ctx, op.WlID, "deleted by an update")
 		case gridtypes.OpAdd:
-			changed = e.installWorkload(ctx, op.WlID) || changed
+			err = e.installWorkload(ctx, op.WlID)
 		case gridtypes.OpUpdate:
-			changed = e.updateWorkload(ctx, op.WlID) || changed
+			err = e.updateWorkload(ctx, op.WlID)
+		}
+
+		if err != nil {
+			log.Error().Err(err).Stringer("id", op.WlID.ID).Stringer("operation", op.Op).Msg("error while updating workload")
 		}
 	}
 	return
@@ -680,9 +685,9 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 
 	err = e.uninstallWorkload(ctx, wl, reason)
 
-	if err := e.storage.Set(dl); err != nil {
-		log.Error().Err(err).Msg("failed to set workload result")
-	}
+	// if err := e.storage.Set(dl); err != nil {
+	// 	log.Error().Err(err).Msg("failed to set workload result")
+	// }
 
 	return err
 }

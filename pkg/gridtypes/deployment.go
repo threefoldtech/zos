@@ -589,3 +589,16 @@ const (
 	OpAdd
 	OpUpdate
 )
+
+func (o JobOperation) String() string {
+	switch o {
+	case OpRemove:
+		return "remove"
+	case OpAdd:
+		return "add"
+	case OpUpdate:
+		return "update"
+	default:
+		return "unknown"
+	}
+}

@@ -213,6 +213,9 @@ func (w *Workload) Capacity() (Capacity, error) {
 type ResultState string
 
 const (
+	// StateUnChanged is a special state means state was not changed from previous
+	// state
+	StateUnChanged = "unchanged"
 	// StateError constant
 	StateError = "error"
 	// StateOk constant
