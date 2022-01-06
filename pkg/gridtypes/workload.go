@@ -56,6 +56,11 @@ func Types() []WorkloadType {
 	return types
 }
 
+func IsSharable(typ WorkloadType) bool {
+	_, ok := sharableWorkloadTypes[typ]
+	return ok
+}
+
 // Valid checks if this is a known reservation type
 func (t WorkloadType) Valid() error {
 	if _, ok := workloadTypes[t]; !ok {
@@ -118,7 +123,7 @@ type Workload struct {
 	// - check workloads list, if a version is not matching the new deployment version, the workload is untouched
 	// - if a workload version is same as deployment, the workload is "updated"
 	// - if a workload is removed, the workload is deleted.
-	Version int `json:"version"`
+	Version uint32 `json:"version"`
 	//Name is unique workload name per deployment  (required)
 	Name Name `json:"name"`
 	// Type of the reservation (container, zdb, vm, etc...)
@@ -132,6 +137,11 @@ type Workload struct {
 	Description string `json:"description"`
 	// Result of reservation, set by the node
 	Result Result `json:"result"`
+}
+
+func (w Workload) WithResults(result Result) Workload {
+	w.Result = result
+	return w
 }
 
 // WorkloadData loads data of workload into WorkloadData object

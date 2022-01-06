@@ -32,15 +32,15 @@ func NewMapProvisioner(p map[gridtypes.WorkloadType]DeployFunction, d map[gridty
 }
 
 // Provision implements provision.Provisioner
-func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error) {
+func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (result gridtypes.Result, err error) {
 	handler, ok := p.provisioners[wl.Type]
 	if !ok {
-		return nil, fmt.Errorf("no provisioner associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return result, fmt.Errorf("no provisioner associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
 	}
 
 	data, err := handler(ctx, wl)
 	if errors.Is(err, ErrDidNotChange) {
-		return nil, err
+		return result, err
 	}
 
 	return p.buildResult(data, err)
@@ -57,15 +57,15 @@ func (p *mapProvisioner) Decommission(ctx context.Context, wl *gridtypes.Workloa
 }
 
 // Provision implements provision.Provisioner
-func (p *mapProvisioner) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error) {
+func (p *mapProvisioner) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (result gridtypes.Result, err error) {
 	handler, ok := p.updaters[wl.Type]
 	if !ok {
-		return nil, fmt.Errorf("no updater associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return result, fmt.Errorf("no updater associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
 	}
 
 	data, err := handler(ctx, wl)
 	if errors.Is(err, ErrDidNotChange) {
-		return nil, err
+		return result, err
 	}
 
 	return p.buildResult(data, err)
@@ -76,8 +76,8 @@ func (p *mapProvisioner) CanUpdate(ctx context.Context, typ gridtypes.WorkloadTy
 	return ok
 }
 
-func (p *mapProvisioner) buildResult(data interface{}, err error) (*gridtypes.Result, error) {
-	result := &gridtypes.Result{
+func (p *mapProvisioner) buildResult(data interface{}, err error) (gridtypes.Result, error) {
+	result := gridtypes.Result{
 		Created: gridtypes.Timestamp(time.Now().Unix()),
 	}
 
@@ -90,7 +90,7 @@ func (p *mapProvisioner) buildResult(data interface{}, err error) (*gridtypes.Re
 
 	br, err := json.Marshal(data)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to encode result")
+		return result, errors.Wrap(err, "failed to encode result")
 	}
 	result.Data = br
 

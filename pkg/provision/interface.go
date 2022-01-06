@@ -27,9 +27,9 @@ type Engine interface {
 
 // Provisioner interface
 type Provisioner interface {
-	Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error)
+	Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
 	Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error
-	Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (*gridtypes.Result, error)
+	Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
 	CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool
 }
 
@@ -38,6 +38,8 @@ type Provisioner interface {
 var (
 	// ErrDeploymentExists returned if object exist
 	ErrDeploymentExists = fmt.Errorf("exists")
+	// ErrWorkloadExists returned if object exist
+	ErrWorkloadExists = fmt.Errorf("exists")
 	// ErrDeploymentConflict returned if deployment cannot be stored because
 	// it conflicts with another deployment
 	ErrDeploymentConflict = fmt.Errorf("conflict")
@@ -77,7 +79,7 @@ var (
 // 	StateUnchanged = TransactionState("unchanged")
 // )
 
-type Transaction = gridtypes.Workload
+//type Transaction = gridtypes.Workload
 
 type Storage interface {
 	Create(deployment *gridtypes.Deployment) error
@@ -85,15 +87,13 @@ type Storage interface {
 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
 	Error(twin uint32, deployment uint64, err error) error
 
-	Add(twin uint32, deployment uint64, name gridtypes.Name, typ gridtypes.WorkloadType) error
+	Add(twin uint32, deployment uint64, name gridtypes.Name, typ gridtypes.WorkloadType, global bool) error
 	Remove(twin uint32, deployment uint64, name gridtypes.Name) error
-	Transaction(twin uint32, deployment uint64, transaction Transaction) error
-	Current(twin uint32, deployment uint64, name gridtypes.Name) (*Transaction, error)
+	Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error
+	Current(twin uint32, deployment uint64, name gridtypes.Name) (*gridtypes.Workload, error)
 
 	Twins() ([]uint32, error)
 	ByTwin(twin uint32) ([]uint64, error)
-
-	// TODO: Add methods to update metadata of a deployment and a workload
 }
 
 // Janitor interface

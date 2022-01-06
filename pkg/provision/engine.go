@@ -495,8 +495,7 @@ func (e *NativeEngine) uninstallWorkload(ctx context.Context, wl *gridtypes.Work
 
 	result.Created = gridtypes.Timestamp(time.Now().Unix())
 
-	wl.Result = result
-	if err := e.storage.Transaction(twin, deployment, *wl.Workload); err != nil {
+	if err := e.storage.Transaction(twin, deployment, wl.Workload.WithResults(result)); err != nil {
 		return err
 	}
 
@@ -512,7 +511,13 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 	if errors.Is(err, ErrWorkloadNotExist) {
 		// installing a new workload, create the workload data
 		// in the storage.
-		if err := e.storage.Add(twin, deployment, wl.Name, wl.Type); err != nil {
+		if err := e.storage.Add(
+			twin,
+			deployment,
+			wl.Name,
+			wl.Type,
+			gridtypes.IsSharable(wl.Type),
+		); err != nil {
 			return errors.Wrap(err, "failed to add workload to storage")
 		}
 	} else if err != nil {
@@ -550,13 +555,10 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 		log.Error().Str("error", result.Error).Msg("failed to deploy workload")
 	}
 
-	wl.Result = *result
-
 	return e.storage.Transaction(
 		twin,
 		deployment,
-		wl.Name,
-		*wl.Workload)
+		wl.Workload.WithResults(result))
 }
 
 func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
@@ -570,7 +572,7 @@ func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.Workloa
 
 	log.Debug().Msg("provisioning")
 
-	var result *gridtypes.Result
+	var result gridtypes.Result
 	var err error
 	if e.provisioner.CanUpdate(ctx, wl.Type) {
 		result, err = e.provisioner.Update(ctx, wl)
@@ -585,9 +587,9 @@ func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.Workloa
 		return err
 	}
 
-	wl.Result = *result
-
-	return e.storage.Transaction(twin, deployment, *wl.Workload)
+	// TODO: we need to handle the correct transaction status here. In case no change
+	// has happened to the workload
+	return e.storage.Transaction(twin, deployment, wl.Workload.WithResults(result))
 }
 
 func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, reason string) {
