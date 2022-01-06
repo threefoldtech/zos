@@ -90,7 +90,7 @@ type Storage interface {
 	Add(twin uint32, deployment uint64, name gridtypes.Name, typ gridtypes.WorkloadType, global bool) error
 	Remove(twin uint32, deployment uint64, name gridtypes.Name) error
 	Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error
-	Current(twin uint32, deployment uint64, name gridtypes.Name) (*gridtypes.Workload, error)
+	Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error)
 
 	Twins() ([]uint32, error)
 	ByTwin(twin uint32) ([]uint64, error)
