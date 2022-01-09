@@ -2,6 +2,8 @@ package events
 
 import (
 	"context"
+	"io/ioutil"
+	"os"
 	"sync"
 	"time"
 
@@ -40,6 +42,85 @@ func (m *Manager) start(ctx context.Context) {
 	}
 }
 
+type PersistentEventChannel struct {
+	ch        chan types.StorageChangeSet
+	regCh     <-chan types.StorageChangeSet
+	sub       *substrate.Substrate
+	blockFile string // file to store last processed block
+}
+
+func newPersistentEventChannel(ch <-chan types.StorageChangeSet, sub *substrate.Substrate, blockFile string) (PersistentEventChannel, error) {
+	res := PersistentEventChannel{
+		nil,
+		ch,
+		sub,
+		blockFile,
+	}
+	missed, err := res.missedEvents(sub)
+	if err != nil {
+		return res, err
+	}
+	wrapper := make(chan types.StorageChangeSet, len(missed))
+	for _, e := range missed {
+		wrapper <- e
+	}
+	go func() {
+		defer close(wrapper)
+		for {
+			// TODO: dedup
+			v, ok := <-ch
+
+			if ok {
+				wrapper <- v
+			} else {
+				log.Debug().Msg("parent channel closed")
+				return
+			}
+		}
+	}()
+	res.ch = wrapper
+	return res, nil
+}
+
+func (p *PersistentEventChannel) missedEvents(sub *substrate.Substrate) ([]types.StorageChangeSet, error) {
+	file, err := os.Open(p.blockFile)
+	if os.IsNotExist(err) {
+		return make([]types.StorageChangeSet, 0), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	firstBlockStr, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	firstBlockHash, err := types.NewHashFromHexString(string(firstBlockStr))
+	if err != nil {
+		return nil, err
+	}
+	firstBlock, err := sub.GetBlock(firstBlockHash)
+	if err != nil {
+		return nil, err
+	}
+	lastBlock, err := sub.GetCurrentHeight()
+	if err != nil {
+		return nil, err
+	}
+	_, res, err := sub.FetchEventsForBlockRange(uint32(firstBlock.Block.Header.Number), lastBlock)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (p *PersistentEventChannel) Chan() chan types.StorageChangeSet {
+	return p.ch
+}
+
+func (p *PersistentEventChannel) Commit(last *types.StorageChangeSet) error {
+	return ioutil.WriteFile(p.blockFile, []byte(last.Block.Hex()), 0644)
+}
+
 // Start subscribing and producing events
 func (m *Manager) listen(ctx context.Context) error {
 reconnect:
@@ -62,10 +143,13 @@ reconnect:
 		if err != nil {
 			return errors.Wrap(err, "failed to subscribe to events")
 		}
-
+		wrapper, err := newPersistentEventChannel(reg.Chan(), m.sub, "somewhere")
+		if err != nil {
+			return errors.Wrap(err, "failed to prepare events channel")
+		}
 		for {
 			select {
-			case event := <-reg.Chan():
+			case event := <-wrapper.Chan():
 				//m.sub.GetBlock(block types.Hash)
 				for _, change := range event.Changes {
 					if !change.HasStorageData {
@@ -101,11 +185,16 @@ reconnect:
 						}
 					}
 				}
+				if err := wrapper.Commit(&event); err != nil {
+					log.Error().Err(err).Msg("failed to commit event")
+				}
 			case err := <-reg.Err():
 				// need a reconnect
 				log.Warn().Err(err).Msg("subscription to events stopped, reconnecting")
+				reg.Unsubscribe()
 				continue reconnect
 			case <-ctx.Done():
+				reg.Unsubscribe()
 				return ctx.Err()
 			}
 		}
