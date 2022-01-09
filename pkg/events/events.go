@@ -145,7 +145,11 @@ reconnect:
 	}
 }
 func (m *Manager) processEvent(event *types.StorageChangeSet, meta *types.Metadata) {
-	defer m.eventPersistor.Commit(event)
+	defer func() {
+		if err := m.eventPersistor.Commit(event); err != nil {
+			log.Warn().Err(err).Msg("couldn't persist last processed event")
+		}
+	}()
 	for _, change := range event.Changes {
 
 		if !change.HasStorageData {
