@@ -3,7 +3,9 @@ package noded
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -31,6 +33,11 @@ var Module cli.Command = cli.Command{
 	Usage: "reports the node total resources",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
+			Name:  "root",
+			Usage: "`ROOT` working directory of the module",
+			Value: "/var/cache/modules/noded",
+		},
+		&cli.StringFlag{
 			Name:  "broker",
 			Usage: "connection string to the message `BROKER`",
 			Value: "unix:///var/run/redis.sock",
@@ -50,6 +57,7 @@ var Module cli.Command = cli.Command{
 func action(cli *cli.Context) error {
 	var (
 		msgBrokerCon string = cli.String("broker")
+		root         string = cli.String("root")
 		printID      bool   = cli.Bool("id")
 		printNet     bool   = cli.Bool("net")
 	)
@@ -148,7 +156,10 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get connection to tfchain")
 	}
-	events := events.New(sub, node)
+	if err := os.MkdirAll(root, 0644); err != nil {
+		return errors.Wrap(err, "couldn't create a dir to persist last processed event")
+	}
+	events := events.New(sub, node, filepath.Join(root, "last_event"))
 
 	system, err := monitord.NewSystemMonitor(node, 2*time.Second)
 	if err != nil {

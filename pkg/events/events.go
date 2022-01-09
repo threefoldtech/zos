@@ -15,20 +15,22 @@ import (
 )
 
 type Manager struct {
-	sub           *substrate.Substrate
-	node          uint32
-	pubCfg        chan pkg.PublicConfigEvent
-	contactCancel chan pkg.ContractCancelledEvent
+	sub            *substrate.Substrate
+	node           uint32
+	pubCfg         chan pkg.PublicConfigEvent
+	contactCancel  chan pkg.ContractCancelledEvent
+	eventPersistor EventPersistor
 
 	o sync.Once
 }
 
-func New(sub *substrate.Substrate, node uint32) pkg.Events {
+func New(sub *substrate.Substrate, node uint32, eventFile string) pkg.Events {
 	return &Manager{
-		sub:           sub,
-		node:          node,
-		pubCfg:        make(chan pkg.PublicConfigEvent),
-		contactCancel: make(chan pkg.ContractCancelledEvent),
+		sub:            sub,
+		node:           node,
+		pubCfg:         make(chan pkg.PublicConfigEvent),
+		contactCancel:  make(chan pkg.ContractCancelledEvent),
+		eventPersistor: newEventPersistor(eventFile),
 	}
 }
 
@@ -42,83 +44,53 @@ func (m *Manager) start(ctx context.Context) {
 	}
 }
 
-type PersistentEventChannel struct {
-	ch        chan types.StorageChangeSet
-	regCh     <-chan types.StorageChangeSet
-	sub       *substrate.Substrate
-	blockFile string // file to store last processed block
+type EventPersistor struct {
+	eventFile string // file to store last processed event
 }
 
-func newPersistentEventChannel(ch <-chan types.StorageChangeSet, sub *substrate.Substrate, blockFile string) (PersistentEventChannel, error) {
-	res := PersistentEventChannel{
-		nil,
-		ch,
-		sub,
+func newEventPersistor(blockFile string) EventPersistor {
+	return EventPersistor{
 		blockFile,
 	}
-	missed, err := res.missedEvents(sub)
-	if err != nil {
-		return res, err
-	}
-	wrapper := make(chan types.StorageChangeSet, len(missed))
-	for _, e := range missed {
-		wrapper <- e
-	}
-	go func() {
-		defer close(wrapper)
-		for {
-			// TODO: dedup
-			v, ok := <-ch
-
-			if ok {
-				wrapper <- v
-			} else {
-				log.Debug().Msg("parent channel closed")
-				return
-			}
-		}
-	}()
-	res.ch = wrapper
-	return res, nil
 }
 
-func (p *PersistentEventChannel) missedEvents(sub *substrate.Substrate) ([]types.StorageChangeSet, error) {
-	file, err := os.Open(p.blockFile)
+func (p *EventPersistor) MissedEvents(sub *substrate.Substrate) ([]types.StorageChangeSet, error) {
+	file, err := os.Open(p.eventFile)
 	if os.IsNotExist(err) {
 		return make([]types.StorageChangeSet, 0), nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't open last-event file")
 	}
 	firstBlockStr, err := ioutil.ReadAll(file)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't read event file")
 	}
 	firstBlockHash, err := types.NewHashFromHexString(string(firstBlockStr))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't convert event hex")
 	}
 	firstBlock, err := sub.GetBlock(firstBlockHash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't get last-event block")
 	}
 	lastBlock, err := sub.GetCurrentHeight()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't get last chain last block")
 	}
+	log.Debug().
+		Uint32("last_processed", uint32(firstBlock.Block.Header.Number)).
+		Uint32("last_block", lastBlock).
+		Msg("fetching missed events")
 	_, res, err := sub.FetchEventsForBlockRange(uint32(firstBlock.Block.Header.Number), lastBlock)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't fetch missed events")
 	}
 	return res, nil
 }
 
-func (p *PersistentEventChannel) Chan() chan types.StorageChangeSet {
-	return p.ch
-}
-
-func (p *PersistentEventChannel) Commit(last *types.StorageChangeSet) error {
-	return ioutil.WriteFile(p.blockFile, []byte(last.Block.Hex()), 0644)
+func (p *EventPersistor) Commit(last *types.StorageChangeSet) error {
+	return ioutil.WriteFile(p.eventFile, []byte(last.Block.Hex()), 0644)
 }
 
 // Start subscribing and producing events
@@ -143,51 +115,23 @@ reconnect:
 		if err != nil {
 			return errors.Wrap(err, "failed to subscribe to events")
 		}
-		wrapper, err := newPersistentEventChannel(reg.Chan(), m.sub, "somewhere")
+
+		missed, err := m.eventPersistor.MissedEvents(m.sub)
 		if err != nil {
-			return errors.Wrap(err, "failed to prepare events channel")
+			// continuing to not block the whole event subsystem in case
+			// of a blockchain reset (can it be any other reason?)
+			log.Error().Err(err).Msg("failed to fetch missed events, dropping them")
+		}
+		for _, event := range missed {
+			m.processEvent(&event, meta)
 		}
 		for {
 			select {
-			case event := <-wrapper.Chan():
-				//m.sub.GetBlock(block types.Hash)
-				for _, change := range event.Changes {
-					if !change.HasStorageData {
-						continue
-					}
-
-					var events substrate.EventRecords
-					if err := types.EventRecordsRaw(change.StorageData).DecodeEventRecords(meta, &events); err != nil {
-						log.Error().Err(err).Msg("failed to decode events from tfchain")
-						continue
-					}
-
-					for _, e := range events.TfgridModule_NodePublicConfigStored {
-						if e.Node != types.U32(m.node) {
-							continue
-						}
-						log.Info().Msgf("got a public config update: %+v", e.Config)
-						m.pubCfg <- pkg.PublicConfigEvent{
-							Kind:         pkg.EventReceived,
-							PublicConfig: e.Config,
-						}
-					}
-
-					for _, e := range events.SmartContractModule_NodeContractCanceled {
-						if e.Node != types.U32(m.node) {
-							continue
-						}
-						log.Info().Uint64("contract", uint64(e.ContractID)).Msg("got contract cancel update")
-						m.contactCancel <- pkg.ContractCancelledEvent{
-							Kind:     pkg.EventReceived,
-							Contract: uint64(e.ContractID),
-							TwinId:   uint32(e.Twin),
-						}
-					}
-				}
-				if err := wrapper.Commit(&event); err != nil {
-					log.Error().Err(err).Msg("failed to commit event")
-				}
+			case event := <-reg.Chan():
+				// events might be duplicated from missed event
+				// in case a block is added after subscription
+				// but before listing the missed block, not a problem?
+				m.processEvent(&event, meta)
 			case err := <-reg.Err():
 				// need a reconnect
 				log.Warn().Err(err).Msg("subscription to events stopped, reconnecting")
@@ -200,7 +144,44 @@ reconnect:
 		}
 	}
 }
+func (m *Manager) processEvent(event *types.StorageChangeSet, meta *types.Metadata) {
+	defer m.eventPersistor.Commit(event)
+	for _, change := range event.Changes {
 
+		if !change.HasStorageData {
+			continue
+		}
+
+		var events substrate.EventRecords
+		if err := types.EventRecordsRaw(change.StorageData).DecodeEventRecords(meta, &events); err != nil {
+			log.Error().Err(err).Msg("failed to decode events from tfchain")
+			continue
+		}
+
+		for _, e := range events.TfgridModule_NodePublicConfigStored {
+			if e.Node != types.U32(m.node) {
+				continue
+			}
+			log.Info().Msgf("got a public config update: %+v", e.Config)
+			m.pubCfg <- pkg.PublicConfigEvent{
+				Kind:         pkg.EventReceived,
+				PublicConfig: e.Config,
+			}
+		}
+
+		for _, e := range events.SmartContractModule_NodeContractCanceled {
+			if e.Node != types.U32(m.node) {
+				continue
+			}
+			log.Info().Uint64("contract", uint64(e.ContractID)).Msg("got contract cancel update")
+			m.contactCancel <- pkg.ContractCancelledEvent{
+				Kind:     pkg.EventReceived,
+				Contract: uint64(e.ContractID),
+				TwinId:   uint32(e.Twin),
+			}
+		}
+	}
+}
 func (m *Manager) PublicConfigEvent(ctx context.Context) <-chan pkg.PublicConfigEvent {
 	m.o.Do(func() {
 		go m.start(ctx)
