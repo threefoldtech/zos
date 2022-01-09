@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 
+	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/events"
@@ -54,6 +55,9 @@ func action(cli *cli.Context) error {
 		printNet     bool   = cli.Bool("net")
 	)
 
+	if app.CheckFlag(app.LimitedCache) {
+		return fmt.Errorf("node doesn't have disks attached to it")
+	}
 	env := environment.MustGet()
 
 	redis, err := zbus.NewRedisClient(msgBrokerCon)

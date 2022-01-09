@@ -63,7 +63,7 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 
 			cache := green("OK")
 			if app.CheckFlag(app.LimitedCache) {
-				cache = red("LIMITED CACHE")
+				cache = red("no hdd or ssd disks detected, this node will not farm tokens or appear online for deploying workloads.")
 			}
 
 			h.Text = fmt.Sprintf(s, nodeID, farm, version.String(), env.RunningMode.String(), cache)
