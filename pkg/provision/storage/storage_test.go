@@ -54,11 +54,48 @@ func TestCreateDeployment(t *testing.T) {
 		Description: "description",
 		Metadata:    "some metadata",
 	}
-	err = db.Create(&dl)
+	err = db.Create(dl)
 	require.NoError(err)
 
-	err = db.Create(&dl)
+	err = db.Create(dl)
 	require.ErrorIs(err, provision.ErrDeploymentExists)
+}
+
+func TestCreateDeploymentWithWorkloads(t *testing.T) {
+	require := require.New(t)
+	path := filepath.Join(os.TempDir(), fmt.Sprint(rand.Int63()))
+	defer os.RemoveAll(path)
+
+	db, err := New(path)
+	require.NoError(err)
+
+	dl := gridtypes.Deployment{
+		Version:     1,
+		TwinID:      1,
+		ContractID:  10,
+		Description: "description",
+		Metadata:    "some metadata",
+		Workloads: []gridtypes.Workload{
+			{
+				Type: testType1,
+				Name: "vm1",
+			},
+			{
+				Type: testType2,
+				Name: "vm2",
+			},
+		},
+	}
+
+	err = db.Create(dl)
+	require.NoError(err)
+
+	err = db.Create(dl)
+	require.ErrorIs(err, provision.ErrDeploymentExists)
+
+	loaded, err := db.Get(1, 10)
+	require.NoError(err)
+	require.Len(loaded.Workloads, 2)
 }
 
 func TestAddWorkload(t *testing.T) {
@@ -69,7 +106,7 @@ func TestAddWorkload(t *testing.T) {
 	db, err := New(path)
 	require.NoError(err)
 
-	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1})
 	require.ErrorIs(err, provision.ErrDeploymentNotExists)
 
 	dl := gridtypes.Deployment{
@@ -80,13 +117,13 @@ func TestAddWorkload(t *testing.T) {
 		Metadata:    "some metadata",
 	}
 
-	err = db.Create(&dl)
+	err = db.Create(dl)
 	require.NoError(err)
 
-	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1})
 	require.NoError(err)
 
-	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1})
 	require.ErrorIs(err, provision.ErrWorkloadExists)
 }
 
@@ -106,16 +143,16 @@ func TestRemoveWorkload(t *testing.T) {
 		Metadata:    "some metadata",
 	}
 
-	err = db.Create(&dl)
+	err = db.Create(dl)
 	require.NoError(err)
 
-	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1})
 	require.NoError(err)
 
 	err = db.Remove(1, 10, "vm1")
 	require.NoError(err)
 
-	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1})
 	require.NoError(err)
 
 }
@@ -136,13 +173,13 @@ func TestTransactions(t *testing.T) {
 		Metadata:    "some metadata",
 	}
 
-	err = db.Create(&dl)
+	err = db.Create(dl)
 	require.NoError(err)
 
 	_, err = db.Current(1, 10, "vm1")
 	require.ErrorIs(err, provision.ErrWorkloadNotExist)
 
-	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1})
 	require.NoError(err)
 
 	wl, err := db.Current(1, 10, "vm1")
@@ -205,12 +242,12 @@ func TestTwins(t *testing.T) {
 		Metadata:    "some metadata",
 	}
 
-	err = db.Create(&dl)
+	err = db.Create(dl)
 	require.NoError(err)
 
 	dl.TwinID = 2
 
-	err = db.Create(&dl)
+	err = db.Create(dl)
 	require.NoError(err)
 
 	twins, err := db.Twins()
@@ -237,11 +274,11 @@ func TestGet(t *testing.T) {
 		Metadata:    "some metadata",
 	}
 
-	err = db.Create(&dl)
+	err = db.Create(dl)
 	require.NoError(err)
 
-	require.NoError(db.Add(dl.TwinID, dl.ContractID, gridtypes.Workload{Name: "vm1", Type: testType1}, false))
-	require.NoError(db.Add(dl.TwinID, dl.ContractID, gridtypes.Workload{Name: "vm2", Type: testType2}, false))
+	require.NoError(db.Add(dl.TwinID, dl.ContractID, gridtypes.Workload{Name: "vm1", Type: testType1}))
+	require.NoError(db.Add(dl.TwinID, dl.ContractID, gridtypes.Workload{Name: "vm2", Type: testType2}))
 
 	loaded, err := db.Get(1, 10)
 	require.NoError(err)

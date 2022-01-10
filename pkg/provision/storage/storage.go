@@ -60,7 +60,7 @@ func (b *boltStorage) l64(v []byte) uint64 {
 	return binary.BigEndian.Uint64(v)
 }
 
-func (b *boltStorage) Create(deployment *gridtypes.Deployment) error {
+func (b *boltStorage) Create(deployment gridtypes.Deployment) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		twin, err := tx.CreateBucketIfNotExists(b.u32(deployment.TwinID))
 		if err != nil {
@@ -88,6 +88,12 @@ func (b *boltStorage) Create(deployment *gridtypes.Deployment) error {
 		}
 		if err := dl.Put([]byte(sig), sig); err != nil {
 			return err
+		}
+
+		for _, wl := range deployment.Workloads {
+			if err := b.add(tx, deployment.TwinID, deployment.ContractID, wl); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -138,7 +144,10 @@ func (b *boltStorage) Error(twin uint32, deployment uint64, err error) error {
 	panic("unimplemented")
 }
 
-func (b *boltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, name gridtypes.Name, typ gridtypes.WorkloadType, global bool) error {
+func (b *boltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, workload gridtypes.Workload) error {
+	if gridtypes.IsSharable(workload.Type) {
+		panic("not implemeneted")
+	}
 	twin := tx.Bucket(b.u32(twinID))
 	if twin == nil {
 		return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
@@ -153,29 +162,29 @@ func (b *boltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, name gridtypes.
 		return errors.Wrap(err, "failed to prepare workloads storage")
 	}
 
-	if value := workloads.Get([]byte(name)); value != nil {
+	if value := workloads.Get([]byte(workload.Name)); value != nil {
 		return errors.Wrap(provision.ErrWorkloadExists, "workload with same name already exists in deployment")
 	}
 
-	return workloads.Put([]byte(name), []byte(typ.String()))
-}
-
-func (b *boltStorage) Add(twin uint32, deployment uint64, workload gridtypes.Workload, global bool) error {
-	if global {
-		panic("TODO: not implemented")
+	if err := workloads.Put([]byte(workload.Name), []byte(workload.Type.String())); err != nil {
+		return err
 	}
 
-	return b.db.Update(func(tx *bolt.Tx) error {
-		if err := b.add(tx, twin, deployment, workload.Name, workload.Type, global); err != nil {
-			return err
-		}
+	return b.transaction(tx, twinID, dl,
+		workload.WithResults(gridtypes.Result{
+			Created: gridtypes.Now(),
+			State:   gridtypes.StateInit,
+		}),
+	)
+}
 
-		return b.transaction(tx, twin, deployment,
-			workload.WithResults(gridtypes.Result{
-				Created: gridtypes.Now(),
-				State:   gridtypes.StateInit,
-			}),
-		)
+func (b *boltStorage) Add(twin uint32, deployment uint64, workload gridtypes.Workload) error {
+	// if global {
+	// 	panic("TODO: not implemented")
+	// }
+
+	return b.db.Update(func(tx *bolt.Tx) error {
+		return b.add(tx, twin, deployment, workload)
 	})
 }
 

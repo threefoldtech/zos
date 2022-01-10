@@ -255,7 +255,7 @@ func (e *NativeEngine) Provision(ctx context.Context, deployment gridtypes.Deplo
 		return errors.Wrap(ErrInvalidVersion, "expected version to be 0 on deployment creation")
 	}
 
-	if err := e.storage.Create(&deployment); err != nil {
+	if err := e.storage.Create(deployment); err != nil {
 		return err
 	}
 
@@ -515,7 +515,6 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 			twin,
 			deployment,
 			*wl.Workload,
-			false,
 		); err != nil {
 			return errors.Wrap(err, "failed to add workload to storage")
 		}

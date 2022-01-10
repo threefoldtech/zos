@@ -82,12 +82,12 @@ var (
 //type Transaction = gridtypes.Workload
 
 type Storage interface {
-	Create(deployment *gridtypes.Deployment) error
+	Create(deployment gridtypes.Deployment) error
 	Delete(twin uint32, deployment uint64) error
 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
 	Error(twin uint32, deployment uint64, err error) error
 
-	Add(twin uint32, deployment uint64, workload gridtypes.Workload, global bool) error
+	Add(twin uint32, deployment uint64, workload gridtypes.Workload) error
 	Remove(twin uint32, deployment uint64, name gridtypes.Name) error
 	Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error
 	Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error)
