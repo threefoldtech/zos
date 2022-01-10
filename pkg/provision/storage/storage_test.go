@@ -69,7 +69,7 @@ func TestAddWorkload(t *testing.T) {
 	db, err := New(path)
 	require.NoError(err)
 
-	err = db.Add(1, 10, "vm1", testType1, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
 	require.ErrorIs(err, provision.ErrDeploymentNotExists)
 
 	dl := gridtypes.Deployment{
@@ -83,10 +83,10 @@ func TestAddWorkload(t *testing.T) {
 	err = db.Create(&dl)
 	require.NoError(err)
 
-	err = db.Add(1, 10, "vm1", testType1, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
 	require.NoError(err)
 
-	err = db.Add(1, 10, "vm1", testType1, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
 	require.ErrorIs(err, provision.ErrWorkloadExists)
 }
 
@@ -109,13 +109,13 @@ func TestRemoveWorkload(t *testing.T) {
 	err = db.Create(&dl)
 	require.NoError(err)
 
-	err = db.Add(1, 10, "vm1", testType1, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
 	require.NoError(err)
 
 	err = db.Remove(1, 10, "vm1")
 	require.NoError(err)
 
-	err = db.Add(1, 10, "vm1", testType1, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
 	require.NoError(err)
 
 }
@@ -142,11 +142,12 @@ func TestTransactions(t *testing.T) {
 	_, err = db.Current(1, 10, "vm1")
 	require.ErrorIs(err, provision.ErrWorkloadNotExist)
 
-	err = db.Add(1, 10, "vm1", testType1, false)
+	err = db.Add(1, 10, gridtypes.Workload{Name: "vm1", Type: testType1}, false)
 	require.NoError(err)
 
-	_, err = db.Current(1, 10, "vm1")
-	require.ErrorIs(err, ErrTransactionNotExist)
+	wl, err := db.Current(1, 10, "vm1")
+	require.NoError(err)
+	require.Equal(gridtypes.StateInit, wl.Result.State)
 
 	err = db.Transaction(1, 10, gridtypes.Workload{
 		Type: testType1,
@@ -181,7 +182,7 @@ func TestTransactions(t *testing.T) {
 
 	require.NoError(err)
 
-	wl, err := db.Current(1, 10, "vm1")
+	wl, err = db.Current(1, 10, "vm1")
 	require.NoError(err)
 	require.Equal(gridtypes.Name("vm1"), wl.Name)
 	require.Equal(testType1, wl.Type)
@@ -239,8 +240,8 @@ func TestGet(t *testing.T) {
 	err = db.Create(&dl)
 	require.NoError(err)
 
-	require.NoError(db.Add(dl.TwinID, dl.ContractID, "vm1", testType1, false))
-	require.NoError(db.Add(dl.TwinID, dl.ContractID, "vm2", testType2, false))
+	require.NoError(db.Add(dl.TwinID, dl.ContractID, gridtypes.Workload{Name: "vm1", Type: testType1}, false))
+	require.NoError(db.Add(dl.TwinID, dl.ContractID, gridtypes.Workload{Name: "vm2", Type: testType2}, false))
 
 	loaded, err := db.Get(1, 10)
 	require.NoError(err)

@@ -223,6 +223,8 @@ func (w *Workload) Capacity() (Capacity, error) {
 type ResultState string
 
 const (
+	// StateInit is the first state of the workload on storage
+	StateInit ResultState = "init"
 	// StateUnChanged is a special state means state was not changed from previous
 	// state
 	StateUnChanged ResultState = "unchanged"
@@ -238,7 +240,7 @@ const (
 
 var (
 	validStates = []ResultState{
-		StateUnChanged, StateError, StateOk, StateDeleted,
+		StateInit, StateUnChanged, StateError, StateOk, StateDeleted,
 	}
 )
 

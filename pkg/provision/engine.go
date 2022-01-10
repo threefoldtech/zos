@@ -514,9 +514,8 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 		if err := e.storage.Add(
 			twin,
 			deployment,
-			wl.Name,
-			wl.Type,
-			gridtypes.IsSharable(wl.Type),
+			*wl.Workload,
+			false,
 		); err != nil {
 			return errors.Wrap(err, "failed to add workload to storage")
 		}

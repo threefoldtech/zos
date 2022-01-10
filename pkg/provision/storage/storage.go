@@ -138,30 +138,44 @@ func (b *boltStorage) Error(twin uint32, deployment uint64, err error) error {
 	panic("unimplemented")
 }
 
-func (b *boltStorage) Add(twin uint32, deployment uint64, name gridtypes.Name, typ gridtypes.WorkloadType, global bool) error {
+func (b *boltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, name gridtypes.Name, typ gridtypes.WorkloadType, global bool) error {
+	twin := tx.Bucket(b.u32(twinID))
+	if twin == nil {
+		return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
+	}
+	deployment := twin.Bucket(b.u64(dl))
+	if deployment == nil {
+		return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
+	}
+
+	workloads, err := deployment.CreateBucketIfNotExists([]byte(keyWorkloads))
+	if err != nil {
+		return errors.Wrap(err, "failed to prepare workloads storage")
+	}
+
+	if value := workloads.Get([]byte(name)); value != nil {
+		return errors.Wrap(provision.ErrWorkloadExists, "workload with same name already exists in deployment")
+	}
+
+	return workloads.Put([]byte(name), []byte(typ.String()))
+}
+
+func (b *boltStorage) Add(twin uint32, deployment uint64, workload gridtypes.Workload, global bool) error {
 	if global {
 		panic("TODO: not implemented")
 	}
+
 	return b.db.Update(func(tx *bolt.Tx) error {
-		twin := tx.Bucket(b.u32(twin))
-		if twin == nil {
-			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
-		}
-		deployment := twin.Bucket(b.u64(deployment))
-		if deployment == nil {
-			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
+		if err := b.add(tx, twin, deployment, workload.Name, workload.Type, global); err != nil {
+			return err
 		}
 
-		workloads, err := deployment.CreateBucketIfNotExists([]byte(keyWorkloads))
-		if err != nil {
-			return errors.Wrap(err, "failed to prepare workloads storage")
-		}
-
-		if value := workloads.Get([]byte(name)); value != nil {
-			return errors.Wrap(provision.ErrWorkloadExists, "workload with same name already exists in deployment")
-		}
-
-		return workloads.Put([]byte(name), []byte(typ.String()))
+		return b.transaction(tx, twin, deployment,
+			workload.WithResults(gridtypes.Result{
+				Created: gridtypes.Now(),
+				State:   gridtypes.StateInit,
+			}),
+		)
 	})
 }
 
@@ -186,51 +200,55 @@ func (b *boltStorage) Remove(twin uint32, deployment uint64, name gridtypes.Name
 	})
 }
 
+func (b *boltStorage) transaction(tx *bolt.Tx, twinID uint32, dl uint64, workload gridtypes.Workload) error {
+	if err := workload.Result.Valid(); err != nil {
+		return errors.Wrap(err, "failed to validate workload result")
+	}
+
+	data, err := json.Marshal(workload)
+	if err != nil {
+		return errors.Wrap(err, "failed to encode workload data")
+	}
+
+	twin := tx.Bucket(b.u32(twinID))
+	if twin == nil {
+		return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
+	}
+	deployment := twin.Bucket(b.u64(dl))
+	if deployment == nil {
+		return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
+	}
+
+	workloads := deployment.Bucket([]byte(keyWorkloads))
+	if workloads == nil {
+		return errors.Wrap(provision.ErrWorkloadNotExist, "deployment has no active workloads")
+	}
+
+	typRaw := workloads.Get([]byte(workload.Name))
+	if typRaw == nil {
+		return errors.Wrap(provision.ErrWorkloadNotExist, "workload does not exist")
+	}
+
+	if workload.Type != gridtypes.WorkloadType(typRaw) {
+		return errors.Wrapf(ErrInvalidWorkloadType, "invalid workload type, expecting '%s'", string(typRaw))
+	}
+
+	logs, err := deployment.CreateBucketIfNotExists([]byte(keyTransactions))
+	if err != nil {
+		return errors.Wrap(err, "failed to prepare deployment transaction logs")
+	}
+
+	id, err := logs.NextSequence()
+	if err != nil {
+		return err
+	}
+
+	return logs.Put(b.u64(id), data)
+}
+
 func (b *boltStorage) Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
-		if err := workload.Result.Valid(); err != nil {
-			return errors.Wrap(err, "failed to validate workload result")
-		}
-
-		data, err := json.Marshal(workload)
-		if err != nil {
-			return errors.Wrap(err, "failed to encode workload data")
-		}
-
-		twin := tx.Bucket(b.u32(twin))
-		if twin == nil {
-			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
-		}
-		deployment := twin.Bucket(b.u64(deployment))
-		if deployment == nil {
-			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
-		}
-
-		workloads := deployment.Bucket([]byte(keyWorkloads))
-		if workloads == nil {
-			return errors.Wrap(provision.ErrWorkloadNotExist, "deployment has no active workloads")
-		}
-
-		typRaw := workloads.Get([]byte(workload.Name))
-		if typRaw == nil {
-			return errors.Wrap(provision.ErrWorkloadNotExist, "workload does not exist")
-		}
-
-		if workload.Type != gridtypes.WorkloadType(typRaw) {
-			return errors.Wrapf(ErrInvalidWorkloadType, "invalid workload type, expecting '%s'", string(typRaw))
-		}
-
-		logs, err := deployment.CreateBucketIfNotExists([]byte(keyTransactions))
-		if err != nil {
-			return errors.Wrap(err, "failed to prepare deployment transaction logs")
-		}
-
-		id, err := logs.NextSequence()
-		if err != nil {
-			return err
-		}
-
-		return logs.Put(b.u64(id), data)
+		return b.transaction(tx, twin, deployment, workload)
 	})
 }
 
@@ -307,22 +325,12 @@ func (b *boltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Wor
 		return nil
 	})
 
-	for name, typ := range names {
-		if _, ok := workloads[name]; ok {
-			continue
-		}
+	if err != nil {
+		return nil, err
+	}
 
-		// otherwise we need to put a place holder here. this
-		// can happen if a workload was added to the deployment
-		// but no transactions has been registered for this workload
-		// yet.
-		workloads[name] = gridtypes.Workload{
-			Name: name,
-			Type: typ,
-			Result: gridtypes.Result{
-				State: gridtypes.StateScheduled,
-			},
-		}
+	if len(workloads) != len(names) {
+		return nil, fmt.Errorf("inconsistency in deployment, missing workload transactions")
 	}
 
 	result := make([]gridtypes.Workload, 0, len(workloads))

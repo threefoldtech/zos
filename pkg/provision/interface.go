@@ -87,7 +87,7 @@ type Storage interface {
 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
 	Error(twin uint32, deployment uint64, err error) error
 
-	Add(twin uint32, deployment uint64, name gridtypes.Name, typ gridtypes.WorkloadType, global bool) error
+	Add(twin uint32, deployment uint64, workload gridtypes.Workload, global bool) error
 	Remove(twin uint32, deployment uint64, name gridtypes.Name) error
 	Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error
 	Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error)
