@@ -1,11 +1,13 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -96,6 +98,45 @@ func TestCreateDeploymentWithWorkloads(t *testing.T) {
 	loaded, err := db.Get(1, 10)
 	require.NoError(err)
 	require.Len(loaded.Workloads, 2)
+}
+
+func TestCreateDeploymentWithSharableWorkloads(t *testing.T) {
+	require := require.New(t)
+	path := filepath.Join(os.TempDir(), fmt.Sprint(rand.Int63()))
+	defer os.RemoveAll(path)
+
+	db, err := New(path)
+	require.NoError(err)
+
+	dl := gridtypes.Deployment{
+		Version:     1,
+		TwinID:      1,
+		ContractID:  10,
+		Description: "description",
+		Metadata:    "some metadata",
+		Workloads: []gridtypes.Workload{
+			{
+				Type: testType1,
+				Name: "vm1",
+			},
+			{
+				Type: testSharableType1,
+				Name: "network",
+			},
+		},
+	}
+
+	err = db.Create(dl)
+	require.NoError(err)
+
+	dl.ContractID = 11
+	err = db.Create(dl)
+	require.ErrorIs(err, provision.ErrDeploymentConflict)
+
+	require.NoError(db.Remove(1, 10, "networkd"))
+	err = db.Create(dl)
+	require.ErrorIs(err, provision.ErrDeploymentConflict)
+
 }
 
 func TestAddWorkload(t *testing.T) {
@@ -289,4 +330,90 @@ func TestGet(t *testing.T) {
 	require.EqualValues("description", loaded.Description)
 	require.EqualValues("some metadata", loaded.Metadata)
 	require.Len(loaded.Workloads, 2)
+}
+
+func TestError(t *testing.T) {
+	require := require.New(t)
+	path := filepath.Join(os.TempDir(), fmt.Sprint(rand.Int63()))
+	defer os.RemoveAll(path)
+
+	db, err := New(path)
+	require.NoError(err)
+
+	someError := fmt.Errorf("something is wrong")
+	err = db.Error(1, 10, someError)
+	require.ErrorIs(err, provision.ErrDeploymentNotExists)
+
+	dl := gridtypes.Deployment{
+		Version:     1,
+		TwinID:      1,
+		ContractID:  10,
+		Description: "description",
+		Metadata:    "some metadata",
+		Workloads: []gridtypes.Workload{
+			{Name: "vm1", Type: testType1},
+		},
+	}
+
+	err = db.Create(dl)
+	require.NoError(err)
+
+	err = db.Error(1, 10, someError)
+	require.NoError(err)
+
+	loaded, err := db.Get(1, 10)
+	require.NoError(err)
+	require.Equal(gridtypes.StateError, loaded.Workloads[0].Result.State)
+	require.Equal(someError.Error(), loaded.Workloads[0].Result.Error)
+}
+
+func TestMigrate(t *testing.T) {
+	require := require.New(t)
+	path := filepath.Join(os.TempDir(), fmt.Sprint(rand.Int63()))
+	defer os.RemoveAll(path)
+
+	db, err := New(path)
+	require.NoError(err)
+
+	dl := gridtypes.Deployment{
+		Version:     1,
+		TwinID:      1,
+		ContractID:  10,
+		Description: "description",
+		Metadata:    "some metadata",
+		Workloads: []gridtypes.Workload{
+			{
+				Name: "vm1",
+				Type: testType1,
+				Data: json.RawMessage("null"),
+				Result: gridtypes.Result{
+					Created: gridtypes.Now(),
+					State:   gridtypes.StateOk,
+					Data:    json.RawMessage("\"hello\""),
+				},
+			},
+			{
+				Name: "vm2",
+				Type: testType2,
+				Data: json.RawMessage("\"input\""),
+				Result: gridtypes.Result{
+					Created: gridtypes.Now(),
+					State:   gridtypes.StateError,
+					Data:    json.RawMessage("null"),
+					Error:   "some error",
+				},
+			},
+		},
+	}
+
+	err = db.Migrate(dl)
+	require.NoError(err)
+
+	loaded, err := db.Get(1, 10)
+	sort.Slice(loaded.Workloads, func(i, j int) bool {
+		return loaded.Workloads[i].Name < loaded.Workloads[j].Name
+	})
+
+	require.NoError(err)
+	require.EqualValues(dl, loaded)
 }

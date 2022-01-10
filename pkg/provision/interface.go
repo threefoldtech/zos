@@ -82,9 +82,14 @@ var (
 //type Transaction = gridtypes.Workload
 
 type Storage interface {
+	// Create a new deployment in storage, it sets the initial transactions
+	// for all workloads to "init" and the correct creation time.
 	Create(deployment gridtypes.Deployment) error
+	// Delete deletes a deployment from storage.
 	Delete(twin uint32, deployment uint64) error
+	// Get gets the current state of a deployment from storage
 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
+	// Error sets global deployment error
 	Error(twin uint32, deployment uint64, err error) error
 
 	Add(twin uint32, deployment uint64, workload gridtypes.Workload) error

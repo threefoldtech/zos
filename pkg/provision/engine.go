@@ -508,17 +508,7 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 	twin, deployment, name, _ := wl.ID.Parts()
 
 	current, err := e.storage.Current(twin, deployment, name)
-	if errors.Is(err, ErrWorkloadNotExist) {
-		// installing a new workload, create the workload data
-		// in the storage.
-		if err := e.storage.Add(
-			twin,
-			deployment,
-			*wl.Workload,
-		); err != nil {
-			return errors.Wrap(err, "failed to add workload to storage")
-		}
-	} else if err != nil {
+	if err != nil {
 		// another error
 		return errors.Wrapf(err, "failed to get last transaction for '%s'", wl.ID.String())
 	} else {
@@ -526,8 +516,7 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 		// after a reboot. hence we need to check last state.
 		// if it has been deleted,  error state, we do nothing.
 		// otherwise, we-reinstall it
-		if current.Result.State == gridtypes.StateDeleted ||
-			current.Result.State == gridtypes.StateError {
+		if current.Result.State.IsAny(gridtypes.StateDeleted, gridtypes.StateError) {
 			//nothing to do!
 			return nil
 		}

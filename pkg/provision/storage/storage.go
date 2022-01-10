@@ -7,6 +7,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision"
 )
@@ -23,44 +24,47 @@ const (
 	keySignatureRequirement = "signature_requirement"
 	keyWorkloads            = "workloads"
 	keyTransactions         = "transactions"
+	keyGlobal               = "global"
 )
 
-type boltStorage struct {
+type BoltStorage struct {
 	db *bolt.DB
 }
 
-func New(path string) (provision.Storage, error) {
+var _ provision.Storage = (*BoltStorage)(nil)
+
+func New(path string) (*BoltStorage, error) {
 	db, err := bolt.Open(path, 0644, bolt.DefaultOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	return &boltStorage{
+	return &BoltStorage{
 		db,
 	}, nil
 }
 
-func (b *boltStorage) u32(u uint32) []byte {
+func (b *BoltStorage) u32(u uint32) []byte {
 	var v [4]byte
 	binary.BigEndian.PutUint32(v[:], u)
 	return v[:]
 }
 
-func (b *boltStorage) l32(v []byte) uint32 {
+func (b *BoltStorage) l32(v []byte) uint32 {
 	return binary.BigEndian.Uint32(v)
 }
 
-func (b *boltStorage) u64(u uint64) []byte {
+func (b *BoltStorage) u64(u uint64) []byte {
 	var v [8]byte
 	binary.BigEndian.PutUint64(v[:], u)
 	return v[:]
 }
 
-func (b *boltStorage) l64(v []byte) uint64 {
+func (b *BoltStorage) l64(v []byte) uint64 {
 	return binary.BigEndian.Uint64(v)
 }
 
-func (b *boltStorage) Create(deployment gridtypes.Deployment) error {
+func (b *BoltStorage) Create(deployment gridtypes.Deployment) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		twin, err := tx.CreateBucketIfNotExists(b.u32(deployment.TwinID))
 		if err != nil {
@@ -99,11 +103,32 @@ func (b *boltStorage) Create(deployment gridtypes.Deployment) error {
 	})
 }
 
-func (b *boltStorage) Delete(twin uint32, deployment uint64) error {
+// Migrate deployment creates an exact copy of dl in this storage.
+// usually used to copy deployment from older storage
+func (b *BoltStorage) Migrate(dl gridtypes.Deployment) error {
+	if err := b.Create(dl); err != nil {
+		return err
+	}
+
+	for _, wl := range dl.Workloads {
+		if err := b.Transaction(dl.TwinID, dl.ContractID, wl); err != nil {
+			return err
+		}
+		if wl.Result.State == gridtypes.StateDeleted {
+			if err := b.Remove(dl.TwinID, dl.ContractID, wl.Name); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (b *BoltStorage) Delete(twin uint32, deployment uint64) error {
 	panic("unimplemented")
 }
 
-func (b *boltStorage) Get(twin uint32, deployment uint64) (dl gridtypes.Deployment, err error) {
+func (b *BoltStorage) Get(twin uint32, deployment uint64) (dl gridtypes.Deployment, err error) {
 	dl.TwinID = twin
 	dl.ContractID = deployment
 	err = b.db.View(func(t *bolt.Tx) error {
@@ -140,18 +165,57 @@ func (b *boltStorage) Get(twin uint32, deployment uint64) (dl gridtypes.Deployme
 	return
 }
 
-func (b *boltStorage) Error(twin uint32, deployment uint64, err error) error {
-	panic("unimplemented")
+func (b *BoltStorage) Error(twinID uint32, dl uint64, e error) error {
+	current, err := b.Get(twinID, dl)
+	if err != nil {
+		return err
+	}
+	return b.db.Update(func(t *bolt.Tx) error {
+		twin := t.Bucket(b.u32(twinID))
+		if twin == nil {
+			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
+		}
+		deployment := twin.Bucket(b.u64(dl))
+		if deployment == nil {
+			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
+		}
+		result := gridtypes.Result{
+			Created: gridtypes.Now(),
+			State:   gridtypes.StateError,
+			Error:   e.Error(),
+		}
+		for _, wl := range current.Workloads {
+			if err := b.transaction(t, twinID, dl, wl.WithResults(result)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
-func (b *boltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, workload gridtypes.Workload) error {
-	if gridtypes.IsSharable(workload.Type) {
-		panic("not implemeneted")
-	}
+func (b *BoltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, workload gridtypes.Workload) error {
+	global := gridtypes.IsSharable(workload.Type)
 	twin := tx.Bucket(b.u32(twinID))
 	if twin == nil {
 		return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
 	}
+
+	if global {
+		shared, err := twin.CreateBucketIfNotExists([]byte(keyGlobal))
+		if err != nil {
+			return errors.Wrap(err, "failed to create twin global bucket")
+		}
+
+		if value := shared.Get([]byte(workload.Name)); value != nil {
+			return errors.Wrapf(
+				provision.ErrDeploymentConflict, "global workload with the same name '%s' exists", workload.Name)
+		}
+
+		if err := shared.Put([]byte(workload.Name), b.u64(dl)); err != nil {
+			return err
+		}
+	}
+
 	deployment := twin.Bucket(b.u64(dl))
 	if deployment == nil {
 		return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
@@ -178,17 +242,13 @@ func (b *boltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, workload gridty
 	)
 }
 
-func (b *boltStorage) Add(twin uint32, deployment uint64, workload gridtypes.Workload) error {
-	// if global {
-	// 	panic("TODO: not implemented")
-	// }
-
+func (b *BoltStorage) Add(twin uint32, deployment uint64, workload gridtypes.Workload) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		return b.add(tx, twin, deployment, workload)
 	})
 }
 
-func (b *boltStorage) Remove(twin uint32, deployment uint64, name gridtypes.Name) error {
+func (b *BoltStorage) Remove(twin uint32, deployment uint64, name gridtypes.Name) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		twin := tx.Bucket(b.u32(twin))
 		if twin == nil {
@@ -205,11 +265,24 @@ func (b *boltStorage) Remove(twin uint32, deployment uint64, name gridtypes.Name
 			return nil
 		}
 
+		typ := workloads.Get([]byte(name))
+		if typ == nil {
+			return nil
+		}
+
+		if gridtypes.IsSharable(gridtypes.WorkloadType(typ)) {
+			if shared := twin.Bucket([]byte(keyGlobal)); shared != nil {
+				if err := shared.Delete([]byte(name)); err != nil {
+					return err
+				}
+			}
+		}
+
 		return workloads.Delete([]byte(name))
 	})
 }
 
-func (b *boltStorage) transaction(tx *bolt.Tx, twinID uint32, dl uint64, workload gridtypes.Workload) error {
+func (b *BoltStorage) transaction(tx *bolt.Tx, twinID uint32, dl uint64, workload gridtypes.Workload) error {
 	if err := workload.Result.Valid(); err != nil {
 		return errors.Wrap(err, "failed to validate workload result")
 	}
@@ -255,13 +328,13 @@ func (b *boltStorage) transaction(tx *bolt.Tx, twinID uint32, dl uint64, workloa
 	return logs.Put(b.u64(id), data)
 }
 
-func (b *boltStorage) Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error {
+func (b *BoltStorage) Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		return b.transaction(tx, twin, deployment, workload)
 	})
 }
 
-func (b *boltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Workload, error) {
+func (b *BoltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Workload, error) {
 	names := make(map[gridtypes.Name]gridtypes.WorkloadType)
 	workloads := make(map[gridtypes.Name]gridtypes.Workload)
 
@@ -351,7 +424,7 @@ func (b *boltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Wor
 	return result, err
 }
 
-func (b *boltStorage) Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error) {
+func (b *BoltStorage) Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error) {
 	var workload gridtypes.Workload
 	err := b.db.View(func(tx *bolt.Tx) error {
 		twin := tx.Bucket(b.u32(twin))
@@ -417,7 +490,7 @@ func (b *boltStorage) Current(twin uint32, deployment uint64, name gridtypes.Nam
 	return workload, err
 }
 
-func (b *boltStorage) Twins() ([]uint32, error) {
+func (b *BoltStorage) Twins() ([]uint32, error) {
 	var twins []uint32
 	err := b.db.View(func(t *bolt.Tx) error {
 		curser := t.Cursor()
@@ -441,7 +514,7 @@ func (b *boltStorage) Twins() ([]uint32, error) {
 	return twins, err
 }
 
-func (b *boltStorage) ByTwin(twin uint32) ([]uint64, error) {
+func (b *BoltStorage) ByTwin(twin uint32) ([]uint64, error) {
 	var deployments []uint64
 	err := b.db.View(func(t *bolt.Tx) error {
 		bucket := t.Bucket(b.u32(twin))
@@ -456,7 +529,7 @@ func (b *boltStorage) ByTwin(twin uint32) ([]uint64, error) {
 				continue
 			}
 
-			if len(k) != 8 {
+			if len(k) != 8 || string(k) == "global" {
 				// sanity check it's a valid uint32
 				continue
 			}
@@ -468,4 +541,45 @@ func (b *boltStorage) ByTwin(twin uint32) ([]uint64, error) {
 	})
 
 	return deployments, err
+}
+
+func (b *BoltStorage) Capacity() (cap gridtypes.Capacity, err error) {
+	twins, err := b.Twins()
+	if err != nil {
+		return gridtypes.Capacity{}, err
+	}
+
+	for _, twin := range twins {
+		dls, err := b.ByTwin(twin)
+		if err != nil {
+			log.Error().Err(err).Uint32("twin", twin).Msg("failed to get twin deployments")
+			continue
+		}
+		for _, dl := range dls {
+			deployment, err := b.Get(twin, dl)
+			if err != nil {
+				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl).Msg("failed to get deployment")
+				continue
+			}
+
+			for _, wl := range deployment.Workloads {
+				if wl.Result.State != gridtypes.StateOk {
+					continue
+				}
+
+				c, err := wl.Capacity()
+				if err != nil {
+					return cap, err
+				}
+
+				cap.Add(&c)
+			}
+		}
+	}
+
+	return cap, nil
+}
+
+func (b *BoltStorage) Close() error {
+	return b.db.Close()
 }

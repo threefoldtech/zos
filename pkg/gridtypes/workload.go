@@ -222,6 +222,16 @@ func (w *Workload) Capacity() (Capacity, error) {
 // ResultState type
 type ResultState string
 
+func (s ResultState) IsAny(state ...ResultState) bool {
+	for _, in := range state {
+		if s == in {
+			return true
+		}
+	}
+
+	return false
+}
+
 const (
 	// StateInit is the first state of the workload on storage
 	StateInit ResultState = "init"
