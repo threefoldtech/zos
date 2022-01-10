@@ -54,10 +54,14 @@ func action(cli *cli.Context) error {
 		printID      bool   = cli.Bool("id")
 		printNet     bool   = cli.Bool("net")
 	)
-
 	if app.CheckFlag(app.LimitedCache) {
-		return fmt.Errorf("node doesn't have disks attached to it")
+		for app.CheckFlag(app.LimitedCache) {
+			// relog the error in case it got lost
+			log.Error().Msg("The node doesn't have ssd attached, it won't register.")
+			time.Sleep(time.Minute * 5)
+		}
 	}
+
 	env := environment.MustGet()
 
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
