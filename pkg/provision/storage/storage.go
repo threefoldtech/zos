@@ -354,10 +354,14 @@ func (b *BoltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Wor
 			return nil
 		}
 
-		types.ForEach(func(k, v []byte) error {
+		err := types.ForEach(func(k, v []byte) error {
 			names[gridtypes.Name(k)] = gridtypes.WorkloadType(v)
 			return nil
 		})
+
+		if err != nil {
+			return err
+		}
 
 		if len(names) == 0 {
 			return nil
