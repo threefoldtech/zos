@@ -167,6 +167,10 @@ func (n *nullKeyGetter) GetKey(id uint32) ([]byte, error) {
 
 type engineKey struct{}
 type deploymentKey struct{}
+type deploymentValue struct {
+	twin       uint32
+	deployment uint64
+}
 type contractKey struct{}
 type substrateKey struct{}
 
@@ -175,18 +179,25 @@ func GetEngine(ctx context.Context) Engine {
 	return ctx.Value(engineKey{}).(Engine)
 }
 
-// GetDeployment gets a copy of the current deployment
-func GetDeployment(ctx context.Context) gridtypes.Deployment {
-	// we store the pointer on the context so changed to deployment object
-	// actually reflect into the value.
-	dl := ctx.Value(deploymentKey{}).(*gridtypes.Deployment)
-	// BUT we always return a copy so caller of GetDeployment can NOT manipulate
-	// other attributed on the object.
-	return *dl
+// GetDeploymentID gets twin and deployment ID for current deployment
+func GetDeploymentID(ctx context.Context) (twin uint32, deployment uint64) {
+	values := ctx.Value(deploymentKey{}).(deploymentValue)
+	return values.twin, values.deployment
 }
 
-func withDeployment(ctx context.Context, dl *gridtypes.Deployment) context.Context {
-	return context.WithValue(ctx, deploymentKey{}, dl)
+// GetDeployment gets a copy of the current deployment with latest state
+func GetDeployment(ctx context.Context) (gridtypes.Deployment, error) {
+	// we store the pointer on the context so changed to deployment object
+	// actually reflect into the value.
+	engine := GetEngine(ctx)
+	values := ctx.Value(deploymentKey{}).(deploymentValue)
+	// BUT we always return a copy so caller of GetDeployment can NOT manipulate
+	// other attributed on the object.
+	return engine.Storage().Get(values.twin, values.deployment)
+}
+
+func withDeployment(ctx context.Context, twin uint32, deployment uint64) context.Context {
+	return context.WithValue(ctx, deploymentKey{}, deploymentValue{twin, deployment})
 }
 
 // GetContract of deployment. panics if engine has no substrate set.
@@ -345,7 +356,7 @@ func (e *NativeEngine) Run(root context.Context) error {
 		}
 
 		job := obj.(*engineJob)
-		ctx := withDeployment(root, &job.Target)
+		ctx := withDeployment(root, job.Target.TwinID, job.Target.ContractID)
 
 		// contract validation
 		// this should ONLY be done on provosion and update operation
@@ -458,7 +469,7 @@ func (e *NativeEngine) boot(root context.Context) error {
 			// unfortunately we have to inject this value here
 			// since the boot runs outside the engine queue.
 
-			ctx := withDeployment(root, &dl)
+			ctx := withDeployment(root, dl.TwinID, dl.ContractID)
 			e.installDeployment(ctx, &dl)
 		}
 	}
@@ -649,12 +660,7 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 	if err != nil {
 		return err
 	}
-	dl, err := e.storage.Get(twin, dlID)
-	if err != nil {
-		return err
-	}
-
-	wl, err := dl.Get(gridtypes.Name(name))
+	wl, err := e.storage.Current(twin, dlID, name)
 	if err != nil {
 		return err
 	}
@@ -667,16 +673,12 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 
 	//to bad we have to repeat this here
 	ctx := context.WithValue(context.Background(), engineKey{}, e)
-	ctx = withDeployment(ctx, &dl)
+	ctx = withDeployment(ctx, twin, dlID)
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
-	err = e.uninstallWorkload(ctx, wl, reason)
-
-	// if err := e.storage.Set(dl); err != nil {
-	// 	log.Error().Err(err).Msg("failed to set workload result")
-	// }
+	err = e.uninstallWorkload(ctx, &gridtypes.WorkloadWithID{Workload: &wl, ID: globalID}, reason)
 
 	return err
 }
