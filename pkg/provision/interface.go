@@ -88,11 +88,31 @@ func (e ErrUnchanged) Error() string {
 	return e.Cause.Error()
 }
 
+// Field interface
+type Field interface{}
+type VersionField struct {
+	Version uint32
+}
+
+type DescriptionField struct {
+	Description string
+}
+
+type MetadataField struct {
+	Metadata string
+}
+
+type SignatureRequirementField struct {
+	SignatureRequirement gridtypes.SignatureRequirement
+}
+
 // Storage interface
 type Storage interface {
 	// Create a new deployment in storage, it sets the initial transactions
 	// for all workloads to "init" and the correct creation time.
 	Create(deployment gridtypes.Deployment) error
+	// Update updates a deployment fields
+	Update(twin uint32, deployment uint64, fields ...Field) error
 	// Delete deletes a deployment from storage.
 	Delete(twin uint32, deployment uint64) error
 	// Get gets the current state of a deployment from storage

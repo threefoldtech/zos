@@ -103,6 +103,49 @@ func (b *BoltStorage) Create(deployment gridtypes.Deployment) error {
 	})
 }
 
+func (b *BoltStorage) Update(twin uint32, deployment uint64, field ...provision.Field) error {
+	return b.db.Update(func(t *bolt.Tx) error {
+		twin := t.Bucket(b.u32(twin))
+		if twin == nil {
+			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
+		}
+		deployment := twin.Bucket(b.u64(deployment))
+		if deployment == nil {
+			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
+		}
+
+		for _, field := range field {
+			var key, value []byte
+			switch f := field.(type) {
+			case provision.VersionField:
+				key = []byte(keyVersion)
+				value = b.u32(f.Version)
+			case provision.MetadataField:
+				key = []byte(keyMetadata)
+				value = []byte(f.Metadata)
+			case provision.DescriptionField:
+				key = []byte(keyDescription)
+				value = []byte(f.Description)
+			case provision.SignatureRequirementField:
+				key = []byte(keySignatureRequirement)
+				var err error
+				value, err = json.Marshal(f.SignatureRequirement)
+				if err != nil {
+					return errors.Wrap(err, "failed to serialize signature requirements")
+				}
+			default:
+				return fmt.Errorf("unknown field")
+			}
+
+			if err := deployment.Put(key, value); err != nil {
+				return errors.Wrapf(err, "failed to update deployment")
+			}
+		}
+
+		return nil
+	})
+}
+
 // Migrate deployment creates an exact copy of dl in this storage.
 // usually used to copy deployment from older storage
 func (b *BoltStorage) Migrate(dl gridtypes.Deployment) error {

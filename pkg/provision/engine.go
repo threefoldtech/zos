@@ -345,6 +345,22 @@ func (e *NativeEngine) Update(ctx context.Context, update gridtypes.Deployment) 
 		}
 	}
 
+	// fields to update in storage
+	fields := []Field{
+		VersionField{update.Version},
+		SignatureRequirementField{update.SignatureRequirement},
+	}
+
+	if deployment.Description != update.Description {
+		fields = append(fields, DescriptionField{update.Description})
+	}
+	if deployment.Metadata != update.Metadata {
+		fields = append(fields, MetadataField{update.Metadata})
+	}
+	// update deployment fields, workloads will then can get updated separately
+	if err := e.storage.Update(update.TwinID, update.ContractID, fields...); err != nil {
+		return errors.Wrap(err, "failed to update deployment data")
+	}
 	// all is okay we can push the job
 	job := engineJob{
 		Op:     opUpdate,
