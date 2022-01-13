@@ -28,6 +28,7 @@ type Client interface {
 	Exist(name string) (bool, error)
 	DeleteNamespace(name string) error
 	Namespaces() ([]string, error)
+	Namespace(name string) (Namespace, error)
 	NamespaceSetSize(name string, size uint64) error
 	NamespaceSetPassword(name, password string) error
 	NamespaceSetMode(name, mode string) error

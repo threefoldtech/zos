@@ -105,6 +105,8 @@ type Storage interface {
 	Remove(twin uint32, deployment uint64, name gridtypes.Name) error
 	// Transaction append a transaction to deployment transactions logs
 	Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error
+	// Changes return all the historic transactions of a deployment
+	Changes(twin uint32, deployment uint64) (changes []gridtypes.Workload, err error)
 	// Current gets last state of a workload by name
 	Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error)
 	// Twins list twins in storage

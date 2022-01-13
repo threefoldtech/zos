@@ -119,14 +119,6 @@ func (p *Primitives) zdbProvisionImpl(ctx context.Context, wl *gridtypes.Workloa
 		return zos.ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
-	ipsToString := func(ips []net.IP) []string {
-		result := make([]string, 0, len(ips))
-		for _, ip := range ips {
-			result = append(result, ip.String())
-		}
-
-		return result
-	}
 	// for each container we try to find a free space to jam in this new zdb namespace
 	// request
 	containers, err := p.zdbListContainers(ctx)
@@ -590,7 +582,7 @@ func (p *Primitives) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 	}
 
 	name := wl.ID.String()
-	for id, _ := range containers {
+	for id, container := range containers {
 		con := zdbConnection(id)
 		if err := con.Connect(); err != nil {
 			log.Error().Err(err).Str("id", string(id)).Msg("failed t connect to zdb")
@@ -601,13 +593,49 @@ func (p *Primitives) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 			continue
 		}
 
-		con.NamespaceSetPassword(name, new.Password)
-		con.NamespaceSetPublic(name, new.Public)
-		con.NamespaceSetSize(name, uint64(new.Size))
+		// we try the size first because this can fail easy
+		if new.Size != old.Size {
+			free, reserved, err := reservedSpace(con)
+			if err != nil {
+				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to calculate free/reserved space from zdb"))
+			}
 
-	} // something cannot be changed, like the namespace mode. so we need to compare this
+			if reserved+new.Size-old.Size > free {
+				return result, provision.NewUnchangedError(fmt.Errorf("no enough free space to support new size"))
+			}
 
-	return zos.ZDBResult{}, provision.ErrUnchanged{fmt.Errorf("not implemented yet")}
+			if err := con.NamespaceSetSize(name, uint64(new.Size)); err != nil {
+				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to set new zdb namespace size"))
+			}
+		}
+
+		// this is kinda proplamatic because what if we changed the size for example, but failed
+		// to setup the password
+		if new.Password != old.Password {
+			if err := con.NamespaceSetPassword(name, new.Password); err != nil {
+				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to set new password"))
+			}
+		}
+		if new.Public != old.Public {
+			if con.NamespaceSetPublic(name, new.Public); err != nil {
+				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to set public flag"))
+			}
+		}
+
+		containerIPs, err := p.waitZDBIPs(ctx, container.Network.Namespace, container.CreatedAt)
+		if err != nil {
+			return zos.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
+		}
+
+		return zos.ZDBResult{
+			Namespace: name,
+			IPs:       ipsToString(containerIPs),
+			Port:      zdbPort,
+		}, nil
+
+	}
+
+	return result, fmt.Errorf("namespace not found")
 }
 
 func socketDir(containerID pkg.ContainerID) string {
@@ -623,6 +651,37 @@ func socketFile(containerID pkg.ContainerID) string {
 var zdbConnection = func(id pkg.ContainerID) zdb.Client {
 	socket := fmt.Sprintf("unix://%s@%s", string(id), socketFile(id))
 	return zdb.New(socket)
+}
+
+func reservedSpace(con zdb.Client) (free, reserved gridtypes.Unit, err error) {
+	nss, err := con.Namespaces()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	for _, id := range nss {
+		ns, err := con.Namespace(id)
+		if err != nil {
+			return 0, 0, err
+		}
+
+		if ns.Name == "default" {
+			free = ns.DataDiskFreespace
+		}
+
+		reserved += ns.DataLimit
+	}
+
+	return
+}
+
+func ipsToString(ips []net.IP) []string {
+	result := make([]string, 0, len(ips))
+	for _, ip := range ips {
+		result = append(result, ip.String())
+	}
+
+	return result
 }
 
 // isPublic check if ip is a IPv6 public address
