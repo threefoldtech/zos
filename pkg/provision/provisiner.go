@@ -39,7 +39,7 @@ func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWi
 	}
 
 	data, err := handler(ctx, wl)
-	if errors.Is(err, ErrDidNotChange) {
+	if errors.Is(err, ErrNoActionNeeded) {
 		return result, err
 	}
 
@@ -64,7 +64,7 @@ func (p *mapProvisioner) Update(ctx context.Context, wl *gridtypes.WorkloadWithI
 	}
 
 	data, err := handler(ctx, wl)
-	if errors.Is(err, ErrDidNotChange) {
+	if errors.Is(err, ErrNoActionNeeded) {
 		return result, err
 	}
 
@@ -81,7 +81,11 @@ func (p *mapProvisioner) buildResult(data interface{}, err error) (gridtypes.Res
 		Created: gridtypes.Timestamp(time.Now().Unix()),
 	}
 
-	if err != nil {
+	var unchanged ErrUnchanged
+	if errors.As(err, &unchanged) {
+		result.Error = unchanged.Error()
+		result.State = gridtypes.StateUnChanged
+	} else if err != nil {
 		result.Error = err.Error()
 		result.State = gridtypes.StateError
 	} else {

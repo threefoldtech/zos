@@ -132,7 +132,7 @@ func (p *Primitives) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Wo
 	fName := filterName(tapName)
 
 	if network.PubIPFilterExists(ctx, fName) {
-		return result, provision.ErrDidNotChange
+		return result, provision.ErrNoActionNeeded
 	}
 
 	var ipv6 gridtypes.IPNet

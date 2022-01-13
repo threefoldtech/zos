@@ -108,7 +108,7 @@ func (p *Primitives) virtualMachineProvisionImpl(ctx context.Context, wl *gridty
 		config ZMachine
 	)
 	if vm.Exists(ctx, wl.ID.String()) {
-		return result, provision.ErrDidNotChange
+		return result, provision.ErrNoActionNeeded
 	}
 
 	if err := json.Unmarshal(wl.Data, &config); err != nil {

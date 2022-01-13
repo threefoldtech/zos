@@ -542,7 +542,7 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 
 	log.Debug().Msg("provisioning")
 	result, err := e.provisioner.Provision(ctx, wl)
-	if errors.Is(err, ErrDidNotChange) {
+	if errors.Is(err, ErrNoActionNeeded) {
 		// workload already exist, so no need to create a new transaction
 		return nil
 	} else if err != nil {
@@ -581,12 +581,12 @@ func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.Workloa
 		err = fmt.Errorf("can not update this workload type")
 	}
 
-	if err != nil {
+	if errors.Is(err, ErrNoActionNeeded) {
+		return nil
+	} else if err != nil {
 		return err
 	}
 
-	// TODO: we need to handle the correct transaction status here. In case no change
-	// has happened to the workload
 	return e.storage.Transaction(twin, deployment, wl.Workload.WithResults(result))
 }
 

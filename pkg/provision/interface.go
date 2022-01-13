@@ -25,7 +25,13 @@ type Engine interface {
 	Admins() Twins
 }
 
-// Provisioner interface
+// Provisioner interface. the errors returned by this interface are associated with
+// provisioner errors, not workloads errors. The difference is, a failure to recognize the
+// workload type for example, is a provisioner error. A workload error is when the workload
+// fails to deploy and this is returned as Error state in the Result object (but nil error)
+// Methods can return special error type ErrDidNotChange which instructs the engine that the
+// workload provision was not carried on because it's already deployed, basically a no action
+// needed indicator. In that case, the engine can ignore the returned result
 type Provisioner interface {
 	Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
 	Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error
@@ -47,9 +53,11 @@ var (
 	ErrDeploymentNotExists = fmt.Errorf("workload does not exist")
 	// ErrWorkloadNotExist returned by storage if workload does not exist
 	ErrWorkloadNotExist = fmt.Errorf("workload does not exist")
-	// ErrDidNotChange special error that can be returned by the provisioner
-	// if returned the engine does no update workload data
-	ErrDidNotChange = fmt.Errorf("did not change")
+	// ErrNoActionNeeded can be returned by any provision method to indicate that
+	// no action has been taken in case a workload is already deployed and the
+	// engine then can skip updating the result of the workload.
+	// When returned, the data returned by the provision is ignored
+	ErrNoActionNeeded = fmt.Errorf("no action needed")
 	// ErrDeploymentUpgradeValidationError error, is returned if the deployment
 	// failed to compute upgrade steps
 	ErrDeploymentUpgradeValidationError = fmt.Errorf("upgrade validation error")
@@ -57,30 +65,17 @@ var (
 	ErrInvalidVersion = fmt.Errorf("invalid version")
 )
 
+// ErrUnchanged can be returned by the Provisioner.Update it means
+// that the update has failed but the workload is intact
+type ErrUnchanged struct {
+	Cause error
+}
+
+func (e ErrUnchanged) Error() string {
+	return e.Cause.Error()
+}
+
 // Storage interface
-// type Storage interface {
-// 	Add(wl gridtypes.Deployment) error
-// 	Set(wl gridtypes.Deployment) error
-// 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
-// 	Twins() ([]uint32, error)
-// 	ByTwin(twin uint32) ([]uint64, error)
-
-// 	// manage of shared workloads
-// 	GetShared(twinID uint32, name gridtypes.Name) (gridtypes.WorkloadID, error)
-// 	SharedByTwin(twinID uint32) ([]gridtypes.WorkloadID, error)
-// }
-
-// type TransactionState string
-
-// const (
-// 	StateOK        = TransactionState(gridtypes.StateOk)
-// 	StateError     = TransactionState(gridtypes.StateError)
-// 	StateDeleted   = TransactionState(gridtypes.StateDeleted)
-// 	StateUnchanged = TransactionState("unchanged")
-// )
-
-//type Transaction = gridtypes.Workload
-
 type Storage interface {
 	// Create a new deployment in storage, it sets the initial transactions
 	// for all workloads to "init" and the correct creation time.
@@ -91,13 +86,17 @@ type Storage interface {
 	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
 	// Error sets global deployment error
 	Error(twin uint32, deployment uint64, err error) error
-
+	// Add workload to deployment, if no active deployment exists with same name
 	Add(twin uint32, deployment uint64, workload gridtypes.Workload) error
+	// Remove a workload from deployment.
 	Remove(twin uint32, deployment uint64, name gridtypes.Name) error
+	// Transaction append a transaction to deployment transactions logs
 	Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error
+	// Current gets last state of a workload by name
 	Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error)
-
+	// Twins list twins in storage
 	Twins() ([]uint32, error)
+	// ByTwin return list of deployments for a twin
 	ByTwin(twin uint32) ([]uint64, error)
 }
 

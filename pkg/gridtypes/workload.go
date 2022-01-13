@@ -235,11 +235,9 @@ func (s ResultState) IsAny(state ...ResultState) bool {
 const (
 	// StateInit is the first state of the workload on storage
 	StateInit ResultState = "init"
-	// StateUnChanged is a special state means state was not changed from previous
-	// state
+	// StateUnChanged is a special error state it means there was an error
+	// running the action, but this error did not break previous state.
 	StateUnChanged ResultState = "unchanged"
-	// StateScheduled state
-	StateScheduled ResultState = "scheduled"
 	// StateError constant
 	StateError ResultState = "error"
 	// StateOk constant
