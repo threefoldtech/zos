@@ -71,6 +71,19 @@ type ErrUnchanged struct {
 	Cause error
 }
 
+// NewUnchangedError return an instance of ErrUnchanged
+func NewUnchangedError(cause error) error {
+	if cause == nil {
+		return nil
+	}
+
+	return ErrUnchanged{cause}
+}
+
+func (e ErrUnchanged) Unwrap() error {
+	return e.Cause
+}
+
 func (e ErrUnchanged) Error() string {
 	return e.Cause.Error()
 }

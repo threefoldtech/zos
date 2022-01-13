@@ -328,10 +328,51 @@ func (b *BoltStorage) transaction(tx *bolt.Tx, twinID uint32, dl uint64, workloa
 	return logs.Put(b.u64(id), data)
 }
 
+func (b *BoltStorage) changes(tx *bolt.Tx, twinID uint32, dl uint64) ([]gridtypes.Workload, error) {
+	twin := tx.Bucket(b.u32(twinID))
+	if twin == nil {
+		return nil, errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
+	}
+	deployment := twin.Bucket(b.u64(dl))
+	if deployment == nil {
+		return nil, errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
+	}
+
+	logs := deployment.Bucket([]byte(keyTransactions))
+	if logs == nil {
+		return nil, nil
+	}
+	var changes []gridtypes.Workload
+	err := logs.ForEach(func(k, v []byte) error {
+		if len(v) == 0 {
+			return nil
+		}
+
+		var wl gridtypes.Workload
+		if err := json.Unmarshal(v, &wl); err != nil {
+			return errors.Wrap(err, "failed to load transaction log")
+		}
+
+		changes = append(changes, wl)
+		return nil
+	})
+
+	return changes, err
+}
+
 func (b *BoltStorage) Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		return b.transaction(tx, twin, deployment, workload)
 	})
+}
+
+func (b *BoltStorage) Changes(twin uint32, deployment uint64) (changes []gridtypes.Workload, err error) {
+	err = b.db.View(func(tx *bolt.Tx) error {
+		changes, err = b.changes(tx, twin, deployment)
+		return err
+	})
+
+	return
 }
 
 func (b *BoltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Workload, error) {

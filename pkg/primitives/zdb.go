@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/zdb"
 
 	"github.com/pkg/errors"
@@ -51,6 +52,11 @@ func newSafeError(err error) error {
 	}
 	return &safeError{err}
 }
+
+func (se *safeError) Unwrap() error {
+	return se.error
+}
+
 func (se *safeError) Error() string {
 	return uuidRegex.ReplaceAllString(se.error.Error(), `$1-***`)
 }
@@ -511,6 +517,7 @@ func (p *Primitives) zdbDecommissionImpl(ctx context.Context, wl *gridtypes.Work
 	for id, container := range containers {
 		con := zdbConnection(id)
 		if err := con.Connect(); err == nil {
+			defer con.Close()
 			if ok, _ := con.Exist(wl.ID.String()); ok {
 				if err := con.DeleteNamespace(wl.ID.String()); err != nil {
 					return errors.Wrap(err, "failed to delete namespace")
@@ -537,34 +544,71 @@ func (p *Primitives) zdbDecommissionImpl(ctx context.Context, wl *gridtypes.Work
 	return nil
 }
 
-// func (p *Primitives) deleteZdbContainer(ctx context.Context, containerID pkg.ContainerID) error {
-// 	// TODO: if a zdb container is not serving any namespaces, should we delete it?
+func (p *Primitives) zdbUpdate(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
+	res, err := p.zdbUpdateImpl(ctx, wl)
+	return res, newSafeError(err)
+}
 
-// 	container := stubs.NewContainerModuleStub(p.zbus)
-// 	flist := stubs.NewFlisterStub(p.zbus)
+func (p *Primitives) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.ZDBResult, err error) {
+	current, err := provision.GetWorkload(ctx, wl.Name)
+	if err != nil {
+		// this should not happen but we need to have the check anyway
+		return result, errors.Wrapf(err, "no zdb workload with name '%s' is deployed", wl.Name.String())
+	}
 
-// 	info, err := container.Inspect(ctx, "zdb", containerID)
-// 	if err != nil && strings.Contains(err.Error(), "not found") {
-// 		return nil
-// 	} else if err != nil {
-// 		return errors.Wrapf(err, "failed to inspect container '%s'", containerID)
-// 	}
+	var old ZDB
+	if err := json.Unmarshal(current.Data, &old); err != nil {
+		return result, errors.Wrap(err, "failed to decode reservation schema")
+	}
 
-// 	if err := container.Delete(ctx, "zdb", containerID); err != nil {
-// 		return errors.Wrapf(err, "failed to delete container %s", containerID)
-// 	}
+	var new ZDB
+	if err := json.Unmarshal(wl.Data, &new); err != nil {
+		return result, errors.Wrap(err, "failed to decode reservation schema")
+	}
 
-// 	network := stubs.NewNetworkerStub(p.zbus)
-// 	if err := network.ZDBDestroy(ctx, info.Network.Namespace); err != nil {
-// 		return errors.Wrapf(err, "failed to destroy zdb network namespace")
-// 	}
+	if new.Mode != old.Mode {
+		return result, provision.NewUnchangedError(fmt.Errorf("cannot change namespace mode"))
+	}
 
-// 	if err := flist.Unmount(ctx, string(containerID)); err != nil {
-// 		return errors.Wrapf(err, "failed to unmount flist at %s", info.RootFS)
-// 	}
+	if new.Size < old.Size {
+		// technically shrinking a namespace is possible, but the problem is if you set it
+		// to a size smaller than actual size used by the namespace, zdb will just not accept
+		// writes anymore but NOT change the effective size.
+		// While this makes sense fro ZDB. it will not make zos able to calculate the namespace
+		// consumption because it will only count the size used by the workload from the user
+		// data but not actual size on disk. hence shrinking is not allowed.
+		return result, provision.NewUnchangedError(fmt.Errorf("cannot shrink zdb namespace"))
+	}
 
-// 	return nil
-// }
+	if new.Size == old.Size && new.Password == old.Password {
+		// unnecessary update.
+		return result, provision.ErrNoActionNeeded
+	}
+	containers, err := p.zdbListContainers(ctx)
+	if err != nil {
+		return result, provision.NewUnchangedError(errors.Wrap(err, "failed to list running zdbs"))
+	}
+
+	name := wl.ID.String()
+	for id, _ := range containers {
+		con := zdbConnection(id)
+		if err := con.Connect(); err != nil {
+			log.Error().Err(err).Str("id", string(id)).Msg("failed t connect to zdb")
+			continue
+		}
+		defer con.Close()
+		if ok, _ := con.Exist(name); !ok {
+			continue
+		}
+
+		con.NamespaceSetPassword(name, new.Password)
+		con.NamespaceSetPublic(name, new.Public)
+		con.NamespaceSetSize(name, uint64(new.Size))
+
+	} // something cannot be changed, like the namespace mode. so we need to compare this
+
+	return zos.ZDBResult{}, provision.ErrUnchanged{fmt.Errorf("not implemented yet")}
+}
 
 func socketDir(containerID pkg.ContainerID) string {
 	return fmt.Sprintf("/var/run/zdb_%s", containerID)
@@ -623,6 +667,7 @@ func (p *Primitives) InitializeZDB(ctx context.Context) error {
 		return errors.Wrap(err, "failed to list allocated zdb devices")
 	}
 
+	log.Debug().Msgf("alloced devices for zdb: %+v", devices)
 	poolNames := make(map[string]pkg.Device)
 	for _, device := range devices {
 		poolNames[device.ID] = device
@@ -643,6 +688,7 @@ func (p *Primitives) InitializeZDB(ctx context.Context) error {
 
 	// do we still have allocated pools that does not have associated zdbs.
 	for _, device := range poolNames {
+		log.Debug().Str("device", device.Path).Msg("starting zdb")
 		if _, err := p.ensureZdbContainer(ctx, device); err != nil {
 			log.Error().Err(err).Str("pool", device.ID).Msg("failed to create zdb container associated with pool")
 		}

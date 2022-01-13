@@ -190,10 +190,31 @@ func GetDeployment(ctx context.Context) (gridtypes.Deployment, error) {
 	// we store the pointer on the context so changed to deployment object
 	// actually reflect into the value.
 	engine := GetEngine(ctx)
-	values := ctx.Value(deploymentKey{}).(deploymentValue)
+	twin, deployment := GetDeploymentID(ctx)
+
 	// BUT we always return a copy so caller of GetDeployment can NOT manipulate
 	// other attributed on the object.
-	return engine.Storage().Get(values.twin, values.deployment)
+	return engine.Storage().Get(twin, deployment)
+}
+
+// GetWorkload get the last state of the workload for the current deployment
+func GetWorkload(ctx context.Context, name gridtypes.Name) (gridtypes.WorkloadWithID, error) {
+	// we store the pointer on the context so changed to deployment object
+	// actually reflect into the value.
+	engine := GetEngine(ctx)
+	twin, deployment := GetDeploymentID(ctx)
+
+	// BUT we always return a copy so caller of GetDeployment can NOT manipulate
+	// other attributed on the object.
+	wl, err := engine.Storage().Current(twin, deployment, name)
+	if err != nil {
+		return gridtypes.WorkloadWithID{}, err
+	}
+
+	return gridtypes.WorkloadWithID{
+		Workload: &wl,
+		ID:       gridtypes.NewUncheckedWorkloadID(twin, deployment, name),
+	}, nil
 }
 
 func withDeployment(ctx context.Context, twin uint32, deployment uint64) context.Context {

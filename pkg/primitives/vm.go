@@ -389,11 +389,7 @@ func (p *Primitives) vmDecomission(ctx context.Context, wl *gridtypes.WorkloadWi
 	if len(cfg.Network.PublicIP) > 0 {
 		// TODO: we need to make sure workload status reflects the actual status by the engine
 		// this is not the case anymore.
-		deployment, err := provision.GetDeployment(ctx)
-		if err != nil {
-			return errors.Wrap(err, "failed to get deployment")
-		}
-		ipWl, err := deployment.Get(cfg.Network.PublicIP)
+		ipWl, err := provision.GetWorkload(ctx, cfg.Network.PublicIP)
 		if err != nil {
 			return err
 		}
