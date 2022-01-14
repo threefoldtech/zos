@@ -617,7 +617,7 @@ func (p *Primitives) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 			}
 		}
 		if new.Public != old.Public {
-			if con.NamespaceSetPublic(name, new.Public); err != nil {
+			if err := con.NamespaceSetPublic(name, new.Public); err != nil {
 				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to set public flag"))
 			}
 		}
