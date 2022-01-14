@@ -50,6 +50,7 @@ func NewPrimitivesProvisioner(zbus zbus.Client) *Primitives {
 		zos.NetworkType:       p.networkProvision,
 		zos.QuantumSafeFSType: p.qsfsUpdate,
 		zos.ZDBType:           p.zdbUpdate,
+		zos.ZMountType:        p.zMountUpdate,
 	}
 
 	p.Provisioner = provision.NewMapProvisioner(provisioners, decommissioners, updaters)

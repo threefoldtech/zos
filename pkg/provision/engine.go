@@ -556,7 +556,14 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 	twin, deployment, name, _ := wl.ID.Parts()
 
 	current, err := e.storage.Current(twin, deployment, name)
-	if err != nil {
+	if errors.Is(err, ErrWorkloadNotExist) {
+		// this can happen if installWorkload was called upon a deployment update operation
+		// so this is a totally new workload that was not part of the original deployment
+		// hence a call to Add is needed
+		if err := e.storage.Add(twin, deployment, *wl.Workload); err != nil {
+			return errors.Wrap(err, "failed to add workload to storage")
+		}
+	} else if err != nil {
 		// another error
 		return errors.Wrapf(err, "failed to get last transaction for '%s'", wl.ID.String())
 	} else {
@@ -684,7 +691,7 @@ func (e *NativeEngine) updateDeployment(ctx context.Context, ops []gridtypes.Upg
 		}
 
 		if err != nil {
-			log.Error().Err(err).Stringer("id", op.WlID.ID).Stringer("operation", op.Op).Msg("error while updating workload")
+			log.Error().Err(err).Stringer("id", op.WlID.ID).Stringer("operation", op.Op).Msg("error while updating deployment")
 		}
 	}
 	return
