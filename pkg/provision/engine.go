@@ -547,7 +547,11 @@ func (e *NativeEngine) uninstallWorkload(ctx context.Context, wl *gridtypes.Work
 		return err
 	}
 
-	return e.storage.Remove(twin, deployment, name)
+	if result.State == gridtypes.StateDeleted {
+		return e.storage.Remove(twin, deployment, name)
+	}
+
+	return nil
 }
 
 func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.WorkloadWithID) error {

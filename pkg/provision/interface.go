@@ -68,7 +68,7 @@ var (
 // ErrUnchanged can be returned by the Provisioner.Update it means
 // that the update has failed but the workload is intact
 type ErrUnchanged struct {
-	Cause error
+	cause error
 }
 
 // NewUnchangedError return an instance of ErrUnchanged
@@ -81,11 +81,11 @@ func NewUnchangedError(cause error) error {
 }
 
 func (e ErrUnchanged) Unwrap() error {
-	return e.Cause
+	return e.cause
 }
 
 func (e ErrUnchanged) Error() string {
-	return e.Cause.Error()
+	return e.cause.Error()
 }
 
 // Field interface

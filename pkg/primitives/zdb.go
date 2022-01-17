@@ -572,7 +572,7 @@ func (p *Primitives) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 		return result, provision.NewUnchangedError(fmt.Errorf("cannot shrink zdb namespace"))
 	}
 
-	if new.Size == old.Size && new.Password == old.Password {
+	if new.Size == old.Size && new.Password == old.Password && new.Public == old.Public {
 		// unnecessary update.
 		return result, provision.ErrNoActionNeeded
 	}
