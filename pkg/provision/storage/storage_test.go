@@ -406,7 +406,8 @@ func TestMigrate(t *testing.T) {
 		},
 	}
 
-	err = db.Migrate(dl)
+	migration := db.Migration()
+	err = migration.Migrate(dl)
 	require.NoError(err)
 
 	loaded, err := db.Get(1, 10)
@@ -416,4 +417,18 @@ func TestMigrate(t *testing.T) {
 
 	require.NoError(err)
 	require.EqualValues(dl, loaded)
+}
+
+func TestMigrateUnsafe(t *testing.T) {
+	require := require.New(t)
+	path := filepath.Join(os.TempDir(), fmt.Sprint(rand.Int63()))
+	defer os.RemoveAll(path)
+
+	db, err := New(path)
+	require.NoError(err)
+
+	migration := db.Migration()
+
+	require.False(db.unsafe)
+	require.True(migration.unsafe.unsafe)
 }

@@ -27,8 +27,13 @@ const (
 	keyGlobal               = "global"
 )
 
+type MigrationStorage struct {
+	unsafe BoltStorage
+}
+
 type BoltStorage struct {
-	db *bolt.DB
+	db     *bolt.DB
+	unsafe bool
 }
 
 var _ provision.Storage = (*BoltStorage)(nil)
@@ -40,8 +45,13 @@ func New(path string) (*BoltStorage, error) {
 	}
 
 	return &BoltStorage{
-		db,
+		db, false,
 	}, nil
+}
+
+func (b BoltStorage) Migration() MigrationStorage {
+	b.unsafe = true
+	return MigrationStorage{unsafe: b}
 }
 
 func (b *BoltStorage) u32(u uint32) []byte {
@@ -148,8 +158,8 @@ func (b *BoltStorage) Update(twin uint32, deployment uint64, field ...provision.
 
 // Migrate deployment creates an exact copy of dl in this storage.
 // usually used to copy deployment from older storage
-func (b *BoltStorage) Migrate(dl gridtypes.Deployment) error {
-	err := b.Create(dl)
+func (b *MigrationStorage) Migrate(dl gridtypes.Deployment) error {
+	err := b.unsafe.Create(dl)
 	if errors.Is(err, provision.ErrDeploymentExists) {
 		log.Debug().Uint32("twin", dl.TwinID).Uint64("deployment", dl.ContractID).Msg("deployment already migrated")
 		return nil
@@ -158,11 +168,11 @@ func (b *BoltStorage) Migrate(dl gridtypes.Deployment) error {
 	}
 
 	for _, wl := range dl.Workloads {
-		if err := b.Transaction(dl.TwinID, dl.ContractID, wl); err != nil {
+		if err := b.unsafe.Transaction(dl.TwinID, dl.ContractID, wl); err != nil {
 			return err
 		}
 		if wl.Result.State == gridtypes.StateDeleted {
-			if err := b.Remove(dl.TwinID, dl.ContractID, wl.Name); err != nil {
+			if err := b.unsafe.Remove(dl.TwinID, dl.ContractID, wl.Name); err != nil {
 				return err
 			}
 		}
@@ -253,9 +263,11 @@ func (b *BoltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, workload gridty
 			return errors.Wrap(err, "failed to create twin global bucket")
 		}
 
-		if value := shared.Get([]byte(workload.Name)); value != nil {
-			return errors.Wrapf(
-				provision.ErrDeploymentConflict, "global workload with the same name '%s' exists", workload.Name)
+		if !b.unsafe {
+			if value := shared.Get([]byte(workload.Name)); value != nil {
+				return errors.Wrapf(
+					provision.ErrDeploymentConflict, "global workload with the same name '%s' exists", workload.Name)
+			}
 		}
 
 		if err := shared.Put([]byte(workload.Name), b.u64(dl)); err != nil {

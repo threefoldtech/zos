@@ -382,6 +382,7 @@ func storageMigration(db *storage.BoltStorage, fs *fsStorage.Fs) error {
 	if err != nil {
 		return err
 	}
+	migration := db.Migration()
 	errorred := false
 	for _, twin := range twins {
 		dls, err := fs.ByTwin(twin)
@@ -402,7 +403,7 @@ func storageMigration(db *storage.BoltStorage, fs *fsStorage.Fs) error {
 				errorred = true
 				continue
 			}
-			if err := db.Migrate(deployment); err != nil {
+			if err := migration.Migrate(deployment); err != nil {
 				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl).Msg("failed to migrate deployment")
 				errorred = true
 				continue
