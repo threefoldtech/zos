@@ -3,6 +3,7 @@ package provisiond
 import (
 	"context"
 	"crypto/ed25519"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -168,7 +169,7 @@ func action(cli *cli.Context) error {
 		}
 
 		if err := storageMigration(store, fs); err != nil {
-			log.Error().Err(err).Msg("storage migration failed")
+			return errors.Wrap(err, "storage migration failed")
 		}
 
 		if err := os.RemoveAll(fsStoragePath); err != nil {
@@ -380,6 +381,7 @@ func storageMigration(db *storage.BoltStorage, fs *fsStorage.Fs) error {
 	if err != nil {
 		return err
 	}
+	errorred := false
 	for _, twin := range twins {
 		dls, err := fs.ByTwin(twin)
 		if err != nil {
@@ -391,13 +393,24 @@ func storageMigration(db *storage.BoltStorage, fs *fsStorage.Fs) error {
 			deployment, err := fs.Get(twin, dl)
 			if err != nil {
 				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl).Msg("failed to get deployment")
+				errorred = true
 				continue
 			}
 			if err := db.Migrate(deployment); err != nil {
 				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl).Msg("failed to migrate deployment")
+				errorred = true
+				continue
+			}
+			if err := fs.Delete(deployment); err != nil {
+				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl).Msg("failed to delete migrated deployment")
 				continue
 			}
 		}
 	}
+
+	if errorred {
+		return fmt.Errorf("not all deployments where migrated")
+	}
+
 	return nil
 }

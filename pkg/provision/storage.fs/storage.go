@@ -58,6 +58,15 @@ func (s *Fs) rooted(p ...string) string {
 	return filepath.Join(s.root, filepath.Join(p...))
 }
 
+// Delete is only used for the migration
+func (s *Fs) Delete(d gridtypes.Deployment) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	path := s.rooted(s.deploymentPath(&d))
+	return os.RemoveAll(path)
+}
+
 // Add workload to database
 func (s *Fs) Add(d gridtypes.Deployment) error {
 	s.m.Lock()

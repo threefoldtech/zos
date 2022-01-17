@@ -149,7 +149,11 @@ func (b *BoltStorage) Update(twin uint32, deployment uint64, field ...provision.
 // Migrate deployment creates an exact copy of dl in this storage.
 // usually used to copy deployment from older storage
 func (b *BoltStorage) Migrate(dl gridtypes.Deployment) error {
-	if err := b.Create(dl); err != nil {
+	err := b.Create(dl)
+	if errors.Is(err, provision.ErrDeploymentExists) {
+		log.Debug().Uint32("twin", dl.TwinID).Uint64("deployment", dl.ContractID).Msg("deployment already migrated")
+		return nil
+	} else if err != nil {
 		return err
 	}
 
