@@ -90,7 +90,7 @@ func (b *BoltStorage) Create(deployment gridtypes.Deployment) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to encode signature requirement")
 		}
-		if err := dl.Put([]byte(sig), sig); err != nil {
+		if err := dl.Put([]byte(keySignatureRequirement), sig); err != nil {
 			return err
 		}
 

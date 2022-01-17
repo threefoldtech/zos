@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
@@ -388,6 +389,11 @@ func storageMigration(db *storage.BoltStorage, fs *fsStorage.Fs) error {
 			log.Error().Err(err).Uint32("twin", twin).Msg("failed to list twin deployments")
 			continue
 		}
+
+		sort.Slice(dls, func(i, j int) bool {
+			return dls[i] < dls[j]
+		})
+
 		for _, dl := range dls {
 			log.Info().Uint32("twin", twin).Uint64("deployment", dl).Msg("processing deployment migration")
 			deployment, err := fs.Get(twin, dl)
