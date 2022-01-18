@@ -324,7 +324,7 @@ func uptime(ctx context.Context, cl zbus.Client) error {
 		log.Debug().Msg("updating node uptime")
 		hash, err := sub.UpdateNodeUptime(id, uptime)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to report uptime")
+			return errors.Wrap(err, "failed to report uptime")
 		}
 
 		log.Info().Str("hash", hash.Hex()).Msg("node uptime hash")
