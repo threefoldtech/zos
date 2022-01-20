@@ -109,7 +109,7 @@ func (r *Registrar) registration(ctx context.Context, cl zbus.Client, env enviro
 		return 0, 0, errors.Wrap(err, "failed to register node")
 	}
 
-	// well the node is registed. but now we need to monitor changes to networking
+	// well the node is registered. but now we need to monitor changes to networking
 	// to update the node (currently only yggdrasil ip) which will require changes
 	// to twin ip.
 	go func() {
