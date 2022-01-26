@@ -9,6 +9,7 @@ import (
 	"github.com/threefoldtech/zos/cmds/modules/capacityd"
 	"github.com/threefoldtech/zos/cmds/modules/contd"
 	"github.com/threefoldtech/zos/cmds/modules/flistd"
+	"github.com/threefoldtech/zos/cmds/modules/migrate"
 	"github.com/threefoldtech/zos/cmds/modules/networkd"
 	"github.com/threefoldtech/zos/cmds/modules/provisiond"
 	"github.com/threefoldtech/zos/cmds/modules/storaged"
@@ -43,6 +44,7 @@ func main() {
 			&networkd.Module,
 			&provisiond.Module,
 			&zbusdebug.Module,
+			&migrate.Module,
 		},
 		Action: func(c *cli.Context) error {
 			if !c.Bool("list") {
