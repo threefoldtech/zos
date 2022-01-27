@@ -8,16 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-/*
-{
-   "blockdevices": [
-      {"path":"/dev/sda", "type":"disk", "subsystems":"block:scsi:pci", "mountpoint":"/mnt/fe33fecf-cc24-4b81-89fd-f9c991200c4b"},
-      {"path":"/dev/sdb", "type":"disk", "subsystems":"block:scsi:usb:pci", "mountpoint":null},
-      {"path":"/dev/sdb1", "type":"part", "subsystems":"block:scsi:usb:pci", "mountpoint":null}
-   ]
-}
-
-*/
 type Device struct {
 	Path       string `json:"name"`
 	Type       string `json:"type"`
