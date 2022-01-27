@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -266,6 +267,67 @@ func (c *Client) StopWait(timeout time.Duration, service string) error {
 			<-time.After(1 * time.Second)
 		}
 	}
+}
+
+func (c *Client) StopMultiple(timeout time.Duration, service ...string) error {
+	services := make(map[string]struct{})
+	for _, name := range service {
+		log.Info().Str("service", name).Msg("stopping service")
+		if err := c.Stop(name); err != nil {
+			log.Debug().Str("service", name).Msg("service undefined")
+			continue
+		}
+
+		services[name] = struct{}{}
+	}
+
+	deadline := time.After(timeout)
+
+	for len(services) > 0 {
+		var stopped []string
+		for service := range services {
+			log.Info().Str("service", service).Msg("check if service is stopped")
+			status, err := c.Status(service)
+			if err != nil {
+				return err
+			}
+
+			if status.Target != ServiceTargetDown {
+				// it means some other entity (another client or command line)
+				// has set the service back to up. I think we should immediately return
+				// with an error instead.
+				return fmt.Errorf("expected service '%s' target should be DOWN. found UP", service)
+			}
+
+			if status.State.Exited() {
+				stopped = append(stopped, service)
+			}
+		}
+
+		for _, stop := range stopped {
+			if _, ok := services[stop]; ok {
+				log.Debug().Str("service", stop).Msg("service stopped")
+				delete(services, stop)
+			}
+		}
+
+		if len(services) == 0 {
+			break
+		}
+
+		select {
+		case <-deadline:
+			for service := range services {
+				log.Warn().Str("service", service).Msg("service didn't stop in time. use SIGKILL")
+				if err := c.Kill(service, SIGKILL); err != nil {
+					log.Error().Err(err).Msgf("failed to send SIGKILL to service %s", service)
+				}
+			}
+		case <-time.After(1 * time.Second):
+		}
+	}
+
+	return nil
 }
 
 // Monitor starts monitoring a service

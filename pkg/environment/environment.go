@@ -60,6 +60,7 @@ var (
 	envDev = Environment{
 		RunningMode: RunningDev,
 		BcdbURL:     "https://explorer.devnet.grid.tf/explorer",
+		GraphQlURL:  "https://graphql.dev,grid.tf/graphql",
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins.dev",
 	}
@@ -67,6 +68,7 @@ var (
 	envTest = Environment{
 		RunningMode: RunningTest,
 		BcdbURL:     "https://explorer.testnet.grid.tf/explorer",
+		GraphQlURL:  "https://graphql.test.grid.tf/graphql",
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins.test",
 	}
