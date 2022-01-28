@@ -11,9 +11,8 @@ all: _base explorer
 
 .PHONY: output clean
 
-
 getdeps:
-	@echo "Installing golint" && go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+	@echo "Installing golint" && go install golang.org/x/lint/golint@latest
 	@echo "Installing gocyclo" && go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 	@echo "Installing deadcode" && go install github.com/remyoudompheng/go-misc/deadcode@latest
 	@echo "Installing misspell" && go install github.com/client9/misspell/cmd/misspell@latest
@@ -47,7 +46,7 @@ spelling:
 	misspell -i monitord -error $(shell ls **/*.go | grep -v statik)
 
 static:
-	go run honnef.co/go/tools/cmd/staticcheck -- ./...
+	staticcheck -- ./...
 
 # Builds minio, runs the verifiers then runs the tests.
 check: test
