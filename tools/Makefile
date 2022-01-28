@@ -11,12 +11,14 @@ all: _base explorer
 
 .PHONY: output clean
 
+
 getdeps:
-	@echo "Installing golint" && go install golang.org/x/lint/golint
-	@echo "Installing gocyclo" && go install github.com/fzipp/gocyclo/cmd/gocyclo
-	@echo "Installing misspell" && go install github.com/client9/misspell/cmd/misspell
-	@echo "Installing ineffassign" && go install github.com/gordonklaus/ineffassign
-	@echo "Installing statik" && go install github.com/rakyll/statik
+	@echo "Installing golint" && go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+	@echo "Installing gocyclo" && go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+	@echo "Installing deadcode" && go install github.com/remyoudompheng/go-misc/deadcode@latest
+	@echo "Installing misspell" && go install github.com/client9/misspell/cmd/misspell@latest
+	@echo "Installing ineffassign" && go install github.com/gordonklaus/ineffassign@latest
+	@echo "Installing staticcheck" && go install honnef.co/go/tools/cmd/staticcheck@latest
 
 verifiers: vet fmt lint cyclo spelling static
 
@@ -30,7 +32,7 @@ fmt:
 
 lint:
 	@echo "Running $@"
-	golint -set_exit_status $(shell go list ./... | grep -v stubs | grep -v generated| grep -v migrations | grep -v statik)
+	@${GOPATH}/bin/golint -set_exit_status $(shell go list ./... | grep -v stubs | grep -v generated| grep -v migrations | grep -v statik)
 
 ineffassign:
 	@echo "Running $@"
