@@ -177,7 +177,7 @@ func (l *lsblkDeviceManager) scan(ctx context.Context) (DeviceCache, error) {
 
 	devs, err := l.Raw(ctx)
 	if err != nil {
-		errors.Wrap(err, "failed to scan devices")
+		return nil, errors.Wrap(err, "failed to scan devices")
 	}
 
 	if err := l.setDeviceTypes(devs); err != nil {

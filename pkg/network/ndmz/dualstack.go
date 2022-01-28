@@ -130,7 +130,9 @@ func (d *dmzImpl) Create(ctx context.Context) error {
 		return err
 	}
 	dhcpMon := NewDHCPMon(dmzPub4, dmzNamespace, z)
-	go dhcpMon.Start(ctx)
+	go func() {
+		_ = dhcpMon.Start(ctx)
+	}()
 
 	return nil
 }
@@ -388,7 +390,7 @@ func (d *dmzImpl) Interfaces() ([]types.IfaceInfo, error) {
 			info := types.IfaceInfo{
 				Name:       name,
 				Addrs:      make([]types.IPNet, len(addrs)),
-				MacAddress: schema.MacAddress{link.Attrs().HardwareAddr},
+				MacAddress: schema.MacAddress{HardwareAddr: link.Attrs().HardwareAddr},
 			}
 			for i, addr := range addrs {
 				info.Addrs[i] = types.NewIPNet(addr.IPNet)
@@ -424,7 +426,10 @@ func waitIP4() error {
 	if err := probe.Start(dmzPub4); err != nil {
 		return err
 	}
-	defer probe.Stop()
+
+	defer func() {
+		_ = probe.Stop()
+	}()
 
 	link, err := netlink.LinkByName(dmzPub4)
 	if err != nil {

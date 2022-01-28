@@ -224,7 +224,7 @@ func (f *flistModule) mount(name, url, storage string, opts pkg.MountOptions) (s
 		// we need to deallocate the filesystem
 		defer func() {
 			if newAllocation && err != nil {
-				f.storage.ReleaseFilesystem(name)
+				_ = f.storage.ReleaseFilesystem(name)
 			}
 		}()
 	} else {

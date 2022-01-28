@@ -68,7 +68,7 @@ func Monitor(addr string, ns string, id string, backend io.WriteCloser) error {
 		}
 
 		// sending metric to the backend
-		backend.Write(b)
+		_, _ = backend.Write(b)
 
 		time.Sleep(StatsPushInterval)
 	}
