@@ -23,7 +23,7 @@ fmt:
 
 lint:
 	@echo "Running $@"
-	@${GOPATH}/bin/golint -set_exit_status $(shell go list ./... | grep -v stubs)
+	@${GOPATH}/bin/golangci-lint run
 
 ineffassign:
 	@echo "Running $@"
@@ -41,7 +41,7 @@ spelling:
 	@${GOPATH}/bin/misspell -i monitord -error `find .`
 
 static:
-	go run honnef.co/go/tools/cmd/staticcheck -- ./...
+	@${GOPATH}/bin/staticcheck -- ./...
 
 check: test
 test: verifiers build
