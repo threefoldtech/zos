@@ -3,7 +3,6 @@ package migrate
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"syscall"
 	"time"
@@ -143,21 +142,11 @@ func migrate(ctx context.Context, v2 *directory.Farm, v3 *Farm) error {
 
 	syscall.Sync()
 
-	if err := crossFingers(); err != nil {
+	if err := syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART); err != nil {
 		return errors.Wrap(err, "failed to reboot")
 	}
 	log.Info().Msg("I should never show up on screen")
 	return nil
-}
-
-func crossFingers() error {
-	f, err := os.OpenFile("/proc/sysrq-trigger", os.O_WRONLY, 0400)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.WriteString("b")
-	return err
 }
 
 func action(cli *cli.Context) error {

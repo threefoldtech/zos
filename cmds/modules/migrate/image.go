@@ -16,7 +16,9 @@ import (
 )
 
 const (
-	imageURL = "https://bootstrap.grid.tf/uefimg/%s/%d"
+	imageURL      = "https://signed.maxux.net/%s/%d"
+	contentType   = "application/vnd.microsoft.portable-executable"
+	contentLength = 2097152
 )
 
 var (
@@ -56,12 +58,21 @@ func burn(ctx context.Context, v3 uint64, device *Device) error {
 		return fmt.Errorf("invalid response '%s': %s", response.Status, string(body))
 	}
 
+	if response.ContentLength != contentLength {
+		return fmt.Errorf("invalid content length, expecting %d", contentLength)
+	}
+
+	if response.Header.Get("content-type") != contentType {
+		return fmt.Errorf("invalid content type, expecting %s", contentType)
+	}
+
 	// this is un recoverable, if the node reboots now while the image is being written
 	// it can corrupt the usb stick.
 	_, err = io.Copy(dev, response.Body)
 	if err != nil {
 		return errors.Wrap(err, "failed to write image to device")
 	}
+
 	return nil
 }
 
