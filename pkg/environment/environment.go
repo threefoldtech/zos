@@ -77,7 +77,7 @@ var (
 	envProd = Environment{
 		RunningMode: RunningMain,
 		BcdbURL:     "https://explorer.grid.tf/explorer",
-		GraphQlURL:  "https://graphql.grid.tf/graphql",
+		GraphQlURL:  "https://graph.grid.tf/graphql",
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins",
 	}
