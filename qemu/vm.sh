@@ -88,4 +88,7 @@ qemu-system-x86_64 -kernel $image \
     -drive file=$vmdir/vdc.qcow2,if=virtio -drive file=$vmdir/vdd.qcow2,if=virtio \
     -drive file=$vmdir/vde.qcow2,if=virtio \
     -serial null -serial mon:stdio \
+    -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
+    -tpmdev emulator,id=tpm0,chardev=chrtpm \
+    -device tpm-tis,tpmdev=tpm0 \
     ${graphics}
