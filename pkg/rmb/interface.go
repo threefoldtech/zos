@@ -23,7 +23,20 @@ type Router interface {
 	Use(Middleware)
 }
 
+type Response interface {
+	SetError(err error)
+	SetTwin(twin uint32)
+	Error() error
+	Twin() uint32
+
+	SetResponse(bs []byte) error
+}
+
 // Client is an rmb abstract client interface.
 type Client interface {
 	Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error
+}
+
+type MultiDestinationClient interface {
+	Call(ctx context.Context, twins []uint32, fn string, data interface{}, constructor func() Response) (chan Response, error)
 }
