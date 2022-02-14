@@ -51,5 +51,5 @@ func NewProvisioner(cache provision.ReservationCache, zbus zbus.Client) *Provisi
 
 // RuntimeUpgrade runs upgrade needed when provision daemon starts
 func (p *Provisioner) RuntimeUpgrade(ctx context.Context) {
-	p.upgradeRunningZdb(ctx)
+	_ = p.upgradeRunningZdb(ctx)
 }

@@ -328,7 +328,7 @@ func (m *Module) Run(vm pkg.VM) error {
 
 	defer func() {
 		if err != nil {
-			m.Delete(machine.ID)
+			_ = m.Delete(machine.ID)
 		}
 	}()
 
@@ -417,7 +417,7 @@ func (m *Module) Delete(name string) error {
 
 	//is this the real life? is this just legacy?
 	if pid, err := findFC(name); err == nil {
-		syscall.Kill(pid, syscall.SIGKILL)
+		_ = syscall.Kill(pid, syscall.SIGKILL)
 		return m.legacyMonitor.cleanFsFirecracker(name)
 	}
 
@@ -454,12 +454,12 @@ func (m *Module) Delete(name string) error {
 
 		log.Debug().Str("name", name).Msg("shutting vm down [sigterm]")
 		if time.Since(now) > termAfter {
-			syscall.Kill(pid, syscall.SIGTERM)
+			_ = syscall.Kill(pid, syscall.SIGTERM)
 		}
 
 		if time.Since(now) > killAfter {
 			log.Debug().Str("name", name).Msg("shutting vm down [sigkill]")
-			syscall.Kill(pid, syscall.SIGKILL)
+			_ = syscall.Kill(pid, syscall.SIGKILL)
 			break
 		}
 

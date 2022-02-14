@@ -9,7 +9,7 @@ import (
 
 const (
 	nsFlagsPublic   = 1
-	nsFlagsWorm     = 2
+	nsFlagsWorm     = 2 //nolint
 	nsFlagsExtended = 4
 )
 

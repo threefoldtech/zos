@@ -179,7 +179,7 @@ func (p *Provisioner) virtualMachineProvisionImpl(ctx context.Context, reservati
 	err = p.vmRun(ctx, reservation.ID, cpu, memory, diskPath, imageInfo, cmdline, netInfo)
 	if err != nil {
 		// attempt to delete the vm, should the process still be lingering
-		vm.Delete(reservation.ID)
+		_ = vm.Delete(reservation.ID)
 	}
 
 	return result, err

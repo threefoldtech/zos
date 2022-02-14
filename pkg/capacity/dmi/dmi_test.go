@@ -1,3 +1,4 @@
+//nolint
 package dmi
 
 import (
@@ -270,7 +271,7 @@ Memory Device
 	Manufacturer: 859B
 	Serial Number: E0AD159C
 	Asset Tag: 9876543210
-	Part Number: CT8G4SFD824A.M16FB  
+	Part Number: CT8G4SFD824A.M16FB
 	Rank: 2
 	Configured Clock Speed: 2133 MT/s
 	Minimum Voltage: 1.2 V
@@ -294,7 +295,7 @@ Memory Device
 	Manufacturer: 859B
 	Serial Number: E0AD159D
 	Asset Tag: 9876543210
-	Part Number: CT8G4SFD824A.M16FB  
+	Part Number: CT8G4SFD824A.M16FB
 	Rank: 2
 	Configured Clock Speed: 2133 MT/s
 	Minimum Voltage: 1.2 V

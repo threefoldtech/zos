@@ -24,14 +24,11 @@ func ExplorerClient() (*client.Client, error) {
 		return nil, err
 	}
 
-	cl, err := client.NewClient(env.BcdbURL, nodeIdentity{
-		kp: kp,
-	})
-	if err != nil {
-		return nil, err
-	}
+	return Explorer(env.BcdbURL, kp)
+}
 
-	return cl, nil
+func Explorer(url string, kp identity.KeyPair) (*client.Client, error) {
+	return client.NewClient(url, nodeIdentity{kp})
 }
 
 type nodeIdentity struct {

@@ -137,7 +137,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 			return
 		}
 
-		ps.Wait()
+		_, _ = ps.Wait()
 	}()
 
 	if err := cmd.Process.Release(); err != nil {

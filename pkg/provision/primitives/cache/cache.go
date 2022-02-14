@@ -265,7 +265,7 @@ func (s *Fs) Get(id string) (*provision.Reservation, error) {
 func (s *Fs) getType(id string) (provision.ReservationType, error) {
 	r, err := s.get(id)
 	if err != nil {
-		return provision.ReservationType(0), err
+		return provision.ReservationType("unknown"), err
 	}
 	return r.Type, nil
 }

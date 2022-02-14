@@ -17,6 +17,8 @@ type Environment struct {
 
 	BcdbURL      string
 	BcdbPassword string
+	// GraphQlURL is used ONLY for migration to v3
+	GraphQlURL string
 
 	FlistURL string
 	BinRepo  string
@@ -58,6 +60,7 @@ var (
 	envDev = Environment{
 		RunningMode: RunningDev,
 		BcdbURL:     "https://explorer.devnet.grid.tf/explorer",
+		GraphQlURL:  "https://graphql.dev.grid.tf/graphql",
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins.dev",
 	}
@@ -65,6 +68,7 @@ var (
 	envTest = Environment{
 		RunningMode: RunningTest,
 		BcdbURL:     "https://explorer.testnet.grid.tf/explorer",
+		GraphQlURL:  "https://graphql.test.grid.tf/graphql",
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins.test",
 	}
@@ -73,6 +77,7 @@ var (
 	envProd = Environment{
 		RunningMode: RunningMain,
 		BcdbURL:     "https://explorer.grid.tf/explorer",
+		GraphQlURL:  "https://graph.grid.tf/graphql",
 		FlistURL:    "zdb://hub.grid.tf:9900",
 		BinRepo:     "tf-zos-bins",
 	}

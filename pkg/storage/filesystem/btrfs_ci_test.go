@@ -1,3 +1,6 @@
+//nolint
+package filesystem
+
 /*
 NOTE:
   This test file tries to create loop devices to work against on some
@@ -13,7 +16,6 @@ NOTE:
 	  current user
    )
 */
-package filesystem
 
 import (
 	"context"

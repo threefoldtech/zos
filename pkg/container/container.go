@@ -171,7 +171,7 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 	}
 
 	if err := applyStartup(&data, filepath.Join(data.RootFS, ".startup.toml")); err != nil {
-		errors.Wrap(err, "error updating environment variable from startup file")
+		return "", errors.Wrap(err, "error updating environment variable from startup file")
 	}
 
 	opts := []oci.SpecOpts{
@@ -242,7 +242,7 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 		// we delete the container.
 		// (preparing, creating, and starting a task)
 		if err != nil {
-			container.Delete(ctx, containerd.WithSnapshotCleanup)
+			_ = container.Delete(ctx, containerd.WithSnapshotCleanup)
 		}
 	}()
 
@@ -273,7 +273,9 @@ func (c *Module) Run(ns string, data pkg.Container) (id pkg.ContainerID, err err
 				continue
 			}
 
-			go stats.Monitor(c.containerd, ns, data.Name, s)
+			go func() {
+				_ = stats.Monitor(c.containerd, ns, data.Name, s)
+			}()
 
 		default:
 			log.Error().Str("type", l.Type).Msg("invalid stats type requested")

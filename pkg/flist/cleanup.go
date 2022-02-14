@@ -104,7 +104,7 @@ func (f *flistModule) cleanupAll() error {
 		case -1:
 			// process has shutdown gracefully
 			log.Debug().Str("name", name).Int64("pid", pid).Msg("attempt to clean up mount")
-			f.cleanupMount(name)
+			_ = f.cleanupMount(name)
 		case 0:
 			// the file exists, but we can't read the file content
 			// for some reason!
@@ -116,7 +116,7 @@ func (f *flistModule) cleanupAll() error {
 				// this is only possible if process does not exist.
 				// hence we need to clean up.
 				log.Debug().Str("name", name).Int64("pid", pid).Msg("attempt to clean up mount")
-				f.cleanupMount(name)
+				_ = f.cleanupMount(name)
 			}
 			// nothing to do
 		}
