@@ -1,6 +1,10 @@
 package environment
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"strconv"
 
@@ -22,6 +26,8 @@ const (
 
 	SubstrateMainURL  = "wss://tfchain.grid.tf/"
 	ActivationMainURL = "https://activation.grid.tf/activation/activate"
+
+	BaseExtendedURL = "https://raw.githubusercontent.com/threefoldtech/zos-config/main/%s.json"
 )
 
 // Environment holds information about running environment of a node
@@ -38,6 +44,13 @@ type Environment struct {
 	FarmSecret    string
 	SubstrateURL  string
 	ActivationURL string
+}
+
+// Extended is configuration set by the organization
+type Extended struct {
+	// Monitor is a list of twins that need to updated continuesly
+	// with node free capacity and status.
+	Monitor []int `json:"monitor"`
 }
 
 // RunningMode type
@@ -199,4 +212,26 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	}
 
 	return env, nil
+}
+
+// GetExtended returns extend config for specific run mode
+func GetExtended(run RunningMode) (ext Extended, err error) {
+	u := fmt.Sprintf(BaseExtendedURL, run.String())
+
+	response, err := http.Get(u)
+	if err != nil {
+		return ext, err
+	}
+
+	defer ioutil.ReadAll(response.Body)
+
+	if response.StatusCode != http.StatusOK {
+		return ext, fmt.Errorf("failed to get extended config: %s", response.Status)
+	}
+
+	if err := json.NewDecoder(response.Body).Decode(&ext); err != nil {
+		return ext, errors.Wrap(err, "failed to decode extended settings")
+	}
+
+	return
 }
