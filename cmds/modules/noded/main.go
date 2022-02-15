@@ -201,6 +201,16 @@ func action(cli *cli.Context) error {
 		}
 	}()
 
+	// reporting stats
+	go func() {
+		for {
+			if err := reportStatistics(ctx, msgBrokerCon, redis); err != nil {
+				log.Error().Err(err).Msg("sending uptime failed")
+				<-time.After(10 * time.Second)
+			}
+		}
+	}()
+
 	log.Info().Uint32("twin", twin).Msg("node has been registered")
 	log.Debug().Msg("start message bus")
 	identityd := stubs.NewIdentityManagerStub(redis)

@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zos/pkg"
 
@@ -44,13 +45,15 @@ type Environment struct {
 	FarmSecret    string
 	SubstrateURL  string
 	ActivationURL string
+
+	ExtendedConfigURL string
 }
 
 // Extended is configuration set by the organization
 type Extended struct {
 	// Monitor is a list of twins that need to updated continuesly
 	// with node free capacity and status.
-	Monitor []int `json:"monitor"`
+	Monitor []uint32 `json:"monitor"`
 }
 
 // RunningMode type
@@ -155,6 +158,11 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		env = envProd
 	}
 
+	extended, found := params.Get("config_url")
+	if found && len(extended) >= 1 {
+		env.ExtendedConfigURL = extended[0]
+	}
+
 	if substrate, ok := params.Get("substrate"); ok {
 		if len(substrate) > 0 {
 			env.SubstrateURL = substrate[len(substrate)-1]
@@ -216,15 +224,40 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 
 // GetExtended returns extend config for specific run mode
 func GetExtended(run RunningMode) (ext Extended, err error) {
-	u := fmt.Sprintf(BaseExtendedURL, run.String())
+	ext, err = GetSingleExtended(run, BaseExtendedURL)
+	if err != nil {
+		return
+	}
+	env, err := Get()
+	if err != nil {
+		return
+	}
+	if env.ExtendedConfigURL != "" {
+		url := env.ExtendedConfigURL
+		if url[len(url)-1] != '/' {
+			url += "/"
+		}
+		url += "%s.json"
+		log.Debug().Str("url", url).Msg("extended url")
+		config2, err := GetSingleExtended(run, url)
+		if err != nil {
+			log.Error().Err(err).Msg("fetching the config from the env config-url failed")
+		}
+		ext.Monitor = append(ext.Monitor, config2.Monitor...)
+	}
+	return ext, nil
+}
+func GetSingleExtended(run RunningMode, url string) (ext Extended, err error) {
+	u := fmt.Sprintf(url, run.String())
 
 	response, err := http.Get(u)
 	if err != nil {
 		return ext, err
 	}
 
-	defer ioutil.ReadAll(response.Body)
-
+	defer func() {
+		_, _ = ioutil.ReadAll(response.Body)
+	}()
 	if response.StatusCode != http.StatusOK {
 		return ext, fmt.Errorf("failed to get extended config: %s", response.Status)
 	}
