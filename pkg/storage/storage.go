@@ -510,7 +510,7 @@ func (s *Module) ensureCache() error {
 		return syscall.Mount("", "/var/cache", "tmpfs", 0, "size=500M")
 	}
 
-	app.DeleteFlag(app.LimitedCache)
+	_ = app.DeleteFlag(app.LimitedCache)
 
 	log.Info().Msgf("set cache quota to %d GiB", cacheSize/gib)
 	if err := cacheFs.Limit(cacheSize); err != nil {
