@@ -61,12 +61,11 @@ func (r *ResourceOracle) Total() (c gridtypes.Capacity, err error) {
 func IsSecureBoot() (bool, error) {
 	// check if node is booted via efi
 	const (
-		efi        = "/sys/firmware/efi"
 		efivars    = "/sys/firmware/efi/efivars"
 		secureBoot = "/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
 	)
 
-	_, err := os.Stat(efi)
+	_, err := os.Stat(efivars)
 	if os.IsNotExist(err) {
 		// not even booted with uefi
 		return false, nil
