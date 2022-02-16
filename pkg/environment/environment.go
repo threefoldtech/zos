@@ -162,9 +162,6 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	extended, found := params.Get("config_url")
 	if found && len(extended) >= 1 {
 		env.ExtendedConfigURL = extended[0]
-		if !strings.HasSuffix(env.ExtendedConfigURL, "/") {
-			env.ExtendedConfigURL += "/"
-		}
 	}
 
 	if substrate, ok := params.Get("substrate"); ok {
@@ -259,6 +256,9 @@ func unique(intSlice []uint32) []uint32 {
 }
 
 func getConfig(run RunningMode, url string) (ext Extended, err error) {
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
+	}
 	u := url + fmt.Sprintf("%s.json", run)
 
 	response, err := http.Get(u)
