@@ -271,7 +271,6 @@ func (l *lsblkDeviceManager) seektime(ctx context.Context, path string) (string,
 	bytes, err := l.run(ctx, "seektime", "-j", path)
 	if isTimeout(err) {
 		// the seektime is taking too long that's defintely a HDD
-		log.Warn().Str("device", path).Msg("checking readtime for device timedout. assuming HDD")
 		return "HDD", 5 * 60, nil
 	} else if err != nil {
 		return "", 0, err
