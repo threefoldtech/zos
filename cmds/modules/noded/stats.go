@@ -25,14 +25,9 @@ const (
 func reportStatistics(ctx context.Context, redis string, cl zbus.Client) error {
 	stats := stubs.NewStatisticsStub(cl)
 	total := stats.Total(ctx)
-	env, err := environment.Get()
-	if err != nil {
-		return errors.Wrap(err, "couldn't get environment")
-	}
 	ctx2, cancel := context.WithTimeout(ctx, operationTimeout)
 	defer cancel()
 	oracle := capacity.NewResourceOracle(stubs.NewStorageModuleStub(cl))
-	version := stubs.NewVersionMonitorStub(cl).GetVersion(ctx2).String()
 	hypervisor, err := oracle.GetHypervisor()
 	if err != nil {
 		return errors.Wrap(err, "failed to get hypervisors")
@@ -43,7 +38,7 @@ func reportStatistics(ctx context.Context, redis string, cl zbus.Client) error {
 	}
 	tc := time.NewTicker(ReportInterval)
 	updateCounter := CyclesToUpdate
-	extended, err := environment.GetExtended(env.RunningMode)
+	extended, err := environment.GetConfig()
 	if err != nil {
 		return err
 	}
@@ -53,13 +48,15 @@ func reportStatistics(ctx context.Context, redis string, cl zbus.Client) error {
 			return nil
 		case <-tc.C:
 			if updateCounter == 0 {
-				extended, err = environment.GetExtended(env.RunningMode)
+				extended, err = environment.GetConfig()
 				if err != nil {
 					log.Error().Err(err).Msg("couldn't get twins to report to")
 				}
 				updateCounter = CyclesToUpdate
 			}
 			updateCounter--
+
+			version := stubs.NewVersionMonitorStub(cl).GetVersion(ctx2).String()
 
 			// TODO: .Current should return error
 			current := stats.Current(ctx)

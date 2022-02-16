@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -28,7 +29,7 @@ const (
 	SubstrateMainURL  = "wss://tfchain.grid.tf/"
 	ActivationMainURL = "https://activation.grid.tf/activation/activate"
 
-	BaseExtendedURL = "https://raw.githubusercontent.com/threefoldtech/zos-config/main/%s.json"
+	BaseExtendedURL = "https://raw.githubusercontent.com/threefoldtech/zos-config/main/"
 )
 
 // Environment holds information about running environment of a node
@@ -161,6 +162,9 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	extended, found := params.Get("config_url")
 	if found && len(extended) >= 1 {
 		env.ExtendedConfigURL = extended[0]
+		if !strings.HasSuffix(env.ExtendedConfigURL, "/") {
+			env.ExtendedConfigURL += "/"
+		}
 	}
 
 	if substrate, ok := params.Get("substrate"); ok {
@@ -222,33 +226,40 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	return env, nil
 }
 
-// GetExtended returns extend config for specific run mode
-func GetExtended(run RunningMode) (ext Extended, err error) {
-	ext, err = GetSingleExtended(run, BaseExtendedURL)
-	if err != nil {
-		return
-	}
+// GetConfig returns extend config for specific run mode
+func GetConfig() (ext Extended, err error) {
 	env, err := Get()
 	if err != nil {
 		return
 	}
+	ext, err = getConfig(env.RunningMode, BaseExtendedURL)
+	if err != nil {
+		return
+	}
 	if env.ExtendedConfigURL != "" {
-		url := env.ExtendedConfigURL
-		if url[len(url)-1] != '/' {
-			url += "/"
-		}
-		url += "%s.json"
-		log.Debug().Str("url", url).Msg("extended url")
-		config2, err := GetSingleExtended(run, url)
+		config2, err := getConfig(env.RunningMode, env.ExtendedConfigURL)
 		if err != nil {
 			log.Error().Err(err).Msg("fetching the config from the env config-url failed")
 		}
-		ext.Monitor = append(ext.Monitor, config2.Monitor...)
+		ext.Monitor = unique(append(ext.Monitor, config2.Monitor...))
 	}
 	return ext, nil
 }
-func GetSingleExtended(run RunningMode, url string) (ext Extended, err error) {
-	u := fmt.Sprintf(url, run.String())
+
+func unique(intSlice []uint32) []uint32 {
+	keys := make(map[uint32]struct{})
+	list := []uint32{}
+	for _, entry := range intSlice {
+		if _, exists := keys[entry]; !exists {
+			keys[entry] = struct{}{}
+			list = append(list, entry)
+		}
+	}
+	return list
+}
+
+func getConfig(run RunningMode, url string) (ext Extended, err error) {
+	u := url + fmt.Sprintf("%s.json", run)
 
 	response, err := http.Get(u)
 	if err != nil {
