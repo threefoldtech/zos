@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	operationTimeout = 1 * time.Minute
-	ReportInterval   = 5 * time.Minute
+	operationTimeout     = 1 * time.Minute
+	ReportInterval       = 5 * time.Minute
+	ReportMaxElapsedTime = 3 * time.Minute // must be less than report interval
+	CyclesToUpdate       = 3
 )
 
 func reportStatistics(ctx context.Context, redis string, cl zbus.Client) error {
@@ -40,17 +42,26 @@ func reportStatistics(ctx context.Context, redis string, cl zbus.Client) error {
 		return errors.Wrap(err, "couldn't get an rmb bus instance")
 	}
 	tc := time.NewTicker(ReportInterval)
+	updateCounter := CyclesToUpdate
+	extended, err := environment.GetExtended(env.RunningMode)
+	if err != nil {
+		return err
+	}
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-tc.C:
-			// TODO: .Current should return error
-			extended, err := environment.GetExtended(env.RunningMode)
-			if err != nil {
-				log.Error().Err(err).Msg("couldn't get twins to report to")
-				continue
+			if updateCounter == 0 {
+				extended, err = environment.GetExtended(env.RunningMode)
+				if err != nil {
+					log.Error().Err(err).Msg("couldn't get twins to report to")
+				}
+				updateCounter = CyclesToUpdate
 			}
+			updateCounter--
+
+			// TODO: .Current should return error
 			current := stats.Current(ctx)
 			report := client.NodeStatus{
 				Current:    current,
@@ -59,10 +70,12 @@ func reportStatistics(ctx context.Context, redis string, cl zbus.Client) error {
 				Hypervisor: hypervisor,
 			}
 			for _, twin := range extended.Monitor {
-				cl := client.NewProxyClient(twin, bus)
-				if err := sendStatisticsReport(ctx, cl, report); err != nil {
-					log.Error().Err(err).Uint32("twin", twin).Msg("couldn't send report to twin")
-				}
+				go func(twinID uint32) {
+					cl := client.NewProxyClient(twinID, bus)
+					if err := sendStatisticsReport(ctx, cl, report); err != nil {
+						log.Error().Err(err).Uint32("twin", twinID).Msg("couldn't send report to twin")
+					}
+				}(twin)
 			}
 		}
 	}
@@ -79,8 +92,8 @@ func sendStatisticsReport(ctx context.Context, cl *client.ProxyClient, report cl
 	}
 
 	exp := backoff.NewExponentialBackOff()
-	exp.MaxInterval = 8 * time.Second
-	exp.MaxElapsedTime = 30 * time.Second
+	exp.MaxInterval = 10 * time.Second
+	exp.MaxElapsedTime = ReportMaxElapsedTime
 	return backoff.RetryNotify(func() error {
 		return cl.ReportStats(ctx2, report)
 	}, exp, errHandler)
