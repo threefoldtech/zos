@@ -307,27 +307,29 @@ func registerNode(
 		}
 	}
 
-	current := substrate.NodeExtra{
-		Secure:       info.SecureBoot,
-		Virtualized:  info.Virtualized,
-		SerialNumber: info.SerialNumber,
-	}
+	// TODO: temporary avoid this because of some grid changes
 
-	// last thing we need to do to validate the node extra information.
-	extra, err := sub.GetNodeExtra(nodeID)
-	force := false
-	if errors.Is(err, substrate.ErrNotFound) {
-		force = true
-	} else if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to get node extra information")
-	}
+	// current := substrate.NodeExtra{
+	// 	Secure:       info.SecureBoot,
+	// 	Virtualized:  info.Virtualized,
+	// 	SerialNumber: info.SerialNumber,
+	// }
 
-	if !reflect.DeepEqual(current, extra) || force {
-		// set node extra information
-		if err := sub.SetNodeExtra(id, current); err != nil {
-			return 0, 0, errors.Wrap(err, "failed to set set node extra information")
-		}
-	}
+	// // last thing we need to do to validate the node extra information.
+	// extra, err := sub.GetNodeExtra(nodeID)
+	// force := false
+	// if errors.Is(err, substrate.ErrNotFound) {
+	// 	force = true
+	// } else if err != nil {
+	// 	return 0, 0, errors.Wrap(err, "failed to get node extra information")
+	// }
+
+	// if !reflect.DeepEqual(current, extra) || force {
+	// 	// set node extra information
+	// 	if err := sub.SetNodeExtra(id, current); err != nil {
+	// 		return 0, 0, errors.Wrap(err, "failed to set set node extra information")
+	// 	}
+	// }
 	return uint32(node.ID), uint32(node.TwinID), err
 
 }
