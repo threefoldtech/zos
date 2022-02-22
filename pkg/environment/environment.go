@@ -38,7 +38,7 @@ type Environment struct {
 	Orphan   bool
 
 	FarmSecret    string
-	SubstrateURL  string
+	SubstrateURL  []string
 	ActivationURL string
 
 	ExtendedConfigURL string
@@ -78,7 +78,7 @@ const (
 var (
 	envDev = Environment{
 		RunningMode:   RunningDev,
-		SubstrateURL:  SubstrateDevURL,
+		SubstrateURL:  []string{SubstrateDevURL},
 		ActivationURL: ActivationDevURL,
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.dev",
@@ -87,7 +87,7 @@ var (
 	envTest = Environment{
 		RunningMode: RunningTest,
 		// TODO: this should become a different substrate ?
-		SubstrateURL:  SubstrateTestURL,
+		SubstrateURL:  []string{SubstrateTestURL},
 		ActivationURL: ActivationTestURL,
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.test",
@@ -96,7 +96,7 @@ var (
 	// same as testnet for now. will be updated the day of the launch of production network
 	envProd = Environment{
 		RunningMode:   RunningMain,
-		SubstrateURL:  SubstrateMainURL,
+		SubstrateURL:  []string{SubstrateMainURL},
 		ActivationURL: ActivationMainURL,
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins",
@@ -122,7 +122,7 @@ func Get() (Environment, error) {
 
 // GetSubstrate gets a client to subsrate blockchain
 func (e *Environment) GetSubstrate() (*substrate.Substrate, error) {
-	return substrate.NewSubstrate(e.SubstrateURL)
+	return substrate.NewSubstrate(e.SubstrateURL...)
 }
 
 func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
@@ -158,7 +158,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 
 	if substrate, ok := params.Get("substrate"); ok {
 		if len(substrate) > 0 {
-			env.SubstrateURL = substrate[len(substrate)-1]
+			env.SubstrateURL = substrate
 		}
 	}
 
@@ -201,7 +201,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	// override default settings
 
 	if e := os.Getenv("ZOS_SUBSTRATE_URL"); e != "" {
-		env.SubstrateURL = e
+		env.SubstrateURL = []string{e}
 	}
 
 	if e := os.Getenv("ZOS_FLIST_URL"); e != "" {
