@@ -229,7 +229,11 @@ func upgradeLoop(
 	//current := boot.MustVersion()
 	for {
 		// delay in case of error
-		<-time.After(5 * time.Second)
+		select {
+		case <-time.After(5 * time.Second):
+		case <-ctx.Done():
+			return
+		}
 
 		current, err := boot.Current()
 		if err != nil {
@@ -241,13 +245,22 @@ func upgradeLoop(
 			log.Error().Err(err).Msg("failed to get flist info")
 			continue
 		}
+		log.Info().
+			Str("current", current.TryVersion().String()).
+			Str("latest", current.TryVersion().String()).
+			Msg("checking if update is required")
 
 		if !latest.TryVersion().GT(current.TryVersion()) {
 			// We wanted to use the node id to actually calculate the delay to wait but it's not
 			// possible to get the numeric node id from the identityd
 			next := time.Duration(60+rand.Intn(60)) * time.Minute
 			log.Info().Dur("wait", next).Msg("checking for update after milliseconds")
-			<-time.After(next)
+			select {
+			case <-time.After(next):
+			case <-ctx.Done():
+				return
+			}
+
 			continue
 		}
 
