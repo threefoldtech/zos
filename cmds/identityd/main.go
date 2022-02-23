@@ -225,16 +225,16 @@ func upgradeLoop(
 
 	var hub upgrade.HubClient
 
-	current, err := boot.Current()
-	if err != nil {
-		log.Fatal().Err(err).Msg("cannot get current boot flist information")
-	}
-
 	flist := boot.Name()
 	//current := boot.MustVersion()
 	for {
 		// delay in case of error
 		<-time.After(5 * time.Second)
+
+		current, err := boot.Current()
+		if err != nil {
+			log.Fatal().Err(err).Msg("cannot get current boot flist information")
+		}
 
 		latest, err := hub.Info(flist)
 		if err != nil {
@@ -285,7 +285,7 @@ func upgradeLoop(
 			log.Info().Str("version", latest.TryVersion().String()).Msg("update completed")
 		}
 		if err := boot.Set(latest); err != nil {
-			log.Error().Err(err).Msg("failed to update boot information")
+			log.Fatal().Err(err).Msg("failed to update boot information")
 		}
 
 		monitor.C <- latest.TryVersion()
