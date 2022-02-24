@@ -119,8 +119,8 @@ func Get() (Environment, error) {
 }
 
 // GetSubstrate gets a client to subsrate blockchain
-func (e *Environment) GetSubstrate() (*substrate.Substrate, error) {
-	return substrate.NewSubstrate(e.SubstrateURL...)
+func (e *Environment) GetSubstrate() substrate.Manager {
+	return substrate.NewManager(e.SubstrateURL...)
 }
 
 func getEnvironmentFromParams(params kernel.Params) (Environment, error) {

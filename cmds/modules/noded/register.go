@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/host"
@@ -100,11 +100,7 @@ func registration(ctx context.Context, cl zbus.Client, env environment.Environme
 		Uint64("hru", uint64(info.Capacity.HRU)).
 		Msg("node capacity")
 
-	sub, err := env.GetSubstrate()
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to create substrate client")
-	}
-
+	sub := env.GetSubstrate()
 	info = info.WithLocation(loc).WithYggdrail(ygg)
 
 	exp := backoff.NewExponentialBackOff()
@@ -141,7 +137,7 @@ func watch(
 	ctx context.Context,
 	env environment.Environment,
 	cl zbus.Client,
-	sub *substrate.Substrate,
+	sub substrate.Manager,
 	info RegistrationInfo,
 ) error {
 	var (
@@ -197,13 +193,19 @@ func registerNode(
 	ctx context.Context,
 	env environment.Environment,
 	cl zbus.Client,
-	sub *substrate.Substrate,
+	subMgr substrate.Manager,
 	info RegistrationInfo,
 ) (nodeID, twinID uint32, err error) {
 	var (
 		mgr    = stubs.NewIdentityManagerStub(cl)
 		netMgr = stubs.NewNetworkerStub(cl)
 	)
+
+	sub, err := subMgr.Substrate()
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to get substrate connection")
+	}
+	defer sub.Close()
 
 	zosIps, zosMac, err := netMgr.Addrs(ctx, "zos", "")
 	if err != nil {
@@ -333,15 +335,21 @@ func uptime(ctx context.Context, cl zbus.Client) error {
 		return errors.Wrap(err, "failed to get runtime environment for zos")
 	}
 
-	sub, err := env.GetSubstrate()
-	if err != nil {
-		return errors.Wrap(err, "failed to create substrate client")
-	}
+	subMgr := env.GetSubstrate()
 
 	sk := ed25519.PrivateKey(mgr.PrivateKey(ctx))
 	id, err := substrate.NewIdentityFromEd25519Key(sk)
 	if err != nil {
 		return err
+	}
+
+	update := func(uptime uint64) (types.Hash, error) {
+		sub, err := subMgr.Substrate()
+		if err != nil {
+			return types.Hash{}, err
+		}
+		defer sub.Close()
+		return sub.UpdateNodeUptime(id, uptime)
 	}
 
 	for {
@@ -350,7 +358,7 @@ func uptime(ctx context.Context, cl zbus.Client) error {
 			return errors.Wrap(err, "failed to get uptime")
 		}
 		log.Debug().Msg("updating node uptime")
-		hash, err := sub.UpdateNodeUptime(id, uptime)
+		hash, err := update(uptime)
 		if err != nil {
 			return errors.Wrap(err, "failed to report uptime")
 		}
