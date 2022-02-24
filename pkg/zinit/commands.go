@@ -323,6 +323,7 @@ func (c *Client) StopMultiple(timeout time.Duration, service ...string) error {
 					log.Error().Err(err).Msgf("failed to send SIGKILL to service %s", service)
 				}
 			}
+			return nil
 		case <-time.After(1 * time.Second):
 		}
 	}

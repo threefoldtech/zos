@@ -130,7 +130,7 @@ func migrate(ctx context.Context, v2 *directory.Farm, v3 *Farm) error {
 	for _, usb := range sticks {
 		log.Info().Str("usb", usb.Path).Msg("rewriting usb stick")
 		if err := burn(ctx, v3.ID, &usb); err != nil {
-			return nil
+			return err
 		}
 	}
 
@@ -197,11 +197,11 @@ func action(cli *cli.Context) error {
 	bf := backoff.NewExponentialBackOff()
 	bf.InitialInterval = ShortWait
 	bf.MaxInterval = time.Hour
-	backoff.RetryNotify(func() error {
+
+	return backoff.RetryNotify(func() error {
 		return migrate(cli.Context, &v2, v3)
 	}, bf, func(e error, d time.Duration) {
 		log.Error().Err(err).Dur("wait", d).Msg("migration failed, retrying after wait")
 	})
 
-	return nil
 }
