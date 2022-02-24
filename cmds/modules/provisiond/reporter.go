@@ -86,12 +86,11 @@ func reportBuilder() interface{} {
 
 // NewReporter creates a new capacity reporter
 func NewReporter(engine provision.Engine, nodeID uint32, cl zbus.Client, root string) (*Reporter, error) {
-	env, err := environment.Get()
+	sub, err := environment.GetSubstrate()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get runtime environment")
+		return nil, err
 	}
 
-	sub := env.GetSubstrate()
 	const queueName = "consumption"
 	var queue *dque.DQue
 	for i := 0; i < 3; i++ {

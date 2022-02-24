@@ -165,7 +165,10 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed during node registration")
 	}
 
-	sub := env.GetSubstrate()
+	sub, err := environment.GetSubstrate()
+	if err != nil {
+		return err
+	}
 	events := events.New(sub, node)
 
 	system, err := monitord.NewSystemMonitor(node, 2*time.Second)

@@ -208,11 +208,11 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load old domains")
 	}
-	env, err := environment.Get()
+	sub, err := environment.GetSubstrate()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get env")
+		return nil, err
 	}
-	sub := env.GetSubstrate()
+
 	gw := &gatewayModule{
 		cl:               cl,
 		resolver:         r,

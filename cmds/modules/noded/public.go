@@ -26,7 +26,10 @@ func setPublicConfig(ctx context.Context, cl zbus.Client, cfg substrate.PublicCo
 
 // public sets and watches changes to public config on chain and tries to apply the provided setup
 func public(ctx context.Context, nodeID uint32, env environment.Environment, cl zbus.Client) error {
-	mgr := env.GetSubstrate()
+	mgr, err := environment.GetSubstrate()
+	if err != nil {
+		return err
+	}
 
 	stub := stubs.NewEventsStub(cl)
 	events, err := stub.PublicConfigEvent(ctx)

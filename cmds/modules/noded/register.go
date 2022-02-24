@@ -100,7 +100,10 @@ func registration(ctx context.Context, cl zbus.Client, env environment.Environme
 		Uint64("hru", uint64(info.Capacity.HRU)).
 		Msg("node capacity")
 
-	sub := env.GetSubstrate()
+	sub, err := environment.GetSubstrate()
+	if err != nil {
+		return 0, 0, err
+	}
 	info = info.WithLocation(loc).WithYggdrail(ygg)
 
 	exp := backoff.NewExponentialBackOff()
@@ -330,12 +333,11 @@ func uptime(ctx context.Context, cl zbus.Client) error {
 	var (
 		mgr = stubs.NewIdentityManagerStub(cl)
 	)
-	env, err := environment.Get()
-	if err != nil {
-		return errors.Wrap(err, "failed to get runtime environment for zos")
-	}
 
-	subMgr := env.GetSubstrate()
+	subMgr, err := environment.GetSubstrate()
+	if err != nil {
+		return err
+	}
 
 	sk := ed25519.PrivateKey(mgr.PrivateKey(ctx))
 	id, err := substrate.NewIdentityFromEd25519Key(sk)

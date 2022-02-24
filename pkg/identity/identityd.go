@@ -52,7 +52,10 @@ func NewManager(path string) (pkg.IdentityManager, error) {
 		}
 	}
 
-	sub := env.GetSubstrate()
+	sub, err := environment.GetSubstrate()
+	if err != nil {
+		return nil, err
+	}
 	return &identityManager{
 		key: pair,
 		sub: sub,

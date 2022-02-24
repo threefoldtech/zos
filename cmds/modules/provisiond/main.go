@@ -219,7 +219,10 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create statistics api")
 	}
 
-	mgr := env.GetSubstrate()
+	mgr, err := environment.GetSubstrate()
+	if err != nil {
+		return err
+	}
 	users, err := provision.NewSubstrateTwins(mgr)
 	if err != nil {
 		return errors.Wrap(err, "failed to create substrate users database")
