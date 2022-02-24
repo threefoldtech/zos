@@ -5,7 +5,6 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"net"
-	"reflect"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
@@ -293,7 +292,7 @@ func registerNode(
 		return 0, 0, errors.Wrapf(err, "failed to get node with id: %d", nodeID)
 	}
 
-	if !reflect.DeepEqual(create, current) {
+	if !create.Eq(current) {
 		log.Debug().Msgf("node data have changing, issuing an update node: %+v", create)
 		_, err := sub.UpdateNode(id, create)
 		if err != nil {
