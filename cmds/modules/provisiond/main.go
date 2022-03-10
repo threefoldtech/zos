@@ -316,17 +316,25 @@ func action(cli *cli.Context) error {
 		log.Error().Err(err).Msg("failed to mark module as booted")
 	}
 
-	reporter, err := NewReporter(engine, node, cl, queues)
-	if err != nil {
-		return errors.Wrap(err, "failed to setup capacity reporter")
-	}
-	// also spawn the capacity reporter
+	handler := NewContractEventHandler(node, mgr, engine, cl)
+
 	go func() {
-		if err := reporter.Run(ctx); err != nil && err != context.Canceled {
-			log.Fatal().Err(err).Msg("capacity reported stopped unexpectedely")
+		if err := handler.Run(ctx); err != nil {
+			log.Fatal().Err(err).Msg("handling contracts events failed")
 		}
-		log.Info().Msg("capacity reported stopped")
 	}()
+
+	// reporter, err := NewReporter(engine, node, cl, queues)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to setup capacity reporter")
+	// }
+	// // also spawn the capacity reporter
+	// go func() {
+	// 	if err := reporter.Run(ctx); err != nil && err != context.Canceled {
+	// 		log.Fatal().Err(err).Msg("capacity reported stopped unexpectedely")
+	// 	}
+	// 	log.Info().Msg("capacity reported stopped")
+	// }()
 
 	// and start the zbus server in the background
 	go func() {
