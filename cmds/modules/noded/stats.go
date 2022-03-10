@@ -22,11 +22,17 @@ const (
 	CyclesToUpdate       = 3
 )
 
+func fillCapacityAndVersion(ctx context.Context, report *client.NodeStatus, cl zbus.Client) {
+	ctx2, cancel := context.WithTimeout(ctx, operationTimeout)
+	defer cancel()
+
+	report.ZosVersion = stubs.NewVersionMonitorStub(cl).GetVersion(ctx2).String()
+	report.Current = stubs.NewStatisticsStub(cl).Current(ctx2)
+}
+
 func reportStatistics(ctx context.Context, redis string, cl zbus.Client) error {
 	stats := stubs.NewStatisticsStub(cl)
 	total := stats.Total(ctx)
-	ctx2, cancel := context.WithTimeout(ctx, operationTimeout)
-	defer cancel()
 	oracle := capacity.NewResourceOracle(stubs.NewStorageModuleStub(cl))
 	hypervisor, err := oracle.GetHypervisor()
 	if err != nil {
@@ -50,17 +56,11 @@ func reportStatistics(ctx context.Context, redis string, cl zbus.Client) error {
 			updateCounter = CyclesToUpdate
 		}
 		updateCounter--
-		version := stubs.NewVersionMonitorStub(cl).GetVersion(ctx2).String()
-
-		// TODO: .Current should return error
-		current := stats.Current(ctx)
 		report := client.NodeStatus{
-			Current:    current,
 			Total:      total,
-			ZosVersion: version,
 			Hypervisor: hypervisor,
 		}
-
+		fillCapacityAndVersion(ctx, &report, cl)
 		for _, twin := range extended.Monitor {
 			go func(twinID uint32) {
 				log.Debug().Uint32("twin", twinID).Msg("sending status update to twin")
