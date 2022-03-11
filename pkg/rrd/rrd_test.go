@@ -79,7 +79,7 @@ func TestCountersSeries(t *testing.T) {
 		slot, err := db.slotAt(uint64(first.Add(time.Duration(i) * time.Minute).Unix()))
 		require.NoError(err)
 
-		slot.Counter("test-1", float64(i))
+		require.NoError(slot.Counter("test-1", float64(i)))
 	}
 
 	// i get all the values over the last 10 minutes
@@ -116,7 +116,7 @@ func TestCountersRandomIncrese(t *testing.T) {
 		if i != 0 {
 			expected += v
 		}
-		slot.Counter("test-1", float64(expected))
+		require.NoError(slot.Counter("test-1", float64(expected)))
 	}
 
 	// i get all the values over the last 10 minutes
@@ -176,7 +176,7 @@ func TestCountersRetention(t *testing.T) {
 		slot, err := db.slotAt(uint64(first.Add(time.Duration(i) * time.Minute).Unix()))
 		require.NoError(err)
 
-		slot.Counter("test-1", float64(i))
+		require.NoError(slot.Counter("test-1", float64(i)))
 	}
 
 	slots, err := db.Slots()
