@@ -18,6 +18,9 @@ type RRD interface {
 	Slot() (Slot, error)
 	// Counters, return all stored counters since the given time (since) until now.
 	Counters(since time.Time) (map[string]float64, error)
+	// Last returns the last reported value for a metric given the metric
+	// name
+	Last(key string) (value float64, ok bool, err error)
 }
 
 type Slot interface {
@@ -105,6 +108,25 @@ func (r *rrdBolt) Slots() ([]uint64, error) {
 	})
 
 	return slots, err
+}
+
+func (r *rrdBolt) Last(key string) (value float64, ok bool, err error) {
+	err = r.db.View(func(tx *bolt.Tx) error {
+		cur := tx.Cursor()
+		for k, _ := cur.Last(); k != nil; k, _ = cur.Prev() {
+			bucket := tx.Bucket(k)
+			bytes := bucket.Get([]byte(key))
+			if bytes != nil {
+				value = lf64(bytes)
+				ok = true
+				break
+			}
+		}
+
+		return nil
+	})
+
+	return
 }
 
 // Counters return increase in counter value since the given

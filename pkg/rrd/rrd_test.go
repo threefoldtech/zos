@@ -185,3 +185,36 @@ func TestCountersRetention(t *testing.T) {
 	require.Len(slots, 10)
 	require.EqualValues((now.Add(-9*time.Minute).Unix()/60)*60, slots[0])
 }
+
+func TestCountersLast(t *testing.T) {
+	require := require.New(t)
+	path := filepath.Join(os.TempDir(), fmt.Sprint(rand.Int63()))
+	defer os.RemoveAll(path)
+
+	window := 1 * time.Minute
+	db, err := newRRDBolt(path, window, 10*time.Minute)
+	require.NoError(err)
+
+	_, ok, err := db.Last("test-1")
+	require.NoError(err)
+	require.False(ok)
+
+	now := time.Now()
+	slot1, err := db.slotAt(uint64(now.Add(-5 * time.Minute).Unix()))
+	require.NoError(err)
+
+	slotNow, err := db.slotAt(uint64(now.Add(-2 * time.Minute).Unix()))
+	require.NoError(err)
+
+	err = slot1.Counter("test-1", 100)
+	require.NoError(err)
+
+	err = slotNow.Counter("test-1", 120)
+	require.NoError(err)
+
+	v, ok, err := db.Last("test-1")
+	require.NoError(err)
+	require.True(ok)
+	require.EqualValues(120, v)
+
+}

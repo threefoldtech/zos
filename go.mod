@@ -90,3 +90,5 @@ require (
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
 
 replace github.com/centrifuge/go-substrate-rpc-client/v4 v4.0.0 => github.com/threefoldtech/go-substrate-rpc-client/v4 v4.0.1-0.20220224103912-af82b63a1bda
+
+replace github.com/threefoldtech/substrate-client => ../substrate-client

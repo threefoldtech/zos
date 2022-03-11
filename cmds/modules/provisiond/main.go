@@ -42,7 +42,8 @@ const (
 	statisticsModule = "statistics"
 	gib              = 1024 * 1024 * 1024
 
-	boltStorageDB = "workloads.bolt"
+	boltStorageDB    = "workloads.bolt"
+	metricsStorageDB = "metrics.bolt"
 
 	// deprecated, kept for migration
 	fsStorageDB = "workloads"
@@ -78,8 +79,11 @@ func action(cli *cli.Context) error {
 		rootDir      string = cli.String("root")
 	)
 
-	ctx := context.Background()
-	ctx, _ = utils.WithSignal(ctx)
+	ctx, _ := utils.WithSignal(context.Background())
+
+	utils.OnDone(ctx, func(_ error) {
+		log.Info().Msg("shutting down")
+	})
 
 	// keep checking if limited-cache flag is set
 	if app.CheckFlag(app.LimitedCache) {
@@ -319,22 +323,29 @@ func action(cli *cli.Context) error {
 	handler := NewContractEventHandler(node, mgr, engine, cl)
 
 	go func() {
-		if err := handler.Run(ctx); err != nil {
+		if err := handler.Run(ctx); err != nil && err != context.Canceled {
 			log.Fatal().Err(err).Msg("handling contracts events failed")
 		}
 	}()
 
-	// reporter, err := NewReporter(engine, node, cl, queues)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to setup capacity reporter")
-	// }
-	// // also spawn the capacity reporter
-	// go func() {
-	// 	if err := reporter.Run(ctx); err != nil && err != context.Canceled {
-	// 		log.Fatal().Err(err).Msg("capacity reported stopped unexpectedely")
-	// 	}
-	// 	log.Info().Msg("capacity reported stopped")
-	// }()
+	reporter, err := NewReporter(filepath.Join(rootDir, metricsStorageDB), cl, queues)
+	if err != nil {
+		return errors.Wrap(err, "failed to setup capacity reporter")
+	}
+
+	// also spawn the capacity reporter
+	go func() {
+		for {
+			err := reporter.Run(ctx)
+			if err != context.Canceled {
+				return
+			} else if err != nil {
+				log.Error().Err(err).Msg("capacity reported stopped unexpectedely")
+			}
+
+			<-time.After(10 * time.Second)
+		}
+	}()
 
 	// and start the zbus server in the background
 	go func() {
