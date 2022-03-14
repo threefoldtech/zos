@@ -85,6 +85,8 @@ func (c *CapacitySetter) Set(deployment ...gridtypes.Deployment) error {
 		return err
 	}
 
+	defer cl.Close()
+
 	return c.setWithClient(cl, deployment...)
 }
 
