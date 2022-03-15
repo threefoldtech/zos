@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 func TestDeviceManagerScan(t *testing.T) {
@@ -73,8 +74,11 @@ func TestDeviceManagerScan(t *testing.T) {
 
 	require.Len(cached, 2)
 	// make sure all types are set.
-	for _, dev := range cached {
-		require.NotEmpty(dev.Type(), "device: %s", dev.Path)
+	expected := []zos.DeviceType{zos.SSDDevice, zos.HDDDevice}
+	for i, dev := range cached {
+		typ, err := dev.Type()
+		require.NoError(err)
+		require.Equal(expected[i], typ)
 	}
 
 	filtered, err := mgr.ByLabel(ctx, "test")
