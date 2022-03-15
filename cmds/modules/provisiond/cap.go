@@ -2,7 +2,9 @@ package provisiond
 
 import (
 	"context"
+	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/substrate-client"
@@ -71,8 +73,16 @@ func (c *CapacitySetter) setWithClient(cl *substrate.Substrate, deployments ...g
 		})
 	}
 
-	// TODO: retry ?
-	return cl.SetContractConsumption(c.id, caps...)
+	bo := backoff.WithMaxRetries(
+		backoff.NewConstantBackOff(6*time.Second),
+		4,
+	)
+
+	return backoff.RetryNotify(func() error {
+		return cl.SetContractConsumption(c.id, caps...)
+	}, bo, func(err error, d time.Duration) {
+		log.Error().Err(err).Dur("retry-in", d).Msg("failed to set contract consumption")
+	})
 }
 
 func (c *CapacitySetter) Set(deployment ...gridtypes.Deployment) error {
