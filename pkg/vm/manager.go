@@ -20,6 +20,7 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/vm/cloudinit"
 )
 
 const (
@@ -30,6 +31,9 @@ const (
 	ConfigDir = "config"
 	// logsDir is logs directory name
 	logsDir = "logs"
+
+	// cloud-init directory
+	cloudInitDir = "cloud-init"
 )
 
 var (
@@ -75,6 +79,7 @@ func NewVMModule(cl zbus.Client, root, config string) (*Module, error) {
 	for _, dir := range []string{
 		socketDir,
 		filepath.Join(root, logsDir),
+		filepath.Join(root, cloudInitDir),
 	} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return nil, err
@@ -145,6 +150,10 @@ func (m *Module) logsPath(name string) string {
 	return filepath.Join(m.root, logsDir, name)
 }
 
+func (m *Module) cloudInitImage(name string) string {
+	return filepath.Join(m.root, cloudInitDir, name)
+}
+
 // Exists checks if firecracker process running for this machine
 func (m *Module) Exists(id string) bool {
 	_, err := Find(id)
@@ -169,7 +178,7 @@ func (m *Module) buildRouteParam(defaultGw net.IP, table map[string]string) stri
 	return buf.String()
 }
 
-func (m *Module) makeNetwork(vm *pkg.VM) ([]Interface, pkg.KernelArgs, error) {
+func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interface, pkg.KernelArgs, error) {
 	// assume there is always at least 1 iface present
 
 	// we do 2 things here:
@@ -196,15 +205,34 @@ func (m *Module) makeNetwork(vm *pkg.VM) ([]Interface, pkg.KernelArgs, error) {
 		}
 		nics = append(nics, nic)
 
+		cinet := cloudinit.Ethernet{
+			Name:  cloudinit.NameMatch(nic.ID),
+			DHCP4: false,
+		}
+		// cfg.Network = append(cfg.Network,)
 		var ips []string
 		for _, ip := range ifcfg.IPs {
 			ips = append(ips, ip.String())
+			cinet.Addresses = append(cinet.Addresses, ip.String())
 		}
+
+		// TODO: this is now just use both the cloud-init method
+		// and the cmdline method. after cloud-init method is tested
+		// we can drop the cmdline setup
+
 		// configure nic ips
 		args[fmt.Sprintf("net_%s", nic.ID)] = strings.Join(ips, ";")
 		// configure nic routes
+		if ifcfg.IP4DefaultGateway != nil {
+			cinet.Gateway4 = ifcfg.IP4DefaultGateway.String()
+		}
+
 		if defaultGw4 == nil && ifcfg.IP4DefaultGateway != nil {
 			defaultGw4 = ifcfg.IP4DefaultGateway
+		}
+
+		if ifcfg.IP6DefaultGateway != nil {
+			cinet.Gateway6 = ifcfg.IP6DefaultGateway.String()
 		}
 
 		if defaultGw6 == nil && ifcfg.IP6DefaultGateway != nil {
@@ -218,6 +246,11 @@ func (m *Module) makeNetwork(vm *pkg.VM) ([]Interface, pkg.KernelArgs, error) {
 
 		// inserting extra routes in right places
 		for _, route := range ifcfg.Routes {
+			cinet.Routes = append(cinet.Routes, cloudinit.Route{
+				To:  route.Net.String(),
+				Via: route.Gateway.String(),
+			})
+
 			table := v4Routes
 			if route.Net.IP.To4() == nil {
 				table = v6Routes
@@ -228,16 +261,20 @@ func (m *Module) makeNetwork(vm *pkg.VM) ([]Interface, pkg.KernelArgs, error) {
 			}
 			table[route.Net.String()] = gw
 		}
+
+		cfg.Network = append(cfg.Network, cinet)
 	}
 
 	args["net_r4"] = m.buildRouteParam(defaultGw4, v4Routes)
 	args["net_r6"] = m.buildRouteParam(defaultGw6, v6Routes)
-
 	dnsSection := make([]string, 0, len(vm.Network.Nameservers))
 	for _, ns := range vm.Network.Nameservers {
 		dnsSection = append(dnsSection, ns.String())
 	}
 	args["net_dns"] = strings.Join(dnsSection, ";")
+	if len(cfg.Network) > 0 {
+		cfg.Network[0].Nameservers.Addresses = dnsSection
+	}
 
 	return nics, args, nil
 }
@@ -333,6 +370,27 @@ func (m *Module) Run(vm pkg.VM) error {
 		return fmt.Errorf("a vm with same name already exists")
 	}
 
+	cfg := cloudinit.Configuration{
+		Metadata: cloudinit.Metadata{
+			InstanceID: vm.Name,
+			Hostname:   vm.KernelArgs["host"],
+		},
+		Extension: cloudinit.Extension{
+			Entrypoint:  vm.Entrypoint,
+			Environment: vm.Environment,
+		},
+	}
+
+	// TODO: user config should be added as another property on the
+	// VM workload data. For now we always use the SSH_KEY from the env
+	// if provided
+	if key, ok := vm.Environment["SSH_KEY"]; ok {
+		cfg.Users = append(cfg.Users, cloudinit.User{
+			Name: "root",
+			Keys: strings.Split(key, "\n"), // in case ssh_key container multiple keys. is this a usecase (?)
+		})
+	}
+
 	devices, err := m.makeDevices(&vm)
 	if err != nil {
 		return err
@@ -364,10 +422,25 @@ func (m *Module) Run(vm pkg.VM) error {
 		env = vm.Environment
 		// add we also add disk mounts
 		for i, mnt := range vm.Disks {
+			cfg.Mounts = append(cfg.Mounts,
+				cloudinit.Mount{
+					Source: mnt.Path,
+					Target: mnt.Target,
+					Type:   cloudinit.MountTypeAuto,
+				})
+
+			//TODO: drop this from cmdline
 			name := fmt.Sprintf("vd%c", 'a'+i)
 			cmdline[name] = mnt.Target
 		}
 		for _, q := range vm.Shared {
+			cfg.Mounts = append(cfg.Mounts,
+				cloudinit.Mount{
+					Source: q.ID,
+					Target: q.Target,
+					Type:   cloudinit.MountTypeVirtiofs,
+				})
+
 			key := fmt.Sprintf("qsfs_%s", q.ID)
 			cmdline[key] = q.Target
 		}
@@ -388,12 +461,24 @@ func (m *Module) Run(vm pkg.VM) error {
 		}
 	}
 
-	nics, args, err := m.makeNetwork(&vm)
+	nics, args, err := m.makeNetwork(&vm, &cfg)
 	if err != nil {
 		return err
 	}
 
 	cmdline.Extend(args)
+
+	ciImage := m.cloudInitImage(vm.Name)
+
+	if err := cloudinit.CreateImage(ciImage, cfg); err != nil {
+		return errors.Wrap(err, "failed to create cloud-init image")
+	}
+
+	devices = append(devices, Disk{
+		ID:       fmt.Sprintf("%d", len(devices)+1),
+		Path:     ciImage,
+		ReadOnly: true,
+	})
 
 	machine := Machine{
 		ID: vm.Name,

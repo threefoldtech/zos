@@ -64,8 +64,14 @@ func CreateImage(file string, cfg Configuration) error {
 	}
 
 	if err := write("/network-config", marsh{
-		"version": 1,
-		"config":  cfg.Network,
+		"version": 2,
+		"ethernets": func() marsh {
+			m := marsh{}
+			for _, ifc := range cfg.Network {
+				m[ifc.Name.String()] = ifc
+			}
+			return m
+		}(),
 	}); err != nil {
 		return err
 	}
