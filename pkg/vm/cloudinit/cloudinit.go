@@ -36,7 +36,7 @@ func (m Mount) MarshalYAML() (interface{}, error) {
 		m.Source,
 		m.Target,
 		string(t),
-		"default",
+		"defaults",
 		"0",
 		"0",
 	}, nil

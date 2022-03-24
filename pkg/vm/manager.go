@@ -178,7 +178,7 @@ func (m *Module) buildRouteParam(defaultGw net.IP, table map[string]string) stri
 	return buf.String()
 }
 
-func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interface, pkg.KernelArgs, error) {
+func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interface, error) {
 	// assume there is always at least 1 iface present
 
 	// we do 2 things here:
@@ -190,7 +190,6 @@ func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interf
 	// method uses a custom script inside the image to set proper IP. The config
 	// is also passed through the command line.
 
-	args := pkg.KernelArgs{}
 	v4Routes := make(map[string]string)
 	v6Routes := make(map[string]string)
 	var defaultGw4 net.IP
@@ -216,12 +215,6 @@ func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interf
 			cinet.Addresses = append(cinet.Addresses, ip.String())
 		}
 
-		// TODO: this is now just use both the cloud-init method
-		// and the cmdline method. after cloud-init method is tested
-		// we can drop the cmdline setup
-
-		// configure nic ips
-		args[fmt.Sprintf("net_%s", nic.ID)] = strings.Join(ips, ";")
 		// configure nic routes
 		if ifcfg.IP4DefaultGateway != nil {
 			cinet.Gateway4 = ifcfg.IP4DefaultGateway.String()
@@ -265,18 +258,17 @@ func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interf
 		cfg.Network = append(cfg.Network, cinet)
 	}
 
-	args["net_r4"] = m.buildRouteParam(defaultGw4, v4Routes)
-	args["net_r6"] = m.buildRouteParam(defaultGw6, v6Routes)
 	dnsSection := make([]string, 0, len(vm.Network.Nameservers))
+
 	for _, ns := range vm.Network.Nameservers {
 		dnsSection = append(dnsSection, ns.String())
 	}
-	args["net_dns"] = strings.Join(dnsSection, ";")
+
 	if len(cfg.Network) > 0 {
 		cfg.Network[0].Nameservers.Addresses = dnsSection
 	}
 
-	return nics, args, nil
+	return nics, nil
 }
 
 func (m *Module) tail(path string) (string, error) {
@@ -422,16 +414,13 @@ func (m *Module) Run(vm pkg.VM) error {
 		env = vm.Environment
 		// add we also add disk mounts
 		for i, mnt := range vm.Disks {
+			name := fmt.Sprintf("/dev/vd%c", 'a'+i)
 			cfg.Mounts = append(cfg.Mounts,
 				cloudinit.Mount{
-					Source: mnt.Path,
+					Source: name,
 					Target: mnt.Target,
 					Type:   cloudinit.MountTypeAuto,
 				})
-
-			//TODO: drop this from cmdline
-			name := fmt.Sprintf("vd%c", 'a'+i)
-			cmdline[name] = mnt.Target
 		}
 		for _, q := range vm.Shared {
 			cfg.Mounts = append(cfg.Mounts,
@@ -440,9 +429,6 @@ func (m *Module) Run(vm pkg.VM) error {
 					Target: q.Target,
 					Type:   cloudinit.MountTypeVirtiofs,
 				})
-
-			key := fmt.Sprintf("qsfs_%s", q.ID)
-			cmdline[key] = q.Target
 		}
 	} else {
 		// if with no virtio fs we can only
@@ -454,6 +440,7 @@ func (m *Module) Run(vm pkg.VM) error {
 			if strings.HasPrefix(k, "vd") {
 				continue
 			}
+
 			if _, ok := protectedKernelEnv[k]; ok {
 				continue
 			}
@@ -461,12 +448,10 @@ func (m *Module) Run(vm pkg.VM) error {
 		}
 	}
 
-	nics, args, err := m.makeNetwork(&vm, &cfg)
+	nics, err := m.makeNetwork(&vm, &cfg)
 	if err != nil {
 		return err
 	}
-
-	cmdline.Extend(args)
 
 	ciImage := m.cloudInitImage(vm.Name)
 
