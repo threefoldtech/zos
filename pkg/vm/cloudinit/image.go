@@ -68,7 +68,7 @@ func CreateImage(file string, cfg Configuration) error {
 		"ethernets": func() marsh {
 			m := marsh{}
 			for _, ifc := range cfg.Network {
-				m[ifc.Name.String()] = ifc
+				m[ifc.Name] = ifc
 			}
 			return m
 		}(),

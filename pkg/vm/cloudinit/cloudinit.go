@@ -53,25 +53,26 @@ type Route struct {
 	Metric int    `yaml:"metric,omitempty"`
 }
 
-type NameMatch string
+type MacMatch string
 
-func (n NameMatch) String() string {
+func (n MacMatch) String() string {
 	return string(n)
 }
 
-func (n NameMatch) MarshalYAML() (interface{}, error) {
+func (n MacMatch) MarshalYAML() (interface{}, error) {
 	return marsh{
-		"name": string(n),
+		"macaddress": string(n),
 	}, nil
 }
 
 type Nameservers struct {
 	Search    []string `yaml:"search,omitempty"`
-	Addresses []string `yaml:"addresses,omitempty"`
+	Addresses []string `yaml:"addresses"` //required
 }
 
 type Ethernet struct {
-	Name        NameMatch   `yaml:"match"`
+	Name        string      `yaml:"-"`
+	Mac         MacMatch    `yaml:"match"`
 	DHCP4       bool        `yaml:"dhcp4"`
 	Addresses   []string    `yaml:"addresses"`
 	Gateway4    string      `yaml:"gateway4,omitempty"`

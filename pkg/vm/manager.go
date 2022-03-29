@@ -205,7 +205,8 @@ func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interf
 		nics = append(nics, nic)
 
 		cinet := cloudinit.Ethernet{
-			Name:  cloudinit.NameMatch(nic.ID),
+			Name:  nic.ID,
+			Mac:   cloudinit.MacMatch(nic.Mac),
 			DHCP4: false,
 		}
 		// cfg.Network = append(cfg.Network,)
@@ -436,16 +437,16 @@ func (m *Module) Run(vm pkg.VM) error {
 		// but this is not safe.
 		// TODO: Should we only allow UPPER_CASE
 		// env to pass to avoid overriding other params ?!
-		for k, v := range vm.Environment {
-			if strings.HasPrefix(k, "vd") {
-				continue
-			}
+		// for k, v := range vm.Environment {
+		// 	if strings.HasPrefix(k, "vd") {
+		// 		continue
+		// 	}
 
-			if _, ok := protectedKernelEnv[k]; ok {
-				continue
-			}
-			cmdline[k] = v
-		}
+		// 	if _, ok := protectedKernelEnv[k]; ok {
+		// 		continue
+		// 	}
+		// 	cmdline[k] = v
+		// }
 	}
 
 	nics, err := m.makeNetwork(&vm, &cfg)
