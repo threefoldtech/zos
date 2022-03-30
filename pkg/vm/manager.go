@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -43,19 +42,6 @@ var (
 		"console": "ttyS0",
 		"reboot":  "k",
 		"panic":   "1",
-	}
-)
-var (
-	protectedKernelEnv = map[string]struct{}{
-		"init":       {},
-		"root":       {},
-		"rootfstype": {},
-		"console":    {},
-		"net_eth1":   {},
-		"net_eth2":   {},
-		"net_dns":    {},
-		"panic":      {},
-		"reboot":     {},
 	}
 )
 
@@ -160,24 +146,6 @@ func (m *Module) Exists(id string) bool {
 	return err == nil
 }
 
-func (m *Module) buildRouteParam(defaultGw net.IP, table map[string]string) string {
-	var buf bytes.Buffer
-	if defaultGw != nil {
-		buf.WriteString(fmt.Sprintf("default,%s", defaultGw.String()))
-	}
-
-	for k, v := range table {
-		if buf.Len() > 0 {
-			buf.WriteRune(';')
-		}
-		buf.WriteString(k)
-		buf.WriteRune(',')
-		buf.WriteString(v)
-	}
-
-	return buf.String()
-}
-
 func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interface, error) {
 	// assume there is always at least 1 iface present
 
@@ -210,9 +178,7 @@ func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interf
 			DHCP4: false,
 		}
 		// cfg.Network = append(cfg.Network,)
-		var ips []string
 		for _, ip := range ifcfg.IPs {
-			ips = append(ips, ip.String())
 			cinet.Addresses = append(cinet.Addresses, ip.String())
 		}
 
@@ -431,22 +397,6 @@ func (m *Module) Run(vm pkg.VM) error {
 					Type:   cloudinit.MountTypeVirtiofs,
 				})
 		}
-	} else {
-		// if with no virtio fs we can only
-		// set the given environment to the linux kernel
-		// but this is not safe.
-		// TODO: Should we only allow UPPER_CASE
-		// env to pass to avoid overriding other params ?!
-		// for k, v := range vm.Environment {
-		// 	if strings.HasPrefix(k, "vd") {
-		// 		continue
-		// 	}
-
-		// 	if _, ok := protectedKernelEnv[k]; ok {
-		// 		continue
-		// 	}
-		// 	cmdline[k] = v
-		// }
 	}
 
 	nics, err := m.makeNetwork(&vm, &cfg)
