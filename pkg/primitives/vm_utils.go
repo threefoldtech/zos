@@ -181,7 +181,11 @@ func (p *Primitives) getPubIPConfig(wl *gridtypes.WorkloadWithID) (result zos.Pu
 func getFlistInfo(imagePath string) (FListInfo, error) {
 	image := imagePath + "/image.raw"
 	log.Debug().Str("file", image).Msg("checking image")
-	if _, err := os.Stat(image); err != nil {
+	_, err := os.Stat(image)
+
+	if os.IsNotExist(err) {
+		return FListInfo{}, nil
+	} else if err != nil {
 		return FListInfo{}, errors.Wrap(err, "couldn't stat /image.raw")
 	}
 
