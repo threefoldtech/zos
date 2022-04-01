@@ -346,7 +346,15 @@ func (m *Module) Run(vm pkg.VM) error {
 	if key, ok := vm.Environment["SSH_KEY"]; ok {
 		cfg.Users = append(cfg.Users, cloudinit.User{
 			Name: "root",
-			Keys: strings.Split(key, "\n"), // in case ssh_key container multiple keys. is this a usecase (?)
+			Keys: func() []string {
+				// in case ssh_key container multiple keys. is this a usecase (?)
+				lines := strings.Split(key, "\n")
+				var keys []string
+				for _, line := range lines {
+					keys = append(keys, strings.Split(line, ",")...)
+				}
+				return keys
+			}(),
 		})
 	}
 
