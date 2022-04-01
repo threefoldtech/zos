@@ -348,8 +348,10 @@ func (m *Module) Run(vm pkg.VM) error {
 			Name: "root",
 			Keys: func() []string {
 				// in case ssh_key container multiple keys. is this a usecase (?)
+				// to be backward compatible, we split over "newlines"
 				lines := strings.Split(key, "\n")
 				var keys []string
+				// but we also support using `,` as a separator
 				for _, line := range lines {
 					keys = append(keys, strings.Split(line, ",")...)
 				}
@@ -530,6 +532,16 @@ func (m *Module) Inspect(name string) (pkg.VMInfo, error) {
 	}, nil
 }
 
+func (m *Module) removeConfig(name string) {
+	if name == "" {
+		return
+	}
+
+	_ = os.Remove(m.configPath(name))
+
+	_ = os.Remove(m.cloudInitImage(name))
+}
+
 // Delete deletes a machine by name (id)
 func (m *Module) Delete(name string) error {
 	defer m.failures.Delete(name)
@@ -537,7 +549,7 @@ func (m *Module) Delete(name string) error {
 	// before we do anything we set failures to permanent to prevent monitoring from trying
 	// to revive this machine
 	m.failures.Set(name, permanent, cache.NoExpiration)
-	defer os.RemoveAll(m.configPath(name))
+	defer m.removeConfig(name)
 
 	//is this the real life? is this just legacy?
 	if pid, err := findFC(name); err == nil {
