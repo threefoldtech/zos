@@ -14,7 +14,7 @@ extract_zlib-musl() {
 prepare_zlib-musl() {
     echo "[+] configuring: ${ZLIB_MUSL_PKGNAME}"
 
-    CC="musl-gcc" ./configure --prefix /
+    CC="musl-gcc" CFLAGS="-fPIC" ./configure --prefix /
 }
 
 compile_zlib-musl() {
