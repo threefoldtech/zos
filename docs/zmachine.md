@@ -6,11 +6,17 @@ On the Zos level, both of these are implemented as virtual machines. Depending o
 the context, it will be considered to be either a VM or a container. In either
 scenario, the `Zmachine` is started from an `Flist`.
 
+> Note, both VM and Container on ZOS are actually served as Virtual Machines. The
+only difference is that if you are running in VM mode, you only need to provide a **raw**
+disk image (image.raw) in your flist.
 ## VM
 
-A VM is a full blown virtualized environment capable of hosting an entire operating
-system. The user has full control over the environment inside the VM, can change
-files as they please, and can generally operate it as they would operate any server.
+In a VM mode, you run your own operating system (for now only linux is supported)
+The image provided must be
+- EFI bootable
+- Cloud-init enabled.
+
+You can find later in this document how to create your own bootable image.
 
 A VM reservations must also have at least 1 volume, as the boot image
 will be copied to this volume. The size of the root disk will be the size of this
@@ -21,35 +27,14 @@ receive its config over the NoCloud source. This takes care of setting up networ
 , root authorized_keys.
 ### Expected Flist structure
 
-An `Zmachine` will be considered a `VM` if it contains a `/kernel` file. If this
-is the case, it **MUST** also contain an `/image.raw` file. Having a `/kernel`
-file without `/image.raw` is an error. Optionally, an `initramfs` image can be
-provided as `/initrd` in the `Flist`.
+An `Zmachine` will be considered a `VM` if it contains an `/image.raw` file.
 
-`/kernel` is expected to be a `64-bit Linux` kernel (uncompressed). It can also
-be a firmware blob implementing the `PVH` boot protocol. The hypervisor used in
-Zos also supports `Windows 10/Windows server 2019`.
+`/image.raw` is used as "boot disk". This `/image.raw` is copied to the first attached
+volume of the `VM`. Cloud-init will take care of resizing the filesystem on the image
+to take the full disk size allocated in the deployment.
 
-`/image.raw` is used as "boot disk". It should be noted that this is not currently
-a traditional disk, but rather it is expected to be a `btrfs` filesystem. This has
-some implications (see below). This `/image.raw` is copied to the first attached
-volume of the `VM`. It is then loopback mounted on the host, so the filesystem can
-be resized to the full size of the volume. Inside the `VM`, it is exposed as a disk,
-and the kernel should mount it on `/`.
-
-### Known issues
-
-- The filesystem of the disk image must be `btrfs`. This excludes any kind of windows
-    system.
-- The disk image needs to be a filesystem, and can't be a full disk image.
-- The kernel needs to be specified separately. It is not read from the disk image.
-    As a result, you can't upgrade the kernel from inside the VM.
-- The previous issue could be worked around by using a bootloader, but that doesn't
-    work as those expect the disk image to have a partition table and EFI parition
-    (which is usually some kind of `VFAT`). Recall that the disk image needs to be
-    a single btrfs filesystem.
-- Setting network is convoluted and very much not using __any__ industry standard.
-- The kernel command line is just abused to pass configuration.
+Note if the `image.raw` size is larger than the allocated disk. the workload for the VM
+will fail.
 
 ## Container
 
@@ -74,15 +59,35 @@ passed will be available inside the container.
 
 ### Expected Flist structure
 
-Any Flist will boot as a container, **UNLESS** is has a `/kernel` file. There is
+Any Flist will boot as a container, **UNLESS** is has a `/image.raw` file. There is
 no need to specify a kernel yourself (it will be provided).
 
 ### Known issues
-
-- The network config is injected over the kernel command line which clutters it,
-    while there seems to be no reason that it is not passed via the environment
-    variables.
 - We need to do proper performance testing for `virtio-fs`. There seems to be some
     suboptimal performance right now.
 - It's not currently possible to get container logs.
 - TODO: more testing
+
+## Creating VM image
+This is a simple tutorial on how to create your own VM image
+> Note: Please consider checking the official vm images repo on the hub before building your own
+image. this can save you a lot of time (and network traffice) here https://hub.grid.tf/tf-official-vms
+
+### Use one of ubuntu cloud-images
+If the ubuntu images in the official repo are not enough, you can simply upload one of the official images as follows
+
+- Visit https://cloud-images.ubuntu.com/
+- Select the version you want (let's assume bionic)
+- Go to bionic, then click on current
+- download the amd64.img file like this one https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img
+- This is a `Qcow2` image, this is not supported by zos. So we need to convert this to a raw disk image using the following command
+```bash
+qemu-img convert -p -f qcow2 -O raw bionic-server-cloudimg-amd64.img image.raw
+```
+- now we have the raw image (image.raw) time to compress and upload to the hub
+```bash
+tar -czf ubuntu-18.04-lts.tar.gz image.raw
+```
+- now visit the hub https://hub.grid.tf/ and login or create your own account, then click on upload my file button
+- Select the newly created tar.gz file
+- Now you should be able to use this flist to create Zmachine workloads
