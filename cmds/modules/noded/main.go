@@ -206,7 +206,7 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get node id")
 	}
-	sub, err := env.GetSubstrate()
+	sub, err := environment.GetSubstrate()
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"time"
 
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/host"
@@ -22,14 +23,10 @@ func uptime(ctx context.Context, cl zbus.Client) error {
 	var (
 		mgr = stubs.NewIdentityManagerStub(cl)
 	)
-	env, err := environment.Get()
-	if err != nil {
-		return errors.Wrap(err, "failed to get runtime environment for zos")
-	}
 
-	sub, err := env.GetSubstrate()
+	subMgr, err := environment.GetSubstrate()
 	if err != nil {
-		return errors.Wrap(err, "failed to create substrate client")
+		return err
 	}
 
 	sk := ed25519.PrivateKey(mgr.PrivateKey(ctx))
@@ -38,13 +35,22 @@ func uptime(ctx context.Context, cl zbus.Client) error {
 		return err
 	}
 
+	update := func(uptime uint64) (types.Hash, error) {
+		sub, err := subMgr.Substrate()
+		if err != nil {
+			return types.Hash{}, err
+		}
+		defer sub.Close()
+		return sub.UpdateNodeUptime(id, uptime)
+	}
+
 	for {
 		uptime, err := host.Uptime()
 		if err != nil {
 			return errors.Wrap(err, "failed to get uptime")
 		}
 		log.Debug().Msg("updating node uptime")
-		hash, err := sub.UpdateNodeUptime(id, uptime)
+		hash, err := update(uptime)
 		if err != nil {
 			return errors.Wrap(err, "failed to report uptime")
 		}
