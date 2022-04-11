@@ -16,13 +16,9 @@ A VM reservations must also have at least 1 volume, as the boot image
 will be copied to this volume. The size of the root disk will be the size of this
 volume.
 
-In the VM you are responsible for setting up the network and any kind of things
-that need to be injected, such as SSH keys. For the networking, parameters will
-be set on the kernel cmd line. You [can see a script that sets this up here](https://github.com/threefoldtech/cloud-container/blob/main/setupnetwork).
-
-Environment variables will be injected on the kernel cmd line. It is your responsibility
-to set up the image to read and parse the kernel cmd line, and take the proper action.
-
+The image used to the boot the VM must has cloud-init enabled on boot. Cloud-init
+receive its config over the NoCloud source. This takes care of setting up networking, hostname
+, root authorized_keys.
 ### Expected Flist structure
 
 An `Zmachine` will be considered a `VM` if it contains a `/kernel` file. If this
