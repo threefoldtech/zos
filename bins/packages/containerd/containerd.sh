@@ -5,6 +5,10 @@ CONTAINERD_LINK="https://github.com/containerd/containerd/archive/${CONTAINERD_V
 dependencies_containerd() {
     apt-get install -y btrfs-progs libbtrfs-dev libseccomp-dev build-essential pkg-config
 
+    if [ "$CI" == "true" ]; then
+        echo "GITHUB ACTION FOUND"
+    fi
+
     if [ -z $GOPATH ]; then
         if command -v go > /dev/null; then
             export GOPATH=$(go env GOPATH)
@@ -46,6 +50,7 @@ prepare_containerd() {
 compile_containerd() {
     echo "[+] compiling containerd"
     pwd
+    which go
     go version
     make CGO_CFLAGS=-I${ROOTDIR}/usr/include
 }
