@@ -45,6 +45,8 @@ prepare_containerd() {
 
 compile_containerd() {
     echo "[+] compiling containerd"
+    pwd
+    go version
     make CGO_CFLAGS=-I${ROOTDIR}/usr/include
 }
 
