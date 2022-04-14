@@ -5,18 +5,21 @@ CONTAINERD_LINK="https://github.com/containerd/containerd/archive/${CONTAINERD_V
 dependencies_containerd() {
     apt-get install -y btrfs-progs libbtrfs-dev libseccomp-dev build-essential pkg-config
 
-    if [ -z $GOPATH ]; then
-        if command -v go > /dev/null; then
-            export GOPATH=$(go env GOPATH)
-        else
-            curl -L https://dl.google.com/go/go1.13.1.linux-amd64.tar.gz > /tmp/go1.13.1.linux-amd64.tar.gz
-            tar -C /usr/local -xzf /tmp/go1.13.1.linux-amd64.tar.gz
-            mkdir -p /gopath
+    # if [ -z $GOPATH ]; then
+    #     if command -v go > /dev/null; then
+    #         export GOPATH=$(go env GOPATH)
+    #     else
+    #         curl -L https://dl.google.com/go/go1.13.1.linux-amd64.tar.gz > /tmp/go1.13.1.linux-amd64.tar.gz
+    #         tar -C /usr/local -xzf /tmp/go1.13.1.linux-amd64.tar.gz
+    #         mkdir -p /gopath
 
-            export PATH=$PATH:/usr/local/go/bin
-            export GOPATH=/gopath
-        fi
-    fi
+    #         export PATH=$PATH:/usr/local/go/bin
+    #         export GOPATH=/gopath
+    #     fi
+
+    # fi
+    mkdir -p /gopath
+    export GOPATH=/gopath
 
     CONTAINERD_HOME="${GOPATH}/src/github.com/containerd"
 }
