@@ -16,6 +16,7 @@ import (
 const (
 	failuresBeforeDestroy = 4
 	monitorEvery          = 10 * time.Second
+	logrotateEvery        = 10 * time.Minute
 )
 
 var (
@@ -25,13 +26,32 @@ var (
 	permanent = struct{}{}
 )
 
+func (m *Module) logrotate(ctx context.Context) error {
+
+	// running, err := FindAll()
+	// if err != nil {
+	// 	return err
+	// }
+
+	return nil
+}
+
 // Monitor start vms  monitoring
 func (m *Module) Monitor(ctx context.Context) {
+	monTicker := time.NewTicker(monitorEvery)
+	defer monTicker.Stop()
+	logTicker := time.NewTicker(logrotateEvery)
+	defer logTicker.Stop()
+
 	go func() {
 		for {
 			select {
-			case <-time.After(monitorEvery):
+			case <-monTicker.C:
 				if err := m.monitor(ctx); err != nil {
+					log.Error().Err(err).Msg("failed to run monitoring")
+				}
+			case <-logTicker.C:
+				if err := m.logrotate(ctx); err != nil {
 					log.Error().Err(err).Msg("failed to run monitoring")
 				}
 			case <-ctx.Done():
