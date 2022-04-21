@@ -138,37 +138,3 @@ func (r *Rotator) Rotate(file string) error {
 
 	return fd.Truncate(0)
 }
-
-// Open opens a log file for reading. This will read through both
-// the file+Suffix, and file
-func (r *Rotator) Open(file string) io.ReadCloser {
-
-	return nil
-}
-
-type multiReadCloser struct {
-	io.Reader
-	closers []io.Closer
-}
-
-func (m *multiReadCloser) Close() error {
-	for _, c := range m.closers {
-		c.Close()
-	}
-
-	return nil
-}
-
-func newMultiReadCloser(f ...io.ReadCloser) io.ReadCloser {
-	readers := make([]io.Reader, 0, len(f))
-	closers := make([]io.Closer, 0, len(f))
-	for _, rc := range f {
-		readers = append(readers, rc)
-		closers = append(closers, rc)
-	}
-
-	return &multiReadCloser{
-		Reader:  io.MultiReader(readers...),
-		closers: closers,
-	}
-}
