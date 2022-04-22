@@ -2,6 +2,7 @@ package yggdrasil
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -126,6 +127,10 @@ func FetchPubYggPeerList() (Peers, error) {
 	resp, err := http.Get("https://publicpeers.neilalexander.dev/publicnodes.json")
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("invalid status code: %s", resp.Status)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&pl); err != nil {
