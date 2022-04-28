@@ -39,9 +39,15 @@ func (m *Module) StreamCreate(name string, stream pkg.Stream) error {
 		cmd = fmt.Sprintf("ip netns exec %s %s", stream.Namespace, cmd)
 	}
 
+	script := `sh -c "
+	exec %s 2>&1
+	"`
 	service := zinit.InitService{
-		Exec: cmd,
-		Log:  zinit.NoneLogType,
+		Exec: fmt.Sprintf(script, cmd),
+		// in zinit version <=0.2.7 there was a bug in log of type none
+		// that only the stdout is piped to /dev/null but not stderr.
+		// hence we need to redirect stderr to stdout as done by the script
+		Log: zinit.NoneLogType,
 	}
 
 	if err := zinit.AddService(id, service); err != nil {
