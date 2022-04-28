@@ -34,7 +34,7 @@ func (m *Module) StreamCreate(name string, stream pkg.Stream) error {
 		return fmt.Errorf("stream with same id '%s' already exists", id)
 	}
 
-	cmd := fmt.Sprintf("tailstream -o %s %s", stream.Output, file)
+	cmd := fmt.Sprintf("tailstream -o %s %s", quote(stream.Output), file)
 	if stream.Namespace != "" {
 		cmd = fmt.Sprintf("ip netns exec %s %s", stream.Namespace, cmd)
 	}
