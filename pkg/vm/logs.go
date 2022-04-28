@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/zinit"
 )
@@ -55,13 +56,18 @@ func (m *Module) StreamDelete(id string) error {
 	id = fmt.Sprintf("%s%s", streamPrefix, id)
 	cl := zinit.Default()
 
-	defer zinit.RemoveService(id)
+	defer func() {
+		_ = zinit.RemoveService(id)
+	}()
 
 	_, err := cl.Get(id)
 	if errors.Is(err, zinit.ErrUnknownService) {
 		return nil
 	}
 
-	cl.StopWait(30*time.Second, id)
+	if err := cl.StopWait(30*time.Second, id); err != nil {
+		log.Error().Err(err).Str("id", id).Msg("failed to stop stream service")
+	}
+
 	return cl.Forget(id)
 }
