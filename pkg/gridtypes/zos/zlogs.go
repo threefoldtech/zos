@@ -19,9 +19,9 @@ var (
 
 type ZLogs struct {
 	// ZMachine stream logs for which zmachine
-	ZMachine gridtypes.Name
+	ZMachine gridtypes.Name `json:"zmachine"`
 	// Output url
-	Output string
+	Output string `json:"output"`
 }
 
 func (z ZLogs) Valid(getter gridtypes.WorkloadGetter) error {
