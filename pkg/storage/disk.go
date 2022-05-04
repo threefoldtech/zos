@@ -235,11 +235,7 @@ func (s *Module) ensureFS(disk string) error {
 func (s *Module) isEmptyDisk(disk string) bool {
 	err := exec.Command("blkid", disk).Run()
 
-	if err != nil {
-		return true
-	}
-
-	return false
+	return err != nil
 }
 
 func (s *Module) safePath(base, id string) (string, error) {
