@@ -625,9 +625,10 @@ func (g *gatewayModule) DeleteNamedProxy(wlID string) error {
 	if err != nil {
 		log.Warn().Err(err).Str("path", path).Msg("failed to load domain from config file")
 	}
-	if err := os.Remove(path); err != nil {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return errors.Wrap(err, "couldn't remove config file")
 	}
+
 	if domain != "" {
 		g.deleteReservedDomain(domain)
 	}
