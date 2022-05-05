@@ -229,7 +229,7 @@ func TestCountersMultipleReports(t *testing.T) {
 
 	lastReportTime := now.Unix()
 	slot, err := db.slotAt(uint64(now.Add(-5 * time.Minute).Unix()))
-	slot.Counter("test-0", 0)
+	require.NoError(slot.Counter("test-0", 0))
 	require.NoError(err)
 
 	total := 0.0
