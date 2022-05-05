@@ -243,7 +243,7 @@ func (r *rrdSlot) Counter(key string, value float64) error {
 			return nil
 		}
 		diff := 0.0
-		if value > last {
+		if value >= last {
 			diff = value - last
 		} else {
 			// this is either an overflow
