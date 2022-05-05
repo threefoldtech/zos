@@ -25,6 +25,10 @@ type RRD interface {
 	Last(key string) (value float64, ok bool, err error)
 }
 
+type Printer interface {
+	Print(w io.Writer) error
+}
+
 type Slot interface {
 	// Counter sets (or overrides) the current stored value for this key,
 	// with value
@@ -84,7 +88,7 @@ func newRRDBolt(path string, window time.Duration, retention time.Duration) (*rr
 
 func (r *rrdBolt) printBucket(bucket *bolt.Bucket, out io.Writer) error {
 	cur := bucket.Cursor()
-	for k, v := cur.First(); k != nil; k, _ = cur.Next() {
+	for k, v := cur.First(); k != nil; k, v = cur.Next() {
 		if _, err := fmt.Fprintf(out, "\t%s: %f\n", k, lf64(v)); err != nil {
 			return err
 		}
