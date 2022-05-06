@@ -50,8 +50,10 @@ For more details over the message bus please check [zbus](https://github.com/thr
 Here you are a list of the major ZOS modules.
 
 - [Identity](identity/readme.md)
+- [Node](node/readme.md)
 - [Storage](storage/readme.md)
 - [Network](network/readme.md)
 - [Flist](flist/readme.md)
 - [Container](container/readme.md)
+- [VM](vmd/readme.md)
 - [Provision](provision/readme.md)

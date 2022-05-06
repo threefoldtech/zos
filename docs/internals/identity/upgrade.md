@@ -17,7 +17,7 @@ The run mode defines which flist the node is going to use to boot. Run mode can 
 The base image for zos contains a very small subset of tools, plus the boot program. Standing alone, the image is not really useful. On boot and
 after initial start of the system, the boot program kicks in and it does the following:
 
-- Detect the boot flist that the node must use to fully start. The default is hard-coded into the image, but this can be overridden by the `flist=` kernel param. The `flist=` kernel param can get deprecated without a warning, since it's a development flag.
+- Detect the boot flist that the node must use to fully start. The default is hard-coded into zos, but this can be overridden by the `flist=` kernel param. The `flist=` kernel param can get deprecated without a warning, since it's a development flag.
 - The bootstrap, will then mount this flist using 0-fs, this of course requires a working connection to the internet. Hence bootstrap is configured to wait for the `internet` service.
 - The flist information (name, and version) is saved under `/tmp/flist.name` and `/tmp/flist.info`.
 - The bootstrap makes sure to copy all files in the flist to the proper locations under the system rootfs, this include `zinit` config files.
