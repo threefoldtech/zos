@@ -1,3 +1,5 @@
+> Note: This is unmaintained, try on your own responsibility
+
 # MacOS Developer
 
 0-OS (v2) uses a Linux kernel and is really build with a linux environment in mind.
