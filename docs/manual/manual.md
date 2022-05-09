@@ -145,11 +145,11 @@ type Workload struct {
 
 ### Types
 - Virtual machine related
-  - `network`
-  - `ip`
-  - `zmount`
-  - `zmachine`
-  - `zlogs`
+  - [`network`](network/readme.md)
+  - [`ip`](ip/readme.md)
+  - [`zmount`](zmount/readme.md)
+  - [`zmachine`](zmachine/readme.md)
+  - [`zlogs`](zlogs/readme.me)
 - Storage related
   - `zdb`
   - `qsfs`
