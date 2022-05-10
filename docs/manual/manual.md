@@ -154,5 +154,5 @@ type Workload struct {
   - [`zdb`](zdb/readme.md)
   - [`qsfs`](qsfs/readme.md)
 - Gateway related
-  - `gateway-name-proxy`
-  - `gateway-fqdn-proxy`
+  - [`gateway-name-proxy`](gateway/name-proxy.md)
+  - [`gateway-fqdn-proxy`]((gateway/fqdn-proxy.md))
