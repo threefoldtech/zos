@@ -151,8 +151,8 @@ type Workload struct {
   - [`zmachine`](zmachine/readme.md)
   - [`zlogs`](zlogs/readme.me)
 - Storage related
-  - `zdb`
-  - `qsfs`
+  - [`zdb`](zdb/readme.md)
+  - [`qsfs`](qsfs/readme.md)
 - Gateway related
   - `gateway-name-proxy`
   - `gateway-fqdn-proxy`
