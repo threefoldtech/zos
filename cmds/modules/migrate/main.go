@@ -13,6 +13,7 @@ import (
 	"github.com/threefoldtech/tfexplorer/client"
 	"github.com/threefoldtech/tfexplorer/models/generated/directory"
 	"github.com/threefoldtech/tfexplorer/schema"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -47,7 +48,7 @@ func farmsWithWallet(ctx context.Context, url, wallet string) ([]Farm, error) {
     query ($address: String!) {
 		farms(where: {stellarAddress_eq: $address}) {
 		  name
-		  farmId
+		  farmID
 		  stellarAddress
 		}
 	  }
@@ -149,23 +150,14 @@ func migrate(ctx context.Context, v2 *directory.Farm, v3 *Farm) error {
 	return nil
 }
 
-func action(cli *cli.Context) error {
-	app.Initialize()
-	log.Info().Msg("starting upgrade daemon")
+func run(ctx context.Context, bcdb, graphql string, farmerID pkg.FarmID) error {
 
-	env, err := environment.Get()
-	if err != nil {
-		return errors.Wrap(err, "failed to get environment")
-	}
-
-	// address := "GCE4MAASAFI3AT3U7CCDJ5OGZGWNUQ2CE2Q6V3HVNKEF2UJI3RPWPTWG"
-
-	cl, err := client.NewClient(env.BcdbURL, nil)
+	cl, err := client.NewClient(bcdb, nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to create explorer client")
 	}
 
-	v2, err := cl.Directory.FarmGet(schema.ID(env.FarmerID))
+	v2, err := cl.Directory.FarmGet(schema.ID(farmerID))
 	address := walletAddress(&v2)
 
 	if len(address) == 0 {
@@ -176,7 +168,7 @@ func action(cli *cli.Context) error {
 		return nil
 	}
 
-	matches, err := farmsWithWallet(cli.Context, env.GraphQlURL, address)
+	matches, err := farmsWithWallet(ctx, graphql, address)
 
 	if err != nil {
 		return errors.Wrapf(err, "failed to get v3 farms with payout address '%s'", address)
@@ -199,9 +191,20 @@ func action(cli *cli.Context) error {
 	bf.MaxInterval = time.Hour
 
 	return backoff.RetryNotify(func() error {
-		return migrate(cli.Context, &v2, v3)
-	}, bf, func(e error, d time.Duration) {
+		return migrate(ctx, &v2, v3)
+	}, bf, func(err error, d time.Duration) {
 		log.Error().Err(err).Dur("wait", d).Msg("migration failed, retrying after wait")
 	})
+}
 
+func action(cli *cli.Context) error {
+	app.Initialize()
+	log.Info().Msg("starting upgrade daemon")
+
+	env, err := environment.Get()
+	if err != nil {
+		return errors.Wrap(err, "failed to get environment")
+	}
+
+	return run(cli.Context, env.BcdbURL, env.GraphQlURL, env.FarmerID)
 }
