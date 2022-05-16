@@ -715,7 +715,7 @@ func (s *Module) checkForCandidates(size gridtypes.Unit, mounted bool) ([]candid
 
 		candidates = append(candidates, candidate{
 			Pool:      pool,
-			Available: usage.Size - (usage.Size + uint64(size)),
+			Available: usage.Size*SSDOverProvisionFactor - (usage.Used + uint64(size)),
 		})
 
 		// if we are looking for not mounted pools, break here
@@ -723,7 +723,6 @@ func (s *Module) checkForCandidates(size gridtypes.Unit, mounted bool) ([]candid
 			return candidates, nil
 		}
 	}
-
 	sort.Slice(candidates, func(i, j int) bool {
 		// reverse sorting so most available is at beginning
 		return candidates[i].Available > candidates[j].Available

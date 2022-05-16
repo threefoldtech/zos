@@ -262,26 +262,6 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 	return Usage{Size: p.device.Size, Used: used}, nil
 }
 
-// Reserved is reserved size of the devices in bytes
-func (p *btrfsPool) Reserved() (uint64, error) {
-
-	volumes, err := p.Volumes()
-	if err != nil {
-		return 0, err
-	}
-
-	var total uint64
-	for _, volume := range volumes {
-		usage, err := volume.Usage()
-		if err != nil {
-			return 0, err
-		}
-		total += usage.Size
-	}
-
-	return total, nil
-}
-
 func (p *btrfsPool) maintenance() error {
 	// this method cleans up all the unused
 	// qgroups that could exists on a filesystem
