@@ -246,7 +246,7 @@ func (p *btrfsPool) Usage() (usage Usage, err error) {
 	volumes, err := p.Volumes()
 
 	if err != nil {
-		return usage, errors.Wrapf(err, "failed to list pool '' volumes", mnt)
+		return usage, errors.Wrapf(err, "failed to list pool '%s' volumes", mnt)
 	}
 
 	var used uint64
