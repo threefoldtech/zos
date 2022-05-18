@@ -93,8 +93,6 @@ func (m *Module) monitor(ctx context.Context) error {
 		return err
 	}
 
-	log.Debug().Int("configured", len(items)).Int("running", len(running)).Msg("vms")
-
 	for _, item := range items {
 		if item.IsDir() {
 			continue
