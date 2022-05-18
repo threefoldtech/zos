@@ -114,7 +114,7 @@ func (m *Module) monitor(ctx context.Context) error {
 	// because they have no config.
 	for id, ps := range running {
 		log.Info().Str("id", id).Msg("machine is running but not configured")
-		syscall.Kill(ps.Pid, syscall.SIGKILL)
+		_ = syscall.Kill(ps.Pid, syscall.SIGKILL)
 	}
 
 	return nil
