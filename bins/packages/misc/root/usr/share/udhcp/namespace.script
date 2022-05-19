@@ -1,0 +1,58 @@
+#!/bin/sh
+# udhcpc script edited by Tim Riker <Tim@Rikers.org>
+
+[ -n "$1" ] || { echo "Error: should be called from udhcpc"; exit 1; }
+
+case "$1" in
+    deconfig)
+        echo "Setting IP address 0.0.0.0 on $interface"
+        ip -4 addr flush dev $interface
+        ip link set $interface up
+        ;;
+
+    renew|bound)
+        echo "Setting IP address $ip on $interface"
+        ip -4 addr flush dev $interface
+        ip addr add ${ip}/${mask} dev $interface
+
+        [ -n "$router" ] && ip route add default via ${router%% *} dev $interface
+
+        namespace=$(ip netns identify $$)
+        echo "namespace is '${namespace}'"
+
+        if [ -n "$hostname" ] ; then
+            hostname "$hostname"
+            # we only update hosts file if running
+            # on host-namespace
+            if  [ -z "${namespace}" ]; then
+                sed -i /^127.0.0.1/d /etc/hosts
+                echo "127.0.0.1 localhost" >> /etc/hosts
+                echo "127.0.0.1 $hostname" >> /etc/hosts
+            fi
+        fi
+
+        if [ -n "$dns" ] ; then
+            resolv_conf="${ROOT}/etc/resolv.conf"
+            if [ -n "${namespace} " ]; then
+                dir="${ROOT}/etc/netns/${namespace}"
+                mkdir -p "${dir}"
+                resolv_conf="${dir}/resolv.conf"
+            fi
+
+            echo "recreating $resolv_conf"
+            # If the file is a symlink somewhere (like /etc/resolv.conf
+            # pointing to /run/resolv.conf), make sure things work.
+            realconf=$(readlink -f "$resolv_conf" 2>/dev/null || echo "$resolv_conf")
+            tmpfile="$realconf-$$"
+            > "$tmpfile"
+            [ -n "$domain" ] && echo "search $domain" >> "$tmpfile"
+            for i in $dns ; do
+                echo " Adding DNS server $i"
+                echo "nameserver $i" >> "$tmpfile"
+            done
+            mv "$tmpfile" "$realconf"
+        fi
+        ;;
+esac
+
+exit 0
