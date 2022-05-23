@@ -30,6 +30,10 @@ func GetCapacity(ctx context.Context) gridtypes.Capacity {
 	return val.(gridtypes.Capacity)
 }
 
+var (
+	_ provision.Provisioner = (*Statistics)(nil)
+)
+
 // Statistics a provisioner interceptor that keeps track
 // of consumed capacity. It also does validate of required
 // capacity and then can report that this capacity can not be fulfilled
@@ -200,6 +204,14 @@ func (s *Statistics) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (
 // CanUpdate implements the provisioner interface
 func (s *Statistics) CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool {
 	return s.inner.CanUpdate(ctx, typ)
+}
+
+func (s *Statistics) Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	return nil
+}
+
+func (s *Statistics) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	return nil
 }
 
 // statistics api handlers for msgbus

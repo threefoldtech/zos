@@ -33,12 +33,19 @@ type Engine interface {
 // workload provision was not carried on because it's already deployed, basically a no action
 // needed indicator. In that case, the engine can ignore the returned result
 type Provisioner interface {
+	// Initialize is called before the provision engine is started
 	Initialize(ctx context.Context) error
+	// Provision a workload
 	Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
+	// Decommission a workload
 	Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error
-	// Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error
-	// Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	// Pause a workload
+	Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	// Resume a workload
+	Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	// Update a workload
 	Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
+	// CanUpdate checks if this workload can be updated on the fly
 	CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool
 }
 

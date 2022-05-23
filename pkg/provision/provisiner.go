@@ -144,6 +144,44 @@ func (p *mapProvisioner) Decommission(ctx context.Context, wl *gridtypes.Workloa
 	return manager.Deprovision(ctx, wl)
 }
 
+// Pause a workload
+func (p *mapProvisioner) Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	if wl.Result.State != gridtypes.StateOk {
+		return fmt.Errorf("can only pause workloads in ok state")
+	}
+
+	manager, ok := p.managers[wl.Type]
+	if !ok {
+		return fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+	}
+
+	if mgr, ok := manager.(Pauser); ok {
+		return mgr.Pause(ctx, wl)
+	}
+
+	// if a workload does not support pausing we set it to paused status anyway.
+	return Paused()
+}
+
+// Resume a workload
+func (p *mapProvisioner) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	if wl.Result.State != gridtypes.StatePaused {
+		return fmt.Errorf("can only resume workloads in paused state")
+	}
+
+	manager, ok := p.managers[wl.Type]
+	if !ok {
+		return fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+	}
+
+	if mgr, ok := manager.(Pauser); ok {
+		return mgr.Resume(ctx, wl)
+	}
+
+	// if a workload does not support resuming, we set it to okay anyway
+	return Ok()
+}
+
 // Provision implements provision.Provisioner
 func (p *mapProvisioner) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (result gridtypes.Result, err error) {
 	manager, ok := p.managers[wl.Type]
