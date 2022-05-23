@@ -1,4 +1,4 @@
-package primitives
+package zmount
 
 import (
 	"context"
@@ -7,10 +7,16 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
+)
+
+var (
+	_ provision.Manager = (*Manager)(nil)
+	_ provision.Updater = (*Manager)(nil)
 )
 
 // ZMount defines a mount point
@@ -19,7 +25,29 @@ type ZMount = zos.ZMount
 // ZMountResult types
 type ZMountResult = zos.ZMountResult
 
-func (p *Primitives) volumeProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (vol ZMountResult, err error) {
+type Manager struct {
+	zbus zbus.Client
+}
+
+func NewManager(zbus zbus.Client) *Manager {
+	return &Manager{zbus}
+}
+
+// VolumeProvision is entry point to provision a volume
+func (p *Manager) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
+	return p.volumeProvisionImpl(ctx, wl)
+}
+
+func (p *Manager) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	vdisk := stubs.NewStorageModuleStub(p.zbus)
+	return vdisk.DiskDelete(ctx, wl.ID.String())
+}
+
+func (p *Manager) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
+	return p.zMountUpdateImpl(ctx, wl)
+}
+
+func (p *Manager) volumeProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (vol ZMountResult, err error) {
 	var config ZMount
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
 		return ZMountResult{}, err
@@ -37,21 +65,7 @@ func (p *Primitives) volumeProvisionImpl(ctx context.Context, wl *gridtypes.Work
 }
 
 // VolumeProvision is entry point to provision a volume
-func (p *Primitives) zMountProvision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
-	return p.volumeProvisionImpl(ctx, wl)
-}
-
-func (p *Primitives) zMountDecommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
-	vdisk := stubs.NewStorageModuleStub(p.zbus)
-	return vdisk.DiskDelete(ctx, wl.ID.String())
-}
-
-func (p *Primitives) zMountUpdate(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
-	return p.zMountUpdateImpl(ctx, wl)
-}
-
-// VolumeProvision is entry point to provision a volume
-func (p *Primitives) zMountUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (vol ZMountResult, err error) {
+func (p *Manager) zMountUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (vol ZMountResult, err error) {
 	log.Debug().Msg("updating zmount")
 	current, err := provision.GetWorkload(ctx, wl.Name)
 	if err != nil {

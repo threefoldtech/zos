@@ -10,35 +10,68 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-// DeployFunction simple provision function interface
-type DeployFunction func(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error)
+// Manager defines basic type manager functionality. This interface
+// declares the provision and the deprovision method which is required
+// by any Type manager.
+type Manager interface {
+	Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error)
+	Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+}
 
-// RemoveFunction simple decommission function
-type RemoveFunction func(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+// Initializer interface define an extra Initialize method which is run on the provisioner
+// before the provision engine is started.
+type Initializer interface {
+	Initialize(ctx context.Context) error
+}
+
+// Updater defines the optional Update method for a type manager. Types are allowed
+// to implement update to change their settings on the fly
+type Updater interface {
+	Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error)
+}
+
+// Pauser defines optional Pause, Resume method for type managers. Types are allowed
+// to implement pause, resume to put the workload in paused state where it's not usable
+// by the user but at the same time not completely deleted.
+type Pauser interface {
+	Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+}
 
 type mapProvisioner struct {
-	provisioners    map[gridtypes.WorkloadType]DeployFunction
-	decommissioners map[gridtypes.WorkloadType]RemoveFunction
-	updaters        map[gridtypes.WorkloadType]DeployFunction
+	managers map[gridtypes.WorkloadType]Manager
 }
 
 // NewMapProvisioner returns a new instance of a map provisioner
-func NewMapProvisioner(p map[gridtypes.WorkloadType]DeployFunction, d map[gridtypes.WorkloadType]RemoveFunction, u map[gridtypes.WorkloadType]DeployFunction) Provisioner {
+func NewMapProvisioner(managers map[gridtypes.WorkloadType]Manager) Provisioner {
 	return &mapProvisioner{
-		provisioners:    p,
-		decommissioners: d,
-		updaters:        u,
+		managers: managers,
 	}
+}
+
+func (p *mapProvisioner) Initialize(ctx context.Context) error {
+	for typ, mgr := range p.managers {
+		init, ok := mgr.(Initializer)
+		if !ok {
+			continue
+		}
+
+		if err := init.Initialize(ctx); err != nil {
+			return errors.Wrapf(err, "failed to run initializers for workload type '%s'", typ)
+		}
+	}
+
+	return nil
 }
 
 // Provision implements provision.Provisioner
 func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (result gridtypes.Result, err error) {
-	handler, ok := p.provisioners[wl.Type]
+	manager, ok := p.managers[wl.Type]
 	if !ok {
-		return result, fmt.Errorf("no provisioner associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return result, fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
 	}
 
-	data, err := handler(ctx, wl)
+	data, err := manager.Provision(ctx, wl)
 	if errors.Is(err, ErrNoActionNeeded) {
 		return result, err
 	}
@@ -48,22 +81,27 @@ func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWi
 
 // Decommission implementation for provision.Provisioner
 func (p *mapProvisioner) Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
-	handler, ok := p.decommissioners[wl.Type]
+	manager, ok := p.managers[wl.Type]
 	if !ok {
-		return fmt.Errorf("no decomissioner associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
 	}
 
-	return handler(ctx, wl)
+	return manager.Deprovision(ctx, wl)
 }
 
 // Provision implements provision.Provisioner
 func (p *mapProvisioner) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (result gridtypes.Result, err error) {
-	handler, ok := p.updaters[wl.Type]
+	manager, ok := p.managers[wl.Type]
 	if !ok {
-		return result, fmt.Errorf("no updater associated with workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return result, fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
 	}
 
-	data, err := handler(ctx, wl)
+	updater, ok := manager.(Updater)
+	if !ok {
+		return result, fmt.Errorf("workload type '%s' does not support updating", wl.Type)
+	}
+
+	data, err := updater.Update(ctx, wl)
 	if errors.Is(err, ErrNoActionNeeded) {
 		return result, err
 	}
@@ -72,7 +110,12 @@ func (p *mapProvisioner) Update(ctx context.Context, wl *gridtypes.WorkloadWithI
 }
 
 func (p *mapProvisioner) CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool {
-	_, ok := p.updaters[typ]
+	manager, ok := p.managers[typ]
+	if !ok {
+		return false
+	}
+
+	_, ok = manager.(Updater)
 	return ok
 }
 

@@ -22,6 +22,7 @@ require (
 	github.com/containernetworking/plugins v0.9.1
 	github.com/coreos/go-iptables v0.6.0 // indirect
 	github.com/deckarep/golang-set v1.8.0
+	github.com/decred/base58 v1.0.3 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/diskfs/go-diskfs v1.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1

@@ -139,6 +139,11 @@ func (s *Statistics) hasEnoughCapacity(required *gridtypes.Capacity) error {
 	return nil
 }
 
+// Initialize implements provisioner interface
+func (s *Statistics) Initialize(ctx context.Context) error {
+	return nil
+}
+
 // Provision implements the provisioner interface
 func (s *Statistics) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (result gridtypes.Result, err error) {
 	current := s.Current()
