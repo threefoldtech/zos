@@ -81,6 +81,10 @@ const (
 	// order of the workloads doesn't have to match
 	// the one sent by the user
 	opProvisionNoContract
+	// opPause, pauses a deployment
+	opPause
+	// opResume resumes a deployment
+	opResume
 )
 
 // engineJob is a persisted job instance that is
@@ -708,6 +712,19 @@ func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.Workloa
 }
 
 func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, reason string) {
+	for i := len(e.order) - 1; i >= 0; i-- {
+		typ := e.order[i]
+
+		workloads := getter.ByType(typ)
+		for _, wl := range workloads {
+			if err := e.uninstallWorkload(ctx, wl, reason); err != nil {
+				log.Error().Err(err).Stringer("id", wl.ID).Msg("failed to un-install workload")
+			}
+		}
+	}
+}
+
+func (e *NativeEngine) pauseDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, reason string) {
 	for i := len(e.order) - 1; i >= 0; i-- {
 		typ := e.order[i]
 

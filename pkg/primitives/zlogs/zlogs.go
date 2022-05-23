@@ -42,7 +42,7 @@ func (p *Manager) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (
 		return nil, errors.Wrapf(err, "no zmachine with name '%s'", cfg.ZMachine)
 	}
 
-	if !machine.Result.State.IsAny(gridtypes.StateOk) {
+	if !machine.Result.State.IsOkay() {
 		return nil, errors.Wrapf(err, "machine state is not ok")
 	}
 

@@ -574,7 +574,7 @@ func (p *Manager) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithI
 	}
 
 	if new.Mode != old.Mode {
-		return result, provision.NewUnchangedError(fmt.Errorf("cannot change namespace mode"))
+		return result, provision.UnChanged(fmt.Errorf("cannot change namespace mode"))
 	}
 
 	if new.Size < old.Size {
@@ -584,7 +584,7 @@ func (p *Manager) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithI
 		// While this makes sense fro ZDB. it will not make zos able to calculate the namespace
 		// consumption because it will only count the size used by the workload from the user
 		// data but not actual size on disk. hence shrinking is not allowed.
-		return result, provision.NewUnchangedError(fmt.Errorf("cannot shrink zdb namespace"))
+		return result, provision.UnChanged(fmt.Errorf("cannot shrink zdb namespace"))
 	}
 
 	if new.Size == old.Size && new.Password == old.Password && new.Public == old.Public {
@@ -593,7 +593,7 @@ func (p *Manager) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithI
 	}
 	containers, err := p.zdbListContainers(ctx)
 	if err != nil {
-		return result, provision.NewUnchangedError(errors.Wrap(err, "failed to list running zdbs"))
+		return result, provision.UnChanged(errors.Wrap(err, "failed to list running zdbs"))
 	}
 
 	name := wl.ID.String()
@@ -612,15 +612,15 @@ func (p *Manager) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithI
 		if new.Size != old.Size {
 			free, reserved, err := reservedSpace(con)
 			if err != nil {
-				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to calculate free/reserved space from zdb"))
+				return result, provision.UnChanged(errors.Wrap(err, "failed to calculate free/reserved space from zdb"))
 			}
 
 			if reserved+new.Size-old.Size > free {
-				return result, provision.NewUnchangedError(fmt.Errorf("no enough free space to support new size"))
+				return result, provision.UnChanged(fmt.Errorf("no enough free space to support new size"))
 			}
 
 			if err := con.NamespaceSetSize(name, uint64(new.Size)); err != nil {
-				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to set new zdb namespace size"))
+				return result, provision.UnChanged(errors.Wrap(err, "failed to set new zdb namespace size"))
 			}
 		}
 
@@ -628,12 +628,12 @@ func (p *Manager) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithI
 		// to setup the password
 		if new.Password != old.Password {
 			if err := con.NamespaceSetPassword(name, new.Password); err != nil {
-				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to set new password"))
+				return result, provision.UnChanged(errors.Wrap(err, "failed to set new password"))
 			}
 		}
 		if new.Public != old.Public {
 			if err := con.NamespaceSetPublic(name, new.Public); err != nil {
-				return result, provision.NewUnchangedError(errors.Wrap(err, "failed to set public flag"))
+				return result, provision.UnChanged(errors.Wrap(err, "failed to set public flag"))
 			}
 		}
 

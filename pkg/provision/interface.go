@@ -36,6 +36,8 @@ type Provisioner interface {
 	Initialize(ctx context.Context) error
 	Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
 	Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	// Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	// Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error
 	Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
 	CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) bool
 }
@@ -65,29 +67,6 @@ var (
 	// ErrInvalidVersion invalid version error
 	ErrInvalidVersion = fmt.Errorf("invalid version")
 )
-
-// ErrUnchanged can be returned by the Provisioner.Update it means
-// that the update has failed but the workload is intact
-type ErrUnchanged struct {
-	cause error
-}
-
-// NewUnchangedError return an instance of ErrUnchanged
-func NewUnchangedError(cause error) error {
-	if cause == nil {
-		return nil
-	}
-
-	return ErrUnchanged{cause}
-}
-
-func (e ErrUnchanged) Unwrap() error {
-	return e.cause
-}
-
-func (e ErrUnchanged) Error() string {
-	return e.cause.Error()
-}
 
 // Field interface
 type Field interface{}

@@ -86,31 +86,31 @@ func (p *Manager) zMountUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 	if new.Size == old.Size {
 		return vol, provision.ErrNoActionNeeded
 	} else if new.Size < old.Size {
-		return vol, provision.NewUnchangedError(fmt.Errorf("not safe to shrink a disk"))
+		return vol, provision.UnChanged(fmt.Errorf("not safe to shrink a disk"))
 	}
 
 	// now validate that disk is not being used right now
 	deployment, err := provision.GetDeployment(ctx)
 	if err != nil {
-		return vol, provision.NewUnchangedError(errors.Wrap(err, "failed to get deployment"))
+		return vol, provision.UnChanged(errors.Wrap(err, "failed to get deployment"))
 	}
 
 	vms := deployment.ByType(zos.ZMachineType)
 	log.Debug().Int("count", len(vms)).Msg("found zmachines in deployment")
 	for _, vm := range vms {
 		// vm not running, no need to check
-		if !vm.Result.State.IsAny(gridtypes.StateOk) {
+		if !vm.Result.State.IsOkay() {
 			continue
 		}
 
 		var data zos.ZMachine
 		if err := json.Unmarshal(vm.Data, &data); err != nil {
-			return vol, provision.NewUnchangedError(errors.Wrap(err, "failed to load vm information"))
+			return vol, provision.UnChanged(errors.Wrap(err, "failed to load vm information"))
 		}
 
 		for _, mnt := range data.Mounts {
 			if mnt.Name == wl.Name {
-				return vol, provision.NewUnchangedError(fmt.Errorf("disk is mounted, please delete the VM first"))
+				return vol, provision.UnChanged(fmt.Errorf("disk is mounted, please delete the VM first"))
 			}
 		}
 	}
@@ -123,5 +123,5 @@ func (p *Manager) zMountUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 	_, err = vdisk.DiskResize(ctx, wl.ID.String(), new.Size)
 	// we know it's safe to resize the disk, it won't break it so we
 	// can be sure we can wrap the error into an unchanged error
-	return vol, provision.NewUnchangedError(err)
+	return vol, provision.UnChanged(err)
 }
