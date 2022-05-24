@@ -206,12 +206,12 @@ func (s *Statistics) CanUpdate(ctx context.Context, typ gridtypes.WorkloadType) 
 	return s.inner.CanUpdate(ctx, typ)
 }
 
-func (s *Statistics) Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
-	return nil
+func (s *Statistics) Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error) {
+	return s.inner.Pause(ctx, wl)
 }
 
-func (s *Statistics) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
-	return nil
+func (s *Statistics) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error) {
+	return s.inner.Resume(ctx, wl)
 }
 
 // statistics api handlers for msgbus

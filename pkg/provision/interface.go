@@ -19,6 +19,8 @@ type Engine interface {
 	// and will be processes later
 	Provision(ctx context.Context, wl gridtypes.Deployment) error
 	Deprovision(ctx context.Context, twin uint32, id uint64, reason string) error
+	Pause(ctx context.Context, twin uint32, id uint64) error
+	Resume(ctx context.Context, twin uint32, id uint64) error
 	Update(ctx context.Context, update gridtypes.Deployment) error
 	Storage() Storage
 	Twins() Twins
@@ -40,9 +42,9 @@ type Provisioner interface {
 	// Deprovision a workload
 	Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID) error
 	// Pause a workload
-	Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
 	// Resume a workload
-	Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
 	// Update a workload
 	Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
 	// CanUpdate checks if this workload can be updated on the fly

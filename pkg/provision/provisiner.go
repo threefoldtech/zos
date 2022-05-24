@@ -62,7 +62,7 @@ func UnChanged(cause error) Response {
 }
 
 func Paused() Response {
-	return &response{s: gridtypes.StatePaused}
+	return &response{s: gridtypes.StatePaused, e: fmt.Errorf("paused")}
 }
 
 // Manager defines basic type manager functionality. This interface
@@ -145,41 +145,56 @@ func (p *mapProvisioner) Deprovision(ctx context.Context, wl *gridtypes.Workload
 }
 
 // Pause a workload
-func (p *mapProvisioner) Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+func (p *mapProvisioner) Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error) {
 	if wl.Result.State != gridtypes.StateOk {
-		return fmt.Errorf("can only pause workloads in ok state")
+		return wl.Result, fmt.Errorf("can only pause workloads in ok state")
 	}
 
 	manager, ok := p.managers[wl.Type]
 	if !ok {
-		return fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return wl.Result, fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
 	}
 
-	if mgr, ok := manager.(Pauser); ok {
-		return mgr.Pause(ctx, wl)
+	// change all status to Paused
+	var err error = Paused()
+	// unless there is specific implementation to
+	// pause a work load, we call it.
+	mgr, ok := manager.(Pauser)
+	if ok {
+		err = mgr.Pause(ctx, wl)
 	}
 
-	// if a workload does not support pausing we set it to paused status anyway.
-	return Paused()
+	// update the result object. this way we make sure data
+	// does not change across pause/resume changes
+	result := wl.Result
+	setState(&result, err)
+	return result, nil
 }
 
 // Resume a workload
-func (p *mapProvisioner) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+func (p *mapProvisioner) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error) {
 	if wl.Result.State != gridtypes.StatePaused {
-		return fmt.Errorf("can only resume workloads in paused state")
+		return wl.Result, fmt.Errorf("can only resume workloads in paused state")
 	}
 
 	manager, ok := p.managers[wl.Type]
 	if !ok {
-		return fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+		return wl.Result, fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)
+	}
+	// change all status to Paused
+	var err error = Ok()
+	// unless there is specific implementation to
+	// pause a work load, we call it.
+	mgr, ok := manager.(Pauser)
+	if ok {
+		err = mgr.Resume(ctx, wl)
 	}
 
-	if mgr, ok := manager.(Pauser); ok {
-		return mgr.Resume(ctx, wl)
-	}
-
-	// if a workload does not support resuming, we set it to okay anyway
-	return Ok()
+	// update the result object. this way we make sure data
+	// does not change across pause/resume changes
+	result := wl.Result
+	setState(&result, err)
+	return result, nil
 }
 
 // Provision implements provision.Provisioner
@@ -212,11 +227,8 @@ func (p *mapProvisioner) CanUpdate(ctx context.Context, typ gridtypes.WorkloadTy
 	return ok
 }
 
-func buildResult(data interface{}, err error) (gridtypes.Result, error) {
-	result := gridtypes.Result{
-		Created: gridtypes.Timestamp(time.Now().Unix()),
-	}
-
+func setState(result *gridtypes.Result, err error) {
+	result.Created = gridtypes.Timestamp(time.Now().Unix())
 	state := gridtypes.StateOk
 	str := ""
 
@@ -224,18 +236,25 @@ func buildResult(data interface{}, err error) (gridtypes.Result, error) {
 		str = err.Error()
 		state = gridtypes.StateError
 
-		if resp, ok := err.(*response); ok {
+		var resp *response
+		if errors.As(err, &resp) {
 			state = resp.state()
 		}
 	}
 
 	result.State = state
 	result.Error = str
+}
+
+func buildResult(data interface{}, err error) (gridtypes.Result, error) {
+	var result gridtypes.Result
+	setState(&result, err)
 
 	br, err := json.Marshal(data)
 	if err != nil {
 		return result, errors.Wrap(err, "failed to encode result")
 	}
+
 	result.Data = br
 
 	return result, nil

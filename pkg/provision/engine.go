@@ -332,6 +332,46 @@ func (e *NativeEngine) Provision(ctx context.Context, deployment gridtypes.Deplo
 	return e.queue.Enqueue(&job)
 }
 
+// Pause deployment
+func (e *NativeEngine) Pause(ctx context.Context, twin uint32, id uint64) error {
+	deployment, err := e.storage.Get(twin, id)
+	if err != nil {
+		return err
+	}
+
+	log.Info().
+		Uint32("twin", deployment.TwinID).
+		Uint64("contract", deployment.ContractID).
+		Msg("schedule for pausing")
+
+	job := engineJob{
+		Target: deployment,
+		Op:     opPause,
+	}
+
+	return e.queue.Enqueue(&job)
+}
+
+// Resume deployment
+func (e *NativeEngine) Resume(ctx context.Context, twin uint32, id uint64) error {
+	deployment, err := e.storage.Get(twin, id)
+	if err != nil {
+		return err
+	}
+
+	log.Info().
+		Uint32("twin", deployment.TwinID).
+		Uint64("contract", deployment.ContractID).
+		Msg("schedule for pausing")
+
+	job := engineJob{
+		Target: deployment,
+		Op:     opResume,
+	}
+
+	return e.queue.Enqueue(&job)
+}
+
 // Deprovision workload
 func (e *NativeEngine) Deprovision(ctx context.Context, twin uint32, id uint64, reason string) error {
 	deployment, err := e.storage.Get(twin, id)
@@ -456,6 +496,10 @@ func (e *NativeEngine) Run(root context.Context) error {
 			e.installDeployment(ctx, &job.Target)
 		case opDeprovision:
 			e.uninstallDeployment(ctx, &job.Target, job.Message)
+		case opPause:
+			e.lockDeployment(ctx, &job.Target, true)
+		case opResume:
+			e.lockDeployment(ctx, &job.Target, false)
 		case opUpdate:
 			// update is tricky because we need to work against
 			// 2 versions of the object. Once that reflects the current state
@@ -711,20 +755,54 @@ func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.Workloa
 	return e.storage.Transaction(twin, deployment, wl.Workload.WithResults(result))
 }
 
-func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, reason string) {
-	for i := len(e.order) - 1; i >= 0; i-- {
-		typ := e.order[i]
+func (e *NativeEngine) lockWorkload(ctx context.Context, wl *gridtypes.WorkloadWithID, lock bool) error {
+	// this workload is already deleted or in error state
+	// we don't try again
+	twin, deployment, name, _ := wl.ID.Parts()
 
-		workloads := getter.ByType(typ)
-		for _, wl := range workloads {
-			if err := e.uninstallWorkload(ctx, wl, reason); err != nil {
-				log.Error().Err(err).Stringer("id", wl.ID).Msg("failed to un-install workload")
-			}
+	current, err := e.storage.Current(twin, deployment, name)
+	if err != nil {
+		// another error
+		return errors.Wrapf(err, "failed to get last transaction for '%s'", wl.ID.String())
+	} else {
+		if !current.Result.State.IsOkay() {
+			//nothing to do! it's either in error state or something else.
+			return nil
 		}
 	}
+
+	log := log.With().
+		Uint32("twin", twin).
+		Uint64("deployment", deployment).
+		Stringer("name", wl.Name).
+		Str("type", wl.Type.String()).
+		Bool("lock", lock).
+		Logger()
+
+	log.Debug().Msg("setting locking on workload")
+	action := e.provisioner.Resume
+	if lock {
+		action = e.provisioner.Pause
+	}
+	result, err := action(ctx, wl)
+	if errors.Is(err, ErrNoActionNeeded) {
+		// workload already exist, so no need to create a new transaction
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	if result.State == gridtypes.StateError {
+		log.Error().Str("error", result.Error).Msg("failed to set locking on workload")
+	}
+
+	return e.storage.Transaction(
+		twin,
+		deployment,
+		wl.Workload.WithResults(result))
 }
 
-func (e *NativeEngine) pauseDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, reason string) {
+func (e *NativeEngine) uninstallDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, reason string) {
 	for i := len(e.order) - 1; i >= 0; i-- {
 		typ := e.order[i]
 
@@ -744,6 +822,18 @@ func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.W
 		for _, wl := range workloads {
 			if err := e.installWorkload(ctx, wl); err != nil {
 				log.Error().Err(err).Stringer("id", wl.ID).Msg("failed to install workload")
+			}
+		}
+	}
+}
+
+func (e *NativeEngine) lockDeployment(ctx context.Context, getter gridtypes.WorkloadGetter, lock bool) {
+	for _, typ := range e.order {
+		workloads := getter.ByType(typ)
+
+		for _, wl := range workloads {
+			if err := e.lockWorkload(ctx, wl, lock); err != nil {
+				log.Error().Err(err).Stringer("id", wl.ID).Bool("lock", lock).Msg("failed to set locking on workload")
 			}
 		}
 	}
