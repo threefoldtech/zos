@@ -589,7 +589,7 @@ func (p *Manager) Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error
 		return provision.UnChanged(errors.Wrap(err, "failed to set namespace locking"))
 	}
 
-	return nil
+	return provision.Paused()
 }
 
 func (p *Manager) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
@@ -606,7 +606,7 @@ func (p *Manager) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) erro
 		return provision.UnChanged(errors.Wrap(err, "failed to set namespace locking"))
 	}
 
-	return nil
+	return provision.Ok()
 }
 
 func (p *Manager) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
