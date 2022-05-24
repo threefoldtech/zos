@@ -37,8 +37,8 @@ type Provisioner interface {
 	Initialize(ctx context.Context) error
 	// Provision a workload
 	Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (gridtypes.Result, error)
-	// Decommission a workload
-	Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error
+	// Deprovision a workload
+	Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID) error
 	// Pause a workload
 	Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error
 	// Resume a workload

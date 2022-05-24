@@ -135,7 +135,7 @@ func (p *mapProvisioner) Provision(ctx context.Context, wl *gridtypes.WorkloadWi
 }
 
 // Decommission implementation for provision.Provisioner
-func (p *mapProvisioner) Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+func (p *mapProvisioner) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
 	manager, ok := p.managers[wl.Type]
 	if !ok {
 		return fmt.Errorf("unknown workload type '%s' for reservation id '%s'", wl.Type, wl.ID)

@@ -76,6 +76,7 @@ var (
 	_ provision.Manager     = (*Manager)(nil)
 	_ provision.Updater     = (*Manager)(nil)
 	_ provision.Initializer = (*Manager)(nil)
+	_ provision.Pauser      = (*Manager)(nil)
 )
 
 type Manager struct {
@@ -546,6 +547,63 @@ func (p *Manager) zdbDecommissionImpl(ctx context.Context, wl *gridtypes.Workloa
 		}
 
 		return idx.Delete(wl.ID.String())
+	}
+
+	return nil
+}
+
+func (p *Manager) findContainer(ctx context.Context, name string) (zdb.Client, error) {
+	containers, err := p.zdbListContainers(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list running zdbs")
+	}
+
+	for id := range containers {
+		cl := zdbConnection(id)
+		if err := cl.Connect(); err != nil {
+			log.Error().Err(err).Str("id", string(id)).Msg("failed to connect to zdb instance")
+			continue
+		}
+
+		if ok, _ := cl.Exist(name); ok {
+			return cl, nil
+		}
+
+		_ = cl.Close()
+	}
+
+	return nil, os.ErrNotExist
+}
+
+func (p *Manager) Pause(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	cl, err := p.findContainer(ctx, wl.ID.String())
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return provision.UnChanged(err)
+	}
+
+	defer cl.Close()
+
+	if err := cl.NamespaceSetLock(wl.ID.String(), true); err != nil {
+		return provision.UnChanged(errors.Wrap(err, "failed to set namespace locking"))
+	}
+
+	return nil
+}
+
+func (p *Manager) Resume(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	cl, err := p.findContainer(ctx, wl.ID.String())
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return provision.UnChanged(err)
+	}
+
+	defer cl.Close()
+
+	if err := cl.NamespaceSetLock(wl.ID.String(), false); err != nil {
+		return provision.UnChanged(errors.Wrap(err, "failed to set namespace locking"))
 	}
 
 	return nil

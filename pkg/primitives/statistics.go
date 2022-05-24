@@ -181,8 +181,8 @@ func (s *Statistics) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID
 }
 
 // Decommission implements the decomission interface
-func (s *Statistics) Decommission(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
-	if err := s.inner.Decommission(ctx, wl); err != nil {
+func (s *Statistics) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
+	if err := s.inner.Deprovision(ctx, wl); err != nil {
 		return err
 	}
 	cap, err := wl.Capacity()
