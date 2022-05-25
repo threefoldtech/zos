@@ -111,7 +111,7 @@ func (c *clientImpl) NamespaceSetLock(name string, lock bool) error {
 	if lock {
 		l = 1
 	}
-	ok, err := redis.String(con.Do("NSSET", name, "lock", l))
+	ok, err := redis.String(con.Do("NSSET", name, "freeze", l))
 	if err != nil {
 		return err
 	}
