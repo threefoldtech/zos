@@ -172,7 +172,7 @@ func (s *Statistics) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID
 		return result, err
 	}
 
-	if result.State == gridtypes.StateOk {
+	if result.State.IsOkay() {
 		log.Debug().Str("type", wl.Type.String()).Str("id", wl.ID.String()).Msgf("incrmenting capacity +%+v", needed)
 		s.counters.Increment(needed)
 	}
