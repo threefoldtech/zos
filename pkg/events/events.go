@@ -111,7 +111,7 @@ func (m *Manager) events(ctx context.Context) error {
 					if e.NodeID != types.U32(m.node) {
 						continue
 					}
-					log.Info().Uint64("contract", uint64(e.ContractID)).Msg("got contract cancel update")
+					log.Info().Uint64("contract", uint64(e.ContractID)).Msg("got contract grace period started")
 					m.contractLocked <- pkg.ContractLockedEvent{
 						Kind:     pkg.EventReceived,
 						Contract: uint64(e.ContractID),
@@ -124,7 +124,7 @@ func (m *Manager) events(ctx context.Context) error {
 					if e.NodeID != types.U32(m.node) {
 						continue
 					}
-					log.Info().Uint64("contract", uint64(e.ContractID)).Msg("got contract cancel update")
+					log.Info().Uint64("contract", uint64(e.ContractID)).Msg("got contract grace period ended")
 					m.contractLocked <- pkg.ContractLockedEvent{
 						Kind:     pkg.EventReceived,
 						Contract: uint64(e.ContractID),

@@ -145,7 +145,7 @@ func (s *Statistics) hasEnoughCapacity(required *gridtypes.Capacity) error {
 
 // Initialize implements provisioner interface
 func (s *Statistics) Initialize(ctx context.Context) error {
-	return nil
+	return s.inner.Initialize(ctx)
 }
 
 // Provision implements the provisioner interface
