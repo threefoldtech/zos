@@ -195,7 +195,7 @@ func (s *Module) DiskCreate(name string, size gridtypes.Unit) (disk pkg.VDisk, e
 		return disk, errors.Wrap(err, "failed to truncate disk to size")
 	}
 
-	return pkg.VDisk{Path: path, Size: int64(size)}, err
+	return pkg.VDisk{Path: path, Size: int64(size)}, nil
 }
 
 // DiskCreate with given size, return path to virtual disk (size in MB)
