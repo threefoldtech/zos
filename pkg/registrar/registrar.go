@@ -2,6 +2,7 @@ package registrar
 
 import (
 	"context"
+	"os"
 	"sync"
 	"time"
 
@@ -94,6 +95,10 @@ func (r *Registrar) getState() State {
 func (r *Registrar) register(ctx context.Context, cl zbus.Client, env environment.Environment, info RegistrationInfo) {
 	if app.CheckFlag(app.LimitedCache) {
 		r.setState(FailedState(errors.New("no disks")))
+		return
+	}
+	if _, err := os.Stat("/dev/kvm"); err != nil {
+		r.setState(FailedState(errors.New("virtualization is not enabled. please enable in BIOS")))
 		return
 	}
 	exp := backoff.NewExponentialBackOff()
