@@ -98,7 +98,7 @@ func (r *Registrar) register(ctx context.Context, cl zbus.Client, env environmen
 		return
 	}
 	if _, err := os.Stat("/dev/kvm"); err != nil {
-		r.setState(FailedState(errors.New("Virtualization is not enabled")))
+		r.setState(FailedState(errors.New("virtualization is not enabled. please enable in BIOS")))
 		return
 	}
 	exp := backoff.NewExponentialBackOff()
