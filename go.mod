@@ -14,17 +14,16 @@ require (
 	github.com/cenkalti/backoff/v3 v3.2.2
 	github.com/centrifuge/go-substrate-rpc-client/v4 v4.0.0
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/containerd/cgroups v1.0.1
-	github.com/containerd/containerd v1.5.0-rc.2
+	github.com/containerd/cgroups v1.0.3
+	github.com/containerd/containerd v1.5.13
 	github.com/containerd/continuity v0.2.0 // indirect
 	github.com/containerd/typeurl v1.0.2
 	github.com/containernetworking/cni v0.8.1
 	github.com/containernetworking/plugins v0.9.1
 	github.com/coreos/go-iptables v0.6.0 // indirect
 	github.com/deckarep/golang-set v1.8.0
-	github.com/decred/base58 v1.0.3 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/diskfs/go-diskfs v1.2.0 // indirect
+	github.com/decred/base58 v1.0.3
+	github.com/diskfs/go-diskfs v1.2.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/g0rbe/go-chattr v0.0.0-20190906133247-aa435a6a0a37
 	github.com/gizak/termui/v3 v3.1.0
@@ -35,7 +34,6 @@ require (
 	github.com/gomodule/redigo v1.8.8
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/handlers v0.0.0-20150720190736-60c7bfde3e33
 	github.com/gorilla/mux v1.8.0
 	github.com/gtank/merlin v0.1.1
 	github.com/hanwen/go-fuse/v2 v2.1.0 // indirect
@@ -49,7 +47,6 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/nsf/termbox-go v1.1.1 // indirect
 	github.com/onsi/gomega v1.16.0 // indirect
-	github.com/opencontainers/runc v1.0.2 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -68,7 +65,7 @@ require (
 	github.com/threefoldtech/zbus v0.1.5
 	github.com/tinylib/msgp v1.1.5 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0
-	github.com/urfave/cli v1.22.5
+	github.com/urfave/cli v1.22.5 // indirect
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
@@ -78,7 +75,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
-	golang.org/x/sys v0.0.0-20211124211545-fe61309f8881
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad
 	golang.org/x/text v0.3.7 // indirect
 	golang.zx2c4.com/wireguard v0.0.20200320 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
