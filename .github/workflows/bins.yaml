@@ -65,6 +65,12 @@ jobs:
       package: corex
     secrets:
       token: ${{ secrets.HUB_JWT }}
+  shimlogs:
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: shimlogs
+    secrets:
+      token: ${{ secrets.HUB_JWT }}
   cloudhypervisor:
     uses: ./.github/workflows/bin-package.yaml
     with:
