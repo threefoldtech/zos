@@ -27,6 +27,9 @@ on:
         description: "package to build"
         required: true
         type: string
+    secrets:
+      token:
+        required: true
 jobs:
   builder:
     name: builder
@@ -47,7 +50,7 @@ jobs:
         if: success()
         uses: threefoldtech/publish-flist@master
         with:
-          token: ${{ secrets.HUB_JWT }}
+          token: ${{ secrets.token }}
           action: publish
           user: tf-autobuilder
           root: bins/releases/${{ inputs.package }}
@@ -56,7 +59,7 @@ jobs:
         uses: threefoldtech/publish-flist@master
         if: success() && github.ref == 'refs/heads/main'
         with:
-          token: ${{ secrets.HUB_JWT }}
+          token: ${{ secrets.token }}
           action: crosslink
           user: ${{ inputs.development }}
           name: ${{ inputs.package }}.flist
@@ -65,7 +68,7 @@ jobs:
         uses: threefoldtech/publish-flist@master
         if: success() && startsWith(github.ref, 'refs/heads/v') && contains(github.ref, '-qa')
         with:
-          token: ${{ secrets.HUB_JWT }}
+          token: ${{ secrets.token }}
           action: crosslink
           user: ${{ inputs.quality }}
           name: ${{ inputs.package }}.flist
@@ -74,7 +77,7 @@ jobs:
         uses: threefoldtech/publish-flist@master
         if: success() && startsWith(github.ref, 'refs/heads/v') && contains(github.ref, '-rc')
         with:
-          token: ${{ secrets.HUB_JWT }}
+          token: ${{ secrets.token }}
           action: crosslink
           user: ${{ inputs.testing }}
           name: ${{ inputs.package }}.flist
@@ -83,7 +86,7 @@ jobs:
         uses: threefoldtech/publish-flist@master
         if: success() && startsWith(github.ref, 'refs/heads/v') && !contains(github.ref, '-rc') && !contains(github.ref, '-qa')
         with:
-          token: ${{ secrets.HUB_JWT }}
+          token: ${{ secrets.token }}
           action: crosslink
           user: ${{ inputs.production }}
           name: ${{ inputs.package }}.flist
