@@ -1,0 +1,70 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      development:
+        description: "development hub repo"
+        required: true
+        type: string
+      quality:
+        description: "qa hub repo"
+        required: true
+        type: string
+      testing:
+        description: "testing hub repo"
+        required: true
+        type: string
+      production:
+        description: "main hub repo"
+        required: true
+        type: string
+      name:
+        description: "link name to target flist"
+        required: true
+        type: string
+      target:
+        description: "linked flist full name"
+        required: true
+        type: string
+jobs:
+  link-release:
+    name: linking
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publishing (development)
+        uses: threefoldtech/publish-flist@master
+        if: success() && github.ref == 'refs/heads/main'
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: ${{ github.event.inputs.development }}
+          name: ${{ github.event.inputs.name }}
+          target: ${{ github.event.inputs.target }}
+      - name: Publishing (quality)
+        uses: threefoldtech/publish-flist@master
+        if: success() && startsWith(github.ref, 'refs/heads/v') && contains(github.ref, '-qa')
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: ${{ github.event.inputs.quality }}
+          name: ${{ github.event.inputs.name }}
+          target: ${{ github.event.inputs.target }}
+      - name: Publishing (testing)
+        uses: threefoldtech/publish-flist@master
+        if: success() && startsWith(github.ref, 'refs/heads/v') && contains(github.ref, '-rc')
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: ${{ github.event.inputs.testing }}
+          name: ${{ github.event.inputs.name }}
+          target: ${{ github.event.inputs.target }}
+      - name: Publishing (production)
+        uses: threefoldtech/publish-flist@master
+        if: success() && startsWith(github.ref, 'refs/heads/v') && !contains(github.ref, '-rc') && !contains(github.ref, '-qa')
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: ${{ github.event.inputs.production }}
+          name: ${{ github.event.inputs.name }}
+          target: ${{ github.event.inputs.target }}
