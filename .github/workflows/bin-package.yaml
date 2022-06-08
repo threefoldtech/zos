@@ -38,11 +38,11 @@ jobs:
         run: |
           cd bins
           sudo ./bins-extra.sh --package basesystem
-      - name: Build package (${{ github.event.inputs.package }})
+      - name: Build package (${{ inputs.package }})
         id: package
         run: |
           cd bins
-          sudo ./bins-extra.sh --package ${{ github.event.inputs.package }}
+          sudo ./bins-extra.sh --package ${{ inputs.package }}
       - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
         if: success()
         uses: threefoldtech/publish-flist@master
@@ -50,7 +50,7 @@ jobs:
           token: ${{ secrets.HUB_JWT }}
           action: publish
           user: tf-autobuilder
-          root: bins/releases/${{ github.event.inputs.package }}
+          root: bins/releases/${{ inputs.package }}
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publishing (development)
         uses: threefoldtech/publish-flist@master
@@ -58,8 +58,8 @@ jobs:
         with:
           token: ${{ secrets.HUB_JWT }}
           action: crosslink
-          user: ${{ github.event.inputs.development }}
-          name: ${{ github.event.inputs.package }}.flist
+          user: ${{ inputs.development }}
+          name: ${{ inputs.package }}.flist
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
       - name: Publishing (quality)
         uses: threefoldtech/publish-flist@master
@@ -67,8 +67,8 @@ jobs:
         with:
           token: ${{ secrets.HUB_JWT }}
           action: crosslink
-          user: ${{ github.event.inputs.quality }}
-          name: ${{ github.event.inputs.package }}.flist
+          user: ${{ inputs.quality }}
+          name: ${{ inputs.package }}.flist
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
       - name: Publishing (testing)
         uses: threefoldtech/publish-flist@master
@@ -76,8 +76,8 @@ jobs:
         with:
           token: ${{ secrets.HUB_JWT }}
           action: crosslink
-          user: ${{ github.event.inputs.testing }}
-          name: ${{ github.event.inputs.package }}.flist
+          user: ${{ inputs.testing }}
+          name: ${{ inputs.package }}.flist
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
       - name: Publishing (production)
         uses: threefoldtech/publish-flist@master
@@ -85,6 +85,6 @@ jobs:
         with:
           token: ${{ secrets.HUB_JWT }}
           action: crosslink
-          user: ${{ github.event.inputs.production }}
-          name: ${{ github.event.inputs.package }}.flist
+          user: ${{ inputs.production }}
+          name: ${{ inputs.package }}.flist
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
