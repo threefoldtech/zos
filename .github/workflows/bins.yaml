@@ -57,7 +57,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -94,7 +94,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -132,7 +132,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -170,7 +170,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -209,7 +209,7 @@ jobs:
 
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -247,7 +247,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -291,7 +291,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -354,7 +354,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -392,7 +392,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -429,7 +429,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
@@ -466,7 +466,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Publish
         if: success()
-        uses: ./.github/workflows/publish
+        uses: ./.github/workflows/publish.yaml
         with:
           development: ${{ env.development }}
           quality: ${{ env.quality }}
