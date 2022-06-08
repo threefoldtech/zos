@@ -8,469 +8,54 @@ on:
     paths:
       - "bins/**"
       - ".github/workflows/bins.yaml"
-env:
-  development: tf-zos-v3-bins.dev
-  quality: tf-zos-v3-bins.qa
-  testing: tf-zos-v3-bins.test
-  production: tf-zos-v3-bins
 
 jobs:
   containerd:
-    name: "Package: containerd"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code into the Go module directory
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package (containerd)
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package containerd
-
-      - name: Build package (runc)
-        id: sub-package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package runc
-
-      - name: Merging packages
-        id: packages
-        run: |
-          mkdir bins/releases/rootfs
-          sudo cp -av bins/releases/containerd/* bins/releases/rootfs/
-          sudo cp -av bins/releases/runc/* bins/releases/rootfs/
-
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/rootfs
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
+  runc:
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
   promtail:
-    name: "Package: promtail"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package promtail
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/promtail
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
   virtwhat:
-    name: "Package: virtwhat"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package virtwhat
-
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/virtwhat
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
   logtrunc:
-    name: "Package: logtrunc"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package logtrunc
-
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/logtrunc
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
   yggdrasil:
-    name: "Package: yggdrasil"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package yggdrasil
-
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/yggdrasil
-          name: ${{ steps.package.outputs.name }}.flist
-
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
-  zufs:
-    name: "Package: zufs (0-fs)"
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Checkout code into the Go module directory
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package zufs
-
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/zufs
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: 0-fs.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
+  "0-fs":
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      run-on: ubuntu-18.04
+      package: ${{ github.job }}
   hdparm:
-    name: "Package: hdparm"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Go 1.14
-        uses: actions/setup-go@v1
-        with:
-          go-version: 1.14
-        id: go
-
-      - name: Checkout code into the Go module directory
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package hdparm
-
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/hdparm
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
   corex:
-    name: "Package: corex (static)"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code into the Go module directory
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-          sudo ./bins-extra.sh --package base-musl
-
-      - name: Build dependency (zlib)
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package zlib-musl
-
-      - name: Build dependency (libcap)
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package libcap-musl
-
-      - name: Build dependency (libjson-c)
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package libjsonc-musl
-
-      - name: Build dependency (openssl)
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package openssl-musl
-
-      - name: Build dependency (libwebsockets)
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package libwebsockets-musl
-
-      - name: Build package (corex)
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package corex-musl
-
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/corex-musl
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
   cloudhypervisor:
-    name: "Package: cloud-hypervisor"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package cloudhypervisor
-
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/cloudhypervisor
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
   msgbusd:
-    name: "Package: msgbusd"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package msgbusd
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/msgbusd
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
-
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}
   tailstream:
-    name: "Package: tailstream"
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout code into the Go module directory
-        uses: actions/checkout@v1
-
-      - name: Setup basesystem
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package basesystem
-
-      - name: Build package
-        id: package
-        run: |
-          cd bins
-          sudo ./bins-extra.sh --package tailstream
-      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: publish
-          user: tf-autobuilder
-          root: bins/releases/tailstream
-          name: ${{ steps.package.outputs.name }}.flist
-      - name: Publish
-        if: success()
-        uses: ./.github/workflows/publish.yaml
-        with:
-          development: ${{ env.development }}
-          quality: ${{ env.quality }}
-          testing: ${{ env.testing }}
-          production: ${{ env.production }}
-          name: ${{ github.job }}.flist
-          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: ${{ github.job }}

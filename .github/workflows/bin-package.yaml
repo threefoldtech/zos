@@ -1,0 +1,95 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      development:
+        description: "development hub repo"
+        required: false
+        default: tf-zos-v3-bins.dev
+        type: string
+      quality:
+        description: "qa hub repo"
+        required: false
+        default: tf-zos-v3-bins.qa
+        type: string
+      testing:
+        description: "testing hub repo"
+        required: false
+        default: tf-zos-v3-bins.test
+        type: string
+      production:
+        description: "main hub repo"
+        required: false
+        default: tf-zos-v3-bins
+        type: string
+      runs-on:
+        description: "runs on"
+        required: false
+        type: string
+        default: ubuntu-latest
+      package:
+        description: "package to build"
+        required: true
+        type: string
+jobs:
+  builder:
+    name: builder
+    runs-on: ${{ github.event.inputs.runs-on }}
+    steps:
+      - name: Checkout code into the Go module directory
+        uses: actions/checkout@v1
+      - name: Setup basesystem
+        run: |
+          cd bins
+          sudo ./bins-extra.sh --package basesystem
+      - name: Build package (${{ github.event.inputs.package }})
+        id: package
+        run: |
+          cd bins
+          sudo ./bins-extra.sh --package ${{ github.event.inputs.package }}
+      - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
+        if: success()
+        uses: threefoldtech/publish-flist@master
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: publish
+          user: tf-autobuilder
+          root: bins/releases/${{ github.event.inputs.package }}
+          name: ${{ steps.package.outputs.name }}.flist
+      - name: Publishing (development)
+        uses: threefoldtech/publish-flist@master
+        if: success() && github.ref == 'refs/heads/main'
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: ${{ github.event.inputs.development }}
+          name: ${{ github.event.inputs.package }}.flist
+          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+      - name: Publishing (quality)
+        uses: threefoldtech/publish-flist@master
+        if: success() && startsWith(github.ref, 'refs/heads/v') && contains(github.ref, '-qa')
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: ${{ github.event.inputs.quality }}
+          name: ${{ github.event.inputs.package }}.flist
+          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+      - name: Publishing (testing)
+        uses: threefoldtech/publish-flist@master
+        if: success() && startsWith(github.ref, 'refs/heads/v') && contains(github.ref, '-rc')
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: ${{ github.event.inputs.testing }}
+          name: ${{ github.event.inputs.package }}.flist
+          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
+      - name: Publishing (production)
+        uses: threefoldtech/publish-flist@master
+        if: success() && startsWith(github.ref, 'refs/heads/v') && !contains(github.ref, '-rc') && !contains(github.ref, '-qa')
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: ${{ github.event.inputs.production }}
+          name: ${{ github.event.inputs.package }}.flist
+          target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
