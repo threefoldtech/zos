@@ -37,7 +37,6 @@ jobs:
   zufs:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      run-on: ubuntu-18.04
       package: ${{ github.job }}
   hdparm:
     uses: ./.github/workflows/bin-package.yaml

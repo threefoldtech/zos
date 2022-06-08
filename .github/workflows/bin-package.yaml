@@ -23,11 +23,6 @@ on:
         required: false
         default: tf-zos-v3-bins
         type: string
-      runs-on:
-        description: "runs on"
-        required: false
-        type: string
-        default: ubuntu-latest
       package:
         description: "package to build"
         required: true
@@ -35,7 +30,7 @@ on:
 jobs:
   builder:
     name: builder
-    runs-on: ${{ github.event.inputs.runs-on }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code into the Go module directory
         uses: actions/checkout@v1
