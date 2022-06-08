@@ -14,7 +14,7 @@ prepare_corex() {
 install_corex() {
     echo "[+] install corex"
 
-    mkdir -p "${ROOTDIR}/bin"
+    mkdir -p "${ROOTDIR}/usr/bin"
     cp -av corex-${COREX_VERSION} "${ROOTDIR}/usr/bin/corex"
     chmod +x "${ROOTDIR}/usr/bin/corex"
 }
