@@ -14,48 +14,48 @@ jobs:
   containerd:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: containerd
   runc:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: runc
   promtail:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: promtail
   virtwhat:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: virtwhat
   logtrunc:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: logtrunc
   yggdrasil:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: yggdrasil
   zufs:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: zufs
   hdparm:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: hdparm
   corex:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: corex
   cloudhypervisor:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: cloudhypervisor
   msgbusd:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: msgbusd
   tailstream:
     uses: ./.github/workflows/bin-package.yaml
     with:
-      package: ${{ github.job }}
+      package: tailstream
