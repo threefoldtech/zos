@@ -34,7 +34,7 @@ jobs:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: ${{ github.job }}
-  "0-fs":
+  zufs:
     uses: ./.github/workflows/bin-package.yaml
     with:
       run-on: ubuntu-18.04
