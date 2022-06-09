@@ -57,11 +57,11 @@ const (
 	// RunningDev mode
 	RunningDev RunningMode = "dev"
 	// RunningQA mode
-	RunningQA RunningMode = "prod"
+	RunningQA RunningMode = "qa"
 	// RunningTest mode
 	RunningTest RunningMode = "test"
 	// RunningMain mode
-	RunningMain RunningMode = "qa"
+	RunningMain RunningMode = "main"
 
 	// Orphanage is the default farmid where nodes are registered
 	// if no farmid were specified on the kernel command line
