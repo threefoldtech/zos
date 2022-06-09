@@ -7,6 +7,7 @@ pub enum RunMode {
     Prod,
     Test,
     Dev,
+    QA,
 }
 
 #[derive(Debug)]
@@ -23,6 +24,7 @@ fn runmode() -> Result<RunMode> {
                 "prod" => RunMode::Prod,
                 "dev" => RunMode::Dev,
                 "test" => RunMode::Test,
+                "qa" => RunMode::QA,
                 m => {
                     bail!("unknown runmode: {}", m);
                 }
