@@ -29,6 +29,10 @@ fn boostrap_zos(cfg: &config::Config) -> Result<()> {
             Version::V2 => "zos:testing:latest.flist",
             Version::V3 => "zos:testing-3:latest.flist",
         },
+        RunMode::QA => match &cfg.version {
+            Version::V2 => bail!("qa not supported on v2"),
+            Version::V3 => "zos:qa-3:latest.flist",
+        },
     };
 
     debug!("using flist: {}/{}", FLIST_REPO, flist);
@@ -139,6 +143,7 @@ fn install_packages(cfg: &config::Config) -> Result<()> {
         config::RunMode::Prod => name.into(),
         config::RunMode::Dev => format!("{}.dev", name),
         config::RunMode::Test => format!("{}.test", name),
+        config::RunMode::QA => format!("{}.qanet", name),
     };
 
     let client = hub::Repo::new(&repo);
