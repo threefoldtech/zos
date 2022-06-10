@@ -1,4 +1,4 @@
-name: Deploy
+name: Build Extra Binary
 
 on:
   workflow_call:
