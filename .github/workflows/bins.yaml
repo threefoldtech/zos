@@ -46,7 +46,7 @@ jobs:
     secrets:
       token: ${{ secrets.HUB_JWT }}
   zufs:
-    uses: ./.github/workflows/bin-package-18.yaml
+    uses: ./.github/workflows/bin-package.yaml
     with:
       package: zufs
     secrets:
