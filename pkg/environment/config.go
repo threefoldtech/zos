@@ -48,18 +48,6 @@ func GetConfig() (base Config, err error) {
 	return base, nil
 }
 
-func uniqueUint32(slice []uint32) []uint32 {
-	keys := make(map[uint32]struct{})
-	list := slice[:0]
-	for _, entry := range slice {
-		if _, exists := keys[entry]; !exists {
-			keys[entry] = struct{}{}
-			list = append(list, entry)
-		}
-	}
-	return list
-}
-
 func uniqueStr(slice []string) []string {
 	keys := make(map[string]struct{})
 	list := slice[:0]
