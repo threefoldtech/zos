@@ -66,7 +66,7 @@ jobs:
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
       - name: Publishing (quality)
         uses: threefoldtech/publish-flist@master
-        if: success() && startsWith(github.ref, 'refs/heads/v') && contains(github.ref, '-qa')
+        if: success() && startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-qa')
         with:
           token: ${{ secrets.token }}
           action: crosslink
@@ -75,7 +75,7 @@ jobs:
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
       - name: Publishing (testing)
         uses: threefoldtech/publish-flist@master
-        if: success() && startsWith(github.ref, 'refs/heads/v') && contains(github.ref, '-rc')
+        if: success() && startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-rc')
         with:
           token: ${{ secrets.token }}
           action: crosslink
@@ -84,7 +84,7 @@ jobs:
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
       - name: Publishing (production)
         uses: threefoldtech/publish-flist@master
-        if: success() && startsWith(github.ref, 'refs/heads/v') && !contains(github.ref, '-rc') && !contains(github.ref, '-qa')
+        if: success() && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc') && !contains(github.ref, '-qa')
         with:
           token: ${{ secrets.token }}
           action: crosslink
