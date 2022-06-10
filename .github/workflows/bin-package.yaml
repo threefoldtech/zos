@@ -11,7 +11,7 @@ on:
       quality:
         description: "qa hub repo"
         required: false
-        default: tf-zos-v3-bins.qa
+        default: tf-zos-v3-bins.qanet
         type: string
       testing:
         description: "testing hub repo"
