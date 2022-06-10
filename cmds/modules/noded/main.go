@@ -280,7 +280,7 @@ func action(cli *cli.Context) error {
 		return err
 	}
 
-	return runMsgBus(ctx, sub, id)
+	return runMsgBus(ctx, sk, env.SubstrateURL)
 }
 
 func retryNotify(err error, d time.Duration) {

@@ -2,23 +2,45 @@ package noded
 
 import (
 	"context"
-
+	"crypto/ed25519"
+	"encoding/hex"
+	"fmt"
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/go-rmb"
-	"github.com/threefoldtech/substrate-client"
+	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/zinit"
+	"time"
 )
 
-func runMsgBus(ctx context.Context, sub substrate.Manager, identity substrate.Identity) error {
-	// todo: make it argument or parse from broker
-	const redis = "/var/run/redis.sock"
-	app, err := rmb.NewServer(sub, redis, 100, identity)
+const (
+	busService = "rmb"
+	KeyType    = "ed25519"
+)
+
+func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []string) error {
+	// select the first one as only one URL is set for now
+	if len(substrateURLs) == 0 {
+		return errors.New("at least one substrate URL must be provided")
+	}
+
+	seed := sk.Seed()
+	seedHex := fmt.Sprintf("0x%s", hex.EncodeToString(seed))
+	cmd := fmt.Sprintf(`/bin/rmb --substrate "%s" --key-type "%s" --seed "%s"`, substrateURLs[0], KeyType, seedHex)
+
+	// just for debugging for now
+	log.Info().Str("cmd", cmd).Msg("starting rmb with")
+
+	cl := zinit.Default()
+	err := zinit.AddService(busService, zinit.InitService{
+		Exec: cmd,
+	})
+
 	if err != nil {
 		return err
 	}
 
-	if err := app.Serve(ctx); err != nil && !errors.Is(err, context.Canceled) {
+	if err = cl.Monitor(busService); err != nil && !errors.Is(err, zinit.ErrAlreadyMonitored) {
 		return err
 	}
 
-	return nil
+	return cl.StartWait(time.Second*20, busService)
 }
