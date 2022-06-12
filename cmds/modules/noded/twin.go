@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"os"
 	"os/exec"
 )
 
@@ -26,5 +27,8 @@ func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []strin
 
 	log.Info().Msg("starting rmb...")
 	command := exec.CommandContext(ctx, "rmb", "-s", substrateURLs[0], "-k", keyType, "--seed", seedHex, "-r", redisAddr)
+	command.Stdin = os.Stdin
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
 	return command.Run()
 }
