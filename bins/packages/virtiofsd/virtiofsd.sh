@@ -16,7 +16,7 @@ install_virtiofsd() {
 
     mkdir -p "${ROOTDIR}/bin"
     unzip -p virtiofsd-${VIRTIOFSD_VERSION} > "${ROOTDIR}/bin/virtiofsd-rs"
-    chmod +x "${ROOTDIR}/bin/virtiofsd"
+    chmod +x "${ROOTDIR}/bin/virtiofsd-rs"
 }
 
 build_virtiofsd() {
