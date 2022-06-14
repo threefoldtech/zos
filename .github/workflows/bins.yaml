@@ -95,3 +95,9 @@ jobs:
       package: virtiofsd
     secrets:
       token: ${{ secrets.HUB_JWT }}
+  misc:
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: misc
+    secrets:
+      token: ${{ secrets.HUB_JWT }}
