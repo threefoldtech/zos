@@ -110,17 +110,9 @@ func hasDefaultRoute(iface, netNS string) (bool, error) {
 }
 
 func (d *DHCPMon) startZinit() error {
-	status, err := d.z.Status(d.service)
-	if err != nil && err != zinit.ErrUnknownService {
-		log.Error().Err(err).Msgf("error checking zinit service %s status", d.service)
+	// clean up to force
+	if err := d.stopZinit(); err != nil {
 		return err
-	}
-
-	if status.State.Exited() {
-		log.Info().Msgf("zinit service %s already exists but is stopped, starting it", d.service)
-		return d.z.Start(d.service)
-	} else if status.State.Is(zinit.ServiceStateRunning) {
-		return nil
 	}
 
 	log.Info().Msgf("create and start %s zinit service", d.service)
@@ -130,7 +122,7 @@ func (d *DHCPMon) startZinit() error {
 		exec = fmt.Sprintf("ip netns exec %s %s", strings.TrimSpace(d.namespace), exec)
 	}
 
-	err = zinit.AddService(d.service, zinit.InitService{
+	err := zinit.AddService(d.service, zinit.InitService{
 		Exec:    exec,
 		Oneshot: false,
 		After:   []string{},
@@ -152,8 +144,11 @@ func (d *DHCPMon) startZinit() error {
 // Stop stops a zinit background process
 func (d *DHCPMon) stopZinit() error {
 	err := d.z.StopWait(time.Second*10, d.service)
-	if err != nil {
+	if errors.Is(err, zinit.ErrUnknownService) {
+		return nil
+	} else if err != nil {
 		return errors.Wrapf(err, "failed to stop zinit service %s", d.service)
 	}
+
 	return d.z.Forget(d.service)
 }

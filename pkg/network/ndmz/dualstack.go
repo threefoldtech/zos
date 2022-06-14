@@ -132,7 +132,15 @@ func (d *dmzImpl) Create(ctx context.Context) error {
 	z := zinit.Default()
 	dhcpMon := NewDHCPMon(dmzPub4, dmzNamespace, z)
 	go func() {
-		_ = dhcpMon.Start(ctx)
+		for {
+			if err = dhcpMon.Start(ctx); err != context.Canceled {
+				log.Error().Err(err).Msg("dmz dhcp monitor failed, restarting!")
+				<-time.After(2 * time.Second)
+				continue
+			}
+
+			return
+		}
 	}()
 
 	return nil
