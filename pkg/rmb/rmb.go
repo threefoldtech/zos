@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	replyBus   = "msgbus.system.reply"
 	numWorkers = 5
 )
 
