@@ -324,7 +324,7 @@ func (m *MessageBus) sendReply(message Message, data interface{}) error {
 		Str("fn", message.Command).
 		Msg("pushing response")
 
-	_, err = con.Do("LPUSH", replyBus, string(bytes))
+	_, err = con.Do("LPUSH", message.Retqueue, string(bytes))
 	if err != nil {
 		log.Err(err).Msg("failed to push to reply messagebus")
 		return err
