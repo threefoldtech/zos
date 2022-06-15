@@ -16,7 +16,7 @@ install_exporter() {
 
     mkdir -p "${ROOTDIR}/usr/bin"
     cp -av $1/packages/node-exporter/root/* "${ROOTDIR}/"
-    tar -xOf exporter-${EXPORTER_VERSION}.tar.gz node_exporter-${EXPORTER_VERSION}.linux-amd64/node_exporter > "${ROOTDIR}/bin/node_exporter"
+    tar -xOf exporter-${EXPORTER_VERSION}.tar.gz node_exporter-${EXPORTER_VERSION}.linux-amd64/node_exporter > "${ROOTDIR}/usr/bin/node_exporter"
     chmod +x "${ROOTDIR}/usr/bin/node_exporter"
 }
 
