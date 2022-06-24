@@ -5,7 +5,10 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"reflect"
+	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,6 +58,21 @@ func (a byAddr) Len() int           { return len(a) }
 func (a byAddr) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byAddr) Less(i, j int) bool { return bytes.Compare(a[i].IP, a[j].IP) < 0 }
 
+func filterName(filter Filter) string {
+	fn := runtime.FuncForPC(reflect.ValueOf(filter).Pointer())
+	if fn == nil {
+		return fmt.Sprintf("filter(%+v)", filter)
+	}
+	name := fn.Name()
+	parts := strings.Split(name, ".")
+	idx := len(parts) - 1
+	if idx < 0 {
+		return name
+	}
+
+	return parts[idx]
+}
+
 // AnalyzeLinks is used to gather the IP that each interfaces would be from DHCP and SLAAC
 // it returns the IPs and routes for each interfaces for both IPv4 and IPv6
 //
@@ -85,7 +103,7 @@ filter:
 			}
 
 			if !ok {
-				log.Info().Msgf("link didn't match filter criteria (%+v), skip testing", filter)
+				log.Info().Msgf("link didn't match filter criteria (%v), skip testing", filterName(filter))
 				continue filter
 			}
 		}

@@ -236,7 +236,7 @@ func findPossibleExit() (string, error) {
 
 	log.Debug().Int("found", len(links)).Msg("found possible links")
 	if err != nil {
-		return "", errors.Wrap(err, "failed to analyse links")
+		return "", errors.Wrap(err, "failed to analyze links")
 	}
 
 	for _, link := range links {
