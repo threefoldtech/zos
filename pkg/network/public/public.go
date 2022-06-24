@@ -226,10 +226,11 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 func findPossibleExit() (string, error) {
 	log.Debug().Msg("find possible ipv6 exit interface")
 
-	links, err := bootstrap.AnalyseLinks(
+	links, err := bootstrap.AnalyzeLinks(
 		bootstrap.RequiresIPv6,
 		bootstrap.PhysicalFilter,
 		bootstrap.NotAttachedFilter,
+		bootstrap.NotIpsAssignedFilter,
 		bootstrap.PluggedFilter,
 	)
 
