@@ -132,6 +132,22 @@ func (s *NetworkerStub) GetDefaultGwIP(ctx context.Context, arg0 zos.NetID) (ret
 	return
 }
 
+func (s *NetworkerStub) GetDualSetup(ctx context.Context) (ret0 string, ret1 error) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetDualSetup", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	ret1 = new(zbus.RemoteError)
+	if err := result.Unmarshal(1, &ret1); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerStub) GetIPv6From4(ctx context.Context, arg0 zos.NetID, arg1 []uint8) (ret0 net.IPNet, ret1 error) {
 	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetIPv6From4", args...)

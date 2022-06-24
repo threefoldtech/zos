@@ -900,6 +900,17 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 	return nil
 }
 
+func (n *networker) GetDualSetup() (string, error) {
+	exit, err := public.PublicExitLink()
+	if os.IsNotExist(err) {
+		return "single", nil
+	} else if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("dual(%s)", exit.Attrs().Name), nil
+}
+
 // Get node public namespace config
 func (n *networker) GetPublicConfig() (pkg.PublicConfig, error) {
 	// TODO: instea of loading, this actually must get

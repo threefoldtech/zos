@@ -3,6 +3,7 @@ package public
 import (
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
@@ -109,6 +110,31 @@ func setupPublicBridge(br *netlink.Bridge) error {
 	}
 
 	return nil
+}
+
+// find the physical link attached to the public bridge
+func PublicExitLink() (netlink.Link, error) {
+	br, err := bridge.Get(PublicBridge)
+	if err != nil {
+		return nil, errors.Wrap(err, "no public bridge found")
+	}
+
+	all, err := netlink.LinkList()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list node nics")
+	}
+
+	for _, link := range all {
+		if ok, _ := bootstrap.PhysicalFilter(link); !ok {
+			continue
+		}
+
+		if link.Attrs().MasterIndex == br.Index {
+			return link, nil
+		}
+	}
+
+	return nil, os.ErrNotExist
 }
 
 func HasPublicSetup() bool {
