@@ -24,7 +24,7 @@ func NewEventsStub(client zbus.Client) *EventsStub {
 }
 
 func (s *EventsStub) ContractCancelledEvent(ctx context.Context) (<-chan pkg.ContractCancelledEvent, error) {
-	ch := make(chan pkg.ContractCancelledEvent)
+	ch := make(chan pkg.ContractCancelledEvent, 1)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "ContractCancelledEvent")
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (s *EventsStub) ContractCancelledEvent(ctx context.Context) (<-chan pkg.Con
 }
 
 func (s *EventsStub) ContractLockedEvent(ctx context.Context) (<-chan pkg.ContractLockedEvent, error) {
-	ch := make(chan pkg.ContractLockedEvent)
+	ch := make(chan pkg.ContractLockedEvent, 1)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "ContractLockedEvent")
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func (s *EventsStub) ContractLockedEvent(ctx context.Context) (<-chan pkg.Contra
 }
 
 func (s *EventsStub) PublicConfigEvent(ctx context.Context) (<-chan pkg.PublicConfigEvent, error) {
-	ch := make(chan pkg.PublicConfigEvent)
+	ch := make(chan pkg.PublicConfigEvent, 1)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "PublicConfigEvent")
 	if err != nil {
 		return nil, err
