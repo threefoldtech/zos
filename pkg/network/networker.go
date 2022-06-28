@@ -18,6 +18,7 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/cache"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos/pkg/network/bootstrap"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
@@ -637,32 +638,64 @@ func (n networker) GetIPv6From4(networkID pkg.NetID, ip net.IP) (net.IPNet, erro
 	return net.IPNet{IP: nr.Convert4to6(string(networkID), ip), Mask: net.CIDRMask(64, 128)}, nil
 }
 
-// Addrs return the IP addresses of interface
-func (n networker) Addrs(iface string, netns string) (ips []net.IP, mac string, err error) {
-	f := func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(iface)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get interface %s", iface)
+func (n networker) Interfaces(iface string, netns string) (map[string]pkg.Interface, error) {
+	getter := func(iface string) ([]netlink.Link, error) {
+		if iface != "" {
+			l, err := netlink.LinkByName(iface)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get interface %s", iface)
+			}
+			return []netlink.Link{l}, nil
 		}
 
-		mac = link.Attrs().HardwareAddr.String()
-
-		addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+		all, err := netlink.LinkList()
 		if err != nil {
-			return errors.Wrapf(err, "failed to list addresses of interfaces %s", iface)
+			return nil, err
 		}
-		ips = make([]net.IP, 0, len(addrs))
-		for _, addr := range addrs {
-			ip := addr.IP
-			if ip6 := ip.To16(); ip6 != nil {
-				// ipv6
-				if !ip6.IsGlobalUnicast() || ifaceutil.IsULA(ip6) {
-					// skip if not global or is ula address
-					continue
-				}
+		filtered := all[:0]
+		for _, l := range all {
+			if l.Type() != "device" {
+				continue
 			}
 
-			ips = append(ips, addr.IP)
+			filtered = append(filtered, l)
+		}
+
+		return filtered, nil
+	}
+
+	interfaces := make(map[string]pkg.Interface)
+	f := func(_ ns.NetNS) error {
+		links, err := getter(iface)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get interfaces (query: '%s')", iface)
+		}
+
+		for _, link := range links {
+
+			addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+			if err != nil {
+				return errors.Wrapf(err, "failed to list addresses of interfaces %s", iface)
+			}
+			ips := make([]net.IPNet, 0, len(addrs))
+			for _, addr := range addrs {
+				ip := addr.IP
+				if ip6 := ip.To16(); ip6 != nil {
+					// ipv6
+					if !ip6.IsGlobalUnicast() || ifaceutil.IsULA(ip6) {
+						// skip if not global or is ula address
+						continue
+					}
+				}
+
+				ips = append(ips, *addr.IPNet)
+			}
+
+			interfaces[link.Attrs().Name] = pkg.Interface{
+				Name: link.Attrs().Name,
+				Mac:  link.Attrs().HardwareAddr.String(),
+				IPs:  ips,
+			}
 		}
 
 		return nil
@@ -671,20 +704,38 @@ func (n networker) Addrs(iface string, netns string) (ips []net.IP, mac string, 
 	if netns != "" {
 		netNS, err := namespace.GetByName(netns)
 		if err != nil {
-			return nil, mac, errors.Wrapf(err, "failed to get network namespace %s", netns)
+			return nil, errors.Wrapf(err, "failed to get network namespace %s", netns)
 		}
 		defer netNS.Close()
 
 		if err := netNS.Do(f); err != nil {
-			return nil, mac, err
+			return nil, err
 		}
 	} else {
 		if err := f(nil); err != nil {
-			return nil, mac, err
+			return nil, err
 		}
 	}
 
-	return ips, mac, nil
+	return interfaces, nil
+}
+
+// [obsolete] use Interfaces instead Addrs return the IP addresses of interface
+func (n networker) Addrs(iface string, netns string) (ips []net.IP, mac string, err error) {
+	if iface == "" {
+		return ips, mac, fmt.Errorf("iface cannot be empty")
+	}
+	interfaces, err := n.Interfaces(iface, netns)
+	if err != nil {
+		return nil, "", err
+	}
+
+	inf := interfaces[iface]
+	mac = inf.Mac
+	for _, ip := range inf.IPs {
+		ips = append(ips, ip.IP)
+	}
+	return
 }
 
 // CreateNR implements pkg.Networker interface
@@ -901,11 +952,15 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 }
 
 func (n *networker) GetDualSetup() (string, error) {
-	exit, err := public.PublicExitLink()
-	if os.IsNotExist(err) {
+	exit, err := public.GetPublicExitLink()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get state of dual nic setup")
+	}
+
+	// if exit is over veth then we going over zos bridge
+	// hence it's a single nic setup
+	if ok, _ := bootstrap.VEthFilter(exit); ok {
 		return "single", nil
-	} else if err != nil {
-		return "", err
 	}
 
 	return fmt.Sprintf("dual(%s)", exit.Attrs().Name), nil

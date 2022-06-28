@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/network/public"
+	"github.com/threefoldtech/zos/pkg/rmb"
 	"github.com/urfave/cli/v2"
 
 	"github.com/cenkalti/backoff/v3"
@@ -25,9 +25,8 @@ import (
 )
 
 const (
-	redisSocket      = "unix:///var/run/redis.sock"
-	module           = "network"
-	publicConfigFile = "public-config.json"
+	redisSocket = "unix:///var/run/redis.sock"
+	module      = "network"
 )
 
 // Module is entry point for module
@@ -81,8 +80,8 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to host firewall rules")
 	}
 
-	publicCfgPath := filepath.Join(root, publicConfigFile)
-	public.SetPersistence(publicCfgPath)
+	public.SetPersistence(root)
+
 	pub, err := public.LoadPublicConfig()
 	log.Debug().Err(err).Msgf("public interface configred: %+v", pub)
 	if err != nil && err != public.ErrNoPublicConfig {
@@ -149,14 +148,46 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "error creating network manager")
 	}
 
-	if err := startServer(ctx, broker, networker); err != nil {
+	mBus, err := rmb.New(broker)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize message bus")
+	}
+
+	zosRouter := mBus.Subroute("zos")
+	zosRouter.Use(rmb.LoggerMiddleware)
+
+	_ = network.NewNetworkMessageBus(zosRouter, networker)
+
+	// we need to start both rmb server and zbus server.
+	go func(ctx context.Context) {
+		if err := startRmbServer(ctx, mBus); err != nil {
+			log.Fatal().Err(err).Msg("rmb exited unexpectedly")
+		}
+	}(ctx)
+
+	if err := startZBusServer(ctx, broker, networker); err != nil {
 		return errors.Wrap(err, "unexpected error")
 	}
 
 	return nil
 }
 
-func startServer(ctx context.Context, broker string, networker pkg.Networker) error {
+func startRmbServer(ctx context.Context, bus *rmb.MessageBus) error {
+	log.Info().
+		Msg("starting networkd rmb module")
+
+	for _, handler := range bus.Handlers() {
+		log.Debug().Msgf("registered handler: %s", handler)
+	}
+
+	if err := bus.Run(ctx); err != nil && err != context.Canceled {
+		return err
+	}
+
+	return nil
+}
+
+func startZBusServer(ctx context.Context, broker string, networker pkg.Networker) error {
 
 	server, err := zbus.NewRedisServer(module, broker, 1)
 	if err != nil {

@@ -36,6 +36,12 @@ type YggdrasilTap struct {
 	Gateway net.IPNet
 }
 
+type Interface struct {
+	Name string
+	IPs  []net.IPNet
+	Mac  string
+}
+
 //Networker is the interface for the network module
 type Networker interface {
 	// Ready return nil is networkd is ready to operate
@@ -146,6 +152,13 @@ type Networker interface {
 
 	// Addrs return the IP addresses of interface
 	// if the interface is in a network namespace netns needs to be not empty
+	// if iface is empty, return ALL interfaces in the given namespace
+	// if they are physical
+	Interfaces(iface string, netns string) (map[string]Interface, error)
+
+	// Addrs return the IP addresses of interface
+	// if the interface is in a network namespace netns needs to be not empty
+	// [obsolete] please use Interfaces instead
 	Addrs(iface string, netns string) (ips []net.IP, mac string, err error)
 
 	WireguardPorts() ([]uint, error)
@@ -158,6 +171,7 @@ type Networker interface {
 	// Get node public namespace config
 	GetPublicConfig() (PublicConfig, error)
 
+	// GetDualSetup either return "singe" or "dual(<nic>)"
 	GetDualSetup() (string, error)
 	// Monitoring methods
 

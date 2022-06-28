@@ -313,6 +313,10 @@ func PhysicalFilter(link netlink.Link) (bool, error) {
 	return link.Type() == "device", nil
 }
 
+func VEthFilter(link netlink.Link) (bool, error) {
+	return link.Type() == "veth", nil
+}
+
 // PluggedFilter returns true if link is plugged in
 func PluggedFilter(link netlink.Link) (bool, error) {
 	if err := netlink.LinkSetUp(link); err != nil {

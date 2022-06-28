@@ -194,8 +194,8 @@ func (n *NodeClient) NetworkListInterfaces(ctx context.Context) (map[string][]ne
 	return result, nil
 }
 
-// NetworkListIPs list taken public IPs on the node
-func (n *NodeClient) NetworkListIPs(ctx context.Context) ([]string, error) {
+// NetworkListPublicIPs list taken public IPs on the node
+func (n *NodeClient) NetworkListPublicIPs(ctx context.Context) ([]string, error) {
 	const cmd = "zos.network.list_public_ips"
 	var result []string
 
