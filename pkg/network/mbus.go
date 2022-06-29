@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/rmb"
 )
 
@@ -28,7 +29,7 @@ func (n *Network) hasPublicIPv6Handler(ctx context.Context, payload []byte) (int
 	return n.hasPublicIPv6(ctx), nil
 }
 
-func (n *Network) setup(router rmb.Router) {
+func (n *Network) setup(router rmb.Router) error {
 
 	// network handlers
 	sub := router.Subroute("network")
@@ -36,6 +37,33 @@ func (n *Network) setup(router rmb.Router) {
 	sub.WithHandler("public_config_get", n.getPublicConfig)
 	sub.WithHandler("interfaces", n.listInterfaces)
 	sub.WithHandler("has_ipv6", n.hasPublicIPv6Handler)
+
+	admin := sub.Subroute("admin")
+	env, err := environment.Get()
+	if err != nil {
+		return errors.Wrap(err, "failed to get environment")
+	}
+	mgr, err := environment.GetSubstrate()
+	if err != nil {
+		return errors.Wrap(err, "failed to get substrate")
+	}
+	mw, err := rmb.Authorized(mgr, uint32(env.FarmerID))
+	if err != nil {
+		return errors.Wrap(err, "failed to initialized admin mw")
+	}
+	admin.Use(mw)
+	admin.WithHandler("interfaces", n.listAllInterfaces)
+	admin.WithHandler("set_public_nic", n.setPublicNic)
+
+	return nil
+}
+
+func (n *Network) listAllInterfaces(ctx context.Context, _ []byte) (interface{}, error) {
+	panic("unimplemented")
+}
+
+func (n *Network) setPublicNic(ctx context.Context, _ []byte) (interface{}, error) {
+	panic("unimplemented")
 }
 
 func (n *Network) listPorts(ctx context.Context, _ []byte) (interface{}, error) {
