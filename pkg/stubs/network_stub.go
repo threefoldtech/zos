@@ -138,11 +138,12 @@ func (s *NetworkerStub) GetDualSetup(ctx context.Context) (ret0 string, ret1 err
 	if err != nil {
 		panic(err)
 	}
-	if err := result.Unmarshal(0, &ret0); err != nil {
-		panic(err)
+	result.PanicOnError()
+	ret1 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
 	}
-	ret1 = new(zbus.RemoteError)
-	if err := result.Unmarshal(1, &ret1); err != nil {
+	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}
 	return
@@ -219,6 +220,23 @@ func (s *NetworkerStub) GetPublicIPv6Subnet(ctx context.Context) (ret0 net.IPNet
 func (s *NetworkerStub) GetSubnet(ctx context.Context, arg0 zos.NetID) (ret0 net.IPNet, ret1 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetSubnet", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret1 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerStub) Interfaces(ctx context.Context, arg0 string, arg1 string) (ret0 interface{}, ret1 error) {
+	args := []interface{}{arg0, arg1}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "Interfaces", args...)
 	if err != nil {
 		panic(err)
 	}
