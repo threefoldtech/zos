@@ -173,6 +173,9 @@ type Networker interface {
 
 	// GetDualSetup either return "singe" or "dual(<nic>)"
 	GetDualSetup() (string, error)
+
+	SetPublicExitDevice(iface string) error
+
 	// Monitoring methods
 
 	// ZOSAddresses monitoring streams for ZOS bridge IPs

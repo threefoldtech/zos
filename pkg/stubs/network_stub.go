@@ -481,6 +481,21 @@ func (s *NetworkerStub) SetPublicConfig(ctx context.Context, arg0 pkg.PublicConf
 	return
 }
 
+func (s *NetworkerStub) SetPublicExitDevice(ctx context.Context, arg0 string) (ret0 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "SetPublicExitDevice", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret0 = result.CallError()
+	loader := zbus.Loader{}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerStub) SetupPrivTap(ctx context.Context, arg0 zos.NetID, arg1 string) (ret0 string, ret1 error) {
 	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "SetupPrivTap", args...)

@@ -162,19 +162,28 @@ func GetPublicExitLink() (netlink.Link, error) {
 // the method does nothing if
 func SetPublicExitLink(link netlink.Link) error {
 	// we can only attach to either physical nic, or zos bridge
-	if link.Type() != "device" ||
-		(link.Type() == "bridge" && link.Attrs().Name != types.DefaultBridge) {
+	log.Debug().
+		Str("type", link.Type()).
+		Str("name", link.Attrs().Name).
+		Int("master", link.Attrs().MasterIndex).
+		Msg("trying to set public exit interface")
 
+	if link.Type() != "device" && link.Attrs().Name != types.DefaultBridge {
 		return fmt.Errorf("invalid exit bridge must be a physical nic or the default bridge")
-	}
-
-	if link.Type() == "device" && link.Attrs().MasterIndex != 0 {
-		return fmt.Errorf("device '%s' is already used", link.Attrs().Name)
 	}
 
 	br, err := bridge.Get(PublicBridge)
 	if err != nil {
 		return err
+	}
+
+	if link.Type() == "device" {
+		// already attached
+		if link.Attrs().MasterIndex == br.Index {
+			return nil
+		} else if link.Attrs().MasterIndex != 0 {
+			return fmt.Errorf("device is '%s' already used", link.Attrs().Name)
+		}
 	}
 
 	current, err := GetPublicExitLink()
@@ -183,26 +192,23 @@ func SetPublicExitLink(link netlink.Link) error {
 	}
 
 	if current != nil {
-		if veth, _ := bootstrap.VEthFilter(link); veth {
+		log.Debug().Str("type", current.Type()).Str("name", current.Attrs().Name).Msg("current attached exit is")
+
+		// disconnect br pub based on the type of the current uplink
+
+		if veth, _ := bootstrap.VEthFilter(current); veth {
 			// br pub is already connected to zos
 			if link.Attrs().Name == "zos" {
 				return nil
 			}
 
-			if err := netlink.LinkDel(link); err != nil {
+			// otherwise we remove this link
+			if err := netlink.LinkDel(current); err != nil {
 				return errors.Wrap(err, "failed to unhook public bridge from zos bridge")
 			}
-		} else {
-			// physical link
-			if current.Attrs().MasterIndex == br.Index {
-				// also nothing to do nic is already attached to bridge
-				return nil
-			}
-
-			// if different we need to unhook it
-			if err := netlink.LinkSetMasterByIndex(link, 0); err != nil {
-				return errors.Wrap(err, "failed to unhook public bridge from physical nic")
-			}
+		} else if err := netlink.LinkSetMasterByIndex(current, 0); err != nil {
+			// otherwise we try to remove the nic from br-pub
+			return errors.Wrap(err, "failed to unhook public bridge from physical nic")
 		}
 	}
 

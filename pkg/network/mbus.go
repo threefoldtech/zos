@@ -2,6 +2,8 @@ package network
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net"
 
 	"github.com/pkg/errors"
@@ -59,11 +61,40 @@ func (n *Network) setup(router rmb.Router) error {
 }
 
 func (n *Network) listAllInterfaces(ctx context.Context, _ []byte) (interface{}, error) {
-	panic("unimplemented")
+	// list all interfaces on node
+	type Interface struct {
+		IPs []string `json:"ips"`
+		Mac string   `json:"mac"`
+	}
+
+	interfaces, err := n.mgr.Interfaces("", "")
+	if err != nil {
+		return nil, err
+	}
+	output := make(map[string]Interface)
+	for name, inf := range interfaces {
+		output[name] = Interface{
+			Mac: inf.Mac,
+			IPs: func() []string {
+				var ips []string
+				for _, ip := range inf.IPs {
+					ips = append(ips, ip.String())
+				}
+				return ips
+			}(),
+		}
+	}
+
+	return output, nil
 }
 
-func (n *Network) setPublicNic(ctx context.Context, _ []byte) (interface{}, error) {
-	panic("unimplemented")
+func (n *Network) setPublicNic(ctx context.Context, data []byte) (interface{}, error) {
+	var iface string
+	if err := json.Unmarshal(data, &iface); err != nil {
+		return nil, fmt.Errorf("failed to decode input, expecting string")
+	}
+
+	return nil, n.mgr.SetPublicExitDevice(iface)
 }
 
 func (n *Network) listPorts(ctx context.Context, _ []byte) (interface{}, error) {
