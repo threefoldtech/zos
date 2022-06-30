@@ -156,7 +156,9 @@ func action(cli *cli.Context) error {
 	zosRouter := mBus.Subroute("zos")
 	zosRouter.Use(rmb.LoggerMiddleware)
 
-	_ = network.NewNetworkMessageBus(zosRouter, networker)
+	if _, err := network.NewNetworkMessageBus(zosRouter, networker); err != nil {
+		return errors.Wrap(err, "failed to initialize rmb api")
+	}
 
 	// we need to start both rmb server and zbus server.
 	go func(ctx context.Context) {

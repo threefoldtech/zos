@@ -18,13 +18,16 @@ type Network struct {
 }
 
 // NewNetworkMessageBus creates a new messagebus instance
-func NewNetworkMessageBus(router rmb.Router, mgr pkg.Networker) *Network {
-
+func NewNetworkMessageBus(router rmb.Router, mgr pkg.Networker) (*Network, error) {
 	api := &Network{
 		mgr: mgr,
 	}
-	api.setup(router)
-	return api
+
+	if err := api.setup(router); err != nil {
+		return nil, err
+	}
+
+	return api, nil
 }
 
 func (n *Network) hasPublicIPv6Handler(ctx context.Context, payload []byte) (interface{}, error) {
