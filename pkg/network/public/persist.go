@@ -22,7 +22,7 @@ var (
 func SetPersistence(path string) {
 	stat, err := os.Stat(path)
 	if err != nil || !stat.IsDir() {
-		panic("invalid persistance path must be an existing directory")
+		panic("invalid persistence path must be an existing directory")
 	}
 
 	persistencePath = path

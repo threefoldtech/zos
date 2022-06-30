@@ -100,6 +100,10 @@ func (n *Network) setPublicNic(ctx context.Context, data []byte) (interface{}, e
 	return nil, n.mgr.SetPublicExitDevice(iface)
 }
 
+func (n *Network) getPublicNic(ctx context.Context, _ []byte) (interface{}, error) {
+	return n.mgr.GetDualSetup()
+}
+
 func (n *Network) listPorts(ctx context.Context, _ []byte) (interface{}, error) {
 	return n.mgr.WireguardPorts()
 }

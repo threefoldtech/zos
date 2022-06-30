@@ -54,6 +54,10 @@ func action(cli *cli.Context) error {
 		broker string = cli.String("broker")
 	)
 
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return errors.Wrap(err, "fail to create module root")
+	}
+
 	waitYggdrasilBin()
 
 	if err := bootstrap.DefaultBridgeValid(); err != nil {
@@ -138,11 +142,6 @@ func action(cli *cli.Context) error {
 		}
 	}
 
-	log.Info().Msg("start zbus server")
-	if err := os.MkdirAll(root, 0750); err != nil {
-		return errors.Wrap(err, "fail to create module root")
-	}
-
 	networker, err := network.NewNetworker(identity, dmz, ygg)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
@@ -167,6 +166,7 @@ func action(cli *cli.Context) error {
 		}
 	}(ctx)
 
+	log.Info().Msg("start zbus server")
 	if err := startZBusServer(ctx, broker, networker); err != nil {
 		return errors.Wrap(err, "unexpected error")
 	}
