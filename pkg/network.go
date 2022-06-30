@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"reflect"
 
@@ -40,6 +41,28 @@ type Interface struct {
 	Name string
 	IPs  []net.IPNet
 	Mac  string
+}
+
+type ExitDevice struct {
+	// IsSingle is set to true if br-pub
+	// is connected to zos bridge
+	IsSingle bool `json:"is_single"`
+	// IsDual is set to true if br-pub is
+	// connected to a physical nic
+	IsDual bool `json:"is_dual"`
+	// AsDualInterface is set to the physical
+	// interface name if IsDual is true
+	AsDualInterface string `json:"dual_interface"`
+}
+
+func (e *ExitDevice) String() string {
+	if e.IsSingle {
+		return "single"
+	} else if e.IsDual {
+		return fmt.Sprintf("dual(%s)", e.AsDualInterface)
+	}
+
+	return "unknown"
 }
 
 //Networker is the interface for the network module
@@ -171,8 +194,8 @@ type Networker interface {
 	// Get node public namespace config
 	GetPublicConfig() (PublicConfig, error)
 
-	// GetDualSetup either return "singe" or "dual(<nic>)"
-	GetDualSetup() (string, error)
+	// GetPublicExitDevice either return "singe" or "dual(<nic>)"
+	GetPublicExitDevice() (ExitDevice, error)
 
 	SetPublicExitDevice(iface string) error
 

@@ -132,23 +132,6 @@ func (s *NetworkerStub) GetDefaultGwIP(ctx context.Context, arg0 zos.NetID) (ret
 	return
 }
 
-func (s *NetworkerStub) GetDualSetup(ctx context.Context) (ret0 string, ret1 error) {
-	args := []interface{}{}
-	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetDualSetup", args...)
-	if err != nil {
-		panic(err)
-	}
-	result.PanicOnError()
-	ret1 = result.CallError()
-	loader := zbus.Loader{
-		&ret0,
-	}
-	if err := result.Unmarshal(&loader); err != nil {
-		panic(err)
-	}
-	return
-}
-
 func (s *NetworkerStub) GetIPv6From4(ctx context.Context, arg0 zos.NetID, arg1 []uint8) (ret0 net.IPNet, ret1 error) {
 	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetIPv6From4", args...)
@@ -186,6 +169,23 @@ func (s *NetworkerStub) GetNet(ctx context.Context, arg0 zos.NetID) (ret0 net.IP
 func (s *NetworkerStub) GetPublicConfig(ctx context.Context) (ret0 pkg.PublicConfig, ret1 error) {
 	args := []interface{}{}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetPublicConfig", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret1 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerStub) GetPublicExitDevice(ctx context.Context) (ret0 pkg.ExitDevice, ret1 error) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetPublicExitDevice", args...)
 	if err != nil {
 		panic(err)
 	}

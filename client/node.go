@@ -90,6 +90,18 @@ type Interface struct {
 	Mac string   `json:"mac"`
 }
 
+type ExitDevice struct {
+	// IsSingle is set to true if br-pub
+	// is connected to zos bridge
+	IsSingle bool `json:"is_single"`
+	// IsDual is set to true if br-pub is
+	// connected to a physical nic
+	IsDual bool `json:"is_dual"`
+	// AsDualInterface is set to the physical
+	// interface name if IsDual is true
+	AsDualInterface string `json:"dual_interface"`
+}
+
 type args map[string]interface{}
 
 // NewNodeClient creates a new node RMB client. This client then can be used to
@@ -209,7 +221,13 @@ func (n *NodeClient) NetworkSetPublicExitDevice(ctx context.Context, iface strin
 	const cmd = "zos.network.admin.set_public_nic"
 
 	return n.bus.Call(ctx, n.nodeTwin, cmd, iface, nil)
+}
 
+func (n *NodeClient) NetworkGetPublicExitDevice(ctx context.Context) (exit ExitDevice, err error) {
+	const cmd = "zos.network.admin.get_public_nic"
+
+	err = n.bus.Call(ctx, n.nodeTwin, cmd, nil, &exit)
+	return
 }
 
 // NetworkListPublicIPs list taken public IPs on the node

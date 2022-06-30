@@ -59,6 +59,7 @@ func (n *Network) setup(router rmb.Router) error {
 	admin.Use(mw)
 	admin.WithHandler("interfaces", n.listAllInterfaces)
 	admin.WithHandler("set_public_nic", n.setPublicNic)
+	admin.WithHandler("get_public_nic", n.getPublicNic)
 
 	return nil
 }
@@ -101,7 +102,7 @@ func (n *Network) setPublicNic(ctx context.Context, data []byte) (interface{}, e
 }
 
 func (n *Network) getPublicNic(ctx context.Context, _ []byte) (interface{}, error) {
-	return n.mgr.GetDualSetup()
+	return n.mgr.GetPublicExitDevice()
 }
 
 func (n *Network) listPorts(ctx context.Context, _ []byte) (interface{}, error) {

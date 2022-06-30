@@ -347,7 +347,13 @@ func getPersistedExitNic() (string, error) {
 		return "", err
 	}
 
-	return string(data), nil
+	name := string(data)
+	// we need to check if an actual device exits with that name or not
+	if _, err := netlink.LinkByName(name); err != nil {
+		return "", os.ErrNotExist
+	}
+
+	return name, nil
 }
 
 // getExitNic gets the possible "device" that need to used by br-pub

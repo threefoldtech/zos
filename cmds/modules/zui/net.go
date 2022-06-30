@@ -84,7 +84,8 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 				table.Rows[3][1] = str
 			}
 
-			dual, err := stub.GetDualSetup(ctx)
+			exit, err := stub.GetPublicExitDevice(ctx)
+			dual := exit.String()
 			if err != nil {
 				dual = fmt.Sprintf("error: %s", err)
 			}

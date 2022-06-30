@@ -964,19 +964,19 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 	return nil
 }
 
-func (n *networker) GetDualSetup() (string, error) {
+func (n *networker) GetPublicExitDevice() (pkg.ExitDevice, error) {
 	exit, err := public.GetPublicExitLink()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get state of dual nic setup")
+		return pkg.ExitDevice{}, err
 	}
 
 	// if exit is over veth then we going over zos bridge
 	// hence it's a single nic setup
 	if ok, _ := bootstrap.VEthFilter(exit); ok {
-		return "single", nil
+		return pkg.ExitDevice{IsSingle: true}, nil
 	}
 
-	return fmt.Sprintf("dual(%s)", exit.Attrs().Name), nil
+	return pkg.ExitDevice{IsDual: true, AsDualInterface: exit.Attrs().Name}, nil
 }
 
 // Get node public namespace config
