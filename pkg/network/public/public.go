@@ -186,7 +186,7 @@ func GetPublicExitLink() (netlink.Link, error) {
 
 // SetPublicExitLink rewires the br-pub to a different exit (upstream) device.
 // this upstream device can either be a physical free device, or zos bridge.
-// the method does nothing if
+// the method is idempotent.
 func SetPublicExitLink(link netlink.Link) error {
 	// we can only attach to either physical nic, or zos bridge
 	log.Debug().
