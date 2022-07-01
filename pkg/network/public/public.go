@@ -122,6 +122,33 @@ func attachPublicToExit(br *netlink.Bridge, exit netlink.Link) error {
 	)
 }
 
+// if no persisted exit link file found, we need
+// to make sure to persist the current exit nic
+// in case of some nodes has their public nic
+// wired correctly manually (on some dev envs)
+// so to make sure node uses the same nic on reboot
+// we need to query the current active exit, and store
+// it
+func persistExitNicIfNotFound(exit netlink.Link) error {
+	log.Debug().Msg("persisting current public bridge uplink")
+	path := getPersistencePath(publicExitFile)
+	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
+		return err
+	}
+
+	name := types.DefaultBridge
+	if ok, _ := bootstrap.PhysicalFilter(exit); ok {
+		name = exit.Attrs().Name
+	}
+
+	// persist this value for next boot
+	return ioutil.WriteFile(
+		path,
+		[]byte(name),
+		0644,
+	)
+}
+
 func GetPublicExitLink() (netlink.Link, error) {
 	// return the upstream (exit) link for br-pub
 	br, err := bridge.Get(PublicBridge)
@@ -308,27 +335,19 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 		return nil, err
 	}
 
-	// find if we have anything attached to this bridge (so initialization)
-	// has been done before.
-	all, err := netlink.LinkList()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list host links")
-	}
+	exit, err := GetPublicExitLink()
 
-	filtered := all[:0]
-	for _, link := range all {
-		if link.Attrs().MasterIndex == br.Index {
-			filtered = append(filtered, link)
-		}
-	}
-
-	// if public bridge is already attached to "devices" it means
-	// this is just a service restart, hence we can safely ignore this
-	// step.
-	if len(filtered) == 0 {
+	if os.IsNotExist(err) {
+		// bridge is not initialized, wire it.
+		log.Debug().Msg("no public bridge uplink found, setting up...")
 		if err := setupPublicBridge(br); err != nil {
 			return nil, err
 		}
+	} else if err != nil {
+		return nil, errors.Wrap(err, "failed to get current public bridge uplink")
+	} else if err := persistExitNicIfNotFound(exit); err != nil {
+		log.Error().Err(err).
+			Msg("failed to persist current public bridge uplink")
 	}
 
 	if inf != nil {
