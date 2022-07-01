@@ -208,6 +208,7 @@ func (n *NodeClient) NetworkListInterfaces(ctx context.Context) (result map[stri
 	return
 }
 
+// NetworkListAllInterfaces return all physical devices on a node
 func (n *NodeClient) NetworkListAllInterfaces(ctx context.Context) (result map[string]Interface, err error) {
 	const cmd = "zos.network.admin.interfaces"
 
@@ -217,12 +218,15 @@ func (n *NodeClient) NetworkListAllInterfaces(ctx context.Context) (result map[s
 
 }
 
+// NetworkSetPublicExitDevice select which physical interface to use as an exit device
+// setting `iface` to `zos` will then make node run in a single nic setup.
 func (n *NodeClient) NetworkSetPublicExitDevice(ctx context.Context, iface string) error {
 	const cmd = "zos.network.admin.set_public_nic"
 
 	return n.bus.Call(ctx, n.nodeTwin, cmd, iface, nil)
 }
 
+// NetworkGetPublicExitDevice gets the current dual nic setup of the node.
 func (n *NodeClient) NetworkGetPublicExitDevice(ctx context.Context) (exit ExitDevice, err error) {
 	const cmd = "zos.network.admin.get_public_nic"
 
