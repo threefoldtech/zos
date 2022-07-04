@@ -401,7 +401,6 @@ func detectExitNic() (string, error) {
 		bootstrap.RequiresIPv6,
 		bootstrap.PhysicalFilter,
 		bootstrap.NotAttachedFilter,
-		bootstrap.NotIpsAssignedFilter,
 		bootstrap.PluggedFilter,
 	)
 
