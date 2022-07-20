@@ -190,6 +190,8 @@ type Networker interface {
 
 	// Set node public namespace config.
 	SetPublicConfig(cfg PublicConfig) error
+
+	// UnsetPublicConfig removes public config from node
 	UnsetPublicConfig() error
 
 	// Get node public namespace config
@@ -254,16 +256,10 @@ type PublicConfig struct {
 }
 
 func (p *PublicConfig) IsEmpty() bool {
-	return p.IPv4.Nil() || p.IPv6.Nil()
+	return p.IPv4.Nil() && p.IPv6.Nil()
 }
 
-func PublicConfigFrom(cfg *substrate.PublicConfig) (pub *PublicConfig, err error) {
-	// nil config is valid config to do unset
-	if cfg == nil {
-		return nil, nil
-	}
-
-	pub = new(PublicConfig)
+func PublicConfigFrom(cfg substrate.PublicConfig) (pub PublicConfig, err error) {
 	pub.Type = MacVlanIface
 	pub.IPv4, err = gridtypes.ParseIPNet(cfg.IPv4)
 	if err != nil {

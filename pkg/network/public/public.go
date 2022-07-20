@@ -18,6 +18,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/threefoldtech/zos/pkg/network/options"
 	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/vishvananda/netlink"
 )
 
@@ -356,7 +357,16 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 		// the node because that's the only way to properly unset public config
 		DeletePublicConfig()
 		if HasPublicSetup() {
-			return nil, destroyPublicNamespace()
+			// full node reboot is needed unfortunately
+			// to many things depends on the public namespace
+			// and the best way to make sure all is in the right state is to
+			// reboot the node
+			// deleting the namespace alone won't be sufficient because other services
+			// live in that namespace (yggdrasile, gateway, and probably other services)
+			// also listning wireguards for user networks are inside this namespace.
+			// so restarting is the cleanest way to get things in order.
+			zi := zinit.Default()
+			return nil, zi.Reboot()
 		}
 	} else {
 		if err := setupPublicNS(nodeID, inf); err != nil {
@@ -436,18 +446,6 @@ func ensurePublicNamespace() (ns.NetNS, error) {
 	}
 
 	return namespace.GetByName(PublicNamespace)
-}
-
-func destroyPublicNamespace() error {
-	n, err := namespace.GetByName(PublicNamespace)
-
-	if os.IsNotExist(err) {
-		return nil
-	} else if err != nil {
-		return errors.Wrap(err, "failed to get public namespace")
-	}
-
-	return namespace.Delete(n)
 }
 
 func ensurePublicMacvlan(iface *pkg.PublicConfig, pubNS ns.NetNS) (*netlink.Macvlan, error) {

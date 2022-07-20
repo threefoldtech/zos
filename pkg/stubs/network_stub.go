@@ -2,11 +2,10 @@ package stubs
 
 import (
 	"context"
-	"net"
-
 	zbus "github.com/threefoldtech/zbus"
 	pkg "github.com/threefoldtech/zos/pkg"
 	zos "github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"net"
 )
 
 type NetworkerStub struct {
@@ -467,7 +466,7 @@ func (s *NetworkerStub) RemoveTap(ctx context.Context, arg0 string) (ret0 error)
 	return
 }
 
-func (s *NetworkerStub) SetPublicConfig(ctx context.Context, arg0 interface{}) (ret0 error) {
+func (s *NetworkerStub) SetPublicConfig(ctx context.Context, arg0 pkg.PublicConfig) (ret0 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "SetPublicConfig", args...)
 	if err != nil {
@@ -574,6 +573,21 @@ func (s *NetworkerStub) TapExists(ctx context.Context, arg0 string) (ret0 bool, 
 	loader := zbus.Loader{
 		&ret0,
 	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerStub) UnsetPublicConfig(ctx context.Context) (ret0 error) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "UnsetPublicConfig", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret0 = result.CallError()
+	loader := zbus.Loader{}
 	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}

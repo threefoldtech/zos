@@ -895,7 +895,9 @@ func (n *networker) Namespace(id zos.NetID) string {
 }
 
 func (n *networker) UnsetPublicConfig() error {
-	panic("unimplemented")
+	id := n.identity.NodeID(context.Background())
+	_, err := public.EnsurePublicSetup(id, nil)
+	return err
 }
 
 // Set node public namespace config

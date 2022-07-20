@@ -17,7 +17,11 @@ func setPublicConfig(ctx context.Context, cl zbus.Client, cfg *substrate.PublicC
 	log.Info().Msg("setting node public config")
 	netMgr := stubs.NewNetworkerStub(cl)
 
-	pub, err := pkg.PublicConfigFrom(cfg)
+	if cfg == nil {
+		return netMgr.UnsetPublicConfig(ctx)
+	}
+
+	pub, err := pkg.PublicConfigFrom(*cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to create public config from setup")
 	}
@@ -62,7 +66,7 @@ reapply:
 		}
 
 		if err := setPublicConfig(ctx, cl, cfg); err != nil {
-			return errors.Wrap(err, "failed to ")
+			return errors.Wrap(err, "failed to set public config (reapply)")
 		}
 
 		for {
