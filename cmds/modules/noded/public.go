@@ -13,7 +13,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-func setPublicConfig(ctx context.Context, cl zbus.Client, cfg substrate.PublicConfig) error {
+func setPublicConfig(ctx context.Context, cl zbus.Client, cfg *substrate.PublicConfig) error {
 	log.Info().Msg("setting node public config")
 	netMgr := stubs.NewNetworkerStub(cl)
 
@@ -55,10 +55,14 @@ reapply:
 			return errors.Wrap(err, "failed to get node public config")
 		}
 
+		var cfg *substrate.PublicConfig
 		if node.PublicConfig.HasValue {
-			if err := setPublicConfig(ctx, cl, node.PublicConfig.AsValue); err != nil {
-				return errors.Wrap(err, "failed to ")
-			}
+			cfg = &node.PublicConfig.AsValue
+
+		}
+
+		if err := setPublicConfig(ctx, cl, cfg); err != nil {
+			return errors.Wrap(err, "failed to ")
 		}
 
 		for {
@@ -72,7 +76,11 @@ reapply:
 				}
 
 				log.Info().Msgf("got a public config update: %+v", event.PublicConfig)
-				if err := setPublicConfig(ctx, cl, event.PublicConfig); err != nil {
+				var cfg *substrate.PublicConfig
+				if !event.IsEmpty() {
+					cfg = &event.PublicConfig
+				}
+				if err := setPublicConfig(ctx, cl, cfg); err != nil {
 					return errors.Wrap(err, "failed to set public config")
 				}
 			case <-time.After(2 * time.Hour):

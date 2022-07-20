@@ -894,6 +894,10 @@ func (n *networker) Namespace(id zos.NetID) string {
 	return fmt.Sprintf("n-%s", id)
 }
 
+func (n *networker) UnsetPublicConfig() error {
+	panic("unimplemented")
+}
+
 // Set node public namespace config
 func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 	if cfg.Equal(pkg.PublicConfig{}) {

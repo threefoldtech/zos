@@ -350,7 +350,15 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 			Msg("failed to persist current public bridge uplink")
 	}
 
-	if inf != nil {
+	if inf == nil || inf.IsEmpty() {
+		// we need to check if there is already a public config
+		// if yes! we need to make sure to delete it and also restart
+		// the node because that's the only way to properly unset public config
+		DeletePublicConfig()
+		if HasPublicSetup() {
+			return nil, destroyPublicNamespace()
+		}
+	} else {
 		if err := setupPublicNS(nodeID, inf); err != nil {
 			return nil, errors.Wrap(err, "failed to ensure public namespace setup")
 		}
@@ -421,13 +429,25 @@ func detectExitNic() (string, error) {
 	return types.DefaultBridge, nil
 }
 
-func ensureNamespace() (ns.NetNS, error) {
+func ensurePublicNamespace() (ns.NetNS, error) {
 	if !namespace.Exists(PublicNamespace) {
 		log.Info().Str("namespace", PublicNamespace).Msg("Create network namespace")
 		return namespace.Create(PublicNamespace)
 	}
 
 	return namespace.GetByName(PublicNamespace)
+}
+
+func destroyPublicNamespace() error {
+	n, err := namespace.GetByName(PublicNamespace)
+
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return errors.Wrap(err, "failed to get public namespace")
+	}
+
+	return namespace.Delete(n)
 }
 
 func ensurePublicMacvlan(iface *pkg.PublicConfig, pubNS ns.NetNS) (*netlink.Macvlan, error) {
@@ -497,7 +517,7 @@ func publicConfig(iface *pkg.PublicConfig) (ips []*net.IPNet, routes []*netlink.
 
 // setupPublicNS creates a public namespace in a node
 func setupPublicNS(nodeID pkg.Identifier, iface *pkg.PublicConfig) error {
-	pubNS, err := ensureNamespace()
+	pubNS, err := ensurePublicNamespace()
 	if err != nil {
 		return err
 	}

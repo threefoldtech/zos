@@ -188,8 +188,9 @@ type Networker interface {
 
 	// Public Config
 
-	// Set node public namespace config
+	// Set node public namespace config.
 	SetPublicConfig(cfg PublicConfig) error
+	UnsetPublicConfig() error
 
 	// Get node public namespace config
 	GetPublicConfig() (PublicConfig, error)
@@ -252,7 +253,17 @@ type PublicConfig struct {
 	Domain string `json:"domain"`
 }
 
-func PublicConfigFrom(cfg substrate.PublicConfig) (pub PublicConfig, err error) {
+func (p *PublicConfig) IsEmpty() bool {
+	return p.IPv4.Nil() || p.IPv6.Nil()
+}
+
+func PublicConfigFrom(cfg *substrate.PublicConfig) (pub *PublicConfig, err error) {
+	// nil config is valid config to do unset
+	if cfg == nil {
+		return nil, nil
+	}
+
+	pub = new(PublicConfig)
 	pub.Type = MacVlanIface
 	pub.IPv4, err = gridtypes.ParseIPNet(cfg.IPv4)
 	if err != nil {

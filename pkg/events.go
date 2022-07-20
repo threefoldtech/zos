@@ -30,6 +30,12 @@ type PublicConfigEvent struct {
 	PublicConfig substrate.PublicConfig
 }
 
+func (e *PublicConfigEvent) IsEmpty() bool {
+	// checks the values of the public config
+	pc := &e.PublicConfig
+	return pc.IPv4 == "" && pc.IPv6 == ""
+}
+
 // ContractCancelledEvent a contract has been cancelled, The type specify if this is just notification
 // of the reconnection, or actual event has been received.
 type ContractCancelledEvent struct {
