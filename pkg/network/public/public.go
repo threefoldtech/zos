@@ -355,7 +355,7 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 		// we need to check if there is already a public config
 		// if yes! we need to make sure to delete it and also restart
 		// the node because that's the only way to properly unset public config
-		DeletePublicConfig()
+		_ = DeletePublicConfig()
 		if HasPublicSetup() {
 			// full node reboot is needed unfortunately
 			// to many things depends on the public namespace
