@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
@@ -30,7 +31,8 @@ const (
 	PublicBridge    = types.PublicBridge
 	PublicNamespace = types.PublicNamespace
 
-	// TODO: This pass need to come from
+	defaultPublicResolveConf = `nameserver 8.8.8.8
+nameserve4r 1.1.1.1`
 )
 
 // EnsurePublicBridge makes sure that the public bridge exists
@@ -53,9 +55,9 @@ func ensurePublicBridge() (*netlink.Bridge, error) {
 	return br, nil
 }
 
-//getPublicNamespace gets the public namespace, or nil if it's
-//not setup or does not exist. the caller must be able to handle
-//this case
+// getPublicNamespace gets the public namespace, or nil if it's
+// not setup or does not exist. the caller must be able to handle
+// this case
 func getPublicNamespace() ns.NetNS {
 	ns, _ := namespace.GetByName(PublicNamespace)
 	return ns
@@ -513,6 +515,15 @@ func publicConfig(iface *pkg.PublicConfig) (ips []*net.IPNet, routes []*netlink.
 	return ips, routes, nil
 }
 
+func ensurePublicResolve() error {
+	path := filepath.Join("/etc", "netns", PublicNamespace)
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return errors.Wrap(err, "failed to create public netns directory")
+	}
+	path = filepath.Join(path, "resolv.conf")
+	return ioutil.WriteFile(path, []byte(defaultPublicResolveConf), 0544)
+}
+
 // setupPublicNS creates a public namespace in a node
 func setupPublicNS(nodeID pkg.Identifier, iface *pkg.PublicConfig) error {
 	pubNS, err := ensurePublicNamespace()
@@ -521,6 +532,11 @@ func setupPublicNS(nodeID pkg.Identifier, iface *pkg.PublicConfig) error {
 	}
 
 	defer pubNS.Close()
+
+	// todo: this need to come later from the node config on the grid
+	if err := ensurePublicResolve(); err != nil {
+		return errors.Wrap(err, "failed to configure public namespace resolv.conf")
+	}
 
 	pubIface, err := ensurePublicMacvlan(iface, pubNS)
 	if err != nil {
