@@ -190,10 +190,10 @@ func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interf
 			if ifcfg.IP4DefaultGateway != nil {
 				cinet.Gateway4 = ifcfg.IP4DefaultGateway.String()
 			}
-		}
 
-		if ifcfg.IP6DefaultGateway != nil {
-			cinet.Gateway6 = ifcfg.IP6DefaultGateway.String()
+			if ifcfg.IP6DefaultGateway != nil {
+				cinet.Gateway6 = ifcfg.IP6DefaultGateway.String()
+			}
 		}
 
 		// inserting extra routes in right places
