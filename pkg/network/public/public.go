@@ -32,7 +32,7 @@ const (
 	PublicNamespace = types.PublicNamespace
 
 	defaultPublicResolveConf = `nameserver 8.8.8.8
-nameserve4r 1.1.1.1`
+nameserver 1.1.1.1`
 )
 
 // EnsurePublicBridge makes sure that the public bridge exists
