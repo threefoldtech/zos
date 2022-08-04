@@ -2,7 +2,6 @@ package public
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -32,7 +31,9 @@ const (
 	PublicNamespace = types.PublicNamespace
 
 	defaultPublicResolveConf = `nameserver 8.8.8.8
-nameserver 1.1.1.1`
+nameserver 1.1.1.1
+nameserver 2001:4860:4860::8888
+`
 )
 
 // EnsurePublicBridge makes sure that the public bridge exists
@@ -118,7 +119,7 @@ func attachPublicToExit(br *netlink.Bridge, exit netlink.Link) error {
 	}
 
 	// persist this value for next boot
-	return ioutil.WriteFile(
+	return os.WriteFile(
 		getPersistencePath(publicExitFile),
 		[]byte(exit.Attrs().Name),
 		0644,
@@ -145,7 +146,7 @@ func persistExitNicIfNotFound(exit netlink.Link) error {
 	}
 
 	// persist this value for next boot
-	return ioutil.WriteFile(
+	return os.WriteFile(
 		path,
 		[]byte(name),
 		0644,
@@ -381,7 +382,7 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 
 func getPersistedExitNic() (string, error) {
 	path := getPersistencePath(publicExitFile)
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -521,7 +522,7 @@ func ensurePublicResolve() error {
 		return errors.Wrap(err, "failed to create public netns directory")
 	}
 	path = filepath.Join(path, "resolv.conf")
-	return ioutil.WriteFile(path, []byte(defaultPublicResolveConf), 0544)
+	return os.WriteFile(path, []byte(defaultPublicResolveConf), 0644)
 }
 
 // setupPublicNS creates a public namespace in a node
