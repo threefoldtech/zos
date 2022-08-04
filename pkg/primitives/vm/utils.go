@@ -51,7 +51,8 @@ func (p *Manager) newYggNetworkInterface(ctx context.Context, wl *gridtypes.Work
 				Gateway: iface.Gateway.IP,
 			},
 		},
-		Public: false,
+		PublicIPv4: false,
+		PublicIPv6: false,
 	}
 
 	return out, nil
@@ -112,7 +113,8 @@ func (p *Manager) newPrivNetworkInterface(ctx context.Context, dl gridtypes.Depl
 		},
 		IP4DefaultGateway: net.IP(gw4),
 		IP6DefaultGateway: gw6,
-		Public:            false,
+		PublicIPv4:        false,
+		PublicIPv6:        false,
 	}
 
 	return out, nil
@@ -156,13 +158,15 @@ func (p *Manager) newPubNetworkInterface(ctx context.Context, deployment gridtyp
 		}
 		gw = config.Gateway
 	}
+
 	return pkg.VMIface{
 		Tap:               pubIface,
 		MAC:               mac.String(), // mac so we always get the same IPv6 from slaac
 		IPs:               ips,
 		IP4DefaultGateway: gw,
 		// for now we get ipv6 from slaac, so leave ipv6 stuffs this empty
-		Public: true,
+		PublicIPv4: config.HasIPv4(),
+		PublicIPv6: config.HasIPv6(),
 	}, nil
 }
 
