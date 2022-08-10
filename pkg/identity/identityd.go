@@ -2,11 +2,11 @@ package identity
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zos/pkg/crypto"
+	"github.com/threefoldtech/zos/pkg/identity/store"
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
@@ -26,36 +26,36 @@ type identityManager struct {
 // The daemon will auto generate a new seed if the path does
 // not exist
 func NewManager(path string) (pkg.IdentityManager, error) {
-	env, err := environment.Get()
-	if err != nil {
-		return nil, err
-	}
+	st := store.NewFileStore(path)
+	key, err := st.Get()
 	var pair KeyPair
-	if seed, err := LoadSeed(path); os.IsNotExist(err) {
+	if errors.Is(err, store.ErrKeyDoesNotExist) {
 		pair, err = GenerateKeyPair()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to generate key pair")
 		}
-
-		if err := pair.Save(path); err != nil {
+		if err := st.Set(pair.PrivateKey); err != nil {
 			return nil, errors.Wrap(err, "failed to persist key seed")
 		}
 	} else if err != nil {
-		if err := os.Remove(path); err != nil {
-			log.Error().Err(err).Msg("failed to delete corrupt seed file")
+		log.Error().Err(err).Msg("failed to load key. to recover the key data will be deleted and regenerated")
+		if err := st.Annihilate(); err != nil {
+			log.Error().Err(err).Msg("failed to clean up key store")
 		}
 		return nil, errors.Wrap(err, "failed to load seed")
 	} else {
-		pair, err = FromSeed(seed)
-		if err != nil {
-			return nil, errors.Wrap(err, "invalid seed file")
-		}
+		pair = KeyPairFromKey(key)
 	}
 
 	sub, err := environment.GetSubstrate()
 	if err != nil {
 		return nil, err
 	}
+	env, err := environment.Get()
+	if err != nil {
+		return nil, err
+	}
+
 	return &identityManager{
 		key: pair,
 		sub: sub,
