@@ -3,12 +3,70 @@ package tpm
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
+	"os"
 	"os/exec"
+	"sort"
+	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
+
+type HexString string
+
+func (h HexString) Bytes() ([]byte, error) {
+	return hex.DecodeString(string(h))
+}
+
+type HashKind string
+
+const (
+	SHA1   HashKind = "sha1"
+	SHA256 HashKind = "sha256"
+	SHA384 HashKind = "sha384"
+	SHA512 HashKind = "sha512"
+)
+
+type PCRSelector map[HashKind][]int
+
+func (p PCRSelector) String() string {
+	// to make it consistent we need to
+	// sort the the map keys first
+	var keys []HashKind
+	for hash := range p {
+		keys = append(keys, hash)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+
+	var buf strings.Builder
+	for _, hash := range keys {
+		if buf.Len() > 0 {
+			buf.WriteRune('+')
+		}
+		buf.WriteString(string(hash))
+		buf.WriteRune(':')
+		for i, id := range p[hash] {
+			if i != 0 {
+				buf.WriteRune(',')
+			}
+			buf.WriteString(fmt.Sprint(id))
+		}
+	}
+
+	return buf.String()
+}
+
+// File is a tmp file path to make it easier to pass files around
+type File string
+
+func (f File) Delete() error {
+	return os.Remove(string(f))
+}
 
 func tpm(ctx context.Context, name string, out interface{}, arg ...string) error {
 	name = fmt.Sprintf("tpm2_%s", name)
@@ -65,4 +123,9 @@ func PCRs(ctx context.Context) (map[string][]int, error) {
 	}
 
 	return pcrs, nil
+}
+
+func PCRPolicy(ctx context.Context, selector PCRSelector) (out HexString, err error) {
+	err = tpm(ctx, "createpolicy", &out, "--policy-pcr", "-l", selector.String(), "-L", "/dev/null")
+	return
 }
