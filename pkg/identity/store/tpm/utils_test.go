@@ -43,7 +43,7 @@ func TestPCRPolicy(t *testing.T) {
 		SHA1: {0, 1, 2},
 	}
 
-	hash, err := PCRPolicy(context.Background(), selector)
+	hash, err := CreatePCRPolicy(context.Background(), selector)
 	assert.NoError(t, err)
 	assert.Equal(t, HexString("f3473b1bc51f0c9179f4c6f377b5b7d20bde98793e1a052c7bc3b736b821d1fe"), hash)
 }

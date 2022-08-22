@@ -5,12 +5,16 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -20,21 +24,26 @@ func (h HexString) Bytes() ([]byte, error) {
 	return hex.DecodeString(string(h))
 }
 
-type HashKind string
+type HashAlgorithm string
+type KeyAlgorithm string
 
 const (
-	SHA1   HashKind = "sha1"
-	SHA256 HashKind = "sha256"
-	SHA384 HashKind = "sha384"
-	SHA512 HashKind = "sha512"
+	SHA1   HashAlgorithm = "sha1"
+	SHA256 HashAlgorithm = "sha256"
+	SHA384 HashAlgorithm = "sha384"
+	SHA512 HashAlgorithm = "sha512"
+
+	RSA KeyAlgorithm = "rsa"
 )
 
-type PCRSelector map[HashKind][]int
+type Address uint32
+
+type PCRSelector map[HashAlgorithm][]int
 
 func (p PCRSelector) String() string {
 	// to make it consistent we need to
 	// sort the the map keys first
-	var keys []HashKind
+	var keys []HashAlgorithm
 	for hash := range p {
 		keys = append(keys, hash)
 	}
@@ -64,15 +73,39 @@ func (p PCRSelector) String() string {
 // File is a tmp file path to make it easier to pass files around
 type File string
 
+// Delete file
 func (f File) Delete() error {
 	return os.Remove(string(f))
 }
 
-func tpm(ctx context.Context, name string, out interface{}, arg ...string) error {
+// Read file contents
+func (f File) Read() ([]byte, error) {
+	return os.ReadFile(string(f))
+}
+
+type Object struct {
+	public  File
+	private File
+}
+
+func (o *Object) Delete() error {
+	_ = o.private.Delete()
+	_ = o.public.Delete()
+	return nil
+}
+
+// Creates a temporary file handler
+func NewFile(suffix string) File {
+	name := fmt.Sprintf("%s%s", uuid.New().String(), suffix)
+	return File(filepath.Join(os.TempDir(), name))
+}
+
+func tpm(ctx context.Context, name string, in io.Reader, out interface{}, arg ...string) error {
 	name = fmt.Sprintf("tpm2_%s", name)
 
 	cmd := exec.CommandContext(ctx, name, arg...)
-
+	log.Debug().Msgf("executing command: %s", cmd.String())
+	cmd.Stdin = in
 	output, err := cmd.Output()
 	if err, ok := err.(*exec.ExitError); ok && err != nil {
 		return errors.Wrapf(err, "error while running command: (%s)", string(err.Stderr))
@@ -101,7 +134,7 @@ func IsTPMSupported(ctx context.Context) bool {
 
 // PersistedHandlers return a list of persisted handlers on the system
 func PersistedHandlers(ctx context.Context) (handlers []string, err error) {
-	err = tpm(ctx, "getcap", &handlers, "handles-persistent")
+	err = tpm(ctx, "getcap", nil, &handlers, "handles-persistent")
 	return
 }
 
@@ -111,7 +144,7 @@ func PCRs(ctx context.Context) (map[string][]int, error) {
 		Top []map[string][]int `yaml:"selected-pcrs"`
 	}
 
-	if err := tpm(ctx, "getcap", &data, "pcrs"); err != nil {
+	if err := tpm(ctx, "getcap", nil, &data, "pcrs"); err != nil {
 		return nil, err
 	}
 
@@ -125,7 +158,72 @@ func PCRs(ctx context.Context) (map[string][]int, error) {
 	return pcrs, nil
 }
 
-func PCRPolicy(ctx context.Context, selector PCRSelector) (out HexString, err error) {
-	err = tpm(ctx, "createpolicy", &out, "--policy-pcr", "-l", selector.String(), "-L", "/dev/null")
-	return
+// CreatePCRPolicy creates a pcr policy from selection
+func CreatePCRPolicy(ctx context.Context, selector PCRSelector) (File, error) {
+	policyFile := NewFile(".policy")
+	return policyFile, tpm(ctx, "createpolicy", nil, nil, "--policy-pcr", "-l", selector.String(), "-L", string(policyFile))
+}
+
+// CreatePrimary key
+func CreatePrimary(ctx context.Context, hash HashAlgorithm, key KeyAlgorithm) (File, error) {
+	//tpm2_createprimary -C e -g sha1 -G rsa -c primary.context
+	file := NewFile(".primary.context")
+	return file, tpm(ctx, "createprimary", nil, nil, "-C", "e", "-g", string(hash), "-G", string(key), "-c", string(file))
+}
+
+// Create creates an object
+func Create(ctx context.Context, hash HashAlgorithm, data io.Reader, primary File, policy File) (Object, error) {
+	//tpm2_create -g sha256 -u obj.pub -r obj.priv -C primary.context -L policy.digest -a "noda|adminwithpolicy|fixedparent|fixedtpm" -i secret.bin
+	obj := Object{
+		private: NewFile(".priv"),
+		public:  NewFile(".pub"),
+	}
+
+	return obj, tpm(ctx,
+		"create",
+		data, nil,
+		"-g", string(hash),
+		"-u", string(obj.public),
+		"-r", string(obj.private),
+		"-C", string(primary),
+		"-L", string(policy),
+		"-a", "noda|adminwithpolicy|fixedparent|fixedtpm",
+		"-i", "-",
+	)
+}
+
+func Load(ctx context.Context, primary File, obj Object) (loaded File, err error) {
+	// tpm2_load -C primary.context -u obj.pub -r obj.priv -c load.context
+	file := NewFile(".load.context")
+	return file, tpm(ctx,
+		"load",
+		nil, nil,
+		"-C", string(primary),
+		"-u", string(obj.public),
+		"-r", string(obj.private),
+		"-c", string(file),
+	)
+}
+
+// EvictControl
+func EvictControl(ctx context.Context, loaded File, address Address) error {
+	// tpm2_evictcontrol -C o -c load.context 0x81000000
+	return tpm(ctx, "evictcontrol",
+		nil, nil,
+		"-C", "o",
+		"-c", string(loaded),
+		fmt.Sprintf("0x%x", address),
+	)
+}
+
+// Unseal object
+func Unseal(ctx context.Context, address Address, pcrs PCRSelector) (File, error) {
+	// tpm2_unseal -c 0x81000000 -p pcr:sha1:0,1,2 # -o secret.bin
+	file := NewFile(".raw")
+	return file, tpm(ctx, "unseal",
+		nil, nil,
+		"-c", fmt.Sprintf("0x%x", address),
+		"-p", fmt.Sprintf("pcr:%s", pcrs),
+		"-o", string(file),
+	)
 }
