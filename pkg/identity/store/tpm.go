@@ -1,6 +1,24 @@
 package store
 
-import "crypto/ed25519"
+import (
+	"bytes"
+	"context"
+	"crypto/ed25519"
+	"fmt"
+	"time"
+
+	"github.com/threefoldtech/zos/pkg/identity/store/tpm"
+)
+
+const (
+	keyAddress = tpm.Address(0x81000000)
+)
+
+var (
+	selector = tpm.PCRSelector{
+		tpm.SHA1: []int{0, 1, 2}, // what values should we use for PCRs
+	}
+)
 
 type TPMStore struct{}
 
@@ -8,21 +26,79 @@ var _ Store = (*TPMStore)(nil)
 
 // Get returns the key from the store
 func (t *TPMStore) Get() (ed25519.PrivateKey, error) {
-	panic("unimplemented")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	handler, err := tpm.Unseal(ctx, keyAddress, selector)
+	if err != nil {
+		return nil, err
+	}
+	defer handler.Delete()
+	return handler.Read()
 }
 
 // Updates, or overrides the current key
 func (t *TPMStore) Set(key ed25519.PrivateKey) error {
-	panic("unimplemented")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	primary, err := tpm.CreatePrimary(ctx, tpm.SHA1, tpm.RSA)
+	if err != nil {
+		return fmt.Errorf("failed to create primary key: %w", err)
+	}
+
+	defer primary.Delete()
+
+	policy, err := tpm.CreatePCRPolicy(ctx, selector)
+	if err != nil {
+		return fmt.Errorf("failed to create policy: %w", err)
+	}
+
+	defer policy.Delete()
+
+	object, err := tpm.Create(ctx, tpm.SHA256, bytes.NewBuffer(key), primary, policy)
+	if err != nil {
+		return err
+	}
+
+	defer object.Delete()
+
+	loaded, err := tpm.Load(ctx, primary, object)
+	if err != nil {
+		return fmt.Errorf("failed to load object: %w", err)
+	}
+
+	defer loaded.Delete()
+
+	if err := tpm.EvictControl(ctx, &loaded, keyAddress); err != nil {
+		return fmt.Errorf("failed to evict the key: %w", err)
+	}
+
+	return nil
 }
 
 // Check if key there is a key stored in the
 // store
 func (t *TPMStore) Exists() (bool, error) {
-	panic("unimplemented")
+	handlers, err := tpm.PersistedHandlers(context.Background())
+	if err != nil {
+		return false, err
+	}
+
+	for _, handler := range handlers {
+		if keyAddress == handler {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // Destroys the key
 func (t *TPMStore) Annihilate() error {
-	panic("unimplemented")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return tpm.EvictControl(ctx, nil, keyAddress)
+}
+
+func IsTPMEnabled() bool {
+	return tpm.IsTPMEnabled(context.Background())
 }

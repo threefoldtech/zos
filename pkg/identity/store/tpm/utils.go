@@ -122,8 +122,8 @@ func tpm(ctx context.Context, name string, in io.Reader, out interface{}, arg ..
 	return decoder.Decode(out)
 }
 
-// IsTPMSupported checks if TPM is accessible on this system
-func IsTPMSupported(ctx context.Context) bool {
+// IsTPMEnabled checks if TPM is accessible on this system
+func IsTPMEnabled(ctx context.Context) bool {
 	pcrs, err := PCRs(ctx)
 	if err != nil {
 		return false
@@ -133,9 +133,24 @@ func IsTPMSupported(ctx context.Context) bool {
 }
 
 // PersistedHandlers return a list of persisted handlers on the system
-func PersistedHandlers(ctx context.Context) (handlers []string, err error) {
-	err = tpm(ctx, "getcap", nil, &handlers, "handles-persistent")
-	return
+func PersistedHandlers(ctx context.Context) (handlers []Address, err error) {
+	var strHandlers []string
+	if err := tpm(ctx, "getcap", nil, &strHandlers, "handles-persistent"); err != nil {
+		return nil, err
+	}
+
+	var addresses []Address
+	for _, handler := range strHandlers {
+		var u Address
+		_, err := fmt.Sscanf(handler, "0x%x", &u)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan address(%s): %w", handler, err)
+		}
+
+		addresses = append(addresses, u)
+	}
+
+	return addresses, nil
 }
 
 // PCRs returns the available PCRs numbers as map of [hash-algorithm][]int
@@ -206,12 +221,21 @@ func Load(ctx context.Context, primary File, obj Object) (loaded File, err error
 }
 
 // EvictControl
-func EvictControl(ctx context.Context, loaded File, address Address) error {
+func EvictControl(ctx context.Context, loaded *File, address Address) error {
 	// tpm2_evictcontrol -C o -c load.context 0x81000000
+	if loaded != nil {
+		// set
+		return tpm(ctx, "evictcontrol",
+			nil, nil,
+			"-C", "o",
+			"-c", string(*loaded),
+			fmt.Sprintf("0x%x", address),
+		)
+	}
+	// evict
 	return tpm(ctx, "evictcontrol",
 		nil, nil,
 		"-C", "o",
-		"-c", string(loaded),
 		fmt.Sprintf("0x%x", address),
 	)
 }
