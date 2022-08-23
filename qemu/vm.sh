@@ -86,7 +86,7 @@ if [[ $tpm -eq "1" ]]; then
    tpm_socket="$vmdir/swtpm.sock"
    mkdir -p $tpm_dir
    rm $tpm_socket &> /dev/null || true
-   runs int he backgroun
+   # runs in the backgroun
    swtpm \
       socket --tpm2 \
       --tpmstate dir=$tpm_dir \
