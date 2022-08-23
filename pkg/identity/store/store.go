@@ -25,6 +25,8 @@ type Store interface {
 	Exists() (bool, error)
 	// Destroys the key
 	Annihilate() error
+	// Kind returns store kind
+	Kind() string
 }
 
 // keyFromSeed creates a new key pair from seed

@@ -25,8 +25,12 @@ type identityManager struct {
 // NewManager creates an identity daemon from seed
 // The daemon will auto generate a new seed if the path does
 // not exist
-func NewManager(path string) (pkg.IdentityManager, error) {
-	st := store.NewFileStore(path)
+func NewManager(root string) (pkg.IdentityManager, error) {
+	st, err := NewStore(root)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create key store")
+	}
+	log.Info().Str("kind", st.Kind()).Msg("key store loaded")
 	key, err := st.Get()
 	var pair KeyPair
 	if errors.Is(err, store.ErrKeyDoesNotExist) {

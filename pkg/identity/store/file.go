@@ -29,8 +29,12 @@ type FileStore struct {
 
 var _ Store = (*FileStore)(nil)
 
-func NewFileStore(path string) FileStore {
-	return FileStore{path}
+func NewFileStore(path string) *FileStore {
+	return &FileStore{path}
+}
+
+func (f *FileStore) Kind() string {
+	return "file-store"
 }
 
 func (f *FileStore) Set(key ed25519.PrivateKey) error {

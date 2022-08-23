@@ -24,8 +24,25 @@ type TPMStore struct{}
 
 var _ Store = (*TPMStore)(nil)
 
+func NewTPM() *TPMStore {
+	return &TPMStore{}
+}
+
+func (f *TPMStore) Kind() string {
+	return "tpm-store"
+}
+
 // Get returns the key from the store
 func (t *TPMStore) Get() (ed25519.PrivateKey, error) {
+	exists, err := t.Exists()
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return nil, ErrKeyDoesNotExist
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	handler, err := tpm.Unseal(ctx, keyAddress, selector)
@@ -33,7 +50,12 @@ func (t *TPMStore) Get() (ed25519.PrivateKey, error) {
 		return nil, err
 	}
 	defer handler.Delete()
-	return handler.Read()
+	seed, err := handler.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read seed: %w", err)
+	}
+
+	return keyFromSeed(seed)
 }
 
 // Updates, or overrides the current key
@@ -54,7 +76,8 @@ func (t *TPMStore) Set(key ed25519.PrivateKey) error {
 
 	defer policy.Delete()
 
-	object, err := tpm.Create(ctx, tpm.SHA256, bytes.NewBuffer(key), primary, policy)
+	// we store the key seed, not the seed itself
+	object, err := tpm.Create(ctx, tpm.SHA256, bytes.NewBuffer(key.Seed()), primary, policy)
 	if err != nil {
 		return err
 	}
@@ -67,6 +90,8 @@ func (t *TPMStore) Set(key ed25519.PrivateKey) error {
 	}
 
 	defer loaded.Delete()
+
+	_ = tpm.EvictControl(ctx, nil, keyAddress)
 
 	if err := tpm.EvictControl(ctx, &loaded, keyAddress); err != nil {
 		return fmt.Errorf("failed to evict the key: %w", err)

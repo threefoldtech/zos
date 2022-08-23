@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -33,8 +32,7 @@ const (
 )
 
 const (
-	module   = "identityd"
-	seedName = "seed.txt"
+	module = "identityd"
 )
 
 // Safe makes sure function call not interrupted
@@ -307,9 +305,8 @@ func upgradeLoop(
 }
 
 func getIdentityMgr(root string) (pkg.IdentityManager, error) {
-	seedPath := filepath.Join(root, seedName)
 
-	manager, err := identity.NewManager(seedPath)
+	manager, err := identity.NewManager(root)
 	if err != nil {
 		return nil, err
 	}
