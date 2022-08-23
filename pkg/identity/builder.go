@@ -37,6 +37,13 @@ func NewStore(root string) (store.Store, error) {
 		return tpm, nil
 	}
 
+	if ok, err := tpm.Exists(); err == nil && ok {
+		// so there is a key on disk, but tpm already has a stored key
+		// then we still just return no need for migration to avoid
+		// overriding the key in tpm
+		return tpm, nil
+	}
+
 	// if we failed to get the key from store
 	// may be better generate a new one?
 	// todo: need discussion

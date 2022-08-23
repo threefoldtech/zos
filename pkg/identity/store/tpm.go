@@ -49,7 +49,11 @@ func (t *TPMStore) Get() (ed25519.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer handler.Delete()
+
+	defer func() {
+		_ = handler.Delete()
+	}()
+
 	seed, err := handler.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read seed: %w", err)
@@ -67,14 +71,18 @@ func (t *TPMStore) Set(key ed25519.PrivateKey) error {
 		return fmt.Errorf("failed to create primary key: %w", err)
 	}
 
-	defer primary.Delete()
+	defer func() {
+		_ = primary.Delete()
+	}()
 
 	policy, err := tpm.CreatePCRPolicy(ctx, selector)
 	if err != nil {
 		return fmt.Errorf("failed to create policy: %w", err)
 	}
 
-	defer policy.Delete()
+	defer func() {
+		_ = policy.Delete()
+	}()
 
 	// we store the key seed, not the seed itself
 	object, err := tpm.Create(ctx, tpm.SHA256, bytes.NewBuffer(key.Seed()), primary, policy)
@@ -82,14 +90,18 @@ func (t *TPMStore) Set(key ed25519.PrivateKey) error {
 		return err
 	}
 
-	defer object.Delete()
+	defer func() {
+		_ = object.Delete()
+	}()
 
 	loaded, err := tpm.Load(ctx, primary, object)
 	if err != nil {
 		return fmt.Errorf("failed to load object: %w", err)
 	}
 
-	defer loaded.Delete()
+	defer func() {
+		_ = loaded.Delete()
+	}()
 
 	_ = tpm.EvictControl(ctx, nil, keyAddress)
 
