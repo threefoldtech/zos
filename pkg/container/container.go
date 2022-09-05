@@ -551,7 +551,6 @@ func (c *Module) SignalDelete(ns string, id pkg.ContainerID) error {
 	container, err := client.LoadContainer(ctx, string(id))
 	if err != nil {
 		if errdefs.IsNotFound(err) {
-			log.Warn().Str("id", string(id)).Msg("attempt to delete a non-existing container")
 			return nil
 		}
 		return err
