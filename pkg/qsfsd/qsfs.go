@@ -267,7 +267,8 @@ func (q *QSFS) SignalDelete(wlID string) error {
 	marked, err := q.isMarkedForDeletion(ctx, wlID)
 
 	if marked {
-		return errors.New("already marked for deletion")
+		log.Warn().Str("workload", wlID).Msg("already marked for deletion")
+		return nil
 	}
 	if err != nil {
 		return errors.Wrap(err, "failed to check deletion mark")
