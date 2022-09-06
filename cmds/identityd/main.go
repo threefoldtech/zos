@@ -101,7 +101,7 @@ func main() {
 
 	// 2. Register the node to BCDB
 	// at this point we are running latest version
-	idMgr, err := getIdentityMgr(root)
+	idMgr, err := getIdentityMgr(root, debug)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create identity manager")
 	}
@@ -125,7 +125,12 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to initialize upgrader")
 	}
 
-	installBinaries(&boot, upgrader)
+	err = installBinaries(&boot, upgrader)
+	if err == upgrade.ErrRestartNeeded {
+		return
+	} else if err != nil {
+		log.Error().Err(err).Msg("failed to install binaries")
+	}
 
 	go func() {
 		if err := server.Run(ctx); err != nil && err != context.Canceled {
@@ -178,10 +183,8 @@ func debugReinstall(boot *upgrade.Boot, up *upgrade.Upgrader) {
 	}()
 }
 
-func installBinaries(boot *upgrade.Boot, upgrader *upgrade.Upgrader) {
-
+func installBinaries(boot *upgrade.Boot, upgrader *upgrade.Upgrader) error {
 	bins, _ := boot.CurrentBins()
-
 	env, _ := environment.Get()
 
 	repoWatcher := upgrade.FListRepo{
@@ -191,7 +194,11 @@ func installBinaries(boot *upgrade.Boot, upgrader *upgrade.Upgrader) {
 
 	current, toAdd, toDel, err := repoWatcher.Diff()
 	if err != nil {
-		log.Error().Err(err).Msg("failed to list latest binaries to install")
+		return errors.Wrap(err, "failed to list latest binaries to install")
+	}
+
+	if len(toAdd) == 0 && len(toDel) == 0 {
+		return nil
 	}
 
 	for _, pkg := range toDel {
@@ -206,7 +213,11 @@ func installBinaries(boot *upgrade.Boot, upgrader *upgrade.Upgrader) {
 		}
 	}
 
-	boot.SetBins(current)
+	if err := boot.SetBins(current); err != nil {
+		return errors.Wrap(err, "failed to commit pkg status")
+	}
+
+	return upgrade.ErrRestartNeeded
 }
 
 func upgradeLoop(
@@ -263,7 +274,13 @@ func upgradeLoop(
 			continue
 		}
 
-		installBinaries(boot, upgrader)
+		err = installBinaries(boot, upgrader)
+		if err == upgrade.ErrRestartNeeded {
+			log.Info().Msg("restarting upgraded")
+			return
+		} else if err != nil {
+			log.Error().Err(err).Msg("failed to update runtime binaries")
+		}
 
 		// next check for update
 		exp := backoff.NewExponentialBackOff()
@@ -278,12 +295,11 @@ func upgradeLoop(
 
 			if err == upgrade.ErrRestartNeeded {
 				return backoff.Permanent(err)
-			}
-
-			if err != nil {
+			} else if err != nil {
 				log.Error().Err(err).Msg("update failure. retrying")
 			}
-			return err
+
+			return nil
 		}, exp)
 
 		if err == upgrade.ErrRestartNeeded {
@@ -304,9 +320,8 @@ func upgradeLoop(
 	}
 }
 
-func getIdentityMgr(root string) (pkg.IdentityManager, error) {
-
-	manager, err := identity.NewManager(root)
+func getIdentityMgr(root string, debug bool) (pkg.IdentityManager, error) {
+	manager, err := identity.NewManager(root, debug)
 	if err != nil {
 		return nil, err
 	}

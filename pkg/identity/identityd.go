@@ -14,9 +14,10 @@ import (
 )
 
 type identityManager struct {
-	key KeyPair
-	sub substrate.Manager
-	env environment.Environment
+	kind string
+	key  KeyPair
+	sub  substrate.Manager
+	env  environment.Environment
 
 	farm string
 	node uint32
@@ -25,8 +26,12 @@ type identityManager struct {
 // NewManager creates an identity daemon from seed
 // The daemon will auto generate a new seed if the path does
 // not exist
-func NewManager(root string) (pkg.IdentityManager, error) {
-	st, err := NewStore(root)
+// debug flag is used to change the behavior slightly when zos is running in debug
+// mode. Right now only the key store uses this flag. In case of debug migrated keys
+// to tpm are not deleted from disks. This allow switching back and forth between tpm
+// and non-tpm key stores.
+func NewManager(root string, debug bool) (pkg.IdentityManager, error) {
+	st, err := NewStore(root, !debug)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create key store")
 	}
@@ -61,10 +66,16 @@ func NewManager(root string) (pkg.IdentityManager, error) {
 	}
 
 	return &identityManager{
-		key: pair,
-		sub: sub,
-		env: env,
+		kind: st.Kind(),
+		key:  pair,
+		sub:  sub,
+		env:  env,
 	}, nil
+}
+
+// StoreKind returns store kind
+func (d *identityManager) StoreKind() string {
+	return d.kind
 }
 
 // NodeID returns the node identity

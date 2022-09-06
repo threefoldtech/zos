@@ -19,8 +19,8 @@ const (
 // If TPM is supported, TPM will be used.
 // There is a special case if tpm is supported, but a file seed
 // exits, this file key will be migrated to the TPM store then
-// deleted.
-func NewStore(root string) (store.Store, error) {
+// deleted (only if delete is set to true)
+func NewStore(root string, delete bool) (store.Store, error) {
 	file := store.NewFileStore(filepath.Join(root, seedName))
 	if !store.IsTPMEnabled() {
 		return file, nil
@@ -61,8 +61,10 @@ func NewStore(root string) (store.Store, error) {
 		return file, nil
 	}
 
-	if err := file.Annihilate(); err != nil {
-		log.Error().Err(err).Msg("failed to clear up key file")
+	if delete {
+		if err := file.Annihilate(); err != nil {
+			log.Error().Err(err).Msg("failed to clear up key file")
+		}
 	}
 
 	return tpm, nil
