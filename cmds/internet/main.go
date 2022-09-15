@@ -127,7 +127,7 @@ func configureZOS() error {
 		log.Info().Msg("writing udhcp init service")
 
 		err = zinit.AddService("dhcp-zos", zinit.InitService{
-			Exec:    fmt.Sprintf("/sbin/udhcpc -v -f -i %s -s /usr/share/udhcp/simple.script", types.DefaultBridge),
+			Exec:    fmt.Sprintf("/usr/sbin/dhcpcd %s -B", types.DefaultBridge),
 			Oneshot: false,
 			After:   []string{},
 		})

@@ -65,7 +65,7 @@ func (d *DHCPMon) Start(ctx context.Context) error {
 			}
 
 			if !has {
-				log.Info().Msg("ndmz default route missing, waking up udhcpc")
+				log.Info().Msg("ndmz default route missing, waking up dhcpcd")
 				if err := d.wakeUp(); err != nil {
 					log.Error().Err(err).Msg("error while sending signal to service ")
 				}
@@ -74,7 +74,7 @@ func (d *DHCPMon) Start(ctx context.Context) error {
 	}
 }
 
-// wakeUp sends a signal to the udhcpc daemon to force a release of the DHCP lease
+// wakeUp sends a signal to the dhcpcd daemon to force a release of the DHCP lease
 func (d *DHCPMon) wakeUp() error {
 	err := d.z.Kill(d.service, zinit.SIGUSR1)
 	if err != nil {
@@ -124,7 +124,7 @@ func (d *DHCPMon) startZinit() error {
 	}
 
 	log.Info().Msgf("create and start %s zinit service", d.service)
-	exec := fmt.Sprintf("/sbin/udhcpc -v -f -i %s -t 20 -T 1 -s /usr/share/udhcp/simple.script", d.iface)
+	exec := fmt.Sprintf("/usr/sbin/dhcpcd %s -B", d.iface)
 
 	if d.namespace != "" {
 		exec = fmt.Sprintf("ip netns exec %s %s", strings.TrimSpace(d.namespace), exec)
