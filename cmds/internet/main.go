@@ -23,6 +23,8 @@ import (
 	"github.com/threefoldtech/zos/pkg/version"
 )
 
+const dhcpService = "dhcp-zos"
+
 func main() {
 	app.Initialize()
 
@@ -124,9 +126,15 @@ func configureZOS() error {
 			return errors.Wrapf(err, "could not bring %s up", zosChild)
 		}
 
-		log.Info().Msg("writing udhcp init service")
+		log.Info().Msg("writing dhcpcd init service")
 
-		err = zinit.AddService("dhcp-zos", zinit.InitService{
+		// terminate older udhcpc service if found
+		if err := z.Terminate(dhcpService, "udhcpc"); err != nil {
+			log.Error().Err(err).Msg("fail to terminate older dhcp-zos (udhcpc) zinit service")
+			return err
+		}
+
+		err = zinit.AddService(dhcpService, zinit.InitService{
 			Exec:    fmt.Sprintf("/usr/sbin/dhcpcd %s -B", types.DefaultBridge),
 			Oneshot: false,
 			After:   []string{},
@@ -137,12 +145,12 @@ func configureZOS() error {
 			return err
 		}
 
-		if err := z.Monitor("dhcp-zos"); err != nil {
+		if err := z.Monitor(dhcpService); err != nil {
 			log.Error().Err(err).Msg("fail to start monitoring dhcp-zos zinit service")
 			return err
 		}
 
-		if err := z.Start("dhcp-zos"); err != nil {
+		if err := z.Start(dhcpService); err != nil {
 			log.Error().Err(err).Msg("fail to start dhcp-zos zinit service")
 			return err
 		}

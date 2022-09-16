@@ -123,6 +123,11 @@ func (d *DHCPMon) startZinit() error {
 		return nil
 	}
 
+	if err := d.z.Terminate(d.service, "udhcpc"); err != nil {
+		log.Error().Err(err).Msg("fail to terminate older dhcp-zos (udhcpc) zinit service")
+		return err
+	}
+
 	log.Info().Msgf("create and start %s zinit service", d.service)
 	exec := fmt.Sprintf("/usr/sbin/dhcpcd %s -B", d.iface)
 

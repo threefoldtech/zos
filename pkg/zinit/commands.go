@@ -304,3 +304,27 @@ func (c *Client) Forget(service string) error {
 func (c *Client) Kill(service string, sig Signal) error {
 	return c.cmd(fmt.Sprintf("kill %s %s", service, string(sig)), nil)
 }
+
+// Terminate a service completely (stop, forget and remove) if it matches an exec pattern
+func (c *Client) Terminate(service string, execPattern string) error {
+	initService, err := c.Get(service)
+	if err != nil {
+		// service is not there, mostly
+		return nil
+	}
+
+	if !strings.Contains(initService.Exec, execPattern) {
+		// not matched
+		return nil
+	}
+
+	if err := c.StopWait(30*time.Second, service); err != nil {
+		return err
+	}
+
+	if err := c.Forget(service); err != nil {
+		return err
+	}
+
+	return RemoveService(service)
+}
