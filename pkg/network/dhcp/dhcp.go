@@ -1,6 +1,7 @@
 package dhcp
 
 import (
+	"fmt"
 	"os/exec"
 
 	"github.com/rs/zerolog/log"
@@ -19,9 +20,14 @@ func NewProbe() *Probe {
 // Start starts the DHCP client process
 func (d *Probe) Start(inf string) error {
 
-	d.cmd = exec.Command("dhcpcd",
-		inf,
-		"-B",
+	d.cmd = exec.Command("udhcpc",
+		"-f", //foreground
+		"-i", inf,
+		"-t", "20", //send 20 dhcp queries
+		"-T", "1", // every second
+		"-s", "/usr/share/udhcp/simple.script",
+		"-p", fmt.Sprintf("/run/udhcpc.%s.pid", inf),
+		"--now", // exit if lease is not obtained
 	)
 
 	log.Debug().Msgf("start udhcp: %v", d.cmd.String())
