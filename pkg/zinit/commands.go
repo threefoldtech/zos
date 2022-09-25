@@ -49,6 +49,25 @@ type ServiceState struct {
 	reason string
 }
 
+type Filter interface {
+	matches(service *InitService) bool
+}
+
+type execFilter struct {
+	execName string
+}
+
+func (f execFilter) matches(name string, service *InitService) bool {
+	// FIXME: should match only the executable name
+	// but service.Exec is not always a path, how to do this?
+	return f.execName == service.Exec
+}
+
+// matches the exec base name
+func WithExec(execName string) execFilter {
+	return execFilter{execName: execName}
+}
+
 // UnmarshalYAML implements the  yaml.Unmarshaler interface
 func (s *ServiceState) UnmarshalText(text []byte) error {
 	m := statusRegex.FindStringSubmatch(string(text))
@@ -305,17 +324,19 @@ func (c *Client) Kill(service string, sig Signal) error {
 	return c.cmd(fmt.Sprintf("kill %s %s", service, string(sig)), nil)
 }
 
-// Terminate a service completely (stop, forget and remove) if it matches an exec pattern
-func (c *Client) Terminate(service string, execPattern string) error {
+// Destroy a service completely (stop, forget and remove) if all filters are matched
+func (c *Client) Destroy(service string, filters ...Filter) error {
 	initService, err := c.Get(service)
 	if err != nil {
 		// service is not there, mostly
 		return nil
 	}
 
-	if !strings.Contains(initService.Exec, execPattern) {
-		// not matched
-		return nil
+	// FIXME: should we allow empty filter so it would only match with service name?
+	for _, filter := range filters {
+		if !filter.matches(&initService) {
+			return nil
+		}
 	}
 
 	if err := c.StopWait(30*time.Second, service); err != nil {

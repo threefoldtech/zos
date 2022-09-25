@@ -128,12 +128,6 @@ func configureZOS() error {
 
 		log.Info().Msg("writing dhcpcd init service")
 
-		// terminate older udhcpc service if found
-		if err := z.Terminate(dhcpService, "udhcpc"); err != nil {
-			log.Error().Err(err).Msg("fail to terminate older dhcp-zos (udhcpc) zinit service")
-			return err
-		}
-
 		err = zinit.AddService(dhcpService, zinit.InitService{
 			Exec:    fmt.Sprintf("/usr/sbin/dhcpcd %s -B", types.DefaultBridge),
 			Oneshot: false,
