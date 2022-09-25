@@ -57,7 +57,7 @@ type execFilter struct {
 	execName string
 }
 
-func (f execFilter) matches(name string, service *InitService) bool {
+func (f execFilter) matches(service *InitService) bool {
 	// FIXME: should match only the executable name
 	// but service.Exec is not always a path, how to do this?
 	return f.execName == service.Exec
