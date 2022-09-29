@@ -506,9 +506,7 @@ func (c *Client) Matches(filters ...Filter) ([]string, error) {
 	return matched, nil
 }
 
-// Destroy matched services completely (stop, forget and remove)
-// for every services, if all filters are matched, it will be destroyed
-// At least, 1 filter must be provided
+// Destroy given services completely (stop, forget and remove)
 func (c *Client) Destroy(timeout time.Duration, services ...string) error {
 	if len(services) == 0 {
 		return nil
