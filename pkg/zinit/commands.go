@@ -3,11 +3,14 @@ package zinit
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/google/shlex"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -50,22 +53,38 @@ type ServiceState struct {
 }
 
 type Filter interface {
-	matches(service *InitService) bool
+	matches(name string, service *InitService) bool
+}
+
+type nameFilter struct {
+	name string
+}
+
+func (f nameFilter) matches(name string, service *InitService) bool {
+	return f.name == name
+}
+
+// matches the service name
+func WithName(name string) nameFilter {
+	return nameFilter{name: name}
 }
 
 type execFilter struct {
-	execName string
+	basename string
 }
 
-func (f execFilter) matches(service *InitService) bool {
-	// FIXME: should match only the executable name
-	// but service.Exec is not always a path, how to do this?
-	return f.execName == service.Exec
+func (f execFilter) matches(name string, service *InitService) bool {
+	parts, err := shlex.Split(service.Exec)
+	if err != nil || len(parts) == 0 {
+		return false
+	}
+
+	return f.basename == filepath.Base(parts[0])
 }
 
-// matches the exec base name
-func WithExec(execName string) execFilter {
-	return execFilter{execName: execName}
+// matches the exec basename
+func WithExec(basename string) execFilter {
+	return execFilter{basename: basename}
 }
 
 // UnmarshalYAML implements the  yaml.Unmarshaler interface
@@ -324,28 +343,197 @@ func (c *Client) Kill(service string, sig Signal) error {
 	return c.cmd(fmt.Sprintf("kill %s %s", service, string(sig)), nil)
 }
 
-// Destroy a service completely (stop, forget and remove) if all filters are matched
-func (c *Client) Destroy(service string, filters ...Filter) error {
-	initService, err := c.Get(service)
-	if err != nil {
-		// service is not there, mostly
-		return nil
+// Start multiple services
+func (c *Client) StartMultiple(timeout time.Duration, service ...string) error {
+	services := make(map[string]struct{})
+	for _, name := range service {
+		log.Info().Str("service", name).Msg("starting service")
+		if err := c.Monitor(name); err != nil && err != ErrAlreadyMonitored {
+			log.Error().Err(err).Str("service", name).Msg("error on zinit monitor")
+		}
+
+		if err := c.Start(name); err != nil {
+			log.Debug().Str("service", name).Msg("service undefined")
+			continue
+		}
+
+		services[name] = struct{}{}
 	}
 
-	// FIXME: should we allow empty filter so it would only match with service name?
-	for _, filter := range filters {
-		if !filter.matches(&initService) {
+	deadline := time.After(timeout)
+
+	for len(services) > 0 {
+		var running []string
+		for service := range services {
+			log.Info().Str("service", service).Msg("check if service is started")
+			status, err := c.Status(service)
+			if err != nil {
+				return err
+			}
+
+			if status.Target != ServiceTargetUp {
+				// it means some other entity (another client or command line)
+				// has set the service back to up. I think we should immediately return
+				// with an error instead.
+				return fmt.Errorf("expected service '%s' target should be UP. found DOWN", service)
+			}
+
+			// if is running or exited successfully
+			if status.State.Any(ServiceStateRunning, ServiceStateSuccess) {
+				running = append(running, service)
+			}
+		}
+
+		for _, service := range running {
+			if _, ok := services[service]; ok {
+				log.Debug().Str("service", service).Msg("service started")
+				delete(services, service)
+			}
+		}
+
+		if len(services) == 0 {
+			break
+		}
+
+		select {
+		case <-deadline:
+			for service := range services {
+				log.Warn().Str("service", service).Msg("service didn't start in time.")
+			}
 			return nil
+		case <-time.After(1 * time.Second):
 		}
 	}
 
-	if err := c.StopWait(30*time.Second, service); err != nil {
+	return nil
+}
+
+// Stop multiple services
+func (c *Client) StopMultiple(timeout time.Duration, service ...string) error {
+	services := make(map[string]struct{})
+	for _, name := range service {
+		log.Info().Str("service", name).Msg("stopping service")
+		if err := c.Stop(name); err != nil {
+			log.Debug().Str("service", name).Msg("service undefined")
+			continue
+		}
+
+		services[name] = struct{}{}
+	}
+
+	deadline := time.After(timeout)
+
+	for len(services) > 0 {
+		var stopped []string
+		for service := range services {
+			log.Info().Str("service", service).Msg("check if service is stopped")
+			status, err := c.Status(service)
+			if err != nil {
+				return err
+			}
+
+			if status.Target != ServiceTargetDown {
+				// it means some other entity (another client or command line)
+				// has set the service back to up. I think we should immediately return
+				// with an error instead.
+				return fmt.Errorf("expected service '%s' target should be DOWN. found UP", service)
+			}
+
+			if status.State.Exited() {
+				stopped = append(stopped, service)
+			}
+		}
+
+		for _, stop := range stopped {
+			if _, ok := services[stop]; ok {
+				log.Debug().Str("service", stop).Msg("service stopped")
+				delete(services, stop)
+			}
+		}
+
+		if len(services) == 0 {
+			break
+		}
+
+		select {
+		case <-deadline:
+			for service := range services {
+				log.Warn().Str("service", service).Msg("service didn't stop in time. use SIGKILL")
+				if err := c.Kill(service, SIGKILL); err != nil {
+					log.Error().Err(err).Msgf("failed to send SIGKILL to service %s", service)
+				}
+			}
+			return nil
+		case <-time.After(1 * time.Second):
+		}
+	}
+
+	return nil
+}
+
+// Search for services.
+// A services will be matched if all (not some) filters match this service
+func (c *Client) Matches(filters ...Filter) (map[string]InitService, error) {
+	monitored, err := c.List()
+	if err != nil {
+		return nil, err
+	}
+
+	matched := make(map[string]InitService)
+	for name := range monitored {
+		service, err := c.Get(name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not get the service of '%s'", name)
+		}
+
+		allMatched := true
+		for _, filter := range filters {
+			if !filter.matches(name, &service) {
+				allMatched = false
+				break
+			}
+		}
+
+		if allMatched {
+			matched[name] = service
+		}
+	}
+
+	return matched, nil
+}
+
+// Destroy matched services completely (stop, forget and remove)
+// for every services, if all filters are matched, it will be destoryed
+// At least, 1 filter must be provided
+func (c *Client) Destroy(timeout time.Duration, filters ...Filter) error {
+	if len(filters) < 1 {
+		return fmt.Errorf("should provide at least one filter")
+	}
+
+	services, err := c.Matches(filters...)
+	if err != nil {
+		return errors.Wrap(err, "failed to filter services")
+	}
+
+	var names []string
+	for name := range services {
+		names = append(names, name)
+	}
+
+	if err := c.StopMultiple(timeout, names...); err != nil {
 		return err
 	}
 
-	if err := c.Forget(service); err != nil {
-		return err
+	// all is stopped now, we need to forget and remove
+	for _, name := range names {
+		if err := c.Forget(name); err != nil {
+			return err
+		}
+
+		if err := RemoveService(name); err != nil {
+			return err
+		}
 	}
 
-	return RemoveService(service)
+	return nil
 }
