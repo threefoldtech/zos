@@ -473,13 +473,17 @@ func (c *Client) StopMultiple(timeout time.Duration, service ...string) error {
 
 // Search for services.
 // A services will be matched if all (not some) filters match this service
-func (c *Client) Matches(filters ...Filter) (map[string]InitService, error) {
+func (c *Client) Matches(filters ...Filter) ([]string, error) {
+	if len(filters) < 1 {
+		return nil, fmt.Errorf("should provide at least one filter")
+	}
+
 	monitored, err := c.List()
 	if err != nil {
 		return nil, err
 	}
 
-	matched := make(map[string]InitService)
+	var matched []string
 	for name := range monitored {
 		service, err := c.Get(name)
 		if err != nil {
@@ -495,7 +499,7 @@ func (c *Client) Matches(filters ...Filter) (map[string]InitService, error) {
 		}
 
 		if allMatched {
-			matched[name] = service
+			matched = append(matched, name)
 		}
 	}
 
@@ -505,27 +509,17 @@ func (c *Client) Matches(filters ...Filter) (map[string]InitService, error) {
 // Destroy matched services completely (stop, forget and remove)
 // for every services, if all filters are matched, it will be destroyed
 // At least, 1 filter must be provided
-func (c *Client) Destroy(timeout time.Duration, filters ...Filter) error {
-	if len(filters) < 1 {
-		return fmt.Errorf("should provide at least one filter")
+func (c *Client) Destroy(timeout time.Duration, services ...string) error {
+	if len(services) == 0 {
+		return nil
 	}
 
-	services, err := c.Matches(filters...)
-	if err != nil {
-		return errors.Wrap(err, "failed to filter services")
-	}
-
-	var names []string
-	for name := range services {
-		names = append(names, name)
-	}
-
-	if err := c.StopMultiple(timeout, names...); err != nil {
+	if err := c.StopMultiple(timeout, services...); err != nil {
 		return err
 	}
 
 	// all is stopped now, we need to forget and remove
-	for _, name := range names {
+	for _, name := range services {
 		if err := c.Forget(name); err != nil {
 			return err
 		}

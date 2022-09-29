@@ -123,7 +123,10 @@ func (d *DHCPMon) startZinit() error {
 		return nil
 	}
 
-	if err := d.z.Destroy(20*time.Second, zinit.WithName(d.service), zinit.WithExec("udhcpc")); err != nil {
+	olderService, err := d.z.Matches(zinit.WithName(d.service), zinit.WithExec("udhcpc"))
+	if err != nil {
+		log.Error().Err(err).Msg("fail to find older dhcp-zos service")
+	} else if err := d.z.Destroy(20*time.Second, olderService...); err != nil {
 		log.Error().Err(err).Msg("fail to terminate older dhcp-zos (udhcpc) zinit service")
 		return err
 	}
