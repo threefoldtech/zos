@@ -494,7 +494,6 @@ outer:
 
 		for _, filter := range filters {
 			if !filter.matches(name, &service) {
-				log.Debug().Msg("trying to match 1 filter")
 				continue outer
 			}
 		}
