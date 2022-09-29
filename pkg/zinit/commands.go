@@ -484,23 +484,22 @@ func (c *Client) Matches(filters ...Filter) ([]string, error) {
 	}
 
 	var matched []string
+
+outer:
 	for name := range monitored {
 		service, err := c.Get(name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not get the service of '%s'", name)
 		}
 
-		allMatched := true
 		for _, filter := range filters {
 			if !filter.matches(name, &service) {
-				allMatched = false
-				break
+				log.Debug().Msg("trying to match 1 filter")
+				continue outer
 			}
 		}
 
-		if allMatched {
-			matched = append(matched, name)
-		}
+		matched = append(matched, name)
 	}
 
 	return matched, nil
