@@ -9,6 +9,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/zinit"
 )
 
+const (
+	olderExecPath = "/sbin/udhcpc"
+	execPath      = "/usr/sbin/dhcpcd"
+)
+
 type ClientService struct {
 	Name      string
 	Iface     string
@@ -26,17 +31,29 @@ func NewService(iface string, namespace string, z *zinit.Client) ClientService {
 	}
 }
 
+func (s ClientService) getNamespacedExec(exec string) string {
+	return fmt.Sprintf("ip netns exec %s %s", strings.TrimSpace(s.Namespace), exec)
+}
+
 func (s ClientService) IsUsingOlderClient() bool {
-	olderService, _ := s.z.Matches(zinit.WithName(s.Name), zinit.WithExec("udhcpc"))
+	var filter zinit.Filter
+	if s.Namespace != "" {
+		regex := fmt.Sprintf(`^%s`, s.getNamespacedExec(olderExecPath))
+		filter = zinit.WithExecRegex(regex)
+	} else {
+		filter = zinit.WithExec("udhcpc")
+	}
+
+	olderService, _ := s.z.Matches(zinit.WithName(s.Name), filter)
 	return len(olderService) > 0
 }
 
 func (s ClientService) Create() error {
 	log.Info().Msgf("create %s zinit service", s.Name)
 
-	exec := fmt.Sprintf("/usr/sbin/dhcpcd %s -B", s.Iface)
+	exec := fmt.Sprintf("%s %s -B", execPath, s.Iface)
 	if s.Namespace != "" {
-		exec = fmt.Sprintf("ip netns exec %s %s", strings.TrimSpace(s.Namespace), exec)
+		exec = s.getNamespacedExec(exec)
 	}
 
 	err := zinit.AddService(s.Name, zinit.InitService{

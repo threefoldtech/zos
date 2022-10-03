@@ -79,19 +79,32 @@ func (f execFilter) matches(name string, service *InitService) bool {
 		return false
 	}
 
-	// exec can be any part (in case of e.g. netns)
-	for _, part := range parts {
-		if f.basename == filepath.Base(part) {
-			return true
-		}
-	}
-
-	return false
+	return f.basename == filepath.Base(parts[0])
 }
 
 // matches the exec basename
 func WithExec(basename string) execFilter {
 	return execFilter{basename: basename}
+}
+
+type execRegexFilter struct {
+	regex string
+}
+
+func (f execRegexFilter) matches(name string, service *InitService) bool {
+	r, err := regexp.Compile(f.regex)
+	if err != nil {
+		// an invalid regex
+		return false
+	}
+
+	return r.Match([]byte(service.Exec))
+}
+
+// matche the exec if it matches the given regular expression
+// note that it has to be a valid regular expression, otherwise it won't be matched
+func WithExecRegex(regex string) execRegexFilter {
+	return execRegexFilter{regex: regex}
 }
 
 // UnmarshalYAML implements the  yaml.Unmarshaler interface
