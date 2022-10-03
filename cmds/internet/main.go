@@ -2,12 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/exec"
 	"time"
 
-	"github.com/cenkalti/backoff/v3"
+	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
@@ -15,6 +14,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
 	"github.com/threefoldtech/zos/pkg/network/bridge"
+	"github.com/threefoldtech/zos/pkg/network/dhcp"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/options"
 	"github.com/threefoldtech/zos/pkg/network/types"
@@ -22,8 +22,6 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/version"
 )
-
-const dhcpService = "dhcp-zos"
 
 func main() {
 	app.Initialize()
@@ -74,8 +72,6 @@ func check() error {
 
 func configureZOS() error {
 	f := func() error {
-		z := zinit.Default()
-
 		log.Info().Msg("Start network bootstrap")
 
 		ifaceConfigs, err := bootstrap.AnalyzeLinks(
@@ -126,26 +122,19 @@ func configureZOS() error {
 			return errors.Wrapf(err, "could not bring %s up", zosChild)
 		}
 
-		log.Info().Msg("writing dhcpcd init service")
-
-		err = zinit.AddService(dhcpService, zinit.InitService{
-			Exec:    fmt.Sprintf("/usr/sbin/dhcpcd %s -B", types.DefaultBridge),
-			Oneshot: false,
-			After:   []string{},
-		})
-
-		if err != nil {
-			log.Error().Err(err).Msg("fail to create dhcp-zos zinit service")
+		dhcpService := dhcp.NewService(types.DefaultBridge, "", zinit.Default())
+		if err := dhcpService.DestroyOlderService(); err != nil {
+			log.Error().Err(err).Msgf("failed to destory older %s service", dhcpService.Name)
+			return err
+		}
+		// create the new service anyway
+		if err := dhcpService.Create(); err != nil {
+			log.Error().Err(err).Msgf("failed to create %s service", dhcpService.Name)
 			return err
 		}
 
-		if err := z.Monitor(dhcpService); err != nil {
-			log.Error().Err(err).Msg("fail to start monitoring dhcp-zos zinit service")
-			return err
-		}
-
-		if err := z.Start(dhcpService); err != nil {
-			log.Error().Err(err).Msg("fail to start dhcp-zos zinit service")
+		if err := dhcpService.Start(); err != nil {
+			log.Error().Err(err).Msgf("failed to start %s service", dhcpService.Name)
 			return err
 		}
 

@@ -79,7 +79,14 @@ func (f execFilter) matches(name string, service *InitService) bool {
 		return false
 	}
 
-	return f.basename == filepath.Base(parts[0])
+	// exec can be any part (in case of e.g. netns)
+	for _, part := range parts {
+		if f.basename == filepath.Base(part) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // matches the exec basename
