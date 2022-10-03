@@ -106,6 +106,10 @@ func hasDefaultRoute(iface, netNS string) (bool, error) {
 }
 
 func (d *DHCPMon) startZinit() error {
+	if err := d.service.DestroyOlderService(); err != nil {
+		return err
+	}
+
 	status, err := d.z.Status(d.service.Name)
 	if err != nil && err != zinit.ErrUnknownService {
 		log.Error().Err(err).Msgf("error checking zinit service %s status", d.service)
@@ -119,9 +123,6 @@ func (d *DHCPMon) startZinit() error {
 		return nil
 	}
 
-	if err := d.service.DestroyOlderService(); err != nil {
-		return err
-	}
 	return d.service.Create()
 }
 
