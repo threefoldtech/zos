@@ -41,7 +41,7 @@ func (d *DHCPMon) Start(ctx context.Context) error {
 	}
 	defer func() {
 		if err := d.stopZinit(); err != nil {
-			log.Error().Err(err).Msgf("error stopping zinit service %s", d.service)
+			log.Error().Err(err).Msgf("error stopping %s zinit service", d.service.Name)
 		}
 	}()
 
@@ -112,12 +112,12 @@ func (d *DHCPMon) startZinit() error {
 
 	status, err := d.z.Status(d.service.Name)
 	if err != nil && err != zinit.ErrUnknownService {
-		log.Error().Err(err).Msgf("error checking zinit service %s status", d.service)
+		log.Error().Err(err).Msgf("error checking zinit service %s status", d.service.Name)
 		return err
 	}
 
 	if status.State.Exited() {
-		log.Info().Msgf("zinit service %s already exists but is stopped, starting it", d.service)
+		log.Info().Msgf("zinit service %s already exists but is stopped, starting it", d.service.Name)
 		return d.service.Start()
 	} else if status.State.Is(zinit.ServiceStateRunning) {
 		return nil
@@ -130,7 +130,7 @@ func (d *DHCPMon) startZinit() error {
 func (d *DHCPMon) stopZinit() error {
 	err := d.z.StopWait(time.Second*10, d.service.Name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to stop zinit service %s", d.service)
+		return errors.Wrapf(err, "failed to stop zinit service %s", d.service.Name)
 	}
 	return d.z.Forget(d.service.Name)
 }

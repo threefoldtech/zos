@@ -77,7 +77,7 @@ func (s ClientService) Create() error {
 
 func (s ClientService) Destroy() error {
 	if err := s.z.Destroy(20*time.Second, s.Name); err != nil {
-		log.Error().Err(err).Msgf("fail to terminate zinit service", s.Name)
+		log.Error().Err(err).Msgf("fail to terminate %s zinit service", s.Name)
 		return err
 	}
 
