@@ -1,8 +1,7 @@
-package noded
+package node
 
 import (
 	"context"
-	"crypto/ed25519"
 	"fmt"
 	"sync"
 	"time"
@@ -12,8 +11,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/host"
 	"github.com/threefoldtech/substrate-client"
-	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 )
 
@@ -30,19 +27,7 @@ type Uptime struct {
 	m   sync.Mutex
 }
 
-func NewUptime(cl zbus.Client, sub substrate.Manager) (*Uptime, error) {
-	var (
-		mgr = stubs.NewIdentityManagerStub(cl)
-	)
-
-	busCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	sk := ed25519.PrivateKey(mgr.PrivateKey(busCtx))
-	id, err := substrate.NewIdentityFromEd25519Key(sk)
-	if err != nil {
-		return nil, err
-	}
-
+func NewUptime(sub substrate.Manager, id substrate.Identity) (*Uptime, error) {
 	return &Uptime{
 		id:   id,
 		sub:  sub,
@@ -101,30 +86,30 @@ func (u *Uptime) uptime(ctx context.Context) error {
 // the first uptime is reported.
 func (u *Uptime) Start(ctx context.Context) {
 	// uptime update
-	go func() {
-		defer log.Info().Msg("uptime reporting exited permanently")
-		safeUptime := func(ctx context.Context) (err error) {
-			defer func() {
-				if p := recover(); p != nil {
-					err = fmt.Errorf("uptime reporting has panicked: %+v", p)
-				}
-			}()
-
-			err = u.uptime(ctx)
-			return err
-		}
-
-		for {
-			err := safeUptime(ctx)
-			if errors.Is(err, context.Canceled) {
-				log.Info().Msg("stop uptime reporting. context cancelled")
-				return
-			} else if err != nil {
-				log.Error().Err(err).Msg("sending uptime failed")
+	defer log.Info().Msg("uptime reporting exited permanently")
+	safeUptime := func(ctx context.Context) (err error) {
+		defer func() {
+			if p := recover(); p != nil {
+				err = fmt.Errorf("uptime reporting has panicked: %+v", p)
 			}
-			// even there is no error we try again until ctx is cancelled
-			<-time.After(10 * time.Second)
-		}
-	}()
+		}()
 
+		err = u.uptime(ctx)
+		return err
+	}
+
+	for {
+		err := safeUptime(ctx)
+		if errors.Is(err, context.Canceled) {
+			log.Info().Msg("stop uptime reporting. context cancelled")
+			return
+		} else if err != nil {
+			log.Error().Err(err).Msg("sending uptime failed")
+		} else {
+			// context was cancelled
+			return
+		}
+		// even there is no error we try again until ctx is cancelled
+		<-time.After(10 * time.Second)
+	}
 }

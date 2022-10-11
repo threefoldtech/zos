@@ -15,6 +15,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/monitord"
+	"github.com/threefoldtech/zos/pkg/node"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -106,13 +107,13 @@ func action(cli *cli.Context) error {
 	}
 
 	registrar := stubs.NewRegistrarStub(redis)
-	var twin, node uint32
+	var twin, nodeID uint32
 	exp := backoff.NewExponentialBackOff()
 	exp.MaxInterval = 2 * time.Minute
 	bo := backoff.WithContext(exp, ctx)
 	err = backoff.RetryNotify(func() error {
 		var err error
-		node, err = registrar.NodeID(ctx)
+		nodeID, err = registrar.NodeID(ctx)
 		if err != nil {
 			return err
 		}
@@ -126,18 +127,42 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to get node id")
 	}
 
+	identity := stubs.NewIdentityManagerStub(redis)
+
+	sk := ed25519.PrivateKey(identity.PrivateKey(ctx))
+	id, err := substrate.NewIdentityFromEd25519Key(sk)
+	log.Info().Str("address", id.Address()).Msg("node address")
+	if err != nil {
+		return err
+	}
+
 	sub, err := environment.GetSubstrate()
 	if err != nil {
 		return err
 	}
 
-	events, err := events.NewRedisStream(sub, msgBrokerCon, node, eventsBlock)
+	uptime, err := node.NewUptime(sub, id)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to initialize uptime reported")
 	}
-	go events.Start(ctx)
 
-	system, err := monitord.NewSystemMonitor(node, 2*time.Second)
+	// start uptime reporting
+	go uptime.Start(ctx)
+
+	go func() {
+		// wait for the uptime to be send before powering off the node
+		if err := uptime.Mark.Done(ctx); err != nil {
+			// context was cancelled but the uptime reporting was never done
+			// the entire module is shutting down anyway
+			log.Error().Err(err).Msg("failed waiting on the first uptime to be sent")
+			return
+		}
+
+		applyPowerTarget(sub, nodeID)
+	}()
+
+	// node registration is completed we need to check the power target of the node.
+	system, err := monitord.NewSystemMonitor(nodeID, 2*time.Second)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize system monitor")
 	}
@@ -156,7 +181,7 @@ func action(cli *cli.Context) error {
 		}
 	}()
 
-	log.Info().Uint32("node", node).Uint32("twin", twin).Msg("node registered")
+	log.Info().Uint32("node", nodeID).Uint32("twin", twin).Msg("node registered")
 
 	go func() {
 		for {
