@@ -3,11 +3,13 @@ package zinit
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/google/shlex"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -20,6 +22,8 @@ var (
 	ErrUnknownService = errors.New("unknown service")
 
 	ErrAlreadyMonitored = errors.New("already monitored")
+
+	ErrNotSupported = errors.New("operation not supported")
 )
 
 // PossibleState represents the state of a service managed by zinit
@@ -208,7 +212,51 @@ func (c *Client) Status(service string) (result ServiceStatus, err error) {
 	return
 }
 
+func (c *Client) Version() (semver.Version, error) {
+	// we need to read the version from the binary
+	// which is a problem because it might be different
+	// from the one actually running.
+	// but there is nothing else we can do
+	output, err := exec.Command("zinit", "-V").Output()
+	if err != nil {
+		return semver.Version{}, errors.Wrap(err, "failed to get zinit binary version")
+	}
+
+	parts := strings.Split(string(output), " ")
+	if len(parts) != 2 {
+		return semver.Version{}, fmt.Errorf("invalid version output from zinit command: %s", string(output))
+	}
+
+	return semver.Parse(parts[1])
+}
+
 func (c *Client) Reboot() error {
+	ver, err := c.Version()
+	if err != nil {
+		return err
+	}
+	// separate reboot and shutdown commands were implemented
+	// in version 0.2.9. Before this version `shutdown` caused
+	// a reboot.
+	if ver.LT(semver.MustParse("v0.2.9")) {
+		return c.cmd("shutdown", nil)
+	}
+
+	return c.cmd("reboot", nil)
+}
+
+func (c *Client) Shutdown() error {
+	ver, err := c.Version()
+	if err != nil {
+		return err
+	}
+	// separate reboot and shutdown commands were implemented
+	// in version 0.2.9. Before this version `shutdown` caused
+	// a reboot.
+	if ver.LT(semver.MustParse("v0.2.9")) {
+		return errors.Wrap(ErrNotSupported, "shutdown is not supported in this version of zinit")
+	}
+
 	return c.cmd("shutdown", nil)
 }
 

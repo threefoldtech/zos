@@ -68,14 +68,9 @@ type Registrar struct {
 
 func NewRegistrar(ctx context.Context, cl zbus.Client, env environment.Environment, info RegistrationInfo) *Registrar {
 	r := Registrar{
-		State{
-			0,
-			0,
-			InProgress,
-			"",
-		},
-		sync.RWMutex{},
+		state: InProgressState(),
 	}
+
 	go r.register(ctx, cl, env, info)
 	return &r
 }

@@ -26,3 +26,11 @@ type ContractLockedEvent struct {
 	TwinId   uint32
 	Lock     bool
 }
+
+type PowerChangeEvent struct {
+	Kind   EventKind
+	FarmID FarmID
+	NodeID uint32
+	Target substrate.PowerTarget
+}
+
