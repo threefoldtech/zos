@@ -149,17 +149,13 @@ func action(cli *cli.Context) error {
 	// start uptime reporting
 	go uptime.Start(ctx)
 
-	go func() {
-		// wait for the uptime to be send before powering off the node
-		if err := uptime.Mark.Done(ctx); err != nil {
-			// context was cancelled but the uptime reporting was never done
-			// the entire module is shutting down anyway
-			log.Error().Err(err).Msg("failed waiting on the first uptime to be sent")
-			return
-		}
+	// start power manager
+	power, err := node.NewPowerManager(redis, sub, uptime, env.FarmerID, nodeID)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize power manager")
+	}
 
-		applyPowerTarget(sub, nodeID)
-	}()
+	go power.Start(ctx)
 
 	// node registration is completed we need to check the power target of the node.
 	system, err := monitord.NewSystemMonitor(nodeID, 2*time.Second)

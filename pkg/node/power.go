@@ -11,13 +11,38 @@ import (
 	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/network/bridge"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
+)
+
+const (
+	wolInterface = "zos"
 )
 
 var (
 	errConnectionError = fmt.Errorf("connection error")
 )
+
+func enableWol(inf string) error {
+	br, err := bridge.Get(inf)
+	if err != nil {
+		return errors.Wrap(err, "failed to get zos bridge")
+	}
+
+	nics, err := bridge.ListNics(br, true)
+	if err != nil {
+		return errors.Wrap(err, "failed to list attached nics to zos bridge")
+	}
+
+	for _, nic := range nics {
+		if err := exec.Command("ethtools", "-s", nic.Attrs().Name, "wol", "g").Run(); err != nil {
+			log.Error().Err(err).Str("nic", nic.Attrs().Name).Msg("failed to enable WOL for nic")
+		}
+	}
+
+	return nil
+}
 
 type Manager struct {
 	events *stubs.EventsStub
@@ -27,8 +52,14 @@ type Manager struct {
 	ut     *Uptime
 }
 
-func NewManager(cl zbus.Client, sub substrate.Manager, ut *Uptime, farm pkg.FarmID, node uint32) *Manager {
+// TODO: enable wake up on lan `ethtool -s enp59s0 wol g`
+
+func NewPowerManager(cl zbus.Client, sub substrate.Manager, ut *Uptime, farm pkg.FarmID, node uint32) (*Manager, error) {
 	events := stubs.NewEventsStub(cl)
+	if err := enableWol(wolInterface); err != nil {
+		return nil, err
+	}
+
 	mgr := &Manager{
 		events: events,
 		sub:    sub,
@@ -37,7 +68,7 @@ func NewManager(cl zbus.Client, sub substrate.Manager, ut *Uptime, farm pkg.Farm
 		ut:     ut,
 	}
 
-	return mgr
+	return mgr, nil
 }
 
 func (m *Manager) getNode(nodeID uint32) (*substrate.Node, error) {
@@ -150,6 +181,14 @@ func (m *Manager) listen(ctx context.Context) error {
 
 // start processing time events.
 func (m *Manager) Start(ctx context.Context) {
+	// first thing we need to make sure we are not suppose to be powered
+	// off, so we need to sync with grid
+	// 1) make sure at least one uptime was already sent
+	m.ut.Mark.Done(ctx)
+	if err := m.sync(); err != nil {
+		log.Error().Err(err).Msg("failed to synchronize power status with grid")
+	}
+
 	// if the stream loop fails for any reason retry
 	// unless context was cancelled
 	for {
