@@ -57,9 +57,9 @@ func (s *StorageModuleStub) BrokenPools(ctx context.Context) (ret0 []pkg.BrokenP
 	return
 }
 
-func (s *StorageModuleStub) Cache(ctx context.Context) (ret0 pkg.Volume, ret1 error) {
+func (s *StorageModuleStub) CacheSize(ctx context.Context) (ret0 gridtypes.Unit, ret1 error) {
 	args := []interface{}{}
-	result, err := s.client.RequestContext(ctx, s.module, s.object, "Cache", args...)
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "CacheSize", args...)
 	if err != nil {
 		panic(err)
 	}

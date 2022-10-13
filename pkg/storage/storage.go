@@ -155,13 +155,16 @@ func (s *Module) dump() {
 
 }
 
-/**
+/*
+*
 initialize, must be called at least onetime each boot.
 What Initialize will do is the following:
- - Try to mount prepared pools (if they are not mounted already)
- - Scan free devices, apply the policy.
- - If new pools were created, the pool is going to be mounted automatically
-**/
+  - Try to mount prepared pools (if they are not mounted already)
+  - Scan free devices, apply the policy.
+  - If new pools were created, the pool is going to be mounted automatically
+
+*
+*/
 func (s *Module) initialize() error {
 	// lock for the entire initialization method, so other code which relies
 	// on this observes this as an atomic operation
@@ -363,18 +366,8 @@ func (s *Module) VolumeCreate(name string, size gridtypes.Unit) (pkg.Volume, err
 		return pkg.Volume{}, err
 	}
 
-	usage, err := fs.Usage()
-	if err != nil {
-		return pkg.Volume{}, err
-	}
-
 	return pkg.Volume{
-		Name: fs.Name(),
 		Path: fs.Path(),
-		Usage: pkg.Usage{
-			Size: gridtypes.Unit(usage.Size),
-			Used: gridtypes.Unit(usage.Used),
-		},
 	}, nil
 }
 
@@ -446,18 +439,8 @@ func (s *Module) VolumeList() ([]pkg.Volume, error) {
 				continue
 			}
 
-			usage, err := v.Usage()
-			if err != nil {
-				return nil, err
-			}
-
 			fss = append(fss, pkg.Volume{
-				Name: v.Name(),
 				Path: v.Path(),
-				Usage: pkg.Usage{
-					Size: gridtypes.Unit(usage.Size),
-					Used: gridtypes.Unit(usage.Used),
-				},
 			})
 		}
 	}
@@ -485,18 +468,8 @@ func (s *Module) path(name string) (filesystem.Pool, filesystem.Volume, pkg.Volu
 		}
 		for _, fs := range filesystems {
 			if fs.Name() == name {
-				usage, err := fs.Usage()
-				if err != nil {
-					return nil, nil, pkg.Volume{}, err
-				}
-
 				return pool, fs, pkg.Volume{
-					Name: fs.Name(),
 					Path: fs.Path(),
-					Usage: pkg.Usage{
-						Size: gridtypes.Unit(usage.Size),
-						Used: gridtypes.Unit(usage.Used),
-					},
 				}, nil
 			}
 		}
@@ -506,8 +479,8 @@ func (s *Module) path(name string) (filesystem.Pool, filesystem.Volume, pkg.Volu
 }
 
 // Cache return the special filesystem used by 0-OS to store internal state and flist cache
-func (s *Module) Cache() (pkg.Volume, error) {
-	return s.VolumeLookup(cacheLabel)
+func (s *Module) CacheSize() (gridtypes.Unit, error) {
+	return cacheSize, nil
 }
 
 // ensureCache creates a "cache" subvolume and mounts it in /var

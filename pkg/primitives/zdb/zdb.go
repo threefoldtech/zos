@@ -185,7 +185,7 @@ func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 			continue
 		}
 
-		if reserved+uint64(config.Size) <= uint64(device.Usage.Size) {
+		if reserved+uint64(config.Size) <= uint64(device.Size) {
 			candidates = append(candidates, container)
 		}
 	}
@@ -226,7 +226,7 @@ func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 func (p *Manager) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZDBContainer, error) {
 	var container = stubs.NewContainerModuleStub(p.zbus)
 
-	name := pkg.ContainerID(device.ID)
+	name := pkg.ContainerID(device.Name)
 
 	cont, err := container.Inspect(ctx, zdbContainerNS, name)
 	if err != nil && strings.Contains(err.Error(), "not found") {
@@ -271,7 +271,7 @@ func (p *Manager) zdbRootFS(ctx context.Context) (string, error) {
 
 func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) error {
 	var (
-		name       = pkg.ContainerID(device.ID)
+		name       = pkg.ContainerID(device.Name)
 		cont       = stubs.NewContainerModuleStub(p.zbus)
 		flist      = stubs.NewFlisterStub(p.zbus)
 		volumePath = device.Path
@@ -298,7 +298,7 @@ func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) err
 	}
 
 	// create the network namespace and macvlan for the 0-db container
-	netNsName, err := network.ZDBPrepare(ctx, device.ID)
+	netNsName, err := network.ZDBPrepare(ctx, device.Name)
 	if err != nil {
 		if err := flist.Unmount(ctx, string(name)); err != nil {
 			slog.Error().Err(err).Str("path", rootFS).Msgf("failed to unmount")
@@ -324,7 +324,7 @@ func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) err
 		return err
 	}
 
-	cmd := fmt.Sprintf("/bin/zdb --protect --admin '%s' --data /zdb/data --index /zdb/index  --listen :: --port %d --socket /socket/zdb.sock --dualnet", device.ID, zdbPort)
+	cmd := fmt.Sprintf("/bin/zdb --protect --admin '%s' --data /zdb/data --index /zdb/index  --listen :: --port %d --socket /socket/zdb.sock --dualnet", device.Name, zdbPort)
 
 	err = p.zdbRun(ctx, string(name), rootFS, cmd, netNsName, volumePath, socketDir)
 	if err != nil {
@@ -802,7 +802,7 @@ func (p *Manager) Initialize(ctx context.Context) error {
 	log.Debug().Msgf("alloced devices for zdb: %+v", devices)
 	poolNames := make(map[string]pkg.Device)
 	for _, device := range devices {
-		poolNames[device.ID] = device
+		poolNames[device.Name] = device
 	}
 
 	containers, err := contmod.List(ctx, zdbContainerNS)
@@ -822,7 +822,7 @@ func (p *Manager) Initialize(ctx context.Context) error {
 	for _, device := range poolNames {
 		log.Debug().Str("device", device.Path).Msg("starting zdb")
 		if _, err := p.ensureZdbContainer(ctx, device); err != nil {
-			log.Error().Err(err).Str("pool", device.ID).Msg("failed to create zdb container associated with pool")
+			log.Error().Err(err).Str("pool", device.Name).Msg("failed to create zdb container associated with pool")
 		}
 	}
 	return nil

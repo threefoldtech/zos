@@ -402,12 +402,12 @@ func action(cli *cli.Context) error {
 func getNodeReserved(cl zbus.Client, available gridtypes.Capacity) (counter primitives.Counters, err error) {
 	// fill in reserved storage
 	storage := stubs.NewStorageModuleStub(cl)
-	fs, err := storage.Cache(context.TODO())
+	size, err := storage.CacheSize(context.TODO())
 	if err != nil {
 		return counter, err
 	}
 
-	counter.SRU.Increment(fs.Usage.Size)
+	counter.SRU.Increment(size)
 
 	// we reserve 10% of memory to ZOS itself, with a min of 2G
 	counter.MRU.Increment(

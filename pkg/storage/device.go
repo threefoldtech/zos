@@ -13,7 +13,7 @@ const (
 	zdbVolume = "zdb"
 )
 
-//Devices list all "allocated" devices
+// Devices list all "allocated" devices
 func (m *Module) Devices() ([]pkg.Device, error) {
 	var devices []pkg.Device
 	log.Debug().Int("disks", len(m.hdds)).Msg("listing zdb devices")
@@ -29,10 +29,7 @@ func (m *Module) Devices() ([]pkg.Device, error) {
 			log.Error().Err(err).Str("pool", hdd.Name()).Msg("failed to get pool volumes")
 			continue
 		}
-		usage, err := hdd.Usage()
-		if err != nil {
-			return nil, err
-		}
+
 		for _, vol := range volumes {
 			log.Debug().Str("volume", vol.Path()).Str("name", vol.Name()).Msg("checking volume")
 			if vol.Name() != zdbVolume {
@@ -40,12 +37,9 @@ func (m *Module) Devices() ([]pkg.Device, error) {
 			}
 
 			devices = append(devices, pkg.Device{
-				ID:   hdd.Name(),
+				Name: hdd.Name(),
 				Path: vol.Path(),
-				Usage: pkg.Usage{
-					Size: gridtypes.Unit(usage.Size),
-					Used: gridtypes.Unit(usage.Used),
-				},
+				Size: gridtypes.Unit(hdd.Device().Size),
 			})
 			break
 		}
@@ -70,22 +64,15 @@ func (m *Module) DeviceLookup(name string) (pkg.Device, error) {
 			return pkg.Device{}, errors.Wrap(err, "failed to get pool volumes")
 		}
 
-		usage, err := hdd.Usage()
-		if err != nil {
-			return pkg.Device{}, err
-		}
 		for _, vol := range volumes {
 			if vol.Name() != zdbVolume {
 				continue
 			}
 
 			return pkg.Device{
-				ID:   hdd.Name(),
+				Name: hdd.Name(),
 				Path: vol.Path(),
-				Usage: pkg.Usage{
-					Size: gridtypes.Unit(usage.Size),
-					Used: gridtypes.Unit(usage.Used),
-				},
+				Size: gridtypes.Unit(hdd.Device().Size),
 			}, nil
 		}
 
@@ -130,18 +117,10 @@ func (m *Module) DeviceAllocate(min gridtypes.Unit) (pkg.Device, error) {
 			continue
 		}
 
-		usage, err := hdd.Usage()
-		if err != nil {
-			return pkg.Device{}, err
-		}
-
 		return pkg.Device{
-			ID:   hdd.Name(),
+			Name: hdd.Name(),
 			Path: volume.Path(),
-			Usage: pkg.Usage{
-				Size: gridtypes.Unit(usage.Size),
-				Used: gridtypes.Unit(usage.Used),
-			},
+			Size: gridtypes.Unit(hdd.Device().Size),
 		}, nil
 
 	}
