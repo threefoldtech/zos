@@ -243,6 +243,16 @@ func action(cli *cli.Context) error {
 		}
 	}()
 
+	log.Info().Uint32("twin", twin).Msg("node has been registered")
+	log.Debug().Msg("start message bus")
+	identityd := stubs.NewIdentityManagerStub(redis)
+	sk := ed25519.PrivateKey(identityd.PrivateKey(ctx))
+	id, err := substrate.NewIdentityFromEd25519Key(sk)
+	log.Info().Str("address", id.Address()).Msg("node address")
+	if err != nil {
+		return err
+	}
+
 	// uptime update
 	go func() {
 		safeUptime := func(ctx context.Context, redis zbus.Client) (err error) {
@@ -252,7 +262,7 @@ func action(cli *cli.Context) error {
 				}
 			}()
 
-			err = uptime(ctx, redis)
+			err = uptime(ctx, id)
 			return err
 		}
 
@@ -267,16 +277,6 @@ func action(cli *cli.Context) error {
 			<-time.After(10 * time.Second)
 		}
 	}()
-
-	log.Info().Uint32("twin", twin).Msg("node has been registered")
-	log.Debug().Msg("start message bus")
-	identityd := stubs.NewIdentityManagerStub(redis)
-	sk := ed25519.PrivateKey(identityd.PrivateKey(ctx))
-	id, err := substrate.NewIdentityFromEd25519Key(sk)
-	log.Info().Str("address", id.Address()).Msg("node address")
-	if err != nil {
-		return err
-	}
 
 	return runMsgBus(ctx, sub, id)
 }
