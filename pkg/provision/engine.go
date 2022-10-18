@@ -73,14 +73,14 @@ const (
 	opDeprovision
 	// deletes a deployment
 	opUpdate
-	// opProvisionNoContract is used to reinstall
+	// opProvisionNoValidation is used to reinstall
 	// a deployment on node reboot without validating
 	// against the chain again because 1) validation
 	// has already been done on first installation
 	// 2) hash is not granteed to match because of the
 	// order of the workloads doesn't have to match
 	// the one sent by the user
-	opProvisionNoContract
+	opProvisionNoValidation
 	// opPause, pauses a deployment
 	opPause
 	// opResume resumes a deployment
@@ -480,9 +480,11 @@ func (e *NativeEngine) Run(root context.Context) error {
 
 		// contract validation
 		// this should ONLY be done on provosion and update operation
-		if job.Op == opProvision || job.Op == opUpdate {
+		if job.Op == opProvision ||
+			job.Op == opUpdate ||
+			job.Op == opProvisionNoValidation {
 			// otherwise, contract validation is needed
-			ctx, err = e.contract(ctx, &job.Target)
+			ctx, err = e.contract(ctx, &job.Target, job.Op == opProvisionNoValidation)
 			if err != nil {
 				l.Error().Err(err).Msg("contact validation fails")
 				//job.Target.SetError(err)
@@ -498,7 +500,7 @@ func (e *NativeEngine) Run(root context.Context) error {
 		}
 
 		switch job.Op {
-		case opProvisionNoContract:
+		case opProvisionNoValidation:
 			fallthrough
 		case opProvision:
 			e.installDeployment(ctx, &job.Target)
@@ -553,8 +555,8 @@ func (e *NativeEngine) safeCallback(d *gridtypes.Deployment, delete bool) {
 }
 
 // contract validates and injects the deployment contracts is substrate is configured
-// for this instance of the provision engine.
-func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment) (context.Context, error) {
+// for this instance of the provision engine. If noValidation is set contracts checks is skipped
+func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment, noValidation bool) (context.Context, error) {
 	if e.sub == nil {
 		return ctx, fmt.Errorf("substrate is not configured in engine")
 	}
@@ -575,6 +577,10 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment) (
 		return nil, fmt.Errorf("invalid contract type, expecting node contract")
 	}
 	ctx = withContract(ctx, contract.ContractType.NodeContract)
+
+	if noValidation {
+		return ctx, nil
+	}
 
 	if uint32(contract.ContractType.NodeContract.Node) != e.nodeID {
 		return nil, fmt.Errorf("invalid node address in contract")
@@ -622,7 +628,7 @@ func (e *NativeEngine) boot(root context.Context) error {
 
 			job := engineJob{
 				Target: dl,
-				Op:     opProvisionNoContract,
+				Op:     opProvisionNoValidation,
 			}
 
 			if err := e.queue.Enqueue(&job); err != nil {
