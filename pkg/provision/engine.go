@@ -556,7 +556,7 @@ func (e *NativeEngine) safeCallback(d *gridtypes.Deployment, delete bool) {
 // for this instance of the provision engine.
 func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment) (context.Context, error) {
 	if e.sub == nil {
-		return ctx, nil
+		return ctx, fmt.Errorf("substrate is not configured in engine")
 	}
 
 	ctx = context.WithValue(ctx, substrateKey{}, e.sub)
