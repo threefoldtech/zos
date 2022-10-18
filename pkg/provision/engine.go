@@ -255,11 +255,11 @@ func withDeployment(ctx context.Context, twin uint32, deployment uint64) context
 }
 
 // GetContract of deployment. panics if engine has no substrate set.
-func GetContract(ctx context.Context) *substrate.NodeContract {
-	return ctx.Value(contractKey{}).(*substrate.NodeContract)
+func GetContract(ctx context.Context) substrate.NodeContract {
+	return ctx.Value(contractKey{}).(substrate.NodeContract)
 }
 
-func withContract(ctx context.Context, contract *substrate.NodeContract) context.Context {
+func withContract(ctx context.Context, contract substrate.NodeContract) context.Context {
 	return context.WithValue(ctx, contractKey{}, contract)
 }
 
@@ -574,7 +574,7 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment) (
 	if !contract.ContractType.IsNodeContract {
 		return nil, fmt.Errorf("invalid contract type, expecting node contract")
 	}
-	ctx = withContract(ctx, &contract.ContractType.NodeContract)
+	ctx = withContract(ctx, contract.ContractType.NodeContract)
 
 	if uint32(contract.ContractType.NodeContract.Node) != e.nodeID {
 		return nil, fmt.Errorf("invalid node address in contract")
