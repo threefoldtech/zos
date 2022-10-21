@@ -122,7 +122,7 @@ func netResourceMigration(active []gridtypes.Deployment) error {
 			if err := os.Symlink(
 				filepath.Join("..", string(netId)),
 				filepath.Join(sym, string(id)),
-			); err != nil {
+			); err != nil && !os.IsExist(err) {
 				log.Error().Err(err).Msgf("failed to create network symlink for %s -> ../%s", id, netId)
 			}
 		}

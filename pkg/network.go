@@ -65,6 +65,8 @@ func (e *ExitDevice) String() string {
 	return "unknown"
 }
 
+type NetResourceMetrics map[string]NetMetric
+
 // Networker is the interface for the network module
 type Networker interface {
 	// Ready return nil is networkd is ready to operate
@@ -202,6 +204,7 @@ type Networker interface {
 
 	SetPublicExitDevice(iface string) error
 
+	Metrics() (NetResourceMetrics, error)
 	// Monitoring methods
 
 	// ZOSAddresses monitoring streams for ZOS bridge IPs

@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1105,6 +1107,53 @@ func (n *networker) DMZAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 	return ch
 }
 
+func (n *networker) Metrics() (pkg.NetResourceMetrics, error) {
+	links, err := os.ReadDir(n.linkDir)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list networks")
+	}
+
+	metrics := make(pkg.NetResourceMetrics)
+	for _, link := range links {
+		if link.IsDir() {
+			continue
+		}
+
+		wl := link.Name()
+		logger := log.With().Str("workload", wl).Logger()
+		sym, err := os.Readlink(filepath.Join(n.linkDir, wl))
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to get network name from workload link")
+			continue
+		}
+		nsName := n.Namespace(zos.NetID(filepath.Base(sym)))
+		logger.Debug().Str("namespace", nsName).Msg("collecting namespace statistics")
+		nr, err := namespace.GetByName(nsName)
+		if err != nil {
+			logger.Error().Str("namespace", nsName).Err(err).Msg("failed to get network namespace from workload")
+			continue
+		}
+
+		defer nr.Close()
+		err = nr.Do(func(_ ns.NetNS) error {
+			// get stats of public interface.
+			m, err := metricsForNics("public")
+			if err != nil {
+				return err
+			}
+
+			metrics[wl] = m
+			return nil
+		})
+
+		if err != nil {
+			log.Error().Err(err).Msg("failed to collect metrics for network")
+		}
+	}
+
+	return metrics, nil
+}
+
 func (n *networker) YggAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
 	ch := make(chan pkg.NetlinkAddresses)
 	go func() {
@@ -1298,4 +1347,31 @@ var yggPrefix = net.IPNet{
 
 func isYgg(ip net.IP) bool {
 	return yggPrefix.Contains(ip)
+}
+
+func metricsForNics(nics ...string) (m pkg.NetMetric, err error) {
+	for _, nic := range nics {
+		l, err := netlink.LinkByName(nic)
+		if err != nil {
+			return pkg.NetMetric{}, err
+		}
+
+		stats := l.Attrs().Statistics
+		m.NetRxBytes += stats.RxBytes
+		m.NetTxBytes += stats.TxBytes
+		m.NetRxPackets += stats.RxPackets
+		m.NetTxPackets += stats.TxPackets
+	}
+
+	return
+}
+
+func readFileUint64(p string) (uint64, error) {
+	bytes, err := ioutil.ReadFile(p)
+	if err != nil {
+		// we do skip but may be this is not crre
+		return 0, err
+	}
+
+	return strconv.ParseUint(strings.TrimSpace(string(bytes)), 10, 64)
 }
