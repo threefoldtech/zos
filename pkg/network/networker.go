@@ -7,12 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -1364,14 +1362,4 @@ func metricsForNics(nics ...string) (m pkg.NetMetric, err error) {
 	}
 
 	return
-}
-
-func readFileUint64(p string) (uint64, error) {
-	bytes, err := ioutil.ReadFile(p)
-	if err != nil {
-		// we do skip but may be this is not crre
-		return 0, err
-	}
-
-	return strconv.ParseUint(strings.TrimSpace(string(bytes)), 10, 64)
 }
