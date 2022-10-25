@@ -8,11 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -75,42 +72,28 @@ func writeError(w http.ResponseWriter, err error) {
 }
 
 // NewAuthMiddleware creates a new AuthMiddleware using jwt signed by the caller
-func NewAuthMiddleware(users provision.Twins) mux.MiddlewareFunc {
+func NewAuthMiddleware(twins provision.Twins) mux.MiddlewareFunc {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token, err := jwt.ParseHeader(r.Header, "authorization",
-				jwt.WithValidate(true),
-				jwt.WithAudience("zos"),
-				jwt.WithAcceptableSkew(10*time.Second),
-			)
-			if err != nil {
-				writeError(w, errors.Wrap(err, "failed to parse jwt token"))
+			id := r.Header.Get(twinHeader)
+			if len(id) == 0 {
+				writeError(w, fmt.Errorf("missing header '%s'", twinHeader))
 				return
 			}
 
-			if time.Until(token.Expiration()) > 2*time.Minute {
-				writeError(w, fmt.Errorf("the expiration date should not be more than 2 minutes"))
+			twinID, err := strconv.ParseUint(id, 10, 32)
+			if err != nil {
+				writeError(w, errors.Wrapf(err, "wrong twin header '%s'", id))
 				return
 			}
-			twinID, err := strconv.ParseUint(token.Issuer(), 10, 32)
+			pk, err := twins.GetKey(uint32(twinID))
 			if err != nil {
-				writeError(w, errors.Wrap(err, "failed to parse issued id, expecting a 32 bit uint"))
+				writeError(w, errors.Wrapf(err, "failed to get pk for twin '%d'", twinID))
 				return
 			}
-			pk, err := users.GetKey(uint32(twinID))
+			request, err := VerifyRequest(pk, r)
 			if err != nil {
-				writeError(w, errors.Wrap(err, "failed to get twin public key"))
-				return
-			}
-			// reparse the token but with signature validation
-			_, err = jwt.ParseHeader(r.Header, "authorization", jwt.WithValidate(true),
-				jwt.WithAudience("zos"),
-				jwt.WithAcceptableSkew(10*time.Second),
-				jwt.WithVerify(jwa.EdDSA, pk),
-			)
-
-			if err != nil {
-				writeError(w, errors.Wrap(err, "failed to get twin public key"))
+				writeError(w, err)
 				return
 			}
 
@@ -118,7 +101,8 @@ func NewAuthMiddleware(users provision.Twins) mux.MiddlewareFunc {
 			ctx = context.WithValue(ctx, twinKeyID{}, uint32(twinID))
 			ctx = context.WithValue(ctx, twinPublicKeyID{}, pk)
 
-			handler.ServeHTTP(w, r.WithContext(ctx))
+			request = request.WithContext(ctx)
+			handler.ServeHTTP(w, request)
 		})
 	}
 }

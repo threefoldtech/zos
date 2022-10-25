@@ -1,3 +1,4 @@
+// mw are helper tools for gorilla http
 package mw
 
 import (
@@ -23,8 +24,8 @@ type Response interface {
 // Action interface
 type Action func(r *http.Request) (interface{}, Response)
 
-// AsHandlerFunc is a helper wrapper to make implementing actions easier
-func AsHandlerFunc(a Action) http.HandlerFunc {
+// AsAction is a helper wrapper to make implementing actions easier
+func AsAction(a Action) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			_, _ = ioutil.ReadAll(r.Body)

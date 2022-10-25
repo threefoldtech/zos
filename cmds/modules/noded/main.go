@@ -150,12 +150,12 @@ func action(cli *cli.Context) error {
 	go uptime.Start(ctx)
 
 	// start power manager
-	power, err := node.NewPowerManager(redis, sub, uptime, env.FarmerID, nodeID)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize power manager")
-	}
+	// power, err := node.NewPowerManager(redis, sub, uptime, env.FarmerID, nodeID)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to initialize power manager")
+	// }
 
-	go power.Start(ctx)
+	// go power.Start(ctx)
 
 	// node registration is completed we need to check the power target of the node.
 	system, err := monitord.NewSystemMonitor(nodeID, 2*time.Second)
