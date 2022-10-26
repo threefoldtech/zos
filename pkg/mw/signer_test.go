@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -58,16 +57,6 @@ func TestSigner(t *testing.T) {
 	require.Equal(t, "Hello World", returned)
 }
 
-type twinsMap map[uint32]ed25519.PublicKey
-
-func (t twinsMap) GetKey(id uint32) ([]byte, error) {
-	pk, ok := t[id]
-	if !ok {
-		return nil, fmt.Errorf("twin not found")
-	}
-	return pk, nil
-}
-
 // TestSignerClientNotAuthorized test authorization when NO auth info is given
 func TestSignerClientNotAuthorized(t *testing.T) {
 	action := func(r *http.Request) (interface{}, Response) {
@@ -78,7 +67,7 @@ func TestSignerClientNotAuthorized(t *testing.T) {
 	signer := NewSigner(sk)
 
 	router := mux.NewRouter()
-	twins := make(twinsMap)
+	twins := NewUserMap()
 	mw := NewAuthMiddleware(twins)
 	router.Use(mw.Middleware)
 	router.Handle("/test", signer.Action(action))
@@ -106,7 +95,7 @@ func TestSignerClientAuth(t *testing.T) {
 	signer := NewSigner(serverSk)
 
 	router := mux.NewRouter()
-	twins := make(twinsMap)
+	twins := NewUserMap()
 	twins[10] = clientPk
 
 	mw := NewAuthMiddleware(twins)

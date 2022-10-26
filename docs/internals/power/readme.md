@@ -51,6 +51,10 @@ Accepts input
     "target": "down", // can be other targets
 }
 ```
+> Node will only power down if (and only if)
+- Node target power state is down. The point of the call to only power off if the node can be reached by another node
+- Target in the request is set to down.
+- Leader (of course) is a valid node from the same farm.
 
 ## Elections
 Elections are a continues process. Nodes will keep checking their neighbors (say every 10 min). A node can then figure out 2 states:
