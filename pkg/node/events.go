@@ -1,8 +1,12 @@
 package node
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os/exec"
 	"time"
 
@@ -10,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/mw"
 	"github.com/threefoldtech/zos/pkg/network/bridge"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -17,6 +22,7 @@ import (
 
 const (
 	wolInterface = "zos"
+	powerPort    = 8039
 )
 
 var (
@@ -106,10 +112,46 @@ func (m *PowerServer) powerDown(node *substrate.Node) error {
 	}
 
 	for _, ip := range ips {
-		// we need to call the remote node. and ask it to power off
+		if err := m.powerRequest(ip, &req); err != nil {
+			log.Error().Err(err).Uint32("target", uint32(node.ID)).Msg("failed to send power down request")
+		}
 	}
 
 	return nil
+}
+
+func (m *PowerServer) powerRequest(ip string, r *powerRequest) error {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return errors.Wrap(err, "failed to build power off payload")
+	}
+
+	u := fmt.Sprintf("http://%s:%d", ip, powerPort)
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(data))
+	if err != nil {
+		return errors.Wrap(err, "failed to build power off request")
+	}
+	req, err = mw.SignedRequest(m.node, m.sk, req)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign power off request")
+	}
+
+	// we need to call the remote node. and ask it to power off
+	response, err := http.DefaultClient.Do(req)
+	defer response.Body.Close()
+
+	if err != nil {
+		return errors.Wrapf(err, "failed to make request to node ip ''", ip)
+	}
+
+	if response.StatusCode == http.StatusAccepted || response.StatusCode == http.StatusForbidden {
+		// node either accepted the request or rejected it as being a power leader. hence to us
+		// nothing is wrong
+		return nil
+	} else {
+		body, _ := ioutil.ReadAll(response.Body)
+		return errors.Wrapf(err, "got response '%s': %s", response.Status, string(body))
+	}
 }
 
 func (m *PowerServer) shutdown() error {
@@ -150,10 +192,10 @@ func (m *PowerServer) event(event *pkg.PowerChangeEvent) error {
 
 	//TODO: handle power down for all other nodes!
 
-	// if event.NodeID == m.node && event.Target.IsDown {
-	// 	log.Info().Msg("received an event to shutdown")
-	// 	return m.shutdown()
-	// }
+	if event.NodeID != m.node && event.Target.IsDown {
+		log.Info().Uint32("target", event.NodeID).Msg("received an event to shutdown")
+		return m.powerDown(node)
+	}
 
 	if event.NodeID != m.node && event.Target.IsUp {
 		return m.powerUp(node)
