@@ -69,11 +69,29 @@ func (m *PowerServer) sync() error {
 		return err
 	}
 
-	if !node.Power().IsDown {
+	power := node.Power()
+	// if the state is not down. nothing to do.
+	// state down is only set by a call to the /power endpoint
+	// it need to be requested by a neighbor node
+	if !power.State.IsDown {
 		return nil
 	}
 
-	return m.shutdown()
+	// state is down but target is up. we need to fix the
+	// target
+	if power.Target.IsUp {
+		// TODO!: set node state to UP and return
+		return nil
+	}
+
+	// if state was already down we need to call shutdown
+	// this can be duo to a wake up to send uptime request
+	if power.State.IsDown {
+		return m.shutdown()
+	}
+
+	// otherwise do nothing
+	return nil
 }
 
 func (m *PowerServer) powerUp(node *substrate.Node) error {
@@ -138,11 +156,11 @@ func (m *PowerServer) powerRequest(ip string, r *powerRequest) error {
 
 	// we need to call the remote node. and ask it to power off
 	response, err := http.DefaultClient.Do(req)
-	defer response.Body.Close()
-
 	if err != nil {
 		return errors.Wrapf(err, "failed to make request to node ip ''", ip)
 	}
+
+	defer response.Body.Close()
 
 	if response.StatusCode == http.StatusAccepted || response.StatusCode == http.StatusForbidden {
 		// node either accepted the request or rejected it as being a power leader. hence to us
@@ -186,11 +204,6 @@ func (m *PowerServer) event(event *pkg.PowerChangeEvent) error {
 	if err != nil {
 		return err
 	}
-	// if event.Kind == pkg.EventSubscribed {
-	// 	return m.sync()
-	// }
-
-	//TODO: handle power down for all other nodes!
 
 	if event.NodeID != m.node && event.Target.IsDown {
 		log.Info().Uint32("target", event.NodeID).Msg("received an event to shutdown")

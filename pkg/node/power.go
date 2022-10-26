@@ -132,7 +132,7 @@ func (p *PowerServer) power(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	// TODO: set current state on chain before powering off.
-	if err := p.sync(); err != nil {
+	if err := p.shutdown(); err != nil {
 		return nil, mw.Error(err)
 	}
 
