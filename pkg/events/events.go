@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -112,7 +111,6 @@ func (e *Events) eventsTo(cl *gsrpc.SubstrateAPI, meta *types.Metadata, block ty
 
 func (e *Events) process(changes []types.StorageChangeSet, meta *types.Metadata) {
 	for _, set := range changes {
-		fmt.Printf("%x\n", set.Block)
 		for _, change := range set.Changes {
 			if !change.HasStorageData {
 				continue
