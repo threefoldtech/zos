@@ -145,7 +145,7 @@ func (e *electionsManager) checkNode(sub *substrate.Substrate, nodeID uint32) (b
 
 func (e *electionsManager) checkSameLAN(node *substrate.Node, publicKey ed25519.PublicKey) bool {
 	for _, i := range node.Interfaces {
-		if i.Name != "zos" {
+		if i.Name != wolInterface {
 			continue
 		}
 		for _, ip := range i.IPs {
@@ -168,6 +168,9 @@ func (e *electionsManager) verifyNodeResponse(ip string, publicKey ed25519.Publi
 	if err != nil {
 		return err
 	}
+
+	defer response.Body.Close()
+
 	_, err = mw.VerifyResponse(publicKey, response)
 	return err
 }
