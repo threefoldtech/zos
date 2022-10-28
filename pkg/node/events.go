@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	wolInterface = "zos"
-	powerPort    = 8039
+	wolInterface    = "zos"
+	PowerServerPort = 8039
 )
 
 var (
@@ -63,7 +63,7 @@ func (m *PowerServer) getNode(nodeID uint32) (*substrate.Node, error) {
 	return node, nil
 }
 
-func (m *PowerServer) sync() error {
+func (m *PowerServer) syncSelf() error {
 	node, err := m.getNode(m.node)
 	if err != nil {
 		return err
@@ -144,7 +144,7 @@ func (m *PowerServer) powerRequest(ip string, r *powerRequest) error {
 		return errors.Wrap(err, "failed to build power off payload")
 	}
 
-	u := fmt.Sprintf("http://%s:%d", ip, powerPort)
+	u := fmt.Sprintf("http://%s:%d", ip, PowerServerPort)
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(data))
 	if err != nil {
 		return errors.Wrap(err, "failed to build power off request")
@@ -240,7 +240,7 @@ func (m *PowerServer) events(ctx context.Context) {
 	// off, so we need to sync with grid
 	// 1) make sure at least one uptime was already sent
 	m.ut.Mark.Done(ctx)
-	if err := m.sync(); err != nil {
+	if err := m.syncSelf(); err != nil {
 		log.Error().Err(err).Msg("failed to synchronize power status with grid")
 	}
 

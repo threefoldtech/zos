@@ -6,15 +6,17 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/substrate-client"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/mw"
-	"github.com/threefoldtech/zos/pkg/network/public"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 const (
@@ -24,16 +26,26 @@ const (
 )
 
 type electionsManager struct {
+	zbus   zbus.Client
 	sub    substrate.Manager
 	farmID pkg.FarmID
 	nodeID uint32
+	client http.Client
 	leader atomic.Bool
 }
 
-func NewElectionsManager(sub substrate.Manager, nodeID uint32, farmID pkg.FarmID) Elections {
-	leader := atomic.Bool{}
+func NewElectionsManager(cl zbus.Client, sub substrate.Manager, nodeID uint32, farmID pkg.FarmID) Elections {
+	var leader atomic.Bool
 	leader.Store(true)
-	return &electionsManager{sub: sub, nodeID: nodeID, farmID: farmID, leader: leader}
+
+	return &electionsManager{
+		zbus:   cl,
+		sub:    sub,
+		nodeID: nodeID,
+		farmID: farmID,
+		client: newClient(),
+		leader: leader,
+	}
 }
 
 func (e *electionsManager) IsLeader() bool {
@@ -42,7 +54,7 @@ func (e *electionsManager) IsLeader() bool {
 
 func (e *electionsManager) Start(ctx context.Context) {
 	for {
-		err := e.elect()
+		err := e.elect(ctx)
 		if err != nil {
 			log.Error().Err(err).Msg("elections failed")
 			select {
@@ -62,9 +74,18 @@ func (e *electionsManager) Start(ctx context.Context) {
 	}
 }
 
-func (e *electionsManager) elect() error {
+func (e *electionsManager) elect(ctx context.Context) error {
 	// set leader to true if node has public config
-	if public.HasPublicSetup() {
+	stub := stubs.NewNetworkerStub(e.zbus)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	cfg, err := stub.GetPublicConfig(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for public config")
+	}
+
+	if !cfg.IsEmpty() {
 		e.leader.Store(true)
 		return nil
 	}
@@ -85,72 +106,108 @@ func (e *electionsManager) elect() error {
 		if nodeID == e.nodeID {
 			continue
 		}
-		node, err := sub.GetNode(nodeID)
+		reachable, err := e.checkNode(sub, nodeID)
 		if err != nil {
-			return errors.Wrapf(err, "failed to load node: %d", nodeID)
+			log.Error().Uint32("node", nodeID).Err(err).Msg("failed to check node reachability")
+			continue
 		}
-		twin, err := sub.GetTwin(uint32(node.TwinID))
-		if err != nil {
-			return errors.Wrapf(err, "failed to load twin of node: %d", nodeID)
-		}
-		if checkSameLAN(node, twin.Account.PublicKey()) {
+		if reachable {
 			nodes = append(nodes, nodeID)
 		}
-
 	}
 
-	// get smallest nodeID and set leader to true if the node has the smallest nodeID
-	var smallestID uint32 = 1000000000
+	// if this node id is greater than any of the ids in the list
+	// then you can't be the leader, set it to false and return
 	for _, nodeID := range nodes {
-		if nodeID < smallestID {
-			smallestID = nodeID
+		if e.nodeID > nodeID {
+			e.leader.Store(false)
+			return nil
 		}
 	}
-	if e.nodeID < smallestID {
-		e.leader.Store(true)
-		return nil
-	}
-
-	// set leader to false otherwise
-	e.leader.Store(false)
+	// otherwise you can be the leader
+	e.leader.Store(true)
 	return nil
 }
 
-func checkSameLAN(node *substrate.Node, publicKey ed25519.PublicKey) bool {
+func (e *electionsManager) checkNode(sub *substrate.Substrate, nodeID uint32) (bool, error) {
+	node, err := sub.GetNode(nodeID)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to load node: %d", nodeID)
+	}
+
+	twin, err := sub.GetTwin(uint32(node.TwinID))
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to load twin of node: %d", nodeID)
+	}
+
+	return e.checkSameLAN(node, twin.Account.PublicKey()), nil
+}
+
+func (e *electionsManager) checkSameLAN(node *substrate.Node, publicKey ed25519.PublicKey) bool {
 	for _, i := range node.Interfaces {
 		if i.Name != "zos" {
 			continue
 		}
 		for _, ip := range i.IPs {
-			if verifyNodeResponse(ip, publicKey) {
-				return true
+			if err := e.verifyNodeResponse(ip, publicKey); err != nil {
+				log.Debug().Err(err).Str("ip", ip).Msg("ip not reachable")
 			}
+			return true
 		}
 	}
 	return false
 }
 
-func verifyNodeResponse(ip string, publicKey ed25519.PublicKey) bool {
-	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil {
-		log.Error().Msgf("failed to parse IP: %s", parsedIP)
-		return false
-	}
-	var response *http.Response
-	var err error
-	client := http.Client{
-		Timeout: nodeResponseTimeout,
-	}
-	if parsedIP.To4() != nil {
-		response, err = client.Get(fmt.Sprintf("http://%s:%d/self", ip, powerPort))
-
-	} else {
-		response, err = client.Get(fmt.Sprintf("http://[%s]:%d/self", ip, powerPort))
-	}
+func (e *electionsManager) verifyNodeResponse(ip string, publicKey ed25519.PublicKey) error {
+	url, err := buildUrl(ip, PowerServerPort, "self")
 	if err != nil {
-		return false
+		return err
+	}
+
+	response, err := e.client.Get(url)
+	if err != nil {
+		return err
 	}
 	_, err = mw.VerifyResponse(publicKey, response)
+	return err
+}
 
-	return err == nil
+// newClient creates a new http client with a custom TCP timeout. We need to timeout only
+// on establishing the connection (the underlying tcp connection) but once connection is established
+// it's okay to have the connection open for longer to use it for requests.
+func newClient() http.Client {
+	dialer := &net.Dialer{
+		Timeout:   nodeResponseTimeout,
+		KeepAlive: 10 * time.Second,
+	}
+
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialer.DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       30 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	return http.Client{
+		Transport: transport,
+	}
+}
+
+// buildUrl builds correct url given ip
+func buildUrl(ip string, port uint16, path ...string) (string, error) {
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return "", fmt.Errorf("invalid ip address '%s'", ip)
+	}
+
+	p := filepath.Join(path...)
+
+	if parsedIP.To4() != nil {
+		return fmt.Sprintf("http://%s:%d/%s", ip, port, p), nil
+	} else {
+		return fmt.Sprintf("http://[%s]:%d/%s", ip, port, p), nil
+	}
 }

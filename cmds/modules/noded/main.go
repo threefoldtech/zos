@@ -18,7 +18,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/node"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
-	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
 
@@ -150,12 +149,21 @@ func action(cli *cli.Context) error {
 	go uptime.Start(ctx)
 
 	// start power manager
-	// power, err := node.NewPowerManager(redis, sub, uptime, env.FarmerID, nodeID)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to initialize power manager")
-	// }
+	power, err := node.NewPowerServer(redis, sub, env.FarmerID, nodeID, sk, uptime)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize power manager")
+	}
 
-	// go power.Start(ctx)
+	go func() {
+		for {
+			err := power.Start(ctx)
+			if err == nil {
+				return
+			}
+			log.Error().Err(err).Msg("power server exited unexpectedly")
+			<-time.After(10 * time.Second)
+		}
+	}()
 
 	// node registration is completed we need to check the power target of the node.
 	system, err := monitord.NewSystemMonitor(nodeID, 2*time.Second)
@@ -196,34 +204,4 @@ func action(cli *cli.Context) error {
 func retryNotify(err error, d time.Duration) {
 	// .Err() is scary (red)
 	log.Warn().Str("err", err.Error()).Str("sleep", d.String()).Msg("the node isn't ready yet")
-}
-
-// check node target power status. Power off if need to be down
-func applyPowerTarget(sub substrate.Manager, nodeID uint32) error {
-	log.Info().Msg("checking power status of the node")
-
-	client, err := sub.Substrate()
-	if err != nil {
-		return errors.Wrap(err, "failed to get connection to substrate")
-	}
-	defer client.Close()
-	node, err := client.GetNode(nodeID)
-	if err != nil {
-		return errors.Wrap(err, "failed to get node information")
-	}
-
-	if !node.Power().IsDown {
-		return nil
-	}
-
-	// is down!
-	init := zinit.Default()
-	err = init.Shutdown()
-
-	if errors.Is(err, zinit.ErrNotSupported) {
-		log.Info().Msg("node does not support shutdown. rebooting to update")
-		return init.Reboot()
-	}
-
-	return err
 }

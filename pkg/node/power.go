@@ -49,7 +49,6 @@ type PowerServer struct {
 func NewPowerServer(
 	cl zbus.Client,
 	sub substrate.Manager,
-	listen string,
 	farm pkg.FarmID,
 	node uint32,
 	sk ed25519.PrivateKey,
@@ -62,7 +61,7 @@ func NewPowerServer(
 	return &PowerServer{
 		cl:     cl,
 		sub:    sub,
-		listen: listen,
+		listen: fmt.Sprintf(":%d", PowerServerPort),
 		farm:   farm,
 		node:   node,
 		sk:     sk,
