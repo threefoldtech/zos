@@ -65,14 +65,15 @@ func NewPowerServer(
 	}
 
 	return &PowerServer{
-		cl:     cl,
-		sub:    sub,
-		listen: fmt.Sprintf(":%d", PowerServerPort),
-		farm:   farm,
-		node:   node,
-		sk:     sk,
-		ut:     ut,
-		http:   newClient(),
+		cl:        cl,
+		sub:       sub,
+		listen:    fmt.Sprintf(":%d", PowerServerPort),
+		farm:      farm,
+		node:      node,
+		sk:        sk,
+		ut:        ut,
+		elections: NewElectionsManager(cl, sub, node, farm),
+		http:      newClient(),
 	}, nil
 }
 
@@ -121,19 +122,26 @@ func (m *PowerServer) getNode(nodeID uint32) (*substrate.Node, error) {
 
 func (m *PowerServer) synchronize(ctx context.Context) {
 	for {
+
+		if err := m.syncDownNodes(); err != nil {
+			log.Error().Err(err).Msg("failed to synchronize neighbors power target")
+			select {
+			case <-time.After(1 * time.Minute):
+				continue
+			case <-ctx.Done():
+				return
+			}
+		}
+
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(1 * time.Hour):
 		}
-
-		if err := m.syncNeighbors(); err != nil {
-			log.Error().Err(err).Msg("failed to synchronize neighbors power target")
-		}
 	}
 }
 
-func (m *PowerServer) syncNeighbors() error {
+func (m *PowerServer) syncDownNodes() error {
 	// this is called on start of power server
 	// to try to bring all neighbors to proper state
 	sub, err := m.sub.Substrate()
@@ -146,7 +154,7 @@ func (m *PowerServer) syncNeighbors() error {
 	}
 
 	for _, nodeID := range nodeIDs {
-		if err := m.syncNode(sub, nodeID); err != nil {
+		if err := m.syncDownNode(sub, nodeID); err != nil {
 			log.Error().Err(err).Uint32("node", nodeID).Msg("failed to sync node power status")
 		}
 	}
@@ -154,7 +162,7 @@ func (m *PowerServer) syncNeighbors() error {
 	return nil
 }
 
-func (m *PowerServer) syncNode(sub *substrate.Substrate, id uint32) error {
+func (m *PowerServer) syncDownNode(sub *substrate.Substrate, id uint32) error {
 	node, err := sub.GetNode(id)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get node '%d' from chain", id)
@@ -351,6 +359,7 @@ func (m *PowerServer) events(ctx context.Context) {
 	// off, so we need to sync with grid
 	// 1) make sure at least one uptime was already sent
 	m.ut.Mark.Done(ctx)
+	// 2) do we need to power off
 	if err := m.syncSelf(); err != nil {
 		log.Error().Err(err).Msg("failed to synchronize power status with grid")
 	}
