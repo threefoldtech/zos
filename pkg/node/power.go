@@ -46,6 +46,7 @@ type PowerServer struct {
 	farm      pkg.FarmID
 	node      uint32
 	sk        ed25519.PrivateKey
+	identity  substrate.Identity
 	ut        *Uptime
 	listen    string
 	elections Elections
@@ -64,6 +65,11 @@ func NewPowerServer(
 		return nil, err
 	}
 
+	identity, err := substrate.NewIdentityFromEd25519Key(sk)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialized identity")
+	}
+
 	return &PowerServer{
 		cl:        cl,
 		sub:       sub,
@@ -71,6 +77,7 @@ func NewPowerServer(
 		farm:      farm,
 		node:      node,
 		sk:        sk,
+		identity:  identity,
 		ut:        ut,
 		elections: NewElectionsManager(cl, sub, node, farm),
 		http:      newClient(),
@@ -106,8 +113,8 @@ func enableWol(inf string) error {
 	return nil
 }
 
-func (m *PowerServer) getNode(nodeID uint32) (*substrate.Node, error) {
-	client, err := m.sub.Substrate()
+func (p *PowerServer) getNode(nodeID uint32) (*substrate.Node, error) {
+	client, err := p.sub.Substrate()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get connection to substrate")
 	}
@@ -120,10 +127,10 @@ func (m *PowerServer) getNode(nodeID uint32) (*substrate.Node, error) {
 	return node, nil
 }
 
-func (m *PowerServer) synchronize(ctx context.Context) {
+func (p *PowerServer) synchronize(ctx context.Context) {
 	for {
 
-		if err := m.syncDownNodes(); err != nil {
+		if err := p.syncNodes(); err != nil {
 			log.Error().Err(err).Msg("failed to synchronize neighbors power target")
 			select {
 			case <-time.After(1 * time.Minute):
@@ -141,20 +148,20 @@ func (m *PowerServer) synchronize(ctx context.Context) {
 	}
 }
 
-func (m *PowerServer) syncDownNodes() error {
+func (p *PowerServer) syncNodes() error {
 	// this is called on start of power server
 	// to try to bring all neighbors to proper state
-	sub, err := m.sub.Substrate()
+	sub, err := p.sub.Substrate()
 	if err != nil {
 		return err
 	}
-	nodeIDs, err := sub.GetNodesByFarmID(uint32(m.farm))
+	nodeIDs, err := sub.GetNodesByFarmID(uint32(p.farm))
 	if err != nil {
 		return errors.Wrap(err, "failed to list farm nodes")
 	}
 
 	for _, nodeID := range nodeIDs {
-		if err := m.syncDownNode(sub, nodeID); err != nil {
+		if err := p.syncNode(sub, nodeID); err != nil {
 			log.Error().Err(err).Uint32("node", nodeID).Msg("failed to sync node power status")
 		}
 	}
@@ -162,13 +169,25 @@ func (m *PowerServer) syncDownNodes() error {
 	return nil
 }
 
-func (m *PowerServer) syncDownNode(sub *substrate.Substrate, id uint32) error {
+func (p *PowerServer) needNudge(id uint32, ts uint64) bool {
+	now := uint64(time.Now().Unix())
+	// the expected timestamp of the next uptime
+	// is somewhere between 24 and 48 hours
+	next := ts + (24+uint64(id)%24)*1200
+	return now >= next
+}
+
+func (p *PowerServer) syncNode(sub *substrate.Substrate, id uint32) error {
 	node, err := sub.GetNode(id)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get node '%d' from chain", id)
 	}
 	if node.Power().Target.IsUp ||
 		node.Power().State.IsDown {
+		// should we nudge the node to send uptime?
+		if p.needNudge(id, uint64(node.Power().LastUpTime)) {
+			return p.powerUp(node)
+		}
 		return nil
 	}
 
@@ -176,10 +195,10 @@ func (m *PowerServer) syncDownNode(sub *substrate.Substrate, id uint32) error {
 	// means we should try to put it down. if it accepted
 	// this we can simply try to ask it to power off. if that
 	// didn't work it means probably the node is not reachable
-	return m.powerDown(node)
+	return p.powerDown(node)
 }
 
-func (m *PowerServer) powerRequest(ip string, in *powerRequest) error {
+func (p *PowerServer) powerRequest(ip string, in *powerRequest) error {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(in); err != nil {
@@ -196,7 +215,7 @@ func (m *PowerServer) powerRequest(ip string, in *powerRequest) error {
 		return err
 	}
 
-	req, err = mw.SignedRequest(m.node, m.sk, req)
+	req, err = mw.SignedRequest(p.node, p.sk, req)
 	if err != nil {
 		return err
 	}
@@ -208,7 +227,7 @@ func (m *PowerServer) powerRequest(ip string, in *powerRequest) error {
 	// - Node is reachable but it doesn't accept the call may be the node thinks it shouldn't
 	//   be powered off, that is also fine.
 	// - Node actually powers off, then also nothing to d.
-	resp, err := m.http.Do(req)
+	resp, err := p.http.Do(req)
 	if err == nil {
 		resp.Body.Close()
 	}
@@ -217,8 +236,8 @@ func (m *PowerServer) powerRequest(ip string, in *powerRequest) error {
 	return nil
 }
 
-func (m *PowerServer) syncSelf() error {
-	node, err := m.getNode(m.node)
+func (p *PowerServer) syncSelf() error {
+	node, err := p.getNode(p.node)
 	if err != nil {
 		return err
 	}
@@ -228,21 +247,25 @@ func (m *PowerServer) syncSelf() error {
 	// state is down but target is up. we need to fix the
 	// target
 	if power.Target.IsUp {
-		// TODO!: set node state to UP and return
-		return nil
+		sub, err := p.sub.Substrate()
+		if err != nil {
+			return err
+		}
+		_, err = sub.SetNodePowerState(p.identity, substrate.PowerState{IsUp: true})
+		return errors.Wrap(err, "failed to set state to up")
 	}
 
 	// if state was already down we need to call shutdown
 	// this can be duo to a wake up to send uptime request
 	if power.State.IsDown {
-		return m.shutdown()
+		return p.shutdown()
 	}
 
 	// otherwise do nothing
 	return nil
 }
 
-func (m *PowerServer) powerUp(node *substrate.Node) error {
+func (p *PowerServer) powerUp(node *substrate.Node) error {
 	log.Info().Uint32("node", uint32(node.ID)).Msg("powering on node")
 
 	mac := ""
@@ -260,7 +283,7 @@ func (m *PowerServer) powerUp(node *substrate.Node) error {
 
 }
 
-func (m *PowerServer) powerDown(node *substrate.Node) error {
+func (p *PowerServer) powerDown(node *substrate.Node) error {
 	log.Debug().Uint32("node", uint32(node.ID)).Msg("powering off node")
 
 	var ips []string
@@ -272,13 +295,13 @@ func (m *PowerServer) powerDown(node *substrate.Node) error {
 	}
 
 	req := powerRequest{
-		Leader: m.node,
+		Leader: p.node,
 		Node:   uint32(node.ID),
 		Target: downTarget,
 	}
 
 	for _, ip := range ips {
-		if err := m.powerRequest(ip, &req); err != nil {
+		if err := p.powerRequest(ip, &req); err != nil {
 			log.Error().Err(err).Uint32("target", uint32(node.ID)).Msg("failed to send power down request")
 		}
 	}
@@ -286,9 +309,9 @@ func (m *PowerServer) powerDown(node *substrate.Node) error {
 	return nil
 }
 
-func (m *PowerServer) shutdown() error {
+func (p *PowerServer) shutdown() error {
 	log.Info().Msg("shutting down node because of chain")
-	if _, err := m.ut.SendNow(); err != nil {
+	if _, err := p.ut.SendNow(); err != nil {
 		log.Error().Err(err).Msg("failed to send uptime before shutting down")
 	}
 
@@ -304,48 +327,48 @@ func (m *PowerServer) shutdown() error {
 	return err
 }
 
-func (m *PowerServer) event(event *pkg.PowerChangeEvent) error {
-	if event.FarmID != m.farm {
+func (p *PowerServer) event(event *pkg.PowerChangeEvent) error {
+	if event.FarmID != p.farm {
 		return nil
 	}
 
 	log.Debug().
-		Uint32("farm", uint32(m.farm)).
-		Uint32("node", m.node).
+		Uint32("farm", uint32(p.farm)).
+		Uint32("node", p.node).
 		Msg("received power event for farm")
 
-	node, err := m.getNode(event.NodeID)
+	node, err := p.getNode(event.NodeID)
 	if err != nil {
 		return err
 	}
 
-	if event.NodeID == m.node {
+	if event.NodeID == p.node {
 		return nil
 	}
 
 	if event.Target.IsDown {
 		log.Info().Uint32("target", event.NodeID).Msg("received an event to power down")
-		return m.powerDown(node)
+		return p.powerDown(node)
 	}
 
 	if event.Target.IsUp {
 		log.Info().Uint32("target", event.NodeID).Msg("received an event to power up")
-		return m.powerUp(node)
+		return p.powerUp(node)
 	}
 
 	return nil
 }
 
-func (m *PowerServer) recv(ctx context.Context) error {
+func (p *PowerServer) recv(ctx context.Context) error {
 	log.Info().Msg("listening for power events")
-	events := stubs.NewEventsStub(m.cl)
+	events := stubs.NewEventsStub(p.cl)
 	stream, err := events.PowerChangeEvent(ctx)
 	if err != nil {
 		return errors.Wrapf(errConnectionError, "failed to connect to zbus events: %s", err)
 	}
 
 	for event := range stream {
-		if err := m.event(&event); err != nil {
+		if err := p.event(&event); err != nil {
 			log.Error().Err(err).Msg("failed to process power event")
 		}
 	}
@@ -354,20 +377,20 @@ func (m *PowerServer) recv(ctx context.Context) error {
 }
 
 // start processing time events.
-func (m *PowerServer) events(ctx context.Context) {
+func (p *PowerServer) events(ctx context.Context) {
 	// first thing we need to make sure we are not suppose to be powered
 	// off, so we need to sync with grid
 	// 1) make sure at least one uptime was already sent
-	m.ut.Mark.Done(ctx)
+	p.ut.Mark.Done(ctx)
 	// 2) do we need to power off
-	if err := m.syncSelf(); err != nil {
+	if err := p.syncSelf(); err != nil {
 		log.Error().Err(err).Msg("failed to synchronize power status with grid")
 	}
 
 	// if the stream loop fails for any reason retry
 	// unless context was cancelled
 	for {
-		err := m.recv(ctx)
+		err := p.recv(ctx)
 		if err == nil {
 			return
 		}
@@ -441,7 +464,10 @@ func (p *PowerServer) power(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.UnAuthorized(fmt.Errorf("requesting node is not in the same farm"))
 	}
 
-	// TODO: set current state on chain before powering off.
+	if _, err := sub.SetNodePowerState(p.identity, substrate.PowerState{IsDown: true, Leader: types.U32(request.Leader)}); err != nil {
+		return nil, mw.Error(errors.Wrap(err, "failed to set power state"))
+	}
+
 	if err := p.shutdown(); err != nil {
 		return nil, mw.Error(err)
 	}
