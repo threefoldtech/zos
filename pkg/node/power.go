@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os/exec"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/provision"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
+	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -51,6 +53,7 @@ type PowerServer struct {
 	listen    string
 	elections Elections
 	http      http.Client
+	direct    *Direct
 }
 
 func NewPowerServer(
@@ -70,6 +73,11 @@ func NewPowerServer(
 		return nil, errors.Wrap(err, "failed to initialized identity")
 	}
 
+	lan, err := NewDirect(wolInterface)
+	if err != nil {
+		return nil, err
+	}
+
 	return &PowerServer{
 		cl:        cl,
 		sub:       sub,
@@ -79,8 +87,9 @@ func NewPowerServer(
 		sk:        sk,
 		identity:  identity,
 		ut:        ut,
-		elections: NewElectionsManager(cl, sub, node, farm),
+		elections: newElectionsManager(cl, sub, node, farm, lan),
 		http:      newClient(),
+		direct:    lan,
 	}, nil
 }
 
@@ -301,6 +310,19 @@ func (p *PowerServer) powerDown(node *substrate.Node) error {
 	}
 
 	for _, ip := range ips {
+		// to make sure this node actually lives on the same lan
+		// and that they are not just "reachable" over a router we
+		// do this check before sending the request
+		local, err := p.direct.IsDirect(ip)
+		if err != nil {
+			log.Error().Err(err).Uint32("target", uint32(node.ID)).Msg("failed to send power down request")
+			continue
+		}
+
+		if !local {
+			continue
+		}
+
 		if err := p.powerRequest(ip, &req); err != nil {
 			log.Error().Err(err).Uint32("target", uint32(node.ID)).Msg("failed to send power down request")
 		}
@@ -479,8 +501,11 @@ func (p *PowerServer) Start(ctx context.Context) error {
 	router := mux.NewRouter()
 	signer := mw.NewSigner(p.sk)
 
-	go p.events(ctx)
-	go p.synchronize(ctx)
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go p.events(subCtx)
+	go p.synchronize(subCtx)
 
 	// always sign responses
 	router.Handle("/self", signer.Action(p.self)).Methods("GET")
@@ -499,7 +524,7 @@ func (p *PowerServer) Start(ctx context.Context) error {
 	}
 
 	go func() {
-		<-ctx.Done()
+		<-subCtx.Done()
 		server.Shutdown(ctx)
 	}()
 
@@ -511,4 +536,39 @@ func (p *PowerServer) Start(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type Direct struct {
+	idx int
+}
+
+func NewDirect(inf string) (*Direct, error) {
+	ln, err := netlink.LinkByName(inf)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Direct{idx: ln.Attrs().Index}, nil
+}
+
+func (d *Direct) IsDirect(ip string) (bool, error) {
+	ipT := net.ParseIP(ip)
+	if ipT == nil {
+		return false, fmt.Errorf("invalid ip address")
+	}
+
+	routes, err := netlink.RouteGet(ipT)
+	// errors are returned only if network is unreachable
+	// so we can just assume this is not direct. no extra checks
+	if err != nil {
+		return false, nil
+	}
+
+	for _, r := range routes {
+		if r.Gw == nil && r.LinkIndex == d.idx {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

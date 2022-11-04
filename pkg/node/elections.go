@@ -32,9 +32,10 @@ type electionsManager struct {
 	nodeID uint32
 	client http.Client
 	leader atomic.Bool
+	direct *Direct
 }
 
-func NewElectionsManager(cl zbus.Client, sub substrate.Manager, nodeID uint32, farmID pkg.FarmID) Elections {
+func newElectionsManager(cl zbus.Client, sub substrate.Manager, nodeID uint32, farmID pkg.FarmID, lan *Direct) Elections {
 	var leader atomic.Bool
 	leader.Store(true)
 
@@ -45,6 +46,7 @@ func NewElectionsManager(cl zbus.Client, sub substrate.Manager, nodeID uint32, f
 		farmID: farmID,
 		client: newClient(),
 		leader: leader,
+		direct: lan,
 	}
 }
 
@@ -149,12 +151,24 @@ func (e *electionsManager) checkSameLAN(node *substrate.Node, publicKey ed25519.
 			continue
 		}
 		for _, ip := range i.IPs {
+			local, err := e.direct.IsDirect(ip)
+			if err != nil {
+				log.Error().Err(err).Str("ip", ip).Msg("ip not reachable")
+				continue
+			}
+
+			if !local {
+				continue
+			}
+			// if node is directly reachable over this ip (same segment)
+			// we can then verify the node identity
 			if err := e.verifyNodeResponse(ip, publicKey); err != nil {
 				log.Debug().Err(err).Str("ip", ip).Msg("ip not reachable")
 			}
 			return true
 		}
 	}
+
 	return false
 }
 
