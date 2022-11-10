@@ -119,9 +119,13 @@ func (p *Manager) zMountUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 	vdisk := stubs.NewStorageModuleStub(p.zbus)
 
 	// okay, so no vm is using this disk. time to try resize.
-	vol.ID = wl.ID.String()
-	_, err = vdisk.DiskResize(ctx, wl.ID.String(), new.Size)
+
 	// we know it's safe to resize the disk, it won't break it so we
 	// can be sure we can wrap the error into an unchanged error
-	return vol, provision.UnChanged(err)
+	vol.ID = wl.ID.String()
+	if _, err := vdisk.DiskResize(ctx, wl.ID.String(), new.Size); err != nil {
+		return vol, provision.UnChanged(err)
+	}
+
+	return vol, nil
 }
