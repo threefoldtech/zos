@@ -1,5 +1,12 @@
 # Quick start
 
+- [Quick start](#quick-start)
+  - [Starting a local zos node](#starting-a-local-zos-node)
+  - [Accessing node](#accessing-node)
+  - [Development](#development)
+
+## Starting a local zos node
+
 * Make sure `qemu` and `dnsmasq` are installed
 * [Create a farm](../manual/manual.md#creating-a-farm)
 * [Download a zos image](https://bootstrap.grid.tf/kernel/zero-os-development-zos-v3-generic-7e587e499a.efi)

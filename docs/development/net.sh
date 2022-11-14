@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# This is the same as the first case at qemu/README.md in a single script
+
 sudo ip link add zos0 type bridge
 sudo ip link set zos0 up
 

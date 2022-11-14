@@ -2,13 +2,20 @@
 
 Beside unit testing, you might want to test your change in an integrated environment, the following are two options to do it.
 
+- [Testing](#testing)
+  - [Using grid/node client](#using-gridnode-client)
+  - [Using a test app](#using-a-test-app)
+    - [An example to talk to container and qsfs modules](#an-example-to-talk-to-container-and-qsfs-modules)
+    - [An example of directly using zinit package](#an-example-of-directly-using-zinit-package)
+
+
 ## Using grid/node client
 
 You can simply use any grid client, e.g. [grid_client_ts](https://github.com/threefoldtech/grid3_client_ts/tree/development/scripts) to deploy a workload of any type, you should specify your node's twin ID (and make sure you are on the correct network). 
 
 Inside the node, you can do `noded -id` and `noded -net` to get your current node ID and network. Also, [you can check your farm](https://dashboard.dev.grid.tf/explorer/farms) and get node information from there.
 
-Another option is the golang [node client.](../manual/manual.md#interaction).
+Another option is the golang [node client](../manual/manual.md#interaction).
 
 While deploying on your local node, logs with `zinit log` would be helpful to see any possible errors and to debug your code.
 
