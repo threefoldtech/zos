@@ -53,7 +53,7 @@ func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []strin
 		return err
 	}
 
-	command := exec.CommandContext(ctx, "rmb", "-s", substrateURL, "-k", keyType, "--seed", seedHex, "--redis", redisAddr, "-d")
+	command := exec.CommandContext(ctx, "rmb", "-s", substrateURL, "-k", keyType, "--seed", seedHex, "--redis", redisAddr)
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
