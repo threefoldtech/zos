@@ -34,7 +34,7 @@ After booting up, the node should start downloading external packages, this woul
 See [how to ssh into it.](../../qemu/README.md#to-ssh-into-the-machine)
 
 How to get the node IP?
-Given the network script `dhcp-range`, it usually would be one of `192.168.123.43`, `192.168.123.43` or `192.168.123.45`. 
+Given the network script `dhcp-range`, it usually would be one of `192.168.123.43`, `192.168.123.44` or `192.168.123.45`. 
 
 Or you can simply install `arp-scan` then do something like:
 
