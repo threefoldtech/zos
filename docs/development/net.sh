@@ -14,6 +14,8 @@ sudo ip addr add fe80::1/64 dev zos0
 
 sudo iptables -t nat -I POSTROUTING -s 192.168.123.0/24 -j MASQUERADE
 sudo ip6tables -t nat -I POSTROUTING -s fd${ULA}::/64 -j MASQUERADE
+sudo iptables -t filter -I FORWARD --source 192.168.123.0/24 -j ACCEPT
+sudo iptables -t filter -I FORWARD --destination 192.168.123.0/24 -j ACCEPT
 sudo sysctl -w net.ipv4.ip_forward=1
 
 sudo dnsmasq --strict-order \
