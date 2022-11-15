@@ -5,18 +5,39 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
+	"net/url"
 	"os"
 	"os/exec"
+
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 const (
-	redisAddr = "unix:///var/run/redis.sock"
-	keyType   = "ed25519"
+	keyType = "ed25519"
 )
 
-func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []string) error {
+func withDefaultPort(substrateUrl string) (string, error) {
+	u, err := url.ParseRequestURI(substrateUrl)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Port() != "" {
+		// already have the port
+		return substrateUrl, nil
+	}
+
+	if u.Scheme == "ws" {
+		u.Host += ":80"
+	} else {
+		u.Host += ":443"
+	}
+
+	return u.String(), nil
+}
+
+func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []string, redisAddr string) error {
 	// select the first one as only one URL is set for now
 	if len(substrateURLs) == 0 {
 		return errors.New("at least one substrate URL must be provided")
@@ -26,9 +47,16 @@ func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []strin
 	seedHex := fmt.Sprintf("0x%s", hex.EncodeToString(seed))
 
 	log.Info().Msg("starting rmb...")
-	command := exec.CommandContext(ctx, "rmb", "-s", substrateURLs[0], "-k", keyType, "--seed", seedHex, "-r", redisAddr)
+
+	substrateURL, err := withDefaultPort(substrateURLs[0])
+	if err != nil {
+		return err
+	}
+
+	command := exec.CommandContext(ctx, "rmb", "-s", substrateURL, "-k", keyType, "--seed", seedHex, "--redis", redisAddr, "-d")
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
+
 	return command.Run()
 }

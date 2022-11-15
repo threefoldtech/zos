@@ -284,7 +284,7 @@ func action(cli *cli.Context) error {
 	}()
 
 	log.Debug().Msg("start message bus")
-	return runMsgBus(ctx, sk, env.SubstrateURL)
+	return runMsgBus(ctx, sk, env.SubstrateURL, msgBrokerCon)
 }
 
 func retryNotify(err error, d time.Duration) {
