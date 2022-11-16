@@ -1,0 +1,13 @@
+# pkill -HUP is for older version of zinit that doesn't start process
+# in its own process group
+exec: |
+  sh -c '
+  pkill -HUP vector
+
+  export NODE=$(noded -id)
+  export NETWORK=$(noded -net)
+  exec vector -c /etc/vector.yaml
+  '
+log: stdout
+signal:
+  stop: SIGHUP

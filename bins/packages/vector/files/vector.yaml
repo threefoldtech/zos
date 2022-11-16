@@ -1,0 +1,58 @@
+---
+sources:
+  zinit:
+    type: exec
+    mode: streaming
+    command:
+      - zinit
+      - log
+transforms:
+  parsed:
+    type: remap
+    inputs:
+      - zinit
+    source: |-
+      structured, err = parse_regex(.message, r'\[(?P<output>\+|\-)\] (?P<module>[^:]+):')
+      if err == null {
+        . = merge(., structured)
+      }
+
+      level, err = parse_regex(.message, r'(?P<level>debug|info|error|warn|fatal|panic)')
+      if err != null {
+        .level = "info"
+      } else {
+        . = merge(., level)
+      }
+
+      if .output == "+" {
+        .stream = "stdout"
+      } else {
+        .stream = "stderr"
+      }
+
+      .node = get_env_var("NODE") ?? "unknown"
+      .network = get_env_var("NETWORK") ?? "unknown"
+
+      del(.output)
+      del(.command)
+      del(.host)
+      del(.source_type)
+      del(.pid)
+
+sinks:
+  # out:
+  #   inputs:
+  #     - parsed
+  #   type: console
+  #   encoding:
+  #     codec: "json"
+  loki:
+    inputs:
+      - parsed
+    type: loki
+    labels:
+      forwarder: vector
+    endpoint: http://loki.grid.tf:3100/loki/api/v1/push
+    encoding:
+      codec: json
+    compression: snappy
