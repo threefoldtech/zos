@@ -102,6 +102,12 @@ jobs:
       package: node-exporter
     secrets:
       token: ${{ secrets.HUB_JWT }}
+  vector:
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: vector
+    secrets:
+      token: ${{ secrets.HUB_JWT }}
   tpm:
     uses: ./.github/workflows/bin-package-18.04.yaml
     with:
