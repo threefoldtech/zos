@@ -19,6 +19,7 @@ install_rmb() {
 
     cp ${DISTDIR}/rmb ${ROOTDIR}/bin/
     chmod +x ${ROOTDIR}/bin/*
+    strip ${ROOTDIR}/bin/*
 }
 
 build_rmb() {

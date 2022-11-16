@@ -57,6 +57,6 @@ func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []strin
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
-
+	log.Debug().Stringer("command", command).Msg("running rmb")
 	return command.Run()
 }
