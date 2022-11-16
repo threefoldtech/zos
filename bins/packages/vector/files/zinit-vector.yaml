@@ -6,8 +6,10 @@ exec: |
 
   export NODE=$(noded -id)
   export NETWORK=$(noded -net)
-  exec vector -c /etc/vector.yaml
+  exec vector -c /etc/vector/vector.yaml
   '
 log: stdout
+after:
+  - noded
 signal:
   stop: SIGHUP

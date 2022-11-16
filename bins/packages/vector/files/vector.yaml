@@ -45,14 +45,21 @@ sinks:
   #     - parsed
   #   type: console
   #   encoding:
-  #     codec: "json"
+  #     codec: "text"
   loki:
     inputs:
       - parsed
     type: loki
     labels:
       forwarder: vector
-    endpoint: http://loki.grid.tf:3100/loki/api/v1/push
+      node: "{{ node }}"
+      level: "{{ level }}"
+      module: "{{ module }}"
+      network: "{{ network }}"
+      stream: "{{ stream }}"
+    endpoint: http://loki.grid.tf:3100
     encoding:
-      codec: json
+      codec: text
     compression: snappy
+    healthcheck:
+      enabled: false
