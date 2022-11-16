@@ -8,7 +8,7 @@ download_vector() {
 }
 
 extract_vector() {
-    tar -xzf  ${DISTDIR}/${VECTOR_PACKAGE} -d ${WORKDIR}
+    tar -xf  ${DISTDIR}/${VECTOR_PACKAGE} -C ${WORKDIR}
 }
 
 prepare_vector() {
