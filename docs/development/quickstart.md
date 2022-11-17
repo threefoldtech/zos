@@ -16,6 +16,7 @@
 Then, inside zos repository
 
 ```
+make -C cmds
 cd qemu
 mv <downloaded image path> ./zos.efi
 sudo ./vm.sh -n myzos-01 -c "farmer_id=<your farm id here> printk.devmsg=on runmode=dev"
@@ -23,7 +24,7 @@ sudo ./vm.sh -n myzos-01 -c "farmer_id=<your farm id here> printk.devmsg=on runm
 
 You should see the qemu console and boot logs, wait for awhile and you can [browse farms](https://dashboard.dev.grid.tf/explorer/farms) to see your node is added/detected automatically.
 
-To stop the machine you can do `Control + a` then `X`.
+To stop the machine you can do `Control + a` then `x`.
 
 You can read more about setting up a qemu development environment and more network options [here](../../qemu/README.md).
 
