@@ -96,12 +96,12 @@ jobs:
       package: virtiofsd
     secrets:
       token: ${{ secrets.HUB_JWT }}
-  node-exporter:
-    uses: ./.github/workflows/bin-package.yaml
-    with:
-      package: node-exporter
-    secrets:
-      token: ${{ secrets.HUB_JWT }}
+  # node-exporter:
+  #   uses: ./.github/workflows/bin-package.yaml
+  #   with:
+  #     package: node-exporter
+  #   secrets:
+  #     token: ${{ secrets.HUB_JWT }}
   vector:
     uses: ./.github/workflows/bin-package.yaml
     with:

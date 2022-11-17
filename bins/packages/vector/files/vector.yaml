@@ -54,6 +54,7 @@ transforms:
 
       .node = get_env_var("NODE") ?? "unknown"
       .network = get_env_var("NETWORK") ?? "unknown"
+      .farm = get_env_var("FARM") ?? "unknown"
 
       del(.output)
       del(.command)
@@ -68,26 +69,26 @@ sinks:
   #   type: console
   #   encoding:
   #     codec: "text"
-  vector:
-    inputs:
-      - metrics
-    type: console
-    encoding:
-      codec: "json"
-  # loki:
+  # vector:
   #   inputs:
-  #     - parsed
-  #   type: loki
-  #   labels:
-  #     forwarder: vector
-  #     node: "{{ node }}"
-  #     level: "{{ level }}"
-  #     module: "{{ module }}"
-  #     network: "{{ network }}"
-  #     stream: "{{ stream }}"
-  #   endpoint: http://loki.grid.tf:3100
+  #     - metrics
+  #   type: console
   #   encoding:
-  #     codec: text
-  #   compression: snappy
-  #   healthcheck:
-  #     enabled: false
+  #     codec: "json"
+  loki:
+    inputs:
+      - parsed
+    type: loki
+    labels:
+      node: "{{ node }}"
+      level: "{{ level }}"
+      module: "{{ module }}"
+      network: "{{ network }}"
+      stream: "{{ stream }}"
+      farm: "{{ farm }}"
+    endpoint: http://loki.grid.tf:3100
+    encoding:
+      codec: text
+    compression: snappy
+    healthcheck:
+      enabled: false

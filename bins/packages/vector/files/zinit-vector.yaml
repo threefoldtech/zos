@@ -4,10 +4,11 @@ exec: |
   sh -c '
   pkill vector
 
-  export NODE=$(noded -id)
-  export NETWORK=$(noded -net)
+  export NODE=$(identityd -address)
+  export FARM=$(identityd -farm)
+  export NETWORK=$(identityd -net)
   exec vector -c /etc/vector/vector.yaml
   '
 log: stdout
 after:
-  - noded
+  - identityd
