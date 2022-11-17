@@ -883,7 +883,7 @@ func (n *networker) storeNetwork(wl gridtypes.WorkloadID, network pkg.Network) e
 		return err
 	}
 	link := filepath.Join(n.linkDir, wl.String())
-	if err := os.Symlink(filepath.Join("../", string(network.NetID)), link); err != nil {
+	if err := os.Symlink(filepath.Join("../", string(network.NetID)), link); err != nil && !os.IsExist(err) {
 		return errors.Wrap(err, "failed to create network symlink")
 	}
 	return nil
