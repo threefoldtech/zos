@@ -36,12 +36,6 @@ jobs:
       package: virtwhat
     secrets:
       token: ${{ secrets.HUB_JWT }}
-  logtrunc:
-    uses: ./.github/workflows/bin-package.yaml
-    with:
-      package: logtrunc
-    secrets:
-      token: ${{ secrets.HUB_JWT }}
   yggdrasil:
     uses: ./.github/workflows/bin-package.yaml
     with:
