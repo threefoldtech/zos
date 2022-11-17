@@ -225,12 +225,14 @@ func installBinaries(boot *upgrade.Boot, upgrader *upgrade.Upgrader) error {
 	}
 
 	for _, pkg := range toDel {
+		log.Debug().Str("package", pkg.Target).Msg("uninstall package")
 		if err := upgrader.UninstallBinary(pkg); err != nil {
 			log.Error().Err(err).Str("flist", pkg.Fqdn()).Msg("failed to uninstall flist")
 		}
 	}
 
 	for _, pkg := range toAdd {
+		log.Debug().Str("package", pkg.Target).Msg("install package")
 		if err := upgrader.InstallBinary(pkg); err != nil {
 			log.Error().Err(err).Str("package", pkg.Fqdn()).Msg("failed to install package")
 		}
@@ -295,14 +297,6 @@ func upgradeLoop(
 			}
 
 			continue
-		}
-
-		err = installBinaries(boot, upgrader)
-		if err == upgrade.ErrRestartNeeded {
-			log.Info().Msg("restarting upgraded")
-			return
-		} else if err != nil {
-			log.Error().Err(err).Msg("failed to update runtime binaries")
 		}
 
 		// next check for update
