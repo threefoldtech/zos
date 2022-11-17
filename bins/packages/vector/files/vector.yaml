@@ -69,12 +69,14 @@ sinks:
   #   type: console
   #   encoding:
   #     codec: "text"
+  # TODO: enable once we have vector installed
   # vector:
   #   inputs:
   #     - metrics
   #   type: console
   #   encoding:
   #     codec: "json"
+
   loki:
     inputs:
       - parsed
