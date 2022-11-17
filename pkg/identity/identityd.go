@@ -20,7 +20,6 @@ type identityManager struct {
 	env  environment.Environment
 
 	farm string
-	node uint32
 }
 
 // NewManager creates an identity daemon from seed
