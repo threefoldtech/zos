@@ -2,7 +2,7 @@
 # in its own process group
 exec: |
   sh -c '
-  pkill -HUP vector
+  pkill vector
 
   export NODE=$(noded -id)
   export NETWORK=$(noded -net)
@@ -11,5 +11,3 @@ exec: |
 log: stdout
 after:
   - noded
-signal:
-  stop: SIGHUP

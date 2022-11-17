@@ -6,6 +6,28 @@ sources:
     command:
       - zinit
       - log
+  metrics:
+    type: host_metrics
+    network:
+      devices:
+        excludes:
+          - b-*
+          - br-*
+          - dumdum
+          - dummy*
+          - tozos*
+    filesystem:
+      mountpoints:
+        excludes:
+          - /var/cache
+          - /var/cache/*
+          - /var/run/*
+          - /dev
+          - /dev/*
+          - /sys
+          - /sys/*
+          - /proc
+          - /proc/*
 transforms:
   parsed:
     type: remap
@@ -46,20 +68,26 @@ sinks:
   #   type: console
   #   encoding:
   #     codec: "text"
-  loki:
+  vector:
     inputs:
-      - parsed
-    type: loki
-    labels:
-      forwarder: vector
-      node: "{{ node }}"
-      level: "{{ level }}"
-      module: "{{ module }}"
-      network: "{{ network }}"
-      stream: "{{ stream }}"
-    endpoint: http://loki.grid.tf:3100
+      - metrics
+    type: console
     encoding:
-      codec: text
-    compression: snappy
-    healthcheck:
-      enabled: false
+      codec: "json"
+  # loki:
+  #   inputs:
+  #     - parsed
+  #   type: loki
+  #   labels:
+  #     forwarder: vector
+  #     node: "{{ node }}"
+  #     level: "{{ level }}"
+  #     module: "{{ module }}"
+  #     network: "{{ network }}"
+  #     stream: "{{ stream }}"
+  #   endpoint: http://loki.grid.tf:3100
+  #   encoding:
+  #     codec: text
+  #   compression: snappy
+  #   healthcheck:
+  #     enabled: false
