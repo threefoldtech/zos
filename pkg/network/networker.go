@@ -1128,7 +1128,14 @@ func (n *networker) Metrics() (pkg.NetResourceMetrics, error) {
 		logger.Debug().Str("namespace", nsName).Msg("collecting namespace statistics")
 		nr, err := namespace.GetByName(nsName)
 		if err != nil {
-			logger.Error().Str("namespace", nsName).Err(err).Msg("failed to get network namespace from workload")
+			// this happens on some node. it's weird the the namespace is suddenly gone
+			// while the workload is still active.
+			// TODO: investigate
+			// Note: I set it to debug because it shows error in logs of logs
+			logger.Debug().
+				Str("namespace", nsName).
+				Err(err).
+				Msg("failed to get network namespace from workload")
 			continue
 		}
 
