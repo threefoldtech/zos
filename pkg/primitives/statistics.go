@@ -3,7 +3,6 @@ package primitives
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/pkg/errors"
@@ -45,11 +44,6 @@ type Statistics struct {
 	mem      gridtypes.Unit
 }
 
-// round the given value to the lowest gigabyte
-func roundTotalMemory(t gridtypes.Unit) gridtypes.Unit {
-	return gridtypes.Unit(math.Floor(float64(t)/float64(gridtypes.Gigabyte))) * gridtypes.Gigabyte
-}
-
 // NewStatistics creates a new statistics provisioner interceptor.
 // Statistics provisioner keeps track of used capacity and update explorer when it changes
 func NewStatistics(total gridtypes.Capacity, storage provision.Storage, reserved gridtypes.Capacity, inner provision.Provisioner) *Statistics {
@@ -57,8 +51,6 @@ func NewStatistics(total gridtypes.Capacity, storage provision.Storage, reserved
 	if err != nil {
 		panic(err)
 	}
-
-	total.MRU = roundTotalMemory(total.MRU)
 
 	return &Statistics{
 		inner:    inner,
