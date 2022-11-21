@@ -69,26 +69,17 @@ func NewStatistics(total gridtypes.Capacity, storage provision.Storage, reserved
 	}
 }
 
+// Get all used capacity from storage + reserved
 func (s *Statistics) active() (gridtypes.Capacity, error) {
 	cap, _, err := s.storage.Capacity()
+	cap.Add(&s.reserved)
 	return cap, err
 }
 
 // Current returns the current used capacity including reserved capacity
 // used by the system
 func (s *Statistics) Current() (gridtypes.Capacity, error) {
-	cap, usable, err := s.getUsableMemoryBytes()
-
-	if err != nil {
-		return cap, err
-	}
-
-	used := s.total.MRU - usable
-
-	cap.Add(&s.reserved)
-	cap.MRU = used
-
-	return cap, nil
+	return s.active()
 }
 
 // Total returns the node total capacity
@@ -113,8 +104,8 @@ func (s *Statistics) getUsableMemoryBytes() (gridtypes.Capacity, gridtypes.Unit,
 		return cap, 0, err
 	}
 
-	theoreticalUsed := cap.MRU + s.reserved.MRU
-	actualUsed := m.Total - m.Available
+	theoreticalUsed := cap.MRU
+	actualUsed := (m.Total - m.Available) + uint64(s.reserved.MRU)
 
 	used := gridtypes.Max(theoreticalUsed, gridtypes.Unit(actualUsed))
 
