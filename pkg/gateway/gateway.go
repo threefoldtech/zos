@@ -571,8 +571,12 @@ func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string
 			if err != nil {
 				return errors.Wrap(err, "couldn't parse backend host")
 			}
-			if u.Scheme != "https" {
-				return errors.New("enabling tls passthrough requires backends to have https scheme")
+			if u.Scheme != "" {
+				return errors.New("enabling tls passthrough requires backends to have no scheme")
+			}
+
+			if u.Port() == "" {
+				return errors.New("enabling tls passthrough requires backends to have a port")
 			}
 			servers[idx] = Server{
 				Address: u.Host,

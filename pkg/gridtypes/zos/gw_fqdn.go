@@ -17,14 +17,20 @@ var (
 
 type Backend string
 
-// check if valid http://x.x.x.x:port or [::]:port
+// check if valid http://ip:port, http://ip or ip:port
 func (b Backend) Valid() error {
 	u, err := url.Parse(string(b))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse backend")
 	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("invalid scheme expected http, or https")
+	if u.Scheme != "" {
+		if u.Scheme != "http" {
+			return fmt.Errorf("invalid scheme expected either http, or empty")
+		}
+	} else {
+		if u.Port() == "" {
+			return fmt.Errorf("backend missing either scheme or port")
+		}
 	}
 
 	ip := net.ParseIP(u.Hostname())
