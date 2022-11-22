@@ -30,10 +30,8 @@ func (b Backend) Valid(tls bool) error {
 		if u.Port() == "" {
 			return fmt.Errorf("missing port in backend address")
 		}
-	} else {
-		if u.Scheme != "http" {
-			return fmt.Errorf("scheme expected to be http")
-		}
+	} else if u.Scheme != "http" {
+		return fmt.Errorf("scheme expected to be http")
 	}
 
 	ip := net.ParseIP(u.Hostname())
