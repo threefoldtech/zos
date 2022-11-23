@@ -230,6 +230,8 @@ func registerNode(
 	location := substrate.Location{
 		Longitude: fmt.Sprint(info.Location.Longitute),
 		Latitude:  fmt.Sprint(info.Location.Latitude),
+		Country:   info.Location.Country,
+		City:      info.Location.City,
 	}
 
 	log.Info().Str("id", mgr.NodeID(ctx).Identity()).Msg("start registration of the node")
@@ -251,17 +253,20 @@ func registerNode(
 
 	nodeID, err = sub.GetNodeByTwinID(twinID)
 
+	var serial substrate.OptionBoardSerial
+	if len(info.SerialNumber) != 0 {
+		serial = substrate.OptionBoardSerial{HasValue: true, AsValue: info.SerialNumber}
+	}
+
 	create := substrate.Node{
 		FarmID:      types.U32(env.FarmerID),
 		TwinID:      types.U32(twinID),
 		Resources:   resources,
 		Location:    location,
-		Country:     info.Location.Country,
-		City:        info.Location.City,
 		Interfaces:  interfaces,
 		SecureBoot:  info.SecureBoot,
 		Virtualized: info.Virtualized,
-		BoardSerial: info.SerialNumber,
+		BoardSerial: serial,
 	}
 
 	if errors.Is(err, substrate.ErrNotFound) {
