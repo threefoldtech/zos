@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	tcUrl  = ""
-	tcHash = ""
+	tcUrl  = "http://zos.tf/terms/v0.1"
+	tcHash = "9021d4dee05a661e2cb6838152c67f25" // not this is hash of the url not the document
 )
 
 type RegistrationInfo struct {
