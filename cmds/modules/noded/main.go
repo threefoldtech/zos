@@ -212,8 +212,7 @@ func action(cli *cli.Context) error {
 		return err
 	}
 
-	events := events.New(sub, node, eventsBlock)
-
+	events := events.NewEventsStream(sub, node, eventsBlock)
 	system, err := monitord.NewSystemMonitor(node, 2*time.Second)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize system monitor")
