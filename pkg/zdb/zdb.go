@@ -2,13 +2,10 @@
 package zdb
 
 import (
-	"fmt"
-	"net/url"
-	"time"
-
 	"github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/utils"
 )
 
 type Namespace struct {
@@ -54,7 +51,7 @@ func New(addr string) Client {
 // Connect dials addr and creates a pool of connection
 func (c *clientImpl) Connect() error {
 	if c.pool == nil {
-		pool, err := newRedisPool(c.addr)
+		pool, err := utils.NewRedisPool(c.addr, 3)
 		if err != nil {
 			return errors.Wrapf(err, "failed to connect to %s", c.addr)
 		}
@@ -80,51 +77,4 @@ func (c *clientImpl) Close() error {
 	}
 	c.pool = nil
 	return nil
-}
-
-func newRedisPool(address string) (*redis.Pool, error) {
-	u, err := url.Parse(address)
-	if err != nil {
-		return nil, err
-	}
-	var host string
-	switch u.Scheme {
-	case "tcp":
-		host = u.Host
-	case "unix":
-		host = u.Path
-	default:
-		return nil, fmt.Errorf("unknown scheme '%s' expecting tcp or unix", u.Scheme)
-	}
-	opts := []redis.DialOption{
-		redis.DialConnectTimeout(time.Second * 5),
-		redis.DialWriteTimeout(time.Second * 5),
-		redis.DialReadTimeout(time.Second * 5),
-	}
-
-	if u.User != nil {
-		opts = append(
-			opts,
-			redis.DialPassword(u.User.Username()),
-		)
-	}
-
-	return &redis.Pool{
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial(u.Scheme, host, opts...)
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			if time.Since(t) > 10*time.Second {
-				//only check connection if more than 10 second of inactivity
-				_, err := c.Do("PING")
-				return err
-			}
-
-			return nil
-		},
-		MaxActive:   3,
-		MaxIdle:     3,
-		IdleTimeout: 1 * time.Minute,
-		Wait:        true,
-	}, nil
 }

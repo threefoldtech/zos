@@ -9,6 +9,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/utils"
 )
 
 const (
@@ -38,7 +39,7 @@ func NewClient(address string, poolSize ...uint32) (Client, error) {
 		address = DefaultAddress
 	}
 
-	pool, err := newRedisPool(address, poolSize...)
+	pool, err := utils.NewRedisPool(address, poolSize...)
 	if err != nil {
 		return nil, err
 	}

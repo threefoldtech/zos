@@ -90,6 +90,11 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
+	consumer, err := events.NewConsumer(msgBrokerCon, module)
+	if err != nil {
+		return errors.Wrap(err, "failed to to create event consumer")
+	}
+
 	if printID {
 		sysCl := stubs.NewSystemMonitorStub(redis)
 		fmt.Println(sysCl.NodeID(cli.Context))
@@ -212,7 +217,12 @@ func action(cli *cli.Context) error {
 		return err
 	}
 
-	events := events.NewEventsStream(sub, node, eventsBlock)
+	events, err := events.NewRedisStream(sub, msgBrokerCon, node, eventsBlock)
+	if err != nil {
+		return err
+	}
+	go events.Start(ctx)
+
 	system, err := monitord.NewSystemMonitor(node, 2*time.Second)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize system monitor")
@@ -225,7 +235,6 @@ func action(cli *cli.Context) error {
 
 	server.Register(zbus.ObjectID{Name: "host", Version: "0.0.1"}, host)
 	server.Register(zbus.ObjectID{Name: "system", Version: "0.0.1"}, system)
-	server.Register(zbus.ObjectID{Name: "events", Version: "0.0.1"}, events)
 
 	go func() {
 		if err := server.Run(ctx); err != nil && err != context.Canceled {
@@ -237,7 +246,7 @@ func action(cli *cli.Context) error {
 
 	go func() {
 		for {
-			if err := public(ctx, node, env, redis); err != nil {
+			if err := public(ctx, node, env, redis, consumer); err != nil {
 				log.Error().Err(err).Msg("setting public config failed")
 				<-time.After(10 * time.Second)
 			}
