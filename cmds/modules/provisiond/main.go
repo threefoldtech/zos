@@ -340,12 +340,12 @@ func action(cli *cli.Context) error {
 		log.Error().Err(err).Msg("failed to mark module as booted")
 	}
 
-	stream, err := events.NewConsumer(msgBrokerCon, provisionModule)
+	consumer, err := events.NewConsumer(msgBrokerCon, provisionModule)
 	if err != nil {
 		return errors.Wrap(err, "failed to create event consumer")
 	}
 
-	handler := NewContractEventHandler(node, mgr, engine, stream)
+	handler := NewContractEventHandler(node, mgr, engine, consumer)
 
 	go func() {
 		if err := handler.Run(ctx); err != nil && err != context.Canceled {
