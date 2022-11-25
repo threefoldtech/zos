@@ -16,11 +16,11 @@ var (
 	}
 )
 
-// DeploymentID is a global unique id for a deployment
-type DeploymentID string
+// GlobalID is a global unique id for a deployment
+type GlobalID string
 
 // ToPath drive a filepath from the ID
-func (i DeploymentID) ToPath() string {
+func (i GlobalID) ToPath() string {
 	if len(i) == 0 {
 		panic("id is not set")
 	}
@@ -29,7 +29,7 @@ func (i DeploymentID) ToPath() string {
 }
 
 // Parts split id into building parts
-func (i DeploymentID) Parts() (twin, deployment uint32, err error) {
+func (i GlobalID) Parts() (twin, deployment DeploymentID, err error) {
 	_, err = fmt.Sscanf(string(i), "%d-%d", &twin, &deployment)
 	return
 }
@@ -51,7 +51,7 @@ func (i WorkloadID) String() string {
 }
 
 // Parts split id into building parts
-func (i WorkloadID) Parts() (twin uint32, deployment uint64, name Name, err error) {
+func (i WorkloadID) Parts() (twin uint32, deployment DeploymentID, name Name, err error) {
 	_, err = fmt.Sscanf(string(i), "%d-%d-%s", &twin, &deployment, &name)
 	return
 }
@@ -91,7 +91,7 @@ func IsValidName(n Name) error {
 }
 
 // NewWorkloadID creates a new global ID from it's parts
-func NewWorkloadID(twin uint32, deployment uint64, name Name) (WorkloadID, error) {
+func NewWorkloadID(twin uint32, deployment DeploymentID, name Name) (WorkloadID, error) {
 	if err := IsValidName(name); err != nil {
 		return "", err
 	}
@@ -99,6 +99,6 @@ func NewWorkloadID(twin uint32, deployment uint64, name Name) (WorkloadID, error
 	return WorkloadID(fmt.Sprintf("%d-%d-%s", twin, deployment, name)), nil
 }
 
-func NewUncheckedWorkloadID(twin uint32, deployment uint64, name Name) WorkloadID {
+func NewUncheckedWorkloadID(twin uint32, deployment DeploymentID, name Name) WorkloadID {
 	return WorkloadID(fmt.Sprintf("%d-%d-%s", twin, deployment, name))
 }

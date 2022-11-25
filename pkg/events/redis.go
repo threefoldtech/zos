@@ -79,14 +79,14 @@ func (r *RedisStream) process(events *substrate.EventRecords) {
 		}
 	}
 
-	for _, event := range events.SmartContractModule_NodeContractCanceled {
+	for _, event := range events.SmartContractModule_DeploymentCanceled {
 		if event.Node != types.U32(r.node) {
 			continue
 		}
 		log.Info().Uint64("contract", uint64(event.ContractID)).Msg("got contract cancel update")
-		if err := r.push(con, streamContractCancelled, pkg.ContractCancelledEvent{
-			Contract: uint64(event.ContractID),
-			TwinId:   uint32(event.Twin),
+		if err := r.push(con, streamContractCancelled, pkg.DeploymentCancelledEvent{
+			Deployment: uint64(event.ContractID),
+			TwinId:     uint32(event.Twin),
 		}); err != nil {
 			log.Error().Err(err).Msg("failed to push event")
 		}
@@ -98,9 +98,9 @@ func (r *RedisStream) process(events *substrate.EventRecords) {
 		}
 		log.Info().Uint64("contract", uint64(event.ContractID)).Msg("got contract grace period started")
 		if err := r.push(con, streamContractGracePeriod, pkg.ContractLockedEvent{
-			Contract: uint64(event.ContractID),
-			TwinId:   uint32(event.TwinID),
-			Lock:     true,
+			Deployment: uint64(event.ContractID),
+			TwinId:     uint32(event.TwinID),
+			Lock:       true,
 		}); err != nil {
 			log.Error().Err(err).Msg("failed to push event")
 		}
@@ -112,9 +112,9 @@ func (r *RedisStream) process(events *substrate.EventRecords) {
 		}
 		log.Info().Uint64("contract", uint64(event.ContractID)).Msg("got contract grace period ended")
 		if err := r.push(con, streamContractGracePeriod, pkg.ContractLockedEvent{
-			Contract: uint64(event.ContractID),
-			TwinId:   uint32(event.TwinID),
-			Lock:     false,
+			Deployment: uint64(event.ContractID),
+			TwinId:     uint32(event.TwinID),
+			Lock:       false,
 		}); err != nil {
 			log.Error().Err(err).Msg("failed to push event")
 		}
@@ -243,9 +243,9 @@ func (r *RedisConsumer) PublicConfig(ctx context.Context) (<-chan pkg.PublicConf
 	return ch, nil
 }
 
-func (r *RedisConsumer) ContractCancelled(ctx context.Context) (<-chan pkg.ContractCancelledEvent, error) {
+func (r *RedisConsumer) ContractCancelled(ctx context.Context) (<-chan pkg.DeploymentCancelledEvent, error) {
 	con := r.pool.Get()
-	ch := make(chan pkg.ContractCancelledEvent)
+	ch := make(chan pkg.DeploymentCancelledEvent)
 
 	const stream = streamContractCancelled
 	group, err := r.ensureGroup(con, stream)
@@ -265,7 +265,7 @@ func (r *RedisConsumer) ContractCancelled(ctx context.Context) (<-chan pkg.Contr
 			}
 
 			for _, message := range messages {
-				var event pkg.ContractCancelledEvent
+				var event pkg.DeploymentCancelledEvent
 				if err := message.Decode(&event); err == nil {
 					select {
 					case ch <- event:

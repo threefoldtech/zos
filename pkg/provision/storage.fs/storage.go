@@ -51,7 +51,7 @@ func (s *Fs) sharedLinkPath(twinID uint32, name gridtypes.Name) string {
 }
 
 func (s *Fs) deploymentPath(d *gridtypes.Deployment) string {
-	return filepath.Join(fmt.Sprint(d.TwinID), fmt.Sprint(d.ContractID))
+	return filepath.Join(fmt.Sprint(d.TwinID), fmt.Sprint(d.DeploymentID))
 }
 
 func (s *Fs) rooted(p ...string) string {
@@ -98,7 +98,7 @@ func (s *Fs) Add(d gridtypes.Deployment) error {
 	)
 
 	if os.IsExist(err) {
-		return errors.Wrapf(provision.ErrDeploymentExists, "object '%d' exist", d.ContractID)
+		return errors.Wrapf(provision.ErrDeploymentExists, "object '%d' exist", d.DeploymentID)
 	} else if err != nil {
 		return errors.Wrap(err, "failed to open workload file")
 	}
@@ -139,7 +139,7 @@ func (s *Fs) Set(dl gridtypes.Deployment) error {
 	taken := map[gridtypes.Name]gridtypes.WorkloadID{}
 	for _, shared := range sharedIDs {
 		_, contract, name, _ := shared.Parts()
-		if contract == dl.ContractID {
+		if contract == dl.DeploymentID {
 			this[name] = shared
 		} else {
 			taken[name] = shared
@@ -165,7 +165,7 @@ func (s *Fs) Set(dl gridtypes.Deployment) error {
 		0644,
 	)
 	if os.IsNotExist(err) {
-		return errors.Wrapf(provision.ErrDeploymentNotExists, "deployment '%d:%d' does not exist", dl.TwinID, dl.ContractID)
+		return errors.Wrapf(provision.ErrDeploymentNotExists, "deployment '%d:%d' does not exist", dl.TwinID, dl.DeploymentID)
 	} else if err != nil {
 		return errors.Wrap(err, "failed to open workload file")
 	}
@@ -205,7 +205,7 @@ func (s *Fs) Set(dl gridtypes.Deployment) error {
 	for name := range this {
 		if err := s.sharedDelete(&dl, name); err != nil {
 			log.Error().Err(err).
-				Uint64("contract", dl.ContractID).
+				Uint64("contract", dl.DeploymentID.U64()).
 				Stringer("name", name).
 				Msg("failed to clean up shared workload '%d.%s'")
 		}

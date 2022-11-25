@@ -55,7 +55,7 @@ func WithRerunAll(t bool) EngineOption {
 	return &withRerunAll{t}
 }
 
-type Callback func(twin uint32, contract uint64, delete bool)
+type Callback func(twin uint32, contract gridtypes.DeploymentID, delete bool)
 
 // WithCallback sets a callback that is called when a deployment is being Created, Updated, Or Deleted
 // The handler then can use the id to get current "state" of the deployment from storage and
@@ -202,7 +202,7 @@ type engineKey struct{}
 type deploymentKey struct{}
 type deploymentValue struct {
 	twin       uint32
-	deployment uint64
+	deployment gridtypes.DeploymentID
 }
 type contractKey struct{}
 type substrateKey struct{}
@@ -213,7 +213,7 @@ func GetEngine(ctx context.Context) Engine {
 }
 
 // GetDeploymentID gets twin and deployment ID for current deployment
-func GetDeploymentID(ctx context.Context) (twin uint32, deployment uint64) {
+func GetDeploymentID(ctx context.Context) (twin uint32, deployment gridtypes.DeploymentID) {
 	values := ctx.Value(deploymentKey{}).(deploymentValue)
 	return values.twin, values.deployment
 }
@@ -250,16 +250,16 @@ func GetWorkload(ctx context.Context, name gridtypes.Name) (gridtypes.WorkloadWi
 	}, nil
 }
 
-func withDeployment(ctx context.Context, twin uint32, deployment uint64) context.Context {
+func withDeployment(ctx context.Context, twin uint32, deployment gridtypes.DeploymentID) context.Context {
 	return context.WithValue(ctx, deploymentKey{}, deploymentValue{twin, deployment})
 }
 
 // GetContract of deployment. panics if engine has no substrate set.
-func GetContract(ctx context.Context) substrate.NodeContract {
-	return ctx.Value(contractKey{}).(substrate.NodeContract)
+func GetContract(ctx context.Context) substrate.Deployment {
+	return ctx.Value(contractKey{}).(substrate.Deployment)
 }
 
-func withContract(ctx context.Context, contract substrate.NodeContract) context.Context {
+func withContract(ctx context.Context, contract substrate.Deployment) context.Context {
 	return context.WithValue(ctx, contractKey{}, contract)
 }
 
@@ -338,7 +338,7 @@ func (e *NativeEngine) Provision(ctx context.Context, deployment gridtypes.Deplo
 }
 
 // Pause deployment
-func (e *NativeEngine) Pause(ctx context.Context, twin uint32, id uint64) error {
+func (e *NativeEngine) Pause(ctx context.Context, twin uint32, id gridtypes.DeploymentID) error {
 	deployment, err := e.storage.Get(twin, id)
 	if err != nil {
 		return err
@@ -346,7 +346,7 @@ func (e *NativeEngine) Pause(ctx context.Context, twin uint32, id uint64) error 
 
 	log.Info().
 		Uint32("twin", deployment.TwinID).
-		Uint64("contract", deployment.ContractID).
+		Uint64("contract", deployment.DeploymentID.U64()).
 		Msg("schedule for pausing")
 
 	job := engineJob{
@@ -358,7 +358,7 @@ func (e *NativeEngine) Pause(ctx context.Context, twin uint32, id uint64) error 
 }
 
 // Resume deployment
-func (e *NativeEngine) Resume(ctx context.Context, twin uint32, id uint64) error {
+func (e *NativeEngine) Resume(ctx context.Context, twin uint32, id gridtypes.DeploymentID) error {
 	deployment, err := e.storage.Get(twin, id)
 	if err != nil {
 		return err
@@ -366,7 +366,7 @@ func (e *NativeEngine) Resume(ctx context.Context, twin uint32, id uint64) error
 
 	log.Info().
 		Uint32("twin", deployment.TwinID).
-		Uint64("contract", deployment.ContractID).
+		Uint64("contract", deployment.DeploymentID.U64()).
 		Msg("schedule for resuming")
 
 	job := engineJob{
@@ -378,7 +378,7 @@ func (e *NativeEngine) Resume(ctx context.Context, twin uint32, id uint64) error
 }
 
 // Deprovision workload
-func (e *NativeEngine) Deprovision(ctx context.Context, twin uint32, id uint64, reason string) error {
+func (e *NativeEngine) Deprovision(ctx context.Context, twin uint32, id gridtypes.DeploymentID, reason string) error {
 	deployment, err := e.storage.Get(twin, id)
 	if err != nil {
 		return err
@@ -386,7 +386,7 @@ func (e *NativeEngine) Deprovision(ctx context.Context, twin uint32, id uint64, 
 
 	log.Info().
 		Uint32("twin", deployment.TwinID).
-		Uint64("contract", deployment.ContractID).
+		Uint64("contract", deployment.DeploymentID.U64()).
 		Str("reason", reason).
 		Msg("schedule for deprovision")
 
@@ -401,7 +401,7 @@ func (e *NativeEngine) Deprovision(ctx context.Context, twin uint32, id uint64, 
 
 // Update workloads
 func (e *NativeEngine) Update(ctx context.Context, update gridtypes.Deployment) error {
-	deployment, err := e.storage.Get(update.TwinID, update.ContractID)
+	deployment, err := e.storage.Get(update.TwinID, update.DeploymentID)
 	if err != nil {
 		return err
 	}
@@ -438,7 +438,7 @@ func (e *NativeEngine) Update(ctx context.Context, update gridtypes.Deployment) 
 		fields = append(fields, MetadataField{update.Metadata})
 	}
 	// update deployment fields, workloads will then can get updated separately
-	if err := e.storage.Update(update.TwinID, update.ContractID, fields...); err != nil {
+	if err := e.storage.Update(update.TwinID, update.DeploymentID, fields...); err != nil {
 		return errors.Wrap(err, "failed to update deployment data")
 	}
 	// all is okay we can push the job
@@ -472,10 +472,10 @@ func (e *NativeEngine) Run(root context.Context) error {
 		}
 
 		job := obj.(*engineJob)
-		ctx := withDeployment(root, job.Target.TwinID, job.Target.ContractID)
+		ctx := withDeployment(root, job.Target.TwinID, job.Target.DeploymentID)
 		l := log.With().
 			Uint32("twin", job.Target.TwinID).
-			Uint64("contract", job.Target.ContractID).
+			Uint64("contract", job.Target.DeploymentID.U64()).
 			Logger()
 
 		// contract validation
@@ -488,7 +488,7 @@ func (e *NativeEngine) Run(root context.Context) error {
 			if err != nil {
 				l.Error().Err(err).Msg("contact validation fails")
 				//job.Target.SetError(err)
-				if err := e.storage.Error(job.Target.TwinID, job.Target.ContractID, err); err != nil {
+				if err := e.storage.Error(job.Target.TwinID, job.Target.DeploymentID, err); err != nil {
 					l.Error().Err(err).Msg("failed to set deployment global error")
 				}
 				_, _ = e.queue.Dequeue()
@@ -551,7 +551,7 @@ func (e *NativeEngine) safeCallback(d *gridtypes.Deployment, delete bool) {
 		}
 	}()
 
-	e.callback(d.TwinID, d.ContractID, delete)
+	e.callback(d.TwinID, d.DeploymentID, delete)
 }
 
 // contract validates and injects the deployment contracts is substrate is configured
@@ -568,21 +568,27 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment, n
 		return nil, errors.Wrap(err, "failed to connect to chain")
 	}
 	defer sub.Close()
-	contract, err := sub.GetContract(uint64(dl.ContractID))
+	contract, err := sub.GetDeployment(uint64(dl.DeploymentID))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get deployment contract")
 	}
 
-	if !contract.ContractType.IsNodeContract {
-		return nil, fmt.Errorf("invalid contract type, expecting node contract")
-	}
-	ctx = withContract(ctx, contract.ContractType.NodeContract)
+	ctx = withContract(ctx, *contract)
 
 	if noValidation {
 		return ctx, nil
 	}
 
-	if uint32(contract.ContractType.NodeContract.Node) != e.nodeID {
+	reservation, err := sub.GetContract(uint64(contract.CapacityReservationID))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get reservation contract with with id '%d'", contract.CapacityReservationID)
+	}
+
+	if !reservation.ContractType.IsCapacityReservationContract {
+		return nil, fmt.Errorf("invalid contract type, expecting node contract")
+	}
+
+	if uint32(reservation.ContractType.CapacityReservationContract.NodeID) != e.nodeID {
 		return nil, fmt.Errorf("invalid node address in contract")
 	}
 
@@ -591,7 +597,7 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment, n
 		return nil, errors.Wrap(err, "failed to compute deployment hash")
 	}
 
-	if contract.ContractType.NodeContract.DeploymentHash.String() != hex.EncodeToString(hash) {
+	if contract.DeploymentHash.Hex() != hex.EncodeToString(hash) {
 		return nil, fmt.Errorf("contract hash does not match deployment hash")
 	}
 
@@ -616,7 +622,7 @@ func (e *NativeEngine) boot(root context.Context) error {
 		for _, id := range ids {
 			dl, err := storage.Get(twin, id)
 			if err != nil {
-				log.Error().Err(err).Uint32("twin", twin).Uint64("id", id).Msg("failed to load deployment")
+				log.Error().Err(err).Uint32("twin", twin).Uint64("id", id.U64()).Msg("failed to load deployment")
 				continue
 			}
 			// unfortunately we have to inject this value here
@@ -635,7 +641,7 @@ func (e *NativeEngine) boot(root context.Context) error {
 				log.Error().
 					Err(err).
 					Uint32("twin", dl.TwinID).
-					Uint64("dl", dl.ContractID).
+					Uint64("dl", dl.DeploymentID.U64()).
 					Msg("failed to queue deployment for processing")
 			}
 		}
@@ -648,7 +654,7 @@ func (e *NativeEngine) uninstallWorkload(ctx context.Context, wl *gridtypes.Work
 	twin, deployment, name, _ := wl.ID.Parts()
 	log := log.With().
 		Uint32("twin", twin).
-		Uint64("deployment", deployment).
+		Uint64("deployment", deployment.U64()).
 		Stringer("name", name).
 		Str("type", wl.Type.String()).
 		Logger()
@@ -714,7 +720,7 @@ func (e *NativeEngine) installWorkload(ctx context.Context, wl *gridtypes.Worklo
 
 	log := log.With().
 		Uint32("twin", twin).
-		Uint64("deployment", deployment).
+		Uint64("deployment", deployment.U64()).
 		Stringer("name", wl.Name).
 		Str("type", wl.Type.String()).
 		Logger()
@@ -744,7 +750,7 @@ func (e *NativeEngine) updateWorkload(ctx context.Context, wl *gridtypes.Workloa
 	twin, deployment, name, _ := wl.ID.Parts()
 	log := log.With().
 		Uint32("twin", twin).
-		Uint64("deployment", deployment).
+		Uint64("deployment", deployment.U64()).
 		Stringer("name", name).
 		Str("type", wl.Type.String()).
 		Logger()
@@ -789,7 +795,7 @@ func (e *NativeEngine) lockWorkload(ctx context.Context, wl *gridtypes.WorkloadW
 
 	log := log.With().
 		Uint32("twin", twin).
-		Uint64("deployment", deployment).
+		Uint64("deployment", deployment.U64()).
 		Stringer("name", wl.Name).
 		Str("type", wl.Type.String()).
 		Bool("lock", lock).
@@ -836,10 +842,10 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, dl *gridtypes.De
 		return
 	}
 
-	if err := e.storage.Delete(dl.TwinID, dl.ContractID); err != nil {
+	if err := e.storage.Delete(dl.TwinID, dl.DeploymentID); err != nil {
 		log.Error().Err(err).
 			Uint32("twin", dl.TwinID).
-			Uint64("contract", dl.ContractID).
+			Uint64("contract", dl.DeploymentID.U64()).
 			Msg("failed to delete deployment")
 	}
 

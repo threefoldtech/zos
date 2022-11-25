@@ -18,9 +18,9 @@ type Engine interface {
 	// means that workload has been committed to storage (accepts)
 	// and will be processes later
 	Provision(ctx context.Context, wl gridtypes.Deployment) error
-	Deprovision(ctx context.Context, twin uint32, id uint64, reason string) error
-	Pause(ctx context.Context, twin uint32, id uint64) error
-	Resume(ctx context.Context, twin uint32, id uint64) error
+	Deprovision(ctx context.Context, twin uint32, id gridtypes.DeploymentID, reason string) error
+	Pause(ctx context.Context, twin uint32, id gridtypes.DeploymentID) error
+	Resume(ctx context.Context, twin uint32, id gridtypes.DeploymentID) error
 	Update(ctx context.Context, update gridtypes.Deployment) error
 	Storage() Storage
 	Twins() Twins
@@ -101,27 +101,27 @@ type Storage interface {
 	// for all workloads to "init" and the correct creation time.
 	Create(deployment gridtypes.Deployment) error
 	// Update updates a deployment fields
-	Update(twin uint32, deployment uint64, fields ...Field) error
+	Update(twin uint32, deployment gridtypes.DeploymentID, fields ...Field) error
 	// Delete deletes a deployment from storage.
-	Delete(twin uint32, deployment uint64) error
+	Delete(twin uint32, deployment gridtypes.DeploymentID) error
 	// Get gets the current state of a deployment from storage
-	Get(twin uint32, deployment uint64) (gridtypes.Deployment, error)
+	Get(twin uint32, deployment gridtypes.DeploymentID) (gridtypes.Deployment, error)
 	// Error sets global deployment error
-	Error(twin uint32, deployment uint64, err error) error
+	Error(twin uint32, deployment gridtypes.DeploymentID, err error) error
 	// Add workload to deployment, if no active deployment exists with same name
-	Add(twin uint32, deployment uint64, workload gridtypes.Workload) error
+	Add(twin uint32, deployment gridtypes.DeploymentID, workload gridtypes.Workload) error
 	// Remove a workload from deployment.
-	Remove(twin uint32, deployment uint64, name gridtypes.Name) error
+	Remove(twin uint32, deployment gridtypes.DeploymentID, name gridtypes.Name) error
 	// Transaction append a transaction to deployment transactions logs
-	Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error
+	Transaction(twin uint32, deployment gridtypes.DeploymentID, workload gridtypes.Workload) error
 	// Changes return all the historic transactions of a deployment
-	Changes(twin uint32, deployment uint64) (changes []gridtypes.Workload, err error)
+	Changes(twin uint32, deployment gridtypes.DeploymentID) (changes []gridtypes.Workload, err error)
 	// Current gets last state of a workload by name
-	Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error)
+	Current(twin uint32, deployment gridtypes.DeploymentID, name gridtypes.Name) (gridtypes.Workload, error)
 	// Twins list twins in storage
 	Twins() ([]uint32, error)
 	// ByTwin return list of deployments for a twin
-	ByTwin(twin uint32) ([]uint64, error)
+	ByTwin(twin uint32) ([]gridtypes.DeploymentID, error)
 	// return total capacity and active deployments
 	Capacity() (cap gridtypes.Capacity, active []gridtypes.Deployment, err error)
 }

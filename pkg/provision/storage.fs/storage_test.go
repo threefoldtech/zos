@@ -43,12 +43,12 @@ func TestStorageAdd(t *testing.T) {
 	require.NoError(err)
 
 	twin := uint32(1)
-	id := uint64(1)
+	id := gridtypes.DeploymentID(1)
 	err = store.Add(gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  id,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: id,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -72,12 +72,12 @@ func TestStorageAddSharable(t *testing.T) {
 	require.NoError(err)
 
 	twin := uint32(1)
-	id := uint64(1)
+	id := gridtypes.DeploymentID(1)
 	err = store.Add(gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  id,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: id,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -111,12 +111,12 @@ func TestStorageAddConflictingSharable(t *testing.T) {
 	require.NoError(err)
 
 	twin := uint32(1)
-	id := uint64(1)
+	id := gridtypes.DeploymentID(1)
 	err = store.Add(gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  id,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: id,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -134,10 +134,10 @@ func TestStorageAddConflictingSharable(t *testing.T) {
 	require.NoError(err)
 
 	err = store.Add(gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  2,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: 2,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "shared",
@@ -163,12 +163,12 @@ func TestStorageSetSharable(t *testing.T) {
 	require.NoError(err)
 
 	twin := uint32(1)
-	id := uint64(1)
+	id := gridtypes.DeploymentID(1)
 	err = store.Add(gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  id,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: id,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "shared",
@@ -186,10 +186,10 @@ func TestStorageSetSharable(t *testing.T) {
 	require.Equal(gridtypes.NewUncheckedWorkloadID(twin, 1, "shared"), shared[0])
 
 	err = store.Set(gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  id,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: id,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "shared",
@@ -229,10 +229,10 @@ func TestStorageSetSharable(t *testing.T) {
 	require.Equal(gridtypes.NewUncheckedWorkloadID(twin, 1, "new"), shared[0])
 
 	err = store.Add(gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  2,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: 2,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "new",
@@ -258,12 +258,12 @@ func TestStorageSet(t *testing.T) {
 	require.NoError(err)
 
 	twin := uint32(1)
-	id := uint64(1)
+	id := gridtypes.DeploymentID(1)
 	deployment := gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  id,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: id,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -292,12 +292,12 @@ func TestStorageGet(t *testing.T) {
 	store, err := NewFSStore(root)
 	require.NoError(err)
 	twin := uint32(1)
-	id := uint64(1)
+	id := gridtypes.DeploymentID(1)
 	deployment := gridtypes.Deployment{
-		TwinID:      twin,
-		ContractID:  id,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       twin,
+		DeploymentID: id,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -310,7 +310,7 @@ func TestStorageGet(t *testing.T) {
 	err = store.Add(deployment)
 	require.NoError(err)
 
-	loaded, err := store.Get(deployment.TwinID, deployment.ContractID)
+	loaded, err := store.Get(deployment.TwinID, deployment.DeploymentID.U64())
 	require.NoError(err)
 	require.Equal(deployment.Description, loaded.Description)
 	require.Equal(deployment.Metadata, loaded.Metadata)
@@ -325,10 +325,10 @@ func TestStorageByTwin(t *testing.T) {
 	require.NoError(err)
 
 	deployment1 := gridtypes.Deployment{
-		TwinID:      1,
-		ContractID:  1,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       1,
+		DeploymentID: 1,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -342,10 +342,10 @@ func TestStorageByTwin(t *testing.T) {
 	require.NoError(err)
 
 	deployment2 := gridtypes.Deployment{
-		TwinID:      1,
-		ContractID:  2,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       1,
+		DeploymentID: 2,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",
@@ -359,10 +359,10 @@ func TestStorageByTwin(t *testing.T) {
 	require.NoError(err)
 
 	deployment3 := gridtypes.Deployment{
-		TwinID:      2,
-		ContractID:  1,
-		Metadata:    "meta",
-		Description: "descriptions",
+		TwinID:       2,
+		DeploymentID: 1,
+		Metadata:     "meta",
+		Description:  "descriptions",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "volume",

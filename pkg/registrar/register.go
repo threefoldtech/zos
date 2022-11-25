@@ -259,9 +259,11 @@ func registerNode(
 	}
 
 	create := substrate.Node{
-		FarmID:      types.U32(env.FarmerID),
-		TwinID:      types.U32(twinID),
-		Resources:   resources,
+		FarmID: types.U32(env.FarmerID),
+		TwinID: types.U32(twinID),
+		Resources: substrate.ConsumableResources{
+			TotalResources: resources,
+		},
 		Location:    location,
 		Interfaces:  interfaces,
 		SecureBoot:  info.SecureBoot,

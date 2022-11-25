@@ -80,7 +80,7 @@ func (b *BoltStorage) Create(deployment gridtypes.Deployment) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to create twin")
 		}
-		dl, err := twin.CreateBucket(b.u64(deployment.ContractID))
+		dl, err := twin.CreateBucket(b.u64(deployment.DeploymentID.U64()))
 		if errors.Is(err, bolt.ErrBucketExists) {
 			return provision.ErrDeploymentExists
 		} else if err != nil {
@@ -105,7 +105,7 @@ func (b *BoltStorage) Create(deployment gridtypes.Deployment) error {
 		}
 
 		for _, wl := range deployment.Workloads {
-			if err := b.add(tx, deployment.TwinID, deployment.ContractID, wl); err != nil {
+			if err := b.add(tx, deployment.TwinID, deployment.DeploymentID, wl); err != nil {
 				return err
 			}
 		}
@@ -113,13 +113,13 @@ func (b *BoltStorage) Create(deployment gridtypes.Deployment) error {
 	})
 }
 
-func (b *BoltStorage) Update(twin uint32, deployment uint64, field ...provision.Field) error {
+func (b *BoltStorage) Update(twin uint32, deployment gridtypes.DeploymentID, field ...provision.Field) error {
 	return b.db.Update(func(t *bolt.Tx) error {
 		twin := t.Bucket(b.u32(twin))
 		if twin == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
 		}
-		deployment := twin.Bucket(b.u64(deployment))
+		deployment := twin.Bucket(b.u64(deployment.U64()))
 		if deployment == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
 		}
@@ -161,18 +161,18 @@ func (b *BoltStorage) Update(twin uint32, deployment uint64, field ...provision.
 func (b *MigrationStorage) Migrate(dl gridtypes.Deployment) error {
 	err := b.unsafe.Create(dl)
 	if errors.Is(err, provision.ErrDeploymentExists) {
-		log.Debug().Uint32("twin", dl.TwinID).Uint64("deployment", dl.ContractID).Msg("deployment already migrated")
+		log.Debug().Uint32("twin", dl.TwinID).Uint64("deployment", dl.DeploymentID.U64()).Msg("deployment already migrated")
 		return nil
 	} else if err != nil {
 		return err
 	}
 
 	for _, wl := range dl.Workloads {
-		if err := b.unsafe.Transaction(dl.TwinID, dl.ContractID, wl); err != nil {
+		if err := b.unsafe.Transaction(dl.TwinID, dl.DeploymentID, wl); err != nil {
 			return err
 		}
 		if wl.Result.State == gridtypes.StateDeleted {
-			if err := b.unsafe.Remove(dl.TwinID, dl.ContractID, wl.Name); err != nil {
+			if err := b.unsafe.Remove(dl.TwinID, dl.DeploymentID, wl.Name); err != nil {
 				return err
 			}
 		}
@@ -181,14 +181,14 @@ func (b *MigrationStorage) Migrate(dl gridtypes.Deployment) error {
 	return nil
 }
 
-func (b *BoltStorage) Delete(twin uint32, deployment uint64) error {
+func (b *BoltStorage) Delete(twin uint32, deployment gridtypes.DeploymentID) error {
 	return b.db.Update(func(t *bolt.Tx) error {
 		bucket := t.Bucket(b.u32(twin))
 		if bucket == nil {
 			return nil
 		}
 
-		if err := bucket.DeleteBucket(b.u64(deployment)); err != nil && !errors.Is(err, bolt.ErrBucketNotFound) {
+		if err := bucket.DeleteBucket(b.u64(deployment.U64())); err != nil && !errors.Is(err, bolt.ErrBucketNotFound) {
 			return err
 		}
 		// if the twin now is empty then we can also delete the twin
@@ -218,15 +218,15 @@ func (b *BoltStorage) Delete(twin uint32, deployment uint64) error {
 	})
 }
 
-func (b *BoltStorage) Get(twin uint32, deployment uint64) (dl gridtypes.Deployment, err error) {
+func (b *BoltStorage) Get(twin uint32, deployment gridtypes.DeploymentID) (dl gridtypes.Deployment, err error) {
 	dl.TwinID = twin
-	dl.ContractID = deployment
+	dl.DeploymentID = deployment
 	err = b.db.View(func(t *bolt.Tx) error {
 		twin := t.Bucket(b.u32(twin))
 		if twin == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
 		}
-		deployment := twin.Bucket(b.u64(deployment))
+		deployment := twin.Bucket(b.u64(deployment.U64()))
 		if deployment == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
 		}
@@ -255,7 +255,7 @@ func (b *BoltStorage) Get(twin uint32, deployment uint64) (dl gridtypes.Deployme
 	return
 }
 
-func (b *BoltStorage) Error(twinID uint32, dl uint64, e error) error {
+func (b *BoltStorage) Error(twinID uint32, dl gridtypes.DeploymentID, e error) error {
 	current, err := b.Get(twinID, dl)
 	if err != nil {
 		return err
@@ -265,7 +265,7 @@ func (b *BoltStorage) Error(twinID uint32, dl uint64, e error) error {
 		if twin == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
 		}
-		deployment := twin.Bucket(b.u64(dl))
+		deployment := twin.Bucket(b.u64(dl.U64()))
 		if deployment == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
 		}
@@ -283,7 +283,7 @@ func (b *BoltStorage) Error(twinID uint32, dl uint64, e error) error {
 	})
 }
 
-func (b *BoltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, workload gridtypes.Workload) error {
+func (b *BoltStorage) add(tx *bolt.Tx, twinID uint32, dl gridtypes.DeploymentID, workload gridtypes.Workload) error {
 	global := gridtypes.IsSharable(workload.Type)
 	twin := tx.Bucket(b.u32(twinID))
 	if twin == nil {
@@ -303,12 +303,12 @@ func (b *BoltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, workload gridty
 			}
 		}
 
-		if err := shared.Put([]byte(workload.Name), b.u64(dl)); err != nil {
+		if err := shared.Put([]byte(workload.Name), b.u64(dl.U64())); err != nil {
 			return err
 		}
 	}
 
-	deployment := twin.Bucket(b.u64(dl))
+	deployment := twin.Bucket(b.u64(dl.U64()))
 	if deployment == nil {
 		return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
 	}
@@ -334,20 +334,20 @@ func (b *BoltStorage) add(tx *bolt.Tx, twinID uint32, dl uint64, workload gridty
 	)
 }
 
-func (b *BoltStorage) Add(twin uint32, deployment uint64, workload gridtypes.Workload) error {
+func (b *BoltStorage) Add(twin uint32, deployment gridtypes.DeploymentID, workload gridtypes.Workload) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		return b.add(tx, twin, deployment, workload)
 	})
 }
 
-func (b *BoltStorage) Remove(twin uint32, deployment uint64, name gridtypes.Name) error {
+func (b *BoltStorage) Remove(twin uint32, deployment gridtypes.DeploymentID, name gridtypes.Name) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		twin := tx.Bucket(b.u32(twin))
 		if twin == nil {
 			return nil
 		}
 
-		deployment := twin.Bucket(b.u64(deployment))
+		deployment := twin.Bucket(b.u64(deployment.U64()))
 		if deployment == nil {
 			return nil
 		}
@@ -374,7 +374,7 @@ func (b *BoltStorage) Remove(twin uint32, deployment uint64, name gridtypes.Name
 	})
 }
 
-func (b *BoltStorage) transaction(tx *bolt.Tx, twinID uint32, dl uint64, workload gridtypes.Workload) error {
+func (b *BoltStorage) transaction(tx *bolt.Tx, twinID uint32, dl gridtypes.DeploymentID, workload gridtypes.Workload) error {
 	if err := workload.Result.Valid(); err != nil {
 		return errors.Wrap(err, "failed to validate workload result")
 	}
@@ -388,7 +388,7 @@ func (b *BoltStorage) transaction(tx *bolt.Tx, twinID uint32, dl uint64, workloa
 	if twin == nil {
 		return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
 	}
-	deployment := twin.Bucket(b.u64(dl))
+	deployment := twin.Bucket(b.u64(dl.U64()))
 	if deployment == nil {
 		return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
 	}
@@ -420,12 +420,12 @@ func (b *BoltStorage) transaction(tx *bolt.Tx, twinID uint32, dl uint64, workloa
 	return logs.Put(b.u64(id), data)
 }
 
-func (b *BoltStorage) changes(tx *bolt.Tx, twinID uint32, dl uint64) ([]gridtypes.Workload, error) {
+func (b *BoltStorage) changes(tx *bolt.Tx, twinID uint32, dl gridtypes.DeploymentID) ([]gridtypes.Workload, error) {
 	twin := tx.Bucket(b.u32(twinID))
 	if twin == nil {
 		return nil, errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
 	}
-	deployment := twin.Bucket(b.u64(dl))
+	deployment := twin.Bucket(b.u64(dl.U64()))
 	if deployment == nil {
 		return nil, errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
 	}
@@ -452,13 +452,13 @@ func (b *BoltStorage) changes(tx *bolt.Tx, twinID uint32, dl uint64) ([]gridtype
 	return changes, err
 }
 
-func (b *BoltStorage) Transaction(twin uint32, deployment uint64, workload gridtypes.Workload) error {
+func (b *BoltStorage) Transaction(twin uint32, deployment gridtypes.DeploymentID, workload gridtypes.Workload) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		return b.transaction(tx, twin, deployment, workload)
 	})
 }
 
-func (b *BoltStorage) Changes(twin uint32, deployment uint64) (changes []gridtypes.Workload, err error) {
+func (b *BoltStorage) Changes(twin uint32, deployment gridtypes.DeploymentID) (changes []gridtypes.Workload, err error) {
 	err = b.db.View(func(tx *bolt.Tx) error {
 		changes, err = b.changes(tx, twin, deployment)
 		return err
@@ -467,7 +467,7 @@ func (b *BoltStorage) Changes(twin uint32, deployment uint64) (changes []gridtyp
 	return
 }
 
-func (b *BoltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Workload, error) {
+func (b *BoltStorage) workloads(twin uint32, deployment gridtypes.DeploymentID) ([]gridtypes.Workload, error) {
 	names := make(map[gridtypes.Name]gridtypes.WorkloadType)
 	workloads := make(map[gridtypes.Name]gridtypes.Workload)
 
@@ -476,7 +476,7 @@ func (b *BoltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Wor
 		if twin == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
 		}
-		deployment := twin.Bucket(b.u64(deployment))
+		deployment := twin.Bucket(b.u64(deployment.U64()))
 		if deployment == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
 		}
@@ -561,14 +561,14 @@ func (b *BoltStorage) workloads(twin uint32, deployment uint64) ([]gridtypes.Wor
 	return result, err
 }
 
-func (b *BoltStorage) Current(twin uint32, deployment uint64, name gridtypes.Name) (gridtypes.Workload, error) {
+func (b *BoltStorage) Current(twin uint32, deployment gridtypes.DeploymentID, name gridtypes.Name) (gridtypes.Workload, error) {
 	var workload gridtypes.Workload
 	err := b.db.View(func(tx *bolt.Tx) error {
 		twin := tx.Bucket(b.u32(twin))
 		if twin == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "twin not found")
 		}
-		deployment := twin.Bucket(b.u64(deployment))
+		deployment := twin.Bucket(b.u64(deployment.U64()))
 		if deployment == nil {
 			return errors.Wrap(provision.ErrDeploymentNotExists, "deployment not found")
 		}
@@ -651,8 +651,8 @@ func (b *BoltStorage) Twins() ([]uint32, error) {
 	return twins, err
 }
 
-func (b *BoltStorage) ByTwin(twin uint32) ([]uint64, error) {
-	var deployments []uint64
+func (b *BoltStorage) ByTwin(twin uint32) ([]gridtypes.DeploymentID, error) {
+	var deployments []gridtypes.DeploymentID
 	err := b.db.View(func(t *bolt.Tx) error {
 		bucket := t.Bucket(b.u32(twin))
 		if bucket == nil {
@@ -671,7 +671,7 @@ func (b *BoltStorage) ByTwin(twin uint32) ([]uint64, error) {
 				continue
 			}
 
-			deployments = append(deployments, b.l64(k))
+			deployments = append(deployments, gridtypes.DeploymentID(b.l64(k)))
 		}
 
 		return nil
@@ -695,7 +695,7 @@ func (b *BoltStorage) Capacity() (cap gridtypes.Capacity, active []gridtypes.Dep
 		for _, dl := range dls {
 			deployment, err := b.Get(twin, dl)
 			if err != nil {
-				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl).Msg("failed to get deployment")
+				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl.U64()).Msg("failed to get deployment")
 				continue
 			}
 
@@ -746,7 +746,7 @@ func (b *BoltStorage) CleanDeleted() error {
 		for _, dl := range dls {
 			deployment, err := b.Get(twin, dl)
 			if err != nil {
-				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl).Msg("failed to get deployment")
+				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl.U64()).Msg("failed to get deployment")
 				continue
 			}
 
@@ -765,7 +765,7 @@ func (b *BoltStorage) CleanDeleted() error {
 			}
 
 			if err := b.Delete(twin, dl); err != nil {
-				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl).Msg("failed to delete deployment")
+				log.Error().Err(err).Uint32("twin", twin).Uint64("deployment", dl.U64()).Msg("failed to delete deployment")
 			}
 		}
 	}

@@ -263,21 +263,6 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create storage for queues")
 	}
 
-	setter := NewCapacitySetter(kp, mgr, store)
-
-	log.Info().Int("contracts", len(active)).Msg("setting used capacity by contracts")
-	if err := setter.Set(active...); err != nil {
-		log.Error().Err(err).Msg("failed to set capacity for active contracts")
-	}
-
-	log.Info().Msg("setting contracts used cpacity done")
-
-	go func() {
-		if err := setter.Run(ctx); err != nil {
-			log.Fatal().Err(err).Msg("capacity reporter exited unexpectedly")
-		}
-	}()
-
 	engine, err := provision.New(
 		store,
 		statistics,
@@ -300,10 +285,6 @@ func action(cli *cli.Context) error {
 		// if this is a node reboot, the node needs to
 		// recreate all reservations. so we set rerun = true
 		provision.WithRerunAll(app.IsFirstBoot(serverName)),
-		// Callback when a deployment changes capacity it must
-		// be called. this one used by the setter to set used
-		// capacity on chain.
-		provision.WithCallback(setter.Callback),
 	)
 
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 )
 
 type idArgs struct {
-	ContractID uint64 `json:"contract_id"`
+	ContractID gridtypes.DeploymentID `json:"contract_id"`
 }
 
 func (d *Deployments) createOrUpdate(ctx context.Context, payload []byte, update bool) (interface{}, mw.Response) {

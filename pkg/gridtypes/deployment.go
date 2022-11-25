@@ -92,6 +92,12 @@ type KeyGetter interface {
 	GetKey(twin uint32) ([]byte, error)
 }
 
+type DeploymentID uint64
+
+func (d DeploymentID) U64() uint64 {
+	return uint64(d)
+}
+
 // Deployment structure
 type Deployment struct {
 	// Version must be set to 0 on deployment creation. And then it has to
@@ -100,16 +106,17 @@ type Deployment struct {
 	// TwinID is the id of the twin sendign the deployment. A twin then can only
 	// `get` status about deployments he owns.
 	TwinID uint32 `json:"twin_id"`
-	// ContractID the contract must be "pre created" on substrate before the deployment is
-	// sent to the node. The node will then validate that this deployment hash, will match the
-	// hash attached to this contract.
+	// DeploymentID links this deployment to a deployment on the chain.
+	// before sending this deployment to th node the deployment must exist on the chain.
+	// The node will then validate that this deployment hash, matches the
+	// hash attached to this deployment
 	// the flow should go as follows:
 	// - fill in ALL deployment details (metadata, and workloads)
 	// - calculate the deployment hash (by calling ChallengeHash method)
-	// - create the contract with the right hash
-	// - set the contract id on the deployment object
+	// - create the deployment with the correct hash
+	// - set the DeploymentID on the deployment object
 	// - send deployment to node.
-	ContractID uint64 `json:"contract_id"`
+	DeploymentID DeploymentID `json:"deployment_id"`
 	// Metadata is user specific meta attached to deployment, can be used to link this
 	// deployment to other external systems for automation
 	Metadata string `json:"metadata"`
@@ -205,38 +212,42 @@ const (
 // SignatureRequirement struct describes the signatures that are needed to be valid
 // for the node to accept the deployment
 // for example
-// SignatureRequirement{
-// 	WeightRequired: 1,
-// 	Requests: []gridtypes.SignatureRequest{
-// 		{
-// 			TwinID: twinID,
-// 			Weight: 1,
-// 		},
-// 	},
-// }
+//
+//	SignatureRequirement{
+//		WeightRequired: 1,
+//		Requests: []gridtypes.SignatureRequest{
+//			{
+//				TwinID: twinID,
+//				Weight: 1,
+//			},
+//		},
+//	}
+//
 // basically states that a total signature weight of 1 is required for the node to accept
 // the deployment.
 // the list of acceptable signatures is one from twin with `twinID` and his signature weight is 1
 // So, in this example this twin signature is enough.
 // You can build a more sophisticated signature request to allow multiple twins to sign for example
-// SignatureRequirement{
-// 	WeightRequired: 2,
-// 	Requests: []gridtypes.SignatureRequest{
-// 		{
-// 			TwinID: Twin1,
-// 			Weight: 1,
-// 		},
-// 		{
-// 			TwinID: Twin2,
-// 			Weight: 1,
-// 		},
-// 		{
-// 			TwinID: Twin3,
-// 			Required: true,
-// 			Weight: 1,
-// 		},
-// 	},
-// },
+//
+//	SignatureRequirement{
+//		WeightRequired: 2,
+//		Requests: []gridtypes.SignatureRequest{
+//			{
+//				TwinID: Twin1,
+//				Weight: 1,
+//			},
+//			{
+//				TwinID: Twin2,
+//				Weight: 1,
+//			},
+//			{
+//				TwinID: Twin3,
+//				Required: true,
+//				Weight: 1,
+//			},
+//		},
+//	},
+//
 // this means that twin3 must sign + one of either (twin1 or twin2) to have the right signature weight
 type SignatureRequirement struct {
 	Requests       []SignatureRequest `json:"requests"`
@@ -265,10 +276,10 @@ func (r *SignatureRequirement) Challenge(w io.Writer) error {
 }
 
 // ChallengeHash computes the hash of the deployment. The hash is needed for the following
-// - signing the deployment (done automatically by call to "Sign")
-// - contract creation, the contract need to be created by this hash exactly BEFORE sending the
-//   deployment to the node
-// - node verifies the hash to make sure it matches hash of the contract
+//   - signing the deployment (done automatically by call to "Sign")
+//   - contract creation, the contract need to be created by this hash exactly BEFORE sending the
+//     deployment to the node
+//   - node verifies the hash to make sure it matches hash of the contract
 func (d *Deployment) ChallengeHash() ([]byte, error) {
 	hash := md5.New()
 	if err := d.Challenge(hash); err != nil {
@@ -468,7 +479,7 @@ func (d *Deployment) Get(name Name) (*WorkloadWithID, error) {
 	for i := range d.Workloads {
 		wl := &d.Workloads[i]
 		if wl.Name == name {
-			id, _ := NewWorkloadID(d.TwinID, d.ContractID, name)
+			id, _ := NewWorkloadID(d.TwinID, d.DeploymentID, name)
 			return &WorkloadWithID{
 				Workload: wl,
 				ID:       id,
@@ -497,7 +508,7 @@ func (d *Deployment) GetShareables() []*WorkloadWithID {
 	for i := range d.Workloads {
 		wl := &d.Workloads[i]
 		if _, ok := sharableWorkloadTypes[wl.Type]; ok {
-			id, err := NewWorkloadID(d.TwinID, d.ContractID, wl.Name)
+			id, err := NewWorkloadID(d.TwinID, d.DeploymentID, wl.Name)
 			if err != nil {
 				log.Warn().Err(err).Msg("deployment has invalid name. please run validation")
 				continue
@@ -532,7 +543,7 @@ func (d *Deployment) ByType(typ ...WorkloadType) []*WorkloadWithID {
 		wl := &d.Workloads[i]
 
 		if in(wl.Type) {
-			id, err := NewWorkloadID(d.TwinID, d.ContractID, wl.Name)
+			id, err := NewWorkloadID(d.TwinID, d.DeploymentID, wl.Name)
 			if err != nil {
 				log.Warn().Err(err).Msg("deployment has invalid name. please run validation")
 				continue
@@ -559,7 +570,7 @@ func (d *Deployment) Upgrade(n *Deployment) ([]UpgradeOp, error) {
 		return nil, errors.Wrap(err, "new deployment is invalid")
 	}
 
-	if d.TwinID != n.TwinID || d.ContractID != n.ContractID {
+	if d.TwinID != n.TwinID || d.DeploymentID != n.DeploymentID {
 		return nil, fmt.Errorf("cannot change deployment or twin id")
 	}
 
@@ -578,7 +589,7 @@ func (d *Deployment) Upgrade(n *Deployment) ([]UpgradeOp, error) {
 	ops := make([]UpgradeOp, 0)
 	for i := range n.Workloads {
 		l := &n.Workloads[i]
-		id, err := NewWorkloadID(n.TwinID, n.ContractID, l.Name)
+		id, err := NewWorkloadID(n.TwinID, n.DeploymentID, l.Name)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get build workload ID")
 		}
@@ -623,7 +634,7 @@ func (d *Deployment) Upgrade(n *Deployment) ([]UpgradeOp, error) {
 	}
 
 	for _, wl := range current {
-		id, _ := NewWorkloadID(d.TwinID, d.ContractID, wl.Name)
+		id, _ := NewWorkloadID(d.TwinID, d.DeploymentID, wl.Name)
 
 		ops = append(ops, UpgradeOp{
 			&WorkloadWithID{

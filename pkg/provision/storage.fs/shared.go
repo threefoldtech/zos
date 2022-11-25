@@ -72,7 +72,7 @@ func (s *Fs) shared(twinID uint32, name gridtypes.Name) (id gridtypes.WorkloadID
 		return id, errors.Wrapf(err, "invalid link '%s' to target '%s'", link, target)
 	}
 
-	return gridtypes.NewUncheckedWorkloadID(twinID, dl, name), nil
+	return gridtypes.NewUncheckedWorkloadID(twinID, gridtypes.DeploymentID(dl), name), nil
 }
 
 func (s *Fs) sharedCreate(d *gridtypes.Deployment, name gridtypes.Name) error {

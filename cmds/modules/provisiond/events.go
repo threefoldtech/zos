@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/substrate-client"
@@ -23,7 +24,7 @@ func NewContractEventHandler(node uint32, mgr substrate.Manager, engine provisio
 	return ContractEventHandler{node: node, pool: mgr, engine: engine, eventsConsumer: events}
 }
 
-func (r *ContractEventHandler) current() (map[uint64]gridtypes.Deployment, error) {
+func (r *ContractEventHandler) current() (map[gridtypes.DeploymentID]gridtypes.Deployment, error) {
 	// we need to build a list of all supposedly active contracts on this node
 	storage := r.engine.Storage()
 	_, deployments, err := storage.Capacity()
@@ -31,13 +32,15 @@ func (r *ContractEventHandler) current() (map[uint64]gridtypes.Deployment, error
 		return nil, err
 	}
 
-	running := make(map[uint64]gridtypes.Deployment)
+	running := make(map[gridtypes.DeploymentID]gridtypes.Deployment)
 	for _, active := range deployments {
-		running[active.ContractID] = active
+		running[active.DeploymentID] = active
 	}
 
 	return running, nil
 }
+
+func (r *ContractEventHandler) getNodeDeployments() {}
 
 func (r *ContractEventHandler) sync(ctx context.Context) error {
 	log.Debug().Msg("synchronizing contracts with the chain")
@@ -52,35 +55,52 @@ func (r *ContractEventHandler) sync(ctx context.Context) error {
 	}
 
 	defer sub.Close()
-	onchain, err := sub.GetNodeContracts(r.node)
+
+	onchain, err := sub.GetCapacityReservationContracts(r.node)
 	if err != nil {
 		return errors.Wrap(err, "failed to get active node contracts")
 	}
 
-	// running will eventually contain all running contracts
-	// that also exist on the chain.
-	running := make(map[uint64]gridtypes.Deployment)
-
-	for _, contract := range onchain {
-		// if contract is in active map, move it to running
-		if dl, ok := active[uint64(contract)]; ok {
-			running[dl.ContractID] = dl
+	onChainContracts := make(map[types.U64]*substrate.Contract)
+	for _, contractID := range onchain {
+		contract, err := sub.GetContract(contractID)
+		if errors.Is(err, substrate.ErrNotFound) {
+			continue
+		} else if err != nil {
+			return errors.Wrapf(err, "failed to get contract: %d", contractID)
 		}
-		// clean the active contracts anyway
-		delete(active, uint64(contract))
+
+		onChainContracts[contract.ContractID] = contract
+	}
+	// runningDeployments will eventually contain all runningDeployments contracts
+	// that also exist on the chain.
+	runningDeployments := make(map[gridtypes.DeploymentID]gridtypes.Deployment)
+	deploymentsContracts := make(map[gridtypes.DeploymentID]types.U64)
+
+	for _, contract := range onChainContracts {
+		for _, deploymentID := range contract.ContractType.CapacityReservationContract.Deployments {
+			// if contract is in active map, move it to running
+			if dl, ok := active[gridtypes.DeploymentID(deploymentID)]; ok {
+				runningDeployments[dl.DeploymentID] = dl
+				deploymentsContracts[dl.DeploymentID] = contract.ContractID
+			}
+
+			// clean the active contracts from the map
+			delete(active, gridtypes.DeploymentID(deploymentID))
+		}
 	}
 
 	// the active map now contains all contracts that are active on the node
 	// but not active on the chain (don't exist on chain anymore)
 	// hence we can simply deprovision
-	for contract, dl := range active {
+	for _, dl := range active {
 		// those contracts exits on node but not on chain.
 		// need to be deleted
-		if err := r.engine.Deprovision(ctx, dl.TwinID, contract, "contract not active on chain"); err != nil {
+		if err := r.engine.Deprovision(ctx, dl.TwinID, dl.DeploymentID, "contract not active on chain"); err != nil {
 			log.Error().Err(err).
 				Uint32("twin", dl.TwinID).
-				Uint64("contract", contract).
-				Msg("failed to decomission contract")
+				Uint64("deployment", dl.DeploymentID.U64()).
+				Msg("failed to decommission contract")
 		}
 	}
 
@@ -88,17 +108,14 @@ func (r *ContractEventHandler) sync(ctx context.Context) error {
 	// but some of those running contracts can be either locked, or unlocked.
 	// hence we need to make sure deployments here has the same state as their contracts
 
-	for id, dl := range running {
+	for id, dl := range runningDeployments {
+		contract := onChainContracts[deploymentsContracts[id]]
 		logger := log.With().
 			Uint32("twin", dl.TwinID).
-			Uint64("contract", id).
+			Uint64("deployment", id.U64()).
+			Uint64("contract", uint64(contract.ContractID)).
 			Logger()
 
-		contract, err := sub.GetContract(id)
-		if err != nil {
-			logger.Error().Err(err).Msg("failed to get contract from chain")
-			continue
-		}
 		// locked is chain state for that contract
 		locked := contract.State.IsGracePeriod
 		logger.Info().Bool("paused", locked).Msg("contract pause state")
@@ -113,7 +130,7 @@ func (r *ContractEventHandler) sync(ctx context.Context) error {
 			action = r.engine.Pause
 		}
 
-		if err := action(ctx, dl.TwinID, dl.ContractID); err != nil {
+		if err := action(ctx, dl.TwinID, dl.DeploymentID); err != nil {
 			log.Error().Err(err).Msg("failed to change contract state")
 		}
 	}
@@ -168,10 +185,10 @@ func (r *ContractEventHandler) Run(ctx context.Context) error {
 			log.Debug().Msgf("received a cancel contract event %+v", event)
 
 			// otherwise we know what contract to be deleted
-			if err := r.engine.Deprovision(ctx, event.TwinId, event.Contract, "contract canceled event received"); err != nil {
+			if err := r.engine.Deprovision(ctx, event.TwinId, event.Deployment, "contract canceled event received"); err != nil {
 				log.Error().Err(err).
 					Uint32("twin", event.TwinId).
-					Uint64("contract", event.Contract).
+					Uint64("contract", event.Deployment).
 					Msg("failed to decomission contract")
 			}
 		case event := <-locking:
@@ -182,10 +199,10 @@ func (r *ContractEventHandler) Run(ctx context.Context) error {
 				action = r.engine.Pause
 			}
 
-			if err := action(ctx, event.TwinId, event.Contract); err != nil {
+			if err := action(ctx, event.TwinId, event.Deployment); err != nil {
 				log.Error().Err(err).
 					Uint32("twin", event.TwinId).
-					Uint64("contract", event.Contract).
+					Uint64("contract", event.Deployment).
 					Bool("lock", event.Lock).
 					Msg("failed to set deployment locking contract")
 			}

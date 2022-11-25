@@ -51,11 +51,11 @@ func TestCreateDeployment(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 	}
 	err = db.Create(dl)
 	require.NoError(err)
@@ -73,11 +73,11 @@ func TestCreateDeploymentWithWorkloads(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 		Workloads: []gridtypes.Workload{
 			{
 				Type: testType1,
@@ -110,11 +110,11 @@ func TestCreateDeploymentWithSharableWorkloads(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 		Workloads: []gridtypes.Workload{
 			{
 				Type: testType1,
@@ -130,7 +130,7 @@ func TestCreateDeploymentWithSharableWorkloads(t *testing.T) {
 	err = db.Create(dl)
 	require.NoError(err)
 
-	dl.ContractID = 11
+	dl.DeploymentID = 11
 	err = db.Create(dl)
 	require.ErrorIs(err, provision.ErrDeploymentConflict)
 
@@ -152,11 +152,11 @@ func TestAddWorkload(t *testing.T) {
 	require.ErrorIs(err, provision.ErrDeploymentNotExists)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 	}
 
 	err = db.Create(dl)
@@ -178,11 +178,11 @@ func TestRemoveWorkload(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 	}
 
 	err = db.Create(dl)
@@ -208,11 +208,11 @@ func TestTransactions(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 	}
 
 	err = db.Create(dl)
@@ -277,11 +277,11 @@ func TestTwins(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 	}
 
 	err = db.Create(dl)
@@ -309,25 +309,25 @@ func TestGet(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 	}
 
 	err = db.Create(dl)
 	require.NoError(err)
 
-	require.NoError(db.Add(dl.TwinID, dl.ContractID, gridtypes.Workload{Name: "vm1", Type: testType1}))
-	require.NoError(db.Add(dl.TwinID, dl.ContractID, gridtypes.Workload{Name: "vm2", Type: testType2}))
+	require.NoError(db.Add(dl.TwinID, dl.DeploymentID, gridtypes.Workload{Name: "vm1", Type: testType1}))
+	require.NoError(db.Add(dl.TwinID, dl.DeploymentID, gridtypes.Workload{Name: "vm2", Type: testType2}))
 
 	loaded, err := db.Get(1, 10)
 	require.NoError(err)
 
 	require.EqualValues(1, loaded.Version)
 	require.EqualValues(1, loaded.TwinID)
-	require.EqualValues(10, loaded.ContractID)
+	require.EqualValues(10, loaded.DeploymentID)
 	require.EqualValues("description", loaded.Description)
 	require.EqualValues("some metadata", loaded.Metadata)
 	require.Len(loaded.Workloads, 2)
@@ -346,11 +346,11 @@ func TestError(t *testing.T) {
 	require.ErrorIs(err, provision.ErrDeploymentNotExists)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 		Workloads: []gridtypes.Workload{
 			{Name: "vm1", Type: testType1},
 		},
@@ -377,11 +377,11 @@ func TestMigrate(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 		Workloads: []gridtypes.Workload{
 			{
 				Name: "vm1",
@@ -443,11 +443,11 @@ func TestDeleteDeployment(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 		Workloads: []gridtypes.Workload{
 			{
 				Type: testType1,
@@ -491,11 +491,11 @@ func TestDeleteDeploymentMultiple(t *testing.T) {
 	require.NoError(err)
 
 	dl := gridtypes.Deployment{
-		Version:     1,
-		TwinID:      1,
-		ContractID:  10,
-		Description: "description",
-		Metadata:    "some metadata",
+		Version:      1,
+		TwinID:       1,
+		DeploymentID: 10,
+		Description:  "description",
+		Metadata:     "some metadata",
 		Workloads: []gridtypes.Workload{
 			{
 				Type: testType1,
@@ -511,7 +511,7 @@ func TestDeleteDeploymentMultiple(t *testing.T) {
 	err = db.Create(dl)
 	require.NoError(err)
 
-	dl.ContractID = 20
+	dl.DeploymentID = 20
 	err = db.Create(dl)
 	require.NoError(err)
 

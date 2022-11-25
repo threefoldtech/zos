@@ -108,7 +108,7 @@ func netResourceMigration(active []gridtypes.Deployment) error {
 				!wl.Result.State.IsOkay() {
 				continue
 			}
-			id, err := gridtypes.NewWorkloadID(dl.TwinID, dl.ContractID, wl.Name)
+			id, err := gridtypes.NewWorkloadID(dl.TwinID, dl.DeploymentID, wl.Name)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to build network workload id")
 				continue
