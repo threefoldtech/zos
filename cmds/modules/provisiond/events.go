@@ -188,7 +188,7 @@ func (r *ContractEventHandler) Run(ctx context.Context) error {
 			if err := r.engine.Deprovision(ctx, event.TwinId, event.Deployment, "contract canceled event received"); err != nil {
 				log.Error().Err(err).
 					Uint32("twin", event.TwinId).
-					Uint64("contract", event.Deployment).
+					Uint64("deployment", event.Deployment.U64()).
 					Msg("failed to decomission contract")
 			}
 		case event := <-locking:
@@ -202,7 +202,7 @@ func (r *ContractEventHandler) Run(ctx context.Context) error {
 			if err := action(ctx, event.TwinId, event.Deployment); err != nil {
 				log.Error().Err(err).
 					Uint32("twin", event.TwinId).
-					Uint64("contract", event.Deployment).
+					Uint64("deployment", event.Deployment.U64()).
 					Bool("lock", event.Lock).
 					Msg("failed to set deployment locking contract")
 			}

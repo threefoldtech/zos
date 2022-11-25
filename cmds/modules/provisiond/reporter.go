@@ -348,7 +348,7 @@ func (r *Reporter) report(ctx context.Context, since time.Time) (time.Time, erro
 		return now, errors.Wrap(err, "failed to get stored metrics from rrd")
 	}
 
-	reports := make(map[uint64]substrate.NruConsumption)
+	reports := make(map[gridtypes.DeploymentID]substrate.NruConsumption)
 	for key, value := range values {
 		if key == lastReportedKey {
 			continue
