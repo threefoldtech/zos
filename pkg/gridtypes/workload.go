@@ -7,7 +7,9 @@ import (
 	"io"
 	"reflect"
 
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/substrate-client"
 )
 
 // WorkloadType type
@@ -46,7 +48,7 @@ func RegisterSharableType(t WorkloadType, d WorkloadData) {
 	sharableWorkloadTypes[t] = struct{}{}
 }
 
-//Types return a list of all registered types
+// Types return a list of all registered types
 func Types() []WorkloadType {
 	types := make([]WorkloadType, 0, len(workloadTypes))
 	for typ := range workloadTypes {
@@ -74,13 +76,25 @@ func (t WorkloadType) String() string {
 	return string(t)
 }
 
-//Capacity the expected capacity of a workload
+// Capacity the expected capacity of a workload
 type Capacity struct {
 	CRU   uint64 `json:"cru"`
 	SRU   Unit   `json:"sru"`
 	HRU   Unit   `json:"hru"`
 	MRU   Unit   `json:"mru"`
 	IPV4U uint64 `json:"ipv4u"`
+}
+
+// AsResources return the capacity as substrate resources.
+// Note that substrate resources does not include IPv4 capacity
+// those are needed to requested separately on chain
+func (c *Capacity) AsResources() substrate.Resources {
+	return substrate.Resources{
+		HRU: types.U64(c.HRU),
+		CRU: types.U64(c.CRU),
+		SRU: types.U64(c.SRU),
+		MRU: types.U64(c.MRU),
+	}
 }
 
 // Zero returns true if capacity is zero
@@ -183,7 +197,7 @@ func (w *Workload) Valid(getter WorkloadGetter) error {
 	return data.Valid(getter)
 }
 
-//Challenge implementation
+// Challenge implementation
 func (w *Workload) Challenge(i io.Writer) error {
 	data, err := w.WorkloadData()
 	if err != nil {

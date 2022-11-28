@@ -12,6 +12,7 @@ import (
 	"github.com/gtank/merlin"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/substrate-client"
 )
 
 var (
@@ -30,6 +31,17 @@ type Signer interface {
 }
 type Verifier interface {
 	Verify(msg []byte, sig []byte) bool
+}
+
+// Hash type returned from Challenge Hash method
+type Hash [16]byte
+
+func (h Hash) Bytes() []byte {
+	return h[:]
+}
+
+func (h Hash) Hex() substrate.HexHash {
+	return substrate.NewHexHash(h)
 }
 
 type Ed25519VerifyingKey []byte
@@ -92,6 +104,18 @@ type KeyGetter interface {
 	GetKey(twin uint32) ([]byte, error)
 }
 
+// ContractID is an ID of a reservation contract. Right now we can have
+// either a capacity reservation contract or a name reservation contract
+// This type is defined to make sure it's clear when a contract is used
+// against a deployment
+type ContractID uint64
+
+func (d ContractID) U64() uint64 {
+	return uint64(d)
+}
+
+// DeploymentID is an ID of a deployment. A single reservation contract
+// can has multiple deployments IDs
 type DeploymentID uint64
 
 func (d DeploymentID) U64() uint64 {
@@ -143,6 +167,19 @@ func (d *Deployment) IsActive() bool {
 	}
 
 	return active
+}
+
+func (d *Deployment) Capacity() (Capacity, error) {
+	var cap Capacity
+	for _, wl := range d.Workloads {
+		c, err := wl.Capacity()
+		if err != nil {
+			return cap, err
+		}
+		cap.Add(&c)
+	}
+
+	return cap, nil
 }
 
 // SetError sets an error on ALL workloads. this is mostly
@@ -280,13 +317,14 @@ func (r *SignatureRequirement) Challenge(w io.Writer) error {
 //   - contract creation, the contract need to be created by this hash exactly BEFORE sending the
 //     deployment to the node
 //   - node verifies the hash to make sure it matches hash of the contract
-func (d *Deployment) ChallengeHash() ([]byte, error) {
+func (d *Deployment) ChallengeHash() (out Hash, err error) {
 	hash := md5.New()
 	if err := d.Challenge(hash); err != nil {
-		return nil, err
+		return out, err
 	}
 
-	return hash.Sum(nil), nil
+	copy(out[:], hash.Sum(nil))
+	return
 }
 
 // Challenge computes challenge for SignatureRequest
@@ -366,7 +404,7 @@ func (d *Deployment) Sign(twin uint32, sk Signer) error {
 	if err != nil {
 		return err
 	}
-	signatureBytes, err := sk.Sign(message)
+	signatureBytes, err := sk.Sign(message.Bytes())
 	if err != nil {
 		return err
 	}
@@ -392,13 +430,14 @@ func (d *Deployment) Sign(twin uint32, sk Signer) error {
 // Verify verifies user signatures is mainly used by the node
 // to verify that all attached signatures are valid.
 func (d *Deployment) Verify(getter KeyGetter) error {
-	message, err := d.ChallengeHash()
+	hash, err := d.ChallengeHash()
 	if err != nil {
 		return err
 	}
 
 	requirements := &d.SignatureRequirement
 
+	message := hash.Bytes()
 	// if signature style is `polka-wallet` the hash
 	// is surrounded by <Byte></Byte> tags
 	if requirements.SignatureStyle == SignatureStylePolka {

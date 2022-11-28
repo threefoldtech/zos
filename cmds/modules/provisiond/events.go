@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/substrate-client"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -39,8 +40,6 @@ func (r *ContractEventHandler) current() (map[gridtypes.DeploymentID]gridtypes.D
 
 	return running, nil
 }
-
-func (r *ContractEventHandler) getNodeDeployments() {}
 
 func (r *ContractEventHandler) sync(ctx context.Context) error {
 	log.Debug().Msg("synchronizing contracts with the chain")
@@ -149,6 +148,35 @@ func (r *ContractEventHandler) isLocked(dl *gridtypes.Deployment) bool {
 	return false
 }
 
+func (r *ContractEventHandler) handleLock(ctx context.Context, event *pkg.ContractLockedEvent) error {
+	action := r.engine.Resume
+	if event.Lock {
+		action = r.engine.Pause
+	}
+	sub, err := r.pool.Substrate()
+	if err != nil {
+		return err
+	}
+	defer sub.Close()
+
+	contract, err := sub.GetContract(uint64(event.Contract))
+	if err != nil {
+		return errors.Wrapf(err, "failed to get contract with id: %d")
+	}
+
+	for _, deployment := range contract.ContractType.CapacityReservationContract.Deployments {
+		if err := action(ctx, event.TwinId, gridtypes.DeploymentID(deployment)); err != nil {
+			log.Error().Err(err).
+				Uint32("twin", event.TwinId).
+				Uint64("deployment", uint64(deployment)).
+				Bool("lock", event.Lock).
+				Msg("failed to set deployment locking contract")
+		}
+	}
+
+	return nil
+}
+
 // Run runs the reporter
 func (r *ContractEventHandler) Run(ctx context.Context) error {
 	// go over all user reservations
@@ -192,19 +220,12 @@ func (r *ContractEventHandler) Run(ctx context.Context) error {
 					Msg("failed to decomission contract")
 			}
 		case event := <-locking:
-			// todo. we might need to try to sync all contracts to real state if we
-			// missed events. so another way to sync here.
-			action := r.engine.Resume
-			if event.Lock {
-				action = r.engine.Pause
-			}
-
-			if err := action(ctx, event.TwinId, event.Deployment); err != nil {
+			if err := r.handleLock(ctx, &event); err != nil {
 				log.Error().Err(err).
 					Uint32("twin", event.TwinId).
-					Uint64("deployment", event.Deployment.U64()).
+					Uint64("contract", event.Contract.U64()).
 					Bool("lock", event.Lock).
-					Msg("failed to set deployment locking contract")
+					Msg("failed to handle locking contract")
 			}
 		}
 	}

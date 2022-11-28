@@ -22,7 +22,7 @@ type DeploymentCancelledEvent struct {
 // If Kind is EventSubscribed it means event stream has been reconnected and might be events loss. It's up to the
 // handler of this event type to make sure contracts are synched with the grid.
 type ContractLockedEvent struct {
-	Deployment gridtypes.DeploymentID
-	TwinId     uint32
-	Lock       bool
+	Contract gridtypes.ContractID
+	TwinId   uint32
+	Lock     bool
 }

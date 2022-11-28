@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/utils"
 )
 
@@ -80,13 +81,13 @@ func (r *RedisStream) process(events *substrate.EventRecords) {
 	}
 
 	for _, event := range events.SmartContractModule_DeploymentCanceled {
-		if event.Node != types.U32(r.node) {
+		if event.NodeID != types.U32(r.node) {
 			continue
 		}
-		log.Info().Uint64("contract", uint64(event.ContractID)).Msg("got contract cancel update")
+		log.Info().Uint64("deployment", uint64(event.DeploymentID)).Msg("got contract cancel update")
 		if err := r.push(con, streamContractCancelled, pkg.DeploymentCancelledEvent{
-			Deployment: uint64(event.ContractID),
-			TwinId:     uint32(event.Twin),
+			Deployment: gridtypes.DeploymentID(event.DeploymentID),
+			TwinId:     uint32(event.TwinID),
 		}); err != nil {
 			log.Error().Err(err).Msg("failed to push event")
 		}
@@ -98,9 +99,9 @@ func (r *RedisStream) process(events *substrate.EventRecords) {
 		}
 		log.Info().Uint64("contract", uint64(event.ContractID)).Msg("got contract grace period started")
 		if err := r.push(con, streamContractGracePeriod, pkg.ContractLockedEvent{
-			Deployment: uint64(event.ContractID),
-			TwinId:     uint32(event.TwinID),
-			Lock:       true,
+			Contract: gridtypes.ContractID(event.ContractID),
+			TwinId:   uint32(event.TwinID),
+			Lock:     true,
 		}); err != nil {
 			log.Error().Err(err).Msg("failed to push event")
 		}
@@ -112,9 +113,9 @@ func (r *RedisStream) process(events *substrate.EventRecords) {
 		}
 		log.Info().Uint64("contract", uint64(event.ContractID)).Msg("got contract grace period ended")
 		if err := r.push(con, streamContractGracePeriod, pkg.ContractLockedEvent{
-			Deployment: uint64(event.ContractID),
-			TwinId:     uint32(event.TwinID),
-			Lock:       false,
+			Contract: gridtypes.ContractID(event.ContractID),
+			TwinId:   uint32(event.TwinID),
+			Lock:     false,
 		}); err != nil {
 			log.Error().Err(err).Msg("failed to push event")
 		}

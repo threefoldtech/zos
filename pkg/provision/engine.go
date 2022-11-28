@@ -2,7 +2,6 @@ package provision
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -568,20 +567,20 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment, n
 		return nil, errors.Wrap(err, "failed to connect to chain")
 	}
 	defer sub.Close()
-	contract, err := sub.GetDeployment(uint64(dl.DeploymentID))
+	deployment, err := sub.GetDeployment(uint64(dl.DeploymentID))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get deployment contract")
 	}
 
-	ctx = withContract(ctx, *contract)
+	ctx = withContract(ctx, *deployment)
 
 	if noValidation {
 		return ctx, nil
 	}
 
-	reservation, err := sub.GetContract(uint64(contract.CapacityReservationID))
+	reservation, err := sub.GetContract(uint64(deployment.CapacityReservationID))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get reservation contract with with id '%d'", contract.CapacityReservationID)
+		return nil, errors.Wrapf(err, "failed to get reservation contract with with id '%d'", deployment.CapacityReservationID)
 	}
 
 	if !reservation.ContractType.IsCapacityReservationContract {
@@ -597,7 +596,7 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment, n
 		return nil, errors.Wrap(err, "failed to compute deployment hash")
 	}
 
-	if contract.DeploymentHash.String() != hex.EncodeToString(hash) {
+	if deployment.DeploymentHash != hash.Hex() {
 		return nil, fmt.Errorf("contract hash does not match deployment hash")
 	}
 
