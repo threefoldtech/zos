@@ -600,6 +600,19 @@ func (e *NativeEngine) contract(ctx context.Context, dl *gridtypes.Deployment, n
 		return nil, fmt.Errorf("contract hash does not match deployment hash")
 	}
 
+	// requested
+	requested, err := dl.Capacity()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to calculate deployment requested capacity")
+	}
+
+	if requested.CRU > uint64(deployment.Resources.CRU) ||
+		requested.MRU > gridtypes.Unit(deployment.Resources.MRU) ||
+		requested.HRU > gridtypes.Unit(deployment.Resources.HRU) ||
+		requested.SRU > gridtypes.Unit(deployment.Resources.SRU) {
+		return nil, fmt.Errorf("deployment require more capacity than reserved")
+	}
+
 	return ctx, nil
 }
 
