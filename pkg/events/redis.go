@@ -24,16 +24,18 @@ const (
 	streamPublicConfig        = "stream:public-config"
 	streamContractCancelled   = "stream:contract-cancelled"
 	streamContractGracePeriod = "stream:contract-lock"
+	streamPowerChange         = "stream:power-change"
 )
 
 type RedisStream struct {
 	sub   substrate.Manager
 	state string
 	node  uint32
+	farm  pkg.FarmID
 	pool  *redis.Pool
 }
 
-func NewRedisStream(sub substrate.Manager, address string, node uint32, state string) (*RedisStream, error) {
+func NewRedisStream(sub substrate.Manager, address string, farm pkg.FarmID, node uint32, state string) (*RedisStream, error) {
 	pool, err := utils.NewRedisPool(address, 2)
 	if err != nil {
 		return nil, err
@@ -43,6 +45,7 @@ func NewRedisStream(sub substrate.Manager, address string, node uint32, state st
 		sub:   sub,
 		state: state,
 		node:  node,
+		farm:  farm,
 		pool:  pool,
 	}, nil
 }
@@ -116,6 +119,21 @@ func (r *RedisStream) process(events *substrate.EventRecords) {
 			Contract: gridtypes.ContractID(event.ContractID),
 			TwinId:   uint32(event.TwinID),
 			Lock:     false,
+		}); err != nil {
+			log.Error().Err(err).Msg("failed to push event")
+		}
+	}
+
+	for _, event := range events.TfgridModule_PowerTargetChanged {
+		if event.FarmID != types.U32(r.farm) {
+			continue
+		}
+
+		log.Info().Uint64("node", uint64(event.NodeID)).Uint64("farm", uint64(event.FarmID)).Msg("got power change event")
+		if err := r.push(con, streamPowerChange, pkg.PowerChangeEvent{
+			FarmID: pkg.FarmID(event.FarmID),
+			NodeID: uint32(event.NodeID),
+			Target: event.PowerTarget,
 		}); err != nil {
 			log.Error().Err(err).Msg("failed to push event")
 		}
@@ -316,6 +334,55 @@ func (r *RedisConsumer) ContractLocked(ctx context.Context) (<-chan pkg.Contract
 
 			for _, message := range messages {
 				var event pkg.ContractLockedEvent
+				if err := message.Decode(&event); err == nil {
+					select {
+					case <-ctx.Done():
+						return
+					case ch <- event:
+					}
+				} else if err != nil {
+					logger.Error().Err(err).Str("id", message.ID).Msg("failed to handle message")
+				}
+
+				if err := r.ack(ctx, con, group, stream, message.ID); err != nil {
+					logger.Error().Err(err).Str("id", message.ID).Msg("failed to ack message")
+				}
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+
+	return ch, nil
+}
+
+func (r *RedisConsumer) PowerChange(ctx context.Context) (<-chan pkg.PowerChangeEvent, error) {
+	con := r.pool.Get()
+	ch := make(chan pkg.PowerChangeEvent)
+
+	const stream = streamPowerChange
+	group, err := r.ensureGroup(con, stream)
+
+	if err != nil && !isBusyGroup(err) {
+		return nil, err
+	}
+
+	logger := log.With().Str("stream", stream).Logger()
+	go func() {
+		defer con.Close()
+
+		for {
+			messages, err := r.pop(con, group, stream)
+			if err != nil {
+				logger.Error().Err(err).Msg("failed to get events from")
+			}
+
+			for _, message := range messages {
+				var event pkg.PowerChangeEvent
 				if err := message.Decode(&event); err == nil {
 					select {
 					case <-ctx.Done():

@@ -60,7 +60,7 @@ func action(cli *cli.Context) error {
 	)
 	env := environment.MustGet()
 
-	redis, err := zbus.NewRedisClient(msgBrokerCon)
+	cl, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
 	}
@@ -71,7 +71,7 @@ func action(cli *cli.Context) error {
 	}
 
 	if printID {
-		sysCl := stubs.NewSystemMonitorStub(redis)
+		sysCl := stubs.NewSystemMonitorStub(cl)
 		fmt.Println(sysCl.NodeID(cli.Context))
 		return nil
 	}
@@ -94,7 +94,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to start registration service")
 	}
 
-	if err := rmbApi(ctx, redis, msgBrokerCon); err != nil {
+	if err := rmbApi(ctx, cl, msgBrokerCon); err != nil {
 		return errors.Wrap(err, "failed to start node rmb api")
 	}
 
@@ -105,7 +105,7 @@ func action(cli *cli.Context) error {
 		time.Sleep(time.Minute * 5)
 	}
 
-	registrar := stubs.NewRegistrarStub(redis)
+	registrar := stubs.NewRegistrarStub(cl)
 	var twin, nodeID uint32
 	exp := backoff.NewExponentialBackOff()
 	exp.MaxInterval = 2 * time.Minute
@@ -126,7 +126,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to get node id")
 	}
 
-	identity := stubs.NewIdentityManagerStub(redis)
+	identity := stubs.NewIdentityManagerStub(cl)
 
 	sk := ed25519.PrivateKey(identity.PrivateKey(ctx))
 	id, err := substrate.NewIdentityFromEd25519Key(sk)
@@ -149,7 +149,7 @@ func action(cli *cli.Context) error {
 	go uptime.Start(ctx)
 
 	// start power manager
-	power, err := node.NewPowerServer(redis, sub, env.FarmerID, nodeID, sk, uptime)
+	power, err := node.NewPowerServer(cl, sub, consumer, env.FarmID, nodeID, sk, uptime)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize power manager")
 	}
@@ -165,7 +165,12 @@ func action(cli *cli.Context) error {
 		}
 	}()
 
-	// node registration is completed we need to check the power target of the node.
+	events, err := events.NewRedisStream(sub, msgBrokerCon, env.FarmID, nodeID, eventsBlock)
+	if err != nil {
+		return err
+	}
+	go events.Start(ctx)
+
 	system, err := monitord.NewSystemMonitor(nodeID, 2*time.Second)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize system monitor")
@@ -189,7 +194,7 @@ func action(cli *cli.Context) error {
 
 	go func() {
 		for {
-			if err := public(ctx, node, env, redis, consumer); err != nil {
+			if err := public(ctx, nodeID, env, cl, consumer); err != nil {
 				log.Error().Err(err).Msg("setting public config failed")
 				<-time.After(10 * time.Second)
 			}

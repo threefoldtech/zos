@@ -19,6 +19,7 @@ import (
 	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/mw"
 	"github.com/threefoldtech/zos/pkg/network/bridge"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -42,8 +43,9 @@ type powerRequest struct {
 }
 
 type PowerServer struct {
-	cl  zbus.Client
-	sub substrate.Manager
+	cl       zbus.Client
+	consumer *events.RedisConsumer
+	sub      substrate.Manager
 
 	farm      pkg.FarmID
 	node      uint32
@@ -59,6 +61,7 @@ type PowerServer struct {
 func NewPowerServer(
 	cl zbus.Client,
 	sub substrate.Manager,
+	consumer *events.RedisConsumer,
 	farm pkg.FarmID,
 	node uint32,
 	sk ed25519.PrivateKey,
@@ -81,6 +84,7 @@ func NewPowerServer(
 	return &PowerServer{
 		cl:        cl,
 		sub:       sub,
+		consumer:  consumer,
 		listen:    fmt.Sprintf(":%d", PowerServerPort),
 		farm:      farm,
 		node:      node,
@@ -164,6 +168,7 @@ func (p *PowerServer) syncNodes() error {
 	if err != nil {
 		return err
 	}
+
 	nodeIDs, err := sub.GetNodesByFarmID(uint32(p.farm))
 	if err != nil {
 		return errors.Wrap(err, "failed to list farm nodes")
@@ -191,10 +196,11 @@ func (p *PowerServer) syncNode(sub *substrate.Substrate, id uint32) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get node '%d' from chain", id)
 	}
-	if node.Power().Target.IsUp ||
-		node.Power().State.IsDown {
+
+	if node.Power.Target.IsUp ||
+		node.Power.State.IsDown {
 		// should we nudge the node to send uptime?
-		if p.needNudge(id, uint64(node.Power().LastUpTime)) {
+		if p.needNudge(id, uint64(node.Power.LastUptime)) {
 			return p.powerUp(node)
 		}
 		return nil
@@ -251,7 +257,7 @@ func (p *PowerServer) syncSelf() error {
 		return err
 	}
 
-	power := node.Power()
+	power := node.Power
 
 	// state is down but target is up. we need to fix the
 	// target
@@ -383,8 +389,7 @@ func (p *PowerServer) event(event *pkg.PowerChangeEvent) error {
 
 func (p *PowerServer) recv(ctx context.Context) error {
 	log.Info().Msg("listening for power events")
-	events := stubs.NewEventsStub(p.cl)
-	stream, err := events.PowerChangeEvent(ctx)
+	stream, err := p.consumer.PowerChange(ctx)
 	if err != nil {
 		return errors.Wrapf(errConnectionError, "failed to connect to zbus events: %s", err)
 	}
@@ -486,7 +491,7 @@ func (p *PowerServer) power(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.UnAuthorized(fmt.Errorf("requesting node is not in the same farm"))
 	}
 
-	if _, err := sub.SetNodePowerState(p.identity, substrate.PowerState{IsDown: true, Leader: types.U32(request.Leader)}); err != nil {
+	if _, err := sub.SetNodePowerState(p.identity, substrate.PowerState{IsDown: true, AsDown: types.U32(request.Leader)}); err != nil {
 		return nil, mw.Error(errors.Wrap(err, "failed to set power state"))
 	}
 
