@@ -1,4 +1,4 @@
-package node
+package power
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os/exec"
@@ -34,12 +35,13 @@ const (
 
 type Elections interface {
 	IsLeader() bool
+	Start(ctx context.Context)
 }
 
 type powerRequest struct {
-	Leader uint32 `json:"leader"`
-	Node   uint32 `json:"node"`
-	Target string `json:"target"`
+	LeaderTwin uint32 `json:"leader-twin"`
+	Node       uint32 `json:"node"`
+	Target     string `json:"target"`
 }
 
 type PowerServer struct {
@@ -49,6 +51,7 @@ type PowerServer struct {
 
 	farm      pkg.FarmID
 	node      uint32
+	twin      uint32
 	sk        ed25519.PrivateKey
 	identity  substrate.Identity
 	ut        *Uptime
@@ -64,6 +67,7 @@ func NewPowerServer(
 	consumer *events.RedisConsumer,
 	farm pkg.FarmID,
 	node uint32,
+	twin uint32,
 	sk ed25519.PrivateKey,
 	ut *Uptime) (*PowerServer, error) {
 
@@ -88,6 +92,7 @@ func NewPowerServer(
 		listen:    fmt.Sprintf(":%d", PowerServerPort),
 		farm:      farm,
 		node:      node,
+		twin:      twin,
 		sk:        sk,
 		identity:  identity,
 		ut:        ut,
@@ -118,7 +123,8 @@ func enableWol(inf string) error {
 	}
 
 	for _, nic := range nics {
-		if err := exec.Command("ethtools", "-s", nic.Attrs().Name, "wol", "g").Run(); err != nil {
+		log.Debug().Str("device", nic.Attrs().Name).Msg("enable wol on device")
+		if err := exec.Command("ethtool", "-s", nic.Attrs().Name, "wol", "g").Run(); err != nil {
 			log.Error().Err(err).Str("nic", nic.Attrs().Name).Msg("failed to enable WOL for nic")
 		}
 	}
@@ -175,6 +181,10 @@ func (p *PowerServer) syncNodes() error {
 	}
 
 	for _, nodeID := range nodeIDs {
+		if nodeID == p.node {
+			continue
+		}
+
 		if err := p.syncNode(sub, nodeID); err != nil {
 			log.Error().Err(err).Uint32("node", nodeID).Msg("failed to sync node power status")
 		}
@@ -197,20 +207,22 @@ func (p *PowerServer) syncNode(sub *substrate.Substrate, id uint32) error {
 		return errors.Wrapf(err, "failed to get node '%d' from chain", id)
 	}
 
-	if node.Power.Target.IsUp ||
+	if node.Power.Target.IsDown &&
 		node.Power.State.IsDown {
 		// should we nudge the node to send uptime?
 		if p.needNudge(id, uint64(node.Power.LastUptime)) {
 			return p.powerUp(node)
 		}
 		return nil
+	} else if node.Power.Target.IsDown {
+		// node target is down but node state is up.
+		// means we should try to put it down. if it accepted
+		// this we can simply try to ask it to power off. if that
+		// didn't work it means probably the node is not reachable
+		return p.powerDown(node)
 	}
 
-	// node target is down but node state is up.
-	// means we should try to put it down. if it accepted
-	// this we can simply try to ask it to power off. if that
-	// didn't work it means probably the node is not reachable
-	return p.powerDown(node)
+	return nil
 }
 
 func (p *PowerServer) powerRequest(ip string, in *powerRequest) error {
@@ -230,7 +242,7 @@ func (p *PowerServer) powerRequest(ip string, in *powerRequest) error {
 		return err
 	}
 
-	req, err = mw.SignedRequest(p.node, p.sk, req)
+	req, err = mw.SignedRequest(p.twin, p.sk, req)
 	if err != nil {
 		return err
 	}
@@ -243,9 +255,13 @@ func (p *PowerServer) powerRequest(ip string, in *powerRequest) error {
 	//   be powered off, that is also fine.
 	// - Node actually powers off, then also nothing to d.
 	resp, err := p.http.Do(req)
-	if err == nil {
-		resp.Body.Close()
+	if err != nil {
+		log.Error().Err(err).Str("target", ip).Msg("received error on requesting power down")
+		return nil
 	}
+	defer resp.Body.Close()
+	ret, _ := io.ReadAll(resp.Body)
+	log.Debug().Msgf("received response: %s", string(ret))
 
 	// so by reaching here, we can return a nil error
 	return nil
@@ -259,8 +275,14 @@ func (p *PowerServer) syncSelf() error {
 
 	power := node.Power
 
-	// state is down but target is up. we need to fix the
-	// target
+	if node.Power.State.IsUp {
+		// nothing to do if the node stat is up. because it means
+		// the node was never powered-off by the system.
+		return nil
+	}
+
+	// If the targe is up and state is down, so the node is waking up
+	// by the grid, and in that case, the node need to fix it's sttate.
 	if power.Target.IsUp {
 		sub, err := p.sub.Substrate()
 		if err != nil {
@@ -270,13 +292,11 @@ func (p *PowerServer) syncSelf() error {
 		return errors.Wrap(err, "failed to set state to up")
 	}
 
-	// if state was already down we need to call shutdown
-	// this can be duo to a wake up to send uptime request
-	if power.State.IsDown {
-		return p.shutdown()
+	// otherwise node need to get back to sleep.
+	if err := p.shutdown(); err != nil {
+		return errors.Wrap(err, "failed to issue shutdown")
 	}
 
-	// otherwise do nothing
 	return nil
 }
 
@@ -310,25 +330,28 @@ func (p *PowerServer) powerDown(node *substrate.Node) error {
 	}
 
 	req := powerRequest{
-		Leader: p.node,
-		Node:   uint32(node.ID),
-		Target: downTarget,
+		LeaderTwin: p.twin,
+		Node:       uint32(node.ID),
+		Target:     downTarget,
 	}
 
 	for _, ip := range ips {
 		// to make sure this node actually lives on the same lan
 		// and that they are not just "reachable" over a router we
 		// do this check before sending the request
+		log.Debug().Str("target", ip).Msg("testing node ip")
 		local, err := p.direct.IsDirect(ip)
 		if err != nil {
 			log.Error().Err(err).Uint32("target", uint32(node.ID)).Msg("failed to send power down request")
 			continue
 		}
 
+		log.Debug().Str("target", ip).Bool("local", local).Msg("ip reachability")
 		if !local {
 			continue
 		}
 
+		log.Debug().Str("target", ip).Msg("sending power down request")
 		if err := p.powerRequest(ip, &req); err != nil {
 			log.Error().Err(err).Uint32("target", uint32(node.ID)).Msg("failed to send power down request")
 		}
@@ -434,27 +457,25 @@ func (p *PowerServer) self(r *http.Request) (interface{}, mw.Response) {
 	stub := stubs.NewNetworkerStub(p.cl)
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	cfg, err := stub.GetPublicConfig(ctx)
-	if err != nil {
-		return nil, mw.Error(err)
-	}
+	public := stub.HasPublicConfig(ctx)
 
 	type Self struct {
-		ID      uint32     `json:"id"`
-		Farm    pkg.FarmID `json:"farm"`
-		Address string     `json:"address"`
-		Access  bool       `json:"access"`
+		ID        uint32     `json:"id"`
+		Farm      pkg.FarmID `json:"farm"`
+		PublicKey string     `json:"pk"`
+		Public    bool       `json:"public"`
 	}
 
 	return Self{
-		ID:      p.node,
-		Farm:    p.farm,
-		Address: hex.EncodeToString(p.sk.Public().(ed25519.PublicKey)),
-		Access:  !cfg.IsEmpty(),
+		ID:        p.node,
+		Farm:      p.farm,
+		PublicKey: hex.EncodeToString(p.sk.Public().(ed25519.PublicKey)),
+		Public:    public,
 	}, nil
 }
 
 func (p *PowerServer) power(r *http.Request) (interface{}, mw.Response) {
+	log.Debug().Msg("received a power request")
 	var request powerRequest
 	if p.elections.IsLeader() {
 		// I am a leader, i don't listen to anyone
@@ -466,9 +487,9 @@ func (p *PowerServer) power(r *http.Request) (interface{}, mw.Response) {
 		return nil, mw.BadRequest(err)
 	}
 
-	leader := mw.TwinID(r.Context())
+	twinInRequest := mw.TwinID(r.Context())
 	// the leader id in the request header doesn't match the body
-	if leader != request.Leader {
+	if twinInRequest != request.LeaderTwin {
 		return nil, mw.UnAuthorized(fmt.Errorf("invalid leader id in request"))
 	}
 
@@ -482,16 +503,21 @@ func (p *PowerServer) power(r *http.Request) (interface{}, mw.Response) {
 	}
 
 	defer sub.Close()
-	leaderNode, err := sub.GetNode(leader)
+	leaderNode, err := sub.GetNodeByTwinID(twinInRequest)
+	if err != nil {
+		return nil, mw.Error(errors.Wrap(err, "failed to get leader node id"))
+	}
+
+	leader, err := sub.GetNode(leaderNode)
 	if err != nil {
 		return nil, mw.Error(errors.Wrap(err, "failed to get leader node"))
 	}
 
-	if leaderNode.FarmID != types.U32(p.farm) {
+	if leader.FarmID != types.U32(p.farm) {
 		return nil, mw.UnAuthorized(fmt.Errorf("requesting node is not in the same farm"))
 	}
 
-	if _, err := sub.SetNodePowerState(p.identity, substrate.PowerState{IsDown: true, AsDown: types.U32(request.Leader)}); err != nil {
+	if _, err := sub.SetNodePowerState(p.identity, substrate.PowerState{IsDown: true, AsDown: types.U32(request.LeaderTwin)}); err != nil {
 		return nil, mw.Error(errors.Wrap(err, "failed to set power state"))
 	}
 
@@ -509,7 +535,11 @@ func (p *PowerServer) Start(ctx context.Context) error {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// start elections
+	go p.elections.Start(ctx)
+	// handle events routine
 	go p.events(subCtx)
+	// neighbors sync routine
 	go p.synchronize(subCtx)
 
 	// always sign responses

@@ -19,12 +19,13 @@ var (
 	ErrInvalidSignature = fmt.Errorf("failed to validate signature")
 )
 
-func SignedRequest(id uint32, sk ed25519.PrivateKey, req *http.Request) (*http.Request, error) {
+func SignedRequest(twin uint32, sk ed25519.PrivateKey, req *http.Request) (*http.Request, error) {
 	var buf bytes.Buffer
 	hash := sha256.New()
 	writer := io.MultiWriter(&buf, hash)
-	if req.Body != nil {
-		defer req.Body.Close()
+	body := req.Body
+	if body != nil {
+		defer body.Close()
 		if _, err := io.Copy(writer, req.Body); err != nil {
 			return nil, err
 		}
@@ -37,7 +38,7 @@ func SignedRequest(id uint32, sk ed25519.PrivateKey, req *http.Request) (*http.R
 	msg.Write(sha)
 
 	sig := ed25519.Sign(sk, msg.Bytes())
-	req.Header.Set(twinHeader, fmt.Sprint(id))
+	req.Header.Set(twinHeader, fmt.Sprint(twin))
 	req.Header.Set(signatureHeader, hex.EncodeToString(sig))
 	req.Header.Set(timestampHeader, ts)
 	req.Body = io.NopCloser(&buf)
@@ -56,6 +57,7 @@ func VerifyResponse(pk ed25519.PublicKey, response *http.Response) (*http.Respon
 	hash := sha256.New()
 	writer := io.MultiWriter(&buf, hash)
 	body := response.Body
+	defer body.Close()
 	if _, err := io.Copy(writer, body); err != nil {
 		return nil, err
 	}
@@ -83,6 +85,7 @@ func VerifyRequest(pk ed25519.PublicKey, request *http.Request) (*http.Request, 
 	hash := sha256.New()
 	writer := io.MultiWriter(&buf, hash)
 	body := request.Body
+	defer body.Close()
 	if _, err := io.Copy(writer, body); err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package node
+package power
 
 import (
 	"context"
@@ -67,6 +67,8 @@ func (e *electionsManager) Start(ctx context.Context) {
 			}
 		}
 
+		log.Info().Bool("leader", e.IsLeader()).Msg("elections results")
+
 		select {
 		case <-ctx.Done():
 			return
@@ -82,12 +84,7 @@ func (e *electionsManager) elect(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	cfg, err := stub.GetPublicConfig(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to check for public config")
-	}
-
-	if !cfg.IsEmpty() {
+	if stub.HasPublicConfig(ctx) {
 		e.leader.Store(true)
 		return nil
 	}
@@ -118,6 +115,7 @@ func (e *electionsManager) elect(ctx context.Context) error {
 		}
 	}
 
+	log.Debug().Uints32("nodes", nodes).Msg("reachable nodes")
 	// if this node id is greater than any of the ids in the list
 	// then you can't be the leader, set it to false and return
 	for _, nodeID := range nodes {

@@ -235,6 +235,22 @@ func (s *NetworkerStub) GetSubnet(ctx context.Context, arg0 zos.NetID) (ret0 net
 	return
 }
 
+func (s *NetworkerStub) HasPublicConfig(ctx context.Context) (ret0 bool) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "HasPublicConfig", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerStub) Interfaces(ctx context.Context, arg0 string, arg1 string) (ret0 interface{}, ret1 error) {
 	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "Interfaces", args...)

@@ -15,7 +15,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/monitord"
-	"github.com/threefoldtech/zos/pkg/node"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 
@@ -139,31 +138,6 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	uptime, err := node.NewUptime(sub, id)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize uptime reported")
-	}
-
-	// start uptime reporting
-	go uptime.Start(ctx)
-
-	// start power manager
-	power, err := node.NewPowerServer(cl, sub, consumer, env.FarmID, nodeID, sk, uptime)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize power manager")
-	}
-
-	go func() {
-		for {
-			err := power.Start(ctx)
-			if err == nil {
-				return
-			}
-			log.Error().Err(err).Msg("power server exited unexpectedly")
-			<-time.After(10 * time.Second)
-		}
-	}()
 
 	events, err := events.NewRedisStream(sub, msgBrokerCon, env.FarmID, nodeID, eventsBlock)
 	if err != nil {

@@ -1021,9 +1021,12 @@ func (n *networker) GetPublicExitDevice() (pkg.ExitDevice, error) {
 }
 
 // Get node public namespace config
+func (n *networker) HasPublicConfig() bool {
+	return public.HasPublicSetup()
+}
+
+// Get node public namespace config
 func (n *networker) GetPublicConfig() (pkg.PublicConfig, error) {
-	// TODO: instea of loading, this actually must get
-	// from reality.
 	cfg, err := public.GetPublicSetup()
 	if err != nil {
 		return pkg.PublicConfig{}, err

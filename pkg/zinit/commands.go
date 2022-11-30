@@ -227,7 +227,14 @@ func (c *Client) Version() (semver.Version, error) {
 		return semver.Version{}, fmt.Errorf("invalid version output from zinit command: %s", string(output))
 	}
 
-	return semver.Parse(parts[1])
+	v := strings.TrimPrefix(strings.TrimSpace(parts[1]), "v")
+
+	version, err := semver.Parse(v)
+	if err != nil {
+		return version, errors.Wrapf(err, "failed to parse version returned by zos: '%s'", v)
+	}
+
+	return version, nil
 }
 
 func (c *Client) Reboot() error {
@@ -238,7 +245,7 @@ func (c *Client) Reboot() error {
 	// separate reboot and shutdown commands were implemented
 	// in version 0.2.9. Before this version `shutdown` caused
 	// a reboot.
-	if ver.LT(semver.MustParse("v0.2.9")) {
+	if ver.LT(semver.MustParse("0.2.9")) {
 		return c.cmd("shutdown", nil)
 	}
 
@@ -253,7 +260,7 @@ func (c *Client) Shutdown() error {
 	// separate reboot and shutdown commands were implemented
 	// in version 0.2.9. Before this version `shutdown` caused
 	// a reboot.
-	if ver.LT(semver.MustParse("v0.2.9")) {
+	if ver.LT(semver.MustParse("0.2.9")) {
 		return errors.Wrap(ErrNotSupported, "shutdown is not supported in this version of zinit")
 	}
 

@@ -1,0 +1,4 @@
+exec: powerd
+after:
+  - boot
+  - noded

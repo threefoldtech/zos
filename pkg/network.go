@@ -196,6 +196,9 @@ type Networker interface {
 	// UnsetPublicConfig removes public config from node
 	UnsetPublicConfig() error
 
+	// HasPublicConfig returns true if system has public config (access node)
+	HasPublicConfig() bool
+
 	// Get node public namespace config
 	GetPublicConfig() (PublicConfig, error)
 
