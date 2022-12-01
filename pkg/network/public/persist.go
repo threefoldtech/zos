@@ -53,7 +53,7 @@ func LoadPublicConfig() (*pkg.PublicConfig, error) {
 	defer file.Close()
 	var cfg pkg.PublicConfig
 	if err := json.NewDecoder(file).Decode(&cfg); err != nil {
-		return nil, errors.Wrap(err, "failed to decode public config")
+		return nil, errors.Wrap(ErrNoPublicConfig, "failed to decode public config")
 	}
 
 	return &cfg, nil
