@@ -62,7 +62,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
 	github.com/threefoldtech/go-rmb v0.1.11-0.20220224131627-825c23c921d3
-	github.com/threefoldtech/substrate-client v0.0.0-20221129080858-a6ca4c8a3873
+	github.com/threefoldtech/substrate-client v0.0.0-20221201094734-e226251cdfa4
 	github.com/threefoldtech/zbus v1.0.0
 	github.com/tinylib/msgp v1.1.5 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0
@@ -89,5 +89,3 @@ require (
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
 
 replace github.com/centrifuge/go-substrate-rpc-client/v4 v4.0.5 => github.com/threefoldtech/go-substrate-rpc-client/v4 v4.0.6-0.20220927094755-0f0d22c73cc7
-
-replace github.com/threefoldtech/substrate-client => ../substrate-client
