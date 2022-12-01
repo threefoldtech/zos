@@ -207,19 +207,22 @@ func (p *PowerServer) syncNode(sub *substrate.Substrate, id uint32) error {
 		return errors.Wrapf(err, "failed to get node '%d' from chain", id)
 	}
 
-	if node.Power.Target.IsDown &&
-		node.Power.State.IsDown {
+	power := node.Power
+	if power.Target.IsDown &&
+		power.State.IsDown {
 		// should we nudge the node to send uptime?
-		if p.needNudge(id, uint64(node.Power.LastUptime)) {
-			return p.powerUp(node)
+		if p.needNudge(id, uint64(power.LastUptime)) {
+			return p.powerUp(node, "nudge")
 		}
 		return nil
-	} else if node.Power.Target.IsDown {
+	} else if power.Target.IsDown {
 		// node target is down but node state is up.
 		// means we should try to put it down. if it accepted
 		// this we can simply try to ask it to power off. if that
 		// didn't work it means probably the node is not reachable
 		return p.powerDown(node)
+	} else if power.Target.IsUp && power.State.IsDown {
+		return p.powerUp(node, "synchronize")
 	}
 
 	return nil
@@ -300,8 +303,8 @@ func (p *PowerServer) syncSelf() error {
 	return nil
 }
 
-func (p *PowerServer) powerUp(node *substrate.Node) error {
-	log.Info().Uint32("node", uint32(node.ID)).Msg("powering on node")
+func (p *PowerServer) powerUp(node *substrate.Node, reason string) error {
+	log.Info().Uint32("node", uint32(node.ID)).Str("reason", reason).Msg("powering on node")
 
 	mac := ""
 	for _, inf := range node.Interfaces {
@@ -404,7 +407,7 @@ func (p *PowerServer) event(event *pkg.PowerChangeEvent) error {
 
 	if event.Target.IsUp {
 		log.Info().Uint32("target", event.NodeID).Msg("received an event to power up")
-		return p.powerUp(node)
+		return p.powerUp(node, "target is up")
 	}
 
 	return nil
