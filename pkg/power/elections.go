@@ -145,7 +145,7 @@ func (e *electionsManager) checkNode(sub *substrate.Substrate, nodeID uint32) (b
 
 func (e *electionsManager) checkSameLAN(node *substrate.Node, publicKey ed25519.PublicKey) bool {
 	for _, i := range node.Interfaces {
-		if i.Name != wolInterface {
+		if i.Name != DefaultWolBridge {
 			continue
 		}
 		for _, ip := range i.IPs {

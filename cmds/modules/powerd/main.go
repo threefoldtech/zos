@@ -86,6 +86,22 @@ func action(cli *cli.Context) error {
 
 	enabled := kernel.GetParams().IsPowerManagementEnabled()
 
+	if enabled {
+		// if the feature is globally enabled try to ensure
+		// wake on lan is set correctly.
+		// then override the enabled flag
+		enabled, err = power.EnsureWakeOnLan(cli.Context)
+		if err != nil {
+			return errors.Wrap(err, "failed to enable wol")
+		}
+
+		if !enabled {
+			// if the zos nics don't support wol we can automatically
+			// disable the feature
+			log.Info().Msg("no wol support found by zos nic")
+		}
+	}
+
 	if !enabled {
 		// if not enabled, wait forever
 		log.Info().Msg("power management is disabled")

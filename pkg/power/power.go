@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
@@ -71,16 +72,12 @@ func NewPowerServer(
 	sk ed25519.PrivateKey,
 	ut *Uptime) (*PowerServer, error) {
 
-	if err := enableWol(wolInterface); err != nil {
-		return nil, err
-	}
-
 	identity, err := substrate.NewIdentityFromEd25519Key(sk)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialized identity")
 	}
 
-	lan, err := NewDirect(wolInterface)
+	lan, err := NewDirect(DefaultWolBridge)
 	if err != nil {
 		return nil, err
 	}
@@ -103,33 +100,53 @@ func NewPowerServer(
 }
 
 const (
-	wolInterface    = "zos"
-	PowerServerPort = 8039
+	DefaultWolBridge = "zos"
+	PowerServerPort  = 8039
 )
 
 var (
 	errConnectionError = fmt.Errorf("connection error")
 )
 
-func enableWol(inf string) error {
-	br, err := bridge.Get(inf)
+func EnsureWakeOnLan(ctx context.Context) (bool, error) {
+	inf, err := bridge.Get(DefaultWolBridge)
 	if err != nil {
-		return errors.Wrap(err, "failed to get zos bridge")
+		return false, errors.Wrap(err, "failed to get zos bridge")
 	}
 
-	nics, err := bridge.ListNics(br, true)
+	nics, err := bridge.ListNics(inf, true)
 	if err != nil {
-		return errors.Wrap(err, "failed to list attached nics to zos bridge")
+		return false, errors.Wrap(err, "failed to list attached nics to zos bridge")
 	}
 
+	filtered := nics[:0]
 	for _, nic := range nics {
-		log.Debug().Str("device", nic.Attrs().Name).Msg("enable wol on device")
-		if err := exec.Command("ethtool", "-s", nic.Attrs().Name, "wol", "g").Run(); err != nil {
-			log.Error().Err(err).Str("nic", nic.Attrs().Name).Msg("failed to enable WOL for nic")
+		if nic.Type() == "device" {
+			filtered = append(filtered, nic)
 		}
 	}
 
-	return nil
+	if len(filtered) != 1 {
+		return false, fmt.Errorf("zos bridge has multiple interfaces")
+	}
+
+	nic := filtered[0].Attrs().Name
+	log.Info().Str("nic", nic).Msg("enabling wol on interface")
+	support, err := ValueOfFlag(ctx, nic, SupportsWakeOn)
+
+	if errors.Is(err, ErrFlagNotFound) {
+		// no support for
+		return false, nil
+	} else if err != nil {
+		return false, errors.Wrap(err, "failed to detect support for wake on lan")
+	}
+
+	if !strings.Contains(support, string(MagicPacket)) {
+		// no magic packet support either
+		return false, nil
+	}
+
+	return true, SetWol(ctx, nic, MagicPacket)
 }
 
 func (p *PowerServer) getNode(nodeID uint32) (*substrate.Node, error) {
