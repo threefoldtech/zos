@@ -45,7 +45,6 @@ var (
 )
 
 type options struct {
-	from      uint64
 	mnemonics string
 	dry       bool
 	network   string
@@ -139,7 +138,6 @@ func main() {
 
 	flag.StringVar(&opt.network, "network", "main", "network (main, test, dev)")
 	flag.BoolVar(&opt.dry, "dry-run", false, "print the list of the nodes to be migrated")
-	flag.Uint64Var(&opt.from, "from", 1, "start scanning nodes with id")
 	flag.StringVar(&opt.mnemonics, "mnemonics", "", "mnemonics for the sudo key")
 	flag.BoolVar(&debug, "debug", false, "show debugging logs")
 	flag.Parse()
