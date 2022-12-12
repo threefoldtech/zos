@@ -24,14 +24,22 @@ type Network string
 const (
 	MainNetwork Network = "main"
 	TestNetwork Network = "test"
-	DetNetwork  Network = "dev"
+	DevNetwork  Network = "dev"
 )
 
 var (
 	networks = map[Network]Urls{
 		MainNetwork: {
-			Substrate: "wss://tfchain.dev.grid.tf",
+			Substrate: "wss://tfchain.grid.tf",
 			Graphql:   "https://graphql.grid.tf/graphql",
+		},
+		TestNetwork: {
+			Substrate: "wss://tfchain.test.grid.tf",
+			Graphql:   "https://graphql.test.grid.tf/graphql",
+		},
+		DevNetwork: {
+			Substrate: "wss://tfchain.dev.grid.tf",
+			Graphql:   "https://graphql.dev.grid.tf/graphql",
 		},
 	}
 )
