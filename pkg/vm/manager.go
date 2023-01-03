@@ -19,6 +19,7 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/vm/cloudinit"
 )
 
@@ -471,8 +472,34 @@ func (m *Module) Run(vm pkg.VM) error {
 	if err := m.waitAndAdjOom(ctx, vm.Name); err != nil {
 		return m.withLogs(m.logsPath(vm.Name), err)
 	}
+	for _, ifc := range vm.Network.Ifaces {
 
-	return nil
+		if ifc.NetID == "" || len(ifc.IPs) == 0 {
+			continue
+		}
+
+		stub := stubs.NewNetworkerStub(m.client)
+		namespace := stub.Namespace(ctx, ifc.NetID)
+
+		networkAddr, err := stub.GetSubnet(ctx, ifc.NetID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get network '%s'", ifc.NetID)
+		}
+
+		client := NewClient(m.socketPath(vm.Name))
+		vmData, err := client.Inspect(ctx)
+		if err != nil {
+			return errors.Wrapf(err, "failed to Inspect vm with id '%s'", vm.Name)
+		}
+		// start cloud console on the first IP assigned to this interface
+		err = machine.StartCloudConsole(ctx, namespace, networkAddr, ifc.IPs[0], vmData.PTYPath)
+		if err != nil {
+			return errors.Wrapf(err, "failed to start cloud-console for vm id '%s'", vm.Name)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("couldn't start cloud console interface for private network not found")
 }
 
 func (m *Module) waitAndAdjOom(ctx context.Context, name string) error {
@@ -531,14 +558,14 @@ func (m *Module) Inspect(name string) (pkg.VMInfo, error) {
 		return pkg.VMInfo{}, fmt.Errorf("machine '%s' does not exist", name)
 	}
 	client := NewClient(m.socketPath(name))
-	cpu, mem, err := client.Inspect(context.Background())
+	vmdata, err := client.Inspect(context.Background())
 	if err != nil {
 		return pkg.VMInfo{}, errors.Wrap(err, "failed to get machine configuration")
 	}
 
 	return pkg.VMInfo{
-		CPU:       int64(cpu),
-		Memory:    int64(mem),
+		CPU:       int64(vmdata.CPU),
+		Memory:    int64(vmdata.Memory),
 		HtEnabled: false,
 	}, nil
 }

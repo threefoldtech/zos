@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -17,8 +19,32 @@ import (
 )
 
 const (
-	chBin = "cloud-hypervisor"
+	chBin           = "cloud-hypervisor"
+	cloudConsoleBin = "cloud-console"
 )
+
+// StartCloudConsole Starts the cloud console for the vm on it's private network ip
+func (m *Machine) StartCloudConsole(ctx context.Context, namespace string, networkAddr net.IPNet, machineIP net.IPNet, ptyPath string) error {
+	ipOctets := strings.Split(machineIP.IP.String(), ".")
+	port, err := strconv.Atoi(ipOctets[len(ipOctets)-1])
+	if err != nil {
+		return err
+	}
+	port = 20000 + port
+	if port == 65535 {
+		return fmt.Errorf("couldn't start cloud console port number exceeds %d", port)
+	}
+	args := []string{"setsid", "ip", "netns", "exec", namespace, cloudConsoleBin, ptyPath, networkAddr.IP.String(), strconv.Itoa(port)}
+	log.Debug().Msgf("running cloud-console : %+v", args)
+
+	cmd := exec.CommandContext(ctx, "busybox", args...)
+
+	if err := cmd.Start(); err != nil {
+		return errors.Wrap(err, "failed to start cloud-hypervisor")
+	}
+
+	return m.release(cmd.Process)
+}
 
 // Run run the machine with cloud-hypervisor
 func (m *Machine) Run(ctx context.Context, socket, logs string) error {
@@ -33,7 +59,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 		"--memory": {fmt.Sprintf("%s,shared=on", m.Config.Mem.String())},
 
 		"--console":    {"off"},
-		"--serial":     {"tty"},
+		"--serial":     {"pty"}, // we use pty here for the cloud console to be able to read the vm console, in case of debuging or we need stdout logging we use tty
 		"--api-socket": {socket},
 	}
 	var err error
