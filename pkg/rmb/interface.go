@@ -41,5 +41,4 @@ func (o Options) WithTimeout(timeout uint32) Options {
 // Client is an rmb abstract client interface.
 type Client interface {
 	Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error
-	CallWithOptions(ctx context.Context, opts Options, twin uint32, fn string, data interface{}, result interface{}) error
 }

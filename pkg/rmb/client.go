@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
@@ -54,22 +55,24 @@ func (c *redisClient) Close() error {
 	return c.pool.Close()
 }
 
-func (c *redisClient) Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error {
-	return c.CallWithOptions(ctx, DefaultOptions(), twin, fn, data, result)
-}
-
 // Call calls the twin with given function and message. if result is not nil the response body is json
 // decoded into this value
-func (c *redisClient) CallWithOptions(ctx context.Context, opts Options, twin uint32, fn string, data interface{}, result interface{}) error {
+func (c *redisClient) Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error {
 	bytes, err := json.Marshal(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to serialize request data")
 	}
 
+	var ttl uint64 = 5 * 60
+	deadline, ok := ctx.Deadline()
+	if ok {
+		ttl = uint64(time.Until(deadline).Seconds())
+	}
+
 	queue := uuid.NewString()
 	msg := Request{
 		Version:    1,
-		Expiration: int(opts.timeout),
+		Expiration: int(ttl),
 		Command:    fn,
 		TwinDest:   []uint32{twin},
 		Data:       base64.StdEncoding.EncodeToString(bytes),
