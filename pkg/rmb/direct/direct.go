@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -16,6 +15,7 @@ import (
 	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zos/pkg/rmb"
 	"github.com/threefoldtech/zos/pkg/rmb/direct/types"
+	"google.golang.org/protobuf/proto"
 )
 
 type directClient struct {
