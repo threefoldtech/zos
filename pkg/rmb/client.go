@@ -54,22 +54,26 @@ func (c *redisClient) Close() error {
 	return c.pool.Close()
 }
 
+func (c *redisClient) Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error {
+	return c.CallWithOptions(ctx, DefaultOptions(), twin, fn, data, result)
+}
+
 // Call calls the twin with given function and message. if result is not nil the response body is json
 // decoded into this value
-func (c *redisClient) Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error {
+func (c *redisClient) CallWithOptions(ctx context.Context, opts Options, twin uint32, fn string, data interface{}, result interface{}) error {
 	bytes, err := json.Marshal(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to serialize request data")
 	}
 
 	queue := uuid.NewString()
-	msg := Message{
+	msg := Request{
 		Version:    1,
-		Expiration: 3600,
+		Expiration: int(opts.timeout),
 		Command:    fn,
 		TwinDest:   []uint32{twin},
 		Data:       base64.StdEncoding.EncodeToString(bytes),
-		Retqueue:   queue,
+		RetQueue:   queue,
 	}
 
 	bytes, err = json.Marshal(msg)
@@ -107,14 +111,15 @@ func (c *redisClient) Call(ctx context.Context, twin uint32, fn string, data int
 		break
 	}
 
+	var ret Response
 	// we have a response, so load or fail
-	if err := json.Unmarshal(bytes, &msg); err != nil {
+	if err := json.Unmarshal(bytes, &ret); err != nil {
 		return errors.Wrap(err, "failed to load response message")
 	}
 
 	// errorred ?
-	if len(msg.Err) != 0 {
-		return errors.New(msg.Err)
+	if ret.Error != nil {
+		return errors.New(ret.Error.Message)
 	}
 
 	// not expecting a result

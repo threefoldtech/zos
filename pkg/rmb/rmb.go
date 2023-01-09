@@ -25,25 +25,34 @@ type twinKeyID struct{}
 // messageKey is where the original message is stored
 type messageKey struct{}
 
-// Message is an struct used to communicate over the messagebus
-type Message struct {
+// Request is an struct used to communicate over the messagebus
+type Request struct {
 	Version    int      `json:"ver"`
-	UID        string   `json:"uid"`
+	Reference  string   `json:"ref"`
 	Command    string   `json:"cmd"`
 	Expiration int      `json:"exp"`
-	Retry      int      `json:"try"`
 	Data       string   `json:"dat"`
 	TwinSrc    uint32   `json:"src"`
 	TwinDest   []uint32 `json:"dst"`
-	Retqueue   string   `json:"ret"`
+	RetQueue   string   `json:"ret"`
 	Schema     string   `json:"shm"`
 	Epoch      int64    `json:"now"`
-	Err        string   `json:"err"`
-	// Proxy flag is only used to keep the value sent by
-	// msgbusd. because it need to be send back as is to
-	// the daemon. While it's not used in the client side
-	// it need to stay
-	Proxy bool `json:"pxy"`
+}
+
+type Error struct {
+	Code    uint32 `json:"code"`
+	Message string `json:"message"`
+}
+
+type Response struct {
+	Version   int    `json:"ver"`
+	Reference string `json:"ref"`
+	Data      string `json:"dat"`
+	TwinSrc   uint32 `json:"src"`
+	TwinDest  uint32 `json:"dst"`
+	Schema    string `json:"shm"`
+	Epoch     int64  `json:"now"`
+	Error     *Error `json:"err,omitempty"`
 }
 
 type messageBusSubrouter struct {
@@ -199,7 +208,7 @@ func (m *MessageBus) Run(ctx context.Context) error {
 		topics[i] = "msgbus." + topic
 	}
 
-	jobs := make(chan Message, numWorkers)
+	jobs := make(chan Request, numWorkers)
 	for i := 1; i <= numWorkers; i++ {
 		go m.worker(ctx, jobs)
 	}
@@ -222,7 +231,7 @@ func (m *MessageBus) Run(ctx context.Context) error {
 			continue
 		}
 
-		var message Message
+		var message Request
 		err = json.Unmarshal(data[1], &message)
 		if err != nil {
 			log.Err(err).Msg("failed to unmarshal message")
@@ -237,7 +246,7 @@ func (m *MessageBus) Run(ctx context.Context) error {
 	}
 }
 
-func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
+func (m *MessageBus) worker(ctx context.Context, jobs chan Request) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -252,6 +261,15 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 			requestCtx = context.WithValue(requestCtx, messageKey{}, message)
 
 			data, err := m.call(requestCtx, message.Command, bytes)
+
+			response := Response{
+				Version:   message.Version,
+				Reference: message.Reference,
+				TwinDest:  message.TwinSrc,
+				Schema:    message.Schema,
+				Epoch:     time.Now().Unix(),
+			}
+
 			if err != nil {
 				log.Debug().
 					Err(err).
@@ -259,10 +277,13 @@ func (m *MessageBus) worker(ctx context.Context, jobs chan Message) {
 					Str("handler", message.Command).
 					Msg("error while handling job")
 				// TODO: create an error object
-				message.Err = err.Error()
+				response.Error = &Error{
+					Code:    255, //client error
+					Message: err.Error(),
+				}
 			}
 
-			err = m.sendReply(message, data)
+			err = m.sendReply(response, data)
 			if err != nil {
 				log.Err(err).Msg("err while sending reply")
 			}
@@ -281,8 +302,8 @@ func GetTwinID(ctx context.Context) uint32 {
 }
 
 // GetMessage gets a message from the context, panics if it's not there
-func GetMessage(ctx context.Context) Message {
-	message, ok := ctx.Value(messageKey{}).(Message)
+func GetMessage(ctx context.Context) Request {
+	message, ok := ctx.Value(messageKey{}).(Request)
 	if !ok {
 		panic("failed to load message from context")
 	}
@@ -291,15 +312,9 @@ func GetMessage(ctx context.Context) Message {
 }
 
 // sendReply send a reply to the message bus with some data
-func (m *MessageBus) sendReply(message Message, data interface{}) error {
+func (m *MessageBus) sendReply(message Response, data interface{}) error {
 	con := m.pool.Get()
 	defer con.Close()
-
-	src := message.TwinDest[0]
-	// reply to source
-	message.TwinDest = []uint32{message.TwinSrc}
-	message.TwinSrc = src
-	message.Data = ""
 
 	if data != nil {
 		bytes, err := json.Marshal(data)
@@ -310,18 +325,14 @@ func (m *MessageBus) sendReply(message Message, data interface{}) error {
 		message.Data = base64.StdEncoding.EncodeToString(bytes)
 	}
 
-	// set the time to now
-	message.Epoch = time.Now().Unix()
-
 	bytes, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
 
 	log.Debug().
-		Str("id", message.Retqueue).
-		Uint32("to", message.TwinDest[0]).
-		Str("fn", message.Command).
+		Str("id", message.Reference).
+		Uint32("to", message.TwinDest).
 		Msg("pushing response")
 
 	_, err = con.Do("LPUSH", replyBus, string(bytes))
@@ -334,6 +345,6 @@ func (m *MessageBus) sendReply(message Message, data interface{}) error {
 }
 
 // GetPayload returns the payload for a message's data
-func (m *Message) GetPayload() ([]byte, error) {
+func (m *Request) GetPayload() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(m.Data)
 }

@@ -23,7 +23,23 @@ type Router interface {
 	Use(Middleware)
 }
 
+type Options struct {
+	timeout uint32
+}
+
+func DefaultOptions() Options {
+	return Options{
+		timeout: 600, // 5 minutes
+	}
+}
+
+func (o Options) WithTimeout(timeout uint32) Options {
+	o.timeout = timeout
+	return o
+}
+
 // Client is an rmb abstract client interface.
 type Client interface {
 	Call(ctx context.Context, twin uint32, fn string, data interface{}, result interface{}) error
+	CallWithOptions(ctx context.Context, opts Options, twin uint32, fn string, data interface{}, result interface{}) error
 }
