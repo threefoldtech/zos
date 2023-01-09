@@ -166,6 +166,8 @@ func (d *directClient) Call(ctx context.Context, twin uint32, fn string, data in
 		return fmt.Errorf("no response received")
 	}
 
+	//TODO: signature verification must be done here
+
 	resp := response.GetResponse()
 	if resp == nil {
 		return fmt.Errorf("received a non response envelope")
