@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	replyBus   = "msgbus.system.reply"
 	numWorkers = 5
 )
 
@@ -335,7 +334,7 @@ func (m *MessageBus) sendReply(message Response, data interface{}) error {
 		Uint32("to", message.TwinDest).
 		Msg("pushing response")
 
-	_, err = con.Do("LPUSH", replyBus, string(bytes))
+	_, err = con.Do("LPUSH", message.Retqueue, string(bytes))
 	if err != nil {
 		log.Err(err).Msg("failed to push to reply messagebus")
 		return err
