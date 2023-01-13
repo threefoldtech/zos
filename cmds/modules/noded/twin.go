@@ -37,7 +37,7 @@ func withDefaultPort(substrateUrl string) (string, error) {
 	return u.String(), nil
 }
 
-func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []string, redisAddr string) error {
+func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []string, relayAddr string, redisAddr string) error {
 	// select the first one as only one URL is set for now
 	if len(substrateURLs) == 0 {
 		return errors.New("at least one substrate URL must be provided")
@@ -53,7 +53,16 @@ func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []strin
 		return err
 	}
 
-	command := exec.CommandContext(ctx, "rmb", "-s", substrateURL, "-k", keyType, "--seed", seedHex, "--redis", redisAddr)
+	command := exec.CommandContext(
+		ctx,
+		"rmb",
+		"-s", substrateURL,
+		"--relay", relayAddr,
+		"-k", keyType,
+		"--seed", seedHex,
+		"--redis", redisAddr,
+	)
+
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr

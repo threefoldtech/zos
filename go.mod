@@ -58,7 +58,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.30.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/rs/zerolog v1.26.0
+	github.com/rs/zerolog v1.28.0
 	github.com/rusart/muxprom v0.0.0-20200609120753-9173fa27435a
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/safchain/ethtool v0.0.0-20201023143004-874930cb3ce0 // indirect
@@ -67,6 +67,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
 	github.com/threefoldtech/go-rmb v0.1.11-0.20220224131627-825c23c921d3
+	github.com/threefoldtech/rmb-sdk-go v0.0.0-20230113150206-c0b0fe3bec4c // indirect
 	github.com/threefoldtech/substrate-client v0.0.0-20230103083438-c6d86a2e6338
 	github.com/threefoldtech/zbus v1.0.0
 	github.com/tinylib/msgp v1.1.5 // indirect

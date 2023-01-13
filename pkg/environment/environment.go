@@ -29,6 +29,7 @@ type Environment struct {
 
 	FarmSecret    string
 	SubstrateURL  []string
+	RelayURL      string
 	ActivationURL string
 
 	ExtendedConfigURL string
@@ -79,6 +80,7 @@ var (
 		SubstrateURL: []string{
 			"wss://tfchain.dev.grid.tf/",
 		},
+		RelayURL:      "wss://relay.dev.grid.tf",
 		ActivationURL: "https://activation.dev.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.dev",
@@ -89,6 +91,7 @@ var (
 		SubstrateURL: []string{
 			"wss://tfchain.test.grid.tf/",
 		},
+		RelayURL:      "wss://relay.dev.grid.tf", // TODO: replace with proper relay url
 		ActivationURL: "https://activation.test.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.test",
@@ -99,6 +102,7 @@ var (
 		SubstrateURL: []string{
 			"wss://tfchain.qa.grid.tf/",
 		},
+		RelayURL:      "wss://relay.dev.grid.tf", // TODO: replace with proper relay url
 		ActivationURL: "https://activation.qa.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.qanet",
@@ -113,6 +117,7 @@ var (
 			"wss://03.tfchain.grid.tf/",
 			"wss://04.tfchain.grid.tf/",
 		},
+		RelayURL:      "wss://relay.dev.grid.tf", // TODO: replace with proper relay url
 		ActivationURL: "https://activation.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins",
