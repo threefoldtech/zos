@@ -185,12 +185,18 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 
 	extended, found := params.Get("config_url")
 	if found && len(extended) >= 1 {
-		env.ExtendedConfigURL = extended[0]
+		env.ExtendedConfigURL = extended[len(extended)-1]
 	}
 
 	if substrate, ok := params.Get("substrate"); ok {
 		if len(substrate) > 0 {
 			env.SubstrateURL = substrate
+		}
+	}
+
+	if relay, ok := params.Get("relay"); ok {
+		if len(relay) > 0 {
+			env.RelayURL = relay[len(relay)-1]
 		}
 	}
 
