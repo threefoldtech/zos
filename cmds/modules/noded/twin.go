@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/kernel"
 )
 
 const (
@@ -53,14 +54,22 @@ func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []strin
 		return err
 	}
 
-	command := exec.CommandContext(
-		ctx,
-		"rmb",
+	args := []string{
 		"-s", substrateURL,
 		"--relay", relayAddr,
 		"-k", keyType,
 		"--seed", seedHex,
 		"--redis", redisAddr,
+	}
+
+	if kernel.GetParams().IsDebug() {
+		args = append(args, "-d")
+	}
+
+	command := exec.CommandContext(
+		ctx,
+		"rmb",
+		args...,
 	)
 
 	command.Stdin = os.Stdin
