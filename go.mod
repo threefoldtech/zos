@@ -65,7 +65,7 @@ require (
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
 	github.com/threefoldtech/go-rmb v0.1.11-0.20220224131627-825c23c921d3
 	github.com/threefoldtech/substrate-client v0.0.0-20230103083438-c6d86a2e6338
-	github.com/threefoldtech/zbus v1.0.0
+	github.com/threefoldtech/zbus v1.0.1-0.20230126142924-0234272d3829
 	github.com/tinylib/msgp v1.1.5 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/urfave/cli v1.22.5 // indirect
@@ -91,3 +91,5 @@ require (
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
 
 replace github.com/centrifuge/go-substrate-rpc-client/v4 v4.0.5 => github.com/threefoldtech/go-substrate-rpc-client/v4 v4.0.6-0.20230102154731-7c633b7d3c71
+
+replace github.com/threefoldtech/zbus => ../zbus
