@@ -264,13 +264,10 @@ func (r *RedisConsumer) consumer(ctx context.Context, stream string, ch reflect.
 				}
 			}
 
-			chosen, _, _ := reflect.Select([]reflect.SelectCase{
-				{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ctx.Done())},
-				{Dir: reflect.SelectDefault},
-			})
-
-			if chosen == 0 {
+			select {
+			case <-ctx.Done():
 				return
+			default:
 			}
 		}
 	}()
