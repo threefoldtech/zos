@@ -16,9 +16,6 @@ const (
 	// VirtualMachine forces zos to think it's running
 	// on a virtual machine. used mainly for development
 	VirtualMachine = "zos-debug-vm"
-
-	// PowerManagement controls the power management flags
-	PowerManagement = "power.management"
 )
 
 // Params represent the parameters passed to the kernel at boot
@@ -47,11 +44,6 @@ func (k Params) IsDebug() bool {
 // IsVirtualMachine checks if zos-debug-vm is set
 func (k Params) IsVirtualMachine() bool {
 	return k.Exists(VirtualMachine)
-}
-
-// check if power.management flag is set
-func (k Params) IsPowerManagementEnabled() bool {
-	return k.Exists(PowerManagement)
 }
 
 func parseParams(content string) Params {

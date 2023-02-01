@@ -9,7 +9,6 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/events"
-	"github.com/threefoldtech/zos/pkg/kernel"
 	"github.com/threefoldtech/zos/pkg/power"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -84,29 +83,18 @@ func action(cli *cli.Context) error {
 	// start uptime reporting
 	go uptime.Start(cli.Context)
 
-	enabled := kernel.GetParams().IsPowerManagementEnabled()
-
-	if enabled {
-		// if the feature is globally enabled try to ensure
-		// wake on lan is set correctly.
-		// then override the enabled flag
-		enabled, err = power.EnsureWakeOnLan(cli.Context)
-		if err != nil {
-			return errors.Wrap(err, "failed to enable wol")
-		}
-
-		if !enabled {
-			// if the zos nics don't support wol we can automatically
-			// disable the feature
-			log.Info().Msg("no wol support found by zos nic")
-		}
+	// if the feature is globally enabled try to ensure
+	// wake on lan is set correctly.
+	// then override the enabled flag
+	enabled, err := power.EnsureWakeOnLan(cli.Context)
+	if err != nil {
+		return errors.Wrap(err, "failed to enable wol")
 	}
 
 	if !enabled {
-		// if not enabled, wait forever
-		log.Info().Msg("power management is disabled")
-		<-ctx.Done()
-		return nil
+		// if the zos nics don't support wol we can automatically
+		// disable the feature
+		log.Info().Msg("no wol support found by zos nic")
 	}
 
 	consumer, err := events.NewConsumer(msgBrokerCon, module)
@@ -115,7 +103,7 @@ func action(cli *cli.Context) error {
 	}
 
 	// start power manager
-	power, err := power.NewPowerServer(cl, sub, consumer, env.FarmID, nodeID, twinID, sk, uptime)
+	power, err := power.NewPowerServer(cl, sub, consumer, enabled, env.FarmID, nodeID, twinID, id, uptime)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize power manager")
 	}

@@ -2,7 +2,6 @@ package power
 
 import (
 	"context"
-	"crypto/ed25519"
 	"fmt"
 	"net"
 	"os/exec"
@@ -25,48 +24,36 @@ type PowerServer struct {
 	consumer *events.RedisConsumer
 	sub      substrate.Manager
 
+	// enabled means the node can power off!
+	enabled  bool
 	farm     pkg.FarmID
 	node     uint32
 	twin     uint32
-	sk       ed25519.PrivateKey
 	identity substrate.Identity
 	ut       *Uptime
-	listen   string
-	direct   *Direct
 }
 
 func NewPowerServer(
 	cl zbus.Client,
 	sub substrate.Manager,
 	consumer *events.RedisConsumer,
+	enabled bool,
 	farm pkg.FarmID,
 	node uint32,
 	twin uint32,
-	sk ed25519.PrivateKey,
+	identity substrate.Identity,
 	ut *Uptime) (*PowerServer, error) {
-
-	identity, err := substrate.NewIdentityFromEd25519Key(sk)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialized identity")
-	}
-
-	lan, err := NewDirect(DefaultWolBridge)
-	if err != nil {
-		return nil, err
-	}
 
 	return &PowerServer{
 		cl:       cl,
 		sub:      sub,
 		consumer: consumer,
-		listen:   fmt.Sprintf(":%d", PowerServerPort),
+		enabled:  enabled,
 		farm:     farm,
 		node:     node,
 		twin:     twin,
-		sk:       sk,
 		identity: identity,
 		ut:       ut,
-		direct:   lan,
 	}, nil
 }
 
@@ -182,6 +169,11 @@ func (p *PowerServer) powerUp(node *substrate.Node, reason string) error {
 }
 
 func (p *PowerServer) shutdown() error {
+	if !p.enabled {
+		log.Info().Msg("ignoring shutdown because power managed is not enabled")
+		return nil
+	}
+
 	log.Info().Msg("shutting down node because of chain")
 	if _, err := p.ut.SendNow(); err != nil {
 		log.Error().Err(err).Msg("failed to send uptime before shutting down")

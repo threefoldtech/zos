@@ -130,7 +130,7 @@ func (r *RedisStream) process(events *substrate.EventRecords) {
 		}
 
 		log.Info().Uint32("node", uint32(event.Node)).Msg("got power target change event")
-		if err := r.push(con, streamContractGracePeriod, pkg.PowerTargetChangeEvent{
+		if err := r.push(con, streamPowerTargetChange, pkg.PowerTargetChangeEvent{
 			FarmID: pkg.FarmID(event.Farm),
 			NodeID: uint32(event.Node),
 			Target: event.PowerTarget,
