@@ -11,17 +11,17 @@ exec: |
   export NETWORK=$(identityd -net)
 
   if [ "${NODE}" = "" ]; then
-    echo "can't get node id"
+    echo "cannot get node id"
     exit 1
   fi
 
   if [ "${FARM}" = "" ]; then
-    echo "can't get farm id"
+    echo "cannot get farm id"
     exit 1
   fi
 
   if [ "${NETWORK}" = "" ]; then
-    echo "can't get farm id"
+    echo "cannot get farm id"
     exit 1
   fi
 
