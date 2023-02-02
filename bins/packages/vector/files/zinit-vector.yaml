@@ -2,11 +2,28 @@
 # in its own process group
 exec: |
   sh -c '
+  set -e
   pkill vector
 
   export NODE=$(identityd -address)
   export FARM=$(identityd -farm)
   export NETWORK=$(identityd -net)
+
+  if [ "${NODE}" = "" ]; then
+    echo "can't get node id"
+    exit 1
+  fi
+
+  if [ "${FARM}" = "" ]; then
+    echo "can't get farm id"
+    exit 1
+  fi
+
+  if [ "${NETWORK}" = "" ]; then
+    echo "can't get farm id"
+    exit 1
+  fi
+
   exec vector -c /etc/vector/vector.yaml
   '
 log: stdout
