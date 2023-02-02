@@ -3,7 +3,8 @@
 exec: |
   sh -c '
   set -e
-  pkill vector
+
+  pkill vector || true
 
   export NODE=$(identityd -address)
   export FARM=$(identityd -farm)
