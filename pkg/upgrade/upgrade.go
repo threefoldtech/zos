@@ -125,8 +125,7 @@ func (u *Upgrader) Upgrade(from, to FullFListInfo) error {
 }
 
 func (u *Upgrader) cleanup() error {
-	u.zinit.Destroy(30*time.Second, deleteMe...)
-	return nil
+	return u.zinit.Destroy(30*time.Second, deleteMe...)
 }
 
 // getFlist accepts fqdn of flist as `<repo>/<name>.flist`
