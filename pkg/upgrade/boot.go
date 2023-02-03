@@ -36,7 +36,7 @@ const (
 	BootMethodOther BootMethod = "other"
 )
 
-//Boot struct
+// Boot struct
 type Boot struct{}
 
 // DetectBootMethod tries to detect the boot method
@@ -64,7 +64,7 @@ func (b *Boot) Name() string {
 	return strings.TrimSpace(string(data))
 }
 
-//CurrentBins returns a list of current binaries installed
+// CurrentBins returns a list of current binaries installed
 func (b *Boot) CurrentBins() (map[string]FListInfo, error) {
 	f, err := os.Open(BinariesFile)
 	if err != nil {
@@ -77,7 +77,7 @@ func (b *Boot) CurrentBins() (map[string]FListInfo, error) {
 	return result, err
 }
 
-//SetBins sets the current list of binaries in boot files
+// SetBins sets the current list of binaries in boot files
 func (b *Boot) SetBins(current map[string]FListInfo) error {
 	f, err := os.Create(BinariesFile)
 	if err != nil {
@@ -112,7 +112,7 @@ func (b *Boot) Version() (semver.Version, error) {
 	return info.Version()
 }
 
-//MustVersion must returns the current version or panic
+// MustVersion must returns the current version or panic
 func (b *Boot) MustVersion() semver.Version {
 	ver, err := b.Version()
 	if err != nil {

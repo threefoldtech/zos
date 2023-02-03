@@ -154,7 +154,7 @@ func (r *ResourceOracle) Disks() (d Disks, err error) {
 	return
 }
 
-//GetHypervisor gets the name of the hypervisor used on the node
+// GetHypervisor gets the name of the hypervisor used on the node
 func (r *ResourceOracle) GetHypervisor() (string, error) {
 	out, err := exec.Command("virt-what").CombinedOutput()
 

@@ -63,7 +63,7 @@ func parseParams(content string) Params {
 	return options
 }
 
-//GetParams Get kernel cmdline arguments
+// GetParams Get kernel cmdline arguments
 func GetParams() Params {
 	content, err := ioutil.ReadFile("/proc/cmdline")
 	if err != nil {

@@ -38,13 +38,14 @@ func (r *Reader) Version() Version {
 // reader. It's usually used to unify the data migration work flow
 // in case the older data file didn't have a version stamp
 // example:
-//  reader, err := NewReader(file)
-//  if IsNotVersioned(err) {
-//      file.Seek(0, 0) // this is important to make u reading from start
-//      reader = NewVersionedReader(MustParse("0.0.0"), file)
-//  } else err != nil {
-//    // probably io error
-// }
+//
+//	 reader, err := NewReader(file)
+//	 if IsNotVersioned(err) {
+//	     file.Seek(0, 0) // this is important to make u reading from start
+//	     reader = NewVersionedReader(MustParse("0.0.0"), file)
+//	 } else err != nil {
+//	   // probably io error
+//	}
 func NewVersionedReader(version Version, r io.Reader) *Reader {
 	return &Reader{Reader: r, version: version}
 }

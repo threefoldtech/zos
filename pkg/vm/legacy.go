@@ -76,7 +76,7 @@ func findAllFC() (map[string]int, error) {
 	return found, err
 }
 
-//findFC find legacy fc procsses
+// findFC find legacy fc procsses
 func findFC(name string) (int, error) {
 	machines, err := findAllFC()
 	if err != nil {
