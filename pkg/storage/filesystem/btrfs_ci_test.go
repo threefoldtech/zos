@@ -19,7 +19,6 @@ package filesystem
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -76,7 +75,7 @@ func SetupDevices(count int) (devices TestDevices, err error) {
 
 	for i := 0; i < count; i++ {
 		var dev *os.File
-		dev, err = ioutil.TempFile("", "loop-test-")
+		dev, err = os.CreateTemp("", "loop-test-")
 		if err != nil {
 			return
 		}

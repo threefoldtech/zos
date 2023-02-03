@@ -1,7 +1,6 @@
 package capacity
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -83,7 +82,7 @@ func IsSecureBoot() (bool, error) {
 		}()
 	}
 
-	bytes, err := ioutil.ReadFile(secureBoot)
+	bytes, err := os.ReadFile(secureBoot)
 	if os.IsNotExist(err) {
 		return false, nil
 	} else if err != nil {

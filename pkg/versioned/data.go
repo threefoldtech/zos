@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/pkg/errors"
@@ -102,7 +101,7 @@ func NewWriter(w io.Writer, version Version) (io.Writer, error) {
 
 // ReadFile content
 func ReadFile(path string) (Version, []byte, error) {
-	all, err := ioutil.ReadFile(path)
+	all, err := os.ReadFile(path)
 	if err != nil {
 		return MustParse("0.0.0"), nil, err
 	}
@@ -112,7 +111,7 @@ func ReadFile(path string) (Version, []byte, error) {
 	if err != nil {
 		return MustParse("0.0.0"), all, ErrNotVersioned
 	}
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	return reader.Version(), data, err
 }
 

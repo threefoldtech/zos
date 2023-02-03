@@ -3,7 +3,6 @@ package upgrade
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,7 +59,7 @@ func (b Boot) DetectBootMethod() BootMethod {
 // Name always return name of the boot flist. If name file
 // does not exist, an empty string is returned
 func (b *Boot) Name() string {
-	data, _ := ioutil.ReadFile(FlistNameFile)
+	data, _ := os.ReadFile(FlistNameFile)
 	return strings.TrimSpace(string(data))
 }
 

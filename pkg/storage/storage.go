@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,7 +63,7 @@ type TypeCache struct {
 }
 
 func (t *TypeCache) Set(name string, typ pkg.DeviceType) error {
-	if err := ioutil.WriteFile(filepath.Join(t.base, name), []byte(typ), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(t.base, name), []byte(typ), 0644); err != nil {
 		return errors.Wrapf(err, "failed to store device type for '%s'", name)
 	}
 
@@ -72,7 +71,7 @@ func (t *TypeCache) Set(name string, typ pkg.DeviceType) error {
 }
 
 func (t *TypeCache) Get(name string) (pkg.DeviceType, bool) {
-	data, err := ioutil.ReadFile(filepath.Join(t.base, name))
+	data, err := os.ReadFile(filepath.Join(t.base, name))
 	if err != nil {
 		return "", false
 	}

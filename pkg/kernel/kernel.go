@@ -1,7 +1,7 @@
 package kernel
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -65,7 +65,7 @@ func parseParams(content string) Params {
 
 // GetParams Get kernel cmdline arguments
 func GetParams() Params {
-	content, err := ioutil.ReadFile("/proc/cmdline")
+	content, err := os.ReadFile("/proc/cmdline")
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to read /proc/cmdline")
 		return Params{}
