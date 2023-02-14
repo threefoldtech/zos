@@ -250,7 +250,7 @@ func (p *PowerServer) events(ctx context.Context) error {
 	// first thing we need to make sure we are not suppose to be powered
 	// off, so we need to sync with grid
 	// 1) make sure at least one uptime was already sent
-	p.ut.Mark.Done(ctx)
+	_ = p.ut.Mark.Done(ctx)
 	// 2) do we need to power off
 	if err := p.syncSelf(); err != nil {
 		return errors.Wrap(err, "failed to synchronize power status")
