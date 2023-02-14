@@ -132,6 +132,28 @@ func AttachNic(link netlink.Link, bridge *netlink.Bridge) error {
 	return netlink.LinkSetMaster(link, bridge)
 }
 
+// List all nics attached to a bridge
+func ListNics(bridge *netlink.Bridge, physical bool) ([]netlink.Link, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := links[:0]
+
+	for _, link := range links {
+		if link.Attrs().MasterIndex != bridge.Index {
+			continue
+		}
+		if physical && link.Type() != "device" {
+			continue
+		}
+		filtered = append(filtered, link)
+	}
+
+	return filtered, nil
+}
+
 // AttachNicWithMac attaches an interface to a bridge and sets
 // the MAC of the bridge to the same of the NIC
 func AttachNicWithMac(link netlink.Link, bridge *netlink.Bridge) error {

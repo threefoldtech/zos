@@ -36,14 +36,14 @@ func (k Params) Get(key string) ([]string, bool) {
 	return v, ok
 }
 
+// IsDebug checks if zos-debug is set
 func (k Params) IsDebug() bool {
-	_, ok := k.Get(Debug)
-	return ok
+	return k.Exists(Debug)
 }
 
+// IsVirtualMachine checks if zos-debug-vm is set
 func (k Params) IsVirtualMachine() bool {
-	_, ok := k.Get(VirtualMachine)
-	return ok
+	return k.Exists(VirtualMachine)
 }
 
 func parseParams(content string) Params {

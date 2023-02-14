@@ -169,7 +169,7 @@ func registerNode(
 	}
 
 	create := substrate.Node{
-		FarmID:      types.U32(env.FarmerID),
+		FarmID:      types.U32(env.FarmID),
 		TwinID:      types.U32(twinID),
 		Resources:   resources,
 		Location:    location,
