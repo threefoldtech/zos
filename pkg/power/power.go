@@ -3,7 +3,6 @@ package power
 import (
 	"context"
 	"fmt"
-	"net"
 	"os/exec"
 	"strings"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/network/bridge"
 	"github.com/threefoldtech/zos/pkg/zinit"
-	"github.com/vishvananda/netlink"
 )
 
 type PowerServer struct {
@@ -170,7 +168,7 @@ func (p *PowerServer) powerUp(node *substrate.Node, reason string) error {
 
 func (p *PowerServer) shutdown() error {
 	if !p.enabled {
-		log.Info().Msg("ignoring shutdown because power managed is not enabled")
+		log.Info().Msg("ignoring shutdown because power-management is not enabled")
 		return nil
 	}
 
@@ -274,39 +272,4 @@ func (p *PowerServer) events(ctx context.Context) error {
 
 func (p *PowerServer) Start(ctx context.Context) error {
 	return p.events(ctx)
-}
-
-type Direct struct {
-	idx int
-}
-
-func NewDirect(inf string) (*Direct, error) {
-	ln, err := netlink.LinkByName(inf)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Direct{idx: ln.Attrs().Index}, nil
-}
-
-func (d *Direct) IsDirect(ip string) (bool, error) {
-	ipT := net.ParseIP(ip)
-	if ipT == nil {
-		return false, fmt.Errorf("invalid ip address")
-	}
-
-	routes, err := netlink.RouteGet(ipT)
-	// errors are returned only if network is unreachable
-	// so we can just assume this is not direct. no extra checks
-	if err != nil {
-		return false, nil
-	}
-
-	for _, r := range routes {
-		if r.Gw == nil && r.LinkIndex == d.idx {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
