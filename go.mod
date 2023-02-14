@@ -132,6 +132,11 @@ require (
 	github.com/safchain/ethtool v0.0.0-20201023143004-874930cb3ce0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/stretchr/objx v0.3.0 // indirect
+	github.com/stretchr/testify v1.7.0
+	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
+	github.com/threefoldtech/go-rmb v0.1.11-0.20220224131627-825c23c921d3
+	github.com/threefoldtech/substrate-client v0.0.0-20230201083709-53dc94bb6b5f
+	github.com/threefoldtech/zbus v1.0.1-0.20230126142924-0234272d3829
 	github.com/tinylib/msgp v1.1.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.9 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
