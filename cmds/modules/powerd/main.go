@@ -22,7 +22,7 @@ const (
 // Module is entry point for module
 var Module cli.Command = cli.Command{
 	Name:  "powerd",
-	Usage: "reports the node total resources",
+	Usage: "handles the node power events",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "broker",
@@ -47,7 +47,7 @@ func action(cli *cli.Context) error {
 
 	cl, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
-		return errors.Wrap(err, "fail to connect to message broker server")
+		return errors.Wrap(err, "failed to connect to message broker server")
 	}
 
 	identity := stubs.NewIdentityManagerStub(cl)
