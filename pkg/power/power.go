@@ -111,6 +111,8 @@ func (p *PowerServer) syncSelf() error {
 		return err
 	}
 
+	defer cl.Close()
+
 	power, err := cl.GetPowerTarget(p.node)
 	if err != nil {
 		return err
@@ -203,6 +205,8 @@ func (p *PowerServer) event(event *pkg.PowerTargetChangeEvent) error {
 	if err != nil {
 		return err
 	}
+
+	defer cl.Close()
 	node, err := cl.GetNode(event.NodeID)
 	if err != nil {
 		return err
