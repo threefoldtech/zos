@@ -1,6 +1,6 @@
-CONTAINERD_VERSION="v1.6.18"
+CONTAINERD_VERSION="1.6.18"
 CONTAINERD_CHECKSUM="1ac525600fe7ba6ef76cf8a833153768"
-CONTAINERD_LINK="https://github.com/containerd/containerd/archive/refs/tags/${CONTAINERD_VERSION}.tar.gz"
+CONTAINERD_LINK="https://github.com/containerd/containerd/archive/refs/tags/v${CONTAINERD_VERSION}.tar.gz"
 
 dependencies_containerd() {
     apt-get install -y btrfs-progs libbtrfs-dev libseccomp-dev build-essential pkg-config
