@@ -134,7 +134,7 @@ require (
 	github.com/tinylib/msgp v1.1.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.9 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
-	github.com/ulikunitz/xz v0.5.6 // indirect
+	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/vedhavyas/go-subkey v1.0.3 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/xxtea/xxtea-go v0.0.0-20170828040851-35c4b17eecf6 // indirect
