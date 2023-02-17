@@ -1,5 +1,5 @@
 RUNC_VERSION="1.1.4"
-RUNC_CHECKSUM="e88bcb1a33e7ff0bfea495f7263826c2"
+RUNC_CHECKSUM="ae8e2ac9335b8606eeccd2e7c031350a"
 RUNC_LINK="https://github.com/opencontainers/runc/archive/refs/tags/v${RUNC_VERSION}.tar.gz"
 
 dependencies_runc() {
