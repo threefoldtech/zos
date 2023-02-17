@@ -17,7 +17,7 @@ dependencies_containerd() {
         fi
     fi
 
-    CONTAINERD_HOME="${GOPATH}/src/github.com/containerd"
+    CONTAINERD_HOME="/src/github.com/containerd"
 }
 
 download_containerd() {
