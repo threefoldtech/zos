@@ -90,17 +90,20 @@ func (s *Statistics) getUsableMemoryBytes() (gridtypes.Capacity, gridtypes.Unit,
 		return cap, 0, err
 	}
 
+	log.Debug().Msgf("active capacity on the node: %+v", cap)
 	m, err := mem.VirtualMemory()
 	if err != nil {
 		return cap, 0, err
 	}
 
 	theoreticalUsed := cap.MRU
-	actualUsed := (m.Total - m.Available) + uint64(s.reserved.MRU)
-
+	log.Debug().Uint64("used", uint64(theoreticalUsed)).Msg("theoretical used")
+	actualUsed := m.Total - m.Available
+	log.Debug().Uint64("used", uint64(actualUsed)).Msg("actual used")
 	used := gridtypes.Max(theoreticalUsed, gridtypes.Unit(actualUsed))
 
 	usable := gridtypes.Unit(m.Total) - used
+	log.Debug().Uint64("usable", uint64(usable)).Msg("usable by new")
 	return cap, usable, nil
 }
 
