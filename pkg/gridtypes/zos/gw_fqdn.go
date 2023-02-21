@@ -3,6 +3,7 @@ package zos
 import (
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/url"
 	"regexp"
@@ -24,19 +25,16 @@ func (b Backend) Valid(tls bool) error {
 	if tls {
 		host, port, err := net.SplitHostPort(string(b))
 		if err != nil {
-			return fmt.Errorf("failed to parse backend with error: %w", err)
-		}
-		if port == "" {
-			return fmt.Errorf("missing port in backend")
+			return fmt.Errorf("failed to parse backend %s with error: %w", b, err)
 		}
 
-		parsedPort, err := strconv.ParseInt(port, 10, 64)
+		parsedPort, err := strconv.ParseUint(port, 10, 64)
 		if err != nil {
 			return fmt.Errorf("invalid port in backend: %s", port)
 		}
 
-		if parsedPort > 65535 || parsedPort < 0 {
-			return fmt.Errorf("port '%s' must be in range [0, 65535]", port)
+		if parsedPort > math.MaxUint16 {
+			return fmt.Errorf("port '%s' must be <= 65535", port)
 		}
 
 		hostName = host
