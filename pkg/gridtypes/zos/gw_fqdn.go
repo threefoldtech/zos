@@ -19,8 +19,8 @@ var (
 
 type Backend string
 
-// Valid check if valid http://ip:port, http://ip or ip:port
-// it checks if the input backend string is a valid string based on the tlsPassthrough parameter
+// Valid accepts http://ip:port, http://ip or ip:port
+// checks if backend string is a valid string based on the tlsPassthrough parameter
 // ip:port is only valid in case of tlsPassthrough is true
 // http://ip:port or http://ip is valid in case of tlsPassthrough is false
 func (b Backend) Valid(tlsPassthrough bool) error {
