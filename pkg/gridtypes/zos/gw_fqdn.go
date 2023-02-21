@@ -19,10 +19,13 @@ var (
 
 type Backend string
 
-// check if valid http://ip:port, http://ip or ip:port
-func (b Backend) Valid(tls bool) error {
+// Valid check if valid http://ip:port, http://ip or ip:port
+// it checks if the input backend string is a valid string based on the tlsPassthrough parameter
+// ip:port is only valid in case of tlsPassthrough is true
+// http://ip:port or http://ip is valid in case of tlsPassthrough is false
+func (b Backend) Valid(tlsPassthrough bool) error {
 	var hostName string
-	if tls {
+	if tlsPassthrough {
 		host, port, err := net.SplitHostPort(string(b))
 		if err != nil {
 			return fmt.Errorf("failed to parse backend %s with error: %w", b, err)
