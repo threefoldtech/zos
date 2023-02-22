@@ -42,7 +42,7 @@ func TestInfo(t *testing.T) {
 }
 
 func TestInfoGet(t *testing.T) {
-	const flist = "tf-zos/zos:development-3:latest.flist"
+	const flist = "thabet/redis.flist"
 
 	var hub HubClient
 	info, err := hub.Info(flist)
