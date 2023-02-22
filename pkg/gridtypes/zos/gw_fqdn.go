@@ -20,45 +20,44 @@ var (
 type Backend string
 
 // Parse accepts http://ip:port, http://ip or ip:port
-// returns error if backend is invalid and returns hostname if it is valid
-// parses backend string if it is a valid string based on the tlsPassthrough parameter
+// checks if backend string is a valid string based on the tlsPassthrough parameter
 // ip:port is only valid in case of tlsPassthrough is true
 // http://ip:port or http://ip is valid in case of tlsPassthrough is false
-func (b Backend) Parse(tlsPassthrough bool) (string, error) {
+func (b Backend) Valid(tlsPassthrough bool) error {
 	var hostName string
 	if tlsPassthrough {
 		host, port, err := net.SplitHostPort(string(b))
 		if err != nil {
-			return "", fmt.Errorf("failed to parse backend %s with error: %w", b, err)
+			return fmt.Errorf("failed to parse backend %s with error: %w", b, err)
 		}
 
 		parsedPort, err := strconv.ParseUint(port, 10, 64)
 		if err != nil {
-			return "", fmt.Errorf("invalid port in backend: %s", port)
+			return fmt.Errorf("invalid port in backend: %s", port)
 		}
 
 		if parsedPort > math.MaxUint16 {
-			return "", fmt.Errorf("port '%s' must be <= 65535", port)
+			return fmt.Errorf("port '%s' must be <= 65535", port)
 		}
 
 		hostName = host
 	} else {
 		u, err := url.Parse(string(b))
 		if err != nil {
-			return "", fmt.Errorf("failed to parse backend with error: %w", err)
+			return fmt.Errorf("failed to parse backend with error: %w", err)
 		}
 
 		if u.Scheme != "http" {
-			return "", fmt.Errorf("scheme expected to be http")
+			return fmt.Errorf("scheme expected to be http")
 		}
 		hostName = u.Hostname()
 	}
 
 	ip := net.ParseIP(hostName)
 	if len(ip) == 0 || ip.IsLoopback() {
-		return "", fmt.Errorf("invalid ip address in backend: %s", hostName)
+		return fmt.Errorf("invalid ip address in backend: %s", hostName)
 	}
-	return hostName, nil
+	return nil
 }
 
 // GatewayFQDNProxy definition. this will proxy name.<zos.domain> to backends
@@ -84,7 +83,7 @@ func (g GatewayFQDNProxy) Valid(getter gridtypes.WorkloadGetter) error {
 		return fmt.Errorf("backends list can not be empty")
 	}
 	for _, backend := range g.Backends {
-		if _, err := backend.Parse(g.TLSPassthrough); err != nil {
+		if err := backend.Valid(g.TLSPassthrough); err != nil {
 			return errors.Wrapf(err, "failed to validate backend '%s'", backend)
 		}
 	}

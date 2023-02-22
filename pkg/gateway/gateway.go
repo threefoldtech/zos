@@ -564,19 +564,13 @@ func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string
 	}
 	servers := make([]Server, len(backends))
 	for idx, backend := range backends {
+		if err := zos.Backend(backend).Valid(TLSPassthrough); err != nil {
+			return errors.Wrapf(err, "failed to validate backend '%s'", backend)
+		}
 		if TLSPassthrough {
-			host, err := zos.Backend(backend).Parse(true)
-			log.Debug().Str("hostname", host).Str("backend", backend).Msg("tls passthrough")
-			if err != nil {
-				return errors.Wrap(err, "couldn't parse backend host")
-			}
-			servers[idx] = Server{
-				Address: host,
-			}
+			servers[idx] = Server{Address: backend}
 		} else {
-			servers[idx] = Server{
-				Url: backend,
-			}
+			servers[idx] = Server{Url: backend}
 		}
 	}
 	route := fmt.Sprintf("%s-route", wlID)
