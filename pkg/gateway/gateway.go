@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -566,16 +565,13 @@ func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string
 	servers := make([]Server, len(backends))
 	for idx, backend := range backends {
 		if TLSPassthrough {
-			if err := zos.Backend(backend).Valid(true); err != nil {
-				return errors.Wrap(err, "couldn't validate backend host")
-			}
-			u, err := url.Parse(backend)
-			log.Debug().Str("hostname", u.Host).Str("backend", backend).Msg("tls passthrough")
+			host, err := zos.Backend(backend).Parse(true)
+			log.Debug().Str("hostname", host).Str("backend", backend).Msg("tls passthrough")
 			if err != nil {
 				return errors.Wrap(err, "couldn't parse backend host")
 			}
 			servers[idx] = Server{
-				Address: u.Host,
+				Address: host,
 			}
 		} else {
 			servers[idx] = Server{
