@@ -144,6 +144,62 @@ download_file() {
     checksum ${output} $2 || false
 }
 
+download_docker_image() {
+    # set extra filename output or default output
+    if [ ! -z $3 ]; then
+        output=$3
+    else
+        output=$(basename "$1").tar
+    fi
+
+    # set default url
+    fileurl=$1
+
+    docker pull "${fileurl}"
+    docker save "${fileurl}" -o "${output}"
+}
+
+extract_docker_image() {
+    # you need to run `docker save <image> -o <file>.tar
+    # then run this script like `extrat-image.sh <file>.tar`
+    # it will create a directoyr `<file>.tar-root` which containers
+    # all files from the image extracted
+
+    input=$1
+    rootfs=$2
+    if [ ! -f "${input}" ]; then
+        echo "file does not exist"
+        exit 1
+    fi
+
+    tmpdir=".${input}"
+    rm -rf $tmpdir || true
+    rm -rf $rootfs || true
+
+    function finish {
+        rm -rf ${tmpdir} || true
+    }
+
+    trap finish EXIT
+
+    mkdir -p ${rootfs}
+    mkdir -p ${tmpdir}
+
+    tar -xf $input -C $tmpdir
+    mf=${tmpdir}/manifest.json
+    if [ ! -f "${mf}" ]; then
+        echo "invalid tar archive (no manifest.json file)"
+        exit 1
+    fi
+
+    for layer in $(jq '.[0].Layers[]' $mf); do
+        layer=${layer//\"/}
+        tar -xf "${tmpdir}/${layer}" -C $rootfs
+    done
+
+    echo "done"
+}
+
 download_git() {
     repository="$1"
     branch="$2"
