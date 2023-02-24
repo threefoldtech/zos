@@ -146,8 +146,8 @@ download_file() {
 
 download_docker_image() {
     # set extra filename output or default output
-    if [ ! -z $3 ]; then
-        output=$3
+    if [ ! -z $2 ]; then
+        output=$2
     else
         output=$(basename "$1").tar
     fi

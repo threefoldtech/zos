@@ -1,9 +1,9 @@
 QSFS_VERSION="0.2.0-rc1"
-QSFS_LINK="ghcr.io/threefoldtech/qsfs"
+QSFS_IMAGE="ghcr.io/threefoldtech/qsfs"
 
 download_qsfs() {
     echo "download qsfs"
-    download_docker_image ${QSFS_LINK}:${QSFS_VERSION} qsfs-${QSFS_VERSION}.tar
+    download_docker_image ${QSFS_IMAGE}:${QSFS_VERSION} qsfs-${QSFS_VERSION}.tar
 }
 
 prepare_qsfs() {
