@@ -1,4 +1,4 @@
-QSFS_VERSION="0.2.0-rc1"
+QSFS_VERSION="0.2.0-rc2"
 QSFS_IMAGE="ghcr.io/threefoldtech/qsfs"
 
 download_qsfs() {
