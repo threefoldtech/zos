@@ -145,7 +145,11 @@ download_file() {
 }
 
 download_docker_image() {
-    # set extra filename output or default output
+    # downloads a docker image, and save it
+    # as <image>.tar file
+    # use extract_docker_image to extract the image
+    # to files
+
     if [ ! -z $2 ]; then
         output=$2
     else
@@ -160,10 +164,10 @@ download_docker_image() {
 }
 
 extract_docker_image() {
-    # you need to run `docker save <image> -o <file>.tar
-    # then run this script like `extrat-image.sh <file>.tar`
-    # it will create a directoyr `<file>.tar-root` which containers
-    # all files from the image extracted
+    # extracts a docker image $1 to output directoyr $2
+    # the $1 file must already exist and is the result of
+    # executing the `docker save` command
+    # check `download_docker_image` for more details
 
     input=$1
     rootfs=$2
