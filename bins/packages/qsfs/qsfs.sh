@@ -19,7 +19,7 @@ install_qsfs() {
     extract_docker_image "${DISTDIR}/qsfs-${QSFS_VERSION}.tar" "${ROOTDIR}"
 }
 
-build_rmb() {
+build_qsfs() {
     pushd "${DISTDIR}"
 
     download_qsfs
