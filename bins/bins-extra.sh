@@ -265,7 +265,7 @@ exclude_libs() {
 
 github_name() {
     # force github print
-    echo "::set-output name=name::${1}"
+    echo "name=${1}" >> $GITHUB_OUTPUT
     echo "[+] github exported name: ${1}"
 }
 
