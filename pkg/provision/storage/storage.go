@@ -680,10 +680,10 @@ func (b *BoltStorage) ByTwin(twin uint32) ([]uint64, error) {
 	return deployments, err
 }
 
-func (b *BoltStorage) Capacity() (cap gridtypes.Capacity, active []gridtypes.Deployment, err error) {
+func (b *BoltStorage) Capacity() (cap gridtypes.Capacity, active []gridtypes.Deployment, workloads []gridtypes.Workload, err error) {
 	twins, err := b.Twins()
 	if err != nil {
-		return gridtypes.Capacity{}, nil, err
+		return gridtypes.Capacity{}, nil, nil, err
 	}
 
 	for _, twin := range twins {
@@ -707,10 +707,11 @@ func (b *BoltStorage) Capacity() (cap gridtypes.Capacity, active []gridtypes.Dep
 
 				c, err := wl.Capacity()
 				if err != nil {
-					return cap, nil, err
+					return cap, nil, nil, err
 				}
 
 				isActive = true
+				workloads = append(workloads, wl)
 				cap.Add(&c)
 			}
 			if isActive {
@@ -719,7 +720,7 @@ func (b *BoltStorage) Capacity() (cap gridtypes.Capacity, active []gridtypes.Dep
 		}
 	}
 
-	return cap, active, nil
+	return cap, active, workloads, nil
 }
 
 func (b *BoltStorage) Close() error {

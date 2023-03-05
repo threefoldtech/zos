@@ -60,9 +60,21 @@ func NewStatistics(total gridtypes.Capacity, storage provision.Storage, reserved
 	}
 }
 
+// deploymentsCount Gets count of deployments
+func (s *Statistics) deploymentsCount() (int, error) {
+	_, deps, _, err := s.storage.Capacity()
+	return len(deps), err
+}
+
+// workloadsCount Gets count of workloads for each deployment
+func (s *Statistics) workloadsCount() (int, error) {
+	_, _, workloads, err := s.storage.Capacity()
+	return len(workloads), err
+}
+
 // Get all used capacity from storage + reserved
 func (s *Statistics) active() (gridtypes.Capacity, error) {
-	cap, _, err := s.storage.Capacity()
+	cap, _, _, err := s.storage.Capacity()
 	cap.Add(&s.reserved)
 	return cap, err
 }
@@ -175,6 +187,8 @@ func NewStatisticsMessageBus(router rmb.Router, stats *Statistics) error {
 func (s *statisticsMessageBus) setup(router rmb.Router) error {
 	sub := router.Subroute("statistics")
 	sub.WithHandler("get", s.getCounters)
+	sub.WithHandler("deployments_count", s.deploymentsCount)
+	sub.WithHandler("workloads_count", s.workloadsCount)
 	return nil
 }
 
@@ -195,6 +209,34 @@ func (s *statisticsMessageBus) getCounters(ctx context.Context, payload []byte) 
 		Total:  s.stats.Total(),
 		Used:   used,
 		System: s.stats.reserved,
+	}, nil
+}
+
+func (s *statisticsMessageBus) deploymentsCount(ctx context.Context, payload []byte) (interface{}, error) {
+	count, err := s.stats.deploymentsCount()
+	if err != nil {
+		return nil, err
+	}
+
+	return struct {
+		// Count deployments
+		Count int `json:"count"`
+	}{
+		Count: count,
+	}, nil
+}
+
+func (s *statisticsMessageBus) workloadsCount(ctx context.Context, payload []byte) (interface{}, error) {
+	count, err := s.stats.workloadsCount()
+	if err != nil {
+		return nil, err
+	}
+
+	return struct {
+		// Count workloads
+		Count int `json:"count"`
+	}{
+		Count: count,
 	}, nil
 }
 
