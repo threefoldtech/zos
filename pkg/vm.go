@@ -38,7 +38,7 @@ type VMIface struct {
 	PublicIPv4 bool
 	// PublicIPv4 holds a public Ipv6
 	PublicIPv6 bool
-	// NetId holds network id
+	// NetId holds network id (for private network only)
 	NetID zos.NetID
 }
 

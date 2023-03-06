@@ -473,7 +473,7 @@ func (m *Module) Run(vm pkg.VM) error {
 		return m.withLogs(m.logsPath(vm.Name), err)
 	}
 	for _, ifc := range vm.Network.Ifaces {
-
+		// the ifc.NetID is only set on the private interface
 		if ifc.NetID == "" || len(ifc.IPs) == 0 {
 			continue
 		}
