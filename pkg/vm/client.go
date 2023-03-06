@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 
@@ -108,7 +108,7 @@ func (c *Client) Inspect(ctx context.Context) (VMData, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		response.Body.Close()
 
 		return VMData{}, fmt.Errorf("got unexpected http code '%s' on machine info, Response: %s", response.Status, string(body))
