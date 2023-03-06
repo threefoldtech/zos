@@ -202,7 +202,9 @@ func action(cli *cli.Context) error {
 		// since the counters will get populated anyway.
 		// but if not, we need to set the current counters
 		// from store.
-		current, active, _, err = store.Capacity()
+		storageCap, err := store.Capacity()
+		current = storageCap.Cap
+		active = storageCap.Deployments
 		if err != nil {
 			log.Error().Err(err).Msg("failed to compute current consumed capacity")
 		}
