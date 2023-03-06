@@ -123,7 +123,7 @@ type Storage interface {
 	// ByTwin return list of deployments for a twin
 	ByTwin(twin uint32) ([]uint64, error)
 	// return total capacity and active deployments
-	Capacity() (cap gridtypes.Capacity, active []gridtypes.Deployment, workloads []gridtypes.Workload, err error)
+	Capacity() (cap gridtypes.Capacity, active []gridtypes.Deployment, workloads int, err error)
 }
 
 // Janitor interface

@@ -60,28 +60,16 @@ func NewStatistics(total gridtypes.Capacity, storage provision.Storage, reserved
 	}
 }
 
-// deploymentsCount Gets count of deployments
-func (s *Statistics) deploymentsCount() (int, error) {
-	_, deps, _, err := s.storage.Capacity()
-	return len(deps), err
-}
-
-// workloadsCount Gets count of workloads for each deployment
-func (s *Statistics) workloadsCount() (int, error) {
-	_, _, workloads, err := s.storage.Capacity()
-	return len(workloads), err
-}
-
-// Get all used capacity from storage + reserved
-func (s *Statistics) active() (gridtypes.Capacity, error) {
-	cap, _, _, err := s.storage.Capacity()
+// Get all used capacity from storage + reserved / deployments count and workloads count
+func (s *Statistics) active() (gridtypes.Capacity, int, int, error) {
+	cap, deps, workloads, err := s.storage.Capacity()
 	cap.Add(&s.reserved)
-	return cap, err
+	return cap, len(deps), workloads, err
 }
 
 // Current returns the current used capacity including reserved capacity
-// used by the system
-func (s *Statistics) Current() (gridtypes.Capacity, error) {
+// used by the system + current deployments count + current workloads count
+func (s *Statistics) Current() (gridtypes.Capacity, int, int, error) {
 	return s.active()
 }
 
@@ -97,7 +85,7 @@ func (s *Statistics) getUsableMemoryBytes() (gridtypes.Capacity, gridtypes.Unit,
 	// [[R][ WL ]                 ]
 	// [[    actual    ]          ]
 
-	cap, err := s.active()
+	cap, _, _, err := s.active()
 	if err != nil {
 		return cap, 0, err
 	}
@@ -187,17 +175,24 @@ func NewStatisticsMessageBus(router rmb.Router, stats *Statistics) error {
 func (s *statisticsMessageBus) setup(router rmb.Router) error {
 	sub := router.Subroute("statistics")
 	sub.WithHandler("get", s.getCounters)
-	sub.WithHandler("deployments_count", s.deploymentsCount)
-	sub.WithHandler("workloads_count", s.workloadsCount)
 	return nil
+}
+
+// UsersCounters the expected counters for deployments and workloads
+type UsersCounters struct {
+	// Total deployments count
+	Deployments int `json:"deployments"`
+	// Total workloads count
+	Workloads int `json:"workloads"`
 }
 
 func (s *statisticsMessageBus) getCounters(ctx context.Context, payload []byte) (interface{}, error) {
 
-	used, err := s.stats.Current()
+	used, deps, workloads, err := s.stats.Current()
 	if err != nil {
 		return nil, err
 	}
+
 	return struct {
 		// Total system capacity
 		Total gridtypes.Capacity `json:"total"`
@@ -205,38 +200,16 @@ func (s *statisticsMessageBus) getCounters(ctx context.Context, payload []byte) 
 		Used gridtypes.Capacity `json:"used"`
 		// System resource reserved by zos
 		System gridtypes.Capacity `json:"system"`
+		// Users statistics by zos
+		Users UsersCounters `json:"users"`
 	}{
 		Total:  s.stats.Total(),
 		Used:   used,
 		System: s.stats.reserved,
-	}, nil
-}
-
-func (s *statisticsMessageBus) deploymentsCount(ctx context.Context, payload []byte) (interface{}, error) {
-	count, err := s.stats.deploymentsCount()
-	if err != nil {
-		return nil, err
-	}
-
-	return struct {
-		// Count deployments
-		Count int `json:"count"`
-	}{
-		Count: count,
-	}, nil
-}
-
-func (s *statisticsMessageBus) workloadsCount(ctx context.Context, payload []byte) (interface{}, error) {
-	count, err := s.stats.workloadsCount()
-	if err != nil {
-		return nil, err
-	}
-
-	return struct {
-		// Count workloads
-		Count int `json:"count"`
-	}{
-		Count: count,
+		Users: UsersCounters{
+			Deployments: deps,
+			Workloads:   workloads,
+		},
 	}, nil
 }
 
@@ -257,7 +230,7 @@ func (s *statsStream) ReservedStream(ctx context.Context) <-chan gridtypes.Capac
 			case <-ctx.Done():
 				return
 			case <-time.After(2 * time.Minute):
-				used, err := s.stats.Current()
+				used, _, _, err := s.stats.Current()
 				if err != nil {
 					log.Error().Err(err).Msg("failed to get used capacity")
 				}
@@ -269,7 +242,8 @@ func (s *statsStream) ReservedStream(ctx context.Context) <-chan gridtypes.Capac
 }
 
 func (s *statsStream) Current() (gridtypes.Capacity, error) {
-	return s.stats.Current()
+	used, _, _, err := s.stats.Current()
+	return used, err
 }
 
 func (s *statsStream) Total() gridtypes.Capacity {
