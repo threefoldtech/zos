@@ -96,9 +96,12 @@ type SignatureRequirementField struct {
 }
 
 type StorageCapacity struct {
-	Cap         gridtypes.Capacity
+	// Cap is total reserved capacity as per all active workloads
+	Cap gridtypes.Capacity
+	// Deployments is a list with all deployments that are active
 	Deployments []gridtypes.Deployment
-	Workloads   int
+	// Workloads the total number of all workloads
+	Workloads int
 }
 
 // Storage interface
