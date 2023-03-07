@@ -1,6 +1,6 @@
-CLOUDCONSOLE_VERSION="v0.1.0"
-CLOUDCONSOLE_CHECKSUM="cf273cbfe3acb0a53d16cd6af7f26b51"
-CLOUDCONSOLE_LINK="https://github.com/LeeSmet/cloud-console/releases/download/${CLOUDCONSOLE_VERSION}/cloud-console"
+CLOUDCONSOLE_VERSION="v0.1.1"
+CLOUDCONSOLE_CHECKSUM="c018c335ea67424ebd00165b69c42fe2"
+CLOUDCONSOLE_LINK="https://github.com/threefoldtech/cloud-console/releases/download/${CLOUDCONSOLE_VERSION}/cloud-console"
 
 
 download_cloudconsole() {
