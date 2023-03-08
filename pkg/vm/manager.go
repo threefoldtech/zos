@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cenkalti/backoff/v3"
 	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -148,7 +146,18 @@ func (m *Module) Exists(id string) bool {
 	return err == nil
 }
 
-func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interface, error) {
+func (m *Module) getConsoleConfig(ctx context.Context, vmName string, ifc pkg.VMIface) (*Console, error) {
+	stub := stubs.NewNetworkerStub(m.client)
+	namespace := stub.Namespace(ctx, ifc.NetID)
+
+	networkAddr, err := stub.GetSubnet(ctx, ifc.NetID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get network '%s'", ifc.NetID)
+	}
+	return &Console{Namespace: namespace, NetworkAddr: networkAddr, IP: ifc.IPs[0]}, nil
+
+}
+func (m *Module) makeNetwork(ctx context.Context, vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interface, error) {
 	// assume there is always at least 1 iface present
 
 	// we do 2 things here:
@@ -176,6 +185,14 @@ func (m *Module) makeNetwork(vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interf
 			ID:  fmt.Sprintf("eth%d", i),
 			Tap: ifcfg.Tap,
 			Mac: ifcfg.MAC,
+		}
+		if ifcfg.NetID != "" && len(ifcfg.IPs) > 0 {
+			// if NetID is set on this interface means it is a private network so we add console config to it.
+			console, err := m.getConsoleConfig(ctx, vm.Name, ifcfg)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not get console config for vm %s", vm.Name)
+			}
+			nic.Console = console
 		}
 		nics = append(nics, nic)
 
@@ -412,7 +429,7 @@ func (m *Module) Run(vm pkg.VM) error {
 		}
 	}
 
-	nics, err := m.makeNetwork(&vm, &cfg)
+	nics, err := m.makeNetwork(ctx, &vm, &cfg)
 	if err != nil {
 		return err
 	}
@@ -467,80 +484,6 @@ func (m *Module) Run(vm pkg.VM) error {
 
 	if err = machine.Run(ctx, m.socketPath(vm.Name), m.logsPath(vm.Name)); err != nil {
 		return m.withLogs(m.logsPath(vm.Name), err)
-	}
-
-	if err := m.waitAndAdjOom(ctx, vm.Name); err != nil {
-		return m.withLogs(m.logsPath(vm.Name), err)
-	}
-	for _, ifc := range vm.Network.Ifaces {
-		// the ifc.NetID is only set on the private interface
-		if ifc.NetID == "" || len(ifc.IPs) == 0 {
-			continue
-		}
-
-		stub := stubs.NewNetworkerStub(m.client)
-		namespace := stub.Namespace(ctx, ifc.NetID)
-
-		networkAddr, err := stub.GetSubnet(ctx, ifc.NetID)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get network '%s'", ifc.NetID)
-		}
-
-		client := NewClient(m.socketPath(vm.Name))
-		vmData, err := client.Inspect(ctx)
-		if err != nil {
-			return errors.Wrapf(err, "failed to Inspect vm with id '%s'", vm.Name)
-		}
-		// start cloud console on the first IP assigned to this interface
-		err = machine.StartCloudConsole(ctx, namespace, networkAddr, ifc.IPs[0], vmData.PTYPath)
-		if err != nil {
-			return errors.Wrapf(err, "failed to start cloud-console for vm id '%s'", vm.Name)
-		}
-		return nil
-	}
-
-	return fmt.Errorf("couldn't start cloud console interface for private network not found")
-}
-
-func (m *Module) waitAndAdjOom(ctx context.Context, name string) error {
-	check := func() error {
-		if !m.Exists(name) {
-			return fmt.Errorf("failed to spawn vm machine process '%s'", name)
-		}
-		//TODO: check unix connection
-		socket := m.socketPath(name)
-		con, err := net.Dial("unix", socket)
-		if err != nil {
-			return err
-		}
-
-		con.Close()
-		return nil
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	if err := backoff.RetryNotify(
-		check,
-		backoff.WithContext(
-			backoff.NewConstantBackOff(2*time.Second),
-			ctx,
-		),
-		func(err error, d time.Duration) {
-			log.Debug().Err(err).Str("id", name).Msg("vm is not up yet")
-		}); err != nil {
-
-		return err
-	}
-
-	ps, err := Find(name)
-	if err != nil {
-		return errors.Wrapf(err, "failed to find vm with id '%s'", name)
-	}
-
-	if err := os.WriteFile(filepath.Join("/proc/", fmt.Sprint(ps.Pid), "oom_adj"), []byte("-17"), 0644); err != nil {
-		return errors.Wrapf(err, "failed to update oom priority for machine '%s' (PID: %d)", name, ps.Pid)
 	}
 
 	return nil

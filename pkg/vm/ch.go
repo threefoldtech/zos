@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/google/shlex"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -202,6 +204,67 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 
 	if err = m.release(cmd.Process); err != nil {
 		return err
+	}
+
+	if err := m.waitAndAdjOom(ctx, m.ID, socket); err != nil {
+		return err
+	}
+	client := NewClient(socket)
+	vmData, err := client.Inspect(ctx)
+	if err != nil {
+		return errors.Wrapf(err, "failed to Inspect vm with id: '%s'", m.ID)
+	}
+	for _, ifc := range m.Interfaces {
+		if ifc.Console != nil {
+			err := m.StartCloudConsole(ctx, ifc.Console.Namespace, ifc.Console.NetworkAddr, ifc.Console.IP, vmData.PTYPath)
+			if err != nil {
+				return errors.Wrapf(err, "failed to start cloud-console for vm id: '%s'", m.ID)
+			}
+			break
+		}
+	}
+
+	return nil
+}
+
+func (m *Machine) waitAndAdjOom(ctx context.Context, name string, socket string) error {
+	check := func() error {
+		if _, err := Find(name); err != nil {
+			return fmt.Errorf("failed to spawn vm machine process '%s'", name)
+		}
+
+		con, err := net.Dial("unix", socket)
+		if err != nil {
+			return err
+		}
+
+		con.Close()
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if err := backoff.RetryNotify(
+		check,
+		backoff.WithContext(
+			backoff.NewConstantBackOff(2*time.Second),
+			ctx,
+		),
+		func(err error, d time.Duration) {
+			log.Debug().Err(err).Str("id", name).Msg("vm is not up yet")
+		}); err != nil {
+
+		return err
+	}
+
+	ps, err := Find(name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find vm with id '%s'", name)
+	}
+
+	if err := os.WriteFile(filepath.Join("/proc/", fmt.Sprint(ps.Pid), "oom_adj"), []byte("-17"), 0644); err != nil {
+		return errors.Wrapf(err, "failed to update oom priority for machine '%s' (PID: %d)", name, ps.Pid)
 	}
 
 	return nil
