@@ -25,8 +25,8 @@ const (
 	cloudConsoleBin = "cloud-console"
 )
 
-// StartCloudConsole Starts the cloud console for the vm on it's private network ip
-func (m *Machine) StartCloudConsole(ctx context.Context, namespace string, networkAddr net.IPNet, machineIP net.IPNet, ptyPath string) error {
+// startCloudConsole Starts the cloud console for the vm on it's private network ip
+func (m *Machine) startCloudConsole(ctx context.Context, namespace string, networkAddr net.IPNet, machineIP net.IPNet, ptyPath string) error {
 	ipv4 := machineIP.IP.To4()
 	if ipv4 == nil {
 		return fmt.Errorf("invalid vm ip address (%s) not ipv4", machineIP.IP.String())
@@ -211,16 +211,17 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) error {
 	}
 	client := NewClient(socket)
 	vmData, err := client.Inspect(ctx)
+
 	if err != nil {
 		return errors.Wrapf(err, "failed to Inspect vm with id: '%s'", m.ID)
 	}
+
 	for _, ifc := range m.Interfaces {
 		if ifc.Console != nil {
-			err := m.StartCloudConsole(ctx, ifc.Console.Namespace, ifc.Console.NetworkAddr, ifc.Console.IP, vmData.PTYPath)
+			err := m.startCloudConsole(ctx, ifc.Console.Namespace, ifc.Console.NetworkAddr, ifc.Console.IP, vmData.PTYPath)
 			if err != nil {
-				return errors.Wrapf(err, "failed to start cloud-console for vm id: '%s'", m.ID)
+				log.Error().Err(err).Str("vm", m.ID).Msg("failed to start cloud-console for vm")
 			}
-			break
 		}
 	}
 
