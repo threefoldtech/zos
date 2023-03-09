@@ -335,18 +335,18 @@ func (m *Module) List() ([]string, error) {
 }
 
 // Run vm
-func (m *Module) Run(vm pkg.VM) error {
+func (m *Module) Run(vm pkg.VM) (pkg.MachineInfo, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	if err := vm.Validate(); err != nil {
-		return errors.Wrap(err, "machine configuration validation failed")
+		return pkg.MachineInfo{}, errors.Wrap(err, "machine configuration validation failed")
 	}
 
 	ctx := context.Background()
 
 	if m.Exists(vm.Name) {
-		return fmt.Errorf("a vm with same name already exists")
+		return pkg.MachineInfo{}, fmt.Errorf("a vm with same name already exists")
 	}
 
 	cfg := cloudinit.Configuration{
@@ -382,11 +382,11 @@ func (m *Module) Run(vm pkg.VM) error {
 
 	devices, err := m.makeDevices(&vm)
 	if err != nil {
-		return err
+		return pkg.MachineInfo{}, err
 	}
 	fs, err := m.makeVirtioFilesystems(&vm)
 	if err != nil {
-		return errors.Wrap(err, "failed while constructing qsfs filesystems")
+		return pkg.MachineInfo{}, errors.Wrap(err, "failed while constructing qsfs filesystems")
 	}
 
 	cmdline := vm.KernelArgs
@@ -431,13 +431,13 @@ func (m *Module) Run(vm pkg.VM) error {
 
 	nics, err := m.makeNetwork(ctx, &vm, &cfg)
 	if err != nil {
-		return err
+		return pkg.MachineInfo{}, err
 	}
 
 	ciImage := m.cloudInitImage(vm.Name)
 
 	if err := cloudinit.CreateImage(ciImage, cfg); err != nil {
-		return errors.Wrap(err, "failed to create cloud-init image")
+		return pkg.MachineInfo{}, errors.Wrap(err, "failed to create cloud-init image")
 	}
 
 	devices = append(devices, Disk{
@@ -468,7 +468,7 @@ func (m *Module) Run(vm pkg.VM) error {
 
 	log.Debug().Str("name", vm.Name).Msg("saving machine")
 	if err := machine.Save(m.configPath(vm.Name)); err != nil {
-		return err
+		return pkg.MachineInfo{}, err
 	}
 
 	defer func() {
@@ -482,11 +482,12 @@ func (m *Module) Run(vm pkg.VM) error {
 		m.failures.Set(vm.Name, permanent, cache.NoExpiration)
 	}
 
-	if err = machine.Run(ctx, m.socketPath(vm.Name), m.logsPath(vm.Name)); err != nil {
-		return m.withLogs(m.logsPath(vm.Name), err)
+	machineInfo, err := machine.Run(ctx, m.socketPath(vm.Name), m.logsPath(vm.Name))
+	if err != nil {
+		return pkg.MachineInfo{}, m.withLogs(m.logsPath(vm.Name), err)
 	}
 
-	return nil
+	return machineInfo, nil
 }
 
 // Logs returns machine logs for give machine name

@@ -165,7 +165,7 @@ func (m *Module) monitorID(ctx context.Context, running map[string]Process, id s
 		}
 
 		log.Debug().Str("name", id).Msg("trying to restart the vm")
-		reason = vm.Run(ctx, m.socketPath(id), m.logsPath(id))
+		_, reason := vm.Run(ctx, m.socketPath(id), m.logsPath(id))
 
 		if reason != nil {
 			reason = m.withLogs(m.logsPath(id), reason)

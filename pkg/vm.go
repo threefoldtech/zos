@@ -233,6 +233,9 @@ type MachineMetric struct {
 	Private NetMetric
 	Public  NetMetric
 }
+type MachineInfo struct {
+	ConsoleURL string
+}
 
 // MachineMetrics container for metrics from multiple machines
 type MachineMetrics map[string]MachineMetric
@@ -257,7 +260,7 @@ func (s *Stream) Valid() error {
 
 // VMModule defines the virtual machine module interface
 type VMModule interface {
-	Run(vm VM) error
+	Run(vm VM) (MachineInfo, error)
 	Inspect(name string) (VMInfo, error)
 	Delete(name string) error
 	Exists(name string) bool
