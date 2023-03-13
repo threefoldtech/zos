@@ -43,6 +43,8 @@ var (
 	ErrTwinIDMismatch       = fmt.Errorf("twin id mismatch")
 	ErrContractNotReserved  = fmt.Errorf("a name contract with the given name must be reserved first")
 	ErrInvalidContractState = fmt.Errorf("the name contract must be in Created state")
+
+	_ pkg.Gateway = (*gatewayModule)(nil)
 )
 
 type gatewayModule struct {
@@ -493,10 +495,14 @@ func (g *gatewayModule) validateNameContract(name string, twinID uint32) error {
 	return nil
 }
 
-func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []string, TLSPassthrough bool, twinID uint32) (string, error) {
+func (g *gatewayModule) SetNamedProxy(wlID string, config zos.GatewayNameProxy) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
+	twinID, _, _, err := gridtypes.WorkloadID(wlID).Parts()
+	if err != nil {
+		return "", errors.Wrap(err, "invalid workload id")
+	}
 	cfg, err := g.ensureGateway(ctx, false)
 	if err != nil {
 		return "", err
@@ -504,10 +510,11 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 	if cfg.Domain == "" {
 		return "", errors.New("node doesn't support name proxy (doesn't have a domain)")
 	}
-	if err := g.validateNameContract(prefix, twinID); err != nil {
+	if err := g.validateNameContract(config.Name, twinID); err != nil {
 		return "", errors.Wrap(err, "failed to verify name contract")
 	}
-	fqdn := fmt.Sprintf("%s.%s", prefix, cfg.Domain)
+
+	fqdn := fmt.Sprintf("%s.%s", config.Name, cfg.Domain)
 
 	gatewayTLSConfig := TlsConfig{
 		CertResolver: dnsCertResolver,
@@ -517,14 +524,15 @@ func (g *gatewayModule) SetNamedProxy(wlID string, prefix string, backends []str
 			},
 		},
 	}
-	if err := g.setupRouting(wlID, fqdn, backends, gatewayTLSConfig, TLSPassthrough); err != nil {
+
+	if err := g.setupRouting(wlID, fqdn, config.Backends, gatewayTLSConfig, config.TLSPassthrough); err != nil {
 		return "", err
 	} else {
 		return fqdn, nil
 	}
 }
 
-func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string, TLSPassthrough bool) error {
+func (g *gatewayModule) SetFQDNProxy(wlID string, config zos.GatewayFQDNProxy) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
@@ -533,26 +541,27 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, fqdn string, backends []string
 		return err
 	}
 
-	if cfg.Domain != "" && strings.HasSuffix(fqdn, cfg.Domain) {
+	if cfg.Domain != "" && strings.HasSuffix(config.FQDN, cfg.Domain) {
 		return errors.New("can't create a fqdn workload with a subdomain of the gateway's managed domain")
 	}
-	if err := g.verifyDomainDestination(ctx, cfg, fqdn); err != nil {
+	if err := g.verifyDomainDestination(ctx, cfg, config.FQDN); err != nil {
 		return errors.Wrap(err, "failed to verify domain dns record")
 	}
 	gatewayTLSConfig := TlsConfig{
 		CertResolver: httpCertResolver,
 		Domains: []Domain{
 			{
-				Main: fqdn,
+				Main: config.FQDN,
 			},
 		},
 	}
-	return g.setupRouting(wlID, fqdn, backends, gatewayTLSConfig, TLSPassthrough)
+	return g.setupRouting(wlID, config.FQDN, config.Backends, gatewayTLSConfig, config.TLSPassthrough)
 }
-func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string, tlsConfig TlsConfig, TLSPassthrough bool) error {
+func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []zos.Backend, tlsConfig TlsConfig, TLSPassthrough bool) error {
 	if _, ok := g.getReservedDomain(fqdn); ok {
 		return errors.New("domain already registered")
 	}
+
 	var rule string
 	if TLSPassthrough {
 		rule = fmt.Sprintf("HostSNI(`%s`)", fqdn)
@@ -568,9 +577,9 @@ func (g *gatewayModule) setupRouting(wlID string, fqdn string, backends []string
 			return errors.Wrapf(err, "failed to validate backend '%s'", backend)
 		}
 		if TLSPassthrough {
-			servers[idx] = Server{Address: backend}
+			servers[idx] = Server{Address: string(backend)}
 		} else {
-			servers[idx] = Server{Url: backend}
+			servers[idx] = Server{Url: string(backend)}
 		}
 	}
 	route := fmt.Sprintf("%s-route", wlID)
