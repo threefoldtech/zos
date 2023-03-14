@@ -77,10 +77,10 @@ func (n *NNC) namespace() (string, error) {
 }
 
 func (g *gatewayModule) nncZinitPath(name string) string {
-	return filepath.Join(g.root, zinitDir, fmt.Sprintf("%s.yaml", name))
+	return filepath.Join(g.volatile, zinitDir, fmt.Sprintf("%s.yaml", name))
 }
 
-func (g *gatewayModule) listNNC() (map[uint16]NNC, error) {
+func (g *gatewayModule) nncList() (map[uint16]NNC, error) {
 	cl := zinit.Default()
 	services, err := cl.List()
 	if err != nil {
@@ -135,7 +135,7 @@ func (g *gatewayModule) nncName(id string) string {
 func (g *gatewayModule) nncFreePort() (uint16, error) {
 	// TODO: this need to call while holding some lock
 	// to avoid double allocation of the same port
-	current, err := g.listNNC()
+	current, err := g.nncList()
 	if err != nil {
 		return 0, err
 	}

@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"github.com/threefoldtech/substrate-client"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/cache"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
@@ -31,8 +33,8 @@ var (
 
 const (
 	traefikService = "traefik"
-	// letsencrypt email need to customizable by he farmer.
-	letsencryptEmail = "letsencrypt@threefold.tech"
+	// letsEncryptEmail email need to customizable by he farmer.
+	letsEncryptEmail = "letsencrypt@threefold.tech"
 	// certResolver must match the one defined in static config
 	httpCertResolver = "resolver"
 	dnsCertResolver  = "dnsresolver"
@@ -52,7 +54,7 @@ var (
 )
 
 type gatewayModule struct {
-	root     string
+	volatile string
 	cl       zbus.Client
 	resolver *net.Resolver
 	sub      substrate.Manager
@@ -167,16 +169,84 @@ func loadDomains(ctx context.Context, dir string) (map[string]string, error) {
 	}
 	return domains, nil
 }
+
+// migration moves config that was on persisted storage
+// to volatile storage.
+// gateway should NOT persist config because on node reboot
+// the gw config files are re-created anyway.
+func migrateFiles(root, volatile string) error {
+	// need to move any files from root/proxy to volatile/proxy
+	source := filepath.Join(root, configDir)
+	dest := filepath.Join(volatile, configDir)
+	entries, err := os.ReadDir(source)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	move := func(source, dest string) error {
+		src, err := os.Open(source)
+		if err != nil {
+			return err
+		}
+		defer src.Close()
+		dst, err := os.Create(dest)
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
+		_, err = io.Copy(dst, src)
+		return err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		old := filepath.Join(source, entry.Name())
+		new := filepath.Join(dest, entry.Name())
+		if err := move(old, new); err != nil {
+			log.Error().Err(err).Str("name", entry.Name()).Msg("failed to migrate gw config")
+			continue
+		}
+		if err := os.Remove(old); err != nil {
+			log.Error().Err(err).Str("name", entry.Name()).Msg("failed to remove old gw config")
+		}
+	}
+
+	return nil
+}
+
 func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) {
 	// where should service-restart/node-reboot recovery be handled?
-	for _, dir := range []string{configDir, metaDir, zinitDir} {
+	volatile, err := cache.VolatileDir("gateway", 10*cache.Megabyte)
+	if err != nil && !os.IsExist(err) {
+		return nil, fmt.Errorf("failed to create gateway cache directory: %w", err)
+	}
+
+	// create persisted directories
+	for _, dir := range []string{metaDir} {
 		dir = filepath.Join(root, dir)
 		if err := os.MkdirAll(dir, 0644); err != nil {
 			return nil, errors.Wrapf(err, "failed to create directory '%s'", dir)
 		}
 	}
 
-	configPath := filepath.Join(root, "proxy")
+	// create volatile directories
+	for _, dir := range []string{configDir, zinitDir} {
+		dir = filepath.Join(volatile, dir)
+		if err := os.MkdirAll(dir, 0644); err != nil {
+			return nil, errors.Wrapf(err, "failed to create directory '%s'", dir)
+		}
+	}
+
+	// (migration goes here)
+	if err := migrateFiles(root, volatile); err != nil {
+		log.Error().Err(err).Msg("failed doing gateway config migration")
+	}
+
 	bin, err := ensureTraefikBin(ctx, cl)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure traefik binary")
@@ -193,11 +263,13 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 		return nil, errors.Wrap(err, "failed to create cert script")
 	}
 	staticCfgPath := filepath.Join(root, "traefik.yaml")
-	updated, err := staticConfig(staticCfgPath, root, letsencryptEmail)
+	updated, err := staticConfig(staticCfgPath, root, volatile, letsEncryptEmail)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create static config")
 	}
-	r := &net.Resolver{
+
+	// we create the resolver to avoid the cache
+	resolver := &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			d := net.Dialer{
@@ -206,7 +278,8 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 			return d.DialContext(ctx, network, "8.8.8.8:53")
 		},
 	}
-	domains, err := loadDomains(ctx, configPath)
+
+	domains, err := loadDomains(ctx, filepath.Join(volatile, configDir))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load old domains")
 	}
@@ -217,9 +290,9 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 
 	gw := &gatewayModule{
 		cl:               cl,
-		resolver:         r,
+		resolver:         resolver,
 		sub:              sub,
-		root:             root,
+		volatile:         volatile,
 		staticConfigPath: staticCfgPath,
 		certScriptPath:   certScriptPath,
 		binPath:          bin,
@@ -238,15 +311,11 @@ func New(ctx context.Context, cl zbus.Client, root string) (pkg.Gateway, error) 
 }
 
 func (g *gatewayModule) getReservedDomain(domain string) (string, bool) {
-	g.domainLock.RLock()
-	defer g.domainLock.RUnlock()
 	v, ok := g.reservedDomains[domain]
 	return v, ok
 }
 
 func (g *gatewayModule) setReservedDomain(domain string, wlID string) {
-	g.domainLock.Lock()
-	defer g.domainLock.Unlock()
 	log.Debug().
 		Str("domain", domain).
 		Str("wlID", wlID).
@@ -255,8 +324,6 @@ func (g *gatewayModule) setReservedDomain(domain string, wlID string) {
 }
 
 func (g *gatewayModule) deleteReservedDomain(domain string) {
-	g.domainLock.Lock()
-	defer g.domainLock.Unlock()
 	log.Debug().
 		Str("domain", domain).
 		Msg("deleting domain")
@@ -264,8 +331,9 @@ func (g *gatewayModule) deleteReservedDomain(domain string) {
 }
 
 func (g *gatewayModule) copyReservedDomain() map[string]string {
-	g.domainLock.RLock()
-	defer g.domainLock.RUnlock()
+	g.domainLock.Lock()
+	defer g.domainLock.Unlock()
+
 	res := make(map[string]string, len(g.reservedDomains))
 	for k, v := range g.reservedDomains {
 		res[k] = v
@@ -291,6 +359,7 @@ func (g *gatewayModule) validateNameContracts() error {
 		return nil
 	}
 	reservedDomains := g.copyReservedDomain()
+
 	for domain, id := range reservedDomains {
 		wlID := gridtypes.WorkloadID(id)
 		twinID, _, _, err := wlID.Parts()
@@ -464,7 +533,7 @@ func (g *gatewayModule) startTraefik(z *zinit.Client) error {
 }
 
 func (g *gatewayModule) configPath(name string) string {
-	return filepath.Join(g.root, configDir, fmt.Sprintf("%s.yaml", name))
+	return filepath.Join(g.volatile, configDir, fmt.Sprintf("%s.yaml", name))
 }
 
 func (g *gatewayModule) validateNameContract(name string, twinID uint32) error {
@@ -569,6 +638,9 @@ func (g *gatewayModule) SetFQDNProxy(wlID string, config zos.GatewayFQDNProxy) e
 }
 
 func (g *gatewayModule) setupRouting(ctx context.Context, wlID string, fqdn string, tlsConfig TlsConfig, config zos.GatewayBase) error {
+	g.domainLock.Lock()
+	defer g.domainLock.Unlock()
+
 	backend := config.Backends[0]
 
 	if err := zos.Backend(backend).Valid(config.TLSPassthrough); err != nil {
