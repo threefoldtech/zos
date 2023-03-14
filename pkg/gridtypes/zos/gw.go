@@ -19,23 +19,12 @@ type Backend string
 // ip:port is only valid in case of tlsPassthrough is true
 // http://ip:port or http://ip is valid in case of tlsPassthrough is false
 func (b Backend) Valid(tlsPassthrough bool) error {
-	var hostName string
 	if tlsPassthrough {
-		host, port, err := net.SplitHostPort(string(b))
+		_, _, err := asIpPort(string(b))
 		if err != nil {
 			return fmt.Errorf("failed to parse backend %s with error: %w", b, err)
 		}
 
-		parsedPort, err := strconv.ParseUint(port, 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid port in backend: %s", port)
-		}
-
-		if parsedPort > math.MaxUint16 {
-			return fmt.Errorf("port '%s' must be <= 65535", port)
-		}
-
-		hostName = host
 	} else {
 		u, err := url.Parse(string(b))
 		if err != nil {
@@ -45,14 +34,55 @@ func (b Backend) Valid(tlsPassthrough bool) error {
 		if u.Scheme != "http" {
 			return fmt.Errorf("scheme expected to be http")
 		}
-		hostName = u.Hostname()
+
+		ip := net.ParseIP(u.Hostname())
+		if len(ip) == 0 || ip.IsLoopback() {
+			return fmt.Errorf("invalid ip address in backend: %s", u.Hostname())
+		}
 	}
 
-	ip := net.ParseIP(hostName)
-	if len(ip) == 0 || ip.IsLoopback() {
-		return fmt.Errorf("invalid ip address in backend: %s", hostName)
-	}
 	return nil
+}
+
+func asIpPort(a string) (ip net.IP, port uint16, err error) {
+	h, p, err := net.SplitHostPort(a)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to parse backend %s with error: %w", a, err)
+	}
+
+	if ip = net.ParseIP(h); ip == nil {
+		return nil, 0, fmt.Errorf("invalid ip")
+	}
+
+	parsedPort, err := strconv.ParseUint(p, 10, 64)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid port in backend: %s", p)
+	}
+
+	if parsedPort > math.MaxUint16 {
+		return nil, 0, fmt.Errorf("port '%s' must be <= 65535", p)
+	}
+
+	port = uint16(parsedPort)
+	return
+}
+
+func (b Backend) AsAddress() (string, error) {
+	if _, _, err := asIpPort(string(b)); err == nil {
+		return string(b), nil
+	}
+
+	// otherwise it must be a url
+	u, err := url.Parse(string(b))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse backend as a url")
+	}
+
+	if u.Port() == "" {
+		return fmt.Sprintf("%s:80", u.Host), nil
+	}
+
+	return u.Host, nil
 }
 
 // GatewayBase definition. this will proxy name.<zos.domain> to backends
@@ -95,6 +125,12 @@ func (g GatewayBase) Challenge(w io.Writer) error {
 
 	for _, backend := range g.Backends {
 		if _, err := fmt.Fprintf(w, "%s", string(backend)); err != nil {
+			return err
+		}
+	}
+
+	if g.Network != nil {
+		if _, err := fmt.Fprintf(w, "%s", *g.Network); err != nil {
 			return err
 		}
 	}
