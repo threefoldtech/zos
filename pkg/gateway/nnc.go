@@ -24,6 +24,7 @@ const (
 	nncStartPort     = 2000
 )
 
+// NNC holds (and extracts) information from nnc command
 type NNC struct {
 	ID   gridtypes.WorkloadID
 	Exec string
@@ -44,6 +45,7 @@ func (n *NNC) arg(key string) (string, error) {
 	return "", fmt.Errorf("not found")
 }
 
+// port return port number this nnc instance is listening on
 func (n *NNC) port() (uint16, error) {
 	listen, err := n.arg("--listen")
 	if err != nil {
@@ -63,10 +65,13 @@ func (n *NNC) port() (uint16, error) {
 	return uint16(value), nil
 }
 
+// nncZinitPath return path to the nnc zinit config file given the name
 func (g *gatewayModule) nncZinitPath(name string) string {
 	return filepath.Join(g.volatile, zinitDir, fmt.Sprintf("%s.yaml", name))
 }
 
+// nncList lists all running instances of nnc. the map key is
+// the instance configured listening port
 func (g *gatewayModule) nncList() (map[uint16]NNC, error) {
 	cl := zinit.Default()
 	services, err := cl.List()
@@ -103,6 +108,7 @@ func (g *gatewayModule) nncList() (map[uint16]NNC, error) {
 	return nncs, nil
 }
 
+// nncGet return NNC instance by name
 func (g *gatewayModule) nncGet(name string) (NNC, error) {
 	cl := zinit.Default()
 	cfg, err := cl.Get(name)
@@ -157,6 +163,8 @@ func (g *gatewayModule) nncCreateService(name string, service zinit.InitService)
 	return nil
 }
 
+// nncEnsure creates (or reuse) an nnc instance given the workload ID. the destination namespace and backend
+// it return the backend that need to be configured in traefik.
 func (g *gatewayModule) nncEnsure(wlID, namespace string, backend zos.Backend) (zos.Backend, error) {
 	name := g.nncName(wlID)
 
@@ -220,6 +228,7 @@ func (g *gatewayModule) nncEnsure(wlID, namespace string, backend zos.Backend) (
 	return be, nil
 }
 
+// destroyNNC stops and clean up nnc instances
 func (g *gatewayModule) destroyNNC(wlID string) {
 	name := g.nncName(wlID)
 	path := g.nncZinitPath(name)
