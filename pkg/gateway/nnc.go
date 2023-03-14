@@ -63,19 +63,6 @@ func (n *NNC) port() (uint16, error) {
 	return uint16(value), nil
 }
 
-func (n *NNC) target() (string, error) {
-	return n.arg("--target")
-}
-
-func (n *NNC) namespace() (string, error) {
-	path, err := n.arg("--namespace")
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Base(path), nil
-}
-
 func (g *gatewayModule) nncZinitPath(name string) string {
 	return filepath.Join(g.volatile, zinitDir, fmt.Sprintf("%s.yaml", name))
 }
@@ -87,7 +74,9 @@ func (g *gatewayModule) nncList() (map[uint16]NNC, error) {
 		return nil, err
 	}
 	nncs := make(map[uint16]NNC)
-	for name, _ := range services {
+	// note: should we just instead list the config
+	// from the known config directory?
+	for name := range services {
 		if !strings.HasPrefix(name, nncServicePrefix) {
 			continue
 		}
