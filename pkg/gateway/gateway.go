@@ -62,7 +62,6 @@ type gatewayModule struct {
 	reservedDomains map[string]string
 	domainLock      sync.RWMutex
 
-	//proxyConfigPath  string
 	staticConfigPath string
 	binPath          string
 	certScriptPath   string
