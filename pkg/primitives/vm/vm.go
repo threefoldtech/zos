@@ -358,7 +358,7 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 		log.Error().Err(err).Msg("cleaning up vm deployment duo to an error")
 		_ = vm.Delete(ctx, wl.ID.String())
 	}
-	result.ConsoleURL = &machineInfo.ConsoleURL
+	result.ConsoleURL = machineInfo.ConsoleURL
 	return result, err
 }
 func (p *Manager) copyFile(srcPath string, destPath string, permissions os.FileMode) error {
