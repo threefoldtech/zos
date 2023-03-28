@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type PropeOutput struct {
+type ProbeOutput struct {
 	Subnet        string `json:"subnet"`
 	Router        string `json:"router"`
 	IP            string `json:"ip"`
@@ -24,7 +24,7 @@ type PropeOutput struct {
 	Lease         string `json:"lease"`
 }
 
-func (p *PropeOutput) IPNet() (*net.IPNet, error) {
+func (p *ProbeOutput) IPNet() (*net.IPNet, error) {
 	mask := net.ParseIP(p.Subnet).To4()
 	if mask == nil {
 		return nil, fmt.Errorf("invalid subnet mask (%s)", p.Subnet)
@@ -40,7 +40,7 @@ func (p *PropeOutput) IPNet() (*net.IPNet, error) {
 	}, nil
 }
 
-func DHCPPrope(ctx context.Context, inf string) (output PropeOutput, err error) {
+func Probe(ctx context.Context, inf string) (output ProbeOutput, err error) {
 	// use udhcpc to prope the interface.
 	// this depends on that the interface is UP
 	cmd := exec.CommandContext(ctx, "udhcpc",
@@ -49,7 +49,7 @@ func DHCPPrope(ctx context.Context, inf string) (output PropeOutput, err error) 
 		"-f",       //foreground
 		"-t", "20", //send 20 dhcp queries
 		"-T", "1", // every second
-		"-s", "/usr/share/udhcp/prope.script", // use the prope script
+		"-s", "/usr/share/udhcp/probe.script", // use the prope script
 		"--now", // exit if lease is not obtained
 	)
 

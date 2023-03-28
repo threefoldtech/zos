@@ -180,7 +180,7 @@ func AnalyzeLink(ctx context.Context, requires Requires, link netlink.Link) (cfg
 
 		if requires&RequiresIPv4 != 0 {
 			// requires IPv4
-			prope, err := dhcp.DHCPPrope(ctx, name)
+			prope, err := dhcp.Probe(ctx, name)
 			if err != nil {
 				return errors.Wrapf(err, "no ip v4 on interface '%s'", name)
 			}

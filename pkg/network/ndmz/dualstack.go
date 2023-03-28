@@ -361,7 +361,7 @@ func waitIP4() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	prope, err := dhcp.DHCPPrope(ctx, dmzPub4)
+	prope, err := dhcp.Probe(ctx, dmzPub4)
 
 	if err != nil {
 		return errors.Wrapf(err, "error while proping interface '%s'", dmzPub4)
