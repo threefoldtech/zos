@@ -19,7 +19,7 @@ type ProbeOutput struct {
 	IP            string `json:"ip"`
 	SourceAddress string `json:"siaddr"`
 	DNS           string `json:"dns"`
-	ServerID      string `json:"serverid"`
+	ServerID      string `json:"servierid"`
 	BroadcastIP   string `json:"broadcast"`
 	Lease         string `json:"lease"`
 }
