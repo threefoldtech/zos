@@ -112,6 +112,10 @@ func (d *dmzImpl) Create(ctx context.Context) error {
 	}
 
 	err = netNS.Do(func(_ ns.NetNS) error {
+		if err := ifaceutil.SetLoUp(); err != nil {
+			return errors.Wrapf(err, "ndmz: couldn't bring lo up in ndmz namespace")
+		}
+
 		if err := options.SetIPv6Forwarding(true); err != nil {
 			return errors.Wrapf(err, "failed to enable forwarding in ndmz")
 		}
@@ -361,12 +365,12 @@ func waitIP4() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	prope, err := dhcp.Probe(ctx, dmzPub4)
+	probe, err := dhcp.Probe(ctx, dmzPub4)
 
 	if err != nil {
 		return errors.Wrapf(err, "error while proping interface '%s'", dmzPub4)
 	}
-	if len(prope.IP) != 0 && len(prope.Router) != 0 {
+	if len(probe.IP) != 0 && len(probe.Router) != 0 {
 		return nil
 	}
 
@@ -374,9 +378,6 @@ func waitIP4() error {
 }
 
 func waitIP6() error {
-	if err := ifaceutil.SetLoUp(); err != nil {
-		return errors.Wrapf(err, "ndmz: couldn't bring lo up in ndmz namespace")
-	}
 	// also, set kernel parameter that public always accepts an ra even when forwarding
 	if err := options.Set(dmzPub6,
 		options.AcceptRA(options.RAAcceptIfForwardingIsEnabled),

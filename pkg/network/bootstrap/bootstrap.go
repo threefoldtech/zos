@@ -180,17 +180,17 @@ func AnalyzeLink(ctx context.Context, requires Requires, link netlink.Link) (cfg
 
 		if requires&RequiresIPv4 != 0 {
 			// requires IPv4
-			prope, err := dhcp.Probe(ctx, name)
+			probe, err := dhcp.Probe(ctx, name)
 			if err != nil {
 				return errors.Wrapf(err, "no ip v4 on interface '%s'", name)
 			}
-			ip, err := prope.IPNet()
+			ip, err := probe.IPNet()
 			if err != nil {
 				return errors.Wrap(err, "invalid ip address returned by dhcp")
 			}
 			cfg.Addrs4 = append(cfg.Addrs4, netlink.Addr{IPNet: ip})
-			if len(prope.Router) != 0 {
-				cfg.DefaultGW = net.ParseIP(prope.Router).To4()
+			if len(probe.Router) != 0 {
+				cfg.DefaultGW = net.ParseIP(probe.Router).To4()
 			}
 		}
 
