@@ -70,12 +70,3 @@ func mustParseAddr(s string) netlink.Addr {
 	}
 	return *addr
 }
-
-func mustParseIPNet(addr string) *net.IPNet {
-	ip, ipnet, err := net.ParseCIDR(addr)
-	if err != nil {
-		panic(err)
-	}
-	ipnet.IP = ip
-	return ipnet
-}
