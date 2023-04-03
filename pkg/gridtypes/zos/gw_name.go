@@ -16,7 +16,7 @@ type GatewayNameProxy struct {
 
 func (g GatewayNameProxy) Valid(getter gridtypes.WorkloadGetter) error {
 	if !gwNameRegex.MatchString(g.Name) {
-		return fmt.Errorf("invalid name")
+		return fmt.Errorf("name %s is invalid", g.Name)
 	}
 
 	return g.GatewayBase.Valid(getter)

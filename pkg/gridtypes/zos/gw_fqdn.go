@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	gwNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-.]+$`)
+	gwNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_.]+$`)
 )
 
 // GatewayFQDNProxy definition. this will proxy name.<zos.domain> to backends
@@ -22,7 +22,7 @@ type GatewayFQDNProxy struct {
 
 func (g GatewayFQDNProxy) Valid(getter gridtypes.WorkloadGetter) error {
 	if !gwNameRegex.MatchString(g.FQDN) {
-		return fmt.Errorf("invalid name")
+		return fmt.Errorf("fqdn %s is invalid", g.FQDN)
 	}
 	if g.FQDN[len(g.FQDN)-1] == '.' {
 		return fmt.Errorf("fqdn can't end with a dot")
