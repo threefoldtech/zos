@@ -952,3 +952,17 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 
 	return err
 }
+
+// GetWorkloadStatus get workload status
+func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, error) {
+	globalID := gridtypes.WorkloadID(id)
+	twin, dlID, name, err := globalID.Parts()
+	if err != nil {
+		return "", err
+	}
+	wl, err := e.storage.Current(twin, dlID, name)
+	if err != nil {
+		return "", err
+	}
+	return wl.Result.State, nil
+}

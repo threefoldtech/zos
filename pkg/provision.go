@@ -12,6 +12,7 @@ import (
 // Provision interface
 type Provision interface {
 	DecommissionCached(id string, reason string) error
+	GetWorkloadStatus(id string) (gridtypes.ResultState, error)
 }
 
 type Statistics interface {
