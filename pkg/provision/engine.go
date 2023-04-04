@@ -962,7 +962,11 @@ func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, erro
 	}
 	wl, err := e.storage.Current(twin, dlID, name)
 	if err != nil {
+		if e.storage.IsNotFoundError(err) {
+			return "", nil
+		}
 		return "", err
 	}
+
 	return wl.Result.State, nil
 }
