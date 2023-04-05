@@ -42,16 +42,17 @@ func (s *ProvisionStub) DecommissionCached(ctx context.Context, arg0 string, arg
 	return
 }
 
-func (s *ProvisionStub) GetWorkloadStatus(ctx context.Context, arg0 string) (ret0 gridtypes.ResultState, ret1 error) {
+func (s *ProvisionStub) GetWorkloadStatus(ctx context.Context, arg0 string) (ret0 gridtypes.ResultState, ret1 bool, ret2 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetWorkloadStatus", args...)
 	if err != nil {
 		panic(err)
 	}
 	result.PanicOnError()
-	ret1 = result.CallError()
+	ret2 = result.CallError()
 	loader := zbus.Loader{
 		&ret0,
+		&ret1,
 	}
 	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)

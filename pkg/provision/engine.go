@@ -11,11 +11,10 @@ import (
 
 	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-
-	"github.com/rs/zerolog/log"
 )
 
 // EngineOption interface
@@ -953,20 +952,28 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 	return err
 }
 
-// GetWorkloadStatus get workload status
-func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, error) {
+func isNotFoundError(err error) bool {
+	if errors.Is(err, ErrWorkloadNotExist) || errors.Is(err, ErrDeploymentNotExists) {
+		return true
+	}
+	return false
+}
+
+// GetWorkloadStatus get workload status, returns status, exists, error
+func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, bool, error) {
 	globalID := gridtypes.WorkloadID(id)
 	twin, dlID, name, err := globalID.Parts()
 	if err != nil {
-		return "", err
-	}
-	wl, err := e.storage.Current(twin, dlID, name)
-	if err != nil {
-		if e.storage.IsNotFoundError(err) {
-			return "", nil
-		}
-		return "", err
+		return "", false, err
 	}
 
-	return wl.Result.State, nil
+	wl, err := e.storage.Current(twin, dlID, name)
+
+	if isNotFoundError(err) {
+		return "", false, nil
+	} else if err != nil {
+		return "", false, err
+	}
+
+	return wl.Result.State, true, nil
 }

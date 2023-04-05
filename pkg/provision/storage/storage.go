@@ -778,10 +778,3 @@ func (b *BoltStorage) CleanDeleted() error {
 
 	return nil
 }
-
-func (b *BoltStorage) IsNotFoundError(err error) bool {
-	if errors.Is(err, provision.ErrWorkloadNotExist) || errors.Is(err, provision.ErrDeploymentNotExists) || errors.Is(err, ErrTransactionNotExist) {
-		return true
-	}
-	return false
-}

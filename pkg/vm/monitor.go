@@ -123,12 +123,11 @@ func (m *Module) monitorID(ctx context.Context, running map[string]Process, id s
 	log := log.With().Str("id", id).Logger()
 
 	if ps, ok := running[id]; ok {
-		state, err := stub.GetWorkloadStatus(ctx, id)
+		state, exists, err := stub.GetWorkloadStatus(ctx, id)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get workload status for vm:%s ", id)
 		}
-		// state = nil when workload doesn't exist
-		if state == "" || state.IsAny(gridtypes.StateDeleted, gridtypes.StateError) {
+		if !exists || state.IsAny(gridtypes.StateDeleted, gridtypes.StateError) {
 			log.Debug().Str("name", id).Msg("deleting running vm with no active workload")
 			m.removeConfig(id)
 			_ = syscall.Kill(ps.Pid, syscall.SIGKILL)
