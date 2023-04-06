@@ -83,12 +83,16 @@ func check() error {
 	retries := 0
 	f := func() error {
 		retries += 1
-		// we only care about possibility of establishing a connection
+
 		log.Info().Msg("testing internet connection. trying out bootstrap.grid.tf:80")
+		// print some helpful debugging information to help with debugging issues
+		// if internet connection wasn't established
 		if err := debugZos(); err != nil {
 			log.Error().Err(err).Msg("failed to list default bridge debug information")
 		}
 
+		// we only care about possibility of establishing a connection
+		// so just establishing a connection then close it is good enough
 		con, err := net.Dial("tcp", "bootstrap.grid.tf:http")
 		if err != nil {
 			return errors.Wrap(err, "failed to reach bootstrap.grid.tf")
