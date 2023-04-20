@@ -79,7 +79,7 @@ func (z ZDB) Capacity() (cap gridtypes.Capacity, err error) {
 // ZDBResult is the information return to the BCDB
 // after deploying a 0-db namespace
 type ZDBResult struct {
-	Namespace string
-	IPs       []string
-	Port      uint
+	Namespace string   `json:"namespace"`
+	IPs       []string `json:"ips"`
+	Port      uint     `json:"port"`
 }
