@@ -224,6 +224,8 @@ github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb/go.mod h1:/XxbfmMg
 github.com/gologme/log v1.2.0/go.mod h1:gq31gQ8wEHkR+WekdWsqDuf8pXTUZA9BnnzTuPz1Y9U=
 github.com/gomodule/redigo v1.8.9 h1:Sl3u+2BI/kk+VEatbj0scLdrFhjPmbxOc1myhDP41ws=
 github.com/gomodule/redigo v1.8.9/go.mod h1:7ArFNvsTjH8GMMzB4uy1snslv2BwmginuMs06a1uzZE=
+github.com/gomodule/redigo v2.0.0+incompatible h1:K/R+8tc58AaqLkqG2Ol3Qk+DR/TlNuhuh457pBFPtt0=
+github.com/gomodule/redigo v2.0.0+incompatible/go.mod h1:B4C85qUVwatsJoIUNIfCRsp7qO0iAmpGFZ4EELWSbC4=
 github.com/google/btree v1.0.0/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
@@ -535,6 +537,8 @@ github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20230509101146
 github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20230509101146-8e43c43597cd/go.mod h1:dtDKAPiUDxAwIkfHV7xcAFZcOm+xwNIuOI1MLFS+MeQ=
 github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.2.0 h1:dUPLbUFYBTfsM31UpIyPVyv18kDMLczHYIINPK/mFKI=
 github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.2.0/go.mod h1:DDQ6ktnCli7z1+zpSR/j2twWwe6FUGxPO+WnEkRsnxw=
+github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.4.0 h1:fmCYshC+u0/1nqlu10TnZjZeywioXOSWpm6n8zPKgkI=
+github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.4.0/go.mod h1:tttnc/l4F2lx1SyETTiLrMaiQEgMeGCvlVEIW6nUeJA=
 github.com/threefoldtech/zbus v1.0.1 h1:3KaEpyOiDYAw+lrAyoQUGIvY9BcjVRXlQ1beBRqhRNk=
 github.com/threefoldtech/zbus v1.0.1/go.mod h1:E/v/xEvG/l6z/Oj0aDkuSUXFm/1RVJkhKBwDTAIdsHo=
 github.com/tinylib/msgp v1.1.2/go.mod h1:+d+yLhGm8mzTaHzB+wgMYrodPfmZrzkirds8fDWklFE=

@@ -24,7 +24,7 @@ require (
 	github.com/g0rbe/go-chattr v0.0.0-20190906133247-aa435a6a0a37
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/go-redis/redis v6.15.9+incompatible
-	github.com/gomodule/redigo v1.8.9
+	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
@@ -43,7 +43,7 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/threefoldtech/0-fs v1.3.1-0.20201203163303-d963de9adea7
 	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20230509101146-8e43c43597cd
-	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.2.0
+	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.4.0
 	github.com/threefoldtech/zbus v1.0.1
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
