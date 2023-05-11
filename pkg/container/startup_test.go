@@ -35,7 +35,7 @@ SERVER_PORT = "25565"
 func TestParseStartup(t *testing.T) {
 	r := strings.NewReader(_startup)
 	e := startup{}
-	_, err := toml.DecodeReader(r, &e)
+	_, err := toml.NewDecoder(r).Decode(&e)
 	require.NoError(t, err)
 
 	entry, ok := e.Entries["entry"]
