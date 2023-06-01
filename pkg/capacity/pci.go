@@ -123,7 +123,7 @@ func (p *PCI) GetDevice() (Vendor, Device, bool) {
 // ShortID returns a short identification string
 // for the device in the format `slot/vendor/device`
 func (p *PCI) ShortID() string {
-	return fmt.Sprintf("%s/%04x/%04x", p.Slot, p.Vendor, p.Class)
+	return fmt.Sprintf("%s/%04x/%04x", p.Slot, p.Vendor, p.Device)
 }
 
 func (p PCI) String() string {
