@@ -100,6 +100,9 @@ func (m *MachineMount) Challenge(w io.Writer) error {
 	return nil
 }
 
+// GPU name
+type GPU string
+
 // ZMachine reservation data
 type ZMachine struct {
 	// Flist of the zmachine, must be a valid url to an flist.
@@ -124,6 +127,12 @@ type ZMachine struct {
 	// Corex works in container mode which forces replace the
 	// entrypoing of the container to use `corex`
 	Corex bool `json:"corex"`
+
+	// GPU assignment, the names of the GPU has to match
+	// the ones declared by the node.
+	// This is only valid on dedicated nodes, otherwise
+	// will return an error.
+	GPU []GPU `json:"gpu,omitempty"`
 }
 
 func (m *ZMachine) MinRootSize() gridtypes.Unit {
