@@ -29,6 +29,17 @@ type RegistrationInfo struct {
 	SecureBoot   bool
 	Virtualized  bool
 	SerialNumber string
+	// List of gpus short name
+	GPUs map[string]interface{}
+}
+
+func (r RegistrationInfo) WithGPU(short string) RegistrationInfo {
+	if r.GPUs == nil {
+		r.GPUs = make(map[string]interface{})
+	}
+
+	r.GPUs[short] = nil
+	return r
 }
 
 func (r RegistrationInfo) WithCapacity(v gridtypes.Capacity) RegistrationInfo {
@@ -205,6 +216,8 @@ func registerNode(
 			return 0, 0, errors.Wrapf(err, "failed to update node data with id: %d", nodeID)
 		}
 	}
+
+	//TODO: update node GPU flags
 
 	return uint32(nodeID), uint32(twinID), err
 }

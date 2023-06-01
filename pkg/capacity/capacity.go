@@ -173,3 +173,7 @@ func (r *ResourceOracle) GetHypervisor() (string, error) {
 
 	return "", nil
 }
+
+func (r *ResourceOracle) GPUs() ([]PCI, error) {
+	return ListPCI(GPU)
+}
