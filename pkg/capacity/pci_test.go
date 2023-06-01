@@ -23,3 +23,12 @@ func TestListPCI(t *testing.T) {
 		fmt.Println(device)
 	}
 }
+
+func TestListGPU(t *testing.T) {
+	devices, err := ListPCI(GPU)
+	require.NoError(t, err)
+
+	for _, device := range devices {
+		fmt.Println(device)
+	}
+}
