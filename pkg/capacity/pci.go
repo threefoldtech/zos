@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+const (
+	pciDir = "/sys/bus/pci/devices"
+)
+
 type Device struct {
 	ID   uint16
 	Name string
@@ -130,42 +134,48 @@ func (p PCI) String() string {
 	return fmt.Sprintf("%s %04x: [%04x:%04x]", p.Slot, p.Class, p.Vendor, p.Device)
 }
 
-func ListPCI(filter ...Filter) ([]PCI, error) {
+func pciDeviceFromSlot(slot string) (PCI, error) {
 	const (
-		dir        = "/sys/bus/pci/devices"
 		classFile  = "class"
 		vendorFile = "vendor"
 		deviceFile = "device"
 	)
+	class, err := readUint64(filepath.Join(pciDir, slot, classFile), 32)
+	if err != nil {
+		return PCI{}, fmt.Errorf("failed to get device '%s' class: %w", slot, err)
+	}
+	vendor, err := readUint64(filepath.Join(pciDir, slot, vendorFile), 16)
+	if err != nil {
+		return PCI{}, fmt.Errorf("failed to get device '%s' class: %w", slot, err)
+	}
 
+	device, err := readUint64(filepath.Join(pciDir, slot, deviceFile), 16)
+	if err != nil {
+		return PCI{}, fmt.Errorf("failed to get device '%s' class: %w", slot, err)
+	}
+
+	pci := PCI{
+		Slot:   slot,
+		Class:  uint32(class),
+		Vendor: uint16(vendor),
+		Device: uint16(device),
+	}
+
+	return pci, err
+}
+
+func ListPCI(filter ...Filter) ([]PCI, error) {
 	var devices []PCI
-	entries, err := os.ReadDir(dir)
+	entries, err := os.ReadDir(pciDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read sys pci devices: %w", err)
 	}
 
 next:
 	for _, entry := range entries {
-		slot := entry.Name()
-		class, err := readUint64(filepath.Join(dir, slot, classFile), 32)
+		pci, err := pciDeviceFromSlot(entry.Name())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get device '%s' class: %w", slot, err)
-		}
-		vendor, err := readUint64(filepath.Join(dir, slot, vendorFile), 16)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get device '%s' class: %w", slot, err)
-		}
-
-		device, err := readUint64(filepath.Join(dir, slot, deviceFile), 16)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get device '%s' class: %w", slot, err)
-		}
-
-		pci := PCI{
-			Slot:   slot,
-			Class:  uint32(class),
-			Vendor: uint16(vendor),
-			Device: uint16(device),
+			return nil, err
 		}
 
 		for _, f := range filter {
@@ -197,4 +207,28 @@ func readUint64(path string, bitSize int) (uint64, error) {
 // GPU Filter only devices with GPU capabilities
 func GPU(p *PCI) bool {
 	return p.Class == 0x030000
+}
+
+// given a pci device, return all devices in the same iommu group
+func IoMMUGroup(pci PCI) ([]PCI, error) {
+	path := filepath.Join(pciDir, pci.Slot, "iommu_group", "devices")
+	entries, err := os.ReadDir(path)
+	if os.IsNotExist(err) {
+		// no groups
+		return []PCI{pci}, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var devices []PCI
+	for _, entry := range entries {
+		pci, err := pciDeviceFromSlot(entry.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		devices = append(devices, pci)
+	}
+
+	return devices, nil
 }
