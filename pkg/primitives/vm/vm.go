@@ -143,7 +143,16 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 		CPU:    config.ComputeCapacity.CPU,
 		Memory: config.ComputeCapacity.Memory,
 	}
-	// Should config.Vaid() be called here?
+
+	// expand GPUs
+	devices, err := p.expandGPUs(config.GPU)
+	if err != nil {
+		return result, errors.Wrap(err, "failed to prepare requested gpu device(s)")
+	}
+
+	for _, device := range devices {
+		machine.Devices = append(machine.Devices, device.Slot)
+	}
 
 	// the config is validated by the engine. we now only support only one
 	// private network
