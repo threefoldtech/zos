@@ -22,7 +22,6 @@ var (
 )
 
 func (m *Manager) initGPUVfioModules() error {
-
 	for _, mod := range modules {
 		if err := exec.Command("modprobe", mod).Run(); err != nil {
 			return errors.Wrapf(err, "failed to probe module: %s", mod)
@@ -34,6 +33,11 @@ func (m *Manager) initGPUVfioModules() error {
 		return errors.Wrapf(err, "failed to set allow_unsafe_interrupts for vfio")
 	}
 
+	return nil
+}
+
+// unbindBootVga is a helper method to disconnect the boot vga if needed
+func (m *Manager) unbindBootVga() error {
 	const vtConsole = "/sys/class/vtconsole"
 	vts, err := os.ReadDir(vtConsole)
 	if err != nil && !os.IsNotExist(err) {
@@ -64,7 +68,16 @@ func (m *Manager) initGPUs() error {
 		return errors.Wrap(err, "failed to list system GPUs")
 	}
 
+	disconnectVT := false
 	for _, gpu := range gpus {
+		bootVga, err := gpu.Flag("boot_vga")
+		if err != nil && !os.IsNotExist(err) {
+			return errors.Wrapf(err, "failed to read GPU '%s' boot_vga flag", gpu.Slot)
+		}
+		if bootVga > 0 {
+			disconnectVT = true
+		}
+
 		devices, err := capacity.IoMMUGroup(gpu)
 		if err != nil {
 			return errors.Wrapf(err, "failed to list devices in iommu group for '%s'", gpu.Slot)
@@ -102,6 +115,10 @@ func (m *Manager) initGPUs() error {
 				return errors.Wrapf(err, "failed to bind device '%s' to vfio", pci.Slot)
 			}
 		}
+	}
+
+	if disconnectVT {
+		return m.unbindBootVga()
 	}
 
 	return nil

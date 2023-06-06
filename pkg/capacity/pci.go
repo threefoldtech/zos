@@ -134,6 +134,11 @@ func (p PCI) String() string {
 	return fmt.Sprintf("%s %04x: [%04x:%04x]", p.Slot, p.Class, p.Vendor, p.Device)
 }
 
+// Flag read a custom flag on PCI device as uint64
+func (p *PCI) Flag(name string) (uint64, error) {
+	return readUint64(filepath.Join(pciDir, p.Slot, name), 64)
+}
+
 func pciDeviceFromSlot(slot string) (PCI, error) {
 	const (
 		classFile  = "class"
