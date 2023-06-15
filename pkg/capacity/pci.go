@@ -214,8 +214,20 @@ func GPU(p *PCI) bool {
 	return p.Class == 0x030000
 }
 
+func PCIBridge(p *PCI) bool {
+	// this will include 0x060000 and 0x060400
+	// or any other pci bridge device
+	return p.Class>>16 == 0x06
+}
+
+func Not(f Filter) Filter {
+	return func(pci *PCI) bool {
+		return !f(pci)
+	}
+}
+
 // given a pci device, return all devices in the same iommu group
-func IoMMUGroup(pci PCI) ([]PCI, error) {
+func IoMMUGroup(pci PCI, filter ...Filter) ([]PCI, error) {
 	path := filepath.Join(pciDir, pci.Slot, "iommu_group", "devices")
 	entries, err := os.ReadDir(path)
 	if os.IsNotExist(err) {
@@ -226,10 +238,16 @@ func IoMMUGroup(pci PCI) ([]PCI, error) {
 	}
 
 	var devices []PCI
+next:
 	for _, entry := range entries {
 		pci, err := pciDeviceFromSlot(entry.Name())
 		if err != nil {
 			return nil, err
+		}
+		for _, f := range filter {
+			if !f(&pci) {
+				continue next
+			}
 		}
 
 		devices = append(devices, pci)

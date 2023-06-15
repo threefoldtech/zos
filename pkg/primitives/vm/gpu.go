@@ -68,17 +68,16 @@ func (m *Manager) initGPUs() error {
 		return errors.Wrap(err, "failed to list system GPUs")
 	}
 
-	disconnectVT := false
 	for _, gpu := range gpus {
 		bootVga, err := gpu.Flag("boot_vga")
 		if err != nil && !os.IsNotExist(err) {
 			return errors.Wrapf(err, "failed to read GPU '%s' boot_vga flag", gpu.Slot)
 		}
 		if bootVga > 0 {
-			disconnectVT = true
+			m.unbindBootVga()
 		}
 
-		devices, err := capacity.IoMMUGroup(gpu)
+		devices, err := capacity.IoMMUGroup(gpu, capacity.Not(capacity.PCIBridge))
 		if err != nil {
 			return errors.Wrapf(err, "failed to list devices in iommu group for '%s'", gpu.Slot)
 		}
@@ -117,10 +116,6 @@ func (m *Manager) initGPUs() error {
 		}
 	}
 
-	if disconnectVT {
-		return m.unbindBootVga()
-	}
-
 	return nil
 }
 
@@ -143,7 +138,7 @@ func (m *Manager) expandGPUs(gpus []zos.GPU) ([]capacity.PCI, error) {
 			return nil, fmt.Errorf("unknown GPU id '%s'", gpu)
 		}
 
-		sub, err := capacity.IoMMUGroup(device)
+		sub, err := capacity.IoMMUGroup(device, capacity.Not(capacity.PCIBridge))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to list all devices belonging to '%s'", device.Slot)
 		}
