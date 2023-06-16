@@ -33,6 +33,11 @@ var (
 
 	pattern = regexp.MustCompile(`^(\t*)([\d|a-f]{4})(.+)$`)
 	data    map[uint16]Vendor
+
+	gpuVendorsWhitelist = []uint16{
+		0x1002, // AMD
+		0x10de, // NVIDIA
+	}
 )
 
 func init() {
@@ -210,8 +215,9 @@ func readUint64(path string, bitSize int) (uint64, error) {
 }
 
 // GPU Filter only devices with GPU capabilities
+// NOTE: we only also now white list NVIDIA and AMD
 func GPU(p *PCI) bool {
-	return p.Class == 0x030000
+	return p.Class == 0x030000 && in(p.Vendor, gpuVendorsWhitelist)
 }
 
 func PCIBridge(p *PCI) bool {
@@ -254,4 +260,14 @@ next:
 	}
 
 	return devices, nil
+}
+
+func in[T comparable](v T, l []T) bool {
+	for _, x := range l {
+		if x == v {
+			return true
+		}
+	}
+
+	return false
 }
