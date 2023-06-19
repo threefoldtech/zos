@@ -111,7 +111,7 @@ type GPU string
 func (g GPU) Parts() (slot, vendor, device string, err error) {
 	parts := strings.Split(string(g), "/")
 	if len(parts) != 3 {
-		err = fmt.Errorf("invalid GPU id format")
+		err = fmt.Errorf("invalid GPU id format '%s'", g)
 		return
 	}
 

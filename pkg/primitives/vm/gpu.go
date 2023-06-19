@@ -73,8 +73,11 @@ func (m *Manager) initGPUs() error {
 		if err != nil && !os.IsNotExist(err) {
 			return errors.Wrapf(err, "failed to read GPU '%s' boot_vga flag", gpu.Slot)
 		}
+
 		if bootVga > 0 {
-			m.unbindBootVga()
+			if err := m.unbindBootVga(); err != nil {
+				log.Warn().Err(err).Msg("error while unbinding boot vga")
+			}
 		}
 
 		devices, err := capacity.IoMMUGroup(gpu, capacity.Not(capacity.PCIBridge))
@@ -119,7 +122,10 @@ func (m *Manager) initGPUs() error {
 	return nil
 }
 
-// expandGPUs expands the set of provided GPUs with
+// expandGPUs expands the set of provided GPUs with all devices in the IoMMU group.
+// It's required that all devices in an iommu group to be passed together to a VM
+// hence we need that for each GPU in the list add all the devices from each device
+// IOMMU group
 func (m *Manager) expandGPUs(gpus []zos.GPU) ([]capacity.PCI, error) {
 	all, err := capacity.ListPCI(capacity.GPU)
 	if err != nil {

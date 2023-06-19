@@ -273,7 +273,7 @@ func IsRentedNode(ctx context.Context) bool {
 	return v.(bool)
 }
 
-// mark node as rent internall
+// sets node rented flag on the ctx
 func withRented(ctx context.Context, rent bool) context.Context {
 	return context.WithValue(ctx, rentKey{}, rent)
 }

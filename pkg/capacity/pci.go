@@ -16,16 +16,26 @@ const (
 	pciDir = "/sys/bus/pci/devices"
 )
 
+// Device is a PCI device
 type Device struct {
-	ID   uint16
+	// ID is device id according to PCI database
+	ID uint16
+	// Name is device name according to PCI database
 	Name string
 }
 
+// Vendor is Vendor information
 type Vendor struct {
-	ID      uint16
-	Name    string
+	// ID of the vendor according to PCI database
+	ID uint16
+	// Name of the vendor
+	Name string
+	// All known devices by this vendor
 	Devices map[uint16]Device
 }
+
+// make sure pci.ids is up to date
+//go:generate curl -o pci/pci.ids -L https://pci-ids.ucw.cz/v2.2/pci.ids
 
 var (
 	//go:embed pci/pci.ids
@@ -115,13 +125,19 @@ func GetDevice(vendor uint16, device uint16) (v Vendor, d Device, ok bool) {
 	return
 }
 
+// Filter over the PCI for listing
 type Filter func(pci *PCI) bool
 
+// PCI device
 type PCI struct {
-	Slot   string
+	// Slot is the PCI device slot
+	Slot string
+	// Vendor of the device
 	Vendor uint16
+	// Device id
 	Device uint16
-	Class  uint32
+	// Class of the device
+	Class uint32
 }
 
 // GetDevice gets the attached PCI device information (vendor and device)
@@ -174,6 +190,7 @@ func pciDeviceFromSlot(slot string) (PCI, error) {
 	return pci, err
 }
 
+// ListPCI lists all PCI devices attached to the machine, applying provided filters
 func ListPCI(filter ...Filter) ([]PCI, error) {
 	var devices []PCI
 	entries, err := os.ReadDir(pciDir)
@@ -220,19 +237,21 @@ func GPU(p *PCI) bool {
 	return p.Class == 0x030000 && in(p.Vendor, gpuVendorsWhitelist)
 }
 
+// PCIBridge returns true if p is a PCI bridge
 func PCIBridge(p *PCI) bool {
 	// this will include 0x060000 and 0x060400
 	// or any other pci bridge device
 	return p.Class>>16 == 0x06
 }
 
+// Not negates a filter
 func Not(f Filter) Filter {
 	return func(pci *PCI) bool {
 		return !f(pci)
 	}
 }
 
-// given a pci device, return all devices in the same iommu group
+// IoMMUGroup given a pci device, return all devices in the same iommu group
 func IoMMUGroup(pci PCI, filter ...Filter) ([]PCI, error) {
 	path := filepath.Join(pciDir, pci.Slot, "iommu_group", "devices")
 	entries, err := os.ReadDir(path)
