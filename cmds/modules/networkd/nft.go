@@ -48,7 +48,7 @@ nft 'flush chain bridge filter forward'
 nft 'flush chain inet filter forward'
 
 # drop smtp traffic for hidden nodes
-nft 'add rule bridge filter forward iifname "tozos" tcp dport 25 drop'
+nft 'add rule bridge filter input iifname tozos tcp dport 25 drop'
 
 `)
 
