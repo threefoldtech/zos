@@ -215,7 +215,7 @@ no need to specify a kernel yourself (it will be provided).
 
 This is a simple tutorial on how to create your own VM image
 > Note: Please consider checking the official vm images repo on the hub before building your own
-image. this can save you a lot of time (and network traffice) here <https://hub.grid.tf/tf-official-vms>
+image. this can save you a lot of time (and network traffic) here <https://hub.grid.tf/tf-official-vms>
 
 ### Use one of ubuntu cloud-images
 

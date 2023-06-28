@@ -36,23 +36,21 @@ func (p *Manager) prepVirtualMachine(
 	deployment *gridtypes.Deployment,
 	wl *gridtypes.WorkloadWithID,
 ) error {
-	var (
-		storage = stubs.NewStorageModuleStub(p.zbus)
-	)
+
+	var storage = stubs.NewStorageModuleStub(p.zbus)
 	// if a VM the vm has to have at least one mount
 	if len(config.Mounts) == 0 {
 		return fmt.Errorf("at least one mount has to be attached for Vm mode")
 	}
 
 	machine.KernelImage = filepath.Join(cloudImage, "hypervisor-fw")
-	var disk *gridtypes.WorkloadWithID
 	disk, err := deployment.Get(config.Mounts[0].Name)
 	if err != nil {
 		return err
 	}
 
 	if disk.Type != zos.ZMountType {
-		return fmt.Errorf("mount is not not a valid disk workload")
+		return fmt.Errorf("mount is not a valid disk workload")
 	}
 
 	if disk.Result.State != gridtypes.StateOk {
@@ -77,11 +75,7 @@ func (p *Manager) prepVirtualMachine(
 		Path: info.Path,
 	}
 
-	if err := p.vmMounts(ctx, deployment, config.Mounts[1:], false, machine); err != nil {
-		return err
-	}
-
-	return nil
+	return p.vmMounts(ctx, deployment, config.Mounts[1:], false, machine)
 }
 
 // prepare the machine and fill it up with proper boot flags for a container VM
@@ -356,7 +350,7 @@ func getFlistInfo(flistPath string) (flist FListInfo, err error) {
 			// to a location inside the flist
 			link, err := os.Readlink(path)
 			if err != nil {
-				return flist, errors.Wrapf(err, "failed to link at '%s", rel)
+				return flist, errors.Wrapf(err, "failed to read link at '%s", rel)
 			}
 			// now the link if joined with path, (and cleaned) need to also point
 			// to somewhere under flistPath
