@@ -34,6 +34,7 @@ nft 'delete chain arp filter output'
 nft 'add chain inet filter input   { type filter hook input priority filter; policy accept; }'
 nft 'add chain inet filter forward { type filter hook forward priority filter; policy accept; }'
 nft 'add chain inet filter output  { type filter hook output priority filter; policy accept; }'
+nft 'add chain inet filter prerouting  { type filter hook prerouting priority filter; policy accept; }'
 
 nft 'add chain arp filter input  { type filter hook input priority filter; policy accept; }'
 nft 'add chain arp filter output { type filter hook output priority filter; policy accept; }'
@@ -46,9 +47,10 @@ nft 'add chain bridge filter output  { type filter hook output priority filter; 
 
 nft 'flush chain bridge filter forward'
 nft 'flush chain inet filter forward'
+nft 'flush chain inet filter prerouting'
 
 # drop smtp traffic for hidden nodes
-nft 'add rule bridge filter input iifname tozos tcp dport 25 drop'
+nft 'add rule inet filter prerouting iifname "b-*" tcp dport 25 reject with icmp type admin-prohibited'
 
 `)
 
