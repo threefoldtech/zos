@@ -1,9 +1,13 @@
 package networkd
 
 import (
+	"bytes"
 	"context"
+	"embed"
 	"fmt"
+	"net"
 	"os/exec"
+	"text/template"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -11,74 +15,96 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func homeExistInterface() (netlink.Link, error) {
+//go:embed nft/script.sh
+var script embed.FS
+
+// getHomeNetwork is a helper function that returns the physical interface
+// used by zos bridge and the mac address of the gw. this is needed to
+func getHomeNetwork() (link netlink.Link, gw *net.HardwareAddr, err error) {
 	master, err := netlink.LinkByName(types.DefaultBridge)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get default bridge")
+		return nil, nil, errors.Wrap(err, "failed to get default bridge")
+	}
+
+	routes, err := netlink.RouteList(master, netlink.FAMILY_V4)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get current routing table")
+	}
+
+	for _, route := range routes {
+		if route.Dst != nil {
+			continue
+		}
+		neighbors, err := netlink.NeighList(master.Attrs().Index, netlink.FAMILY_V4)
+
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to list neighbors")
+		}
+
+		for _, neigh := range neighbors {
+			if neigh.IP.Equal(route.Gw) {
+				gw = &neigh.HardwareAddr
+				break
+			}
+
+		}
+
+		break
+	}
+
+	if gw == nil {
+		// no default route !
+		return nil, nil, fmt.Errorf("failed to get mac of default gw")
 	}
 
 	all, err := netlink.LinkList()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list links")
+		return nil, nil, errors.Wrap(err, "failed to list links")
 	}
 
-	for _, link := range all {
-		if link.Type() == "device" && link.Attrs().MasterIndex == master.Attrs().Index {
-			return link, nil
+	for _, dev := range all {
+		if dev.Type() == "device" && dev.Attrs().MasterIndex == master.Attrs().Index {
+			link = dev
+			break
 		}
 	}
 
-	return nil, fmt.Errorf("failed to find home network device")
+	if link == nil {
+		return nil, nil, fmt.Errorf("failed to find exit device for home network")
+	}
+
+	return link, gw, nil
 }
 
 func ensureHostFw(ctx context.Context) error {
 
+	exit, gw, err := getHomeNetwork()
+	if err != nil {
+		return err
+	}
+
+	log.Info().Str("device", exit.Attrs().Name).Str("gw", gw.String()).Msg("home network")
 	log.Info().Msg("ensuring existing host nft rules")
 
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c",
-		`
-nft 'add table inet filter'
-nft 'add table arp filter'
-nft 'add table bridge filter'
+	tmp, err := template.ParseFS(script, "nft/script.sh")
+	if err != nil {
+		return err
+	}
 
-# duo to a bug we had we need to make sure those chains are
-# deleted and then recreated later
-nft 'delete chain inet filter input'
-nft 'delete chain inet filter forward'
-nft 'delete chain inet filter output'
+	input := struct {
+		Inf     string
+		Gateway string
+	}{
+		Inf:     exit.Attrs().Name,
+		Gateway: gw.String(),
+	}
 
-nft 'delete chain bridge filter input'
-nft 'delete chain bridge filter forward'
-nft 'delete chain bridge filter output'
+	var buf bytes.Buffer
+	if err := tmp.Execute(&buf, input); err != nil {
+		return errors.Wrap(err, "failed to render nft script template")
+	}
 
-nft 'delete chain arp filter input'
-nft 'delete chain arp filter output'
-
-# recreate chains correctly
-nft 'add chain inet filter input   { type filter hook input priority filter; policy accept; }'
-nft 'add chain inet filter forward { type filter hook forward priority filter; policy accept; }'
-nft 'add chain inet filter output  { type filter hook output priority filter; policy accept; }'
-nft 'add chain inet filter prerouting  { type filter hook prerouting priority filter; policy accept; }'
-
-nft 'add chain arp filter input  { type filter hook input priority filter; policy accept; }'
-nft 'add chain arp filter output { type filter hook output priority filter; policy accept; }'
-
-nft 'add chain bridge filter input   { type filter hook input priority filter; policy accept; }'
-nft 'add chain bridge filter forward { type filter hook forward priority filter; policy accept; }'
-nft 'add chain bridge filter prerouting { type filter hook prerouting priority filter; policy accept; }'
-nft 'add chain bridge filter postrouting { type filter hook postrouting priority filter; policy accept; }'
-nft 'add chain bridge filter output  { type filter hook output priority filter; policy accept; }'
-
-nft 'flush chain bridge filter forward'
-nft 'flush chain inet filter forward'
-nft 'flush chain inet filter prerouting'
-
-# drop smtp traffic for hidden nodes
-nft 'add rule inet filter prerouting iifname "b-*" tcp dport 25 reject with icmp type admin-prohibited'
-
-# prevent access to local network
-nft 'add rule bridge filter output oif eth0 ether daddr != "f6:27:cc:5b:12:fb" drop'
-`)
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", buf.String())
 
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "could not set up host nft rules")
