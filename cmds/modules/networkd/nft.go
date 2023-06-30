@@ -2,13 +2,37 @@ package networkd
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/vishvananda/netlink"
 )
 
+func homeExistInterface() (netlink.Link, error) {
+	master, err := netlink.LinkByName(types.DefaultBridge)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get default bridge")
+	}
+
+	all, err := netlink.LinkList()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list links")
+	}
+
+	for _, link := range all {
+		if link.Type() == "device" && link.Attrs().MasterIndex == master.Attrs().Index {
+			return link, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to find home network device")
+}
+
 func ensureHostFw(ctx context.Context) error {
+
 	log.Info().Msg("ensuring existing host nft rules")
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c",
@@ -52,6 +76,8 @@ nft 'flush chain inet filter prerouting'
 # drop smtp traffic for hidden nodes
 nft 'add rule inet filter prerouting iifname "b-*" tcp dport 25 reject with icmp type admin-prohibited'
 
+# prevent access to local network
+nft 'add rule bridge filter output oif eth0 ether daddr != "f6:27:cc:5b:12:fb" drop'
 `)
 
 	if err := cmd.Run(); err != nil {
