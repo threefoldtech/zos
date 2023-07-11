@@ -109,7 +109,7 @@ func usageRender(client zbus.Client, render *signalFlag, usage *widgets.Table) e
 
 	go func() {
 		for point := range memStream {
-			usage.Rows[1][0] = fmt.Sprintf("Memory: %0.00f MB free, %0.00f MB used, %0.00f%%", float64(point.Free/mb), float64(point.Used/mb), point.UsedPercent)
+			usage.Rows[1][0] = fmt.Sprintf("Memory: %0.00f MB", float64(point.Used/mb))
 			render.Signal()
 		}
 	}()
