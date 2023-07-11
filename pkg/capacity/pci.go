@@ -16,16 +16,24 @@ const (
 	pciDir = "/sys/bus/pci/devices"
 )
 
+// Subdevice is subdevice information to a PCI device
+type Subdevice struct {
+	// SubsystemVendorID is device subsystem vendor ID according to PCI database
+	SubsystemVendorID uint16
+	// SubsystemVendorID is device subsystem ID according to PCI database
+	SubsystemDeviceID uint16
+	// Name is subdevice name according to PCI database
+	Name string
+}
+
 // Device is a PCI device
 type Device struct {
 	// ID is device id according to PCI database
 	ID uint16
 	// Name is device name according to PCI database
 	Name string
-	// SubsystemVendorID is device subsystem vendor ID according to PCI database
-	SubsystemVendorID uint16
-	// SubsystemVendorID is device subsystem ID according to PCI database
-	SubsystemDeviceID uint16
+	// Subdevices is a slice of all subdevices according to PCI database
+	Subdevices []Subdevice
 }
 
 // Vendor is Vendor information
@@ -35,7 +43,7 @@ type Vendor struct {
 	// Name of the vendor
 	Name string
 	// All known devices by this vendor
-	Devices map[string]Device
+	Devices map[uint16]Device
 }
 
 // make sure pci.ids is up to date
@@ -95,7 +103,7 @@ func loadVendors(src []byte) (map[uint16]Vendor, error) {
 			current = &Vendor{
 				ID:      id,
 				Name:    rest,
-				Devices: make(map[string]Device),
+				Devices: make(map[uint16]Device),
 			}
 		} else if len(tabs) == 1 {
 			// that is a device
@@ -103,11 +111,10 @@ func loadVendors(src []byte) (map[uint16]Vendor, error) {
 				return nil, fmt.Errorf("device appeared before a vendor: %s", line)
 			}
 
-			key := fmt.Sprintf("%04x", id)
-
-			current.Devices[key] = Device{
-				ID:   id,
-				Name: rest,
+			current.Devices[id] = Device{
+				ID:         id,
+				Name:       rest,
+				Subdevices: make([]Subdevice, 0),
 			}
 			deviceID = id
 		} else if len(tabs) == 2 {
@@ -123,14 +130,13 @@ func loadVendors(src []byte) (map[uint16]Vendor, error) {
 			}
 			ssid := uint16(ssid64)
 
-			key := fmt.Sprintf("%04x%04x%04x", deviceID, id, ssid)
-
-			current.Devices[key] = Device{
-				ID:                deviceID,
+			device := current.Devices[deviceID]
+			device.Subdevices = append(device.Subdevices, Subdevice{
 				SubsystemVendorID: id,
 				SubsystemDeviceID: ssid,
 				Name:              rest,
-			}
+			})
+			current.Devices[deviceID] = device
 
 		}
 	}
@@ -145,20 +151,28 @@ func GetVendor(vendor uint16) (Vendor, bool) {
 }
 
 // GetDevice looks up the devices db to given Vendor and Device IDs
-func GetDevice(vendor uint16, device uint16, subsystemVendorID uint16, subsystemDeviceID uint16) (v Vendor, d Device, ok bool) {
+func GetDevice(vendor uint16, device uint16) (v Vendor, d Device, ok bool) {
 	v, ok = data[vendor]
 	if !ok {
 		return
 	}
-	key := fmt.Sprintf("%04x%04x%04x", device, subsystemVendorID, subsystemDeviceID)
-	d, ok = v.Devices[key]
-	if ok {
-		return
-	}
-	key = fmt.Sprintf("%04x", device)
-	d, ok = v.Devices[key]
+	d, ok = v.Devices[device]
 
 	return
+}
+
+// GetSubdevice looks up the subdevice using devices db
+func GetSubdevice(vendor uint16, device uint16, subsystemVendorID uint16, subsystemDeviceID uint16) (Subdevice, bool) {
+	_, d, ok := GetDevice(vendor, device)
+	if !ok {
+		return Subdevice{}, false
+	}
+	for _, subdevice := range d.Subdevices {
+		if subdevice.SubsystemDeviceID == subsystemDeviceID && subdevice.SubsystemVendorID == subsystemVendorID {
+			return subdevice, true
+		}
+	}
+	return Subdevice{}, false
 }
 
 // Filter over the PCI for listing
@@ -182,7 +196,12 @@ type PCI struct {
 
 // GetDevice gets the attached PCI device information (vendor and device)
 func (p *PCI) GetDevice() (Vendor, Device, bool) {
-	return GetDevice(p.Vendor, p.Device, p.SubsystemVendor, p.SubsystemDevice)
+	return GetDevice(p.Vendor, p.Device)
+}
+
+// GetSubdevice gets the attached PCI subdevice information
+func (p *PCI) GetSubdevice() (Subdevice, bool) {
+	return GetSubdevice(p.Vendor, p.Device, p.SubsystemVendor, p.SubsystemDevice)
 }
 
 // ShortID returns a short identification string

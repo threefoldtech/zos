@@ -8,22 +8,23 @@ import (
 )
 
 func TestGetDevice(t *testing.T) {
-	t.Run("get GPU without SSID", func(t *testing.T) {
-		vendor, device, ok := GetDevice(0x1002, 0x731f, 0, 0)
+	vendor, device, ok := GetDevice(0x1002, 0x731f)
 
-		require.True(t, ok)
-		require.Equal(t, "Advanced Micro Devices, Inc. [AMD/ATI]", vendor.Name)
-		require.Equal(t, "Navi 10 [Radeon RX 5600 OEM/5600 XT / 5700/5700 XT]", device.Name)
+	require.True(t, ok)
+	require.Equal(t, "Advanced Micro Devices, Inc. [AMD/ATI]", vendor.Name)
+	require.Equal(t, "Navi 10 [Radeon RX 5600 OEM/5600 XT / 5700/5700 XT]", device.Name)
+}
 
-	})
+func TestGetSubdevice(t *testing.T) {
+	subdevice, ok := GetSubdevice(0x10de, 0x1e30, 0x10de, 0x129e)
 
-	t.Run("get GPU with SSID", func(t *testing.T) {
-		vendor, device, ok := GetDevice(0x10de, 0x1e30, 0x10de, 0x129e)
+	require.True(t, ok)
+	require.Equal(t, "Quadro RTX 8000", subdevice.Name)
 
-		require.True(t, ok)
-		require.Equal(t, "NVIDIA Corporation", vendor.Name)
-		require.Equal(t, "Quadro RTX 8000", device.Name)
-	})
+	subdevice, ok = GetSubdevice(0x10de, 0x1e30, 0x10de, 0x12ba)
+
+	require.True(t, ok)
+	require.Equal(t, "Quadro RTX 6000", subdevice.Name)
 }
 
 func TestListPCI(t *testing.T) {
