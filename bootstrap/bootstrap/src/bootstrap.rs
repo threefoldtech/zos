@@ -204,6 +204,7 @@ fn install_package(flist: &hub::Flist) -> Result<()> {
 
     let fs = retry::retry(retry::delay::Exponential::from_millis(500).take(10), || {
         Zfs::mount("backend", &flist.name, "root")
+            .with_context(|| format!("failed to mount flist: {}", flist.url))
     });
 
     let fs = match fs {
