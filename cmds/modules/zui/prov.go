@@ -81,12 +81,12 @@ func provRender(client zbus.Client, render *signalFlag, prov *widgets.Table) err
 
 func usageRender(client zbus.Client, render *signalFlag, usage *widgets.Table) error {
 	usage.Title = "Usage"
-	usage.RowSeparator = true
+	usage.RowSeparator = false
 	usage.FillRow = true
 
 	usage.Rows = [][]string{
-		{"CPU:"},
-		{"Memory:"},
+		{"CPU", ""},
+		{"Memory", ""},
 	}
 
 	sysMonitor := stubs.NewSystemMonitorStub(client)
@@ -97,7 +97,7 @@ func usageRender(client zbus.Client, render *signalFlag, usage *widgets.Table) e
 
 	go func() {
 		for point := range cpuStream {
-			usage.Rows[0][0] = fmt.Sprintf("CPU: %0.00f%%", point.Percent)
+			usage.Rows[0][1] = fmt.Sprintf("%0.00f%%", point.Percent)
 			render.Signal()
 		}
 	}()
@@ -109,7 +109,7 @@ func usageRender(client zbus.Client, render *signalFlag, usage *widgets.Table) e
 
 	go func() {
 		for point := range memStream {
-			usage.Rows[1][0] = fmt.Sprintf("Memory: %0.00f MB", float64(point.Used/mb))
+			usage.Rows[1][1] = fmt.Sprintf("%0.00f MB", float64(point.Used/mb))
 			render.Signal()
 		}
 	}()
