@@ -1,5 +1,14 @@
 package provision
 
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+)
+
 // func TestEngine(t *testing.T) {
 // 	td, err := ioutil.TempDir("", "")
 // 	require.NoError(t, err)
@@ -68,3 +77,29 @@ package provision
 // 	assert.EqualValues(t, 1, workloads.ZDBNamespace)
 // 	assert.EqualValues(t, 0, workloads.K8sVM)
 // }
+
+func TestGetZmountSize(t *testing.T) {
+	t.Run("invalid type", func(t *testing.T) {
+		wl := gridtypes.WorkloadWithID{
+			Workload: &gridtypes.Workload{Type: "invalid"},
+		}
+		_, err := getZmountSize(&wl)
+		assert.Error(t, err)
+	})
+	t.Run("different data type", func(t *testing.T) {
+		wl := gridtypes.WorkloadWithID{
+			Workload: &gridtypes.Workload{Type: zos.ZDBType, Data: json.RawMessage(`{"size": 10}`)},
+		}
+		_, err := getZmountSize(&wl)
+		assert.Error(t, err)
+	})
+	t.Run("valid data", func(t *testing.T) {
+		wl := gridtypes.WorkloadWithID{
+			Workload: &gridtypes.Workload{Type: zos.ZMountType, Data: json.RawMessage(`{"size": 10}`)},
+		}
+		size, err := getZmountSize(&wl)
+		assert.NoError(t, err)
+		assert.Equal(t, size, gridtypes.Unit(10))
+	})
+
+}

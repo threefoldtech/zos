@@ -15,6 +15,7 @@ import (
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
 // EngineOption interface
@@ -867,9 +868,37 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, dl *gridtypes.De
 
 }
 
+func getZmountSize(wl *gridtypes.WorkloadWithID) (gridtypes.Unit, error) {
+	dataI, err := wl.WorkloadData()
+	if err != nil {
+		return 0, err
+	}
+	data, ok := dataI.(*zos.ZMount)
+	if !ok {
+		return 0, errors.New("not a zmount")
+	}
+	return data.Size, nil
+}
+
 func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.WorkloadGetter) {
 	for _, typ := range e.order {
 		workloads := getter.ByType(typ)
+
+		if typ == zos.ZMountType {
+			sort.Slice(workloads, func(i, j int) bool {
+				sizeI, err := getZmountSize(workloads[i])
+				if err != nil {
+					log.Error().Err(err).Stringer("id", workloads[i].ID).Msg("failed to get zmount size")
+				}
+
+				sizeJ, err := getZmountSize(workloads[j])
+				if err != nil {
+					log.Error().Err(err).Stringer("id", workloads[j].ID).Msg("failed to get zmount size")
+				}
+
+				return sizeI > sizeJ
+			})
+		}
 
 		for _, wl := range workloads {
 			if err := e.installWorkload(ctx, wl); err != nil {
