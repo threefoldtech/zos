@@ -25,7 +25,7 @@ func Fetch() (Location, error) {
 	for _, url := range geoipURLs {
 		l, err := getLocation(url)
 		if err != nil {
-			log.Err(err).Msg("failed to fetch location. retrying...")
+			log.Err(err).Msgf("failed to fetch location from geoip service %s. retrying...", url)
 			continue
 		}
 
@@ -35,20 +35,27 @@ func Fetch() (Location, error) {
 	return Location{}, errors.New("failed to fetch location information")
 }
 
-func getLocation(url string) (Location, error) {
-	resp, err := http.Get(url)
+func getLocation(geoIPService string) (Location, error) {
+	l := Location{
+		Longitute: 0.0,
+		Latitude:  0.0,
+		Continent: "Unknown",
+		Country:   "Unknown",
+		City:      "Unknown",
+	}
+
+	resp, err := http.Get(geoIPService)
 	if err != nil {
-		return Location{}, err
+		return l, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return Location{}, errors.New("error fetching location")
+		return l, errors.New("error fetching location")
 	}
 
-	l := Location{}
 	if err := json.NewDecoder(resp.Body).Decode(&l); err != nil {
-		return Location{}, err
+		return l, err
 	}
 
 	return l, nil
