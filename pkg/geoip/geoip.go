@@ -22,34 +22,34 @@ type Location struct {
 func Fetch() (Location, error) {
 	geoipURLs := []string{"https://geoip.grid.tf/", "https://02.geoip.grid.tf/", "https://03.geoip.grid.tf/"}
 
-	l := Location{
-		Longitute: 0.0,
-		Latitude:  0.0,
-		Continent: "Unknown",
-		Country:   "Unknown",
-		City:      "Unknown",
-	}
-
-	for i := 0; i < len(geoipURLs); i++ {
-		resp, err := http.Get(geoipURLs[i])
+	for _, url := range geoipURLs {
+		l, err := getLocation(url)
 		if err != nil {
-			log.Err(err).Msgf("failed to make http call to geoip service %s. retrying...", geoipURLs[i])
-			continue
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != 200 {
-			log.Err(err).Msgf("geoip service %s responded with status %d. retrying...", geoipURLs[i], resp.StatusCode)
-			continue
-		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&l); err != nil {
-			log.Err(err).Msgf("failed to decode location data from %s", geoipURLs[i])
+			log.Err(err).Msg("failed to fetch location. retrying...")
 			continue
 		}
 
 		return l, nil
 	}
 
-	return l, errors.New("failed to fetch location information")
+	return Location{}, errors.New("failed to fetch location information")
+}
+
+func getLocation(url string) (Location, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return Location{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return Location{}, errors.New("error fetching location")
+	}
+
+	l := Location{}
+	if err := json.NewDecoder(resp.Body).Decode(&l); err != nil {
+		return Location{}, err
+	}
+
+	return l, nil
 }
