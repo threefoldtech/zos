@@ -18,14 +18,17 @@ type Location struct {
 	City        string  `json:"city_name"`
 }
 
+var (
+	geoipURLs = []string{"https://geoip.grid.tf/", "https://02.geoip.grid.tf/", "https://03.geoip.grid.tf/"}
+)
+
 // Fetch retrieves the location of the system calling this function
 func Fetch() (Location, error) {
-	geoipURLs := []string{"https://geoip.grid.tf/", "https://02.geoip.grid.tf/", "https://03.geoip.grid.tf/"}
 
 	for _, url := range geoipURLs {
 		l, err := getLocation(url)
 		if err != nil {
-			log.Err(err).Msgf("failed to fetch location from geoip service %s. retrying...", url)
+			log.Err(err).Str("url", url).Msg("failed to fetch location from geoip service")
 			continue
 		}
 
