@@ -103,3 +103,38 @@ func TestGetZmountSize(t *testing.T) {
 	})
 
 }
+
+func TestSortZmountWorkloads(t *testing.T) {
+	workloads := []*gridtypes.WorkloadWithID{
+		{Workload: &gridtypes.Workload{
+			Type: zos.ZMountType,
+			Data: json.RawMessage(`{"size": 10}`),
+		}},
+		{Workload: &gridtypes.Workload{
+			Type: zos.ZMountType,
+			Data: json.RawMessage(`{"size": 30}`),
+		}},
+		{Workload: &gridtypes.Workload{
+			Type: zos.ZMountType,
+			Data: json.RawMessage(`{"size": 20}`),
+		}},
+	}
+
+	expectedWorkloads := []*gridtypes.WorkloadWithID{
+		{Workload: &gridtypes.Workload{
+			Type: zos.ZMountType,
+			Data: json.RawMessage(`{"size": 30}`),
+		}},
+		{Workload: &gridtypes.Workload{
+			Type: zos.ZMountType,
+			Data: json.RawMessage(`{"size": 20}`),
+		}},
+		{Workload: &gridtypes.Workload{
+			Type: zos.ZMountType,
+			Data: json.RawMessage(`{"size": 10}`),
+		}},
+	}
+
+	sortZmountWorkloads(workloads)
+	assert.Equal(t, expectedWorkloads, workloads)
+}

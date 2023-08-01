@@ -873,11 +873,29 @@ func getZmountSize(wl *gridtypes.WorkloadWithID) (gridtypes.Unit, error) {
 	if err != nil {
 		return 0, err
 	}
-	data, ok := dataI.(*zos.ZMount)
+	zmount, ok := dataI.(*zos.ZMount)
 	if !ok {
-		return 0, errors.New("not a zmount")
+		return 0, fmt.Errorf("failed to get workload data as a zmount '%v'", dataI)
 	}
-	return data.Size, nil
+	return zmount.Size, nil
+}
+
+func sortZmountWorkloads(workloads []*gridtypes.WorkloadWithID) {
+	sort.Slice(workloads, func(i, j int) bool {
+		sizeI, err := getZmountSize(workloads[i])
+		if err != nil {
+			log.Error().Err(err).Stringer("id", workloads[i].ID).Msg("failed to get zmount size")
+			return false
+		}
+
+		sizeJ, err := getZmountSize(workloads[j])
+		if err != nil {
+			log.Error().Err(err).Stringer("id", workloads[j].ID).Msg("failed to get zmount size")
+			return true
+		}
+
+		return sizeI > sizeJ
+	})
 }
 
 func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.WorkloadGetter) {
@@ -885,19 +903,7 @@ func (e *NativeEngine) installDeployment(ctx context.Context, getter gridtypes.W
 		workloads := getter.ByType(typ)
 
 		if typ == zos.ZMountType {
-			sort.Slice(workloads, func(i, j int) bool {
-				sizeI, err := getZmountSize(workloads[i])
-				if err != nil {
-					log.Error().Err(err).Stringer("id", workloads[i].ID).Msg("failed to get zmount size")
-				}
-
-				sizeJ, err := getZmountSize(workloads[j])
-				if err != nil {
-					log.Error().Err(err).Stringer("id", workloads[j].ID).Msg("failed to get zmount size")
-				}
-
-				return sizeI > sizeJ
-			})
+			sortZmountWorkloads(workloads)
 		}
 
 		for _, wl := range workloads {
