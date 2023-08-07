@@ -868,30 +868,28 @@ func (e *NativeEngine) uninstallDeployment(ctx context.Context, dl *gridtypes.De
 
 }
 
-func getZmountSize(wl *gridtypes.WorkloadWithID) (gridtypes.Unit, error) {
-	dataI, err := wl.WorkloadData()
+func getZmountSize(wl *gridtypes.Workload) (gridtypes.Unit, error) {
+	data, err := wl.WorkloadData()
 	if err != nil {
 		return 0, err
 	}
-	zmount, ok := dataI.(*zos.ZMount)
+	zmount, ok := data.(*zos.ZMount)
 	if !ok {
-		return 0, fmt.Errorf("failed to get workload data as a zmount '%v'", dataI)
+		return 0, fmt.Errorf("failed to get workload data as a zmount '%v'", data)
 	}
 	return zmount.Size, nil
 }
 
 func sortZmountWorkloads(workloads []*gridtypes.WorkloadWithID) {
 	sort.Slice(workloads, func(i, j int) bool {
-		sizeI, err := getZmountSize(workloads[i])
+		sizeI, err := getZmountSize(workloads[i].Workload)
 		if err != nil {
-			log.Error().Err(err).Stringer("id", workloads[i].ID).Msg("failed to get zmount size")
 			return false
 		}
 
-		sizeJ, err := getZmountSize(workloads[j])
+		sizeJ, err := getZmountSize(workloads[j].Workload)
 		if err != nil {
-			log.Error().Err(err).Stringer("id", workloads[j].ID).Msg("failed to get zmount size")
-			return true
+			return false
 		}
 
 		return sizeI > sizeJ

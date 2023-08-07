@@ -83,21 +83,21 @@ func TestGetZmountSize(t *testing.T) {
 		wl := gridtypes.WorkloadWithID{
 			Workload: &gridtypes.Workload{Type: "invalid"},
 		}
-		_, err := getZmountSize(&wl)
+		_, err := getZmountSize(wl.Workload)
 		assert.Error(t, err)
 	})
 	t.Run("different data type", func(t *testing.T) {
 		wl := gridtypes.WorkloadWithID{
 			Workload: &gridtypes.Workload{Type: zos.ZDBType, Data: json.RawMessage(`{"size": 10}`)},
 		}
-		_, err := getZmountSize(&wl)
+		_, err := getZmountSize(wl.Workload)
 		assert.Error(t, err)
 	})
 	t.Run("valid data", func(t *testing.T) {
 		wl := gridtypes.WorkloadWithID{
 			Workload: &gridtypes.Workload{Type: zos.ZMountType, Data: json.RawMessage(`{"size": 10}`)},
 		}
-		size, err := getZmountSize(&wl)
+		size, err := getZmountSize(wl.Workload)
 		assert.NoError(t, err)
 		assert.Equal(t, size, gridtypes.Unit(10))
 	})
