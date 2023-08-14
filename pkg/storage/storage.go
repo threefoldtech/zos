@@ -65,14 +65,6 @@ type TypeCache struct {
 	base string
 }
 
-func (t *TypeCache) Set(name string, typ pkg.DeviceType) error {
-	if err := os.WriteFile(filepath.Join(t.base, name), []byte(typ), 0644); err != nil {
-		return errors.Wrapf(err, "failed to store device type for '%s'", name)
-	}
-
-	return nil
-}
-
 func (t *TypeCache) Get(name string) (pkg.DeviceType, bool) {
 	data, err := os.ReadFile(filepath.Join(t.base, name))
 	if err != nil {

@@ -70,10 +70,12 @@ func (i *DeviceInfo) Used() bool {
 	return len(i.Label) != 0 || len(i.Filesystem) != 0
 }
 
+// DetectType returns the device type according to seektime
 func (d *DeviceInfo) DetectType() (zos.DeviceType, error) {
 	return d.mgr.Seektime(context.Background(), d.Path)
 }
 
+// SetType sets the device type to the disk
 func (d *DeviceInfo) SetType(typ pkg.DeviceType) error {
 	if err := os.WriteFile(filepath.Join("/mnt", d.Name(), ".seektime"), []byte(typ), 0644); err != nil {
 		return errors.Wrapf(err, "failed to store device type for '%s'", d.Name())
@@ -82,6 +84,7 @@ func (d *DeviceInfo) SetType(typ pkg.DeviceType) error {
 	return nil
 }
 
+// Type gets the device type from the disk
 func (d *DeviceInfo) Type() (zos.DeviceType, bool) {
 	data, err := os.ReadFile(filepath.Join("/mnt", d.Name(), ".seektime"))
 	if err != nil {
