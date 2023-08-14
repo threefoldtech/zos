@@ -206,31 +206,38 @@ func (s *Module) initialize(ctx context.Context) error {
 			log.Error().Err(err).Str("pool", pool.Name()).Str("device", device.Path).Msg("failed to get usage of pool")
 		}
 
-		typ, ok := s.cache.Get(device.Name())
+		// check if device type exists
+		typ, ok := device.Type()
 		if !ok {
-			log.Debug().Str("device", device.Path).Msg("detecting device type")
-			typ, err = device.Type()
-			if err != nil {
-				log.Error().Str("device", device.Path).Err(err).Msg("failed to check device type")
-				continue
-			}
-
-			// for development purposes only
-			if vm {
-				// force ssd device for vms
-				typ = zos.SSDDevice
-
-				if device.Path == "/dev/vdd" || device.Path == "/dev/vde" {
-					typ = zos.HDDDevice
+			typ, ok = s.cache.Get(device.Name())
+			// check if device type not exists in cache
+			if !ok {
+				log.Debug().Str("device", device.Path).Msg("detecting device type")
+				typ, err = device.DetectType()
+				if err != nil {
+					log.Error().Str("device", device.Path).Err(err).Msg("failed to check device type")
+					continue
 				}
-			}
 
-			log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("caching device type")
-			if err := s.cache.Set(device.Name(), typ); err != nil {
-				log.Error().Str("device", device.Path).Err(err).Msg("failed to cache device type")
+				// for development purposes only
+				if vm {
+					// force ssd device for vms
+					typ = zos.SSDDevice
+
+					if device.Path == "/dev/vdd" || device.Path == "/dev/vde" {
+						typ = zos.HDDDevice
+					}
+				}
+
+				log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("saving device type")
+				if err := device.SetType(typ); err != nil {
+					log.Error().Str("device", device.Path).Err(err).Msg("failed to save device type")
+				}
+			} else {
+				log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("device type loaded from cache")
 			}
 		} else {
-			log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("device type loaded from cache")
+			log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("device type loaded from device")
 		}
 
 		switch typ {

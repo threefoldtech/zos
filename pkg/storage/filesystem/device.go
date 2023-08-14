@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
@@ -68,8 +70,29 @@ func (i *DeviceInfo) Used() bool {
 	return len(i.Label) != 0 || len(i.Filesystem) != 0
 }
 
-func (d *DeviceInfo) Type() (zos.DeviceType, error) {
+func (d *DeviceInfo) DetectType() (zos.DeviceType, error) {
 	return d.mgr.Seektime(context.Background(), d.Path)
+}
+
+func (d *DeviceInfo) SetType(typ pkg.DeviceType) error {
+	if err := os.WriteFile(filepath.Join("/mnt", d.Name(), ".seektime"), []byte(typ), 0644); err != nil {
+		return errors.Wrapf(err, "failed to store device type for '%s'", d.Name())
+	}
+
+	return nil
+}
+
+func (d *DeviceInfo) Type() (zos.DeviceType, bool) {
+	data, err := os.ReadFile(filepath.Join("/mnt", d.Name(), ".seektime"))
+	if err != nil {
+		return "", false
+	}
+
+	if len(data) == 0 {
+		return "", false
+	}
+
+	return pkg.DeviceType(data), true
 }
 
 func (d *DeviceInfo) Mountpoint(ctx context.Context) (string, error) {
