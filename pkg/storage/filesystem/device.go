@@ -87,7 +87,7 @@ func (d *DeviceInfo) SetType(typ pkg.DeviceType) error {
 // Type gets the device type from the disk
 func (d *DeviceInfo) Type() (zos.DeviceType, bool, error) {
 	data, err := os.ReadFile(filepath.Join("/mnt", d.Name(), ".seektime"))
-	if errors.Is(err, os.ErrNotExist) {
+	if os.IsNotExist(err) {
 		return "", false, nil
 	}
 

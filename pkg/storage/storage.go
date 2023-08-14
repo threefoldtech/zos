@@ -151,6 +151,19 @@ func (s *Module) dump() {
 
 // deviceType gets the device type of a disk
 func (s *Module) deviceType(device filesystem.DeviceInfo, vm bool) (zos.DeviceType, error) {
+	var typ zos.DeviceType
+
+	// for development purposes only
+	if vm {
+		// force ssd device for vms
+		typ = zos.SSDDevice
+
+		if device.Path == "/dev/vdd" || device.Path == "/dev/vde" {
+			typ = zos.HDDDevice
+		}
+		return typ, nil
+	}
+
 	log.Debug().Str("device", device.Path).Msg("checking device type in disk")
 	typ, ok, err := device.Type()
 	if err != nil {
@@ -164,24 +177,11 @@ func (s *Module) deviceType(device filesystem.DeviceInfo, vm bool) (zos.DeviceTy
 
 	log.Debug().Str("device", device.Path).Msg("checking device type in cache")
 	typ, ok = s.cache.Get(device.Name())
-	if ok {
-		log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("device type loaded from cache")
-		return typ, nil
-	}
-
-	log.Debug().Str("device", device.Path).Msg("detecting device type")
-	typ, err = device.DetectType()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to detect device type")
-	}
-
-	// for development purposes only
-	if vm {
-		// force ssd device for vms
-		typ = zos.SSDDevice
-
-		if device.Path == "/dev/vdd" || device.Path == "/dev/vde" {
-			typ = zos.HDDDevice
+	if !ok {
+		log.Debug().Str("device", device.Path).Msg("detecting device type")
+		typ, err = device.DetectType()
+		if err != nil {
+			return "", errors.Wrap(err, "failed to detect device type")
 		}
 	}
 
@@ -245,6 +245,8 @@ func (s *Module) initialize(ctx context.Context) error {
 		typ, err := s.deviceType(device, vm)
 		if err != nil {
 			log.Error().Str("device", device.Path).Err(err).Msg("failed to get device type")
+			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: pool.Name(), Err: err})
+			continue
 		}
 
 		switch typ {
