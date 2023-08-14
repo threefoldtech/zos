@@ -245,7 +245,7 @@ func (s *Module) initialize(ctx context.Context) error {
 		typ, err := s.deviceType(device, vm)
 		if err != nil {
 			log.Error().Str("device", device.Path).Err(err).Msg("failed to get device type")
-			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: pool.Name(), Err: err})
+			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
 			continue
 		}
 
