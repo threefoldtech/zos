@@ -85,17 +85,21 @@ func (d *DeviceInfo) SetType(typ pkg.DeviceType) error {
 }
 
 // Type gets the device type from the disk
-func (d *DeviceInfo) Type() (zos.DeviceType, bool) {
+func (d *DeviceInfo) Type() (zos.DeviceType, bool, error) {
 	data, err := os.ReadFile(filepath.Join("/mnt", d.Name(), ".seektime"))
+	if errors.Is(err, os.ErrNotExist) {
+		return "", false, nil
+	}
+
 	if err != nil {
-		return "", false
+		return "", false, err
 	}
 
 	if len(data) == 0 {
-		return "", false
+		return "", false, nil
 	}
 
-	return pkg.DeviceType(data), true
+	return pkg.DeviceType(data), true, nil
 }
 
 func (d *DeviceInfo) Mountpoint(ctx context.Context) (string, error) {

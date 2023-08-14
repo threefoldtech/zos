@@ -149,6 +149,50 @@ func (s *Module) dump() {
 
 }
 
+// deviceType gets the device type of a disk
+func (s *Module) deviceType(device filesystem.DeviceInfo, vm bool) (zos.DeviceType, error) {
+	log.Debug().Str("device", device.Path).Msg("checking device type in disk")
+	typ, ok, err := device.Type()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get device type")
+	}
+
+	if ok {
+		log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("device type loaded from disk")
+		return typ, nil
+	}
+
+	log.Debug().Str("device", device.Path).Msg("checking device type in cache")
+	typ, ok = s.cache.Get(device.Name())
+	if ok {
+		log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("device type loaded from cache")
+		return typ, nil
+	}
+
+	log.Debug().Str("device", device.Path).Msg("detecting device type")
+	typ, err = device.DetectType()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to detect device type")
+	}
+
+	// for development purposes only
+	if vm {
+		// force ssd device for vms
+		typ = zos.SSDDevice
+
+		if device.Path == "/dev/vdd" || device.Path == "/dev/vde" {
+			typ = zos.HDDDevice
+		}
+	}
+
+	log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("setting device type")
+	if err := device.SetType(typ); err != nil {
+		return "", errors.Wrap(err, "failed to set device type")
+	}
+
+	return typ, nil
+}
+
 /*
 *
 initialize, must be called at least onetime each boot.
@@ -198,38 +242,9 @@ func (s *Module) initialize(ctx context.Context) error {
 			log.Error().Err(err).Str("pool", pool.Name()).Str("device", device.Path).Msg("failed to get usage of pool")
 		}
 
-		// check if device type exists
-		typ, ok := device.Type()
-		if !ok {
-			typ, ok = s.cache.Get(device.Name())
-			// check if device type not exists in cache
-			if !ok {
-				log.Debug().Str("device", device.Path).Msg("detecting device type")
-				typ, err = device.DetectType()
-				if err != nil {
-					log.Error().Str("device", device.Path).Err(err).Msg("failed to check device type")
-					continue
-				}
-
-				// for development purposes only
-				if vm {
-					// force ssd device for vms
-					typ = zos.SSDDevice
-
-					if device.Path == "/dev/vdd" || device.Path == "/dev/vde" {
-						typ = zos.HDDDevice
-					}
-				}
-
-				log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("saving device type")
-				if err := device.SetType(typ); err != nil {
-					log.Error().Str("device", device.Path).Err(err).Msg("failed to save device type")
-				}
-			} else {
-				log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("device type loaded from cache")
-			}
-		} else {
-			log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("device type loaded from device")
+		typ, err := s.deviceType(device, vm)
+		if err != nil {
+			log.Error().Str("device", device.Path).Err(err).Msg("failed to get device type")
 		}
 
 		switch typ {
