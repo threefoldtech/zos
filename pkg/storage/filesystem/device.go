@@ -11,7 +11,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
@@ -76,17 +75,21 @@ func (d *DeviceInfo) DetectType() (zos.DeviceType, error) {
 }
 
 // SetType sets the device type to the disk
-func (d *DeviceInfo) SetType(typ pkg.DeviceType) error {
-	if err := os.WriteFile(filepath.Join("/mnt", d.Name(), ".seektime"), []byte(typ), 0644); err != nil {
-		return errors.Wrapf(err, "failed to store device type for '%s'", d.Name())
+func (d *DeviceInfo) SetType(typ zos.DeviceType) error {
+	diskFilePath := filepath.Join("/mnt", d.Name(), ".seektime")
+	if err := os.WriteFile(diskFilePath, []byte(typ), 0644); err != nil {
+		return errors.Wrapf(err, "failed to store device type for '%s' in '%s'", d.Name(), diskFilePath)
 	}
 
 	return nil
 }
 
 // Type gets the device type from the disk
+// return the device type, if it's found and an error
+// that's based on .seektime file existing in the /mnt/DeviceName/.seektime, that contains the device type being SSD or HDD maybe
 func (d *DeviceInfo) Type() (zos.DeviceType, bool, error) {
-	data, err := os.ReadFile(filepath.Join("/mnt", d.Name(), ".seektime"))
+	diskFilePath := filepath.Join("/mnt", d.Name(), ".seektime")
+	diskType, err := os.ReadFile(diskFilePath)
 	if os.IsNotExist(err) {
 		return "", false, nil
 	}
@@ -95,11 +98,11 @@ func (d *DeviceInfo) Type() (zos.DeviceType, bool, error) {
 		return "", false, err
 	}
 
-	if len(data) == 0 {
+	if len(diskType) == 0 {
 		return "", false, nil
 	}
 
-	return pkg.DeviceType(data), true, nil
+	return zos.DeviceType(diskType), true, nil
 }
 
 func (d *DeviceInfo) Mountpoint(ctx context.Context) (string, error) {
