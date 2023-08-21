@@ -149,10 +149,10 @@ func (s *Module) dump() {
 
 }
 
-// deviceType gets the device type of a disk
-func (s *Module) deviceType(device filesystem.DeviceInfo, vm bool) (zos.DeviceType, error) {
+// poolType gets the device type of a disk
+func (s *Module) poolType(pool filesystem.Pool, vm bool) (zos.DeviceType, error) {
 	var typ zos.DeviceType
-
+	device := pool.Device()
 	// for development purposes only
 	if vm {
 		// force ssd device for vms
@@ -165,7 +165,7 @@ func (s *Module) deviceType(device filesystem.DeviceInfo, vm bool) (zos.DeviceTy
 	}
 
 	log.Debug().Str("device", device.Path).Msg("checking device type in disk")
-	typ, ok, err := device.Type()
+	typ, ok, err := pool.Type()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get device type")
 	}
@@ -186,7 +186,7 @@ func (s *Module) deviceType(device filesystem.DeviceInfo, vm bool) (zos.DeviceTy
 	}
 
 	log.Debug().Str("device", device.Path).Str("type", typ.String()).Msg("setting device type")
-	if err := device.SetType(typ); err != nil {
+	if err := pool.SetType(typ); err != nil {
 		return "", errors.Wrap(err, "failed to set device type")
 	}
 
@@ -242,7 +242,7 @@ func (s *Module) initialize(ctx context.Context) error {
 			log.Error().Err(err).Str("pool", pool.Name()).Str("device", device.Path).Msg("failed to get usage of pool")
 		}
 
-		typ, err := s.deviceType(device, vm)
+		typ, err := s.poolType(pool, vm)
 		if err != nil {
 			log.Error().Str("device", device.Path).Err(err).Msg("failed to get device type")
 			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
