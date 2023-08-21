@@ -58,6 +58,8 @@ type Module struct {
 	mu sync.RWMutex
 
 	// cache is a cache directory can be used with some files
+	// NOTED: this is deprecated, now type is stored on the device
+	// itself not in temp cache
 	cache TypeCache
 }
 
