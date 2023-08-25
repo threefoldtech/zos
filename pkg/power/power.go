@@ -60,10 +60,6 @@ const (
 	PowerServerPort  = 8039
 )
 
-var (
-	errConnectionError = fmt.Errorf("connection error")
-)
-
 func EnsureWakeOnLan(ctx context.Context) (bool, error) {
 	inf, err := bridge.Get(DefaultWolBridge)
 	if err != nil {
@@ -303,7 +299,7 @@ func (p *PowerServer) recv(ctx context.Context) error {
 func (p *PowerServer) events(ctx context.Context) error {
 	// first thing we need to make sure we are not suppose to be powered
 	// off, so we need to sync with grid
-	// 1) make sure at least one uptime was already sent
+	// make sure at least one uptime was already sent
 	_ = p.ut.Mark.Done(ctx)
 
 	// if the stream loop fails for any reason retry
