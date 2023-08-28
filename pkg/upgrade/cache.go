@@ -43,11 +43,11 @@ type DownloaderOption interface {
 	apply(d *Downloader)
 }
 
-type workersOpt struct {
+type WorkersOpt struct {
 	workers uint
 }
 
-func (o workersOpt) apply(d *Downloader) {
+func (o WorkersOpt) apply(d *Downloader) {
 	d.workers = int(o.workers)
 }
 
@@ -99,7 +99,11 @@ func (d *Downloader) getBlock(block meta.BlockInfo) ([]byte, error) {
 		return nil, err
 	}
 
-	defer syscall.Flock(int(blockFile.Fd()), syscall.LOCK_UN)
+	defer func() {
+		if err := syscall.Flock(int(blockFile.Fd()), syscall.LOCK_UN); err != nil {
+			log.Err(err).Msgf("failed to release file %s", blockFilePath)
+		}
+	}()
 
 	info, err := blockFile.Stat()
 	if err != nil {
@@ -235,7 +239,10 @@ func (d *Downloader) Download(output *os.File) error {
 	})
 
 	go func() {
-		group.Wait()
+		if err := group.Wait(); err != nil {
+			log.Err(err).Msg("error while waiting for upgrader download workeres")
+		}
+
 		close(results)
 	}()
 

@@ -45,10 +45,6 @@ type Upgrader struct {
 	storage      storage.Storage
 }
 
-type cache struct {
-	path string
-}
-
 // UpgraderOption interface
 type UpgraderOption func(u *Upgrader) error
 
