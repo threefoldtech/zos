@@ -12,7 +12,6 @@ import (
 	"github.com/shirou/gopsutil/process"
 
 	"github.com/threefoldtech/0-fs/meta"
-	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
@@ -44,6 +43,10 @@ type Upgrader struct {
 	noSelfUpdate bool
 	hub          HubClient
 	storage      storage.Storage
+}
+
+type cache struct {
+	path string
 }
 
 // UpgraderOption interface
@@ -563,7 +566,7 @@ func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 		}()
 	}
 
-	downloader := rofs.NewDownloader(u.storage, src)
+	downloader := NewDownloader(u.cache, u.storage, src)
 	fDst, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_SYNC, os.FileMode(src.Info().Access.Mode))
 	if err != nil {
 		return err
