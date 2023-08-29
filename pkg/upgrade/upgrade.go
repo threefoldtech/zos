@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/shirou/gopsutil/process"
 
 	"github.com/threefoldtech/0-fs/meta"
+	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
@@ -562,14 +564,19 @@ func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 		}()
 	}
 
-	downloader := NewDownloader(u.cache, u.storage, src)
 	fDst, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_SYNC, os.FileMode(src.Info().Access.Mode))
 	if err != nil {
 		return err
 	}
 	defer fDst.Close()
 
-	if err = downloader.Download(fDst); err != nil {
+	cache := rofs.NewCache(u.cache, u.storage)
+	fSrc, err := cache.CheckAndGet(src)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(fDst, fSrc); err != nil {
 		return err
 	}
 
