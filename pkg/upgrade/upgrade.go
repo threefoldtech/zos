@@ -41,7 +41,7 @@ const (
 // to keep 0-OS up to date
 type Upgrader struct {
 	zinit        *zinit.Client
-	cache        string
+	root         string
 	noSelfUpdate bool
 	hub          HubClient
 	storage      storage.Storage
@@ -81,9 +81,15 @@ func Zinit(socket string) func(u *Upgrader) error {
 }
 
 // NewUpgrader creates a new upgrader instance
-func NewUpgrader(cache string, opts ...UpgraderOption) (*Upgrader, error) {
+func NewUpgrader(root string, opts ...UpgraderOption) (*Upgrader, error) {
 	u := &Upgrader{
-		cache: cache,
+		root: root,
+	}
+
+	for _, dir := range []string{u.blockCache(), u.flistCache()} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, errors.Wrap(err, "failed to prepare cache directories")
+		}
 	}
 
 	for _, opt := range opts {
@@ -109,7 +115,11 @@ func NewUpgrader(cache string, opts ...UpgraderOption) (*Upgrader, error) {
 }
 
 func (u *Upgrader) flistCache() string {
-	return filepath.Join(u.cache, "flist")
+	return filepath.Join(u.root, "cache", "flist")
+}
+
+func (u *Upgrader) blockCache() string {
+	return filepath.Join(u.root, "cache", "blocks")
 }
 
 // Upgrade is the method that does a full upgrade flow
@@ -570,7 +580,7 @@ func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 	}
 	defer fDst.Close()
 
-	cache := rofs.NewCache(u.cache, u.storage)
+	cache := rofs.NewCache(u.blockCache(), u.storage)
 	fSrc, err := cache.CheckAndGet(src)
 	if err != nil {
 		return err
