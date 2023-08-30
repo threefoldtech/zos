@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go"
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
+	"github.com/threefoldtech/zos/pkg/network/iperf"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -122,10 +123,16 @@ func action(cli *cli.Context) error {
 
 	ygg, err := yggdrasil.EnsureYggdrasil(ctx, identity.PrivateKey(cli.Context), yggNs)
 	if err != nil {
-		return errors.Wrap(err, "fail to start yggdrasil")
+		return errors.Wrap(err, "failed to start yggdrasil")
 	}
 
 	if public.HasPublicSetup() {
+		log.Debug().Msg("starting iperf")
+		iPerfServer := iperf.NewIPerfServer()
+		if err := iPerfServer.Start(zinit.Default()); err != nil {
+			return errors.Wrap(err, "failed to start iperf")
+		}
+
 		// if yggdrasil is living inside public namespace
 		// we still need to setup ndmz to also have yggdrasil but we set the yggdrasil interface
 		// a different Ip that lives inside the yggdrasil range.

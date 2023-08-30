@@ -20,6 +20,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
+	"github.com/threefoldtech/zos/pkg/network/iperf"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
@@ -959,6 +960,12 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 
 	if err := public.SavePublicConfig(cfg); err != nil {
 		return errors.Wrap(err, "failed to store public config")
+	}
+
+	// start iperf service after saving public config
+	iPerfServer := iperf.NewIPerfServer()
+	if err := iPerfServer.Start(zinit.Default()); err != nil {
+		return errors.Wrap(err, "failed to start iperf")
 	}
 
 	// when public setup is updated. it can take a while but the capacityd
