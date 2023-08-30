@@ -86,7 +86,7 @@ func NewUpgrader(root string, opts ...UpgraderOption) (*Upgrader, error) {
 		root: root,
 	}
 
-	for _, dir := range []string{u.blockCache(), u.flistCache()} {
+	for _, dir := range []string{u.fileCache(), u.flistCache()} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return nil, errors.Wrap(err, "failed to prepare cache directories")
 		}
@@ -118,8 +118,8 @@ func (u *Upgrader) flistCache() string {
 	return filepath.Join(u.root, "cache", "flist")
 }
 
-func (u *Upgrader) blockCache() string {
-	return filepath.Join(u.root, "cache", "blocks")
+func (u *Upgrader) fileCache() string {
+	return filepath.Join(u.root, "cache", "files")
 }
 
 // Upgrade is the method that does a full upgrade flow
@@ -580,7 +580,7 @@ func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 	}
 	defer fDst.Close()
 
-	cache := rofs.NewCache(u.blockCache(), u.storage)
+	cache := rofs.NewCache(u.fileCache(), u.storage)
 	fSrc, err := cache.CheckAndGet(src)
 	if err != nil {
 		return err
