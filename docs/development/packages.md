@@ -42,7 +42,6 @@ build_rmb() {
 
 Note that, you can just download a statically build binary instead of building it.
 
-
 The other step is to add it to workflow to be built automatically, in [bins workflow](../../.github/workflows/bins.yaml), add your binary's job:
 
 ```yaml
