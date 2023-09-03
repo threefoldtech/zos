@@ -217,7 +217,8 @@ download_git() {
     [[ -d "${target}" ]] && rm -rf ${target}
 
     event "cloning" "${repository}" "[${branch}]"
-    git clone -b "${branch}" "${repository}"
+    # depth 1 because previous commits are not needed.
+    git clone -b "${branch}" --depth 1 "${repository}"
 }
 
 #
