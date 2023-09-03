@@ -1,4 +1,4 @@
-KERNEL_VERSION="5.10"
+KERNEL_VERSION="v5.10"
 KERNEL_LINK="https://github.com/torvalds/linux.git"
 
 download_kernel() {
