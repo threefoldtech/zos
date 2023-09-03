@@ -19,6 +19,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/monitord"
+	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/registrar"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -278,6 +279,14 @@ func action(cli *cli.Context) error {
 	log.Info().Str("address", id.Address()).Msg("node address")
 	if err != nil {
 		return err
+	}
+
+	log.Info().Msg("Start Perf scheduler")
+	performanceMonitor := perf.NewPerformanceMonitor("/var/run/redis.sock")
+	performanceMonitor.InitScheduler()
+	err = performanceMonitor.RunScheduler(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("fails in scheduler")
 	}
 
 	log.Debug().Msg("start message bus")
