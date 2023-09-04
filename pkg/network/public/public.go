@@ -342,7 +342,7 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 		}
 
 		if err := iperf.Ensure(zinit.Default()); err != nil {
-			return nil, errors.Wrap(err, "failed to monitor iperf")
+			return nil, errors.Wrap(err, "failed to ensure iperf service")
 		}
 	}
 
