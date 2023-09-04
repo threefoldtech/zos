@@ -15,6 +15,12 @@ type TestResultData struct {
 	Result     interface{}
 }
 
+// GetRequest the get request struct
+type GetRequest struct {
+	TestName   string `json:"test_name"`
+	TestNumber uint64 `json:"test_number"`
+}
+
 // CacheResult set result in redis
 func (pm *PerformanceMonitor) CacheResult(ctx context.Context, resultKey string, resultData TestResultData) error {
 	data, err := json.Marshal(resultData)

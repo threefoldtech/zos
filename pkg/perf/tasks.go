@@ -2,17 +2,16 @@ package perf
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rs/zerolog/log"
 )
 
-type PerfTest func() (interface{}, error)
-
 // TestLogging simple helper method that ensure scheduler is working
 func TestLogging(ctx context.Context) (interface{}, error) {
-	log.Info().Msgf("TestLogging: time is: %v", time.Now().Hour())
-	return nil, nil
+	log.Info().Msgf("TestLogging: time is: %v", time.Now())
+	return fmt.Sprintf("time is: %v", time.Now()), nil
 }
 
 // should run every 5 min

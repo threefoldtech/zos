@@ -2,24 +2,29 @@ package perf
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/jasonlvhit/gocron"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 )
 
-// Task is the task method signature
-type Task func(ctx context.Context) (interface{}, error)
+// TaskMethod is the task method signature
+type TaskMethod func(ctx context.Context) (interface{}, error)
+
+type Task struct {
+	Key            string
+	Method         TaskMethod
+	Interval       time.Duration // interval in seconds
+	ExecutionCount uint64
+}
 
 // PerformanceMonitor holds the module data
 type PerformanceMonitor struct {
-	Scheduler       *gocron.Scheduler
-	RedisClient     *redis.Client
-	Intervals       map[string]time.Duration // interval in seconds
-	Tasks           map[string]Task
-	ExecutionCounts map[string]uint64
+	Scheduler   *gocron.Scheduler
+	RedisClient *redis.Client
+	Tasks       []Task
 }
 
 // NewPerformanceMonitor returns PerformanceMonitor instance
@@ -29,25 +34,23 @@ func NewPerformanceMonitor(redisAddr string) *PerformanceMonitor {
 		Addr:    redisAddr,
 	})
 
-	redisClient.Ping()
-	log.Info().Msg("redis passed")
-
 	scheduler := gocron.NewScheduler()
 
 	return &PerformanceMonitor{
-		Scheduler:       scheduler,
-		RedisClient:     redisClient,
-		Tasks:           make(map[string]Task),
-		Intervals:       make(map[string]time.Duration),
-		ExecutionCounts: make(map[string]uint64),
+		Scheduler:   scheduler,
+		RedisClient: redisClient,
+		Tasks:       []Task{},
 	}
 }
 
 // AddTask a simple helper method to add new tasks
-func (pm *PerformanceMonitor) AddTask(taskName string, interval time.Duration, task Task) {
-	pm.Intervals[taskName] = interval
-	pm.Tasks[taskName] = task
-	pm.ExecutionCounts[taskName] = 0
+func (pm *PerformanceMonitor) AddTask(taskName string, interval time.Duration, task TaskMethod) {
+	pm.Tasks = append(pm.Tasks, Task{
+		Key:            taskName,
+		Method:         task,
+		Interval:       interval,
+		ExecutionCount: 0,
+	})
 }
 
 // InitScheduler adds all the test to the scheduler queue
@@ -57,19 +60,17 @@ func (pm *PerformanceMonitor) InitScheduler() {
 
 // RunScheduler adds the tasks to the corn queue and start the scheduler
 func (pm *PerformanceMonitor) RunScheduler(ctx context.Context) error {
-	for key, task := range pm.Tasks {
-		err := pm.Scheduler.Every(uint64(pm.Intervals[key])).Seconds().Do(func() error {
-			testResult, err := task(ctx)
+	for _, task := range pm.Tasks {
+		err := pm.Scheduler.Every(uint64(task.Interval)).Seconds().Do(func() error {
+			testResult, err := task.Method(ctx)
 			if err != nil {
-				return errors.Wrapf(err, "failed running test: %s", key)
+				return errors.Wrapf(err, "failed running test: %s", task.Key)
 			}
 
-			count := pm.ExecutionCounts[key]
-			pm.ExecutionCounts[key]++
-
-			err = pm.CacheResult(ctx, key, TestResultData{
-				TestName:   key,
-				TestNumber: count + 1,
+			task.ExecutionCount++
+			err = pm.CacheResult(ctx, task.Key, TestResultData{
+				TestName:   task.Key,
+				TestNumber: task.ExecutionCount,
 				Result:     testResult,
 			})
 			if err != nil {
@@ -79,10 +80,21 @@ func (pm *PerformanceMonitor) RunScheduler(ctx context.Context) error {
 			return nil
 		})
 		if err != nil {
-			return errors.Wrapf(err, "failed scheduling the job: %s", key)
+			return errors.Wrapf(err, "failed scheduling the job: %s", task.Key)
 		}
 	}
 
 	pm.Scheduler.Start()
 	return nil
+}
+
+// Get handles the request to get data from cache
+func (pm *PerformanceMonitor) Get(ctx context.Context, payload []byte) (interface{}, error) {
+	var req GetRequest
+	err := json.Unmarshal([]byte(payload), &req)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal payload: %v", payload)
+	}
+
+	return pm.GetCachedResult(req.TestName)
 }

@@ -194,6 +194,17 @@ func action(cli *cli.Context) error {
 		return hypervisor, nil
 	})
 
+	log.Info().Msg("Start Perf scheduler")
+	performanceMonitor := perf.NewPerformanceMonitor("/var/run/redis.sock")
+	performanceMonitor.InitScheduler()
+	err = performanceMonitor.RunScheduler(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("fails in scheduler")
+	}
+	bus.WithHandler("zos.perf.get", func(ctx context.Context, payload []byte) (interface{}, error) {
+		return performanceMonitor.Get(ctx, payload)
+	})
+
 	// answer calls for dmi
 	go func() {
 		if err := bus.Run(ctx); err != nil {
@@ -279,14 +290,6 @@ func action(cli *cli.Context) error {
 	log.Info().Str("address", id.Address()).Msg("node address")
 	if err != nil {
 		return err
-	}
-
-	log.Info().Msg("Start Perf scheduler")
-	performanceMonitor := perf.NewPerformanceMonitor("/var/run/redis.sock")
-	performanceMonitor.InitScheduler()
-	err = performanceMonitor.RunScheduler(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("fails in scheduler")
 	}
 
 	log.Debug().Msg("start message bus")
