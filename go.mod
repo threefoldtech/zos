@@ -25,14 +25,14 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/g0rbe/go-chattr v0.0.0-20190906133247-aa435a6a0a37
 	github.com/gizak/termui/v3 v3.1.0
+	github.com/go-co-op/gocron v1.33.1
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gtank/merlin v0.1.1
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
-	github.com/jasonlvhit/gocron v0.0.1
 	github.com/jbenet/go-base58 v0.0.0-20150317085156-6237cf65f3a6
 	github.com/joncrlsn/dque v0.0.0-20200702023911-3e80e3146ce5
 	github.com/lestrrat-go/jwx v1.1.7
@@ -121,6 +121,7 @@ require (
 	github.com/pkg/xattr v0.4.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rs/cors v1.9.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/safchain/ethtool v0.0.0-20201023143004-874930cb3ce0 // indirect
@@ -136,6 +137,7 @@ require (
 	github.com/xxtea/xxtea-go v0.0.0-20170828040851-35c4b17eecf6 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.opencensus.io v0.23.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/text v0.12.0 // indirect

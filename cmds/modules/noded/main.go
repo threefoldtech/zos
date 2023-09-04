@@ -3,6 +3,7 @@ package noded
 import (
 	"context"
 	"crypto/ed25519"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -194,15 +195,25 @@ func action(cli *cli.Context) error {
 		return hypervisor, nil
 	})
 
-	log.Info().Msg("Start Perf scheduler")
-	performanceMonitor := perf.NewPerformanceMonitor("/var/run/redis.sock")
-	performanceMonitor.InitScheduler()
-	err = performanceMonitor.RunScheduler(ctx)
+	log.Info().Msg("start perf scheduler")
+	perfMon, err := perf.NewPerformanceMonitor("unix://var/run/redis.sock")
 	if err != nil {
-		log.Error().Err(err).Msg("fails in scheduler")
+		return errors.Wrap(err, "failed to create a new perfMon")
+	}
+	defer perfMon.Close()
+
+	err = perfMon.Run(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to run the scheduler")
 	}
 	bus.WithHandler("zos.perf.get", func(ctx context.Context, payload []byte) (interface{}, error) {
-		return performanceMonitor.Get(ctx, payload)
+		var taskName string
+		err := json.Unmarshal(payload, &taskName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to unmarshal payload: %v", payload)
+		}
+
+		return perfMon.GetCache(taskName)
 	})
 
 	// answer calls for dmi

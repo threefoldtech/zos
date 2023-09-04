@@ -3,46 +3,40 @@ package perf
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/pkg/errors"
 )
 
-// TestResultData the result test schema
-type TestResultData struct {
-	TestName   string
-	TestNumber uint64
-	Result     interface{}
+// TaskResult the result test schema
+type TaskResult struct {
+	TaskName     string      `json:"task_name"`
+	RunTimestamp string      `json:"run_timestamp"`
+	Result       interface{} `json:"result"`
 }
 
-// GetRequest the get request struct
-type GetRequest struct {
-	TestName   string `json:"test_name"`
-	TestNumber uint64 `json:"test_number"`
-}
-
-// CacheResult set result in redis
-func (pm *PerformanceMonitor) CacheResult(ctx context.Context, resultKey string, resultData TestResultData) error {
-	data, err := json.Marshal(resultData)
+// setCache set result in redis
+func (pm *PerformanceMonitor) setCache(ctx context.Context, taskName string, result TaskResult) error {
+	data, err := json.Marshal(result)
 	if err != nil {
-		return errors.Wrap(err, "Error marshaling data to JSON")
+		return errors.Wrap(err, "failed to marshal data to JSON")
 	}
 
-	return pm.RedisClient.Set(resultKey, data, 10*time.Second).Err()
+	_, err = pm.redisConn.Do("SET", taskName, data)
+	return err
 }
 
-// GetCachedResult get data from redis
-func (pm *PerformanceMonitor) GetCachedResult(resultKey string) (TestResultData, error) {
-	var res TestResultData
+// GetCache get data from redis
+func (pm *PerformanceMonitor) GetCache(taskName string) (TaskResult, error) {
+	var res TaskResult
 
-	data, err := pm.RedisClient.Get(resultKey).Result()
+	data, err := pm.redisConn.Do("GET", taskName)
 	if err != nil {
-		return res, errors.Wrap(err, "Failed getting the cached result")
+		return res, errors.Wrap(err, "failed to get the cached result")
 	}
 
-	err = json.Unmarshal([]byte(data), &res)
+	err = json.Unmarshal(data.([]byte), &res)
 	if err != nil {
-		return res, errors.Wrap(err, "Failed unmarshal data from json")
+		return res, errors.Wrap(err, "failed to unmarshal data from json")
 	}
 
 	return res, nil

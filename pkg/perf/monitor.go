@@ -2,99 +2,74 @@ package perf
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
-	"github.com/go-redis/redis"
-	"github.com/jasonlvhit/gocron"
+	"github.com/go-co-op/gocron"
+	"github.com/gomodule/redigo/redis"
+
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg/utils"
 )
-
-// TaskMethod is the task method signature
-type TaskMethod func(ctx context.Context) (interface{}, error)
-
-type Task struct {
-	Key            string
-	Method         TaskMethod
-	Interval       time.Duration // interval in seconds
-	ExecutionCount uint64
-}
 
 // PerformanceMonitor holds the module data
 type PerformanceMonitor struct {
-	Scheduler   *gocron.Scheduler
-	RedisClient *redis.Client
-	Tasks       []Task
+	scheduler *gocron.Scheduler
+	redisConn redis.Conn
+	tasks     []Task
 }
 
 // NewPerformanceMonitor returns PerformanceMonitor instance
-func NewPerformanceMonitor(redisAddr string) *PerformanceMonitor {
-	redisClient := redis.NewClient(&redis.Options{
-		Network: "unix",
-		Addr:    redisAddr,
-	})
+func NewPerformanceMonitor(redisAddr string) (*PerformanceMonitor, error) {
+	redisPool, err := utils.NewRedisPool(redisAddr)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed creating new redis pool")
+	}
 
-	scheduler := gocron.NewScheduler()
+	redisConn := redisPool.Get()
+	scheduler := gocron.NewScheduler(time.UTC)
 
 	return &PerformanceMonitor{
-		Scheduler:   scheduler,
-		RedisClient: redisClient,
-		Tasks:       []Task{},
-	}
+		scheduler: scheduler,
+		redisConn: redisConn,
+		tasks:     []Task{},
+	}, nil
 }
 
 // AddTask a simple helper method to add new tasks
-func (pm *PerformanceMonitor) AddTask(taskName string, interval time.Duration, task TaskMethod) {
-	pm.Tasks = append(pm.Tasks, Task{
-		Key:            taskName,
-		Method:         task,
-		Interval:       interval,
-		ExecutionCount: 0,
-	})
+func (pm *PerformanceMonitor) AddTask(task Task) {
+	pm.tasks = append(pm.tasks, task)
 }
 
-// InitScheduler adds all the test to the scheduler queue
-func (pm *PerformanceMonitor) InitScheduler() {
-	pm.AddTask("TestLogging", 5, TestLogging)
-}
-
-// RunScheduler adds the tasks to the corn queue and start the scheduler
-func (pm *PerformanceMonitor) RunScheduler(ctx context.Context) error {
-	for _, task := range pm.Tasks {
-		err := pm.Scheduler.Every(uint64(task.Interval)).Seconds().Do(func() error {
-			testResult, err := task.Method(ctx)
+// Run adds the tasks to the corn queue and start the scheduler
+func (pm *PerformanceMonitor) Run(ctx context.Context) error {
+	for _, task := range pm.tasks {
+		_, err := pm.scheduler.CronWithSeconds(task.Cron()).Do(func() error {
+			res, err := task.Run(ctx)
 			if err != nil {
-				return errors.Wrapf(err, "failed running test: %s", task.Key)
+				return errors.Wrapf(err, "failed to run task: %s", task.ID())
 			}
 
-			task.ExecutionCount++
-			err = pm.CacheResult(ctx, task.Key, TestResultData{
-				TestName:   task.Key,
-				TestNumber: task.ExecutionCount,
-				Result:     testResult,
+			err = pm.setCache(ctx, task.ID(), TaskResult{
+				TaskName:     task.ID(),
+				RunTimestamp: time.Now().Format("2006-01-02 15:04:05"),
+				Result:       res,
 			})
 			if err != nil {
-				return errors.Wrap(err, "failed setting cache")
+				return errors.Wrap(err, "failed to set cache")
 			}
 
 			return nil
 		})
 		if err != nil {
-			return errors.Wrapf(err, "failed scheduling the job: %s", task.Key)
+			return errors.Wrapf(err, "failed to schedule the task: %s", task.ID())
 		}
 	}
 
-	pm.Scheduler.Start()
+	pm.scheduler.StartAsync()
 	return nil
 }
 
-// Get handles the request to get data from cache
-func (pm *PerformanceMonitor) Get(ctx context.Context, payload []byte) (interface{}, error) {
-	var req GetRequest
-	err := json.Unmarshal([]byte(payload), &req)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal payload: %v", payload)
-	}
-
-	return pm.GetCachedResult(req.TestName)
+// Close closes the redis connection
+func (pm *PerformanceMonitor) Close() {
+	pm.redisConn.Close()
 }
