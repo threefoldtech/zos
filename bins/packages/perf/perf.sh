@@ -28,6 +28,7 @@ prepare_perf() {
     zlib1g-dev \
     liblzma-dev \
     libaio-dev \
+    default-jdk \
     flex \
     bison        
 }
