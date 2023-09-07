@@ -1,6 +1,7 @@
 package iperf
 
 import (
+	"fmt"
 	"os/exec"
 
 	"github.com/pkg/errors"
@@ -9,6 +10,8 @@ import (
 
 const (
 	zinitService = "iperf"
+	// IperfPort is the port for the iperf service
+	IperfPort = 300
 )
 
 // Ensure creates an iperf zinit service and monitors it
@@ -22,7 +25,7 @@ func Ensure(z *zinit.Client) error {
 		return err
 	}
 
-	cmd := `ip netns exec public iperf -s`
+	cmd := fmt.Sprintf("ip netns exec public iperf -s -p %d", IperfPort)
 
 	err = zinit.AddService(zinitService, zinit.InitService{
 		Exec: cmd,
