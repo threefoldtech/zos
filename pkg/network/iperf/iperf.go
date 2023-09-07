@@ -13,6 +13,10 @@ const (
 
 // Ensure creates an iperf zinit service and monitors it
 func Ensure(z *zinit.Client) error {
+	if _, err := z.Status(zinitService); err == nil {
+		return nil
+	}
+
 	_, err := exec.LookPath("iperf")
 	if err != nil {
 		return err
