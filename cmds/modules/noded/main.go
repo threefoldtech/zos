@@ -196,15 +196,14 @@ func action(cli *cli.Context) error {
 	})
 
 	log.Info().Msg("start perf scheduler")
-	perfMon, err := perf.NewPerformanceMonitor("unix://var/run/redis.sock")
+
+	perfMon, err := perf.NewPerformanceMonitor(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "failed to create a new perfMon")
 	}
-	defer perfMon.Close()
 
-	err = perfMon.Run(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to run the scheduler")
+	if err = perfMon.Run(ctx); err != nil {
+		return errors.Wrap(err, "failed to run the scheduler")
 	}
 	bus.WithHandler("zos.perf.get", func(ctx context.Context, payload []byte) (interface{}, error) {
 		var taskName string
@@ -213,7 +212,11 @@ func action(cli *cli.Context) error {
 			return nil, errors.Wrapf(err, "failed to unmarshal payload: %v", payload)
 		}
 
-		return perfMon.GetCache(taskName)
+		if taskName == "" {
+			return perfMon.GetAll()
+		}
+
+		return perfMon.Get(taskName)
 	})
 
 	// answer calls for dmi

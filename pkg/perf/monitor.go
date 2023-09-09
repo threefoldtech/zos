@@ -14,7 +14,7 @@ import (
 // PerformanceMonitor holds the module data
 type PerformanceMonitor struct {
 	scheduler *gocron.Scheduler
-	redisConn redis.Conn
+	pool      redis.Pool
 	tasks     []Task
 }
 
@@ -25,12 +25,11 @@ func NewPerformanceMonitor(redisAddr string) (*PerformanceMonitor, error) {
 		return nil, errors.Wrap(err, "failed creating new redis pool")
 	}
 
-	redisConn := redisPool.Get()
 	scheduler := gocron.NewScheduler(time.UTC)
 
 	return &PerformanceMonitor{
 		scheduler: scheduler,
-		redisConn: redisConn,
+		pool:      *redisPool,
 		tasks:     []Task{},
 	}, nil
 }
@@ -49,10 +48,10 @@ func (pm *PerformanceMonitor) Run(ctx context.Context) error {
 				return errors.Wrapf(err, "failed to run task: %s", task.ID())
 			}
 
-			err = pm.setCache(ctx, task.ID(), TaskResult{
-				TaskName:     task.ID(),
-				RunTimestamp: time.Now().Format("2006-01-02 15:04:05"),
-				Result:       res,
+			err = pm.setCache(ctx, TaskResult{
+				TaskName:  task.ID(),
+				Timestamp: uint64(time.Now().Unix()),
+				Result:    res,
 			})
 			if err != nil {
 				return errors.Wrap(err, "failed to set cache")
@@ -67,9 +66,4 @@ func (pm *PerformanceMonitor) Run(ctx context.Context) error {
 
 	pm.scheduler.StartAsync()
 	return nil
-}
-
-// Close closes the redis connection
-func (pm *PerformanceMonitor) Close() {
-	pm.redisConn.Close()
 }
