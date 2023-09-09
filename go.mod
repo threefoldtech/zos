@@ -24,6 +24,7 @@ require (
 	github.com/diskfs/go-diskfs v1.2.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/g0rbe/go-chattr v0.0.0-20190906133247-aa435a6a0a37
+	github.com/garyburd/redigo v1.6.2
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/go-co-op/gocron v1.33.1
 	github.com/go-redis/redis v6.15.9+incompatible
@@ -75,7 +76,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/ethereum/go-ethereum v1.11.6 // indirect
-	github.com/garyburd/redigo v1.6.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/goccy/go-json v0.4.8 // indirect
