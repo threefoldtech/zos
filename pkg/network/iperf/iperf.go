@@ -14,9 +14,18 @@ const (
 	IperfPort = 300
 )
 
+// Exists checks if the iperf service is running
+func Exists(z *zinit.Client) bool {
+	if _, err := z.Status(zinitService); err == nil {
+		return true
+	}
+
+	return false
+}
+
 // Ensure creates an iperf zinit service and monitors it
 func Ensure(z *zinit.Client) error {
-	if _, err := z.Status(zinitService); err == nil {
+	if exists := Exists(z); exists {
 		return nil
 	}
 

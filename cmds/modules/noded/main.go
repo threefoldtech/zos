@@ -20,10 +20,12 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/monitord"
+	"github.com/threefoldtech/zos/pkg/network/iperf"
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/registrar"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
 
@@ -202,9 +204,30 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create a new perfMon")
 	}
 
+	if exists := iperf.Exists(zinit.Default()); exists {
+		perfMon.AddTask(&perf.TCPTask{
+			TaskID:   "TCPTask",
+			Schedule: "* */5 * * * *",
+		})
+
+		perfMon.AddTask(&perf.UDPTask{
+			TaskID:   "UDPTask",
+			Schedule: "* */5 * * * *",
+		})
+	}
+
 	if err = perfMon.Run(ctx); err != nil {
 		return errors.Wrap(err, "failed to run the scheduler")
 	}
+
+	log.Info().Msg("Checking results for UDP")
+	res, err := perfMon.Get("UDPTask")
+	log.Info().Msgf("Checking results for UDP %+v", res)
+
+	log.Info().Msg("Checking results for TCP")
+	res, err = perfMon.Get("TCPTask")
+	log.Info().Msgf("Checking results for TCP %+v", res)
+
 	bus.WithHandler("zos.perf.get", func(ctx context.Context, payload []byte) (interface{}, error) {
 		var taskName string
 		err := json.Unmarshal(payload, &taskName)
