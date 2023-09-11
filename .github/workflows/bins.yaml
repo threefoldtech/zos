@@ -132,3 +132,9 @@ jobs:
       package: iperf
     secrets:
       token: ${{ secrets.HUB_JWT }}
+  cpu-benchmark:
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: cpu-benchmark
+    secrets:
+      token: ${{ secrets.HUB_JWT }}
