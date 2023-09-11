@@ -212,11 +212,10 @@ func action(cli *cli.Context) error {
 			return nil, errors.Wrapf(err, "failed to unmarshal payload: %v", payload)
 		}
 
-		if taskName == "" {
-			return perfMon.GetAll()
-		}
-
 		return perfMon.Get(taskName)
+	})
+	bus.WithHandler("zos.perf.get_all", func(ctx context.Context, payload []byte) (interface{}, error) {
+		return perfMon.GetAll()
 	})
 
 	// answer calls for dmi

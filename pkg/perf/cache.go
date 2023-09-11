@@ -15,7 +15,7 @@ const (
 
 // TaskResult the result test schema
 type TaskResult struct {
-	TaskName  string      `json:"task_name"`
+	Name      string      `json:"name"`
 	Timestamp uint64      `json:"timestamp"`
 	Result    interface{} `json:"result"`
 }
@@ -34,7 +34,7 @@ func (pm *PerformanceMonitor) setCache(ctx context.Context, result TaskResult) e
 	conn := pm.pool.Get()
 	defer conn.Close()
 
-	_, err = conn.Do("SET", generateKey(result.TaskName), data)
+	_, err = conn.Do("SET", generateKey(result.Name), data)
 	return err
 }
 
@@ -79,18 +79,10 @@ func (pm *PerformanceMonitor) GetAll() ([]TaskResult, error) {
 		}
 
 		for _, key := range keys {
-			value, err := conn.Do("GET", key)
+			result, err := pm.Get(key)
 			if err != nil {
 				continue
 			}
-
-			var result TaskResult
-
-			err = json.Unmarshal(value.([]byte), &result)
-			if err != nil {
-				return res, errors.Wrap(err, "failed to unmarshal data from json")
-			}
-
 			res = append(res, result)
 		}
 

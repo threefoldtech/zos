@@ -49,7 +49,7 @@ func (pm *PerformanceMonitor) Run(ctx context.Context) error {
 			}
 
 			err = pm.setCache(ctx, TaskResult{
-				TaskName:  task.ID(),
+				Name:      task.ID(),
 				Timestamp: uint64(time.Now().Unix()),
 				Result:    res,
 			})
