@@ -211,11 +211,17 @@ func action(cli *cli.Context) error {
 			return errors.Wrap(err, "failed to create a new graphql")
 		}
 
-		// TODO: add a fixed list of nodes
-		nodes, err := g.ListPublicNodes(12, true, false)
+		freeFarmNodes, err := g.ListPublicNodes(0, 1, true, false)
+		if err != nil {
+			return errors.Wrap(err, "failed to list freefarm nodes from graphql")
+		}
+
+		nodes, err := g.ListPublicNodes(12, 0, true, false)
 		if err != nil {
 			return errors.Wrap(err, "failed to list nodes from graphql")
 		}
+
+		nodes = append(nodes, freeFarmNodes...)
 
 		for _, node := range nodes {
 			perfMon.AddTask(&perf.TCPTask{

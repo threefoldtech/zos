@@ -26,11 +26,16 @@ type PublicConfig struct {
 }
 
 // ListPublicNodes returns a list of public nodes
-func (g *GraphQl) ListPublicNodes(n int, ipv4, ipv6 bool) ([]Node, error) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	offset := r.Intn(n)
+func (g *GraphQl) ListPublicNodes(n int, farmID uint32, ipv4, ipv6 bool) ([]Node, error) {
+	var limit string
+	if n != 0 {
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		offset := r.Intn(n)
 
-	pubCond := ""
+		limit = fmt.Sprintf("limit: %d, offset: %d", n, offset)
+	}
+
+	var pubCond string
 	if ipv4 {
 		pubCond = `ipv4_isNull: false, ipv4_not_eq: ""`
 	}
@@ -38,7 +43,12 @@ func (g *GraphQl) ListPublicNodes(n int, ipv4, ipv6 bool) ([]Node, error) {
 		pubCond += `, ipv6_isNull: false, ipv6_not_eq: ""`
 	}
 
-	options := fmt.Sprintf(`(limit: %d, where: { publicConfig: {%s} }, offset: %d)`, n, pubCond, offset)
+	var farmCond string
+	if farmID != 0 {
+		farmCond = fmt.Sprintf("farmID_eq: %d", farmID)
+	}
+
+	options := fmt.Sprintf(`(%s, where: { publicConfig: {%s}, %s })`, limit, pubCond, farmCond)
 
 	nodesData, err := g.Query(fmt.Sprintf(`query getNodes{
             nodes%s {
