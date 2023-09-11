@@ -18,6 +18,7 @@ install_cpubench() {
     mkdir -p "${ROOTDIR}/usr/bin"
 
     cp ${DISTDIR}/cpubench ${ROOTDIR}/usr/bin/cpubench
+    chmod +x ${ROOTDIR}/usr/bin/cpubench
 }
 
 build_cpubench() {
