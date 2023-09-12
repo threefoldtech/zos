@@ -13,6 +13,10 @@ const (
 	moduleName = "perf"
 )
 
+var (
+	ErrResultNotFound = errors.New("result not found")
+)
+
 // TaskResult the result test schema
 type TaskResult struct {
 	Name      string      `json:"name"`
@@ -20,6 +24,7 @@ type TaskResult struct {
 	Result    interface{} `json:"result"`
 }
 
+// generateKey is helper method to add moduleName as prefix for the taskName
 func generateKey(taskName string) string {
 	return fmt.Sprintf("%s.%s", moduleName, taskName)
 }
@@ -38,16 +43,17 @@ func (pm *PerformanceMonitor) setCache(ctx context.Context, result TaskResult) e
 	return err
 }
 
-// Get gets data from redis
-func (pm *PerformanceMonitor) Get(taskName string) (TaskResult, error) {
+// get directly gets result for some key
+func get(conn redis.Conn, key string) (TaskResult, error) {
 	var res TaskResult
 
-	conn := pm.pool.Get()
-	defer conn.Close()
-
-	data, err := conn.Do("GET", generateKey(taskName))
+	data, err := conn.Do("GET", key)
 	if err != nil {
 		return res, errors.Wrap(err, "failed to get the result")
+	}
+
+	if data == nil {
+		return res, ErrResultNotFound
 	}
 
 	err = json.Unmarshal(data.([]byte), &res)
@@ -58,6 +64,14 @@ func (pm *PerformanceMonitor) Get(taskName string) (TaskResult, error) {
 	return res, nil
 }
 
+// Get gets data from redis
+func (pm *PerformanceMonitor) Get(taskName string) (TaskResult, error) {
+	conn := pm.pool.Get()
+	defer conn.Close()
+	return get(conn, generateKey(taskName))
+}
+
+// GetAll gets the results for all the tests with moduleName as prefix
 func (pm *PerformanceMonitor) GetAll() ([]TaskResult, error) {
 	var res []TaskResult
 
@@ -79,7 +93,7 @@ func (pm *PerformanceMonitor) GetAll() ([]TaskResult, error) {
 		}
 
 		for _, key := range keys {
-			result, err := pm.Get(key)
+			result, err := get(conn, key)
 			if err != nil {
 				continue
 			}
@@ -92,4 +106,16 @@ func (pm *PerformanceMonitor) GetAll() ([]TaskResult, error) {
 
 	}
 	return res, nil
+}
+
+// exists check if a key exists
+func (pm *PerformanceMonitor) exists(key string) (bool, error) {
+	conn := pm.pool.Get()
+	defer conn.Close()
+
+	ok, err := redis.Bool(conn.Do("EXISTS", generateKey(key)))
+	if err != nil {
+		return false, errors.Wrapf(err, "error checking if key %s exists", generateKey(key))
+	}
+	return ok, nil
 }
