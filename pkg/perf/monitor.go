@@ -39,29 +39,46 @@ func (pm *PerformanceMonitor) AddTask(task Task) {
 	pm.tasks = append(pm.tasks, task)
 }
 
+// runTask runs the task and store its result
+func (pm *PerformanceMonitor) runTask(ctx context.Context, task Task) error {
+	res, err := task.Run(ctx)
+	if err != nil {
+		return errors.Wrapf(err, "failed to run task: %s", task.ID())
+	}
+
+	err = pm.setCache(ctx, TaskResult{
+		Name:      task.ID(),
+		Timestamp: uint64(time.Now().Unix()),
+		Result:    res,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to set cache")
+	}
+
+	return nil
+}
+
 // Run adds the tasks to the corn queue and start the scheduler
 func (pm *PerformanceMonitor) Run(ctx context.Context) error {
 	for _, task := range pm.tasks {
 		_, err := pm.scheduler.CronWithSeconds(task.Cron()).Do(func() error {
-			res, err := task.Run(ctx)
-			if err != nil {
-				return errors.Wrapf(err, "failed to run task: %s", task.ID())
-			}
-
-			err = pm.setCache(ctx, TaskResult{
-				TaskName:  task.ID(),
-				Timestamp: uint64(time.Now().Unix()),
-				Result:    res,
-			})
-			if err != nil {
-				return errors.Wrap(err, "failed to set cache")
-			}
-
-			return nil
+			return pm.runTask(ctx, task)
 		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to schedule the task: %s", task.ID())
 		}
+
+		ok, err := pm.exists(task.ID())
+		if err != nil {
+			return errors.Wrapf(err, "failed to find key %s", task.ID())
+		}
+
+		if !ok {
+			if err := pm.runTask(ctx, task); err != nil {
+				return errors.Wrapf(err, "failed to run task: %s", task.ID())
+			}
+		}
+
 	}
 
 	pm.scheduler.StartAsync()
