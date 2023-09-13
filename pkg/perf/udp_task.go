@@ -1,10 +1,12 @@
 package perf
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
 
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/network/iperf"
 )
 
@@ -28,10 +30,21 @@ func (t *UDPTask) Cron() string {
 
 // Run runs the udp test and returns the result
 func (t *UDPTask) Run(ctx context.Context) (interface{}, error) {
-	output, err := exec.CommandContext(ctx, fmt.Sprintf("iperf3 -c %s -p %d -b %s -u", t.ClientIP, iperf.IperfPort, t.Bandwidth)).Output()
+	_, err := exec.LookPath("iperf")
 	if err != nil {
 		return nil, err
 	}
 
-	return output, nil
+	cmd := exec.CommandContext(ctx, "iperf", fmt.Sprintf("-c %s -p %d -b %s -u", t.ClientIP, iperf.IperfPort, t.Bandwidth))
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	cmd.Stdout = &out
+
+	err = cmd.Run()
+	if err != nil {
+		log.Error().Err(err).Msgf("failed to run iperf udp task: %s", stderr.String())
+	}
+
+	return out.String(), nil
 }
