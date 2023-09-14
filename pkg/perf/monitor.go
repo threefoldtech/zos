@@ -14,7 +14,7 @@ import (
 // PerformanceMonitor holds the module data
 type PerformanceMonitor struct {
 	scheduler *gocron.Scheduler
-	pool      *redis.Pool
+	pool      redis.Pool
 	tasks     []Task
 }
 
@@ -29,7 +29,7 @@ func NewPerformanceMonitor(redisAddr string) (*PerformanceMonitor, error) {
 
 	return &PerformanceMonitor{
 		scheduler: scheduler,
-		pool:      redisPool,
+		pool:      *redisPool,
 		tasks:     []Task{},
 	}, nil
 }

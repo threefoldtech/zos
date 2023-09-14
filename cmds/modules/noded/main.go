@@ -19,14 +19,11 @@ import (
 	"github.com/threefoldtech/zos/pkg/capacity"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/events"
-	"github.com/threefoldtech/zos/pkg/graphql"
 	"github.com/threefoldtech/zos/pkg/monitord"
-	"github.com/threefoldtech/zos/pkg/network/iperf"
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/registrar"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
-	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
 
@@ -205,40 +202,8 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create a new perfMon")
 	}
 
-	if exists := iperf.Exists(zinit.Default()); exists {
-		g, err := graphql.NewGraphQl(env.GraphQL)
-		if err != nil {
-			return errors.Wrap(err, "failed to create a new graphql")
-		}
-
-		freeFarmNodes, err := g.ListPublicNodes(0, 1, true, false)
-		if err != nil {
-			return errors.Wrap(err, "failed to list freefarm nodes from graphql")
-		}
-
-		nodes, err := g.ListPublicNodes(12, 0, true, false)
-		if err != nil {
-			return errors.Wrap(err, "failed to list nodes from graphql")
-		}
-
-		nodes = append(nodes, freeFarmNodes...)
-
-		for _, node := range nodes {
-			perfMon.AddTask(&perf.TCPTask{
-				TaskID:    "TCPTask",
-				Schedule:  "* */5 * * * *",
-				ClientIP:  strings.SplitN(node.PublicConfig.Ipv4, "/", 2)[0],
-				Bandwidth: "1M",
-			})
-
-			perfMon.AddTask(&perf.UDPTask{
-				TaskID:    "UDPTask",
-				Schedule:  "* */5 * * * *",
-				ClientIP:  strings.SplitN(node.PublicConfig.Ipv4, "/", 2)[0],
-				Bandwidth: "1M",
-			})
-		}
-	}
+	iperfTest := perf.NewIperfTest()
+	perfMon.AddTask(&iperfTest)
 
 	if err = perfMon.Run(ctx); err != nil {
 		return errors.Wrap(err, "failed to run the scheduler")
