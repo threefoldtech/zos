@@ -2,6 +2,7 @@ package perf
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/go-co-op/gocron"
@@ -14,7 +15,7 @@ import (
 // PerformanceMonitor holds the module data
 type PerformanceMonitor struct {
 	scheduler *gocron.Scheduler
-	pool      redis.Pool
+	pool      *redis.Pool
 	tasks     []Task
 }
 
@@ -29,7 +30,7 @@ func NewPerformanceMonitor(redisAddr string) (*PerformanceMonitor, error) {
 
 	return &PerformanceMonitor{
 		scheduler: scheduler,
-		pool:      *redisPool,
+		pool:      redisPool,
 		tasks:     []Task{},
 	}, nil
 }
@@ -60,6 +61,9 @@ func (pm *PerformanceMonitor) runTask(ctx context.Context, task Task) error {
 
 // Run adds the tasks to the corn queue and start the scheduler
 func (pm *PerformanceMonitor) Run(ctx context.Context) error {
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(pm.tasks))
+
 	for _, task := range pm.tasks {
 		_, err := pm.scheduler.CronWithSeconds(task.Cron()).Do(func() error {
 			return pm.runTask(ctx, task)
@@ -68,17 +72,32 @@ func (pm *PerformanceMonitor) Run(ctx context.Context) error {
 			return errors.Wrapf(err, "failed to schedule the task: %s", task.ID())
 		}
 
-		ok, err := pm.exists(task.ID())
-		if err != nil {
-			return errors.Wrapf(err, "failed to find key %s", task.ID())
-		}
-
-		if !ok {
-			if err := pm.runTask(ctx, task); err != nil {
-				return errors.Wrapf(err, "failed to run task: %s", task.ID())
+		wg.Add(1)
+		go func(task Task) {
+			var routineErr error
+			defer wg.Done()
+			ok, err := pm.exists(task.ID())
+			if err != nil {
+				routineErr = errors.Wrapf(err, "failed to find key %s", task.ID())
 			}
-		}
 
+			if !ok {
+				if err := pm.runTask(ctx, task); err != nil {
+					routineErr = errors.Wrapf(err, "failed to run task: %s", task.ID())
+				}
+			}
+			errChan <- routineErr
+		}(task)
+
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
 	}
 
 	pm.scheduler.StartAsync()
