@@ -243,7 +243,7 @@ func (n *NetMetric) Nu() float64 {
 }
 
 // MachineMetric is a container for metrics from multiple networks
-// currently only groped as private (wireguard + yggdrasil), and public (public Ips)
+// currently only grouped as private (wireguard + yggdrasil), and public (public Ips)
 type MachineMetric struct {
 	Private NetMetric
 	Public  NetMetric
