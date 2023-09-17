@@ -44,7 +44,7 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 		"\n" +
 		" This is node %s (farmer %s)\n" +
 		" running Zero-OS version [%s](fg:blue) (mode [%s](fg:cyan))\n" +
-		" kernal: %s\n" +
+		" kernel: %s\n" +
 		" cache disk: %s"
 
 	host := stubs.NewVersionMonitorStub(c)
