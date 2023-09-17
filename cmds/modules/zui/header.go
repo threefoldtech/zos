@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"syscall"
 
 	"github.com/gizak/termui/v3/widgets"
 	"github.com/pkg/errors"
@@ -43,6 +44,7 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 		"\n" +
 		" This is node %s (farmer %s)\n" +
 		" running Zero-OS version [%s](fg:blue) (mode [%s](fg:cyan))\n" +
+		" kernal: %s\n" +
 		" cache disk: %s"
 
 	host := stubs.NewVersionMonitorStub(c)
@@ -77,10 +79,29 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 				cache = red("no ssd disks detected")
 			}
 
-			h.Text = fmt.Sprintf(s, nodeID, farm, version.String(), env.RunningMode.String(), cache)
+			var utsname syscall.Utsname
+			var uname string
+			if err := syscall.Uname(&utsname); err != nil {
+				uname = red(err.Error())
+			} else {
+				uname = green(int8ToStr(utsname.Release[:]))
+			}
+
+			h.Text = fmt.Sprintf(s, nodeID, farm, version.String(), env.RunningMode.String(), uname, cache)
 			r.Signal()
 		}
 	}()
 
 	return nil
+}
+
+func int8ToStr(arr []int8) string {
+	b := make([]byte, 0, len(arr))
+	for _, v := range arr {
+		if v == 0x00 {
+			break
+		}
+		b = append(b, byte(v))
+	}
+	return string(b)
 }
