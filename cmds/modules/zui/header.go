@@ -96,9 +96,13 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 }
 
 func int8ToStr(arr []int8) string {
+	if len(arr) == 0 {
+		return ""
+	}
+
 	b := make([]byte, 0, len(arr))
 	for _, v := range arr {
-		if v == 0x00 {
+		if v == 0 {
 			break
 		}
 		b = append(b, byte(v))
