@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"syscall"
+	"unsafe"
 
 	"github.com/gizak/termui/v3/widgets"
 	"github.com/pkg/errors"
@@ -84,7 +85,7 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 			if err := syscall.Uname(&utsname); err != nil {
 				uname = red(err.Error())
 			} else {
-				uname = green(int8ToStr(utsname.Release[:]))
+				uname = green(string(unsafe.Slice((*byte)(unsafe.Pointer(&utsname.Release)), len(utsname.Release))))
 			}
 
 			h.Text = fmt.Sprintf(s, nodeID, farm, version.String(), env.RunningMode.String(), uname, cache)
@@ -93,19 +94,4 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 	}()
 
 	return nil
-}
-
-func int8ToStr(arr []int8) string {
-	if len(arr) == 0 {
-		return ""
-	}
-
-	b := make([]byte, 0, len(arr))
-	for _, v := range arr {
-		if v == 0 {
-			break
-		}
-		b = append(b, byte(v))
-	}
-	return string(b)
 }
