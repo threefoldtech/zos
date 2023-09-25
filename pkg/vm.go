@@ -176,16 +176,16 @@ func (vm *VM) Validate() error {
 		return fmt.Errorf("invalid memory must not be less than 250M")
 	}
 
-	n, err := cpu.Counts(true)
+	cpus, err := cpu.Counts(true)
 	if err != nil {
 		return fmt.Errorf("failed to get count of cpus")
 	}
 
-	if vm.CPU == 0 || vm.CPU > uint8(n) {
-		if n == 1 {
+	if vm.CPU == 0 || vm.CPU > uint8(cpus) {
+		if cpus == 1 {
 			return fmt.Errorf("invalid cpu must be 1")
 		}
-		return fmt.Errorf("invalid cpu must be between 1 and %d", n)
+		return fmt.Errorf("invalid cpu must be between 1 and %d", cpus)
 	}
 
 	for _, shared := range vm.Shared {
