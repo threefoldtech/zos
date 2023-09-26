@@ -33,7 +33,12 @@ type PublicConfig struct {
 }
 
 // ListPublicNodes returns a list of public nodes
-func (g *GraphQl) ListPublicNodes(ctx context.Context, n int, farmID, excludeFarmID uint32, ipv4, ipv6 bool) ([]Node, error) {
+// if nodesNum is given the query will use a limit and offset
+// farmID id if not equal 0 will add a condition for it
+// excludeFarmID if not equal 0 will add a condition ro exclude the farm ID
+// ipv4 pool to set a condition for non empty ipv4
+// ipv6 pool to set a condition for non empty ipv6
+func (g *GraphQl) ListPublicNodes(ctx context.Context, nodesNum int, farmID, excludeFarmID uint32, ipv4, ipv6 bool) ([]Node, error) {
 	var pubCond string
 	if ipv4 {
 		pubCond = `ipv4_isNull: false, ipv4_not_eq: ""`
@@ -60,11 +65,11 @@ func (g *GraphQl) ListPublicNodes(ctx context.Context, n int, farmID, excludeFar
 	}
 
 	var limit string
-	if n != 0 && itemCount > n {
+	if nodesNum != 0 && itemCount > nodesNum {
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
-		offset := r.Intn(n)
+		offset := r.Intn(nodesNum)
 
-		limit = fmt.Sprintf("limit: %d, offset: %d", n, offset)
+		limit = fmt.Sprintf("limit: %d, offset: %d", nodesNum, offset)
 	}
 
 	options := fmt.Sprintf(`%s, %s`, limit, whereCond)
