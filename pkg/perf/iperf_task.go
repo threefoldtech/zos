@@ -31,7 +31,7 @@ type IperfResult struct {
 
 // NewIperfTest creates a new iperf test
 func NewIperfTest() IperfTest {
-	return IperfTest{taskID: "iperf", schedule: "* 0 */6 * * *"}
+	return IperfTest{taskID: "iperf", schedule: "0 0 */6 * * *"}
 }
 
 // ID returns the ID of the tcp task
