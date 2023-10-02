@@ -38,10 +38,14 @@ func withDefaultPort(substrateUrl string) (string, error) {
 	return u.String(), nil
 }
 
-func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []string, relayAddr string, redisAddr string) error {
+func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []string, relayAddr []string, redisAddr string) error {
 	// select the first one as only one URL is set for now
 	if len(substrateURLs) == 0 {
 		return errors.New("at least one substrate URL must be provided")
+	}
+
+	if len(relayAddr) == 0 {
+		return errors.New("at least one relay URL must be provided")
 	}
 
 	seed := sk.Seed()
@@ -49,17 +53,22 @@ func runMsgBus(ctx context.Context, sk ed25519.PrivateKey, substrateURLs []strin
 
 	log.Info().Msg("starting rmb...")
 
-	substrateURL, err := withDefaultPort(substrateURLs[0])
-	if err != nil {
-		return err
-	}
-
 	args := []string{
-		"-s", substrateURL,
-		"--relay", relayAddr,
 		"-k", keyType,
 		"--seed", seedHex,
 		"--redis", redisAddr,
+	}
+
+	for _, url := range substrateURLs {
+		url, err := withDefaultPort(url)
+		if err != nil {
+			return err
+		}
+		args = append(args, "--substrate", url)
+	}
+
+	for _, url := range relayAddr {
+		args = append(args, "--relay", url)
 	}
 
 	if kernel.GetParams().IsDebug() {

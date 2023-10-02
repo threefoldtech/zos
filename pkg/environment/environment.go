@@ -29,7 +29,7 @@ type Environment struct {
 
 	FarmSecret    string
 	SubstrateURL  []string
-	RelayURL      string
+	RelayURL      []string
 	ActivationURL string
 	GraphQL       string
 
@@ -81,7 +81,9 @@ var (
 		SubstrateURL: []string{
 			"wss://tfchain.dev.grid.tf/",
 		},
-		RelayURL:      "wss://relay.dev.grid.tf",
+		RelayURL: []string{
+			"wss://relay.dev.grid.tf",
+		},
 		ActivationURL: "https://activation.dev.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.dev",
@@ -93,7 +95,9 @@ var (
 		SubstrateURL: []string{
 			"wss://tfchain.test.grid.tf/",
 		},
-		RelayURL:      "wss://relay.test.grid.tf",
+		RelayURL: []string{
+			"wss://relay.test.grid.tf",
+		},
 		ActivationURL: "https://activation.test.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.test",
@@ -105,7 +109,9 @@ var (
 		SubstrateURL: []string{
 			"wss://tfchain.qa.grid.tf/",
 		},
-		RelayURL:      "wss://relay.qa.grid.tf",
+		RelayURL: []string{
+			"wss://relay.qa.grid.tf",
+		},
 		ActivationURL: "https://activation.qa.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.qanet",
@@ -120,7 +126,9 @@ var (
 			"wss://03.tfchain.grid.tf/",
 			"wss://04.tfchain.grid.tf/",
 		},
-		RelayURL:      "wss://relay.grid.tf",
+		RelayURL: []string{
+			"wss://relay.grid.tf",
+		},
 		ActivationURL: "https://activation.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins",
@@ -200,7 +208,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 
 	if relay, ok := params.Get("relay"); ok {
 		if len(relay) > 0 {
-			env.RelayURL = relay[len(relay)-1]
+			env.RelayURL = relay
 		}
 	}
 
