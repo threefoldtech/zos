@@ -27,8 +27,11 @@ type Environment struct {
 	FarmID pkg.FarmID
 	Orphan bool
 
-	FarmSecret    string
-	SubstrateURL  []string
+	FarmSecret   string
+	SubstrateURL []string
+	// IMPORTANT NOTICE:
+	//   SINCE RELAYS FOR A NODE IS STORED ON THE CHAIN IN A LIMITED SPACE
+	//   PLEASE MAKE SURE THAT ANY ENV HAS NO MORE THAN FOUR RELAYS CONFIGURED
 	RelayURL      []string
 	ActivationURL string
 	GraphQL       string
