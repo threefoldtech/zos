@@ -31,6 +31,7 @@ type Environment struct {
 	SubstrateURL  []string
 	RelayURL      string
 	ActivationURL string
+	GraphQL       string
 
 	ExtendedConfigURL string
 }
@@ -84,6 +85,7 @@ var (
 		ActivationURL: "https://activation.dev.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.dev",
+		GraphQL:       "https://graphql.dev.grid.tf/graphql",
 	}
 
 	envTest = Environment{
@@ -95,6 +97,7 @@ var (
 		ActivationURL: "https://activation.test.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.test",
+		GraphQL:       "https://graphql.test.grid.tf/graphql",
 	}
 
 	envQA = Environment{
@@ -106,6 +109,7 @@ var (
 		ActivationURL: "https://activation.qa.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.qanet",
+		GraphQL:       "https://graphql.qa.grid.tf/graphql",
 	}
 
 	envProd = Environment{
@@ -120,6 +124,7 @@ var (
 		ActivationURL: "https://activation.grid.tf/activation/activate",
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins",
+		GraphQL:       "https://graphql.grid.tf/graphql",
 	}
 )
 
