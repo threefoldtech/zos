@@ -16,7 +16,8 @@ const (
 	// VirtualMachine forces zos to think it's running
 	// on a virtual machine. used mainly for development
 	VirtualMachine = "zos-debug-vm"
-	DisableGPU     = "disable-gpu"
+	// if disable-gpu flag is provided gpu feature will be disabled on that node
+	DisableGPU = "disable-gpu"
 )
 
 // Params represent the parameters passed to the kernel at boot
