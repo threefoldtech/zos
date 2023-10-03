@@ -10,7 +10,7 @@ import (
 )
 
 const cpuBenchmarkTaskID = "CPUBenchmark"
-const cpuBenchmarkCronScheule = "0 0 */6 * * *"
+const cpuBenchmarkCronSchedule = "0 0 */6 * * *"
 
 // CPUBenchmarkTask defines CPU benchmark task data.
 type CPUBenchmarkTask struct {
@@ -34,7 +34,7 @@ var _ Task = (*CPUBenchmarkTask)(nil)
 func NewCPUBenchmarkTask() CPUBenchmarkTask {
 	return CPUBenchmarkTask{
 		taskID:   cpuBenchmarkTaskID,
-		schedule: cpuBenchmarkCronScheule,
+		schedule: cpuBenchmarkCronSchedule,
 	}
 }
 
