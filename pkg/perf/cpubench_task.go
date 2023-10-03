@@ -9,18 +9,23 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
+const cpuBenchmarkTaskID = "CPUBenchmark"
+const cpuBenchmarkCronScheule = "0 0 */6 * * *"
+
 // CPUBenchmarkTask defines CPU benchmark task data.
 type CPUBenchmarkTask struct {
-	taskID   string
+	// taskID is a unique string ID for the task.
+	taskID string
+	// schedule is a 6 field cron schedule (unlike unix cron).
 	schedule string
 }
 
 // CPUBenchmarkResult holds CPU benchmark results with the workloads number during the benchmark.
 type CPUBenchmarkResult struct {
-	Single    float64 `json:"single"`
-	Multi     float64 `json:"multi"`
-	Threads   int     `json:"threads"`
-	Workloads int     `json:"workloads"`
+	SingleThreaded float64 `json:"single"`
+	MultiThreaded  float64 `json:"multi"`
+	Threads        int     `json:"threads"`
+	Workloads      int     `json:"workloads"`
 }
 
 var _ Task = (*CPUBenchmarkTask)(nil)
@@ -28,8 +33,8 @@ var _ Task = (*CPUBenchmarkTask)(nil)
 // NewCPUBenchmarkTask returns a new CPU benchmark task.
 func NewCPUBenchmarkTask() CPUBenchmarkTask {
 	return CPUBenchmarkTask{
-		taskID:   "CPUBenchmark",
-		schedule: "0 0 */6 * * *",
+		taskID:   cpuBenchmarkTaskID,
+		schedule: cpuBenchmarkCronScheule,
 	}
 }
 
@@ -49,12 +54,8 @@ func (c *CPUBenchmarkTask) Run(ctx context.Context) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute cpubench command: %w", err)
 	}
-	cpubenchData := struct {
-		Single  float64 `json:"single"`
-		Multi   float64 `json:"multi"`
-		Threads int     `json:"threads"`
-	}{}
-	err = json.Unmarshal(cpubenchOut, &cpubenchData)
+	cpuBenchmarkResult := CPUBenchmarkResult{}
+	err = json.Unmarshal(cpubenchOut, &cpuBenchmarkResult)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse cpubench output: %w", err)
 	}
@@ -66,10 +67,6 @@ func (c *CPUBenchmarkTask) Run(ctx context.Context) (interface{}, error) {
 		return nil, fmt.Errorf("failed to get workloads number: %w", err)
 	}
 
-	return CPUBenchmarkResult{
-		Single:    cpubenchData.Single,
-		Multi:     cpubenchData.Multi,
-		Threads:   cpubenchData.Threads,
-		Workloads: workloads,
-	}, nil
+	cpuBenchmarkResult.Workloads = workloads
+	return cpuBenchmarkResult, nil
 }
