@@ -207,21 +207,33 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	}
 
 	logPath := filepath.Join(f.log, hash) + ".log"
-	var args []string
 
+	var cmd *exec.Cmd
+	var args []string
 	args = append(args,
 		"--cache", f.cache,
 		"--meta", flistPath,
-		"--storage-url", storage,
 		"--daemon",
 		"--log", logPath,
-		// this is always read-only
-		"--ro",
-		mountpoint,
 	)
 
-	sublog.Info().Strs("args", args).Msg("starting 0-fs daemon")
-	cmd := f.commander.Command("g8ufs", args...)
+	if strings.HasSuffix(url, ".fl") {
+		log.Debug().Str("flist url", url).Msg("using rfs")
+		args = append(args, mountpoint)
+		cmd = f.commander.Command("rfs", append([]string{"mount"}, args...)...)
+	} else {
+		log.Debug().Str("flist url", url).Msg("using g8ufs")
+		args = append(args,
+			"--storage-url", storage,
+			// this is always read-only
+			"--ro",
+			mountpoint,
+		)
+
+		cmd = f.commander.Command("g8ufs", args...)
+	}
+
+	sublog.Info().Strs("args", cmd.Args).Msg("starting 0-fs daemon")
 
 	var out []byte
 	if out, err = cmd.CombinedOutput(); err != nil {
