@@ -84,7 +84,7 @@ func (f *flistModule) cleanUnusedMounts() error {
 
 	roTargets := make(map[int64]mountInfo)
 	for _, mount := range all.filter(withParentDir(f.ro)) {
-		if mount.FSType != fsTypeG8ufs {
+		if mount.FSType != fsTypeG8ufs && mount.FSType != fsTypeRfs {
 			// this mount type should not be under ro
 			// where all mounts are g8ufs.
 			continue
@@ -97,6 +97,9 @@ func (f *flistModule) cleanUnusedMounts() error {
 		var info g8ufsInfo
 		switch mount.FSType {
 		case fsTypeG8ufs:
+			// this is a bind mount
+			info = mount.AsG8ufs()
+		case fsTypeRfs:
 			// this is a bind mount
 			info = mount.AsG8ufs()
 		case fsTypeOverlay:

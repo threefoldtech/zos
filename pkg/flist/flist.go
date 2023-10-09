@@ -207,12 +207,19 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	}
 
 	logPath := filepath.Join(f.log, hash) + ".log"
+
+	flistExt := filepath.Ext(flistPath)
 	var args []string
+
+	if flistExt == ".flist" {
+		args = append(args,
+			"--storage-url", storage,
+		)
+	}
 
 	args = append(args,
 		"--cache", f.cache,
 		"--meta", flistPath,
-		"--storage-url", storage,
 		"--daemon",
 		"--log", logPath,
 		// this is always read-only
@@ -221,11 +228,16 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	)
 
 	sublog.Info().Strs("args", args).Msg("starting 0-fs daemon")
-	cmd := f.commander.Command("g8ufs", args...)
+	var cmd *exec.Cmd
+	if flistExt == ".flist" {
+		cmd = f.commander.Command("g8ufs", args...)
+	} else if flistExt == ".fl" {
+		cmd = f.commander.Command("rfs", args...)
+	}
 
 	var out []byte
 	if out, err = cmd.CombinedOutput(); err != nil {
-		sublog.Err(err).Str("out", string(out)).Msg("fail to start 0-fs daemon")
+		sublog.Err(err).Str("out", string(out)).Msg("failed to start 0-fs daemon")
 		return "", err
 	}
 
