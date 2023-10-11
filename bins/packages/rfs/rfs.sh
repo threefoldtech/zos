@@ -7,12 +7,12 @@ download_rfs() {
 }
 
 prepare_rfs() {
-    echo "[+] prepare 0-fs"
-    github_name "0-fs-${RFS_VERSION}"
+    echo "[+] prepare rfs"
+    github_name "rfs-${RFS_VERSION}"
 }
 
 install_rfs() {
-    echo "[+] install 0-fs"
+    echo "[+] install rfs"
 
     mkdir -p "${ROOTDIR}/sbin"
     cp -av rfs-${RFS_VERSION} "${ROOTDIR}/sbin/rfs"
