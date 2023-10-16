@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	fsTypeRfs     = "fuse.rfs"
 	fsTypeG8ufs   = "fuse.g8ufs"
 	fsTypeOverlay = "overlay"
 )
@@ -117,7 +116,7 @@ func (f *flistModule) resolve(path string) (g8ufsInfo, error) {
 		return g8ufsInfo{}, err
 	}
 
-	if info.FSType == fsTypeG8ufs || info.FSType == fsTypeRfs {
+	if info.FSType == fsTypeG8ufs {
 		return info.AsG8ufs(), nil
 	} else if info.FSType == fsTypeOverlay {
 		overlay := info.AsOverlay()
