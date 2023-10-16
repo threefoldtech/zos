@@ -9,14 +9,16 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/utils"
 )
 
 // PerformanceMonitor holds the module data
 type PerformanceMonitor struct {
-	scheduler *gocron.Scheduler
-	pool      *redis.Pool
-	tasks     []Task
+	scheduler  *gocron.Scheduler
+	pool       *redis.Pool
+	zbusClient zbus.Client
+	tasks      []Task
 }
 
 // NewPerformanceMonitor returns PerformanceMonitor instance
@@ -25,13 +27,18 @@ func NewPerformanceMonitor(redisAddr string) (*PerformanceMonitor, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed creating new redis pool")
 	}
+	zbusClient, err := zbus.NewRedisClient(redisAddr)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to connect to zbus")
+	}
 
 	scheduler := gocron.NewScheduler(time.UTC)
 
 	return &PerformanceMonitor{
-		scheduler: scheduler,
-		pool:      redisPool,
-		tasks:     []Task{},
+		scheduler:  scheduler,
+		pool:       redisPool,
+		zbusClient: zbusClient,
+		tasks:      []Task{},
 	}, nil
 }
 
@@ -61,6 +68,7 @@ func (pm *PerformanceMonitor) runTask(ctx context.Context, task Task) error {
 
 // Run adds the tasks to the corn queue and start the scheduler
 func (pm *PerformanceMonitor) Run(ctx context.Context) error {
+	ctx = withZbusClient(ctx, pm.zbusClient)
 	for _, task := range pm.tasks {
 		if _, err := pm.scheduler.CronWithSeconds(task.Cron()).Do(func() error {
 			return pm.runTask(ctx, task)
@@ -85,4 +93,15 @@ func (pm *PerformanceMonitor) Run(ctx context.Context) error {
 
 	pm.scheduler.StartAsync()
 	return nil
+}
+
+type zbusClient struct{}
+
+func withZbusClient(ctx context.Context, client zbus.Client) context.Context {
+	return context.WithValue(ctx, zbusClient{}, client)
+}
+
+// GetZbusClient gets zbus client from the given context
+func GetZbusClient(ctx context.Context) zbus.Client {
+	return ctx.Value(zbusClient{}).(zbus.Client)
 }
