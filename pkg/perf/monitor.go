@@ -101,6 +101,7 @@ func withZbusClient(ctx context.Context, client zbus.Client) context.Context {
 	return context.WithValue(ctx, zbusClient{}, client)
 }
 
-func getZbusClient(ctx context.Context) zbus.Client {
+// GetZbusClient gets zbus client from the given context
+func GetZbusClient(ctx context.Context) zbus.Client {
 	return ctx.Value(zbusClient{}).(zbus.Client)
 }
