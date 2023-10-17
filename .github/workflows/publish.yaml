@@ -38,13 +38,13 @@ jobs:
       - name: Set version of build
         id: version
         run: |
-          echo "version=v$(date +%y%m%d.%-H%M%S.0)" >> $GITHUB_OUTPUT
+          echo "version=v$(date +%y%m%d.%-H%M%S)" >> $GITHUB_OUTPUT
 
       - name: Collecting files
         run: |
           scripts/collect.sh ${{ github.workspace }}/archive
 
-      - name: Publish flist (${{ github.sha }})
+      - name: Publish flist (zos:${{ steps.version.outputs.version }}.flist)
         if: success()
         uses: threefoldtech/publish-flist@master
         with:
