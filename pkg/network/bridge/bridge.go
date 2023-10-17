@@ -15,7 +15,11 @@ func New(name string) (*netlink.Bridge, error) {
 	attrs := netlink.NewLinkAttrs()
 	attrs.Name = name
 	attrs.MTU = 1500
-	bridge := &netlink.Bridge{LinkAttrs: attrs}
+	enable := true
+	bridge := &netlink.Bridge{
+		LinkAttrs:     attrs,
+		VlanFiltering: &enable,
+	}
 
 	if err := netlink.LinkAdd(bridge); err != nil && !os.IsExist(err) {
 		return bridge, err
