@@ -208,6 +208,9 @@ func action(cli *cli.Context) error {
 	cpuBenchmarkTask := perf.NewCPUBenchmarkTask()
 	perfMon.AddTask(&cpuBenchmarkTask)
 
+	pubIPTask := perf.NewpublicIPTask()
+	perfMon.AddTask(pubIPTask)
+
 	if err = perfMon.Run(ctx); err != nil {
 		return errors.Wrap(err, "failed to run the scheduler")
 	}
