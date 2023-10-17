@@ -3,8 +3,6 @@ on:
   push:
     branches:
       - "*"
-    tags:
-      - "v*"
     paths:
       - "bins/**"
       - ".github/workflows/bins.yaml"

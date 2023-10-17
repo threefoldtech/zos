@@ -21,10 +21,10 @@ jobs:
         id: tag
         run: |
           ref="${{ github.ref }}"
-          if [[ "${{ github.ref_type }}" = "tag" ]]; then
+          if [ "${{ github.ref_type }}" = "tag" ]; then
             echo "reference=${ref#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "reference=${ref}"" >> $GITHUB_OUTPUT
+            echo "reference=${ref}" >> $GITHUB_OUTPUT
           fi
       - name: Setup basesystem
         run: |
@@ -51,5 +51,5 @@ jobs:
           token: ${{ secrets.HUB_JWT }}
           action: tag
           user: tf-autobuilder
-          name: ${{ steps.tag.outputs.reference }}/${{ input.package }}.flist
+          name: ${{ steps.tag.outputs.reference }}/${{ inputs.package }}.flist
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
