@@ -3,9 +3,6 @@ on:
   push:
     branches:
       - "*"
-    tags-ignore:
-      - v*
-
 jobs:
   build:
     name: Build and upload
@@ -38,6 +35,11 @@ jobs:
             echo "reference=${{ github.sha }}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Set version of build
+        id: version
+        run: |
+          echo "version=v$(date +%y%m%d.%-H%M%S.0)" >> $GITHUB_OUTPUT
+
       - name: Collecting files
         run: |
           scripts/collect.sh ${{ github.workspace }}/archive
@@ -50,7 +52,7 @@ jobs:
           action: publish
           user: tf-autobuilder
           root: archive
-          name: zos-${{ github.sha }}.flist
+          name: zos:${{ steps.version.outputs.version }}.flist
 
       - name: Tagging
         uses: threefoldtech/publish-flist@master
@@ -59,7 +61,7 @@ jobs:
           action: tag
           user: tf-autobuilder
           name: ${{ steps.tag.outputs.reference }}/zos.flist
-          target: tf-autobuilder/zos-${{ github.sha }}.flist
+          target: tf-autobuilder/zos:${{ steps.version.outputs.version }}.flist
 
       - name: Cross tagging (development)
         if: success() && github.ref == 'refs/heads/main'
@@ -70,3 +72,15 @@ jobs:
           user: tf-zos
           name: development
           target: tf-autobuilder/${{ github.sha }}
+      # compatibility with old release
+      # this is needed so old machines that is already running on devnet
+      # gets the new code to be able to use the new release tag
+      - name: Crosslink flist (development)
+        if: success() && github.ref == 'refs/heads/main'
+        uses: threefoldtech/publish-flist@master
+        with:
+          token: ${{ secrets.HUB_JWT }}
+          action: crosslink
+          user: tf-zos
+          name: zos:development-3:latest.flist
+          target: tf-autobuilder/zos:${{ steps.version.outputs.version }}.flist
