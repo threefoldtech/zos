@@ -24,7 +24,7 @@ jobs:
           if [ "${{ github.ref_type }}" = "tag" ]; then
             echo "reference=${ref#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "reference=${ref}" >> $GITHUB_OUTPUT
+            echo "reference=${{ github.sha }}" >> $GITHUB_OUTPUT
           fi
       - name: Setup basesystem
         run: |
@@ -44,9 +44,9 @@ jobs:
           user: tf-autobuilder
           root: bins/releases/${{ inputs.package }}
           name: ${{ steps.package.outputs.name }}.flist
-      - name: Publishing
+      - name: Tagging
         uses: threefoldtech/publish-flist@master
-        if: success() && github.ref == 'refs/heads/main'
+        if: success()
         with:
           token: ${{ secrets.HUB_JWT }}
           action: tag

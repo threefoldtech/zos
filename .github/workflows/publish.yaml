@@ -35,7 +35,7 @@ jobs:
           if [ "${{ github.ref_type }}" = "tag" ]; then
             echo "reference=${ref#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "reference=${ref}" >> $GITHUB_OUTPUT
+            echo "reference=${{ github.sha }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Collecting files
