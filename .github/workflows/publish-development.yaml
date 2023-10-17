@@ -49,7 +49,7 @@ jobs:
           action: tag
           user: tf-autobuilder
           name: ${{ github.sha }}/zos.flist
-          target: zos-${{ github.sha }}.flist
+          target: tf-autobuilder/zos-${{ github.sha }}.flist
 
       - name: Cross tagging (development)
         if: success() && github.ref == 'refs/heads/main'
