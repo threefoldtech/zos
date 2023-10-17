@@ -32,11 +32,6 @@ jobs:
         run: |
           scripts/collect.sh ${{ github.workspace }}/archive
 
-      - name: Set name of the development build
-        id: setname
-        run: |
-          echo "build=zos:v$(date +%y%m%d.%-H%M%S.0)-dev.flist" >> $GITHUB_OUTPUT
-
       - name: Publish flist (${{ github.sha }})
         if: success()
         uses: threefoldtech/publish-flist@master
@@ -47,21 +42,21 @@ jobs:
           root: archive
           name: zos-${{ github.sha }}.flist
 
-      - name: Symlink flist (development)
+      - name: Tagging
         uses: threefoldtech/publish-flist@master
         with:
           token: ${{ secrets.HUB_JWT }}
-          action: symlink
+          action: tag
           user: tf-autobuilder
-          name: zos-${{ github.sha }}.flist
-          target: ${{ steps.setname.outputs.build }}
+          name: ${{ github.sha }}/zos.flist
+          target: zos-${{ github.sha }}.flist
 
-      - name: Crosslink flist (development)
+      - name: Cross tagging (development)
         if: success() && github.ref == 'refs/heads/main'
         uses: threefoldtech/publish-flist@master
         with:
           token: ${{ secrets.HUB_JWT }}
-          action: crosslink
+          action: crosstag
           user: tf-zos
-          name: zos:development-3:latest.flist
-          target: tf-autobuilder/${{ steps.setname.outputs.build }}
+          name: development
+          target: tf-autobuilder/${{ github.sha }}
