@@ -48,7 +48,7 @@ jobs:
         uses: threefoldtech/publish-flist@master
         if: success()
         with:
-          token: ${{ secrets.HUB_JWT }}
+          token: ${{ secrets.token }}
           action: tag
           user: tf-autobuilder
           name: ${{ steps.tag.outputs.reference }}/${{ inputs.package }}.flist
