@@ -28,6 +28,16 @@ jobs:
         env:
           GO111MODULE: on
 
+      - name: Set tag of build
+        id: tag
+        run: |
+          ref="${{ github.ref }}"
+          if [[ "${{ github.ref_type }}" = "tag" ]]; then
+            echo "reference=${ref#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "reference=${ref}"" >> $GITHUB_OUTPUT
+          fi
+
       - name: Collecting files
         run: |
           scripts/collect.sh ${{ github.workspace }}/archive
@@ -48,7 +58,7 @@ jobs:
           token: ${{ secrets.HUB_JWT }}
           action: tag
           user: tf-autobuilder
-          name: ${{ github.sha }}/zos.flist
+          name: ${{ steps.tag.outputs.reference }}/zos.flist
           target: tf-autobuilder/zos-${{ github.sha }}.flist
 
       - name: Cross tagging (development)
