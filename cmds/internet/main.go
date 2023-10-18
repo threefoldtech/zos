@@ -185,14 +185,25 @@ func configureZOS() error {
 			return errors.Wrapf(err, "could not bring %s up", zosChild)
 		}
 
-		if env.PrivVlan != nil {
+		if env.PrivVlan != nil && env.PubVlan != nil {
+			// if both priv and pub vlan are configured it means
+			// that we can remove the default tagging of vlan 1
 			// remove default
 			if err := netlink.BridgeVlanDel(link, 1, true, true, false, false); err != nil {
 				return errors.Wrapf(err, "failed to delete default vlan on device '%s'", link.Attrs().Name)
 			}
+		}
 
+		if env.PrivVlan != nil {
 			// add new vlan
 			if err := netlink.BridgeVlanAdd(link, *env.PrivVlan, false, false, false, false); err != nil {
+				return errors.Wrapf(err, "failed to set vlan on device '%s'", link.Attrs().Name)
+			}
+		}
+
+		if env.PubVlan != nil {
+			// add new vlan
+			if err := netlink.BridgeVlanAdd(link, *env.PubVlan, false, false, false, false); err != nil {
 				return errors.Wrapf(err, "failed to set vlan on device '%s'", link.Attrs().Name)
 			}
 		}
