@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/options"
 	"github.com/vishvananda/netlink"
@@ -103,7 +104,11 @@ func vethName(from, to string) string {
 // a generated name
 func Attach(link netlink.Link, bridge *netlink.Bridge, vlan *uint16, name ...string) error {
 	if link.Type() == "device" {
-		return attachNic(link, bridge, vlan)
+		if vlan != nil {
+			log.Warn().Msg("vlan is not supported in dual nic setup")
+		}
+
+		return attachNic(link, bridge, nil)
 	} else if link.Type() == "bridge" {
 		linkBr := link.(*netlink.Bridge)
 		n := vethName(link.Attrs().Name, bridge.Name)
