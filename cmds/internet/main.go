@@ -113,6 +113,20 @@ func check() error {
 	return backoff.RetryNotify(f, backoff.NewExponentialBackOff(), errHandler)
 }
 
+/*
+*
+configureZOS boots strap the private zos network (private subnet) it goes as follows:
+  - Find a physical interface that can get an IPv4 over dhcp
+  - Once interface is found, a bridge called `zos` is created, then the interface that was
+    found in previous step is attached to the zos bridge.
+  - Bridge and interface are brought UP then a dhcp daemon is started on the zos to get an IP.
+
+In case there is a priv vlan is configured (kernel param vlan:priv=<id>) it is basically the same as
+before but with the next twist:
+- During probing of the interface, probing done on that vlan
+- ZOS is added to vlan as `bridge vlan add vid <id> dev zos pvid self untagged`
+- link is added to vlan as `bridge vlan add vid <id> dev <link>`
+*/
 func configureZOS() error {
 
 	env := environment.MustGet()
@@ -138,7 +152,7 @@ func configureZOS() error {
 		}
 
 		log.Info().Str("interface", zosChild).Msg("selecting interface")
-		br, err := bootstrap.CreateDefaultBridge(types.DefaultBridge)
+		br, err := bootstrap.CreateDefaultBridge(types.DefaultBridge, env.PrivVlan)
 		if err != nil {
 			return err
 		}
@@ -169,6 +183,18 @@ func configureZOS() error {
 
 		if err := netlink.LinkSetUp(link); err != nil {
 			return errors.Wrapf(err, "could not bring %s up", zosChild)
+		}
+
+		if env.PrivVlan != nil {
+			// remove default
+			if err := netlink.BridgeVlanDel(link, 1, true, true, false, false); err != nil {
+				return errors.Wrapf(err, "failed to delete default vlan on device '%s'", link.Attrs().Name)
+			}
+
+			// add new vlan
+			if err := netlink.BridgeVlanAdd(link, *env.PrivVlan, false, false, false, false); err != nil {
+				return errors.Wrapf(err, "failed to set vlan on device '%s'", link.Attrs().Name)
+			}
 		}
 
 		dhcpService := dhcp.NewService(types.DefaultBridge, "", zinit.Default())
