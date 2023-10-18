@@ -12,6 +12,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/network/bootstrap"
 	"github.com/threefoldtech/zos/pkg/network/bridge"
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
@@ -113,11 +114,14 @@ func check() error {
 }
 
 func configureZOS() error {
+
+	env := environment.MustGet()
+
 	f := func() error {
 		log.Info().Msg("Start network bootstrap")
 
 		ifaceConfigs, err := bootstrap.AnalyzeLinks(
-			bootstrap.RequiresIPv4,
+			bootstrap.RequiresIPv4.WithVlan(env.PrivVlan),
 			bootstrap.PhysicalFilter,
 			bootstrap.PluggedFilter)
 		if err != nil {

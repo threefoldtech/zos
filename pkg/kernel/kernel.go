@@ -38,6 +38,19 @@ func (k Params) Get(key string) ([]string, bool) {
 	return v, ok
 }
 
+func (k Params) GetOne(key string) (string, bool) {
+	all, found := k.Get(key)
+	if !found {
+		return "", false
+	}
+
+	if len(all) == 0 {
+		return "", false
+	}
+
+	return all[len(all)-1], true
+}
+
 // IsDebug checks if zos-debug is set
 func (k Params) IsDebug() bool {
 	return k.Exists(Debug)
