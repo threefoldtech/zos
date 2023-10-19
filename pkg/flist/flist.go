@@ -229,6 +229,8 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 		sublog.Info().Strs("args", args).Msg("starting rfs daemon")
 		args = append([]string{"mount"}, append(args, mountpoint)...)
 		cmd = f.commander.Command("rfs", args...)
+	} else {
+		return "", errors.Errorf("unknown extension: '%s'", flistExt)
 	}
 
 	var out []byte
