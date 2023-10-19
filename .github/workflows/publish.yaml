@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - "*"
+    tags:
+      - "v*"
 jobs:
   build:
     name: Build and upload
@@ -55,8 +57,13 @@ jobs:
           root: archive
           name: zos:${{ steps.version.outputs.version }}.flist
 
+      # we tag only if and only if we merged to main
+      # in that case the tag will be the short sha.
+      # or if we tagged a certain version and that
+      # will use the tag value (has to start with v)
       - name: Tagging
         uses: threefoldtech/publish-flist@master
+        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         with:
           token: ${{ secrets.HUB_JWT }}
           action: tag
@@ -64,6 +71,7 @@ jobs:
           name: ${{ steps.tag.outputs.reference }}/zos.flist
           target: tf-autobuilder/zos:${{ steps.version.outputs.version }}.flist
 
+      # only for main branch (devnet)
       - name: Cross tagging (development)
         if: success() && github.ref == 'refs/heads/main'
         uses: threefoldtech/publish-flist@master

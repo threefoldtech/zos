@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - "*"
+    tags:
+      - "v*"
 jobs:
   containerd:
     uses: ./.github/workflows/bin-package.yaml
