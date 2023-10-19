@@ -32,7 +32,8 @@ jobs:
           if [ "${{ github.ref_type }}" = "tag" ]; then
             echo "reference=${ref#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "reference=${{ github.sha }}" >> $GITHUB_OUTPUT
+            reference="${{ github.sha }}"
+            echo "reference=${reference:0:7}" >> $GITHUB_OUTPUT
           fi
 
       - name: Set version of build
@@ -71,7 +72,7 @@ jobs:
           action: crosstag
           user: tf-zos
           name: development
-          target: tf-autobuilder/${{ github.sha }}
+          target: tf-autobuilder/${{ steps.tag.outputs.reference }}
       # compatibility with old release
       # this is needed so old machines that is already running on devnet
       # gets the new code to be able to use the new release tag

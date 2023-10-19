@@ -25,7 +25,8 @@ jobs:
           if [ "${{ github.ref_type }}" = "tag" ]; then
             echo "reference=${ref#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "reference=${{ github.sha }}" >> $GITHUB_OUTPUT
+            reference="${{ github.sha }}"
+            echo "reference=${reference:0:7}" >> $GITHUB_OUTPUT
           fi
       - name: Setup basesystem
         run: |

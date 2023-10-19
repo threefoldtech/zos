@@ -2,7 +2,6 @@ use anyhow::Result;
 use reqwest::{blocking::get, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::fmt::format;
 use std::fs::{write, OpenOptions};
 use std::io::copy;
 use std::path::Path;
@@ -21,6 +20,8 @@ pub enum Kind {
     Symlink,
     #[serde(rename = "tag")]
     Tag,
+    #[serde(rename = "taglink")]
+    TagLink,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -61,6 +62,41 @@ impl Repo {
         Ok(info)
     }
 
+    pub fn list_tag<S: AsRef<str>>(&self, tag: S) -> Result<Option<Vec<Flist>>> {
+        let tag = tag.as_ref();
+
+        let url = format!("{}/api/flist/{}/tags/{}", HUB, self.name, tag);
+        let response = get(&url)?;
+        let mut info: Vec<Flist> = match response.status() {
+            StatusCode::OK => response.json()?,
+            StatusCode::NOT_FOUND => return Ok(None),
+            s => bail!("failed to get flist info: {}", s),
+        };
+
+        // when listing tags. The flists inside have target as full name
+        // so we need
+        for flist in info.iter_mut() {
+            if flist.kind == Kind::Regular {
+                // this is impossible because tags can only have symlinks
+                continue;
+            }
+
+            let target = match &flist.target {
+                None => {
+                    // this is also not possible may be we should return an error
+                    // but we can just skip for now
+                    continue;
+                }
+                Some(target) => target,
+            };
+
+            flist.url = format!("{}/{}", HUB, target);
+        }
+
+        Ok(Some(info))
+    }
+
+    /// gets flist information from name. the flist must be of type flist or symlink
     pub fn get<T>(&self, flist: T) -> Result<Flist>
     where
         T: AsRef<str>,
@@ -78,6 +114,21 @@ impl Repo {
 }
 
 impl Flist {
+    // tag_link return the target repo and tag name for
+    // a taglink flist
+    pub fn tag_link(self) -> (String, String) {
+        if self.kind != Kind::TagLink {
+            panic!("invalid flist type must be a taglink");
+        }
+
+        let target = self.target.unwrap();
+        let parts: Vec<&str> = target.split('/').collect();
+        assert_eq!(parts.len(), 3, "link must be 3 parts");
+        assert_eq!(parts[1], "tags");
+
+        (parts[0].to_owned(), parts[2].to_owned())
+    }
+
     /// download the flist to `out`
     pub fn download<T>(&self, out: T) -> Result<()>
     where
@@ -118,6 +169,22 @@ mod tests {
         assert_eq!(flist.name, "test.flist");
         assert_eq!(flist.kind, Kind::Regular);
         assert_eq!(flist.url, "https://hub.grid.tf/azmy/test.flist");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_list_tag() -> Result<()> {
+        let repo = Repo::new(String::from("tf-autobuilder"));
+
+        let list = repo.list_tag("7a704e4712d6b173ffb877fa5a19efe4da6d2e5c")?;
+
+        assert!(list.is_some());
+        let list = list.unwrap();
+
+        assert_ne!(list.len(), 0);
+
+        assert!(repo.list_tag("wrong")?.is_none());
 
         Ok(())
     }
