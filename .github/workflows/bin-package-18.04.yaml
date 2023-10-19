@@ -48,11 +48,11 @@ jobs:
           user: tf-autobuilder
           root: bins/releases/${{ inputs.package }}
           name: ${{ steps.package.outputs.name }}.flist
-      - name: Publishing
+      - name: Tagging
         uses: threefoldtech/publish-flist@master
-        if: success() && github.ref == 'refs/heads/main'
+        if: success()
         with:
-          token: ${{ secrets.HUB_JWT }}
+          token: ${{ secrets.token }}
           action: tag
           user: tf-autobuilder
           name: ${{ steps.tag.outputs.reference }}/${{ inputs.package }}.flist
