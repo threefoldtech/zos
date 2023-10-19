@@ -115,11 +115,11 @@ func check() error {
 
 /*
 *
-configureZOS boots strap the private zos network (private subnet) it goes as follows:
-  - Find a physical interface that can get an IPv4 over dhcp
+configureZOS bootstraps the private zos network (private subnet) it goes as follows:
+  - Find a physical interface that can get an IPv4 over DHCP
   - Once interface is found, a bridge called `zos` is created, then the interface that was
     found in previous step is attached to the zos bridge.
-  - Bridge and interface are brought UP then a dhcp daemon is started on the zos to get an IP.
+  - Bridge and interface are brought UP then a DHCP daemon is started on the zos to get an IP.
 
 In case there is a priv vlan is configured (kernel param vlan:priv=<id>) it is basically the same as
 before but with the next twist:

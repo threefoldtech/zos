@@ -31,7 +31,7 @@ type IfaceConfig struct {
 	DefaultGW net.IP
 }
 
-// Requires tesll the analyser to wait for ip type
+// Requires tells the analyzer to wait for ip type
 type Requires struct {
 	ipv4 bool
 	ipv6 bool
