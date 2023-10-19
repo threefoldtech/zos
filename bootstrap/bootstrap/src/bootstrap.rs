@@ -18,19 +18,15 @@ const WORKDIR: &str = "/tmp/bootstrap";
 fn boostrap_zos(cfg: &config::Config) -> Result<()> {
     let flist = match &cfg.runmode {
         RunMode::Prod => match &cfg.version {
-            Version::V2 => "zos:production:latest.flist",
             Version::V3 => "zos:production-3:latest.flist",
         },
         RunMode::Dev => match &cfg.version {
-            Version::V2 => "zos:development:latest.flist",
             Version::V3 => "zos:development-3:latest.flist",
         },
         RunMode::Test => match &cfg.version {
-            Version::V2 => "zos:testing:latest.flist",
             Version::V3 => "zos:testing-3:latest.flist",
         },
         RunMode::QA => match &cfg.version {
-            Version::V2 => bail!("qa not supported on v2"),
             Version::V3 => "zos:qa-3:latest.flist",
         },
     };
@@ -65,7 +61,7 @@ fn boostrap_zos(cfg: &config::Config) -> Result<()> {
 /// bootstrap stage install and starts all zos daemons
 pub fn bootstrap(cfg: &config::Config) -> Result<()> {
     debug!("runmode: {:?}", cfg.runmode);
-    let result = WorkDir::run(WORKDIR, || -> Result<()> {
+    let result = WorkDir::run(WORKDIR, || {
         boostrap_zos(cfg)?;
         Ok(())
     })?;
@@ -76,7 +72,7 @@ pub fn bootstrap(cfg: &config::Config) -> Result<()> {
 /// update stage make sure we are running latest
 /// version of bootstrap
 pub fn update(cfg: &config::Config) -> Result<()> {
-    let result = WorkDir::run(WORKDIR, || -> Result<()> {
+    let result = WorkDir::run(WORKDIR, || {
         update_bootstrap(cfg.debug)?;
         Ok(())
     })?;
@@ -135,7 +131,6 @@ pub fn install(cfg: &config::Config) -> Result<()> {
 
 fn install_packages(cfg: &config::Config) -> Result<()> {
     let name = match cfg.version {
-        Version::V2 => BIN_REPO_V2,
         Version::V3 => BIN_REPO_V3,
     };
 

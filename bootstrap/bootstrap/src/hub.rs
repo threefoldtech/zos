@@ -2,6 +2,7 @@ use anyhow::Result;
 use reqwest::{blocking::get, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::fmt::format;
 use std::fs::{write, OpenOptions};
 use std::io::copy;
 use std::path::Path;
@@ -9,21 +10,28 @@ use std::path::Path;
 const HUB: &str = "https://hub.grid.tf";
 
 pub struct Repo {
-    base: String,
     name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum Kind {
+    #[serde(rename = "regular")]
+    Regular,
+    #[serde(rename = "symlink")]
+    Symlink,
+    #[serde(rename = "tag")]
+    Tag,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Flist {
     #[serde(rename = "type")]
-    pub kind: String,
+    pub kind: Kind,
     pub updated: u64,
     #[serde(default)]
     pub md5: String,
     pub name: String,
-    #[serde(default)]
-    pub target: String,
-
+    pub target: Option<String>,
     #[serde(skip)]
     pub url: String,
 }
@@ -34,13 +42,12 @@ impl Repo {
         T: AsRef<str>,
     {
         Repo {
-            base: String::from(HUB),
             name: String::from(name.as_ref()),
         }
     }
 
     pub fn list(&self) -> Result<Vec<Flist>> {
-        let url = format!("{}/api/flist/{}", self.base, self.name,);
+        let url = format!("{}/api/flist/{}", HUB, self.name,);
 
         let response = get(&url)?;
         let mut info: Vec<Flist> = match response.status() {
@@ -48,7 +55,7 @@ impl Repo {
             s => bail!("failed to get flist info: {}", s),
         };
         for flist in info.iter_mut() {
-            flist.url = format!("{}/{}/{}", self.base, self.name, flist.name);
+            flist.url = format!("{}/{}/{}", HUB, self.name, flist.name);
         }
 
         Ok(info)
@@ -58,19 +65,14 @@ impl Repo {
     where
         T: AsRef<str>,
     {
-        let url = format!(
-            "{}/api/flist/{}/{}/light",
-            self.base,
-            self.name,
-            flist.as_ref()
-        );
+        let url = format!("{}/api/flist/{}/{}/light", HUB, self.name, flist.as_ref());
 
         let response = get(&url)?;
         let mut info: Flist = match response.status() {
             StatusCode::OK => response.json()?,
             s => bail!("failed to get flist info: {}", s),
         };
-        info.url = format!("{}/{}/{}", self.base, self.name, flist.as_ref());
+        info.url = format!("{}/{}/{}", HUB, self.name, flist.as_ref());
         Ok(info)
     }
 }
@@ -81,6 +83,10 @@ impl Flist {
     where
         T: AsRef<Path>,
     {
+        if self.kind == Kind::Tag {
+            bail!("can't download a tag");
+        }
+
         let mut file = OpenOptions::new().write(true).create(true).open(out)?;
 
         let mut response = get(&self.url)?;
@@ -110,7 +116,7 @@ mod tests {
         let repo = Repo::new(String::from("azmy"));
         let flist = repo.get("test.flist")?;
         assert_eq!(flist.name, "test.flist");
-        assert_eq!(flist.kind, "regular");
+        assert_eq!(flist.kind, Kind::Regular);
         assert_eq!(flist.url, "https://hub.grid.tf/azmy/test.flist");
 
         Ok(())

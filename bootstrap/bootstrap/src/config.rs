@@ -12,7 +12,6 @@ pub enum RunMode {
 
 #[derive(Debug)]
 pub enum Version {
-    V2,
     V3,
 }
 
@@ -49,17 +48,16 @@ fn version() -> Result<Version> {
     let ver = match params.get("version") {
         Some(input) => match input {
             Some(input) => match input.as_ref() {
-                "v2" => Version::V2,
                 "v3" => Version::V3,
                 m => {
                     bail!("unknown version: {}", m);
                 }
             },
-            None => Version::V2,
+            None => Version::V3,
         },
         // version was not provided in cmdline
         // so default is v2
-        None => Version::V2,
+        None => Version::V3,
     };
 
     Ok(ver)
