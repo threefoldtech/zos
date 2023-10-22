@@ -8,11 +8,11 @@ ldflags='-w -s -X $(version).Branch=$(branch) -X $(version).Revision=$(revision)
 all: getdeps test
 
 getdeps:
-	@echo "Installing staticcheck" && go get -u honnef.co/go/tools/cmd/staticcheck && go install honnef.co/go/tools/cmd/staticcheck
-	@echo "Installing gocyclo" && go get  -u github.com/fzipp/gocyclo/cmd/gocyclo
-	@echo "Installing deadcode" && go get -u github.com/remyoudompheng/go-misc/deadcode
-	@echo "Installing misspell" && go get -u github.com/client9/misspell/cmd/misspell
-	@echo "Installing golangci-lint" && go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1
+	@echo "Installing golint" && go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0
+	@echo "Installing gocyclo" && go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+	@echo "Installing deadcode" && go install github.com/remyoudompheng/go-misc/deadcode@latest
+	@echo "Installing misspell" && go install github.com/client9/misspell/cmd/misspell@latest
+	@echo "Installing staticcheck" && go install honnef.co/go/tools/cmd/staticcheck@latest
 
 
 verifiers: fmt lint cyclo deadcode spelling staticcheck
@@ -53,11 +53,11 @@ coverage: clean
 testrace: verifiers
 	go test -v -race -vet=off ./...
 
-run: 
-	go run main.go
+run-worker: 
+	go run ./tools/zos-update-worker/main.go
 
-build:
-	go build -o bin/zos-update-worker main.go 
+build-worker:
+	go build -o ./tools/zos-update-worker/bin/zos-update-worker ./tools/zos-update-worker/main.go 
 	
 clean:
 	rm ./coverage -rf
