@@ -121,7 +121,7 @@ func (p *publicIPValidationTask) validateIPs(_ ns.NetNS) error {
 			log.Err(err).Msg("failed to get node real IP")
 		}
 
-		if ip.String() == strings.TrimSpace(string(realIP)) {
+		if ip.String() == strings.TrimSpace(realIP) {
 			p.unusedIPs[publicIP.IP] = true
 		}
 
