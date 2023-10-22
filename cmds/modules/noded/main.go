@@ -208,7 +208,7 @@ func action(cli *cli.Context) error {
 	cpuBenchmarkTask := perf.NewCPUBenchmarkTask()
 	perfMon.AddTask(&cpuBenchmarkTask)
 
-	pubIPTask := perf.NewpublicIPTask()
+	pubIPTask := perf.NewPublicIPValidationTask()
 	perfMon.AddTask(pubIPTask)
 
 	if err = perfMon.Run(ctx); err != nil {

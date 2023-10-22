@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
@@ -24,16 +25,20 @@ const testMacvlan = "pubtestmacvlan"
 const testNamespace = "pubtestns"
 
 type publicIPValidationTask struct {
-	taskID   string
-	schedule string
+	taskID    string
+	schedule  string
+	unusedIPs map[string]bool
+	publicIPs []substrate.PublicIP
 }
 
 var _ Task = (*publicIPValidationTask)(nil)
 
-func NewpublicIPValidationTask() Task {
+func NewPublicIPValidationTask() Task {
 	return &publicIPValidationTask{
-		taskID:   "PublicIPValidation",
-		schedule: "0 0 */6 * * *",
+		taskID:    "PublicIPValidation",
+		schedule:  "0 0 */6 * * *",
+		unusedIPs: make(map[string]bool),
+		publicIPs: make([]substrate.PublicIP, 0),
 	}
 }
 
@@ -75,54 +80,61 @@ func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get farm with id %d: %w", farmID, err)
 	}
-	unusedIPs := make(map[string]bool)
-	err = netNS.Do(func(nn ns.NetNS) error {
-		mv, err := macvlan.GetByName(testMacvlan)
-		if err != nil {
-			return fmt.Errorf("failed to get macvlan %s in namespace %s: %w", testMacvlan, testNamespace, err)
-		}
-		for _, publicIP := range farm.PublicIPs {
-			if publicIP.ContractID != 0 {
-				continue
-			}
-			unusedIPs[publicIP.IP] = false
-
-			ip, ipNet, routes, err := getIPWithRoute(publicIP)
-			if err != nil {
-				log.Err(err).Send()
-				continue
-			}
-			err = macvlan.Install(mv, nil, ipNet, routes, netNS)
-			if err != nil {
-				log.Err(err).Msgf("failed to install macvlan %s with ip %s to namespace %s", testMacvlan, ipNet, testNamespace)
-				continue
-			}
-
-			realIP, err := getRealPublicIP()
-			if err != nil {
-				log.Err(err).Msg("failed to get node real IP")
-			}
-
-			if ip.String() == strings.TrimSpace(string(realIP)) {
-				unusedIPs[publicIP.IP] = true
-			}
-
-			err = deleteIPAndRoutes(publicIP, routes, mv)
-			if err != nil {
-				log.Err(err).Send()
-			}
-		}
-		err = netlink.LinkSetDown(mv)
-		if err != nil {
-			return fmt.Errorf("failed to set link down: %w", err)
-		}
-		return nil
-	})
+	p.publicIPs = farm.PublicIPs
+	err = netNS.Do(p.validateIPs)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to run public IP validation: %w", err)
 	}
-	return unusedIPs, nil
+	return p.unusedIPs, nil
+}
+
+func (p *publicIPValidationTask) validateIPs(_ ns.NetNS) error {
+	mv, err := macvlan.GetByName(testMacvlan)
+	if err != nil {
+		return fmt.Errorf("failed to get macvlan %s in namespace %s: %w", testMacvlan, testNamespace, err)
+	}
+	// to delete any leftover IPs or routes
+	err = deleteAllIPsAndRoutes(mv)
+	if err != nil {
+		log.Err(err).Send()
+	}
+	for _, publicIP := range p.publicIPs {
+		if publicIP.ContractID != 0 {
+			continue
+		}
+		p.unusedIPs[publicIP.IP] = false
+
+		ip, ipNet, routes, err := getIPWithRoute(publicIP)
+		if err != nil {
+			log.Err(err).Send()
+			continue
+		}
+		err = macvlan.Install(mv, nil, ipNet, routes, nil)
+		if err != nil {
+			log.Err(err).Msgf("failed to install macvlan %s with ip %s to namespace %s", testMacvlan, ipNet, testNamespace)
+			continue
+		}
+
+		realIP, err := getRealPublicIP()
+		if err != nil {
+			log.Err(err).Msg("failed to get node real IP")
+		}
+
+		if ip.String() == strings.TrimSpace(string(realIP)) {
+			p.unusedIPs[publicIP.IP] = true
+		}
+
+		err = deleteAllIPsAndRoutes(mv)
+		if err != nil {
+			log.Err(err).Send()
+		}
+	}
+	err = netlink.LinkSetDown(mv)
+	if err != nil {
+		return fmt.Errorf("failed to set link down: %w", err)
+	}
+	return nil
 }
 
 func isLeastValidNode(ctx context.Context, farmID uint32, sub *substrate.Substrate) (bool, error) {
@@ -133,14 +145,19 @@ func isLeastValidNode(ctx context.Context, farmID uint32, sub *substrate.Substra
 	cl := GetZbusClient(ctx)
 	registrar := stubs.NewRegistrarStub(cl)
 	var nodeID uint32
-	for {
+	err = backoff.Retry(func() error {
 		nodeID, err = registrar.NodeID(ctx)
-		if err == nil {
-			break
+		if err != nil {
+			log.Err(err).Msg("failed to get node id")
+			return err
 		}
-		log.Err(err).Msg("failed to get node id")
-		time.Sleep(10 * time.Second)
+		return nil
+	}, backoff.NewConstantBackOff(10*time.Second))
+
+	if err != nil {
+		return false, fmt.Errorf("failed to get node id: %w", err)
 	}
+
 	for _, node := range nodes {
 		if node >= uint32(nodeID) {
 			continue
@@ -219,20 +236,26 @@ func getRealPublicIP() (string, error) {
 	return string(body), nil
 }
 
-func deleteIPAndRoutes(publicIP substrate.PublicIP, routes []*netlink.Route, macvlan netlink.Link) error {
-	addr, err := netlink.ParseAddr(publicIP.IP)
+func deleteAllIPsAndRoutes(macvlan netlink.Link) error {
+	addresses, err := netlink.AddrList(macvlan, netlink.FAMILY_ALL)
 	if err != nil {
-		return fmt.Errorf("failed to parse public IP %s: %w", publicIP.IP, err)
+		return fmt.Errorf("failed to list addresses in macvlan %s: %w", testMacvlan, err)
 	}
-	for _, r := range routes {
-		err = netlink.RouteDel(r)
+	for _, addr := range addresses {
+		err = netlink.AddrDel(macvlan, &addr)
 		if err != nil {
-			return fmt.Errorf("failed to delete route %s: %w", r.String(), err)
+			log.Err(err).Msgf("failed to delete address %s", addr)
 		}
 	}
-	err = netlink.AddrDel(macvlan, addr)
+	routes, err := netlink.RouteList(macvlan, netlink.FAMILY_ALL)
 	if err != nil {
-		return fmt.Errorf("failed to delete address %s: %w", addr.String(), err)
+		return fmt.Errorf("failed to list routes in macvlan %s: %w", testMacvlan, err)
 	}
-	return nil
+	for _, route := range routes {
+		err = netlink.RouteDel(&route)
+		if err != nil {
+			log.Err(err).Msgf("failed to delete route %s", route)
+		}
+	}
+	return err
 }
