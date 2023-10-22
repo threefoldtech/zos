@@ -321,9 +321,8 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 		return nil, errors.Wrap(err, "failed to get current public bridge uplink")
 	}
 
-	err = ensureTestNamespace(br)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create test namespace: %w", err)
+	if err := ensureTestNamespace(br); err != nil {
+		return nil, errors.Wrap(err, "failed to create test namespace")
 	}
 
 	if inf == nil || inf.IsEmpty() {
@@ -357,11 +356,20 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 }
 
 func ensureTestNamespace(publicBrdige *netlink.Bridge) error {
-	ns, err := namespace.Create(testNamespace)
+	netNS, err := namespace.GetByName(testNamespace)
 	if err != nil {
-		return fmt.Errorf("failed to create namespace %s: %w", ns, err)
+		netNS, err = namespace.Create(testNamespace)
+		if err != nil {
+			return fmt.Errorf("failed to create namespace %s: %w", testNamespace, err)
+		}
 	}
-	_, err = macvlan.Create(testMacvlan, publicBrdige.Name, ns)
+	err = netNS.Do(func(_ ns.NetNS) error {
+		_, err := macvlan.GetByName(testMacvlan)
+		return err
+	})
+	if err != nil {
+		_, err = macvlan.Create(testMacvlan, publicBrdige.Name, netNS)
+	}
 	return err
 }
 
