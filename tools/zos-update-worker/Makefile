@@ -8,12 +8,11 @@ ldflags='-w -s -X $(version).Branch=$(branch) -X $(version).Revision=$(revision)
 all: getdeps test
 
 getdeps:
+	@echo "Installing staticcheck" && go get -u honnef.co/go/tools/cmd/staticcheck && go install honnef.co/go/tools/cmd/staticcheck
 	@echo "Installing gocyclo" && go get  -u github.com/fzipp/gocyclo/cmd/gocyclo
 	@echo "Installing deadcode" && go get -u github.com/remyoudompheng/go-misc/deadcode
 	@echo "Installing misspell" && go get -u github.com/client9/misspell/cmd/misspell
-	@echo "Installing golangci-lint" && curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ${GOPATH}/bin v1.50.1
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.50.1
-	@wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.50.1
+	@echo "Installing golangci-lint" && go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1
 
 
 verifiers: fmt lint cyclo deadcode spelling staticcheck
@@ -38,7 +37,7 @@ spelling:
 	@${GOPATH}/bin/misspell -i monitord -error `find .`
 
 staticcheck:
-	go run honnef.co/go/tools/cmd/staticcheck -- ./...
+	@${GOPATH}/bin/staticcheck -- ./...
 
 test: verifiers
 	go test -v -vet=off ./...

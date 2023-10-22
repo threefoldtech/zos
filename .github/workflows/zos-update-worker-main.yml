@@ -2,7 +2,7 @@ name: Go GitHub Actions
 
 defaults:
   run:
-    working-directory: zox-update-worker 
+    working-directory: tools/zos-update-worker 
 
 on: 
   push:
@@ -31,12 +31,17 @@ jobs:
           working-directory: tools/zos-update-worker 
 
       - name: staticcheck
-        uses: dominikh/staticcheck-action@v1.2.0
+        uses: dominikh/staticcheck-action@v1.3.0
+        with:
+          version: "2022.1.3"
+          working-directory: tools/zos-update-worker 
+        env:
+          GO111MODULE: on
 
       - name: gofmt
-        uses: Jerome1337/gofmt-action@v1.0.4
+        uses: Jerome1337/gofmt-action@v1.0.5
         with:
-          gofmt-flags: '-l -d'
+          gofmt-flags: "-l -d"
        
       - name: Test
         run: go test -v ./...
