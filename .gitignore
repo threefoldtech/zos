@@ -20,3 +20,27 @@ qemu/*.efi
 
 # c object
 *.o
+
+# tools/zos-update-worker
+# Binaries for programs and plugins
+tools/zos-update-worker/*.exe
+tools/zos-update-worker/*.exe~
+tools/zos-update-worker/*.dll
+tools/zos-update-worker/*.so
+tools/zos-update-worker/*.dylib
+
+# Test binary, built with `go test -c`
+tools/zos-update-worker/*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+tools/zos-update-worker/*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+tools/zos-update-worker/tf-autobuilder/
+tools/zos-update-worker/tf-zos/
+tools/zos-update-worker/bin/
+tools/zos-update-worker/coverage/
+
+tools/zos-update-worker/dist/
