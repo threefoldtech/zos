@@ -2,10 +2,11 @@ package perf
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net"
 	"os/exec"
 
-	goIperf "github.com/BGrewell/go-iperf"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/environment"
@@ -20,13 +21,13 @@ type IperfTest struct {
 
 // IperfResult for iperf test results
 type IperfResult struct {
-	UploadSpeed   float64                      `json:"upload_speed"`   // in bit/sec
-	DownloadSpeed float64                      `json:"download_speed"` // in bit/sec
-	NodeID        uint32                       `json:"node_id"`
-	NodeIpv4      string                       `json:"node_ip"`
-	TestType      string                       `json:"test_type"`
-	Error         string                       `json:"error"`
-	CpuReport     goIperf.CpuUtilizationReport `json:"cpu_report"`
+	UploadSpeed   float64               `json:"upload_speed"`   // in bit/sec
+	DownloadSpeed float64               `json:"download_speed"` // in bit/sec
+	NodeID        uint32                `json:"node_id"`
+	NodeIpv4      string                `json:"node_ip"`
+	TestType      string                `json:"test_type"`
+	Error         string                `json:"error"`
+	CpuReport     CPUUtilizationPercent `json:"cpu_report"`
 }
 
 // NewIperfTest creates a new iperf test
@@ -104,35 +105,46 @@ func (t *IperfTest) Run(ctx context.Context) (interface{}, error) {
 }
 
 func (t *IperfTest) runIperfTest(ctx context.Context, clientIP string, tcp bool) IperfResult {
-	iperfClient := goIperf.NewClient(clientIP)
-	iperfClient.SetBandwidth("1M")
-	iperfClient.SetPort(iperf.IperfPort)
-	iperfClient.SetInterval(20)
-	iperfClient.SetJSON(true)
+	opts := make([]string, 0)
+	opts = append(opts,
+		"--client", clientIP,
+		"--bandwidth", "1M",
+		"--port", fmt.Sprint(iperf.IperfPort),
+		"--interval", "20",
+		"--json",
+	)
 
 	if !tcp {
-		iperfClient.SetLength("16B")
-		iperfClient.SetProto(goIperf.PROTO_UDP)
+		opts = append(opts, "--length", "16B", "--udp")
+	}
+	output, err := exec.CommandContext(ctx, "iperf", opts...).CombinedOutput()
+	exitErr := &exec.ExitError{}
+	if err != nil && !errors.As(err, &exitErr) {
+		log.Err(err).Msg("failed to run iperf")
+		return IperfResult{}
 	}
 
-	err := iperfClient.Start()
-	if err != nil {
-		log.Error().Err(err).Msgf("failed to start iperf client with ip '%s'", clientIP)
+	var report iperfCommandOutput
+	if err := json.Unmarshal(output, &report); err != nil {
+		log.Err(err).Msg("failed to parse iperf output")
+		return IperfResult{}
 	}
 
-	<-iperfClient.Done
-
+	proto := "tcp"
+	if !tcp {
+		proto = "udp"
+	}
 	iperfResult := IperfResult{
-		UploadSpeed:   iperfClient.Report().End.SumSent.BitsPerSecond,
-		DownloadSpeed: iperfClient.Report().End.SumReceived.BitsPerSecond,
-		CpuReport:     iperfClient.Report().End.CpuReport,
+		UploadSpeed:   report.End.SumSent.BitsPerSecond,
+		DownloadSpeed: report.End.SumReceived.BitsPerSecond,
+		CpuReport:     report.End.CPUUtilizationPercent,
 		NodeIpv4:      clientIP,
-		TestType:      string(iperfClient.Proto()),
-		Error:         iperfClient.Report().Error,
+		TestType:      proto,
+		Error:         report.Error,
 	}
 
-	if !tcp && len(iperfClient.Report().End.Streams) > 0 {
-		iperfResult.DownloadSpeed = iperfClient.Report().End.Streams[0].Udp.BitsPerSecond
+	if !tcp && len(report.End.Streams) > 0 {
+		iperfResult.DownloadSpeed = report.End.Streams[0].UDP.BitsPerSecond
 	}
 
 	return iperfResult
