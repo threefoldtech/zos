@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -139,10 +137,6 @@ func main() {
 		log.Info().Msg("received a termination signal")
 	})
 
-	if debug {
-		debugReinstall(upgrader)
-	}
-
 	err = upgrader.Run(ctx)
 	if errors.Is(err, upgrade.ErrRestartNeeded) {
 		return
@@ -151,23 +145,6 @@ func main() {
 		os.Exit(1)
 	}
 
-}
-
-// allow reinstall if receive signal USR1
-// only allowed in debug mode
-func debugReinstall(up *upgrade.Upgrader) {
-	c := make(chan os.Signal, 10)
-	signal.Notify(c, syscall.SIGUSR1)
-
-	go func() {
-		for range c {
-			if err := up.Reinstall(); err != nil {
-				log.Error().Err(err).Msg("reinstall failed")
-			} else {
-				log.Info().Msg("reinstall completed successfully")
-			}
-		}
-	}()
 }
 
 func getIdentityMgr(root string, debug bool) (pkg.IdentityManager, error) {

@@ -173,15 +173,6 @@ func (u *Upgrader) Run(ctx context.Context) error {
 	}
 }
 
-func (u *Upgrader) Reinstall() error {
-	current, err := u.boot.Current()
-	if err != nil {
-		return err
-	}
-
-	return u.updateTo(current)
-}
-
 func (u *Upgrader) Version() semver.Version {
 	return u.boot.Version()
 }
