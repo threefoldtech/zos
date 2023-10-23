@@ -6,7 +6,9 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/threefoldtech/0-fs/meta"
 	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
+	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/upgrade/hub"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
@@ -29,12 +32,12 @@ var (
 	// services that can't be uninstalled with normal procedure
 	protected = []string{"identityd", "redis"}
 
-	deleteMe = []string{"promtail"}
-
 	flistIdentityPath = "/bin/identityd"
 )
 
 const (
+	service = "upgrader"
+
 	defaultHubStorage  = "zdb://hub.grid.tf:9900"
 	defaultZinitSocket = "/var/run/zinit.sock"
 
@@ -51,7 +54,7 @@ type Upgrader struct {
 	boot         Boot
 	zinit        *zinit.Client
 	root         string
-	noSelfUpdate bool
+	noZosUpgrade bool
 	hub          hub.HubClient
 	storage      storage.Storage
 }
@@ -59,16 +62,19 @@ type Upgrader struct {
 // UpgraderOption interface
 type UpgraderOption func(u *Upgrader) error
 
-// NoSelfUpgrade option
-func NoSelfUpgrade(o bool) UpgraderOption {
+// NoZosUpgrade option, enable or disable
+// the update of zos binaries.
+// enabled by default
+func NoZosUpgrade(o bool) UpgraderOption {
 	return func(u *Upgrader) error {
-		u.noSelfUpdate = o
+		u.noZosUpgrade = o
 
 		return nil
 	}
 }
 
 // Storage option overrides the default hub storage url
+// default value is hub.grid.tf
 func Storage(url string) func(u *Upgrader) error {
 	return func(u *Upgrader) error {
 		storage, err := storage.NewSimpleStorage(url)
@@ -130,15 +136,22 @@ func (u *Upgrader) Run(ctx context.Context) error {
 		// binaries required by the system except for the zos
 		// binaries
 		// then we should block forever
-		remote, err := u.remote()
-		if err != nil {
-			return errors.Wrap(err, "failed to get remote tag")
-		}
+		log.Info().Msg("system is not booted from the hub")
+		if app.IsFirstBoot(service) {
+			remote, err := u.remote()
+			if err != nil {
+				return errors.Wrap(err, "failed to get remote tag")
+			}
 
-		if err := u.updateTo(remote); err != nil {
-			return errors.Wrap(err, "failed to run update")
+			if err := u.updateTo(remote); err != nil {
+				return errors.Wrap(err, "failed to run update")
+			}
 		}
+		// to avoid redoing the binary installation
+		// when service is restarted
+		app.MarkBooted(service)
 
+		log.Info().Msg("update is disabled")
 		<-ctx.Done()
 		return nil
 	}
@@ -150,8 +163,12 @@ func (u *Upgrader) Run(ctx context.Context) error {
 		case <-time.After(u.nextUpdate()):
 		}
 
-		if err := u.update(); err != nil {
+		err := u.update()
+		if errors.Is(err, ErrRestartNeeded) {
 			return err
+		} else if err != nil {
+			log.Error().Err(err).Msg("failed while checking for updates")
+			<-time.After(10 * time.Second)
 		}
 	}
 }
@@ -171,7 +188,9 @@ func (u *Upgrader) Version() semver.Version {
 
 func (u *Upgrader) nextUpdate() time.Duration {
 	jitter := rand.Intn(checkJitter)
-	return checkForUpdateEvery + (time.Duration(jitter) * time.Minute)
+	next := checkForUpdateEvery + (time.Duration(jitter) * time.Minute)
+	log.Info().Str("after", next.String()).Msg("checking for update after")
+	return next
 }
 
 func (u *Upgrader) remote() (remote hub.TagLink, err error) {
@@ -213,6 +232,7 @@ func (u *Upgrader) update() error {
 		return nil
 	}
 
+	log.Info().Str("version", filepath.Base(remote.Target)).Msg("updating system...")
 	if err := u.updateTo(remote); err != nil {
 		return errors.Wrapf(err, "failed to update to new tag '%s'", remote.Target)
 	}
@@ -238,8 +258,9 @@ func (u *Upgrader) updateTo(link hub.TagLink) error {
 	var later [][]string
 	for _, pkg := range packages {
 		pkgRepo, name, err := pkg.Destination(repo)
-		if name == ZosPackage {
+		if pkg.Name == ZosPackage {
 			// this is the last to do
+			log.Debug().Str("repo", pkgRepo).Str("name", name).Msg("schedule package for later")
 			later = append(later, []string{pkgRepo, name})
 			continue
 		}
@@ -249,15 +270,19 @@ func (u *Upgrader) updateTo(link hub.TagLink) error {
 		}
 
 		// install package
-		if err := u.InstallBinary(pkgRepo, name); err != nil {
+		if err := u.install(pkgRepo, name); err != nil {
 			return errors.Wrapf(err, "failed to install package %s/%s", pkgRepo, name)
 		}
+	}
+
+	if u.noZosUpgrade {
+		return nil
 	}
 
 	// probably check flag for zos installation
 	for _, pkg := range later {
 		repo, name := pkg[0], pkg[1]
-		if err := u.InstallBinary(repo, name); err != nil {
+		if err := u.install(repo, name); err != nil {
 			return errors.Wrapf(err, "failed to install package %s/%s", repo, name)
 		}
 	}
@@ -294,8 +319,8 @@ func (u *Upgrader) getFlist(repo, name string) (meta.Walker, error) {
 	return walker, nil
 }
 
-// InstallBinary from a single flist.
-func (u *Upgrader) InstallBinary(repo, name string) error {
+// install from a single flist.
+func (u *Upgrader) install(repo, name string) error {
 	log.Info().Str("repo", repo).Str("name", name).Msg("start installing package")
 
 	store, err := u.getFlist(repo, name)
@@ -304,7 +329,11 @@ func (u *Upgrader) InstallBinary(repo, name string) error {
 	}
 	defer store.Close()
 
-	if err := u.copyRecursive(store, "/"); err != nil {
+	if err := safe(func() error {
+		// copy is done in a safe closer to avoid interrupting
+		// the installation
+		return u.copyRecursive(store, "/")
+	}); err != nil {
 		return errors.Wrapf(err, "failed to install flist: %s/%s", repo, name)
 	}
 
@@ -346,6 +375,11 @@ func (u *Upgrader) servicesFromStore(store meta.Walker) ([]string, error) {
 }
 
 func (u *Upgrader) ensureRestarted(service ...string) error {
+	// remove protected function from list, these never restarted
+	service = slices.DeleteFunc(service, func(e string) bool {
+		return slices.Contains(protected, e)
+	})
+
 	log.Debug().Strs("services", service).Msg("ensure services")
 	if len(service) == 0 {
 		return nil
@@ -478,4 +512,17 @@ func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 	}
 
 	return nil
+}
+
+// safe makes sure function call not interrupted
+// with a signal while execution
+func safe(fn func() error) error {
+	ch := make(chan os.Signal, 4)
+	defer close(ch)
+	defer signal.Stop(ch)
+
+	// try to upgraded to latest
+	// but mean while also make sure the daemon can not be killed by a signal
+	signal.Notify(ch)
+	return fn()
 }

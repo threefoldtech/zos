@@ -33,19 +33,6 @@ const (
 	module = "identityd"
 )
 
-// Safe makes sure function call not interrupted
-// with a signal while exection
-func Safe(fn func() error) error {
-	ch := make(chan os.Signal, 4)
-	defer close(ch)
-	defer signal.Stop(ch)
-
-	// try to upgraded to latest
-	// but mean while also make sure the daemon can not be killed by a signal
-	signal.Notify(ch)
-	return fn()
-}
-
 // This daemon startup has the follow flow:
 // 1. Do upgrade to latest version (this might means it needs to restart itself)
 // 2. Register the node to BCDB
@@ -123,7 +110,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create identity manager")
 	}
 
-	upgrader, err := upgrade.NewUpgrader(root, upgrade.NoSelfUpgrade(debug))
+	upgrader, err := upgrade.NewUpgrader(root, upgrade.NoZosUpgrade(debug))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize upgrader")
 	}
@@ -151,6 +138,10 @@ func main() {
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("received a termination signal")
 	})
+
+	if debug {
+		debugReinstall(upgrader)
+	}
 
 	err = upgrader.Run(ctx)
 	if errors.Is(err, upgrade.ErrRestartNeeded) {

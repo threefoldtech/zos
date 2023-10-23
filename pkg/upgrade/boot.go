@@ -50,7 +50,6 @@ func (b Boot) DetectBootMethod() BootMethod {
 	log.Info().Msg("detecting boot method")
 	_, err := os.Stat(TagFile)
 	if err != nil {
-		log.Warn().Err(err).Msg("no flist file found")
 		return BootMethodOther
 	}
 
