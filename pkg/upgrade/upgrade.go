@@ -31,8 +31,6 @@ var (
 
 	// services that can't be uninstalled with normal procedure
 	protected = []string{"identityd", "redis"}
-
-	flistIdentityPath = "/bin/identityd"
 )
 
 const (
@@ -149,7 +147,9 @@ func (u *Upgrader) Run(ctx context.Context) error {
 		}
 		// to avoid redoing the binary installation
 		// when service is restarted
-		app.MarkBooted(service)
+		if err := app.MarkBooted(service); err != nil {
+			return errors.Wrap(err, "failed to mark system as booted")
+		}
 
 		log.Info().Msg("update is disabled")
 		<-ctx.Done()
