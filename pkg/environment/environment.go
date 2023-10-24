@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"sync"
 
+	"slices"
+
 	"github.com/pkg/errors"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zos/pkg"
@@ -14,6 +16,20 @@ import (
 
 const (
 	baseExtendedURL = "https://raw.githubusercontent.com/threefoldtech/zos-config/main/"
+)
+
+// PubMac specify how the mac address of the public nic
+// (in case of public-config) is calculated
+type PubMac string
+
+const (
+	// PubMacRandom means the mac of the public nic will be chosen by the system
+	// the value won't change across reboots, but is based on the node id
+	// (default)
+	PubMacRandom PubMac = "random"
+	// PubMacSwap means the value of the mac is swapped with the physical nic
+	// where the public traffic is eventually going through
+	PubMacSwap PubMac = "swap"
 )
 
 // Environment holds information about running environment of a node
@@ -37,6 +53,18 @@ type Environment struct {
 	GraphQL       string
 
 	ExtendedConfigURL string
+
+	// private vlan to join
+	// if set, zos will use this as its priv vlan
+	PrivVlan *uint16
+
+	// pub vlan to join
+	// if set, zos will use this as it's pub vlan
+	// only in a single nic setup
+	PubVlan *uint16
+
+	// PubMac value from environment
+	PubMac PubMac
 }
 
 // RunningMode type
@@ -248,6 +276,39 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 			return env, errors.Wrap(err, "wrong format for farm ID")
 		}
 		env.FarmID = pkg.FarmID(id)
+	}
+
+	if vlan, found := params.GetOne("vlan:priv"); found {
+		if !slices.Contains([]string{"none", "untagged", "un"}, vlan) {
+			tag, err := strconv.ParseUint(vlan, 10, 16)
+			if err != nil {
+				return env, errors.Wrap(err, "failed to parse priv vlan value")
+			}
+			tagU16 := uint16(tag)
+			env.PrivVlan = &tagU16
+		}
+	}
+
+	if vlan, found := params.GetOne("vlan:pub"); found {
+		if !slices.Contains([]string{"none", "untagged", "un"}, vlan) {
+			tag, err := strconv.ParseUint(vlan, 10, 16)
+			if err != nil {
+				return env, errors.Wrap(err, "failed to parse pub vlan value")
+			}
+			tagU16 := uint16(tag)
+			env.PubVlan = &tagU16
+		}
+	}
+
+	if mac, found := params.GetOne("pub:mac"); found {
+		v := PubMac(mac)
+		if slices.Contains([]PubMac{PubMacRandom, PubMacSwap}, v) {
+			env.PubMac = v
+		} else {
+			env.PubMac = PubMacRandom
+		}
+	} else {
+		env.PubMac = PubMacRandom
 	}
 
 	// Checking if there environment variable
