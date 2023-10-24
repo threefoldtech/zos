@@ -36,12 +36,6 @@ jobs:
       package: yggdrasil
     secrets:
       token: ${{ secrets.HUB_JWT }}
-  zufs:
-    uses: ./.github/workflows/bin-package.yaml
-    with:
-      package: zufs
-    secrets:
-      token: ${{ secrets.HUB_JWT }}
   rfs:
     uses: ./.github/workflows/bin-package.yaml
     with:
