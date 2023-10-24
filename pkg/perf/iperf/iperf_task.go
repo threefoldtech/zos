@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/network/iperf"
+	"github.com/threefoldtech/zos/pkg/perf"
 )
 
 // IperfTest for iperf tcp/udp tests
@@ -30,9 +33,15 @@ type IperfResult struct {
 	CpuReport     CPUUtilizationPercent `json:"cpu_report"`
 }
 
-// NewIperfTest creates a new iperf test
-func NewIperfTest() IperfTest {
-	return IperfTest{taskID: "iperf", schedule: "0 0 */6 * * *"}
+// NewTask creates a new iperf test
+func NewTask() perf.Task {
+	// because go-iperf left tmp directories with perf binary in it each time
+	// the task had run
+	matches, _ := filepath.Glob("/tmp/goiperf*")
+	for _, match := range matches {
+		os.RemoveAll(match)
+	}
+	return &IperfTest{taskID: "iperf", schedule: "0 0 */6 * * *"}
 }
 
 // ID returns the ID of the tcp task

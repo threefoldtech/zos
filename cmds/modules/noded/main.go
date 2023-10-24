@@ -204,8 +204,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create a new perfMon")
 	}
 
-	iperfTest := iperf.NewIperfTest()
-	perfMon.AddTask(&iperfTest)
+	perfMon.AddTask(iperf.NewTask())
 
 	cpuBenchmarkTask := cpubench.NewCPUBenchmarkTask()
 	perfMon.AddTask(&cpuBenchmarkTask)
