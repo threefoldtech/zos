@@ -1,4 +1,4 @@
-package perf
+package iperf
 
 type iperfCommandOutput struct {
 	Start     Start      `json:"start"`
