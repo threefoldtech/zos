@@ -1,4 +1,9 @@
-name: Release (development)
+# the publish workflow builds zos binaries
+# and tag them correctly
+# the build is triggered when pushing to any
+# branch, but the tagging of the build only happens
+# either on main or when a tag is created
+name: Release
 on:
   push:
     branches:
@@ -26,7 +31,11 @@ jobs:
           make
         env:
           GO111MODULE: on
-
+      # the tag step only extract the correct version
+      # tag to use. this is the short sha in case of
+      # a branch, or the tag name in case of "release"
+      # the value is then stored as `reference`
+      # and then accessed later in the workflow
       - name: Set tag of build
         id: tag
         run: |
@@ -72,6 +81,7 @@ jobs:
           target: tf-autobuilder/zos:${{ steps.version.outputs.version }}.flist
 
       # only for main branch (devnet)
+      # this basically releases this build to devnet
       - name: Cross tagging (development)
         if: success() && github.ref == 'refs/heads/main'
         uses: threefoldtech/publish-flist@master
@@ -81,6 +91,8 @@ jobs:
           user: tf-zos
           name: development
           target: tf-autobuilder/${{ steps.tag.outputs.reference }}
+      # this is only here until devnet is updated for the first
+      # time then this can be safely deleted
       # compatibility with old release
       # this is needed so old machines that is already running on devnet
       # gets the new code to be able to use the new release tag

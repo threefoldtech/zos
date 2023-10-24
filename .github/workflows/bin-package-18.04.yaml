@@ -1,3 +1,6 @@
+# Builds a single runtime package, this
+# is similar to bin-package but always uses ubuntu:18.04 to
+# build the package.
 name: Build Extra Binary
 
 on:

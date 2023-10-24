@@ -1,3 +1,8 @@
+# Builds all runtime packages. Normally all packages
+# uses the bin-package file, but some of them uses:
+# - bin-package-18.04 when the build requires ubuntu 18.04
+# - bin-package-no-tag when the built package should not
+#   be linked to the release tag
 name: Runtime packages
 on:
   push:
@@ -103,13 +108,13 @@ jobs:
     secrets:
       token: ${{ secrets.HUB_JWT }}
   qsfs:
-    uses: ./.github/workflows/bin-no-publish.yaml
+    uses: ./.github/workflows/bin-package-no-tag.yaml
     with:
       package: qsfs
     secrets:
       token: ${{ secrets.HUB_JWT }}
   traefik:
-    uses: ./.github/workflows/bin-no-publish.yaml
+    uses: ./.github/workflows/bin-package-no-tag.yaml
     with:
       package: traefik
     secrets:

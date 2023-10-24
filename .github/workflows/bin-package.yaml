@@ -1,3 +1,11 @@
+# Builds a single runtime package, this
+# workflow is only invoked from the `bins.yaml` file
+# to build the configured packages
+#
+# the built binary is ALWAYS published to tf-autobuilder
+# and then tagged with a certain tag. this can be the version
+# of the release or the `short sha` of the head, if on main
+# branch
 name: Build Extra Binary
 
 on:
@@ -17,6 +25,11 @@ jobs:
     steps:
       - name: Checkout code into the Go module directory
         uses: actions/checkout@v1
+      # the tag step only extract the correct version
+      # tag to use. this is the short sha in case of
+      # a branch, or the tag name in case of "release"
+      # the value is then stored as `reference`
+      # and then accessed later in the workflow
       - name: Set tag of build
         id: tag
         run: |
