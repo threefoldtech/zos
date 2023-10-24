@@ -1,4 +1,4 @@
-package perf
+package cpubench
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 
+	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -28,7 +29,7 @@ type CPUBenchmarkResult struct {
 	Workloads      int     `json:"workloads"`
 }
 
-var _ Task = (*CPUBenchmarkTask)(nil)
+var _ perf.Task = (*CPUBenchmarkTask)(nil)
 
 // NewCPUBenchmarkTask returns a new CPU benchmark task.
 func NewCPUBenchmarkTask() CPUBenchmarkTask {
@@ -59,7 +60,7 @@ func (c *CPUBenchmarkTask) Run(ctx context.Context) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse cpubench output: %w", err)
 	}
-	client := GetZbusClient(ctx)
+	client := perf.GetZbusClient(ctx)
 	statistics := stubs.NewStatisticsStub(client)
 
 	workloads, err := statistics.Workloads(ctx)
