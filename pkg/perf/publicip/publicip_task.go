@@ -2,10 +2,12 @@ package publicip
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"time"
 
@@ -159,6 +161,14 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) err
 			p.farmIPsReport[publicIP.IP] = IPReport{
 				State:  SkippedState,
 				Reason: FetchRealIPFailed,
+			}
+			e := &url.Error{}
+			if errors.As(err, &e) {
+				// http.Get failed which means invalid IP or GW
+				p.farmIPsReport[publicIP.IP] = IPReport{
+					State:  InvalidState,
+					Reason: PublicIPDataInvalid,
+				}
 			}
 			log.Err(err).Msg("failed to get node real IP")
 			continue

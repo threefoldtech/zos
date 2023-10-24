@@ -395,8 +395,7 @@ func ensureTestNamespace(publicBrdige *netlink.Bridge) error {
 		if err != nil {
 			return fmt.Errorf("failed to create namespace %s: %w", testNamespace, err)
 		}
-	}
-	if err != nil {
+	} else if err != nil {
 		return fmt.Errorf("failed to get namespace %s: %w", testNamespace, err)
 	}
 	err = netNS.Do(func(_ ns.NetNS) error {
