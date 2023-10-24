@@ -12,8 +12,7 @@ download_rfs() {
 
 prepare_rfs() {
     echo "[+] prepare rfs"
-    github_name "rfs-${RFS_VERSION_V1}"
-    github_name "0-fs-${RFS_VERSION_V2}"
+    github_name "rfs-${RFS_VERSION_V2}"
 }
 
 install_rfs() {
@@ -21,11 +20,12 @@ install_rfs() {
 
     mkdir -p "${ROOTDIR}/sbin"
 
-    cp -av rfs-${RFS_VERSION_V1} "${ROOTDIR}/sbin/rfs"
+    cp -av rfs-${RFS_VERSION_V1} "${ROOTDIR}/sbin/g8ufs"
+    chmod +x "${ROOTDIR}/sbin/g8ufs"
+
+    cp -av rfs-${RFS_VERSION_V2} "${ROOTDIR}/sbin/rfs"
     chmod +x "${ROOTDIR}/sbin/rfs"
 
-    cp -av rfs-${RFS_VERSION_V2} "${ROOTDIR}/sbin/g8ufs"
-    chmod +x "${ROOTDIR}/sbin/g8ufs"
 }
 
 build_rfs() {
