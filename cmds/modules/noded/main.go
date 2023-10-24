@@ -21,6 +21,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/monitord"
 	"github.com/threefoldtech/zos/pkg/perf"
+	"github.com/threefoldtech/zos/pkg/perf/publicip"
 	"github.com/threefoldtech/zos/pkg/registrar"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -208,8 +209,7 @@ func action(cli *cli.Context) error {
 	cpuBenchmarkTask := perf.NewCPUBenchmarkTask()
 	perfMon.AddTask(&cpuBenchmarkTask)
 
-	pubIPTask := perf.NewPublicIPValidationTask()
-	perfMon.AddTask(pubIPTask)
+	perfMon.AddTask(publicip.NewTask())
 
 	if err = perfMon.Run(ctx); err != nil {
 		return errors.Wrap(err, "failed to run the scheduler")

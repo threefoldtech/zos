@@ -16,7 +16,7 @@ The task is scheduled to run 4 times a day.
 - Decide if the node should run the task or another one in the farm based on the node ID. The node with the least ID and with power target as up should run it. The other will log why they shouldn't run the task and return with no errors. This is done to ensure only one node runs the task to avoid problems like assigning the same IP.
 - Get public IPs set on the farm.
 - Remove all IPs and routes added to the test MacVLAN to ensure any remaining from previous task run are removed.
-- Skip IPs that are assigned to a contract and don't include them in the validation or the result.
+- Skip IPs that are assigned to a contract.
 - Set the MacVLAN link up.
 - Iterate over all public IPs and add them with the provided gateway to the MacVLAN.
 - Validate the IP by querying an external source that return the public IP for the node.
@@ -26,4 +26,4 @@ The task is scheduled to run 4 times a day.
 
 ## Result
 
-The task only returns a single map of String (IP) to Boolean indicating if the IP is valid or not. The IPs listed are the unused ones, so IPs already assigned to a deployment are not validated.
+The task only returns a single map of String (IP) to IPReport. The report consists of the IP state (valid, invalid or skipped) and the reason for the state.

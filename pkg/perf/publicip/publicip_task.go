@@ -1,4 +1,4 @@
-package perf
+package publicip
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
@@ -17,28 +16,48 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/network/macvlan"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/vishvananda/netlink"
 )
 
-const testMacvlan = "pubtestmacvlan"
+const (
+	ValidState   = "valid"
+	InvalidState = "invalid"
+	SkippedState = "skipped"
+
+	IPsNotMatching      = "public ip does not match farm ip"
+	PublicIPDataInvalid = "public ip or gateway data are not valid"
+	IPIsUsed            = "ip is already assigned to a contract"
+	FetchRealIPFailed   = "failed to get real public IP to the node"
+
+	taskSchedule = "0 0 */6 * * *"
+	taskID       = "PublicIPValidation"
+)
+
+const testMacvlan = "pub"
 const testNamespace = "pubtestns"
 
 type publicIPValidationTask struct {
-	taskID    string
-	schedule  string
-	unusedIPs map[string]bool
-	publicIPs []substrate.PublicIP
+	taskID        string
+	schedule      string
+	farmIPsReport map[string]IPReport
+	publicIPs     []substrate.PublicIP
 }
 
-var _ Task = (*publicIPValidationTask)(nil)
+type IPReport struct {
+	State  string `json:"state"`
+	Reason string `json:"reason"`
+}
 
-func NewPublicIPValidationTask() Task {
+var _ perf.Task = (*publicIPValidationTask)(nil)
+
+func NewTask() perf.Task {
 	return &publicIPValidationTask{
-		taskID:    "PublicIPValidation",
-		schedule:  "0 0 */6 * * *",
-		unusedIPs: make(map[string]bool),
-		publicIPs: make([]substrate.PublicIP, 0),
+		taskID:        taskID,
+		schedule:      taskSchedule,
+		farmIPsReport: make(map[string]IPReport),
+		publicIPs:     make([]substrate.PublicIP, 0),
 	}
 }
 
@@ -81,12 +100,13 @@ func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
 		return nil, fmt.Errorf("failed to get farm with id %d: %w", farmID, err)
 	}
 	p.publicIPs = farm.PublicIPs
+	deleteOldIPs(farm.PublicIPs, p.farmIPsReport)
 	err = netNS.Do(p.validateIPs)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to run public IP validation: %w", err)
 	}
-	return p.unusedIPs, nil
+	return p.farmIPsReport, nil
 }
 
 func (p *publicIPValidationTask) validateIPs(_ ns.NetNS) error {
@@ -99,30 +119,57 @@ func (p *publicIPValidationTask) validateIPs(_ ns.NetNS) error {
 	if err != nil {
 		log.Err(err).Send()
 	}
+
 	for _, publicIP := range p.publicIPs {
-		if publicIP.ContractID != 0 {
+		if report, ok := p.farmIPsReport[publicIP.IP]; ok && report.State == ValidState {
+			// no need to test it again
 			continue
 		}
-		p.unusedIPs[publicIP.IP] = false
+		p.farmIPsReport[publicIP.IP] = IPReport{
+			State: ValidState,
+		}
+		if publicIP.ContractID != 0 {
+			p.farmIPsReport[publicIP.IP] = IPReport{
+				State:  SkippedState,
+				Reason: IPIsUsed,
+			}
+			continue
+		}
 
 		ip, ipNet, routes, err := getIPWithRoute(publicIP)
 		if err != nil {
+			p.farmIPsReport[publicIP.IP] = IPReport{
+				State:  InvalidState,
+				Reason: PublicIPDataInvalid,
+			}
 			log.Err(err).Send()
 			continue
 		}
 		err = macvlan.Install(mv, nil, ipNet, routes, nil)
 		if err != nil {
+			p.farmIPsReport[publicIP.IP] = IPReport{
+				State:  InvalidState,
+				Reason: PublicIPDataInvalid,
+			}
 			log.Err(err).Msgf("failed to install macvlan %s with ip %s to namespace %s", testMacvlan, ipNet, testNamespace)
 			continue
 		}
 
 		realIP, err := getRealPublicIP()
 		if err != nil {
+			p.farmIPsReport[publicIP.IP] = IPReport{
+				State:  SkippedState,
+				Reason: FetchRealIPFailed,
+			}
 			log.Err(err).Msg("failed to get node real IP")
+			continue
 		}
 
-		if ip.String() == strings.TrimSpace(realIP) {
-			p.unusedIPs[publicIP.IP] = true
+		if !ip.Equal(realIP) {
+			p.farmIPsReport[publicIP.IP] = IPReport{
+				State:  InvalidState,
+				Reason: IPsNotMatching,
+			}
 		}
 
 		err = deleteAllIPsAndRoutes(mv)
@@ -137,12 +184,24 @@ func (p *publicIPValidationTask) validateIPs(_ ns.NetNS) error {
 	return nil
 }
 
+func deleteOldIPs(farmIPs []substrate.PublicIP, oldReport map[string]IPReport) {
+outer:
+	for ip := range oldReport {
+		for _, publicIP := range farmIPs {
+			if ip == publicIP.IP {
+				continue outer
+			}
+		}
+		delete(oldReport, ip)
+	}
+}
+
 func isLeastValidNode(ctx context.Context, farmID uint32, sub *substrate.Substrate) (bool, error) {
 	nodes, err := sub.GetNodes(uint32(farmID))
 	if err != nil {
 		return false, fmt.Errorf("failed to get farm %d nodes: %w", farmID, err)
 	}
-	cl := GetZbusClient(ctx)
+	cl := perf.GetZbusClient(ctx)
 	registrar := stubs.NewRegistrarStub(cl)
 	var nodeID uint32
 	err = backoff.Retry(func() error {
@@ -221,19 +280,22 @@ func getIPWithRoute(publicIP substrate.PublicIP) (net.IP, []*net.IPNet, []*netli
 	return ip, []*net.IPNet{ipNet}, routes, nil
 }
 
-func getRealPublicIP() (string, error) {
+func getRealPublicIP() (net.IP, error) {
 	// for testing now, should change to cloudflare
 	req, err := http.Get("https://api.ipify.org/")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer req.Body.Close()
 
+	if req.StatusCode != 200 {
+		return nil, fmt.Errorf("request to get public IP failed with status code %d", req.StatusCode)
+	}
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(body), nil
+	return net.ParseIP(string(body)), nil
 }
 
 func deleteAllIPsAndRoutes(macvlan netlink.Link) error {

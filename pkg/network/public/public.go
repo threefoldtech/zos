@@ -26,7 +26,7 @@ import (
 const (
 	toZosVeth                   = "tozos" // veth pair from br-pub to zos
 	publicNsMACDerivationSuffix = "-public"
-	testMacvlan                 = "pubtestmacvlan"
+	testMacvlan                 = "pub"
 	testNamespace               = "pubtestns"
 
 	// PublicBridge public bridge name, exists only after a call to EnsurePublicSetup
@@ -357,11 +357,14 @@ func EnsurePublicSetup(nodeID pkg.Identifier, inf *pkg.PublicConfig) (*netlink.B
 
 func ensureTestNamespace(publicBrdige *netlink.Bridge) error {
 	netNS, err := namespace.GetByName(testNamespace)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
 		netNS, err = namespace.Create(testNamespace)
 		if err != nil {
 			return fmt.Errorf("failed to create namespace %s: %w", testNamespace, err)
 		}
+	}
+	if err != nil {
+		return fmt.Errorf("failed to get namespace %s: %w", testNamespace, err)
 	}
 	err = netNS.Do(func(_ ns.NetNS) error {
 		_, err := macvlan.GetByName(testMacvlan)
