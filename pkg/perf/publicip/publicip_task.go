@@ -42,7 +42,6 @@ type publicIPValidationTask struct {
 	taskID        string
 	schedule      string
 	farmIPsReport map[string]IPReport
-	publicIPs     []substrate.PublicIP
 }
 
 type IPReport struct {
@@ -57,7 +56,6 @@ func NewTask() perf.Task {
 		taskID:        taskID,
 		schedule:      taskSchedule,
 		farmIPsReport: make(map[string]IPReport),
-		publicIPs:     make([]substrate.PublicIP, 0),
 	}
 }
 
@@ -99,9 +97,10 @@ func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get farm with id %d: %w", farmID, err)
 	}
-	p.publicIPs = farm.PublicIPs
 	deleteOldIPs(farm.PublicIPs, p.farmIPsReport)
-	err = netNS.Do(p.validateIPs)
+	err = netNS.Do(func(_ ns.NetNS) error {
+		return p.validateIPs(farm.PublicIPs)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to run public IP validation: %w", err)
@@ -109,7 +108,7 @@ func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
 	return p.farmIPsReport, nil
 }
 
-func (p *publicIPValidationTask) validateIPs(_ ns.NetNS) error {
+func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) error {
 	mv, err := macvlan.GetByName(testMacvlan)
 	if err != nil {
 		return fmt.Errorf("failed to get macvlan %s in namespace %s: %w", testMacvlan, testNamespace, err)
@@ -120,7 +119,7 @@ func (p *publicIPValidationTask) validateIPs(_ ns.NetNS) error {
 		log.Err(err).Send()
 	}
 
-	for _, publicIP := range p.publicIPs {
+	for _, publicIP := range publicIPs {
 		if report, ok := p.farmIPsReport[publicIP.IP]; ok && report.State == ValidState {
 			// no need to test it again
 			continue
