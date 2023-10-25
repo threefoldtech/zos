@@ -114,8 +114,8 @@ impl Repo {
 }
 
 impl Flist {
-    // tag_link return the target repo and tag name for
-    // a taglink flist
+    /// tag_link return the target repo and tag name for
+    /// a taglink flist
     pub fn tag_link(self) -> (String, String) {
         if self.kind != Kind::TagLink {
             panic!("invalid flist type must be a taglink");

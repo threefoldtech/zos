@@ -71,7 +71,7 @@ fn version() -> Result<Version> {
             None => Version::V3,
         },
         // version was not provided in cmdline
-        // so default is v2
+        // so default is v3
         None => Version::V3,
     };
 
