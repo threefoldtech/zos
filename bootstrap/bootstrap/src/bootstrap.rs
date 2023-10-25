@@ -18,6 +18,7 @@ const BIN_REPO_V3: &str = "tf-zos-v3-bins";
 const FLIST_INFO_FILE: &str = "/tmp/flist.info";
 const FLIST_NAME_FILE: &str = "/tmp/flist.name";
 const FLIST_TAG_FILE: &str = "/tmp/tag.info";
+const BOOTSTAP_FLIST: &str = "bootstrap:latest.flist";
 
 const WORKDIR: &str = "/tmp/bootstrap";
 
@@ -66,9 +67,9 @@ fn bootstrap_zos(cfg: &config::Config) -> Result<()> {
 
 /// update stage make sure we are running latest
 /// version of bootstrap
-pub fn update(cfg: &config::Config) -> Result<()> {
+pub fn update(_cfg: &config::Config) -> Result<()> {
     let result = WorkDir::run(WORKDIR, || {
-        update_bootstrap(cfg.debug)?;
+        update_bootstrap()?;
         Ok(())
     })?;
 
@@ -78,14 +79,10 @@ pub fn update(cfg: &config::Config) -> Result<()> {
 // find the latest bootstrap binary on the hub. and make sure
 // it's installed and available on the system, before starting
 // the actual system bootstrap.
-fn update_bootstrap(debug: bool) -> Result<()> {
+fn update_bootstrap() -> Result<()> {
     // we are running in a tmpfs workdir in this method
     let repo = hub::Repo::new("tf-autobuilder");
-    let name = if debug {
-        "bootstrap:development.flist"
-    } else {
-        "bootstrap:latest.flist"
-    };
+    let name = BOOTSTAP_FLIST;
 
     let flist = retry::retry(retry::delay::Exponential::from_millis(200), || {
         info!("get flist info: {}", name);
