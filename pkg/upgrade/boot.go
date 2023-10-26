@@ -18,6 +18,10 @@ const (
 	// in the bootstrap process. (bootstrap.sh)
 
 	TagFile = "/tmp/tag.info"
+
+	// deprecated file used to detect boot method. we use this
+	// as a fall back in case of an upgrade to a running machine
+	OldZosFile = "/tmp/flist.name"
 )
 
 var (
@@ -48,8 +52,15 @@ type Boot struct{}
 // of the node
 func (b Boot) DetectBootMethod() BootMethod {
 	log.Info().Msg("detecting boot method")
-	_, err := os.Stat(TagFile)
-	if err != nil {
+
+	// deprecated file. but if exists we still
+	// need to honor the method
+	if _, err := os.Stat(OldZosFile); err == nil {
+		// if this file existed so we booted normally with
+		return BootMethodBootstrap
+	}
+
+	if _, err := os.Stat(TagFile); err != nil {
 		return BootMethodOther
 	}
 

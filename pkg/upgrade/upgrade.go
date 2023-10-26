@@ -157,12 +157,6 @@ func (u *Upgrader) Run(ctx context.Context) error {
 	}
 
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(u.nextUpdate()):
-		}
-
 		err := u.update()
 		if errors.Is(err, ErrRestartNeeded) {
 			return err
@@ -170,6 +164,13 @@ func (u *Upgrader) Run(ctx context.Context) error {
 			log.Error().Err(err).Msg("failed while checking for updates")
 			<-time.After(10 * time.Second)
 		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(u.nextUpdate()):
+		}
+
 	}
 }
 
@@ -208,7 +209,7 @@ func (u *Upgrader) update() error {
 	// here we need to do a normal full update cycle
 	current, err := u.boot.Current()
 	if err != nil {
-		return errors.Wrap(err, "failed to get info about current version")
+		log.Error().Err(err).Msg("failed to get info about current version, update anyway")
 	}
 
 	remote, err := u.remote()
