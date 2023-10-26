@@ -50,7 +50,7 @@ jobs:
       - name: Set version of build
         id: version
         run: |
-          echo "version=v$(date +%y%m%d.%-H%M%S)" >> $GITHUB_OUTPUT
+          echo "version=v$(date +%y%m%d.%-H%M%S.0)" >> $GITHUB_OUTPUT
 
       - name: Collecting files
         run: |
