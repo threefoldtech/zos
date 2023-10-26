@@ -115,7 +115,7 @@ impl Repo {
 
 impl Flist {
     /// tag_link return the target repo and tag name for
-    /// a taglink flist
+    /// a taglink flist. Panic if the flist is not of type TagLink
     pub fn tag_link(self) -> (String, String) {
         if self.kind != Kind::TagLink {
             panic!("invalid flist type must be a taglink");
@@ -129,13 +129,17 @@ impl Flist {
         (parts[0].to_owned(), parts[2].to_owned())
     }
 
-    /// download the flist to `out`
+    /// download the flist to `out`, panics if flist kind is
+    /// not regular or symlink
     pub fn download<T>(&self, out: T) -> Result<()>
     where
         T: AsRef<Path>,
     {
-        if self.kind == Kind::Tag {
-            bail!("can't download a tag");
+        match self.kind {
+            Kind::Regular | Kind::Symlink => {}
+            _ => {
+                panic!("invalid flist type, must be regular or symlink")
+            }
         }
 
         let mut file = OpenOptions::new().write(true).create(true).open(out)?;
@@ -177,7 +181,7 @@ mod tests {
     fn test_list_tag() -> Result<()> {
         let repo = Repo::new(String::from("tf-autobuilder"));
 
-        let list = repo.list_tag("7a704e4712d6b173ffb877fa5a19efe4da6d2e5c")?;
+        let list = repo.list_tag("3b51aa5")?;
 
         assert!(list.is_some());
         let list = list.unwrap();
