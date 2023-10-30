@@ -42,7 +42,7 @@ var (
 	ErrTransportEndpointIsNotConencted = errors.New("transport endpoint is not connected")
 	ErrZFSProcessNotFound              = errors.New("0-fs process not found")
 	ErrHashNotSupported                = errors.New("hash not supported by flist host")
-	ErrHashInvalid                     = errors.New("invalid hash length")
+	ErrHashInvalidLen                  = errors.New("invalid hash length")
 )
 
 // Hash type
@@ -623,7 +623,7 @@ func (f *flistModule) FlistHash(url string) (string, error) {
 
 	hashStr := strings.TrimSpace(string(hash))
 	if len(hashStr) != md5HexLength {
-		return "", ErrHashInvalid
+		return "", ErrHashInvalidLen
 	}
 
 	return hashStr, nil
