@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os/exec"
 	"time"
 
@@ -36,6 +35,8 @@ const (
 	taskSchedule = "0 0 */6 * * *"
 	taskID       = "PublicIPValidation"
 )
+
+var errPublicIPLookup = errors.New("failed to reach public ip service")
 
 const testMacvlan = "pub"
 const testNamespace = "pubtestns"
@@ -157,23 +158,20 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) err
 		}
 
 		realIP, err := getRealPublicIP()
+		if errors.Is(err, errPublicIPLookup) {
+			p.farmIPsReport[publicIP.IP] = IPReport{
+				State:  InvalidState,
+				Reason: PublicIPDataInvalid,
+			}
+			continue
+		}
 		if err != nil {
 			p.farmIPsReport[publicIP.IP] = IPReport{
 				State:  SkippedState,
 				Reason: FetchRealIPFailed,
 			}
-			e := &url.Error{}
-			if errors.As(err, &e) {
-				// http.Get failed which means invalid IP or GW
-				p.farmIPsReport[publicIP.IP] = IPReport{
-					State:  InvalidState,
-					Reason: PublicIPDataInvalid,
-				}
-			}
-			log.Err(err).Msg("failed to get node real IP")
 			continue
 		}
-
 		if !ip.Equal(realIP) {
 			p.farmIPsReport[publicIP.IP] = IPReport{
 				State:  InvalidState,
@@ -293,7 +291,7 @@ func getRealPublicIP() (net.IP, error) {
 	// for testing now, should change to cloudflare
 	req, err := http.Get("https://api.ipify.org/")
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(err, errPublicIPLookup)
 	}
 	defer req.Body.Close()
 
