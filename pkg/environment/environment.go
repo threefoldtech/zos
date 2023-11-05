@@ -18,10 +18,24 @@ const (
 	baseExtendedURL = "https://raw.githubusercontent.com/threefoldtech/zos-config/main/"
 )
 
+// PubMac specify how the mac address of the public nic
+// (in case of public-config) is calculated
+type PubMac string
+
+const (
+	// PubMacRandom means the mac of the public nic will be chosen by the system
+	// the value won't change across reboots, but is based on the node id
+	// (default)
+	PubMacRandom PubMac = "random"
+	// PubMacSwap means the value of the mac is swapped with the physical nic
+	// where the public traffic is eventually going through
+	PubMacSwap PubMac = "swap"
+)
+
 // Environment holds information about running environment of a node
 // it defines the different constant based on the running mode (dev, test, prod)
 type Environment struct {
-	RunningMode RunningMode
+	RunningMode RunMode
 
 	FlistURL string
 	BinRepo  string
@@ -48,12 +62,15 @@ type Environment struct {
 	// if set, zos will use this as it's pub vlan
 	// only in a single nic setup
 	PubVlan *uint16
+
+	// PubMac value from environment
+	PubMac PubMac
 }
 
-// RunningMode type
-type RunningMode string
+// RunMode type
+type RunMode string
 
-func (r RunningMode) String() string {
+func (r RunMode) String() string {
 	switch r {
 	case RunningDev:
 		return "development"
@@ -71,13 +88,13 @@ func (r RunningMode) String() string {
 // Possible running mode of a node
 const (
 	// RunningDev mode
-	RunningDev RunningMode = "dev"
+	RunningDev RunMode = "dev"
 	// RunningQA mode
-	RunningQA RunningMode = "qa"
+	RunningQA RunMode = "qa"
 	// RunningTest mode
-	RunningTest RunningMode = "test"
+	RunningTest RunMode = "test"
 	// RunningMain mode
-	RunningMain RunningMode = "prod"
+	RunningMain RunMode = "prod"
 
 	// Orphanage is the default farmid where nodes are registered
 	// if no farmid were specified on the kernel command line
@@ -196,7 +213,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		runmode = string(RunningMain)
 	}
 
-	switch RunningMode(runmode) {
+	switch RunMode(runmode) {
 	case RunningDev:
 		env = envDev
 	case RunningQA:
@@ -281,6 +298,17 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 			tagU16 := uint16(tag)
 			env.PubVlan = &tagU16
 		}
+	}
+
+	if mac, found := params.GetOne("pub:mac"); found {
+		v := PubMac(mac)
+		if slices.Contains([]PubMac{PubMacRandom, PubMacSwap}, v) {
+			env.PubMac = v
+		} else {
+			env.PubMac = PubMacRandom
+		}
+	} else {
+		env.PubMac = PubMacRandom
 	}
 
 	// Checking if there environment variable
