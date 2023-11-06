@@ -163,13 +163,11 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) err
 				State:  InvalidState,
 				Reason: PublicIPDataInvalid,
 			}
-			log.Err(err).Send()
 		} else if err != nil {
 			p.farmIPsReport[publicIP.IP] = IPReport{
 				State:  SkippedState,
 				Reason: FetchRealIPFailed,
 			}
-			log.Err(err).Send()
 		} else if !ip.Equal(realIP) {
 			p.farmIPsReport[publicIP.IP] = IPReport{
 				State:  InvalidState,
