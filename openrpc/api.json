@@ -147,6 +147,74 @@
             "result": {
                 "$ref": "#/components/contentDescriptors/empty"
             }
+        },
+        {
+            "name": "deployment.disk.get",
+            "summary": "get disk info",
+            "tags": [
+                {
+                    "name": "deployment"
+                },
+                {
+                    "name": "disk"
+                }
+            ],
+            "params": [
+                {
+                    "$ref": "#/components/contentDescriptors/deployment"
+                },
+                {
+                    "name": "name",
+                    "summary": "disk name",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/components/schemas/Name"
+                    }
+                }
+            ],
+            "result": {
+                "name": "disk",
+                "schema": {
+                    "$ref": "#/components/schemas/Disk"
+                }
+            }
+        },
+        {
+            "name": "deployment.disk.list",
+            "summary": "get disk info",
+            "tags": [
+                {
+                    "name": "deployment"
+                },
+                {
+                    "name": "disk"
+                }
+            ],
+            "params": [
+                {
+                    "$ref": "#/components/contentDescriptors/deployment"
+                }
+            ],
+            "result": {
+                "name": "disks",
+                "schema": {
+                    "type": "array",
+                    "item": {
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/Disk"
+                                }
+                            ],
+                            "properties": {
+                                "name": {
+                                    "$ref": "#/components/schemas/Name"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     ],
     "components": {
@@ -258,7 +326,10 @@
                     "size": {
                         "$ref": "#/components/schemas/Bytes"
                     }
-                }
+                },
+                "required": [
+                    "size"
+                ]
             }
         }
     }
