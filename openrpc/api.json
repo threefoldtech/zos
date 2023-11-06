@@ -1,0 +1,265 @@
+{
+    "openrpc": "1.0.0-rc1",
+    "info": {
+        "version": "4.0.0",
+        "title": "zos",
+        "license": {
+            "name": "Apache"
+        }
+    },
+    "methods": [
+        {
+            "name": "deployment.create",
+            "summary": "creates a new empty deployment",
+            "tags": [
+                {
+                    "name": "deployment"
+                }
+            ],
+            "params": [
+                {
+                    "$ref": "#/components/contentDescriptors/deployment"
+                }
+            ],
+            "result": {
+                "$ref": "#/components/contentDescriptors/empty"
+            }
+        },
+        {
+            "name": "deployment.list",
+            "summary": "list all user deployments on this node",
+            "tags": [
+                {
+                    "name": "deployment"
+                }
+            ],
+            "params": [],
+            "result": {
+                "name": "deployments",
+                "schema": {
+                    "type": "array",
+                    "item": {
+                        "$ref": "#/components/schemas/Name"
+                    }
+                }
+            }
+        },
+        {
+            "name": "deployment.delete",
+            "summary": "delete a deployment",
+            "tags": [
+                {
+                    "name": "deployment"
+                }
+            ],
+            "params": [
+                {
+                    "$ref": "#/components/contentDescriptors/deployment"
+                }
+            ],
+            "result": {
+                "$ref": "#/components/contentDescriptors/empty"
+            }
+        },
+        {
+            "name": "deployment.network.set",
+            "summary": "sets up the deployment network",
+            "tags": [
+                {
+                    "name": "deployment"
+                },
+                {
+                    "name": "network"
+                }
+            ],
+            "params": [
+                {
+                    "$ref": "#/components/contentDescriptors/deployment"
+                },
+                {
+                    "name": "network",
+                    "summary": "full network setup for this deployment",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/components/schemas/Network"
+                    }
+                }
+            ],
+            "result": {
+                "$ref": "#/components/contentDescriptors/empty"
+            }
+        },
+        {
+            "name": "deployment.network.get",
+            "summary": "gets the deployment network",
+            "tags": [
+                {
+                    "name": "deployment"
+                },
+                {
+                    "name": "network"
+                }
+            ],
+            "params": [
+                {
+                    "$ref": "#/components/contentDescriptors/deployment"
+                }
+            ],
+            "result": {
+                "name": "network",
+                "schema": {
+                    "$ref": "#/components/schemas/Network"
+                }
+            }
+        },
+        {
+            "name": "deployment.disk.create",
+            "summary": "add a new disk to deployment",
+            "tags": [
+                {
+                    "name": "deployment"
+                },
+                {
+                    "name": "disk"
+                }
+            ],
+            "params": [
+                {
+                    "$ref": "#/components/contentDescriptors/deployment"
+                },
+                {
+                    "name": "name",
+                    "summary": "disk name",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/components/schemas/Name"
+                    }
+                },
+                {
+                    "name": "data",
+                    "summary": "disk data",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/components/schemas/Disk"
+                    }
+                }
+            ],
+            "result": {
+                "$ref": "#/components/contentDescriptors/empty"
+            }
+        }
+    ],
+    "components": {
+        "contentDescriptors": {
+            "deployment": {
+                "name": "deployment",
+                "description": "name of deployment",
+                "required": true,
+                "schema": {
+                    "$ref": "#/components/schemas/Name"
+                }
+            },
+            "empty": {
+                "name": "empty",
+                "schema": {
+                    "type": "null"
+                }
+            }
+        },
+        "schemas": {
+            "Empty": {
+                "type": "object"
+            },
+            "Name": {
+                "type": "string"
+            },
+            "Network": {
+                "type": "object",
+                "properties": {
+                    "ip_range": {
+                        "description": "full network ip range /16",
+                        "$ref": "#/components/schemas/IPSubnet"
+                    },
+                    "subnet": {
+                        "description": "local subnet that is part of `ip_range` /32",
+                        "$ref": "#/components/schemas/IPSubnet"
+                    },
+                    "wireguard_private_key": {
+                        "description": "wireguard private key",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "wireguard_listen_port": {
+                        "description": "listen port for wireguard",
+                        "$ref": "#/components/schemas/Port"
+                    },
+                    "peers": {
+                        "type": "array",
+                        "description": "list of peers",
+                        "item": {
+                            "$ref": "#/components/schemas/Peer"
+                        }
+                    }
+                },
+                "required": [
+                    "ip_range",
+                    "subnet",
+                    "wireguard_listen_key",
+                    "wireguard_private_key",
+                    "peers"
+                ]
+            },
+            "IPSubnet": {
+                "type": "string",
+                "format": "CIDR",
+                "description": "IP subnet range"
+            },
+            "Port": {
+                "type": "integer",
+                "minimum": 1,
+                "exclusiveMaximum": 65536
+            },
+            "Peer": {
+                "type": "object",
+                "description": "peer object",
+                "properties": {
+                    "subnet": {
+                        "$ref": "#/components/schemas/IPSubnet"
+                    },
+                    "wireguard_public_key": {
+                        "description": "wireguard public key",
+                        "type": "string"
+                    },
+                    "allowed_ips": {
+                        "type": "array",
+                        "item": {
+                            "$ref": "#/components/schemas/IPSubnet"
+                        }
+                    },
+                    "endpoint": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "subnet",
+                    "wireguard_public_key",
+                    "allowed_ips",
+                    "endpoint"
+                ]
+            },
+            "Bytes": {
+                "type": "integer",
+                "summary": "size in bytes"
+            },
+            "Disk": {
+                "type": "object",
+                "properties": {
+                    "size": {
+                        "$ref": "#/components/schemas/Bytes"
+                    }
+                }
+            }
+        }
+    }
+}
