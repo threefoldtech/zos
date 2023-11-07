@@ -5,18 +5,7 @@ go 1.21
 require (
 	github.com/rs/zerolog v1.28.0
 	github.com/spf13/cobra v1.6.1
-	github.com/threefoldtech/substrate-client v0.0.0-20221122160826-3e4a9c6a2e17
-)
-
-require (
-	github.com/BurntSushi/toml v1.3.2 // indirect
-	github.com/client9/misspell v0.3.4 // indirect
-	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/remyoudompheng/go-misc v0.0.0-20190427085024-2d6ac652a50e // indirect
-	golang.org/x/exp/typeparams v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/mod v0.13.0 // indirect
-	golang.org/x/tools v0.14.0 // indirect
-	honnef.co/go/tools v0.4.6 // indirect
+	github.com/threefoldtech/substrate-client v0.1.5
 )
 
 require (

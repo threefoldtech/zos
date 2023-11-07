@@ -116,12 +116,12 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 		return fmt.Errorf("failed to get dst relative path to src: %w", err)
 	}
 
-	zosCurrent := fmt.Sprintf("%v/%v", w.src, currentZosVersion)
+	zosCurrent := fmt.Sprintf("%v/.tag-%v", w.src, currentZosVersion)
 	zosLatest := fmt.Sprintf("%v/%v", w.dst, network)
 	// the link is like zosCurrent but it has the path relative from the symlink
 	// point of view (so relative to the symlink, how to reach zosCurrent)
 	// hence the link is instead used in all calls to symlink
-	link := fmt.Sprintf("%v/%v", path, currentZosVersion)
+	link := fmt.Sprintf("%v/.tag-%v", path, currentZosVersion)
 
 	// check if current exists
 	if _, err := os.Lstat(zosCurrent); err != nil {
