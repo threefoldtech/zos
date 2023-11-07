@@ -1,4 +1,4 @@
-name: Go GitHub Actions 
+name: Zos Update Worker
 
 defaults:
   run:
@@ -42,6 +42,7 @@ jobs:
         uses: Jerome1337/gofmt-action@v1.0.5
         with:
           gofmt-flags: "-l -d"
+          gofmt-path: "tools/zos-update-worker"
        
       - name: Test
         run: go test -v ./...
