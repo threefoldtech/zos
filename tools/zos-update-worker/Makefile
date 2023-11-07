@@ -37,7 +37,7 @@ spelling:
 	@${GOPATH}/bin/misspell -i monitord -error `find .`
 
 staticcheck:
-	@${GOPATH}/bin/staticcheck -- ./...
+	go run honnef.co/go/tools/cmd/staticcheck -- ./...
 
 test: verifiers
 	go test -v -vet=off ./...
@@ -53,11 +53,11 @@ coverage: clean
 testrace: verifiers
 	go test -v -race -vet=off ./...
 
-run-worker: 
-	go run ./tools/zos-update-worker/main.go
+run: 
+	go run main.go
 
-build-worker:
-	go build -o ./tools/zos-update-worker/bin/zos-update-worker ./tools/zos-update-worker/main.go 
+build:
+	go build -o bin/zos-update-worker main.go 
 	
 clean:
 	rm ./coverage -rf
