@@ -8,11 +8,12 @@ ldflags='-w -s -X $(version).Branch=$(branch) -X $(version).Revision=$(revision)
 all: getdeps test
 
 getdeps:
-	@echo "Installing golint" && go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0
-	@echo "Installing gocyclo" && go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-	@echo "Installing deadcode" && go install github.com/remyoudompheng/go-misc/deadcode@latest
-	@echo "Installing misspell" && go install github.com/client9/misspell/cmd/misspell@latest
-	@echo "Installing staticcheck" && go install honnef.co/go/tools/cmd/staticcheck@latest
+	@echo "Installing staticcheck" && go get -u honnef.co/go/tools/cmd/staticcheck && go install honnef.co/go/tools/cmd/staticcheck
+	@echo "Installing gocyclo" && go get -u github.com/fzipp/gocyclo/cmd/gocyclo && go install github.com/fzipp/gocyclo/cmd/gocyclo
+	@echo "Installing deadcode" && go get -u github.com/remyoudompheng/go-misc/deadcode && go install github.com/remyoudompheng/go-misc/deadcode
+	@echo "Installing misspell" && go get -u github.com/client9/misspell/cmd/misspell && go install github.com/client9/misspell/cmd/misspell
+	@echo "Installing golangci-lint" && go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
+	go mod tidy
 
 
 verifiers: fmt lint cyclo deadcode spelling staticcheck
@@ -34,10 +35,12 @@ deadcode:
 	@${GOPATH}/bin/deadcode -test $(shell go list ./...) || true
 
 spelling:
+	@echo "Running $@"
 	@${GOPATH}/bin/misspell -i monitord -error `find .`
 
 staticcheck:
-	go run honnef.co/go/tools/cmd/staticcheck -- ./...
+	@echo "Running $@"
+	@${GOPATH}/bin/staticcheck -- ./...
 
 test: verifiers
 	go test -v -vet=off ./...
