@@ -6,7 +6,7 @@ The `iperf` package is designed to facilitate network performance testing using 
 
 ### Configuration
 
-- Name: iperf
+- Name: "IPerf"
 - Schedule: 4 times a day
 
 ### Details
