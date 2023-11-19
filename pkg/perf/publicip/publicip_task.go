@@ -32,8 +32,9 @@ const (
 	IPIsUsed            = "ip is already assigned to a contract"
 	FetchRealIPFailed   = "failed to get real public IP to the node"
 
-	taskSchedule = "0 0 */6 * * *"
-	taskID       = "PublicIPValidation"
+	taskSchedule    = "0 0 */6 * * *"
+	taskID          = "PublicIPValidation"
+	taskDescription = "Runs on the least NodeID node in a farm to validate all its IPs."
 )
 
 var errPublicIPLookup = errors.New("failed to reach public ip service")
@@ -44,6 +45,7 @@ const testNamespace = "pubtestns"
 type publicIPValidationTask struct {
 	taskID        string
 	schedule      string
+	description   string
 	farmIPsReport map[string]IPReport
 }
 
@@ -58,6 +60,7 @@ func NewTask() perf.Task {
 	return &publicIPValidationTask{
 		taskID:        taskID,
 		schedule:      taskSchedule,
+		description:   taskDescription,
 		farmIPsReport: make(map[string]IPReport),
 	}
 }
@@ -68,6 +71,10 @@ func (p *publicIPValidationTask) ID() string {
 
 func (p *publicIPValidationTask) Cron() string {
 	return p.schedule
+}
+
+func (p *publicIPValidationTask) Description() string {
+	return p.description
 }
 
 func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
