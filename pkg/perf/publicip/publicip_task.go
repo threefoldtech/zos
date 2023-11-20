@@ -34,7 +34,7 @@ const (
 	FetchRealIPFailed   = "failed to get real public IP to the node"
 
 	taskSchedule    = "0 0 */6 * * *"
-	taskID          = "PublicIPValidation"
+	taskID          = "public-ip-validation"
 	taskDescription = "Runs on the least NodeID node in a farm to validate all its IPs."
 )
 

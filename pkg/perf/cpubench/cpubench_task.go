@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	cpuBenchmarkTaskID       = "CPUBenchmark"
+	cpuBenchmarkTaskID       = "cpu-benchmark"
 	cpuBenchmarkCronSchedule = "0 0 */6 * * *"
 	cpuBenchmarkDescription  = "Measures the performance of the node CPU by reporting the timespent of computing a task in seconds."
 )
