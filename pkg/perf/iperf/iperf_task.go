@@ -44,7 +44,7 @@ func NewTask() perf.Task {
 		os.RemoveAll(match)
 	}
 	return &IperfTest{
-		taskID:      "IPerf",
+		taskID:      "iperf",
 		schedule:    "0 0 */6 * * *",
 		description: "Test public nodes network performance with both UDP and TCP over IPv4 and IPv6",
 	}

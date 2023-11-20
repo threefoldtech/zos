@@ -12,7 +12,7 @@ Perf tests are monitored by `noded` service from zos modules.
 type LoggingTask struct {
 	taskID   	string
 	schedule 	string // should be in cron syntax with seconds ("* 0 * * * *")
-	description string 
+	description string
 }
 
 func (t *LoggingTask) ID() string {
@@ -38,8 +38,8 @@ func (t *LoggingTask) Run(ctx context.Context) (interface{}, error) {
 
 ```go
 perfMon.AddTask(&perf.LoggingTask{
-    taskID:   "LoggingTask",
-    schedule: "* 0 * * * *", // when minutes is 0 (aka: every hour)
+    taskID:      "LoggingTask",
+    schedule:    "* 0 * * * *", // when minutes is 0 (aka: every hour)
 	description: "Simple task that logs the time every hour"
 })
 ```
