@@ -1,4 +1,4 @@
-package iperf
+package graphql
 
 import (
 	"context"
