@@ -212,7 +212,7 @@ func isLeastValidNode(ctx context.Context, farmID uint32, sub *substrate.Substra
 	env := environment.MustGet()
 	gql := graphql.NewGraphQl(env.GraphQL)
 
-	nodes, err := gql.GetFarmUpNodes(ctx, uint32(farmID))
+	nodes, err := gql.GetUpNodes(ctx, 0, farmID, 0, false, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to get farm %d nodes: %w", farmID, err)
 	}

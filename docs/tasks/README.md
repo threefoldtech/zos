@@ -24,7 +24,7 @@ Tasks are scheduled using a 6 fields cron format. this format provides flexibili
   - Payload: a payload type that contains the name of the test
     ```go
     type Payload struct {
-      Name string `json:"name"`
+      Name string 
     }
     ```
 
@@ -65,5 +65,3 @@ Notes:
 - [CPU benchmark](./cpubench.md)
 - [IPerf](./iperf.md)
 - To add new task, [check](../../pkg/perf/README.md)
-
-

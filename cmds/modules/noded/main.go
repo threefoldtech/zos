@@ -217,12 +217,12 @@ func action(cli *cli.Context) error {
 	}
 	bus.WithHandler("zos.perf.get", func(ctx context.Context, payload []byte) (interface{}, error) {
 		type Payload struct {
-			Name string `json:"name"`
+			Name string
 		}
 		var request Payload
 		err := json.Unmarshal(payload, &request)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to decode payload: %v", payload)
+			return nil, errors.Wrapf(err, "failed to unmarshal payload: %v", payload)
 		}
 
 		return perfMon.Get(request.Name)

@@ -37,13 +37,13 @@ type PublicConfig struct {
 	Ipv6 string `graphql:"ipv6"`
 }
 
-// ListPublicNodes returns a list of public nodes
+// GetUpNodes returns a list of public nodes
 // if nodesNum is given the query will use a limit and offset
 // farmID id if not equal 0 will add a condition for it
 // excludeFarmID if not equal 0 will add a condition ro exclude the farm ID
 // ipv4 pool to set a condition for non empty ipv4
 // ipv6 pool to set a condition for non empty ipv6
-func (g *GraphQl) ListPublicNodes(ctx context.Context, nodesNum int, farmID, excludeFarmID uint32, ipv4, ipv6 bool) ([]Node, error) {
+func (g *GraphQl) GetUpNodes(ctx context.Context, nodesNum int, farmID, excludeFarmID uint32, ipv4, ipv6 bool) ([]Node, error) {
 	var pubCond string
 	if ipv4 {
 		pubCond = `ipv4_isNull: false, ipv4_not_eq: ""`
@@ -106,21 +106,4 @@ func (g *GraphQl) getItemTotalCount(ctx context.Context, itemName string, option
 	}
 
 	return res.Items.Count, nil
-}
-
-// GetFarmUpNodes returns a list of up nodes on a farm
-func (g *GraphQl) GetFarmUpNodes(ctx context.Context, farmID uint32) ([]Node, error) {
-	nodeUpInterval := time.Now().Unix() - int64(nodeUpStateFactor)*int64(nodeUpReportInterval.Seconds())
-	upCondition := fmt.Sprintf(`where: {updatedAt_gte: %d, farmID_eq: %d}`, nodeUpInterval, farmID)
-	query := fmt.Sprintf("query{nodes(%s){nodeID}}", upCondition)
-
-	res := struct {
-		Nodes []Node
-	}{}
-
-	if err := g.client.Exec(ctx, query, &res, nil); err != nil {
-		return []Node{}, err
-	}
-
-	return res.Nodes, nil
 }

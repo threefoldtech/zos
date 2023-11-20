@@ -70,13 +70,13 @@ func (t *IperfTest) Run(ctx context.Context) (interface{}, error) {
 	env := environment.MustGet()
 	g := graphql.NewGraphQl(env.GraphQL)
 
-	// get nodes
-	freeFarmNodes, err := g.ListPublicNodes(ctx, 0, 1, 0, true, true)
+	// get public up nodes
+	freeFarmNodes, err := g.GetUpNodes(ctx, 0, 1, 0, true, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list freefarm nodes from graphql")
 	}
 
-	nodes, err := g.ListPublicNodes(ctx, 12, 0, 1, true, true)
+	nodes, err := g.GetUpNodes(ctx, 12, 0, 1, true, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list random nodes from graphql")
 	}
