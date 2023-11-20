@@ -657,7 +657,11 @@ func (s *Module) checkAndResizeCache(cache filesystem.Volume, sizeMultiplier uin
 	if err != nil {
 		return errors.Wrap(err, "failed to check cache usage")
 	}
+	if usage.Size == 0 {
+		usage.Size = 5
+	}
 	log.Debug().Msgf("cache usage %+v", usage)
+
 	percent := usage.Excl * 100 / usage.Size
 	size := usage.Size
 	if percent >= cacheGrowPercent {
