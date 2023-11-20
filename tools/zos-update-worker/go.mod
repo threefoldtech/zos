@@ -8,6 +8,8 @@ require (
 	github.com/threefoldtech/substrate-client v0.1.5
 )
 
+require github.com/holiman/uint256 v1.2.3 // indirect
+
 require (
 	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible
@@ -16,22 +18,22 @@ require (
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/decred/base58 v1.0.3 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.0.0 // indirect
-	github.com/ethereum/go-ethereum v1.10.17 // indirect
+	github.com/ethereum/go-ethereum v1.13.5 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/gtank/merlin v0.1.1 // indirect
 	github.com/gtank/ristretto255 v0.1.2 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jbenet/go-base58 v0.0.0-20150317085156-6237cf65f3a6 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
 	github.com/pierrec/xxHash v0.1.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rs/cors v1.8.2 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vedhavyas/go-subkey v1.0.3 // indirect
-	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871 // indirect
+	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 )
