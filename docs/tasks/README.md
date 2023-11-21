@@ -21,13 +21,27 @@ Tasks are scheduled using a 6 fields cron format. this format provides flexibili
 ### RMB commands
 
 - `zos.perf.get`:
-  Payload: string representing the task name.
-  Return: a single task result.
-  Possible Error: `ErrResultNotFound` if no result is stored for the given task.
+  - Payload: a payload type that contains the name of the test
+    ```go
+    type Payload struct {
+      Name string 
+    }
+    ```
+
+    Possible values:
+      - `"public-ip-validation"`
+      - `"cpu-benchmark"`
+      - `"iperf"`
+
+  - Return: a single task result.
+
+  - Possible Error: `ErrResultNotFound` if no result is stored for the given task.
 
 - `zos.perf.get_all`:
-  Return: all stored results
 
+  - Return: all stored results
+
+The rmb direct client can be used to call these commands. check the [example](https://github.com/threefoldtech/tfgrid-sdk-go/blob/development/rmb-sdk-go/examples/client_rpc/main.go)
 ### Caching
 
 Results are stored in a Redis server running on the node.
@@ -37,6 +51,7 @@ The value is an instance of `TaskResult` struct contains:
 
 - Name of the task
 - Timestamp when the task was run
+- A brief description about what the task do
 - The actual returned result from the task
 
 Notes:
@@ -45,7 +60,8 @@ Notes:
 - Storing results prefixed with `perf` eases retrieving all the results stored by this module.
 
 ### Registered tests
+
 - [Public IP validation](./publicips.md)
 - [CPU benchmark](./cpubench.md)
 - [IPerf](./iperf.md)
-- To add new task, [check](../../pkg/perf/README.md) 
+- To add new task, [check](../../pkg/perf/README.md)
