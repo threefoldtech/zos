@@ -660,7 +660,7 @@ func (s *Module) checkAndResizeCache(cache filesystem.Volume, sizeMultiplier uin
 	if usage.Size == 0 {
 		usage.Size = max(sizeMultiplier, usage.Excl*2)
 		if err := cache.Limit(usage.Size); err != nil {
-			return err
+			return errors.Wrap(err, "failed to set limit for cache volume")
 		}
 	}
 
