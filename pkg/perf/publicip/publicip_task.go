@@ -109,7 +109,7 @@ func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get farm with id %d: %w", farmID, err)
 	}
-	deleteOldIPs(farm.PublicIPs, p.farmIPsReport)
+	p.farmIPsReport = make(map[string]IPReport)
 	err = netNS.Do(func(_ ns.NetNS) error {
 		return p.validateIPs(farm.PublicIPs)
 	})
@@ -132,10 +132,6 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) err
 	}
 
 	for _, publicIP := range publicIPs {
-		if report, ok := p.farmIPsReport[publicIP.IP]; ok && report.State == ValidState {
-			// no need to test it again
-			continue
-		}
 		p.farmIPsReport[publicIP.IP] = IPReport{
 			State: ValidState,
 		}
@@ -194,18 +190,6 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) err
 		return fmt.Errorf("failed to set link down: %w", err)
 	}
 	return nil
-}
-
-func deleteOldIPs(farmIPs []substrate.PublicIP, oldReport map[string]IPReport) {
-outer:
-	for ip := range oldReport {
-		for _, publicIP := range farmIPs {
-			if ip == publicIP.IP {
-				continue outer
-			}
-		}
-		delete(oldReport, ip)
-	}
 }
 
 func isLeastValidNode(ctx context.Context, farmID uint32, sub *substrate.Substrate) (bool, error) {
