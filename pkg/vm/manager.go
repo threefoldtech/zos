@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -523,6 +524,13 @@ func (m *Module) Run(vm pkg.VM) (pkg.MachineInfo, error) {
 	if err != nil {
 		return pkg.MachineInfo{}, m.withLogs(m.logsPath(vm.Name), err)
 	}
+
+	// clean up host keys before boot
+	command := exec.Command("rm", "-r", "/etc/ssh/ssh_host_*")
+	err = command.Run()
+	if err != nil {
+		log.Debug().Err(err).Msg("failed to clean up host keys")
+	} 
 
 	return machineInfo, nil
 }
