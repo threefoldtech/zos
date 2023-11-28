@@ -102,7 +102,11 @@ func (p *Manager) prepContainer(
 	// create a persisted volume for the vm. we don't do it automatically
 	// via the flist, so we have control over when to decomission this volume.
 	// remounting in RW mode
+
 	volName := fmt.Sprintf("rootfs:%s", wl.ID.String())
+	_, err := storage.VolumeLookup(ctx, volName)
+	isFirstBoot := err != nil
+
 	volume, err := storage.VolumeCreate(ctx, volName, rootfsSize)
 	if err != nil {
 		return errors.Wrap(err, "failed to create vm rootfs")
@@ -124,6 +128,18 @@ func (p *Manager) prepContainer(
 
 	if err != nil {
 		return errors.Wrapf(err, "failed to mount flist: %s", wl.ID.String())
+	}
+
+	// clean up host keys
+	if isFirstBoot {
+		files, err := filepath.Glob(filepath.Join(mnt, "etc", "ssh", "ssh_host_*"))
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+
+		for _, file := range files {
+			os.Remove(file)
+		}
 	}
 
 	// inject container kernel and init
