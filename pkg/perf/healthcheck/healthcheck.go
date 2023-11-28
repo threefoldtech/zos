@@ -13,7 +13,7 @@ import (
 
 const (
 	id          = "healthcheck"
-	schedule    = "*/30 * * * * *"
+	schedule    = "0 */20 * * * *"
 	description = "health check task runs multiple checks to ensure the node is in a usable state and set flags for the power daemon to stop reporting uptime if it is not usable"
 )
 

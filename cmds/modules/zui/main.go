@@ -94,7 +94,7 @@ func action(ctx *cli.Context) error {
 	resources.Border = false
 
 	errorsGrid := ui.NewGrid()
-	errorsGrid.Title = "Provision"
+	errorsGrid.Title = "Errors"
 	errorsGrid.SetRect(0, 22, width, 26)
 
 	var flag signalFlag
