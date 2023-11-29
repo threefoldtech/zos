@@ -103,14 +103,17 @@ func (p *Manager) prepContainer(
 	// via the flist, so we have control over when to decomission this volume.
 	// remounting in RW mode
 
-	volName := fmt.Sprintf("rootfs:%s", wl.ID.String())
-	_, err := storage.VolumeLookup(ctx, volName)
-	isFirstBoot := err != nil
+    volName := fmt.Sprintf("rootfs:%s", wl.ID.String())
+    volume, err := storage.VolumeLookup(ctx, volName)
+    isFirstBoot := false
+    if err != nil {
+        isFirstBoot = true 
 
-	volume, err := storage.VolumeCreate(ctx, volName, rootfsSize)
-	if err != nil {
-		return errors.Wrap(err, "failed to create vm rootfs")
-	}
+        volume, err = storage.VolumeCreate(ctx, volName, rootfsSize)
+        if err != nil {
+            return errors.Wrap(err, "failed to create vm rootfs")
+        }
+    }
 
 	defer func() {
 		if err != nil {
