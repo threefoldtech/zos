@@ -132,7 +132,7 @@ func (p *Manager) prepContainer(
 	if !volumeExists {
 		files, err := filepath.Glob(filepath.Join(mnt, "etc", "ssh", "ssh_host_*"))
 		if err != nil {
-			log.Fatal().Err(err)
+			log.Debug().Err(err).Msg("failed to list ssh host keys for a vm image")
 		}
 
 		for _, file := range files {
