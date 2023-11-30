@@ -101,8 +101,10 @@ func (p *Manager) prepContainer(
 	// remounting in RW mode
 	volName := fmt.Sprintf("rootfs:%s", wl.ID.String())
 
-	_, err := storage.VolumeLookup(ctx, volName)
-	isFirstBoot := err != nil
+	isFirstBoot, err := storage.VolumeExists(ctx, volName)
+	if err != nil {
+		return errors.Wrap(err, "failed to check if vm rootfs exists")
+	}
 
 	volume, err := storage.VolumeCreate(ctx, volName, rootfsSize)
 	if err != nil {
