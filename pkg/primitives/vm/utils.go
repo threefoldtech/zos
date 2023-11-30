@@ -101,7 +101,7 @@ func (p *Manager) prepContainer(
 	// remounting in RW mode
 	volName := fmt.Sprintf("rootfs:%s", wl.ID.String())
 
-	isFirstBoot, err := storage.VolumeExists(ctx, volName)
+	volumeExists, err := storage.VolumeExists(ctx, volName)
 	if err != nil {
 		return errors.Wrap(err, "failed to check if vm rootfs exists")
 	}
@@ -129,7 +129,7 @@ func (p *Manager) prepContainer(
 	}
 
 	// clean up host keys
-	if isFirstBoot {
+	if !volumeExists {
 		files, err := filepath.Glob(filepath.Join(mnt, "etc", "ssh", "ssh_host_*"))
 		if err != nil {
 			log.Fatal().Err(err)
