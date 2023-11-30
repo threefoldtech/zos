@@ -136,7 +136,9 @@ func (p *Manager) prepContainer(
 		}
 
 		for _, file := range files {
-			os.Remove(file)
+			if err := os.Remove(file); err != nil {
+				log.Debug().Err(err).Str("file", file).Msg("failed to delete host key file")
+			}
 		}
 	}
 
