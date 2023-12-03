@@ -79,14 +79,16 @@ func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 
 func cacheCheck(ctx context.Context) (string, error) {
 	const label = "cache"
-	_, err := os.Create("/var/cache/healthcheck")
+	const checkFile = "/var/cache/healthcheck"
+
+	_, err := os.Create(checkFile)
 	if err != nil {
 		if err := app.SetFlag(app.ReadonlyCache); err != nil {
 			log.Error().Err(err).Msg("failed to set readonly flag")
 		}
 		return label, fmt.Errorf("failed to write to cache: %w", err)
 	}
-	defer os.Remove("/var/cache/healthcheck")
+	defer os.Remove(checkFile)
 
 	if err := app.DeleteFlag(app.ReadonlyCache); err != nil {
 		log.Error().Err(err).Msg("failed to delete readonly flag")

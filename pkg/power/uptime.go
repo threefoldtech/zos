@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/host"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
+	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/utils"
 )
 
@@ -61,7 +62,7 @@ func (u *Uptime) SendNow() (types.Hash, error) {
 }
 
 func (u *Uptime) uptime(ctx context.Context) error {
-	for {
+	report := func() error {
 		log.Debug().Msg("updating node uptime")
 		hash, err := u.SendNow()
 		if err != nil {
@@ -71,6 +72,23 @@ func (u *Uptime) uptime(ctx context.Context) error {
 		u.Mark.Signal()
 
 		log.Info().Str("hash", hash.Hex()).Msg("node uptime hash")
+		return nil
+	}
+	for {
+		unusable := false
+		if app.CheckFlag(app.ReadonlyCache) {
+			log.Error().Msg("node cache is read only")
+			unusable = true
+		}
+		if app.CheckFlag(app.LimitedCache) {
+			log.Error().Msg("node is running on limited cache")
+			unusable = true
+		}
+		if unusable {
+			log.Error().Msg("node is not usable skipping uptime reports")
+		} else if err := report(); err != nil {
+			return err
+		}
 
 		select {
 		case <-ctx.Done():

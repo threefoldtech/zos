@@ -93,9 +93,11 @@ func action(ctx *cli.Context) error {
 	resources.SetRect(0, 14, width, 22)
 	resources.Border = false
 
-	errorsGrid := ui.NewGrid()
-	errorsGrid.Title = "Errors"
-	errorsGrid.SetRect(0, 22, width, 26)
+	errorsParagraph := widgets.NewParagraph()
+	errorsParagraph.Title = "Errors"
+	errorsParagraph.SetRect(0, 22, width, 26)
+	errorsParagraph.Border = true
+	errorsParagraph.WrapText = true
 
 	var flag signalFlag
 
@@ -111,7 +113,7 @@ func action(ctx *cli.Context) error {
 		log.Error().Err(err).Msg("failed to start resources renderer")
 	}
 
-	mod := zui.New(ctx.Context, errorsGrid, &flag)
+	mod := zui.New(ctx.Context, errorsParagraph, &flag)
 
 	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, mod)
 
@@ -123,7 +125,7 @@ func action(ctx *cli.Context) error {
 	}()
 
 	render := func() {
-		ui.Render(header, netgrid, resources, errorsGrid)
+		ui.Render(header, netgrid, resources, errorsParagraph)
 	}
 
 	render()
@@ -138,6 +140,7 @@ func action(ctx *cli.Context) error {
 			case "<Resize>":
 				payload := e.Payload.(ui.Resize)
 				header.SetRect(0, 0, payload.Width, 3)
+				errorsParagraph.SetRect(0, 22, payload.Width, 26)
 				// grid.SetRect(0, 3, payload.Width, payload.Height)
 				ui.Clear()
 				render()

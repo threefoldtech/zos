@@ -76,7 +76,7 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 			}
 
 			cache := green("OK")
-			if app.CheckFlag(app.LimitedCache) {
+			if app.CheckFlag(app.LimitedCache) || app.CheckFlag(app.ReadonlyCache) {
 				cache = red("no ssd disks detected")
 			}
 

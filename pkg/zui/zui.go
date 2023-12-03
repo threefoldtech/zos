@@ -6,19 +6,18 @@ import (
 	"sync"
 	"time"
 
-	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 	"github.com/threefoldtech/zos/pkg"
 )
 
 type module struct {
-	grid   *ui.Grid
-	render Signaler
-	labels []labelData
-	table  *widgets.Table
-	mu     *sync.Mutex
+	render    Signaler
+	labels    []labelData
+	paragraph *widgets.Paragraph
+	mu        *sync.Mutex
 }
 
+// Signaler interface to signal ZUI to render some element.
 type Signaler interface {
 	Signal()
 }
@@ -28,25 +27,13 @@ type labelData struct {
 	errors []string
 }
 
-func New(ctx context.Context, grid *ui.Grid, render Signaler) pkg.ZUI {
-	table := widgets.NewTable()
-	grid.Set(
-		ui.NewRow(1.0, table),
-	)
-	table.Title = "Errors"
-	table.FillRow = true
-	table.RowSeparator = false
-
-	table.Rows = [][]string{
-		{"[No Errors!](fg:green)"},
-	}
-
+// New returns a new ZUI module.
+func New(ctx context.Context, p *widgets.Paragraph, render Signaler) pkg.ZUI {
 	zuiModule := &module{
-		grid:   grid,
-		render: render,
-		table:  table,
-		labels: make([]labelData, 0),
-		mu:     &sync.Mutex{},
+		render:    render,
+		labels:    make([]labelData, 0),
+		paragraph: p,
+		mu:        &sync.Mutex{},
 	}
 	go zuiModule.renderErrors(ctx)
 	return zuiModule
@@ -54,6 +41,8 @@ func New(ctx context.Context, grid *ui.Grid, render Signaler) pkg.ZUI {
 
 var _ pkg.ZUI = (*module)(nil)
 
+// PushErrors pushes the given errors to the ZUI module to be displayed.
+// It can also remove stop displaying certain label by sending an empty errors slice.
 func (m *module) PushErrors(label string, errors []string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -76,22 +65,19 @@ func (m *module) renderErrors(ctx context.Context) {
 			labels := make([]labelData, len(m.labels))
 			copy(labels, m.labels)
 			m.mu.Unlock()
-			display(labels, m.table, m.render)
+			display(labels, m.paragraph, m.render)
 			// in case nothing got displayed
 			<-time.After(2 * time.Second)
 		}
 	}
 }
 
-func display(labels []labelData, table *widgets.Table, render Signaler) {
-	table.Rows = [][]string{
-		{"[No Errors!](fg:green)"},
-	}
+func display(labels []labelData, p *widgets.Paragraph, render Signaler) {
+	p.Text = "[No Errors!](fg:green)"
+
 	for _, label := range labels {
 		for _, e := range label.errors {
-			table.Rows = [][]string{
-				{fmt.Sprintf("%s: [%s](fg:red)", label.label, e)},
-			}
+			p.Text = fmt.Sprintf("%s: [%s](fg:red)", label.label, e)
 			render.Signal()
 			<-time.After(2 * time.Second)
 		}
