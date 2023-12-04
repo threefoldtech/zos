@@ -26,13 +26,14 @@ func NewZUIStub(client zbus.Client) *ZUIStub {
 	}
 }
 
-func (s *ZUIStub) PushErrors(ctx context.Context, arg0 string, arg1 []string) {
+func (s *ZUIStub) PushErrors(ctx context.Context, arg0 string, arg1 []string) (ret0 error) {
 	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "PushErrors", args...)
 	if err != nil {
 		panic(err)
 	}
 	result.PanicOnError()
+	ret0 = result.CallError()
 	loader := zbus.Loader{}
 	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)

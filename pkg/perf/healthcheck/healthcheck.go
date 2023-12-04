@@ -19,8 +19,8 @@ const (
 
 // NewTask returns a new health check task.
 func NewTask() perf.Task {
-	checks := []checkFunc{
-		cacheCheck,
+	checks := map[string]checkFunc{
+		"cache": cacheCheck,
 	}
 	return &healthcheckTask{
 		checks: checks,
@@ -28,10 +28,10 @@ func NewTask() perf.Task {
 	}
 }
 
-type checkFunc func(context.Context) (string, error)
+type checkFunc func(context.Context) []error
 
 type healthcheckTask struct {
-	checks []checkFunc
+	checks map[string]checkFunc
 	errors map[string][]string
 }
 
@@ -57,28 +57,47 @@ func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 	log.Debug().Msg("starting health check task")
 	for k := range h.errors {
 		// reset errors on each run
-		h.errors[k] = make([]string, 0)
+		h.errors[k] = nil
 	}
 
-	for _, check := range h.checks {
-		label, err := check(ctx)
-		if err == nil {
+	for label, check := range h.checks {
+		errors := check(ctx)
+		if len(errors) == 0 {
 			continue
 		}
-		h.errors[label] = append(h.errors[label], err.Error())
+		stringErrs := errorsToStrings(errors)
+		h.errors[label] = append(h.errors[label], stringErrs...)
 	}
 
 	cl := perf.GetZbusClient(ctx)
 	zui := stubs.NewZUIStub(cl)
 
 	for label, data := range h.errors {
-		zui.PushErrors(ctx, label, data)
+		err := zui.PushErrors(ctx, label, data)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return h.errors, nil
 }
 
-func cacheCheck(ctx context.Context) (string, error) {
-	const label = "cache"
+func errorsToStrings(errs []error) []string {
+	s := make([]string, len(errs))
+	for i, err := range errs {
+		s[i] = err.Error()
+	}
+	return s
+}
+
+func cacheCheck(ctx context.Context) []error {
+	errors := make([]error, 0)
+	if err := readonlyCheck(ctx); err != nil {
+		errors = append(errors, err)
+	}
+	return errors
+}
+
+func readonlyCheck(ctx context.Context) error {
 	const checkFile = "/var/cache/healthcheck"
 
 	_, err := os.Create(checkFile)
@@ -86,12 +105,12 @@ func cacheCheck(ctx context.Context) (string, error) {
 		if err := app.SetFlag(app.ReadonlyCache); err != nil {
 			log.Error().Err(err).Msg("failed to set readonly flag")
 		}
-		return label, fmt.Errorf("failed to write to cache: %w", err)
+		return fmt.Errorf("failed to write to cache: %w", err)
 	}
 	defer os.Remove(checkFile)
 
 	if err := app.DeleteFlag(app.ReadonlyCache); err != nil {
 		log.Error().Err(err).Msg("failed to delete readonly flag")
 	}
-	return label, nil
+	return nil
 }

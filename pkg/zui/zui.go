@@ -43,16 +43,17 @@ var _ pkg.ZUI = (*module)(nil)
 
 // PushErrors pushes the given errors to the ZUI module to be displayed.
 // It can also remove stop displaying certain label by sending an empty errors slice.
-func (m *module) PushErrors(label string, errors []string) {
+func (m *module) PushErrors(label string, errors []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i, data := range m.labels {
 		if data.label == label {
 			m.labels[i].errors = errors
-			return
+			return nil
 		}
 	}
 	m.labels = append(m.labels, labelData{label, errors})
+	return nil
 }
 
 func (m *module) renderErrors(ctx context.Context) {
@@ -60,26 +61,28 @@ func (m *module) renderErrors(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		default:
+		case <-time.After(2 * time.Second):
 			m.mu.Lock()
 			labels := make([]labelData, len(m.labels))
 			copy(labels, m.labels)
 			m.mu.Unlock()
-			display(labels, m.paragraph, m.render)
-			// in case nothing got displayed
-			<-time.After(2 * time.Second)
+			display(ctx, labels, m.paragraph, m.render)
 		}
 	}
 }
 
-func display(labels []labelData, p *widgets.Paragraph, render Signaler) {
+func display(ctx context.Context, labels []labelData, p *widgets.Paragraph, render Signaler) {
 	p.Text = "[No Errors!](fg:green)"
 
 	for _, label := range labels {
 		for _, e := range label.errors {
 			p.Text = fmt.Sprintf("%s: [%s](fg:red)", label.label, e)
 			render.Signal()
-			<-time.After(2 * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
 		}
 	}
 

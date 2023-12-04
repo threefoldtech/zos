@@ -38,6 +38,11 @@ func NewUptime(sub substrate.Manager, id substrate.Identity) (*Uptime, error) {
 }
 
 func (u *Uptime) SendNow() (types.Hash, error) {
+	if !isNodeHealthy() {
+		log.Error().Msg("node is not healthy skipping uptime reports")
+		return types.Hash{}, nil
+	}
+
 	// the mutex is to avoid race when SendNow is called
 	// while the times reporting is working
 	u.m.Lock()
@@ -62,7 +67,7 @@ func (u *Uptime) SendNow() (types.Hash, error) {
 }
 
 func (u *Uptime) uptime(ctx context.Context) error {
-	report := func() error {
+	for {
 		log.Debug().Msg("updating node uptime")
 		hash, err := u.SendNow()
 		if err != nil {
@@ -72,23 +77,6 @@ func (u *Uptime) uptime(ctx context.Context) error {
 		u.Mark.Signal()
 
 		log.Info().Str("hash", hash.Hex()).Msg("node uptime hash")
-		return nil
-	}
-	for {
-		unusable := false
-		if app.CheckFlag(app.ReadonlyCache) {
-			log.Error().Msg("node cache is read only")
-			unusable = true
-		}
-		if app.CheckFlag(app.LimitedCache) {
-			log.Error().Msg("node is running on limited cache")
-			unusable = true
-		}
-		if unusable {
-			log.Error().Msg("node is not usable skipping uptime reports")
-		} else if err := report(); err != nil {
-			return err
-		}
 
 		select {
 		case <-ctx.Done():
@@ -129,4 +117,17 @@ func (u *Uptime) Start(ctx context.Context) {
 		// even there is no error we try again until ctx is cancelled
 		<-time.After(10 * time.Second)
 	}
+}
+
+func isNodeHealthy() bool {
+	healthy := true
+	if app.CheckFlag(app.ReadonlyCache) {
+		log.Error().Msg("node cache is read only")
+		healthy = false
+	}
+	if app.CheckFlag(app.LimitedCache) {
+		log.Error().Msg("node is running on limited cache")
+		healthy = false
+	}
+	return healthy
 }
