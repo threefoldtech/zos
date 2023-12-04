@@ -82,15 +82,15 @@ func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 }
 
 func errorsToStrings(errs []error) []string {
-	s := make([]string, len(errs))
-	for i, err := range errs {
-		s[i] = err.Error()
+	s := make([]string, 0, len(errs))
+	for _, err := range errs {
+		s = append(s, err.Error())
 	}
 	return s
 }
 
 func cacheCheck(ctx context.Context) []error {
-	errors := make([]error, 0)
+	var errors []error
 	if err := readonlyCheck(ctx); err != nil {
 		errors = append(errors, err)
 	}
