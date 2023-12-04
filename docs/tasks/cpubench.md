@@ -8,6 +8,7 @@ The `CPUBenchmark` task is designed to measure the performance of the CPU. it ut
 
 - Name: `cpu-benchmark`
 - Schedule: 4 times a day
+- Jitter: 10 min
 
 ### Details
 

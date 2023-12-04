@@ -6,6 +6,7 @@ The goal of the task is to make sure public IPs assigned to a farm are valid and
 
 - Name: `public-ip-validation`
 - Schedule: 4 times a day
+- Jitter: 10 min
 
 
 ## Task Details

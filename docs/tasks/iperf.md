@@ -8,6 +8,7 @@ The `iperf` package is designed to facilitate network performance testing using 
 
 - Name: `iperf`
 - Schedule: 4 times a day
+- Jitter: 10 min
 
 ### Details
 

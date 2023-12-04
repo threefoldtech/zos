@@ -16,7 +16,9 @@ To ensure that the node always has a test result available, a check is performed
 
 ### Scheduling
 
-Tasks are scheduled using a 6 fields cron format. this format provides flexibility to define time, allowing running tasks periodically or at specific time.
+- Tasks are scheduled using a 6 fields cron format. this format provides flexibility to define time, allowing running tasks periodically or at specific time.
+
+- Each task have a jitter which is the max number of seconds the task could sleep before it runs, this happens to prevent all tests ending up running at exactly the same time. so for example if a task scheduled to run at `06:00` and it is jitter is `10` it is expected to run any when between `06:00` to `06:10`
 
 ### RMB commands
 
