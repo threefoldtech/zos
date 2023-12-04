@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -22,6 +24,7 @@ type IperfTest struct {
 	taskID      string
 	schedule    string
 	description string
+	jitter      uint32
 }
 
 // IperfResult for iperf test results
@@ -47,6 +50,7 @@ func NewTask() perf.Task {
 		taskID:      "iperf",
 		schedule:    "0 0 */6 * * *",
 		description: "Test public nodes network performance with both UDP and TCP over IPv4 and IPv6",
+		jitter:      10 * 60,
 	}
 }
 
@@ -65,8 +69,15 @@ func (t *IperfTest) Description() string {
 	return t.description
 }
 
+// Jitter returns the duration the task will sleep for before running.
+func (t *IperfTest) Jitter() time.Duration {
+	jitter := time.Duration(rand.Int31n(int32(t.jitter))) * time.Second
+	return jitter
+}
+
 // Run runs the tcp test and returns the result
 func (t *IperfTest) Run(ctx context.Context) (interface{}, error) {
+	time.Sleep(t.Jitter())
 	env := environment.MustGet()
 	g := graphql.NewGraphQl(env.GraphQL)
 
