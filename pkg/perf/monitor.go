@@ -50,8 +50,10 @@ func (pm *PerformanceMonitor) AddTask(task Task) {
 
 // runTask runs the task and store its result
 func (pm *PerformanceMonitor) runTask(ctx context.Context, task Task) error {
-	sleepInterval := time.Duration(rand.Int31n(int32(task.Jitter()))) * time.Second
-	time.Sleep(sleepInterval)
+	if task.Jitter() != 0 {
+		sleepInterval := time.Duration(rand.Int31n(int32(task.Jitter()))) * time.Second
+		time.Sleep(sleepInterval)
+	}
 
 	res, err := task.Run(ctx)
 	if err != nil {

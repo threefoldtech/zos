@@ -8,7 +8,6 @@ The goal of the task is to make sure public IPs assigned to a farm are valid and
 - Schedule: 4 times a day
 - Jitter: 10 min
 
-
 ## Task Details
 
 - The task depends on `Networkd` ensuring the proper test network setup is correct and will fail if it wasn't setup properly. The network setup consists of a test Namespace and a MacVLAN as part of it. All steps are done inside the test Namespace.
@@ -28,6 +27,7 @@ The goal of the task is to make sure public IPs assigned to a farm are valid and
 The task only returns a single map of String (IP) to IPReport. The report consists of the IP state (valid, invalid or skipped) and the reason for the state.
 
 ### Result sample
+
 ```json
 {
   "description": "Runs on the least NodeID node in a farm to validate all its IPs.",

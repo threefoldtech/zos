@@ -23,17 +23,20 @@ To ensure that the node always has a test result available, a check is performed
 ### RMB commands
 
 - `zos.perf.get`:
+
   - Payload: a payload type that contains the name of the test
+
     ```go
     type Payload struct {
-      Name string 
+      Name string
     }
     ```
 
     Possible values:
-      - `"public-ip-validation"`
-      - `"cpu-benchmark"`
-      - `"iperf"`
+
+    - `"public-ip-validation"`
+    - `"cpu-benchmark"`
+    - `"iperf"`
 
   - Return: a single task result.
 
@@ -44,6 +47,7 @@ To ensure that the node always has a test result available, a check is performed
   - Return: all stored results
 
 The rmb direct client can be used to call these commands. check the [example](https://github.com/threefoldtech/tfgrid-sdk-go/blob/development/rmb-sdk-go/examples/client_rpc/main.go)
+
 ### Caching
 
 Results are stored in a Redis server running on the node.
@@ -66,4 +70,3 @@ Notes:
 - [Public IP validation](./publicips.md)
 - [CPU benchmark](./cpubench.md)
 - [IPerf](./iperf.md)
-- To add new task, [check](../../pkg/perf/README.md)
