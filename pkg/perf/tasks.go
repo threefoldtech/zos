@@ -2,13 +2,12 @@ package perf
 
 import (
 	"context"
-	"time"
 )
 
 type Task interface {
 	ID() string
 	Cron() string
 	Description() string
-	Jitter() time.Duration
+	Jitter() uint32
 	Run(ctx context.Context) (interface{}, error)
 }

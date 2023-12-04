@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"os/exec"
-	"time"
 
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -65,15 +63,13 @@ func (c *CPUBenchmarkTask) Description() string {
 	return c.description
 }
 
-// Jitter returns the duration the task will sleep for before running.
-func (c *CPUBenchmarkTask) Jitter() time.Duration {
-	jitter := time.Duration(rand.Int31n(int32(c.jitter))) * time.Second
-	return jitter
+// Jitter returns the max number of seconds the job can sleep before actual execution.
+func (c *CPUBenchmarkTask) Jitter() uint32 {
+	return c.jitter
 }
 
 // Run executes the CPU benchmark.
 func (c *CPUBenchmarkTask) Run(ctx context.Context) (interface{}, error) {
-	time.Sleep(c.Jitter())
 	cpubenchOut, err := exec.CommandContext(ctx, "cpubench", "-j").CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute cpubench command: %w", err)

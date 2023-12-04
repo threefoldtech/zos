@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -69,15 +67,13 @@ func (t *IperfTest) Description() string {
 	return t.description
 }
 
-// Jitter returns the duration the task will sleep for before running.
-func (t *IperfTest) Jitter() time.Duration {
-	jitter := time.Duration(rand.Int31n(int32(t.jitter))) * time.Second
-	return jitter
+// Jitter returns the max number of seconds the job can sleep before actual execution.
+func (t *IperfTest) Jitter() uint32 {
+	return t.jitter
 }
 
 // Run runs the tcp test and returns the result
 func (t *IperfTest) Run(ctx context.Context) (interface{}, error) {
-	time.Sleep(t.Jitter())
 	env := environment.MustGet()
 	g := graphql.NewGraphQl(env.GraphQL)
 

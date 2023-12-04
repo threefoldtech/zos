@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"net/http"
 	"os/exec"
@@ -46,11 +45,10 @@ const testMacvlan = "pub"
 const testNamespace = "pubtestns"
 
 type publicIPValidationTask struct {
-	taskID        string
-	schedule      string
-	description   string
-	jitter        uint32
-	farmIPsReport map[string]IPReport
+	taskID      string
+	schedule    string
+	description string
+	jitter      uint32
 }
 
 type IPReport struct {
@@ -62,11 +60,10 @@ var _ perf.Task = (*publicIPValidationTask)(nil)
 
 func NewTask() perf.Task {
 	return &publicIPValidationTask{
-		taskID:        taskID,
-		schedule:      taskSchedule,
-		description:   taskDescription,
-		jitter:        10 * 60,
-		farmIPsReport: make(map[string]IPReport),
+		taskID:      taskID,
+		schedule:    taskSchedule,
+		description: taskDescription,
+		jitter:      10 * 60,
 	}
 }
 
@@ -82,14 +79,11 @@ func (p *publicIPValidationTask) Description() string {
 	return p.description
 }
 
-func (p *publicIPValidationTask) Jitter() time.Duration {
-	jitter := time.Duration(rand.Int31n(int32(p.jitter))) * time.Second
-	return jitter
+func (p *publicIPValidationTask) Jitter() uint32 {
+	return p.jitter
 }
 
 func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
-	time.Sleep(p.Jitter())
-
 	netNS, err := namespace.GetByName(testNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get namespace %s: %w", testNamespace, err)
