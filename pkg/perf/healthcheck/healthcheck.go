@@ -42,6 +42,10 @@ func (h *healthcheckTask) ID() string {
 	return id
 }
 
+func (h *healthcheckTask) Jitter() uint32 {
+	return 0
+}
+
 // Cron returns task cron schedule.
 func (h *healthcheckTask) Cron() string {
 	return schedule
