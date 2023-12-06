@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -15,6 +16,12 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/iperf"
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/perf/graphql"
+)
+
+const (
+	maxRetries      = 3
+	backoffInterval = 5 * time.Minute
+	errServerBusy   = "the server is busy running a test. try again later"
 )
 
 // IperfTest for iperf tcp/udp tests
@@ -134,34 +141,45 @@ func (t *IperfTest) runIperfTest(ctx context.Context, clientIP string, tcp bool)
 	if !tcp {
 		opts = append(opts, "--length", "16B", "--udp")
 	}
-	output, err := exec.CommandContext(ctx, "iperf", opts...).CombinedOutput()
-	exitErr := &exec.ExitError{}
-	if err != nil && !errors.As(err, &exitErr) {
-		log.Err(err).Msg("failed to run iperf")
-		return IperfResult{}
-	}
 
-	var report iperfCommandOutput
-	if err := json.Unmarshal(output, &report); err != nil {
-		log.Err(err).Msg("failed to parse iperf output")
-		return IperfResult{}
-	}
+	iperfResult := IperfResult{}
+	for round := 1; round <= maxRetries; round++ {
+		output, err := exec.CommandContext(ctx, "iperf", opts...).CombinedOutput()
+		exitErr := &exec.ExitError{}
+		if err != nil && !errors.As(err, &exitErr) {
+			log.Err(err).Msg("failed to run iperf")
+			return iperfResult
+		}
 
-	proto := "tcp"
-	if !tcp {
-		proto = "udp"
-	}
-	iperfResult := IperfResult{
-		UploadSpeed:   report.End.SumSent.BitsPerSecond,
-		DownloadSpeed: report.End.SumReceived.BitsPerSecond,
-		CpuReport:     report.End.CPUUtilizationPercent,
-		NodeIpv4:      clientIP,
-		TestType:      proto,
-		Error:         report.Error,
-	}
+		var report iperfCommandOutput
+		if err := json.Unmarshal(output, &report); err != nil {
+			log.Err(err).Msg("failed to parse iperf output")
+			return iperfResult
+		}
 
-	if !tcp && len(report.End.Streams) > 0 {
-		iperfResult.DownloadSpeed = report.End.Streams[0].UDP.BitsPerSecond
+		if report.Error == errServerBusy {
+			retryAfter := time.Duration(round) * backoffInterval
+			log.Err(err).Msgf("retrying again after %d min", retryAfter/time.Minute)
+			time.Sleep(retryAfter)
+			continue
+		}
+
+		proto := "tcp"
+		if !tcp {
+			proto = "udp"
+		}
+
+		iperfResult.UploadSpeed = report.End.SumSent.BitsPerSecond
+		iperfResult.DownloadSpeed = report.End.SumReceived.BitsPerSecond
+		iperfResult.CpuReport = report.End.CPUUtilizationPercent
+		iperfResult.NodeIpv4 = clientIP
+		iperfResult.TestType = proto
+		iperfResult.Error = report.Error
+		if !tcp && len(report.End.Streams) > 0 {
+			iperfResult.DownloadSpeed = report.End.Streams[0].UDP.BitsPerSecond
+		}
+
+		break
 	}
 
 	return iperfResult
