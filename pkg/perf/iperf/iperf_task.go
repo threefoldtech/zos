@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/environment"
@@ -20,8 +21,11 @@ import (
 
 const (
 	maxRetries      = 3
-	backoffInterval = 5 * time.Minute
-	errServerBusy   = "the server is busy running a test. try again later"
+	initialInterval = 5 * time.Minute
+	maxInterval     = 20 * time.Minute
+	maxElapsedTime  = time.Duration(maxRetries) * maxInterval
+
+	errServerBusy = "the server is busy running a test. try again later"
 )
 
 // IperfTest for iperf tcp/udp tests
@@ -142,45 +146,65 @@ func (t *IperfTest) runIperfTest(ctx context.Context, clientIP string, tcp bool)
 		opts = append(opts, "--length", "16B", "--udp")
 	}
 
-	iperfResult := IperfResult{}
-	for round := 1; round <= maxRetries; round++ {
-		output, err := exec.CommandContext(ctx, "iperf", opts...).CombinedOutput()
-		exitErr := &exec.ExitError{}
-		if err != nil && !errors.As(err, &exitErr) {
-			log.Err(err).Msg("failed to run iperf")
-			return iperfResult
+	var report iperfCommandOutput
+	operation := func() error {
+		res := runIperfCommand(ctx, opts)
+		if res.Error == errServerBusy {
+			return fmt.Errorf(errServerBusy)
 		}
 
-		var report iperfCommandOutput
-		if err := json.Unmarshal(output, &report); err != nil {
-			log.Err(err).Msg("failed to parse iperf output")
-			return iperfResult
-		}
+		report = res
+		return nil
+	}
 
-		if report.Error == errServerBusy {
-			retryAfter := time.Duration(round) * backoffInterval
-			log.Err(err).Msgf("retrying again after %d min", retryAfter/time.Minute)
-			time.Sleep(retryAfter)
-			continue
-		}
+	notify := func(err error, waitTime time.Duration) {
+		log.Debug().Err(err).Stringer("retry-in", waitTime).Msg("retrying")
+	}
 
-		proto := "tcp"
-		if !tcp {
-			proto = "udp"
-		}
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = initialInterval
+	bo.MaxInterval = maxInterval
+	bo.MaxElapsedTime = maxElapsedTime
 
-		iperfResult.UploadSpeed = report.End.SumSent.BitsPerSecond
-		iperfResult.DownloadSpeed = report.End.SumReceived.BitsPerSecond
-		iperfResult.CpuReport = report.End.CPUUtilizationPercent
-		iperfResult.NodeIpv4 = clientIP
-		iperfResult.TestType = proto
-		iperfResult.Error = report.Error
-		if !tcp && len(report.End.Streams) > 0 {
-			iperfResult.DownloadSpeed = report.End.Streams[0].UDP.BitsPerSecond
-		}
+	b := backoff.WithMaxRetries(bo, maxRetries)
+	err := backoff.RetryNotify(operation, b, notify)
+	if err != nil {
+		return IperfResult{}
+	}
 
-		break
+	proto := "tcp"
+	if !tcp {
+		proto = "udp"
+	}
+
+	iperfResult := IperfResult{
+		UploadSpeed:   report.End.SumSent.BitsPerSecond,
+		DownloadSpeed: report.End.SumReceived.BitsPerSecond,
+		CpuReport:     report.End.CPUUtilizationPercent,
+		NodeIpv4:      clientIP,
+		TestType:      proto,
+		Error:         report.Error,
+	}
+	if !tcp && len(report.End.Streams) > 0 {
+		iperfResult.DownloadSpeed = report.End.Streams[0].UDP.BitsPerSecond
 	}
 
 	return iperfResult
+}
+
+func runIperfCommand(ctx context.Context, opts []string) iperfCommandOutput {
+	output, err := exec.CommandContext(ctx, "iperf", opts...).CombinedOutput()
+	exitErr := &exec.ExitError{}
+	if err != nil && !errors.As(err, &exitErr) {
+		log.Err(err).Msg("failed to run iperf")
+		return iperfCommandOutput{}
+	}
+
+	var report iperfCommandOutput
+	if err := json.Unmarshal(output, &report); err != nil {
+		log.Err(err).Msg("failed to parse iperf output")
+		return iperfCommandOutput{}
+	}
+
+	return report
 }
