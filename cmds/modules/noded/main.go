@@ -41,11 +41,6 @@ const (
 	eventsBlock     = "/tmp/events.chain"
 )
 
-type Diagnostics struct {
-	SystemStatusOk bool                   `json:"system_status_ok"`
-	Modules        map[string]zbus.Status `json:"modules"`
-}
-
 // Module is entry point for module
 var Module cli.Command = cli.Command{
 	Name:  "noded",
@@ -198,22 +193,36 @@ func action(cli *cli.Context) error {
 	})
 
 	bus.WithHandler("zos.system.diagnostics", func(ctx context.Context, payload []byte) (interface{}, error) {
-		results := Diagnostics{
+		type moduleStatus struct {
+			Status zbus.Status `json:"status,omitempty"`
+			Err    error       `json:"error,omitempty"`
+		}
+		results := struct {
+			SystemStatusOk bool                    `json:"system_status_ok"`
+			Modules        map[string]moduleStatus `json:"modules"`
+		}{
 			SystemStatusOk: true,
-			Modules:        make(map[string]zbus.Status),
+			Modules:        make(map[string]moduleStatus),
 		}
 
 		for module := range zbusdebug.PossibleModules {
 			status, err := redis.Status(ctx, module)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get status of module %s", module)
+			moduleStatus := moduleStatus{
+				Status: status,
+				Err:    err,
 			}
-			for _, worker := range status.Workers {
-				if worker.State != "free" {
-					results.SystemStatusOk = false
+
+			if err != nil {
+				results.SystemStatusOk = false
+			} else {
+				for _, worker := range status.Workers {
+					if worker.State != zbus.WorkerFree {
+						results.SystemStatusOk = false
+					}
 				}
 			}
-			results.Modules[module] = status
+
+			results.Modules[module] = moduleStatus
 		}
 
 		return results, nil

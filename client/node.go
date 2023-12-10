@@ -77,6 +77,7 @@ import (
 	"net"
 
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/capacity/dmi"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
@@ -96,6 +97,19 @@ type Version struct {
 type Interface struct {
 	IPs []string `json:"ips"`
 	Mac string   `json:"mac"`
+}
+
+type moduleStatus struct {
+	Status zbus.Status `json:"status,omitempty"`
+	Err    error       `json:"error,omitempty"`
+}
+
+// Diagnostics show the health of zbus modules
+type Diagnostics struct {
+	// SystemStatusOk is the overall system status
+	SystemStatusOk bool `json:"system_status_ok"`
+	// Modules is a list of modules with their objects and workers
+	Modules map[string]moduleStatus `json:"modules"`
 }
 
 type ExitDevice struct {
@@ -325,5 +339,11 @@ func (n *NodeClient) SystemHypervisor(ctx context.Context) (result string, err e
 		return
 	}
 
+	return
+}
+
+func (n *NodeClient) SystemDiagnostics(ctx context.Context) (result Diagnostics, err error) {
+	const cmd = "zos.system.diagnostics"
+	err = n.bus.Call(ctx, n.nodeTwin, cmd, nil, &result)
 	return
 }
