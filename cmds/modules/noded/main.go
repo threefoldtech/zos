@@ -206,23 +206,20 @@ func action(cli *cli.Context) error {
 		}
 
 		for module := range zbusdebug.PossibleModules {
+			ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+
 			status, err := redis.Status(ctx, module)
+			if err != nil {
+				results.SystemStatusOk = false
+			}
+
 			moduleStatus := moduleStatus{
 				Status: status,
 				Err:    err,
 			}
-
-			if err != nil {
-				results.SystemStatusOk = false
-			} else {
-				for _, worker := range status.Workers {
-					if worker.State != zbus.WorkerFree {
-						results.SystemStatusOk = false
-					}
-				}
-			}
-
 			results.Modules[module] = moduleStatus
+
+			cancel()
 		}
 
 		return results, nil
