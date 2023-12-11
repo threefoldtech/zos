@@ -15,9 +15,9 @@ import (
 
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go"
-	"github.com/threefoldtech/zos/cmds/modules/zbusdebug"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/diagnostics"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/events"
 	"github.com/threefoldtech/zos/pkg/monitord"
@@ -193,36 +193,7 @@ func action(cli *cli.Context) error {
 	})
 
 	bus.WithHandler("zos.system.diagnostics", func(ctx context.Context, payload []byte) (interface{}, error) {
-		type moduleStatus struct {
-			Status zbus.Status `json:"status,omitempty"`
-			Err    error       `json:"error,omitempty"`
-		}
-		results := struct {
-			SystemStatusOk bool                    `json:"system_status_ok"`
-			Modules        map[string]moduleStatus `json:"modules"`
-		}{
-			SystemStatusOk: true,
-			Modules:        make(map[string]moduleStatus),
-		}
-
-		for module := range zbusdebug.PossibleModules {
-			ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-
-			status, err := redis.Status(ctx, module)
-			if err != nil {
-				results.SystemStatusOk = false
-			}
-
-			moduleStatus := moduleStatus{
-				Status: status,
-				Err:    err,
-			}
-			results.Modules[module] = moduleStatus
-
-			cancel()
-		}
-
-		return results, nil
+		return diagnostics.GetSystemDiagnostics(ctx, redis)
 	})
 
 	bus.WithHandler("zos.system.dmi", func(ctx context.Context, payload []byte) (interface{}, error) {
