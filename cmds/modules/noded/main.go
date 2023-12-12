@@ -25,6 +25,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/perf/cpubench"
 	"github.com/threefoldtech/zos/pkg/perf/healthcheck"
 	"github.com/threefoldtech/zos/pkg/perf/iperf"
+	"github.com/threefoldtech/zos/pkg/perf/networkhealth"
 	"github.com/threefoldtech/zos/pkg/perf/publicip"
 	"github.com/threefoldtech/zos/pkg/registrar"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -193,7 +194,7 @@ func action(cli *cli.Context) error {
 	})
 
 	bus.WithHandler("zos.system.diagnostics", func(ctx context.Context, payload []byte) (interface{}, error) {
-		return diagnostics.GetSystemDiagnostics(ctx, redis)
+		return diagnostics.GetSystemDiagnostics(ctx, msgBrokerCon)
 	})
 
 	bus.WithHandler("zos.system.dmi", func(ctx context.Context, payload []byte) (interface{}, error) {
@@ -215,6 +216,7 @@ func action(cli *cli.Context) error {
 	perfMon.AddTask(cpubench.NewTask())
 	perfMon.AddTask(publicip.NewTask())
 	perfMon.AddTask(healthcheck.NewTask())
+	perfMon.AddTask(networkhealth.NewTask())
 
 	if err = perfMon.Run(ctx); err != nil {
 		return errors.Wrap(err, "failed to run the scheduler")
