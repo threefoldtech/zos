@@ -2,20 +2,24 @@ package networkhealth
 
 import (
 	"context"
-	"net/http"
+	"fmt"
+	"net"
+	"net/url"
 	"strings"
+	"sync"
+	"time"
 
-	"github.com/go-redis/redis"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/perf"
 )
 
+const requestTimeout = 5 * time.Second
+
 type NetworkHealthTask struct{}
 
 type ServiceStatus struct {
-	Name        string
-	IsReachable bool
-	Err         error `json:"err,omitempty"`
+	Url         string `json:"url"`
+	IsReachable bool   `json:"is_reachable"`
 }
 
 var _ perf.Task = (*NetworkHealthTask)(nil)
@@ -41,59 +45,68 @@ func (t *NetworkHealthTask) Jitter() uint32 {
 }
 
 func (t *NetworkHealthTask) Run(ctx context.Context) (interface{}, error) {
-	var err error
-	result := []ServiceStatus{}
-
 	env := environment.MustGet()
+	servicesUrl := []string{
+		env.ActivationURL, env.GraphQL, env.FlistURL,
+	}
+	servicesUrl = append(servicesUrl, env.SubstrateURL...)
+	servicesUrl = append(servicesUrl, env.RelayURL...)
 
-	status := pingHttp("activation-service", env.ActivationURL)
-	result = append(result, status)
+	reports := []ServiceStatus{}
 
-	status = pingHttp("graphql-gateway", env.GraphQL)
-	result = append(result, status)
+	var wg sync.WaitGroup
+	for _, serviceUrl := range servicesUrl {
+		wg.Add(1)
+		go func(serviceUrl string) {
+			defer wg.Done()
+			report := getNetworkReport(ctx, serviceUrl)
+			reports = append(reports, report)
+		}(serviceUrl)
+	}
+	wg.Wait()
 
-	status = pingRedis("hub", env.FlistURL)
-	result = append(result, status)
-
-	return result, err
+	return reports, nil
 }
 
-func pingHttp(name, url string) ServiceStatus {
+func getNetworkReport(ctx context.Context, serviceUrl string) ServiceStatus {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
+
 	report := ServiceStatus{
-		Name:        name,
+		Url:         serviceUrl,
 		IsReachable: true,
 	}
 
-	res, err := http.Get(url)
-	if err != nil || res.StatusCode != http.StatusOK {
+	parsedUrl := parseUrl(serviceUrl)
+	err := isReachable(ctx, parsedUrl)
+	if err != nil {
 		report.IsReachable = false
-		report.Err = err
 	}
-	defer res.Body.Close()
 
 	return report
 }
 
-func pingRedis(name, url string) ServiceStatus {
-	report := ServiceStatus{
-		Name:        name,
-		IsReachable: true,
+func parseUrl(serviceUrl string) string {
+	u, err := url.Parse(serviceUrl)
+	if err != nil {
+		return ""
+	}
+	host := u.Host
+
+	if !strings.Contains(host, ":") {
+		host = fmt.Sprintf("%s:80", host)
 	}
 
-	addressSlice := strings.Split(url, "://")
-	addr := ""
-	if len(addr) == 1 {
-		addr = addressSlice[0]
-	} else {
-		addr = addressSlice[1]
-	}
+	return host
+}
 
-	redis := redis.NewClient(&redis.Options{Addr: addr})
-	res := redis.Ping()
-	if res.Err() != nil {
-		report.IsReachable = false
-		report.Err = res.Err()
+func isReachable(ctx context.Context, serviceUrl string) error {
+	d := net.Dialer{Timeout: requestTimeout}
+	conn, err := d.DialContext(ctx, "tcp", serviceUrl)
+	if err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
 	}
+	defer conn.Close()
 
-	return report
+	return nil
 }

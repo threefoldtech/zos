@@ -6,11 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/perf"
-	"github.com/threefoldtech/zos/pkg/perf/networkhealth"
+	"github.com/threefoldtech/zos/pkg/utils"
 )
 
 const (
@@ -76,8 +75,7 @@ func GetSystemDiagnostics(ctx context.Context, msgBrokerCon string) (Diagnostics
 
 	wg.Wait()
 
-	client := redis.NewClient(&redis.Options{Addr: msgBrokerCon})
-	results.Online = isOnline(ctx, client)
+	results.Online = isOnline(ctx, msgBrokerCon)
 
 	return results, nil
 
@@ -94,19 +92,27 @@ func getModuleStatus(ctx context.Context, busClient zbus.Client, module string) 
 	}
 }
 
-func isOnline(ctx context.Context, client *redis.Client) bool {
-	res, err := client.Get(testNetworkKey).Result()
+func isOnline(ctx context.Context, msgBrokerCon string) bool {
+	client, err := utils.NewRedisPool(msgBrokerCon)
+	if err != nil {
+		return false
+	}
+
+	conn := client.Get()
+	defer conn.Close()
+
+	data, err := conn.Do("GET", testNetworkKey)
 	if err != nil {
 		return false
 	}
 
 	var result perf.TaskResult
-	if err := json.Unmarshal([]byte(res), &result); err != nil {
+	if err := json.Unmarshal(data.([]byte), &result); err != nil {
 		return false
 	}
 
-	for _, service := range result.Result.([]networkhealth.ServiceStatus) {
-		if !service.IsReachable {
+	for _, service := range result.Result.([]interface{}) {
+		if !service.(map[string]interface{})["is_reachable"].(bool) {
 			return false
 		}
 	}
