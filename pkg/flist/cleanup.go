@@ -3,7 +3,6 @@ package flist
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -16,6 +15,8 @@ import (
 // Cleaner interface, implementer of this interface
 // can start a cleaner job
 type Cleaner interface {
+	// MountsCleaner runs the clean process, MountsCleaner should be
+	// blocking. Caller then can do `go MountsCleaner()` to run it in the background
 	MountsCleaner(ctx context.Context, every time.Duration)
 	// CacheCleaner runs the clean process, CacheCleaner should be
 	// blocking. Caller then can do `go CacheCleaner()` to run it in the background
@@ -32,26 +33,27 @@ func (f *flistModule) MountsCleaner(ctx context.Context, every time.Duration) {
 		case <-ctx.Done():
 			return
 		case <-time.After(every):
+
 			entries, err := os.ReadDir(f.mountpoint)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to read mountpoint directory")
 			}
 			for _, entry := range entries {
 				path := filepath.Join(f.mountpoint, entry.Name())
-				if isMount(ctx, path) {
+				if err := f.isMountpoint(path); err == nil {
 					continue
 				}
+
+				if _, err := os.Lstat(filepath.Join(path, ".lock")); err == nil {
+					continue
+				}
+
 				if err := os.Remove(path); err != nil {
 					log.Error().Err(err).Msg("failed to clean mountpoint")
 				}
 			}
 		}
 	}
-}
-
-func isMount(ctx context.Context, path string) bool {
-	err := exec.CommandContext(ctx, "mountpoint", path, "-q").Run()
-	return err == nil
 }
 
 func (f *flistModule) CacheCleaner(ctx context.Context, every time.Duration, age time.Duration) {

@@ -128,6 +128,20 @@ func (p *Manager) prepContainer(
 		return errors.Wrapf(err, "failed to mount flist: %s", wl.ID.String())
 	}
 
+	// lock the flist until mounted
+	_, err = os.Create(filepath.Join(mnt, ".lock"))
+	if err != nil {
+		return errors.Wrap(err, "failed to lock the mount path")
+	}
+
+	defer func() {
+		// unlock the created volume
+		err = os.Remove(filepath.Join(volume.Path, ".lock"))
+		if err != nil {
+			log.Error().Err(err).Msg("failed to unlock the mount path")
+		}
+	}()
+
 	// clean up host keys
 	if !volumeExists {
 		files, err := filepath.Glob(filepath.Join(mnt, "etc", "ssh", "ssh_host_*"))
