@@ -139,7 +139,7 @@ func (f *flistModule) cleanUnusedMounts() error {
 		}
 
 		if err := os.Remove(path); err != nil {
-			log.Error().Err(err).Msg("failed to clean mountpoint")
+			log.Error().Err(err).Msgf("failed to clean mountpoint %s", path)
 		}
 	}
 
