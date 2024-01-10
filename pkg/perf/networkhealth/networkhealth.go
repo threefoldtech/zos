@@ -13,7 +13,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/perf"
 )
 
-const requestTimeout = 5 * time.Second
+const defaultRequestTimeout = 5 * time.Second
 
 type NetworkHealthTask struct{}
 
@@ -49,8 +49,7 @@ func (t *NetworkHealthTask) Run(ctx context.Context) (interface{}, error) {
 	servicesUrl := []string{
 		env.ActivationURL, env.GraphQL, env.FlistURL,
 	}
-	servicesUrl = append(servicesUrl, env.SubstrateURL...)
-	servicesUrl = append(servicesUrl, env.RelayURL...)
+	servicesUrl = append(append(servicesUrl, env.SubstrateURL...), env.RelayURL...)
 
 	reports := []ServiceStatus{}
 
@@ -69,7 +68,7 @@ func (t *NetworkHealthTask) Run(ctx context.Context) (interface{}, error) {
 }
 
 func getNetworkReport(ctx context.Context, serviceUrl string) ServiceStatus {
-	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer cancel()
 
 	report := ServiceStatus{
@@ -101,7 +100,7 @@ func parseUrl(serviceUrl string) string {
 }
 
 func isReachable(ctx context.Context, address string) error {
-	d := net.Dialer{Timeout: requestTimeout}
+	d := net.Dialer{Timeout: defaultRequestTimeout}
 	conn, err := d.DialContext(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)

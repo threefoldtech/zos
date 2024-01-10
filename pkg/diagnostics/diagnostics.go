@@ -30,9 +30,12 @@ var Modules = []string{
 	"qsfsd",
 }
 
-type moduleStatus struct {
+// ModuleStatus represents the status of a module or shows if error
+type ModuleStatus struct {
+	// Status holds the status of the module
 	Status zbus.Status `json:"status,omitempty"`
-	Err    error       `json:"error,omitempty"`
+	// Err contains any error related to the module
+	Err error `json:"error,omitempty"`
 }
 
 // Diagnostics show the health of zbus modules
@@ -40,7 +43,7 @@ type Diagnostics struct {
 	// SystemStatusOk is the overall system status
 	SystemStatusOk bool `json:"system_status_ok"`
 	// ZosModules is a list of modules with their objects and workers
-	ZosModules map[string]moduleStatus `json:"modules"`
+	ZosModules map[string]ModuleStatus `json:"modules"`
 	// Online is the state of the grid services reachable from the node
 	Online bool `json:"online"`
 }
@@ -48,7 +51,7 @@ type Diagnostics struct {
 func GetSystemDiagnostics(ctx context.Context, busClient zbus.Client, msgBrokerCon string) (Diagnostics, error) {
 	results := Diagnostics{
 		SystemStatusOk: true,
-		ZosModules:     make(map[string]moduleStatus),
+		ZosModules:     make(map[string]ModuleStatus),
 	}
 
 	var wg sync.WaitGroup
@@ -75,12 +78,12 @@ func GetSystemDiagnostics(ctx context.Context, busClient zbus.Client, msgBrokerC
 
 }
 
-func getModuleStatus(ctx context.Context, busClient zbus.Client, module string) moduleStatus {
+func getModuleStatus(ctx context.Context, busClient zbus.Client, module string) ModuleStatus {
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
 	status, err := busClient.Status(ctx, module)
-	return moduleStatus{
+	return ModuleStatus{
 		Status: status,
 		Err:    err,
 	}

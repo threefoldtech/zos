@@ -8,42 +8,43 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-type RedisConfig struct {
+type RedisDialParams struct {
 	Scheme  string
 	Host    string
 	Options []redis.DialOption
 }
 
-func parseRedisAdd(address string) (RedisConfig, error) {
-	var config RedisConfig
+func parseRedisAddress(address string) (RedisDialParams, error) {
+	var params RedisDialParams
 	u, err := url.Parse(address)
 	if err != nil {
-		return config, err
+		return params, err
 	}
 
-	config.Scheme = u.Scheme
+	params.Scheme = u.Scheme
 
-	switch config.Scheme {
+	switch params.Scheme {
 	case "redis":
-		config.Scheme = "tcp"
+		params.Scheme = "tcp"
 		fallthrough
 	case "tcp":
-		config.Host = u.Host
+		params.Host = u.Host
 	case "unix":
-		config.Host = u.Path
+		params.Host = u.Path
 	default:
-		return config, fmt.Errorf("unknown scheme '%s' expecting tcp or unix", u.Scheme)
+		return params, fmt.Errorf("unknown scheme '%s' expecting tcp or unix", u.Scheme)
 	}
 
 	if u.User != nil {
-		config.Options = append(
-			config.Options,
+		params.Options = append(
+			params.Options,
 			redis.DialPassword(u.User.Username()),
 		)
 	}
 
-	return config, nil
+	return params, nil
 }
+
 func NewRedisPool(address string, size ...uint32) (*redis.Pool, error) {
 	var poolSize uint32 = 20
 	if len(size) == 1 {
@@ -52,14 +53,14 @@ func NewRedisPool(address string, size ...uint32) (*redis.Pool, error) {
 		panic("invalid pool size")
 	}
 
-	config, err := parseRedisAdd(address)
+	params, err := parseRedisAddress(address)
 	if err != nil {
 		return nil, err
 	}
 
 	return &redis.Pool{
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial(config.Scheme, config.Host, config.Options...)
+			return redis.Dial(params.Scheme, params.Host, params.Options...)
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			if time.Since(t) > 10*time.Second {
@@ -78,9 +79,9 @@ func NewRedisPool(address string, size ...uint32) (*redis.Pool, error) {
 }
 
 func NewRedisConn(address string) (redis.Conn, error) {
-	config, err := parseRedisAdd(address)
+	params, err := parseRedisAddress(address)
 	if err != nil {
 		return nil, err
 	}
-	return redis.Dial(config.Scheme, config.Host, config.Options...)
+	return redis.Dial(params.Scheme, params.Host, params.Options...)
 }
