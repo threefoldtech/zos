@@ -194,7 +194,7 @@ func action(cli *cli.Context) error {
 	})
 
 	bus.WithHandler("zos.system.diagnostics", func(ctx context.Context, payload []byte) (interface{}, error) {
-		return diagnostics.GetSystemDiagnostics(ctx, msgBrokerCon)
+		return diagnostics.GetSystemDiagnostics(ctx, redis, msgBrokerCon)
 	})
 
 	bus.WithHandler("zos.system.dmi", func(ctx context.Context, payload []byte) (interface{}, error) {

@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -46,12 +45,7 @@ type Diagnostics struct {
 	Online bool `json:"online"`
 }
 
-func GetSystemDiagnostics(ctx context.Context, msgBrokerCon string) (Diagnostics, error) {
-	busClient, err := zbus.NewRedisClient(msgBrokerCon)
-	if err != nil {
-		return Diagnostics{}, errors.Wrap(err, "fail to connect to message broker server")
-	}
-
+func GetSystemDiagnostics(ctx context.Context, busClient zbus.Client, msgBrokerCon string) (Diagnostics, error) {
 	results := Diagnostics{
 		SystemStatusOk: true,
 		ZosModules:     make(map[string]moduleStatus),
@@ -93,12 +87,10 @@ func getModuleStatus(ctx context.Context, busClient zbus.Client, module string) 
 }
 
 func isOnline(ctx context.Context, msgBrokerCon string) bool {
-	client, err := utils.NewRedisPool(msgBrokerCon)
+	conn, err := utils.NewRedisConn(msgBrokerCon)
 	if err != nil {
 		return false
 	}
-
-	conn := client.Get()
 	defer conn.Close()
 
 	data, err := conn.Do("GET", testNetworkKey)

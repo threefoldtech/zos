@@ -77,8 +77,8 @@ func getNetworkReport(ctx context.Context, serviceUrl string) ServiceStatus {
 		IsReachable: true,
 	}
 
-	parsedUrl := parseUrl(serviceUrl)
-	err := isReachable(ctx, parsedUrl)
+	address := parseUrl(serviceUrl)
+	err := isReachable(ctx, address)
 	if err != nil {
 		report.IsReachable = false
 	}
@@ -100,9 +100,9 @@ func parseUrl(serviceUrl string) string {
 	return host
 }
 
-func isReachable(ctx context.Context, serviceUrl string) error {
+func isReachable(ctx context.Context, address string) error {
 	d := net.Dialer{Timeout: requestTimeout}
-	conn, err := d.DialContext(ctx, "tcp", serviceUrl)
+	conn, err := d.DialContext(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
