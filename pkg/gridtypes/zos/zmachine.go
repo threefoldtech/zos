@@ -21,13 +21,37 @@ type MachineInterface struct {
 	IP net.IP `json:"ip"`
 }
 
+type MyceliumIP struct {
+	// Seed is a six bytes random number that is used
+	// as a seed to derive a vm mycelium IP.
+	//
+	// This means that a VM "ip" can be moved to another VM if needed
+	// by simply using the same seed.
+	// This of course will only work if the network mycelium setup is using
+	// the same HexKey
+	Seed [6]byte `json:"seed"`
+}
+
+func (c *MyceliumIP) Challenge(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "%x", c.Seed); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // MachineNetwork structure
 type MachineNetwork struct {
 	// PublicIP optional public IP attached to this machine. If set
 	// it must be a valid name of a PublicIP workload in the same deployment
 	PublicIP gridtypes.Name `json:"public_ip"`
-	// Planetary support planetary network
-	Planetary bool `json:"planetary"`
+	// Yggdrasil support planetary network (yggdrasil)
+	Yggdrasil bool `json:"planetary"`
+
+	// Mycelium IP config. This is mutual exclusive with Yggdrasil (planetary) network
+	// Either Yggdrasil or Mycelium are used.
+	Mycelium *MyceliumIP `json:"mycelium,omitempty"`
+
 	// Interfaces list of user znets to join
 	Interfaces []MachineInterface `json:"interfaces"`
 }
@@ -38,7 +62,7 @@ func (n *MachineNetwork) Challenge(w io.Writer) error {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "%t", n.Planetary); err != nil {
+	if _, err := fmt.Fprintf(w, "%t", n.Yggdrasil); err != nil {
 		return err
 	}
 
@@ -48,6 +72,12 @@ func (n *MachineNetwork) Challenge(w io.Writer) error {
 		}
 
 		if _, err := fmt.Fprintf(w, "%s", inf.IP.String()); err != nil {
+			return err
+		}
+	}
+
+	if n.Mycelium != nil {
+		if err := n.Mycelium.Challenge(w); err != nil {
 			return err
 		}
 	}
@@ -229,6 +259,11 @@ func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 		if ifc.Network == "ygg" || ifc.Network == "pub" { //reserved temporary
 			return fmt.Errorf("'%s' is reserved network name", ifc.Network)
 		}
+	}
+
+	if v.Network.Yggdrasil && v.Network.Mycelium != nil {
+		// either one of them can be used
+		return fmt.Errorf("planetary and mycelium are mutually exclusive. A vm can only use one of either options")
 	}
 
 	return nil

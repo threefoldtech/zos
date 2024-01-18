@@ -3,11 +3,16 @@ package zos
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 
 	"github.com/jbenet/go-base58"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+)
+
+const (
+	MyceliumKeyLen = 32
 )
 
 // NetID is a type defining the ID of a network
@@ -75,6 +80,39 @@ type Network struct {
 
 	// Peers is a list of other peers in this network
 	Peers []Peer `json:"peers"`
+
+	// Optional mycelium configuration. If provided
+	// VMs in this network can use the mycelium feature.
+	// if no mycelium configuration is provided, vms can't
+	// get mycelium IPs.
+	Mycelium *Mycelium `json:"mycelium,omitempty"`
+}
+
+type MyceliumPeer string
+
+type Mycelium struct {
+	// HexKey is the key of the mycelium peer in the mycelium node
+	// associated with this network.
+	// It's provided by the user so it can be later moved to other nodes
+	// without losing the key.
+	HexKey string `json:"hex_key"`
+	// An optional mycelium peer list to be used with this node, otherwise
+	// the default peer list is used.
+	Peers []MyceliumPeer `json:"peers"`
+}
+
+func (c *Mycelium) Challenge(b io.Writer) error {
+	if _, err := fmt.Fprintf(b, "%s", c.HexKey); err != nil {
+		return err
+	}
+
+	for _, peer := range c.Peers {
+		if _, err := fmt.Fprintf(b, "%s", peer); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Valid checks if the network resource is valid.
@@ -95,6 +133,17 @@ func (n Network) Valid(getter gridtypes.WorkloadGetter) error {
 	for _, peer := range n.Peers {
 		if err := peer.Valid(); err != nil {
 			return err
+		}
+	}
+
+	if n.Mycelium != nil {
+		key, err := hex.DecodeString(n.Mycelium.HexKey)
+		if err != nil {
+			return fmt.Errorf("mycelium key is invalid hex format: %w", err)
+		}
+
+		if len(key) != MyceliumKeyLen {
+			return fmt.Errorf("invalid mycelium key length, expected %d", MyceliumKeyLen)
 		}
 	}
 
@@ -121,6 +170,12 @@ func (n Network) Challenge(b io.Writer) error {
 
 	for _, p := range n.Peers {
 		if err := p.Challenge(b); err != nil {
+			return err
+		}
+	}
+
+	if n.Mycelium != nil {
+		if err := n.Mycelium.Challenge(b); err != nil {
 			return err
 		}
 	}
