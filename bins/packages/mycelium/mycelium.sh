@@ -22,7 +22,7 @@ install_mycelium() {
     mkdir -p "${ROOTDIR}/usr/bin"
 
 
-    cp ${WORKDIR}/mycelium-${MYCELIUM_VERSION}/mycelium ${ROOTDIR}/usr/bin/mycelium
+    cp ${WORKDIR}/mycelium ${ROOTDIR}/usr/bin/mycelium
 
     chmod +x ${ROOTDIR}/usr/bin/mycelium
 }
