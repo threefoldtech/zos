@@ -9,7 +9,7 @@ VIRTWHAT_CHECKSUM="d84c9a51e2869fbe949a83adf7f80b56"
 VIRTWHAT_LINK="http://git.annexia.org/?p=virt-what.git;a=snapshot;h=${VIRTWHAT_VERSION};sf=tgz"
 
 download_virtwhat() {
-    download_file ${VIRTWHAT_LINK} ${VIRTWHAT_CHECKSUM}
+    download_file ${VIRTWHAT_LINK} ${VIRTWHAT_CHECKSUM} "virt-what-${VIRTWHAT_VERSION}.tar.gz"
 }
 
 extract_virtwhat() {
