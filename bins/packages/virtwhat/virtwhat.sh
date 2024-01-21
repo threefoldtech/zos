@@ -24,6 +24,8 @@ prepare_virtwhat() {
 compile_virtwhat() {
     echo "[+] compile virt-what"
     pushd ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}
+    autoreconf -i
+    autoconf
     ./configure
     make
     popd
