@@ -205,3 +205,17 @@ func Test_convert4to6(t *testing.T) {
 		})
 	}
 }
+
+func TestMyceliumGw(t *testing.T) {
+	data := MyceliumInspection{
+		Address: net.ParseIP("3b4:ca67:822d:b0c1:5d6f:c647:1ed8:6ced"),
+	}
+
+	gw, subnet, err := data.Gateway()
+	require.NoError(t, err)
+
+	require.Equal(t, net.ParseIP("3b4:ca67:822d:b0c1::1"), gw.IP)
+	require.Equal(t, "3b4:ca67:822d:b0c1::1/64", gw.String())
+	require.Equal(t, "3b4:ca67:822d:b0c1::/64", subnet.String())
+	//network.
+}

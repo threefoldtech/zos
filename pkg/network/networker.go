@@ -59,6 +59,7 @@ const (
 	networkDir          = "networks"
 	linkDir             = "link"
 	ipamLeaseDir        = "ndmz-lease"
+	myceliumKeyDir      = "mycelium-key"
 	zdbNamespacePrefix  = "zdb-ns-"
 	qsfsNamespacePrefix = "qfs-ns-"
 )
@@ -73,11 +74,12 @@ var (
 )
 
 type networker struct {
-	identity     *stubs.IdentityManagerStub
-	networkDir   string
-	linkDir      string
-	ipamLeaseDir string
-	portSet      *set.UIntSet
+	identity       *stubs.IdentityManagerStub
+	networkDir     string
+	linkDir        string
+	ipamLeaseDir   string
+	myceliumKeyDir string
+	portSet        *set.UIntSet
 
 	ndmz ndmz.DMZ
 	ygg  *yggdrasil.YggServer
@@ -95,19 +97,21 @@ func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdr
 	runtimeDir := filepath.Join(vd, networkDir)
 	linkDir := filepath.Join(runtimeDir, linkDir)
 	ipamLease := filepath.Join(vd, ipamLeaseDir)
+	myceliumKey := filepath.Join(vd, myceliumKeyDir)
 
-	for _, dir := range []string{linkDir, ipamLease} {
+	for _, dir := range []string{linkDir, ipamLease, myceliumKey} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return nil, errors.Wrapf(err, "failed to create directory: '%s'", dir)
 		}
 	}
 
 	nw := &networker{
-		identity:     identity,
-		networkDir:   runtimeDir,
-		linkDir:      linkDir,
-		ipamLeaseDir: ipamLease,
-		portSet:      set.NewInt(),
+		identity:       identity,
+		networkDir:     runtimeDir,
+		linkDir:        linkDir,
+		ipamLeaseDir:   ipamLease,
+		myceliumKeyDir: myceliumKey,
+		portSet:        set.NewInt(),
 
 		ygg:  ygg,
 		ndmz: ndmz,
@@ -808,6 +812,11 @@ func (n *networker) CreateNR(wl gridtypes.WorkloadID, netNR pkg.Network) (string
 	log.Info().Msg("create network resource namespace")
 	if err = netr.Create(); err != nil {
 		return "", errors.Wrap(err, "failed to create network resource")
+	}
+
+	// setup mycelium
+	if err := netr.SetMycelium(n.myceliumKeyDir); err != nil {
+		return "", errors.Wrap(err, "failed to setup mycelium")
 	}
 
 	exists, err := netr.HasWireguard()

@@ -201,7 +201,7 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
 	}
 
-	if config.Network.Yggdrasil {
+	if config.Network.Planetary {
 		inf, err := p.newYggNetworkInterface(ctx, wl)
 		if err != nil {
 			return result, err
@@ -322,7 +322,7 @@ func (p *Manager) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID)
 		}
 	}
 
-	if cfg.Network.Yggdrasil {
+	if cfg.Network.Planetary {
 		tapName := wl.ID.Unique("ygg")
 		if err := network.RemoveTap(ctx, tapName); err != nil {
 			return errors.Wrap(err, "could not clean up tap device")

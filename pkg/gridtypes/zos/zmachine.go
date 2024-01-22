@@ -45,11 +45,11 @@ type MachineNetwork struct {
 	// PublicIP optional public IP attached to this machine. If set
 	// it must be a valid name of a PublicIP workload in the same deployment
 	PublicIP gridtypes.Name `json:"public_ip"`
-	// Yggdrasil support planetary network (yggdrasil)
-	Yggdrasil bool `json:"planetary"`
+	// Planetary support planetary network
+	Planetary bool `json:"planetary"`
 
-	// Mycelium IP config. This is mutual exclusive with Yggdrasil (planetary) network
-	// Either Yggdrasil or Mycelium are used.
+	// Mycelium IP config, if planetary is true, but Mycelium is not set we fall back
+	// to yggdrasil support. Otherwise (if mycelium is set) a mycelium ip is used instead.
 	Mycelium *MyceliumIP `json:"mycelium,omitempty"`
 
 	// Interfaces list of user znets to join
@@ -62,7 +62,7 @@ func (n *MachineNetwork) Challenge(w io.Writer) error {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "%t", n.Yggdrasil); err != nil {
+	if _, err := fmt.Fprintf(w, "%t", n.Planetary); err != nil {
 		return err
 	}
 
@@ -259,11 +259,6 @@ func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 		if ifc.Network == "ygg" || ifc.Network == "pub" { //reserved temporary
 			return fmt.Errorf("'%s' is reserved network name", ifc.Network)
 		}
-	}
-
-	if v.Network.Yggdrasil && v.Network.Mycelium != nil {
-		// either one of them can be used
-		return fmt.Errorf("planetary and mycelium are mutually exclusive. A vm can only use one of either options")
 	}
 
 	return nil
