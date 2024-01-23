@@ -12,6 +12,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
+const (
+	MyceliumIPSeedLen = 6
+)
+
 // MachineInterface structure
 type MachineInterface struct {
 	// Network name (znet name) to join
@@ -22,6 +26,8 @@ type MachineInterface struct {
 }
 
 type MyceliumIP struct {
+	// Network name (znet name) to join
+	Network gridtypes.Name
 	// Seed is a six bytes random number that is used
 	// as a seed to derive a vm mycelium IP.
 	//
@@ -29,7 +35,7 @@ type MyceliumIP struct {
 	// by simply using the same seed.
 	// This of course will only work if the network mycelium setup is using
 	// the same HexKey
-	Seed [6]byte `json:"seed"`
+	Seed Bytes `json:"hex_seed"`
 }
 
 func (c *MyceliumIP) Challenge(w io.Writer) error {
@@ -258,6 +264,13 @@ func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 	for _, ifc := range v.Network.Interfaces {
 		if ifc.Network == "ygg" || ifc.Network == "pub" { //reserved temporary
 			return fmt.Errorf("'%s' is reserved network name", ifc.Network)
+		}
+	}
+
+	mycelium := v.Network.Mycelium
+	if mycelium != nil {
+		if len(mycelium.Seed) != MyceliumIPSeedLen {
+			return fmt.Errorf("invalid mycelium seed length expected 6 bytes")
 		}
 	}
 

@@ -3,7 +3,6 @@ package nr
 import (
 	"bytes"
 	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -14,11 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/shlex"
 	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/macvlan"
 	"github.com/threefoldtech/zos/pkg/network/options"
+	"github.com/threefoldtech/zos/pkg/network/tuntap"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
 	mapset "github.com/deckarep/golang-set"
@@ -39,6 +39,17 @@ const (
 	myCeliumBridgeName = "br-my"
 )
 
+var (
+	myceliumIpBase = []byte{
+		0xff, 0xff,
+	}
+
+	invalidMyceliumSeeds = [][]byte{
+		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+	}
+)
+
 type MyceliumInspection struct {
 	PublicHexKey string `json:"publicKey"`
 	Address      net.IP `json:"address"`
@@ -46,7 +57,7 @@ type MyceliumInspection struct {
 
 // Gateway derive the gateway IP from the mycelium IP in the /64 range. It also
 // return the full /64 subnet.
-func (m *MyceliumInspection) Gateway() (gw net.IPNet, subnet net.IPNet, err error) {
+func (m *MyceliumInspection) Gateway() (subnet net.IPNet, gw net.IPNet, err error) {
 	// here we need to return 2 things:
 	// - the IP range /64 for that IP
 	// - the gw address for that /64 range
@@ -75,6 +86,30 @@ func (m *MyceliumInspection) Gateway() (gw net.IPNet, subnet net.IPNet, err erro
 	return
 }
 
+func (m *MyceliumInspection) IP(seed zos.Bytes) (ip net.IPNet, gw net.IPNet, err error) {
+
+	if slices.ContainsFunc(invalidMyceliumSeeds, func(b []byte) bool {
+		return slices.Equal(seed, b)
+	}) {
+		return ip, gw, fmt.Errorf("invalid seed")
+	}
+
+	// first find the base subnet.
+	ip, gw, err = m.Gateway()
+	if err != nil {
+		return ip, gw, err
+	}
+
+	// the subnet already have the /64 part of the network (that's 8 bytes)
+	// we then add a fixed 2 bytes this will avoid reusing the same gw or
+	// the device ip
+	copy(ip.IP[8:10], myceliumIpBase)
+	// then finally we use the 6 bytes seed to build the rest of the IP
+	copy(ip.IP[10:16], seed)
+
+	return
+}
+
 // NetResource holds the logic to configure an network resource
 type NetResource struct {
 	id pkg.NetID
@@ -82,17 +117,23 @@ type NetResource struct {
 	resource pkg.Network
 	// network IP range, usually a /16
 	networkIPRange net.IPNet
+
+	// keyDir location where keys can be stored
+	keyDir string
 }
 
 // New creates a new NetResource object
 // iprange is the full network subnet
-func New(nr pkg.Network) (*NetResource, error) {
+// keyDir is the path where keys (mainly mycelium)
+// is stored.
+func New(nr pkg.Network, keyDir string) *NetResource {
 	return &NetResource{
 		//fix here
 		id:             nr.NetID,
 		resource:       nr,
 		networkIPRange: nr.NetworkIPRange.IPNet,
-	}, nil
+		keyDir:         keyDir,
+	}
 }
 
 func (nr *NetResource) String() string {
@@ -171,7 +212,57 @@ func (nr *NetResource) myceliumServiceName() string {
 	return fmt.Sprintf("mycelium-%s", nr.ID())
 }
 
-func (nr *NetResource) SetMycelium(keyDir string) (err error) {
+func (nr *NetResource) MyceliumIP(seed zos.Bytes) (ip net.IPNet, gw net.IPNet, err error) {
+	if len(seed) != zos.MyceliumIPSeedLen {
+		return ip, gw, fmt.Errorf("invalid mycelium seed length")
+	}
+
+	mycelium, err := nr.inspectMycelium(filepath.Join(nr.keyDir, nr.ID()))
+	if os.IsNotExist(err) {
+		return ip, gw, fmt.Errorf("mycelium is not configured for this network resource")
+	} else if err != nil {
+		return ip, gw, err
+	}
+
+	return mycelium.IP(seed)
+}
+
+// AttachMycelium attaches a tap device to mycelium, move it to the host namespace
+// to it can be used by VMs later.
+// It also return the IP that should be used with the interface
+func (nr *NetResource) AttachMycelium(name string) (err error) {
+	nsName, err := nr.Namespace()
+	if err != nil {
+		return err
+	}
+
+	netNs, err := namespace.GetByName(nsName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get network resource namespace")
+	}
+
+	err = netNs.Do(func(host ns.NetNS) error {
+		dev, err := tuntap.CreateTap(name, myCeliumBridgeName)
+		if err != nil {
+			return err
+		}
+
+		// move device to host
+		if err := netlink.LinkSetNsFd(dev, int(host.Fd())); err != nil {
+			return errors.Wrap(err, "failed to move mycelium tap to host namespace")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (nr *NetResource) SetMycelium() (err error) {
 	if nr.resource.Mycelium == nil {
 		// no mycelium
 		return nil
@@ -182,23 +273,13 @@ func (nr *NetResource) SetMycelium(keyDir string) (err error) {
 		return errors.Wrap(err, "failed to get public mycelium peer list")
 	}
 
-	ns, err := nr.Namespace()
-	if err != nil {
-		return err
-	}
-
 	config := nr.resource.Mycelium
 	// create the bridge.
 	if err := nr.ensureMyceliumBridge(); err != nil {
 		return err
 	}
 
-	key, err := hex.DecodeString(config.HexKey)
-	if err != nil {
-		return errors.Wrap(err, "invalid mycelium key")
-	}
-
-	keyFile := filepath.Join(keyDir, nr.ID())
+	keyFile := filepath.Join(nr.keyDir, nr.ID())
 
 	defer func() {
 		if err != nil {
@@ -206,7 +287,7 @@ func (nr *NetResource) SetMycelium(keyDir string) (err error) {
 		}
 	}()
 
-	if err = os.WriteFile(keyFile, key, 0444); err != nil {
+	if err = os.WriteFile(keyFile, config.Key, 0444); err != nil {
 		return errors.Wrap(err, "failed to store mycelium key")
 	}
 
@@ -224,6 +305,11 @@ func (nr *NetResource) SetMycelium(keyDir string) (err error) {
 
 	if exists {
 		return nil
+	}
+
+	ns, err := nr.Namespace()
+	if err != nil {
+		return err
 	}
 
 	args := []string{
@@ -256,7 +342,7 @@ func (nr *NetResource) ensureMyceliumNetwork(keyFile string) error {
 		return err
 	}
 
-	gw, subnet, err := mycelium.Gateway()
+	subnet, gw, err := mycelium.Gateway()
 	if err != nil {
 		return err
 	}
@@ -317,6 +403,13 @@ func (nr *NetResource) ensureMyceliumNetwork(keyFile string) error {
 }
 
 func (nr *NetResource) inspectMycelium(keyFile string) (inspection MyceliumInspection, err error) {
+	_, err = os.Stat(keyFile)
+	if err != nil {
+		return inspection, err
+	}
+
+	// we check if the file exists before we do inspect because mycelium will create a random seed
+	// file if file does not exist
 	output, err := exec.Command("mycelium", "--key-file", keyFile, "inspect", "--json").Output()
 	if err != nil {
 		return inspection, errors.Wrap(err, "failed to inspect mycelium key")
@@ -472,18 +565,13 @@ func (nr *NetResource) Delete() error {
 		}
 
 		init.Forget(myceliumName)
-		service, err := zinit.LoadService(myceliumName)
 		zinit.RemoveService(myceliumName)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to load mycelium zinit config for clean up")
 		}
 
-		if parts, err := shlex.Split(service.Exec); err == nil {
-			idx := slices.Index(parts, "--key-file")
-			if idx != -1 {
-				os.Remove(parts[idx+1])
-			}
-		}
+		keyFile := filepath.Join(nr.keyDir, nr.ID())
+		_ = os.Remove(keyFile)
 	}
 
 	if bridge.Exists(bridgeName) {

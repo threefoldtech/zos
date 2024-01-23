@@ -3,7 +3,6 @@ package zos
 import (
 	"bytes"
 	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -91,18 +90,18 @@ type Network struct {
 type MyceliumPeer string
 
 type Mycelium struct {
-	// HexKey is the key of the mycelium peer in the mycelium node
+	// Key is the key of the mycelium peer in the mycelium node
 	// associated with this network.
 	// It's provided by the user so it can be later moved to other nodes
 	// without losing the key.
-	HexKey string `json:"hex_key"`
+	Key Bytes `json:"hex_key"`
 	// An optional mycelium peer list to be used with this node, otherwise
 	// the default peer list is used.
 	Peers []MyceliumPeer `json:"peers"`
 }
 
 func (c *Mycelium) Challenge(b io.Writer) error {
-	if _, err := fmt.Fprintf(b, "%s", c.HexKey); err != nil {
+	if _, err := fmt.Fprintf(b, "%x", c.Key); err != nil {
 		return err
 	}
 
@@ -137,12 +136,7 @@ func (n Network) Valid(getter gridtypes.WorkloadGetter) error {
 	}
 
 	if n.Mycelium != nil {
-		key, err := hex.DecodeString(n.Mycelium.HexKey)
-		if err != nil {
-			return fmt.Errorf("mycelium key is invalid hex format: %w", err)
-		}
-
-		if len(key) != MyceliumKeyLen {
+		if len(n.Mycelium.Key) != MyceliumKeyLen {
 			return fmt.Errorf("invalid mycelium key length, expected %d", MyceliumKeyLen)
 		}
 	}
