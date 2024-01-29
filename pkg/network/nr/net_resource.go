@@ -36,12 +36,12 @@ import (
 )
 
 const (
-	myCeliumBridgeName = "br-my"
+	myceliumInterfaceName = "br-my"
 )
 
 var (
 	myceliumIpBase = []byte{
-		0xff, 0xff,
+		0xff, 0x0f,
 	}
 
 	invalidMyceliumSeeds = [][]byte{
@@ -159,6 +159,14 @@ func (nr *NetResource) BridgeName() (string, error) {
 	return name, nil
 }
 
+func (nr *NetResource) myceliumBridgeName() (string, error) {
+	name := fmt.Sprintf("m-%s", nr.id)
+	if len(name) > 15 {
+		return "", errors.Errorf("bridge namespace too long %s", name)
+	}
+	return name, nil
+}
+
 // Namespace returns the name of the network namespace to create for the network resource
 func (nr *NetResource) Namespace() (string, error) {
 	name := fmt.Sprintf("n-%s", nr.id)
@@ -191,7 +199,7 @@ func (nr *NetResource) WGName() (string, error) {
 func (nr *NetResource) Create() error {
 	log.Debug().Str("nr", nr.String()).Msg("create network resource")
 
-	if err := nr.createBridge(); err != nil {
+	if err := nr.ensureNRBridge(); err != nil {
 		return err
 	}
 	if err := nr.createNetNS(); err != nil {
@@ -231,30 +239,12 @@ func (nr *NetResource) MyceliumIP(seed zos.Bytes) (ip net.IPNet, gw net.IPNet, e
 // to it can be used by VMs later.
 // It also return the IP that should be used with the interface
 func (nr *NetResource) AttachMycelium(name string) (err error) {
-	nsName, err := nr.Namespace()
+	brName, err := nr.myceliumBridgeName()
 	if err != nil {
 		return err
 	}
 
-	netNs, err := namespace.GetByName(nsName)
-	if err != nil {
-		return errors.Wrap(err, "failed to get network resource namespace")
-	}
-
-	err = netNs.Do(func(host ns.NetNS) error {
-		dev, err := tuntap.CreateTap(name, myCeliumBridgeName)
-		if err != nil {
-			return err
-		}
-
-		// move device to host
-		if err := netlink.LinkSetNsFd(dev, int(host.Fd())); err != nil {
-			return errors.Wrap(err, "failed to move mycelium tap to host namespace")
-		}
-
-		return nil
-	})
-
+	_, err = tuntap.CreateTap(name, brName)
 	if err != nil {
 		return err
 	}
@@ -317,6 +307,7 @@ func (nr *NetResource) SetMycelium() (err error) {
 		"mycelium",
 		"--key-file", keyFile,
 		"--tun-name", "my",
+		"--peers",
 	}
 
 	// append global peers.
@@ -352,19 +343,33 @@ func (nr *NetResource) ensureMyceliumNetwork(keyFile string) error {
 		return err
 	}
 
-	netNs, err := namespace.GetByName(nsName)
+	netNS, err := namespace.GetByName(nsName)
 	if err != nil {
 		return err
 	}
 
-	return netNs.Do(func(_ ns.NetNS) error {
-		br, err := bridge.Get(myCeliumBridgeName)
+	defer netNS.Close()
+
+	bridgeName, err := nr.myceliumBridgeName()
+	if err != nil {
+		return err
+	}
+
+	if !ifaceutil.Exists(myceliumInterfaceName, netNS) {
+		log.Debug().Str("create macvlan", myceliumInterfaceName).Msg("attach mycelium to bridge")
+		if _, err := macvlan.Create(myceliumInterfaceName, bridgeName, netNS); err != nil {
+			return err
+		}
+	}
+
+	return netNS.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(myceliumInterfaceName)
 		// this should not happen since it has been ensured before
 		if err != nil {
 			return err
 		}
 		// configure the bridge ip
-		addresses, err := netlink.AddrList(br, netlink.FAMILY_V6)
+		addresses, err := netlink.AddrList(link, netlink.FAMILY_V6)
 		if err != nil {
 			return errors.Wrap(err, "failed to list my-br ip addresses")
 		}
@@ -373,31 +378,36 @@ func (nr *NetResource) ensureMyceliumNetwork(keyFile string) error {
 			return slices.Equal(a.IP, gw.IP)
 		}) {
 			// If gw Ip is not configured, we set it up
-			if err := netlink.AddrAdd(br, &netlink.Addr{
+			if err := netlink.AddrAdd(link, &netlink.Addr{
 				IPNet: &gw,
 			}); err != nil {
 				return errors.Wrap(err, "failed to setup mycelium bridge address")
 			}
 		}
 
+		if err := netlink.LinkSetUp(link); err != nil {
+			return errors.Wrap(err, "failed to bring mycelium macvtap up")
+		}
+
 		// also configure route to the subnet
-		routes, err := netlink.RouteList(br, netlink.FAMILY_V6)
+		routes, err := netlink.RouteList(link, netlink.FAMILY_V6)
 		if err != nil {
 			return errors.Wrap(err, "failed to list mycelium routes")
 		}
 		if !slices.ContainsFunc(routes, func(r netlink.Route) bool {
 			return r.Dst != nil && slices.Equal(r.Dst.IP, subnet.IP)
 		}) {
+			log.Debug().Str("gw", gw.IP.String()).Str("subnet", subnet.String()).Msg("adding mycelium route")
+
 			if err := netlink.RouteAdd(&netlink.Route{
 				Dst:       &subnet,
-				Gw:        gw.IP,
-				LinkIndex: br.Index,
+				LinkIndex: link.Attrs().Index,
 			}); err != nil {
 				return errors.Wrap(err, "failed to add mycelium route")
 			}
 		}
 
-		return netlink.LinkSetUp(br)
+		return nil
 	})
 
 }
@@ -425,24 +435,25 @@ func (nr *NetResource) inspectMycelium(keyFile string) (inspection MyceliumInspe
 // only create the mycelium bridge inside the network resource.
 // this is done anyway
 func (nr *NetResource) ensureMyceliumBridge() error {
-	nsName, err := nr.Namespace()
+	name, err := nr.myceliumBridgeName()
 	if err != nil {
 		return err
 	}
-	netNs, err := namespace.GetByName(nsName)
-	if err != nil {
-		return errors.Wrap(err, "failed to get net resource namespace")
+
+	if bridge.Exists(name) {
+		return nil
 	}
 
-	netNs.Do(func(_ ns.NetNS) error {
-		if bridge.Exists(myCeliumBridgeName) {
-			return nil
-		}
+	log.Info().Str("bridge", name).Msg("create mycelium bridge")
 
-		_, err = bridge.New(myCeliumBridgeName)
+	_, err = bridge.New(name)
+	if err != nil {
 		return err
-	})
+	}
 
+	if err := options.Set(name, options.IPv6Disable(true)); err != nil {
+		return errors.Wrapf(err, "failed to disable ip6 on bridge %s", name)
+	}
 	return nil
 }
 
@@ -549,7 +560,12 @@ func (nr *NetResource) Delete() error {
 	if err != nil {
 		return err
 	}
-	bridgeName, err := nr.BridgeName()
+	nrBrName, err := nr.BridgeName()
+	if err != nil {
+		return err
+	}
+
+	myBrName, err := nr.myceliumBridgeName()
 	if err != nil {
 		return err
 	}
@@ -574,12 +590,22 @@ func (nr *NetResource) Delete() error {
 		_ = os.Remove(keyFile)
 	}
 
-	if bridge.Exists(bridgeName) {
-		if err := bridge.Delete(bridgeName); err != nil {
+	if bridge.Exists(nrBrName) {
+		if err := bridge.Delete(nrBrName); err != nil {
 			log.Error().
 				Err(err).
-				Str("bridge", bridgeName).
+				Str("bridge", nrBrName).
 				Msg("failed to delete network resource bridge")
+			return err
+		}
+	}
+
+	if bridge.Exists(myBrName) {
+		if err := bridge.Delete(myBrName); err != nil {
+			log.Error().
+				Err(err).
+				Str("bridge", myBrName).
+				Msg("failed to delete network mycelium bridge")
 			return err
 		}
 	}
@@ -722,9 +748,9 @@ func (nr *NetResource) attachToNRBridge() error {
 	return netNS.Do(handler)
 }
 
-// createBridge creates a bridge in the host namespace
+// ensureNRBridge creates a bridge in the host namespace
 // this bridge is used to connect containers from the name network
-func (nr *NetResource) createBridge() error {
+func (nr *NetResource) ensureNRBridge() error {
 	name, err := nr.BridgeName()
 	if err != nil {
 		return err

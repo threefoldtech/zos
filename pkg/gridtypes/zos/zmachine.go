@@ -262,7 +262,7 @@ func (v ZMachine) Valid(getter gridtypes.WorkloadGetter) error {
 	}
 
 	for _, ifc := range v.Network.Interfaces {
-		if ifc.Network == "ygg" || ifc.Network == "pub" { //reserved temporary
+		if ifc.Network == "ygg" || ifc.Network == "pub" || ifc.Network == "mycelium" { //reserved temporary
 			return fmt.Errorf("'%s' is reserved network name", ifc.Network)
 		}
 	}

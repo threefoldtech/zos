@@ -198,17 +198,27 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 
 		ipWl, _ := deployment.Get(config.Network.PublicIP)
 		pubIf = ipWl.ID.Unique("pub")
+		ifs = append(ifs, pubIf)
 		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
 	}
 
 	if config.Network.Planetary {
-		inf, err := p.newYggNetworkInterface(ctx, wl)
-		if err != nil {
-			return result, err
+		var inf pkg.VMIface
+		if config.Network.Mycelium == nil {
+			inf, err = p.newYggNetworkInterface(ctx, wl)
+			if err != nil {
+				return result, err
+			}
+			ifs = append(ifs, wl.ID.Unique("ygg"))
+		} else {
+			inf, err = p.newMyceliumNetworkInterface(ctx, deployment, wl, config.Network.Mycelium)
+			if err != nil {
+				return result, err
+			}
+			ifs = append(ifs, wl.ID.Unique("mycelium"))
 		}
 
 		log.Debug().Msgf("Planetary: %+v", inf)
-		ifs = append(ifs, wl.ID.Unique("ygg"))
 		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
 		result.YggIP = inf.IPs[0].IP.String()
 	}
@@ -267,6 +277,7 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 	result.ConsoleURL = machineInfo.ConsoleURL
 	return result, err
 }
+
 func (p *Manager) copyFile(srcPath string, destPath string, permissions os.FileMode) error {
 	src, err := os.Open(srcPath)
 	if err != nil {

@@ -807,6 +807,10 @@ func (n *networker) Addrs(iface string, netns string) (ips []net.IP, mac string,
 func (n *networker) CreateNR(wl gridtypes.WorkloadID, netNR pkg.Network) (string, error) {
 	log.Info().Str("network", string(netNR.NetID)).Msg("create network resource")
 
+	if err := n.storeNetwork(wl, netNR); err != nil {
+		return "", errors.Wrap(err, "failed to store network object")
+	}
+
 	// check if there is a reserved wireguard port for this NR already
 	// or if we need to update it
 	storedNR, err := n.networkOf(netNR.NetID)
@@ -884,10 +888,6 @@ func (n *networker) CreateNR(wl gridtypes.WorkloadID, netNR pkg.Network) (string
 
 	if err = netr.ConfigureWG(netNR.WGPrivateKey); err != nil {
 		return "", errors.Wrap(err, "failed to configure network resource")
-	}
-
-	if err = n.storeNetwork(wl, netNR); err != nil {
-		return "", errors.Wrap(err, "failed to store network object")
 	}
 
 	return netr.Namespace()

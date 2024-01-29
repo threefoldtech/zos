@@ -122,7 +122,7 @@ func TestCreateBridge(t *testing.T) {
 	brName, err := nr.BridgeName()
 	require.NoError(t, err)
 
-	err = nr.createBridge()
+	err = nr.ensureNRBridge()
 	require.NoError(t, err)
 
 	l, err := netlink.LinkByName(brName)
