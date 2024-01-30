@@ -334,7 +334,14 @@ func (p *Manager) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID)
 	}
 
 	if cfg.Network.Planetary {
-		tapName := wl.ID.Unique("ygg")
+		var tapName string
+		if cfg.Network.Mycelium == nil {
+			// yggdrasil network
+			tapName = wl.ID.Unique("ygg")
+		} else {
+			tapName = wl.ID.Unique("mycelium")
+		}
+
 		if err := network.RemoveTap(ctx, tapName); err != nil {
 			return errors.Wrap(err, "could not clean up tap device")
 		}

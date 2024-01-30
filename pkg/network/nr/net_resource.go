@@ -310,7 +310,14 @@ func (nr *NetResource) SetMycelium() (err error) {
 		"--peers",
 	}
 
-	// append global peers.
+	// first append peers from user input.
+	// right now this is shadowed by Mycelium config validation
+	// which does not allow custom peer list.
+	args = AppendFunc(args, config.Peers, func(mp zos.MyceliumPeer) string {
+		return string(mp)
+	})
+
+	// global peers list
 	args = append(args, peers.Mycelium.Peers...)
 
 	// todo: add custom peers requested by the user
@@ -862,4 +869,16 @@ func Convert4to6(netID string, ip net.IP) net.IP {
 	ipv6 = fmt.Sprintf("%s:%x::%x", ipv6, secondtolastbyte, lastbyte)
 
 	return net.ParseIP(ipv6)
+}
+
+// AppendFunc appends arrays with automatic map
+func AppendFunc[A any, B any, S []A, D []B](d D, s S, f func(A) B) D {
+	d = slices.Grow(d, len(s))
+
+	for _, e := range s {
+		d = append(d, f(e))
+	}
+
+	return d
+
 }

@@ -114,6 +114,19 @@ func (c *Mycelium) Challenge(b io.Writer) error {
 	return nil
 }
 
+func (c *Mycelium) Valid() error {
+	if len(c.Key) != MyceliumKeyLen {
+		return fmt.Errorf("invalid mycelium key length, expected %d", MyceliumKeyLen)
+	}
+
+	// TODO:
+	// we are not supporting extra peers right now until
+	if len(c.Peers) != 0 {
+		return fmt.Errorf("user defined peers list is not supported right now")
+	}
+	return nil
+}
+
 // Valid checks if the network resource is valid.
 func (n Network) Valid(getter gridtypes.WorkloadGetter) error {
 
@@ -136,8 +149,8 @@ func (n Network) Valid(getter gridtypes.WorkloadGetter) error {
 	}
 
 	if n.Mycelium != nil {
-		if len(n.Mycelium.Key) != MyceliumKeyLen {
-			return fmt.Errorf("invalid mycelium key length, expected %d", MyceliumKeyLen)
+		if err := n.Mycelium.Valid(); err != nil {
+			return err
 		}
 	}
 
