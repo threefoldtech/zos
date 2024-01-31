@@ -350,3 +350,27 @@ type ZMachineResult struct {
 	PlanetaryIP string `json:"planetary_ip"`
 	ConsoleURL  string `json:"console_url"`
 }
+
+func (r *ZMachineResult) UnmarshalJSON(data []byte) error {
+	var deprecated struct {
+		ID          string `json:"id"`
+		IP          string `json:"ip"`
+		YggIP       string `json:"ygg_ip"`
+		PlanetaryIP string `json:"planetary_ip"`
+		ConsoleURL  string `json:"console_url"`
+	}
+
+	if err := json.Unmarshal(data, &deprecated); err != nil {
+		return err
+	}
+
+	r.ID = deprecated.ID
+	r.IP = deprecated.IP
+	r.PlanetaryIP = deprecated.PlanetaryIP
+	if deprecated.YggIP != "" {
+		r.PlanetaryIP = deprecated.YggIP
+	}
+	r.ConsoleURL = deprecated.ConsoleURL
+
+	return nil
+}
