@@ -26,9 +26,6 @@ const (
 // ZMachine type
 type ZMachine = zos.ZMachine
 
-// ZMachineResult type
-type ZMachineResult = zos.ZMachineResult
-
 var (
 	_ provision.Manager     = (*Manager)(nil)
 	_ provision.Initializer = (*Manager)(nil)
@@ -220,7 +217,7 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 
 		log.Debug().Msgf("Planetary: %+v", inf)
 		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
-		result.YggIP = inf.IPs[0].IP.String()
+		result.PlanetaryIP = inf.IPs[0].IP.String()
 	}
 	// - mount flist RO
 	mnt, err := flist.Mount(ctx, wl.ID.String(), config.FList, pkg.ReadOnlyMountOptions)
