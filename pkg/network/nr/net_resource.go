@@ -587,11 +587,8 @@ func (nr *NetResource) Delete() error {
 			log.Error().Err(err).Msg("failed to stop mycelium for network resource")
 		}
 
-		init.Forget(myceliumName)
-		zinit.RemoveService(myceliumName)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to load mycelium zinit config for clean up")
-		}
+		_ = init.Forget(myceliumName)
+		_ = zinit.RemoveService(myceliumName)
 
 		keyFile := filepath.Join(nr.keyDir, nr.ID())
 		_ = os.Remove(keyFile)
