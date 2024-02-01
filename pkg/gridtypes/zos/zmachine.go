@@ -39,6 +39,10 @@ type MyceliumIP struct {
 }
 
 func (c *MyceliumIP) Challenge(w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "%s", c.Network); err != nil {
+		return err
+	}
+
 	if _, err := fmt.Fprintf(w, "%x", c.Seed); err != nil {
 		return err
 	}
