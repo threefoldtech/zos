@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -37,11 +36,12 @@ func (t *NetworkHealthTask) Description() string {
 }
 
 func (t *NetworkHealthTask) Cron() string {
-	return "0 */5 * * * *"
+	return "0 */15 * * * *"
 }
 
+// Jitter returns the max number of seconds the job can sleep before actual execution.
 func (t *NetworkHealthTask) Jitter() uint32 {
-	return 0
+	return 5 * 60
 }
 
 func (t *NetworkHealthTask) Run(ctx context.Context) (interface{}, error) {
@@ -90,13 +90,17 @@ func parseUrl(serviceUrl string) string {
 	if err != nil {
 		return ""
 	}
-	host := u.Host
 
-	if !strings.Contains(host, ":") {
-		host = fmt.Sprintf("%s:80", host)
+	port := ":80"
+	if u.Scheme == "https" || u.Scheme == "wss" {
+		port = ":443"
 	}
 
-	return host
+	if u.Port() == "" {
+		u.Host += port
+	}
+
+	return u.Host
 }
 
 func isReachable(ctx context.Context, address string) error {
