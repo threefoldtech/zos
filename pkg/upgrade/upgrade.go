@@ -407,6 +407,21 @@ func (u *Upgrader) ensureRestarted(service ...string) error {
 }
 
 func (u *Upgrader) copyRecursive(store meta.Walker, destination string, skip ...string) error {
+	// we need to find the backend of the store
+	backend, err := store.Backend()
+	if err != nil {
+		return errors.Wrap(err, "failed to get flist metadata")
+	}
+
+	stg := u.storage
+	if backend != nil {
+		stg, err := storage.NewSimpleStorage(backend.Url())
+		if err != nil {
+			return errors.Wrap(err, "failed to ")
+		}
+		defer stg.Close()
+	}
+
 	return store.Walk("", func(path string, info meta.Meta) error {
 
 		dest := filepath.Join(destination, path)
@@ -430,7 +445,7 @@ func (u *Upgrader) copyRecursive(store meta.Walker, destination string, skip ...
 		switch stat.Type {
 		case meta.RegularType:
 			// regular file (or other types that we don't handle)
-			return u.copyFile(dest, info)
+			return u.copyFile(dest, info, stg)
 		case meta.LinkType:
 			//fmt.Println("link target", stat.LinkTarget)
 			target := stat.LinkTarget
@@ -463,7 +478,7 @@ func isIn(target string, list []string) bool {
 	return false
 }
 
-func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
+func (u *Upgrader) copyFile(dst string, src meta.Meta, storage storage.Storage) error {
 	log.Info().Str("source", src.Name()).Str("destination", dst).Msg("copy file")
 
 	var (
@@ -504,7 +519,7 @@ func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 	}
 	defer fDst.Close()
 
-	cache := rofs.NewCache(u.fileCache(), u.storage)
+	cache := rofs.NewCache(u.fileCache(), storage)
 	fSrc, err := cache.CheckAndGet(src)
 	if err != nil {
 		return err

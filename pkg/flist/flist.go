@@ -217,7 +217,7 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	}
 
 	if storage == "" {
-		storage = env.FlistURL
+		storage = env.DefaultFListBackend
 	}
 
 	logPath := filepath.Join(f.log, string(hash)) + ".log"

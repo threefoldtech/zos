@@ -1,12 +1,28 @@
+use crate::kparams;
 use anyhow::Result;
 use reqwest::{blocking::get, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::fmt::Display;
 use std::fs::{write, OpenOptions};
 use std::io::copy;
 use std::path::Path;
 
-const HUB: &str = "https://hub.grid.tf";
+const HUB_KEY: &str = "hub";
+struct HUB;
+
+impl Display for HUB {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Ok(params) = kparams::params() {
+            if let Some(Some(url)) = params.get(HUB_KEY) {
+                f.write_str(url)?;
+                return Ok(());
+            }
+        }
+
+        write!(f, "https://hub.grid.tf")
+    }
+}
 
 pub struct Repo {
     name: String,

@@ -47,4 +47,14 @@ mod tests {
         assert_eq!(result["rootflags"], Some(String::from("subvol=root")));
         Ok(())
     }
+
+    #[test]
+    fn test_parse_url() -> Result<(), Error> {
+        let input: &str = "initrd=initramfs-linux.img hub=https://hub.grid.tf";
+        let result = parse(input.as_bytes())?;
+        assert_eq!(result.len(), 2);
+        assert_eq!(result["hub"], Some(String::from("https://hub.grid.tf")));
+        assert_eq!(result.get("wrong"), None);
+        Ok(())
+    }
 }

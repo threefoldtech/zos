@@ -37,8 +37,9 @@ const (
 type Environment struct {
 	RunningMode RunMode
 
-	FlistURL string
-	BinRepo  string
+	// DefaultFListBackend is used by the 0fs in case the flist file has
+	// no meta-data about the FList backend (zdb)
+	DefaultFListBackend string
 
 	FarmID pkg.FarmID
 	Orphan bool
@@ -115,10 +116,9 @@ var (
 		RelayURL: []string{
 			"wss://relay.dev.grid.tf",
 		},
-		ActivationURL: "https://activation.dev.grid.tf/activation/activate",
-		FlistURL:      "redis://hub.grid.tf:9900",
-		BinRepo:       "tf-zos-v3-bins.dev",
-		GraphQL:       "https://graphql.dev.grid.tf/graphql",
+		ActivationURL:       "https://activation.dev.grid.tf/activation/activate",
+		DefaultFListBackend: "redis://hub.grid.tf:9900",
+		GraphQL:             "https://graphql.dev.grid.tf/graphql",
 	}
 
 	envTest = Environment{
@@ -129,10 +129,9 @@ var (
 		RelayURL: []string{
 			"wss://relay.test.grid.tf",
 		},
-		ActivationURL: "https://activation.test.grid.tf/activation/activate",
-		FlistURL:      "redis://hub.grid.tf:9900",
-		BinRepo:       "tf-zos-v3-bins.test",
-		GraphQL:       "https://graphql.test.grid.tf/graphql",
+		ActivationURL:       "https://activation.test.grid.tf/activation/activate",
+		DefaultFListBackend: "redis://hub.grid.tf:9900",
+		GraphQL:             "https://graphql.test.grid.tf/graphql",
 	}
 
 	envQA = Environment{
@@ -143,10 +142,9 @@ var (
 		RelayURL: []string{
 			"wss://relay.qa.grid.tf",
 		},
-		ActivationURL: "https://activation.qa.grid.tf/activation/activate",
-		FlistURL:      "redis://hub.grid.tf:9900",
-		BinRepo:       "tf-zos-v3-bins.qanet",
-		GraphQL:       "https://graphql.qa.grid.tf/graphql",
+		ActivationURL:       "https://activation.qa.grid.tf/activation/activate",
+		DefaultFListBackend: "redis://hub.grid.tf:9900",
+		GraphQL:             "https://graphql.qa.grid.tf/graphql",
 	}
 
 	envProd = Environment{
@@ -160,10 +158,9 @@ var (
 		RelayURL: []string{
 			"wss://relay.grid.tf",
 		},
-		ActivationURL: "https://activation.grid.tf/activation/activate",
-		FlistURL:      "redis://hub.grid.tf:9900",
-		BinRepo:       "tf-zos-v3-bins",
-		GraphQL:       "https://graphql.grid.tf/graphql",
+		ActivationURL:       "https://activation.grid.tf/activation/activate",
+		DefaultFListBackend: "redis://hub.grid.tf:9900",
+		GraphQL:             "https://graphql.grid.tf/graphql",
 	}
 )
 
@@ -319,11 +316,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	}
 
 	if e := os.Getenv("ZOS_FLIST_URL"); e != "" {
-		env.FlistURL = e
-	}
-
-	if e := os.Getenv("ZOS_BIN_REPO"); e != "" {
-		env.BinRepo = e
+		env.DefaultFListBackend = e
 	}
 
 	return env, nil
