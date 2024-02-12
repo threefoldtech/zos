@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gomodule/redigo/redis"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -48,7 +49,26 @@ type Diagnostics struct {
 	Online bool `json:"online"`
 }
 
-func GetSystemDiagnostics(ctx context.Context, busClient zbus.Client, msgBrokerCon string) (Diagnostics, error) {
+type DiagnosticsManager struct {
+	redisPool  *redis.Pool
+	zbusClient zbus.Client
+}
+
+func NewDiagnosticsManager(
+	msgBrokerCon string,
+	busClient zbus.Client,
+) (*DiagnosticsManager, error) {
+	pool, err := utils.NewRedisPool(msgBrokerCon)
+	if err != nil {
+		return nil, err
+	}
+	return &DiagnosticsManager{
+		redisPool:  pool,
+		zbusClient: busClient,
+	}, nil
+}
+
+func (m *DiagnosticsManager) GetSystemDiagnostics(ctx context.Context) (Diagnostics, error) {
 	results := Diagnostics{
 		SystemStatusOk: true,
 		ZosModules:     make(map[string]ModuleStatus),
@@ -60,7 +80,7 @@ func GetSystemDiagnostics(ctx context.Context, busClient zbus.Client, msgBrokerC
 		wg.Add(1)
 		go func(module string) {
 			defer wg.Done()
-			report := getModuleStatus(ctx, busClient, module)
+			report := m.getModuleStatus(ctx, module)
 			results.ZosModules[module] = report
 
 			if report.Err != nil {
@@ -72,32 +92,28 @@ func GetSystemDiagnostics(ctx context.Context, busClient zbus.Client, msgBrokerC
 
 	wg.Wait()
 
-	results.Online = isOnline(ctx, msgBrokerCon)
+	results.Online = m.isOnline(ctx)
 
 	return results, nil
-
 }
 
-func getModuleStatus(ctx context.Context, busClient zbus.Client, module string) ModuleStatus {
+func (m *DiagnosticsManager) getModuleStatus(ctx context.Context, module string) ModuleStatus {
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
-	status, err := busClient.Status(ctx, module)
+	status, err := m.zbusClient.Status(ctx, module)
 	return ModuleStatus{
 		Status: status,
 		Err:    err,
 	}
 }
 
-func isOnline(ctx context.Context, msgBrokerCon string) bool {
-	conn, err := utils.NewRedisConn(msgBrokerCon)
-	if err != nil {
-		return false
-	}
+func (m *DiagnosticsManager) isOnline(ctx context.Context) bool {
+	conn := m.redisPool.Get()
 	defer conn.Close()
 
 	data, err := conn.Do("GET", testNetworkKey)
-	if err != nil {
+	if err != nil || data == nil {
 		return false
 	}
 

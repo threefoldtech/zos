@@ -193,8 +193,12 @@ func action(cli *cli.Context) error {
 		return version, nil
 	})
 
+	diagnosticsMgr, err := diagnostics.NewDiagnosticsManager(msgBrokerCon, redis)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a new Diagnostics manager")
+	}
 	bus.WithHandler("zos.system.diagnostics", func(ctx context.Context, payload []byte) (interface{}, error) {
-		return diagnostics.GetSystemDiagnostics(ctx, redis, msgBrokerCon)
+		return diagnosticsMgr.GetSystemDiagnostics(ctx)
 	})
 
 	bus.WithHandler("zos.system.dmi", func(ctx context.Context, payload []byte) (interface{}, error) {
