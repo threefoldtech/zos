@@ -54,11 +54,16 @@ func (t *NetworkHealthTask) Run(ctx context.Context) (interface{}, error) {
 	reports := []ServiceStatus{}
 
 	var wg sync.WaitGroup
+	var mut sync.Mutex
 	for _, serviceUrl := range servicesUrl {
 		wg.Add(1)
 		go func(serviceUrl string) {
 			defer wg.Done()
 			report := getNetworkReport(ctx, serviceUrl)
+
+			mut.Lock()
+			defer mut.Unlock()
+
 			reports = append(reports, report)
 		}(serviceUrl)
 	}
