@@ -75,16 +75,22 @@ func (m *DiagnosticsManager) GetSystemDiagnostics(ctx context.Context) (Diagnost
 	}
 
 	var wg sync.WaitGroup
-	for _, module := range Modules {
+	var mut sync.Mutex
+	var hasError bool
 
+	for _, module := range Modules {
 		wg.Add(1)
 		go func(module string) {
 			defer wg.Done()
 			report := m.getModuleStatus(ctx, module)
+
+			mut.Lock()
+			defer mut.Unlock()
+
 			results.ZosModules[module] = report
 
 			if report.Err != nil {
-				results.SystemStatusOk = false
+				hasError = true
 			}
 		}(module)
 
@@ -92,6 +98,7 @@ func (m *DiagnosticsManager) GetSystemDiagnostics(ctx context.Context) (Diagnost
 
 	wg.Wait()
 
+	results.SystemStatusOk = !hasError
 	results.Online = m.isOnline(ctx)
 
 	return results, nil
