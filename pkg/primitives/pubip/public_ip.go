@@ -150,7 +150,7 @@ func (p *Manager) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workl
 
 	var ipv6 gridtypes.IPNet
 	var ipv4 gridtypes.IPNet
-	var gw net.IP
+	var gw4 net.IP
 
 	mac := ifaceutil.HardwareAddrFromInputBytes([]byte(tapName))
 	if config.V6 {
@@ -166,7 +166,7 @@ func (p *Manager) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workl
 	}
 
 	if config.V4 {
-		ipv4, gw, err = p.getAssignedPublicIP(ctx, wl)
+		ipv4, gw4, err = p.getAssignedPublicIP(ctx, wl)
 		if err != nil {
 			return zos.PublicIPResult{}, err
 		}
@@ -174,7 +174,7 @@ func (p *Manager) publicIPProvisionImpl(ctx context.Context, wl *gridtypes.Workl
 
 	result.IP = ipv4
 	result.IPv6 = ipv6
-	result.Gateway = gw
+	result.Gateway = gw4
 
 	ifName := fmt.Sprintf("p-%s", tapName) // TODO: clean this up, needs to come form networkd
 	err = network.SetupPubIPFilter(ctx, fName, ifName, ipv4.IP, ipv6.IP, mac.String())
