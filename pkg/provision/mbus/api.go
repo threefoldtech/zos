@@ -2,6 +2,7 @@ package mbus
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -35,10 +36,12 @@ func (d *Deployments) setup(router rmb.Router) {
 	sub.WithHandler("update", d.updateHandler)
 	sub.WithHandler("delete", d.deleteHandler)
 	sub.WithHandler("get", d.getHandler)
+	sub.WithHandler("get_all", d.getAllHandler)
 	sub.WithHandler("changes", d.changesHandler)
 
 	net := router.Subroute("network")
 	net.WithHandler("list_public_ips", d.listPublicIps)
+	net.WithHandler("list_private_ips", d.listPrivateIps)
 }
 
 func (n *Deployments) listPublicIps(ctx context.Context, _ []byte) (interface{}, error) {
@@ -85,6 +88,42 @@ func (n *Deployments) listPublicIps(ctx context.Context, _ []byte) (interface{},
 	return ips, nil
 }
 
+type nameArgs struct {
+	NetworkName string `json:"network_name"`
+}
+
+func (d *Deployments) listPrivateIps(ctx context.Context, payload []byte) (interface{}, error) {
+	var args nameArgs
+	if err := json.Unmarshal(payload, &args); err != nil {
+		return nil, err
+	}
+	deployments, err := d.getAll(ctx, payload)
+	if err != nil {
+		return nil, err.Err()
+	}
+	dls := deployments.([]gridtypes.Deployment)
+	ips := make([]string, 0)
+	for _, deployment := range dls {
+		vms := deployment.ByType(zos.ZMachineType)
+		for _, vm := range vms {
+			if vm.Result.State.IsAny(gridtypes.StateDeleted, gridtypes.StateError) {
+				continue
+			}
+			data, err := vm.WorkloadData()
+			if err != nil {
+				return nil, err
+			}
+			zmachine := data.(*zos.ZMachine)
+			for _, inf := range zmachine.Network.Interfaces {
+				if inf.Network == gridtypes.Name(args.NetworkName) {
+					ips = append(ips, inf.IP.String())
+				}
+			}
+		}
+	}
+	return ips, nil
+}
+
 func (d *Deployments) updateHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	data, err := d.createOrUpdate(ctx, payload, true)
 	if err != nil {
@@ -123,6 +162,14 @@ func (d *Deployments) getHandler(ctx context.Context, payload []byte) (interface
 
 func (d *Deployments) changesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	data, err := d.changes(ctx, payload)
+	if err != nil {
+		return nil, err.Err()
+	}
+	return data, nil
+}
+
+func (d *Deployments) getAllHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := d.getAll(ctx, payload)
 	if err != nil {
 		return nil, err.Err()
 	}
