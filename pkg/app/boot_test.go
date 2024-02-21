@@ -30,6 +30,16 @@ func (t *TestExecuter) Stat(path string) (any, error) {
 	return args.Get(0), args.Error(1)
 }
 
+func (t *TestExecuter) IsNotExist(err error) bool {
+	args := t.Called(err)
+	return args.Bool(0)
+}
+
+func (t *TestExecuter) RemoveAll(path string) error {
+	args := t.Called(path)
+	return args.Error(0)
+}
+
 type testReadWriteCloser struct {
 	io.Reader
 }
@@ -39,8 +49,6 @@ func (t *testReadWriteCloser) Close() error {
 }
 
 func TestMarkBooted(t *testing.T) {
-	require := require.New(t)
-
 	testFile := "test"
 	bootedPath := "var/run/modules"
 	testFilePath := filepath.Join(bootedPath, testFile)
@@ -54,7 +62,7 @@ func TestMarkBooted(t *testing.T) {
 			Return(&testReadWriteCloser{}, fmt.Errorf("couldn't create file with name file1"))
 
 		err := markBooted(testFile, bootedPath, &testFS)
-		require.Error(err)
+		require.Error(t, err)
 		testFS.AssertExpectations(t)
 	})
 
@@ -67,14 +75,12 @@ func TestMarkBooted(t *testing.T) {
 			Return(&testReadWriteCloser{}, nil)
 
 		err := markBooted(testFile, bootedPath, &testFS)
-		require.NoError(err)
+		require.NoError(t, err)
 		testFS.AssertExpectations(t)
 	})
 }
 
 func TestIsFirstBoot(t *testing.T) {
-	require := require.New(t)
-
 	testFile := "test"
 	bootedPath := "var/run/modules"
 	testFilePath := filepath.Join(bootedPath, testFile)
@@ -85,7 +91,7 @@ func TestIsFirstBoot(t *testing.T) {
 			Return(nil, nil)
 
 		firstBoot := isFirstBoot(testFile, bootedPath, &testFS)
-		require.False(firstBoot)
+		require.False(t, firstBoot)
 		testFS.AssertExpectations(t)
 	})
 
@@ -95,7 +101,7 @@ func TestIsFirstBoot(t *testing.T) {
 			Return(nil, fmt.Errorf("couldn't find file in the bootedPath"))
 
 		firstBoot := isFirstBoot(testFile, bootedPath, &testFS)
-		require.True(firstBoot)
+		require.True(t, firstBoot)
 		testFS.AssertExpectations(t)
 	})
 }

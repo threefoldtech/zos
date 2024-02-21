@@ -1,38 +1,13 @@
 package app
 
 import (
-	"io"
-	"io/fs"
-	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 )
 
-type fileSystem interface {
-	Create(string) (io.ReadCloser, error)
-	MkdirAll(string, fs.FileMode) error
-	Stat(string) (any, error)
-}
-
-type defaultFileSystem struct{}
-
-func (dfs *defaultFileSystem) Create(path string) (io.ReadCloser, error) {
-	return os.Create(path)
-}
-
-func (dfs *defaultFileSystem) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-func (dfs *defaultFileSystem) Stat(path string) (any, error) {
-	return os.Stat(path)
-}
-
 // defaultBootedPath is the path where to store the booted flag
 const defaultBootedPath = "/var/run/modules"
-
-var defaultFS = &defaultFileSystem{}
 
 // MarkBooted creates a file in a memory
 // this file then can be used to check if "something" has been restared
