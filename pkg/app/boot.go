@@ -11,18 +11,18 @@ import (
 
 type fileSystem interface {
 	Create(string) (io.ReadCloser, error)
-	MkdirAll(string, uint32) error
+	MkdirAll(string, fs.FileMode) error
 	Stat(string) (any, error)
 }
 
 type defaultFileSystem struct{}
 
-func (fs *defaultFileSystem) Create(path string) (io.ReadCloser, error) {
+func (dfs *defaultFileSystem) Create(path string) (io.ReadCloser, error) {
 	return os.Create(path)
 }
 
-func (dfs *defaultFileSystem) MkdirAll(path string, perm uint32) error {
-	return os.MkdirAll(path, fs.FileMode(perm))
+func (dfs *defaultFileSystem) MkdirAll(path string, perm fs.FileMode) error {
+	return os.MkdirAll(path, perm)
 }
 
 func (dfs *defaultFileSystem) Stat(path string) (any, error) {
