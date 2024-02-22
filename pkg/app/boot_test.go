@@ -53,30 +53,42 @@ func TestMarkBooted(t *testing.T) {
 	bootedPath := "var/run/modules"
 	testFilePath := filepath.Join(bootedPath, testFile)
 
-	t.Run("markBooted invalid file", func(t *testing.T) {
-		var testFS TestExecuter
-		testFS.On("MkdirAll", bootedPath, fs.FileMode(0770)).
-			Return(nil)
+	t.Run("markBooted failed to MkdirAll", func(t *testing.T) {
+		var exec TestExecuter
+		errMkdir := fmt.Errorf("failed to MkdirAll")
+		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
+			Return(fmt.Errorf("failed to MkdirAll"))
 
-		testFS.On("Create", testFilePath).
-			Return(&testReadWriteCloser{}, fmt.Errorf("couldn't create file with name file1"))
-
-		err := markBooted(testFile, bootedPath, &testFS)
+		err := markBooted(testFile, bootedPath, &exec)
 		require.Error(t, err)
-		testFS.AssertExpectations(t)
+		require.Equal(t, err, errMkdir)
+		exec.AssertExpectations(t)
 	})
 
-	t.Run("markBooted a valid file", func(t *testing.T) {
-		var testFS TestExecuter
-		testFS.On("MkdirAll", bootedPath, fs.FileMode(0770)).
+	t.Run("markBooted failed to Create", func(t *testing.T) {
+		var exec TestExecuter
+		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
 			Return(nil)
 
-		testFS.On("Create", testFilePath).
+		exec.On("Create", testFilePath).
+			Return(&testReadWriteCloser{}, fmt.Errorf("couldn't create file with name file1"))
+
+		err := markBooted(testFile, bootedPath, &exec)
+		require.Error(t, err)
+		exec.AssertExpectations(t)
+	})
+
+	t.Run("markBooted valid file", func(t *testing.T) {
+		var exec TestExecuter
+		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
+			Return(nil)
+
+		exec.On("Create", testFilePath).
 			Return(&testReadWriteCloser{}, nil)
 
-		err := markBooted(testFile, bootedPath, &testFS)
+		err := markBooted(testFile, bootedPath, &exec)
 		require.NoError(t, err)
-		testFS.AssertExpectations(t)
+		exec.AssertExpectations(t)
 	})
 }
 
@@ -86,22 +98,22 @@ func TestIsFirstBoot(t *testing.T) {
 	testFilePath := filepath.Join(bootedPath, testFile)
 
 	t.Run("the file is first booted", func(t *testing.T) {
-		var testFS TestExecuter
-		testFS.On("Stat", testFilePath).
+		var exec TestExecuter
+		exec.On("Stat", testFilePath).
 			Return(nil, nil)
 
-		firstBoot := isFirstBoot(testFile, bootedPath, &testFS)
+		firstBoot := isFirstBoot(testFile, bootedPath, &exec)
 		require.False(t, firstBoot)
-		testFS.AssertExpectations(t)
+		exec.AssertExpectations(t)
 	})
 
 	t.Run("the file is not first booted", func(t *testing.T) {
-		var testFS TestExecuter
-		testFS.On("Stat", testFilePath).
+		var exec TestExecuter
+		exec.On("Stat", testFilePath).
 			Return(nil, fmt.Errorf("couldn't find file in the bootedPath"))
 
-		firstBoot := isFirstBoot(testFile, bootedPath, &testFS)
+		firstBoot := isFirstBoot(testFile, bootedPath, &exec)
 		require.True(t, firstBoot)
-		testFS.AssertExpectations(t)
+		exec.AssertExpectations(t)
 	})
 }
