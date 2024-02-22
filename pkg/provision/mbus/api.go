@@ -99,11 +99,10 @@ func (d *Deployments) listPrivateIps(ctx context.Context, payload []byte) (inter
 	}
 	deployments, err := d.list(ctx, payload)
 	if err != nil {
-		return nil, err.Err()
+		return nil, err
 	}
-	dls := deployments.([]gridtypes.Deployment)
 	var ips []string
-	for _, deployment := range dls {
+	for _, deployment := range deployments {
 		vms := deployment.ByType(zos.ZMachineType)
 		for _, vm := range vms {
 			if vm.Result.State.IsAny(gridtypes.StateDeleted, gridtypes.StateError) {
@@ -171,7 +170,7 @@ func (d *Deployments) changesHandler(ctx context.Context, payload []byte) (inter
 func (d *Deployments) listHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	data, err := d.list(ctx, payload)
 	if err != nil {
-		return nil, err.Err()
+		return nil, err
 	}
 	return data, nil
 }
