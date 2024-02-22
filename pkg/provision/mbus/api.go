@@ -101,7 +101,7 @@ func (d *Deployments) listPrivateIps(ctx context.Context, payload []byte) (inter
 	if err != nil {
 		return nil, err
 	}
-	var ips []string
+	ips := make([]string, 0)
 	for _, deployment := range deployments {
 		vms := deployment.ByType(zos.ZMachineType)
 		for _, vm := range vms {
