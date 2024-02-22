@@ -89,7 +89,7 @@ func (n *Deployments) listPublicIps(ctx context.Context, _ []byte) (interface{},
 }
 
 type listPrivateIpsArgs struct {
-	NetworkName string `json:"network_name"`
+	NetworkName gridtypes.Name `json:"network_name"`
 }
 
 func (d *Deployments) listPrivateIps(ctx context.Context, payload []byte) (interface{}, error) {
@@ -114,7 +114,7 @@ func (d *Deployments) listPrivateIps(ctx context.Context, payload []byte) (inter
 			}
 			zmachine := data.(*zos.ZMachine)
 			for _, inf := range zmachine.Network.Interfaces {
-				if inf.Network == gridtypes.Name(args.NetworkName) {
+				if inf.Network == args.NetworkName {
 					ips = append(ips, inf.IP.String())
 				}
 			}
@@ -168,9 +168,5 @@ func (d *Deployments) changesHandler(ctx context.Context, payload []byte) (inter
 }
 
 func (d *Deployments) listHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := d.list(ctx, payload)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
+	return d.list(ctx, payload)
 }
