@@ -36,7 +36,7 @@ func (d *Deployments) setup(router rmb.Router) {
 	sub.WithHandler("update", d.updateHandler)
 	sub.WithHandler("delete", d.deleteHandler)
 	sub.WithHandler("get", d.getHandler)
-	sub.WithHandler("get_all", d.getAllHandler)
+	sub.WithHandler("list", d.listHandler)
 	sub.WithHandler("changes", d.changesHandler)
 
 	net := router.Subroute("network")
@@ -88,21 +88,21 @@ func (n *Deployments) listPublicIps(ctx context.Context, _ []byte) (interface{},
 	return ips, nil
 }
 
-type nameArgs struct {
+type listPrivateIpsArgs struct {
 	NetworkName string `json:"network_name"`
 }
 
 func (d *Deployments) listPrivateIps(ctx context.Context, payload []byte) (interface{}, error) {
-	var args nameArgs
+	var args listPrivateIpsArgs
 	if err := json.Unmarshal(payload, &args); err != nil {
 		return nil, err
 	}
-	deployments, err := d.getAll(ctx, payload)
+	deployments, err := d.list(ctx, payload)
 	if err != nil {
 		return nil, err.Err()
 	}
 	dls := deployments.([]gridtypes.Deployment)
-	ips := make([]string, 0)
+	var ips []string
 	for _, deployment := range dls {
 		vms := deployment.ByType(zos.ZMachineType)
 		for _, vm := range vms {
@@ -168,8 +168,8 @@ func (d *Deployments) changesHandler(ctx context.Context, payload []byte) (inter
 	return data, nil
 }
 
-func (d *Deployments) getAllHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	data, err := d.getAll(ctx, payload)
+func (d *Deployments) listHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	data, err := d.list(ctx, payload)
 	if err != nil {
 		return nil, err.Err()
 	}

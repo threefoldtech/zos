@@ -80,7 +80,7 @@ func (d *Deployments) get(ctx context.Context, payload []byte) (interface{}, mw.
 	return deployment, nil
 }
 
-func (d *Deployments) getAll(ctx context.Context, payload []byte) (interface{}, mw.Response) {
+func (d *Deployments) list(ctx context.Context, payload []byte) (interface{}, mw.Response) {
 	deploymentIDs, err := d.engine.Storage().ByTwin(rmb.GetTwinID(ctx))
 	if err != nil {
 		return nil, mw.Error(err)

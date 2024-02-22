@@ -146,9 +146,9 @@ func (n *NodeClient) DeploymentGet(ctx context.Context, contractID uint64) (dl g
 	return dl, nil
 }
 
-// DeploymentGetAll gets all deployments for a twin
-func (n *NodeClient) DeploymentGetAll(ctx context.Context) (dls []gridtypes.Deployment, err error) {
-	const cmd = "zos.deployment.get_all"
+// DeploymentList gets all deployments for a twin
+func (n *NodeClient) DeploymentList(ctx context.Context) (dls []gridtypes.Deployment, err error) {
+	const cmd = "zos.deployment.list"
 
 	err = n.bus.Call(ctx, n.nodeTwin, cmd, nil, &dls)
 	return
