@@ -1,6 +1,7 @@
 package apigateway
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
@@ -14,8 +15,8 @@ type apiGateway struct {
 	identity substrate.Identity
 }
 
-func NewAPIGateway(substrateURL string, identity substrate.Identity) (pkg.APIGateway, error) {
-	sub, err := substrate.NewManager(substrateURL).Substrate()
+func NewAPIGateway(substrateURL []string, identity substrate.Identity) (pkg.APIGateway, error) {
+	sub, err := substrate.NewManager(substrateURL...).Substrate()
 	if err != nil {
 		return nil, err
 	}
@@ -40,32 +41,82 @@ func (g *apiGateway) EnsureAccount(activationURL string, termsAndConditionsLink 
 	return g.sub.EnsureAccount(g.identity, activationURL, terminsAndConditionsHash, terminsAndConditionsHash)
 }
 
-func (g *apiGateway) GetContract(id uint64) (*substrate.Contract, error) {
-	return g.sub.GetContract(id)
+func (g *apiGateway) GetContract(id uint64) (substrate.Contract, pkg.Error) {
+	var outErr pkg.Error
+	contract, err := g.sub.GetContract(id)
+	if contract == nil {
+		contract = &substrate.Contract{}
+	}
+	if errors.Is(err, substrate.ErrNotFound) {
+		outErr.Err = err
+		outErr.Code = pkg.CodeNotFound
+	} else if err != nil {
+		outErr.Err = err
+		outErr.Code = pkg.CodeGenericError
+	}
+	return *contract, outErr
 }
 
-func (g *apiGateway) GetContractIDByNameRegistration(name string) (uint64, error) {
-	return g.sub.GetContractIDByNameRegistration(name)
+func (g *apiGateway) GetContractIDByNameRegistration(name string) (uint64, pkg.Error) {
+	var outErr pkg.Error
+	contractID, err := g.sub.GetContractIDByNameRegistration(name)
+
+	if errors.Is(err, substrate.ErrNotFound) {
+		outErr.Err = err
+		outErr.Code = pkg.CodeNotFound
+	} else if err != nil {
+		outErr.Err = err
+		outErr.Code = pkg.CodeGenericError
+	}
+	return contractID, outErr
 }
 
-func (g *apiGateway) GetFarm(id uint32) (*substrate.Farm, error) {
-	return g.sub.GetFarm(id)
+func (g *apiGateway) GetFarm(id uint32) (substrate.Farm, error) {
+	farm, err := g.sub.GetFarm(id)
+	if farm == nil {
+		farm = &substrate.Farm{}
+	}
+	return *farm, err
 }
 
-func (g *apiGateway) GetNode(id uint32) (*substrate.Node, error) {
-	return g.sub.GetNode(id)
+func (g *apiGateway) GetNode(id uint32) (substrate.Node, error) {
+	node, err := g.sub.GetNode(id)
+	if node == nil {
+		node = &substrate.Node{}
+	}
+	return *node, err
 }
 
-func (g *apiGateway) GetNodeByTwinID(twin uint32) (uint32, error) {
-	return g.sub.GetNodeByTwinID(twin)
+func (g *apiGateway) GetNodeByTwinID(twin uint32) (uint32, pkg.Error) {
+	var outErr pkg.Error
+	nodeID, err := g.sub.GetNodeByTwinID(twin)
+
+	if errors.Is(err, substrate.ErrNotFound) {
+		outErr.Err = err
+		outErr.Code = pkg.CodeNotFound
+	} else if err != nil {
+		outErr.Err = err
+		outErr.Code = pkg.CodeGenericError
+	}
+	return nodeID, outErr
 }
 
 func (g *apiGateway) GetNodeContracts(node uint32) ([]types.U64, error) {
 	return g.sub.GetNodeContracts(node)
 }
 
-func (g *apiGateway) GetNodeRentContract(node uint32) (uint64, error) {
-	return g.sub.GetNodeRentContract(node)
+func (g *apiGateway) GetNodeRentContract(node uint32) (uint64, pkg.Error) {
+	var outErr pkg.Error
+	contractID, err := g.sub.GetNodeRentContract(node)
+
+	if errors.Is(err, substrate.ErrNotFound) {
+		outErr.Err = err
+		outErr.Code = pkg.CodeNotFound
+	} else if err != nil {
+		outErr.Err = err
+		outErr.Code = pkg.CodeGenericError
+	}
+	return contractID, outErr
 }
 
 func (g *apiGateway) GetNodes(farmID uint32) ([]uint32, error) {
@@ -76,12 +127,26 @@ func (g *apiGateway) GetPowerTarget(nodeID uint32) (power substrate.NodePower, e
 	return g.sub.GetPowerTarget(nodeID)
 }
 
-func (g *apiGateway) GetTwin(id uint32) (*substrate.Twin, error) {
-	return g.sub.GetTwin(id)
+func (g *apiGateway) GetTwin(id uint32) (substrate.Twin, error) {
+	twin, err := g.sub.GetTwin(id)
+	if twin == nil {
+		twin = &substrate.Twin{}
+	}
+	return *twin, err
 }
 
-func (g *apiGateway) GetTwinByPubKey(pk []byte) (uint32, error) {
-	return g.sub.GetTwinByPubKey(pk)
+func (g *apiGateway) GetTwinByPubKey(pk []byte) (uint32, pkg.Error) {
+	var outErr pkg.Error
+	twinID, err := g.sub.GetTwinByPubKey(pk)
+
+	if errors.Is(err, substrate.ErrNotFound) {
+		outErr.Err = err
+		outErr.Code = pkg.CodeNotFound
+	} else if err != nil {
+		outErr.Err = err
+		outErr.Code = pkg.CodeGenericError
+	}
+	return twinID, outErr
 }
 
 func (g *apiGateway) SetContractConsumption(resources ...substrate.ContractResources) error {
