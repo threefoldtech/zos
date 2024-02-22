@@ -34,35 +34,21 @@ import (
 	"reflect"
 )
 
-var (
-	ErrorResourceNotFound    = fmt.Errorf("not found")
-	ErrorResourceInvalidType = fmt.Errorf("invalid type")
-)
-
-type Exclusive struct{}
-type Inclusive struct{}
-
-// Resource of R is a resource base implementation that allows
-// seamless integration with the engine internals and storage
-type Resource[R any, P Exclusive | Inclusive] struct{}
-
-func (Resource[R, P]) IsExclusive() bool {
-	return reflect.TypeFor[P]() == reflect.TypeOf(Exclusive{})
-}
-
-func (r Resource[R, P]) Name() string {
-	return reflect.TypeFor[R]().Name()
-}
+// BaseObject is a helper resource that can be used to abstract access
+// to resource storages
+type BaseObject[R any] struct{}
 
 // Current returns the current associated resource
-func (r Resource[R, P]) Current(ctx context.Context) (R, error) {
+func (r BaseObject[R]) Current(ctx context.Context) (R, error) {
 	store := GetStore(ctx)
-	id, ok := GetResourceID(ctx)
 
 	var resource R
-	if !ok {
-		return resource, ErrorResourceNotFound
+
+	if !Exists(ctx) {
+		return resource, ErrObjectNotFound
 	}
+
+	id := GetObjectID(ctx)
 
 	typ, bytes, err := store.ResourceGet(id)
 	if err != nil {
@@ -71,7 +57,7 @@ func (r Resource[R, P]) Current(ctx context.Context) (R, error) {
 
 	// sanity check
 	if typ != reflect.TypeFor[R]().Name() {
-		return resource, ErrorResourceInvalidType
+		return resource, ErrObjectInvalidType
 	}
 
 	if err := json.Unmarshal(bytes, &resource); err != nil {
@@ -82,7 +68,7 @@ func (r Resource[R, P]) Current(ctx context.Context) (R, error) {
 }
 
 // Update the current resource to resource
-func (r Resource[R, P]) Set(ctx context.Context, resource R) error {
+func (r BaseObject[R]) Set(ctx context.Context, resource R) error {
 	bytes, err := json.Marshal(resource)
 	if err != nil {
 		return err
@@ -95,10 +81,86 @@ func (r Resource[R, P]) Set(ctx context.Context, resource R) error {
 // AddDependency tries to reserve another resource in the same space as current resource. the resource is reserved temporary during the entire execution
 // of the scope. If scope returns successfully the resource is reserved forever for the current resource.
 // A call to RemoveDependency can then be used to release a resource
-func (r Resource[R, P]) AddDependency(ctx context.Context, resource string, scope func(inner context.Context) error) error {
+func (r BaseObject[R]) AddDependency(ctx context.Context, resource string, scope func(inner context.Context) error) error {
 	panic("not implemented")
 }
 
-func (r Resource[R, P]) RemoveDependency(ctx context.Context, resource string, scope func(inner context.Context) error) error {
+func (r BaseObject[R]) RemoveDependency(ctx context.Context, resource string, scope func(inner context.Context) error) error {
 	panic("not implemented")
+}
+
+type ObjectRequest struct {
+	Action     string          `json:"action"`
+	ResourceID string          `json:"resource"`
+	Payload    json.RawMessage `json:"payload"`
+}
+
+type ObjectResponse struct {
+	Error   string          `json:"error"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+type Type struct {
+	name      string
+	exclusive bool
+	// all available service on this resource type
+	actions map[string]Service
+}
+
+// Do maps the request to the proper action by the time this is called the context
+// already have all request related values that can be accessed via the
+func (t *Type) Do(ctx context.Context, call ObjectRequest) (response ObjectResponse, err error) {
+	ctx = withObjectID(ctx, call.ResourceID)
+
+	service, ok := t.actions[call.Action]
+	if !ok {
+		return response, err
+	}
+
+	// if the resource already exist but the service require that
+	// no resource exists with that name then we need to return an error
+	if Exists(ctx) && service.flags.Is(MustNotExist) {
+		return response, ErrActionNotAllowed
+	}
+
+	output, err := service.Call(ctx, call.Payload)
+	if err != nil {
+		response.Error = err.Error()
+		return
+	} else {
+		response.Payload = output
+	}
+
+	return response, nil
+}
+
+type TypeBuilder struct {
+	name      string
+	exclusive bool
+	actions   map[string]Service
+}
+
+func NewTypeBuilder[R any](exclusive bool) *TypeBuilder {
+	return &TypeBuilder{
+		name:      reflect.TypeFor[R]().Name(),
+		exclusive: exclusive,
+		actions:   make(map[string]Service),
+	}
+}
+
+func (t *TypeBuilder) Action(name string, action Service) *TypeBuilder {
+	if _, ok := t.actions[name]; ok {
+		panic("action already exists")
+	}
+
+	t.actions[name] = action
+	return t
+}
+
+func (t *TypeBuilder) IntoResource() Type {
+	return Type{
+		name:      t.name,
+		exclusive: t.exclusive,
+		actions:   t.actions,
+	}
 }

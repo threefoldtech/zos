@@ -29,13 +29,14 @@ func (f ActionFn[I, O]) Do(ctx context.Context, input I) (output O, err error) {
 	return f(ctx, input)
 }
 
-func (f ActionFn[I, O]) IntoService() Service {
-	return IntoService[I, O](f)
+func (f ActionFn[I, O]) IntoService(flags ...ServiceFlag) Service {
+	return IntoService[I, O](f, flags...)
 }
 
 // Service is a wrapper around an action and what implements invocation from
 // input bytes and return back user output as Response object
 type Service struct {
+	flags  ServiceFlag
 	input  reflect.Type
 	method reflect.Value
 }
@@ -72,12 +73,30 @@ func (s *Service) Call(ctx context.Context, input []byte) (output []byte, err er
 }
 
 // IntoService converts an action into a service that can be called with a "Request"
-func IntoService[I any, O any](action Action[I, O]) Service {
+func IntoService[I any, O any](action Action[I, O], flags ...ServiceFlag) Service {
 	input := reflect.TypeFor[I]()
 	method := reflect.ValueOf(action).MethodByName("Do")
 
+	var f ServiceFlag
+	if len(flags) == 1 {
+		f = flags[0]
+	} else if len(flags) > 1 {
+		panic("flags must be provided only once. use bitwise or to or them")
+	}
+
 	return Service{
+		flags:  f,
 		input:  input,
 		method: method,
 	}
+}
+
+type ServiceFlag uint8
+
+const (
+	MustNotExist ServiceFlag = 1 << iota
+)
+
+func (s ServiceFlag) Is(f ServiceFlag) bool {
+	return s&f == f
 }

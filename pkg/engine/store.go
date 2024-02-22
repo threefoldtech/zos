@@ -17,7 +17,8 @@ type Store interface {
 	ResourceSet(user UserID, space string, entry string, typ string, payload []byte) error
 	ResourceGet(user UserID, space string, entry string) (typ string, payload []byte, err error)
 	ResourceList(user UserID, space string) ([]string, error)
-	ResourceExists(user UserID, space string, name string) (bool, error)
+	ResourceExists(user UserID, space string, name string) (exists bool, typ string, err error)
+	ResourceDelete(user UserID, space string, name string) error
 
 	DependencyAdd(user UserID, space string, entry string, dep string) error
 	DependencyRemove(user UserID, space string, entry string, dep string) error
