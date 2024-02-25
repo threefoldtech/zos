@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestSetFlag tests the setFlag function against multiple scenarios.
+// it tests both scenarios of failure/success in setting the flag
 func TestSetFlag(t *testing.T) {
 	testFile := "test"
 	flagsDir := "tmp/flags"
@@ -20,10 +23,10 @@ func TestSetFlag(t *testing.T) {
 			Return(nil)
 
 		exec.On("Create", testFilePath).
-			Return(&testReadWriteCloser{}, nil)
+			Return(&testReadWriteCloser{}, fmt.Errorf("failed to create file"))
 
 		err := setFlag(testFile, flagsDir, &exec)
-		require.NoError(t, err)
+		require.Error(t, err)
 		exec.AssertExpectations(t)
 	})
 
@@ -41,12 +44,14 @@ func TestSetFlag(t *testing.T) {
 	})
 }
 
+// TestCheckFlag tests the checkFlag function against multiple scenarios.
+// it tests both scenarios of flag exist/not exist
 func TestCheckFlag(t *testing.T) {
 	testFile := "test"
 	flagsDir := "tmp/flags"
 	testFilePath := filepath.Join(flagsDir, testFile)
 
-	t.Run("checkFlag flag does not exist", func(t *testing.T) {
+	t.Run("checkFlag flag exist", func(t *testing.T) {
 		var exec TestExecuter
 
 		exec.On("Stat", testFilePath).
@@ -60,7 +65,7 @@ func TestCheckFlag(t *testing.T) {
 		exec.AssertExpectations(t)
 	})
 
-	t.Run("checkFlag flag exist", func(t *testing.T) {
+	t.Run("checkFlag flag does not exist", func(t *testing.T) {
 		var exec TestExecuter
 
 		exec.On("Stat", testFilePath).
@@ -75,8 +80,10 @@ func TestCheckFlag(t *testing.T) {
 	})
 }
 
+// TestDeleteFlag tests the deleteFlag function against multiple scenarios.
+// it tests both scenarios of valid/invalid cache type
 func TestDeleteFlag(t *testing.T) {
-	t.Run("delete flag invalid cache type", func(t *testing.T) {
+	t.Run("delete invalid cache type", func(t *testing.T) {
 		key := "/"
 		flagsDir := "tmp/flags"
 
@@ -86,7 +93,7 @@ func TestDeleteFlag(t *testing.T) {
 		exec.AssertExpectations(t)
 	})
 
-	t.Run("delete flag valid cache type", func(t *testing.T) {
+	t.Run("delete valid cache type", func(t *testing.T) {
 		key := LimitedCache
 		flagsDir := "tmp/flags"
 

@@ -6,8 +6,10 @@ import (
 	"os"
 )
 
+// instance of default filesystem
 var defaultFS = &defaultFileSystem{}
 
+// filesystem interface to mock actual OS operations.
 type fileSystem interface {
 	Create(string) (io.ReadCloser, error)
 	MkdirAll(string, fs.FileMode) error

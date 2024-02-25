@@ -12,8 +12,10 @@ const (
 	Megabyte = 1024 * 1024
 )
 
+// instance of default filesystem
 var defaultFS = &defaultFileSystem{}
 
+// filesystem interface to mock actual OS operations.
 type fileSystem interface {
 	MkdirAll(string, fs.FileMode) error
 	Mkdir(string, fs.FileMode) error

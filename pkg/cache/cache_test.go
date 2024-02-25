@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestExecuter used to mock the filesystem object
 type TestExecuter struct {
 	mock.Mock
 }
@@ -29,12 +30,14 @@ func (t *TestExecuter) Mount(source string, target string, fstype string, flags 
 	return args.Error(0)
 }
 
+// TestVolatileDir tests the volatileDir function against multiple scenarios.
+// it tests both scenarios of the volatileDir failed/succeeded to be mounted
 func TestVolatileDir(t *testing.T) {
 	name := "test"
 	var size uint64 = 1024
 	const volatileBaseDir = "/var/run/cache"
 
-	t.Run("volatileDir  failed to Mount", func(t *testing.T) {
+	t.Run("volatileDir failed to Mount", func(t *testing.T) {
 		var exec TestExecuter
 
 		filePath := filepath.Join(volatileBaseDir, name)
@@ -52,7 +55,7 @@ func TestVolatileDir(t *testing.T) {
 		require.Error(t, err)
 		exec.AssertExpectations(t)
 	})
-	t.Run("volatileDir  failed to Mount", func(t *testing.T) {
+	t.Run("volatileDir Mounted successfully", func(t *testing.T) {
 		var exec TestExecuter
 
 		filePath := filepath.Join(volatileBaseDir, name)

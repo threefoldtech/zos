@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestExecuter used to mock the filesystem object
 type TestExecuter struct {
 	mock.Mock
 }
@@ -48,6 +49,8 @@ func (t *testReadWriteCloser) Close() error {
 	return nil
 }
 
+// TestMarkBooted tests the markBooted function against multiple scenarios.
+// it tests different scenarios of failures during directory creation or file creation.
 func TestMarkBooted(t *testing.T) {
 	testFile := "test"
 	bootedPath := "var/run/modules"
@@ -92,6 +95,8 @@ func TestMarkBooted(t *testing.T) {
 	})
 }
 
+// TestIsFirstBoo tests the isFirstBoot function against multiple scenarios.
+// it tests both scenarios of the file being first booted or not
 func TestIsFirstBoot(t *testing.T) {
 	testFile := "test"
 	bootedPath := "var/run/modules"
