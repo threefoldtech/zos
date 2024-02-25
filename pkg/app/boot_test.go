@@ -12,31 +12,31 @@ import (
 )
 
 // TestExecuter used to mock the filesystem object
-type TestExecuter struct {
+type testExecuter struct {
 	mock.Mock
 }
 
-func (t *TestExecuter) Create(path string) (io.ReadCloser, error) {
+func (t *testExecuter) Create(path string) (io.ReadCloser, error) {
 	args := t.Called(path)
 	return args.Get(0).(*testReadWriteCloser), args.Error(1)
 }
 
-func (t *TestExecuter) MkdirAll(path string, perm fs.FileMode) error {
+func (t *testExecuter) MkdirAll(path string, perm fs.FileMode) error {
 	args := t.Called(path, perm)
 	return args.Error(0)
 }
 
-func (t *TestExecuter) Stat(path string) (any, error) {
+func (t *testExecuter) Stat(path string) (any, error) {
 	args := t.Called(path)
 	return args.Get(0), args.Error(1)
 }
 
-func (t *TestExecuter) IsNotExist(err error) bool {
+func (t *testExecuter) IsNotExist(err error) bool {
 	args := t.Called(err)
 	return args.Bool(0)
 }
 
-func (t *TestExecuter) RemoveAll(path string) error {
+func (t *testExecuter) RemoveAll(path string) error {
 	args := t.Called(path)
 	return args.Error(0)
 }
@@ -57,7 +57,7 @@ func TestMarkBooted(t *testing.T) {
 	testFilePath := filepath.Join(bootedPath, testFile)
 
 	t.Run("markBooted failed to MkdirAll", func(t *testing.T) {
-		var exec TestExecuter
+		var exec testExecuter
 		errMkdir := fmt.Errorf("failed to MkdirAll")
 		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
 			Return(fmt.Errorf("failed to MkdirAll"))
@@ -69,27 +69,27 @@ func TestMarkBooted(t *testing.T) {
 	})
 
 	t.Run("markBooted failed to Create", func(t *testing.T) {
-		var exec TestExecuter
+		exec := &testExecuter{}
 		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
 			Return(nil)
 
 		exec.On("Create", testFilePath).
 			Return(&testReadWriteCloser{}, fmt.Errorf("couldn't create file with name file1"))
 
-		err := markBooted(testFile, bootedPath, &exec)
+		err := markBooted(testFile, bootedPath, exec)
 		require.Error(t, err)
 		exec.AssertExpectations(t)
 	})
 
 	t.Run("markBooted valid file", func(t *testing.T) {
-		var exec TestExecuter
+		exec := &testExecuter{}
 		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
 			Return(nil)
 
 		exec.On("Create", testFilePath).
 			Return(&testReadWriteCloser{}, nil)
 
-		err := markBooted(testFile, bootedPath, &exec)
+		err := markBooted(testFile, bootedPath, exec)
 		require.NoError(t, err)
 		exec.AssertExpectations(t)
 	})
@@ -103,21 +103,21 @@ func TestIsFirstBoot(t *testing.T) {
 	testFilePath := filepath.Join(bootedPath, testFile)
 
 	t.Run("the file is first booted", func(t *testing.T) {
-		var exec TestExecuter
+		exec := &testExecuter{}
 		exec.On("Stat", testFilePath).
 			Return(nil, nil)
 
-		firstBoot := isFirstBoot(testFile, bootedPath, &exec)
+		firstBoot := isFirstBoot(testFile, bootedPath, exec)
 		require.False(t, firstBoot)
 		exec.AssertExpectations(t)
 	})
 
 	t.Run("the file is not first booted", func(t *testing.T) {
-		var exec TestExecuter
+		exec := &testExecuter{}
 		exec.On("Stat", testFilePath).
 			Return(nil, fmt.Errorf("couldn't find file in the bootedPath"))
 
-		firstBoot := isFirstBoot(testFile, bootedPath, &exec)
+		firstBoot := isFirstBoot(testFile, bootedPath, exec)
 		require.True(t, firstBoot)
 		exec.AssertExpectations(t)
 	})
