@@ -34,8 +34,8 @@ func (p *PersonType) Create(ctx context.Context, name string) (void Void, err er
 func TestTypeBuilder(t *testing.T) {
 	var ptyp PersonType
 	typ := NewTypeBuilder[Person](false).
-		Action("create", ActionFn[string, Void](ptyp.Create).IntoService()).
-		IntoResource()
+		Action("create", NewAction(ptyp.Create)).
+		IntoType()
 
 	response, err := typ.Do(
 		context.Background(),

@@ -26,8 +26,8 @@ func TestAction(t *testing.T) {
 		return Output{O: input.X * input.Y}, nil
 	}
 
-	addService := IntoService(ActionFn[Input, Output](add))
-	multiService := IntoService(ActionFn[Input, Output](multi))
+	addService := NewAction(add).Into()
+	multiService := NewAction(multi).Into()
 
 	added, err := addService.Call(context.TODO(), []byte(`{"x": 10, "y": 20}`))
 	require.NoError(t, err)

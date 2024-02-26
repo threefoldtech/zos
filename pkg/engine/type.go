@@ -96,6 +96,7 @@ type ObjectRequest struct {
 }
 
 type ObjectResponse struct {
+	// TODO: add context to error (codes, etc)
 	Error   string          `json:"error"`
 	Payload json.RawMessage `json:"payload"`
 }
@@ -107,6 +108,10 @@ type Type struct {
 	actions map[string]Service
 }
 
+// TODO: this probably need to be private! since it shouldn't be called outside the
+// engine context. Since the engine needs to inject some values inside the ctx for
+// proper execution
+//
 // Do maps the request to the proper action by the time this is called the context
 // already have all request related values that can be accessed via the
 func (t *Type) Do(ctx context.Context, call ObjectRequest) (response ObjectResponse, err error) {
@@ -148,16 +153,17 @@ func NewTypeBuilder[R any](exclusive bool) *TypeBuilder {
 	}
 }
 
-func (t *TypeBuilder) Action(name string, action Service) *TypeBuilder {
+func (t *TypeBuilder) Action(name string, action IntoService) *TypeBuilder {
+	service := action.Into()
 	if _, ok := t.actions[name]; ok {
 		panic("action already exists")
 	}
 
-	t.actions[name] = action
+	t.actions[name] = service
 	return t
 }
 
-func (t *TypeBuilder) IntoResource() Type {
+func (t *TypeBuilder) IntoType() Type {
 	return Type{
 		name:      t.name,
 		exclusive: t.exclusive,

@@ -22,15 +22,23 @@ type Action[I any, O any] interface {
 	Do(ctx context.Context, input I) (output O, err error)
 }
 
+type IntoService interface {
+	Into(flags ...ServiceFlag) Service
+}
+
 // ActionFn easily builds an action from a function
 type ActionFn[I any, O any] func(ctx context.Context, input I) (output O, err error)
+
+func NewAction[I any, O any](action func(ctx context.Context, input I) (output O, err error)) ActionFn[I, O] {
+	return ActionFn[I, O](action)
+}
 
 func (f ActionFn[I, O]) Do(ctx context.Context, input I) (output O, err error) {
 	return f(ctx, input)
 }
 
-func (f ActionFn[I, O]) IntoService(flags ...ServiceFlag) Service {
-	return IntoService[I, O](f, flags...)
+func (f ActionFn[I, O]) Into(flags ...ServiceFlag) Service {
+	return ActionIntoService[I, O](f, flags...)
 }
 
 // Service is a wrapper around an action and what implements invocation from
@@ -73,7 +81,7 @@ func (s *Service) Call(ctx context.Context, input []byte) (output []byte, err er
 }
 
 // IntoService converts an action into a service that can be called with a "Request"
-func IntoService[I any, O any](action Action[I, O], flags ...ServiceFlag) Service {
+func ActionIntoService[I any, O any](action Action[I, O], flags ...ServiceFlag) Service {
 	input := reflect.TypeFor[I]()
 	method := reflect.ValueOf(action).MethodByName("Do")
 
