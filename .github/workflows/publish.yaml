@@ -91,17 +91,3 @@ jobs:
           user: tf-zos
           name: development
           target: tf-autobuilder/${{ steps.tag.outputs.reference }}
-      # this is only here until devnet is updated for the first
-      # time then this can be safely deleted
-      # compatibility with old release
-      # this is needed so old machines that is already running on devnet
-      # gets the new code to be able to use the new release tag
-      - name: Crosslink flist (development)
-        if: success() && github.ref == 'refs/heads/main'
-        uses: threefoldtech/publish-flist@master
-        with:
-          token: ${{ secrets.HUB_JWT }}
-          action: crosslink
-          user: tf-zos
-          name: zos:development-3:latest.flist
-          target: tf-autobuilder/zos:${{ steps.version.outputs.version }}.flist
