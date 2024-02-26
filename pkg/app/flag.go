@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 const (
@@ -19,10 +20,10 @@ const (
 // SetFlag is used when the /var/cache cannot be mounted on a SSD or HDD,
 // it will mount the cache disk on a temporary file system in memory.
 func SetFlag(key string) error {
-	return setFlag(key, defaultFlagsDir, defaultFS)
+	return setFlag(key, defaultFlagsDir, pkg.DefaultSystemOS)
 }
 
-func setFlag(key, flagsDir string, fs fileSystem) error {
+func setFlag(key, flagsDir string, fs pkg.SystemOS) error {
 	// creating a file that will be used as a flag
 	// the flag can 'warn' other deamons that the /var/cache is not on HDD or SDD
 	if err := fs.MkdirAll(flagsDir, os.ModePerm); err != nil {
@@ -39,27 +40,27 @@ func setFlag(key, flagsDir string, fs fileSystem) error {
 
 // CheckFlag checks the status of a flag based on a key
 func CheckFlag(key string) bool {
-	return checkFlag(key, defaultFlagsDir, defaultFS)
+	return checkFlag(key, defaultFlagsDir, pkg.DefaultSystemOS)
 }
 
-func checkFlag(key, flagsDir string, fs fileSystem) bool {
-	_, err := fs.Stat(filepath.Join(flagsDir, key))
-	return !fs.IsNotExist(err)
+func checkFlag(key, flagsDir string, os pkg.SystemOS) bool {
+	_, err := os.Stat(filepath.Join(flagsDir, key))
+	return !os.IsNotExist(err)
 }
 
 // DeleteFlag deletes (unsets) a given flag based on a key
 func DeleteFlag(key string) error {
-	return deleteFlag(key, defaultFlagsDir, defaultFS)
+	return deleteFlag(key, defaultFlagsDir, pkg.DefaultSystemOS)
 }
 
-func deleteFlag(key, flagsDir string, fs fileSystem) error {
+func deleteFlag(key, flagsDir string, os pkg.SystemOS) error {
 	// to avoid "path injection"
 	path := filepath.Join(flagsDir, key)
 	if filepath.Dir(path) != flagsDir {
 		return fmt.Errorf("trying to delete a directory outside of the flags boundaries")
 	}
 
-	if err := fs.RemoveAll(filepath.Join(flagsDir, key)); err != nil {
+	if err := os.RemoveAll(filepath.Join(flagsDir, key)); err != nil {
 		return errors.Wrap(err, "failed to remove the flag file")
 	}
 	return nil

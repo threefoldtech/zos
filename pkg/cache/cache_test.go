@@ -6,29 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg"
 )
-
-// testExecuter used to mock the filesystem object
-type testExecuter struct {
-	mock.Mock
-}
-
-func (t *testExecuter) MkdirAll(path string, perm fs.FileMode) error {
-	args := t.Called(path, perm)
-	return args.Error(0)
-}
-
-func (t *testExecuter) Mkdir(path string, perm fs.FileMode) error {
-	args := t.Called(path, perm)
-	return args.Error(0)
-}
-
-func (t *testExecuter) Mount(source string, target string, fstype string, flags uintptr, data string) error {
-	args := t.Called(source, target, fstype, flags, data)
-	return args.Error(0)
-}
 
 // TestVolatileDir tests the volatileDir function against multiple scenarios.
 // it tests both scenarios of the volatileDir failed/succeeded to be mounted
@@ -38,7 +18,7 @@ func TestVolatileDir(t *testing.T) {
 	const volatileBaseDir = "/var/run/cache"
 
 	t.Run("volatileDir failed to Mount", func(t *testing.T) {
-		exec := &testExecuter{}
+		exec := &pkg.TestExecuter{}
 
 		filePath := filepath.Join(volatileBaseDir, name)
 
@@ -56,7 +36,7 @@ func TestVolatileDir(t *testing.T) {
 		exec.AssertExpectations(t)
 	})
 	t.Run("volatileDir Mounted successfully", func(t *testing.T) {
-		exec := &testExecuter{}
+		exec := &pkg.TestExecuter{}
 
 		filePath := filepath.Join(volatileBaseDir, name)
 

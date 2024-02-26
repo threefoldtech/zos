@@ -2,46 +2,14 @@ package cache
 
 import (
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
-	"syscall"
+
+	"github.com/threefoldtech/zos/pkg"
 )
 
 const (
 	Megabyte = 1024 * 1024
 )
-
-// instance of default filesystem
-var defaultFS = &defaultFileSystem{}
-
-// filesystem interface to mock actual OS operations.
-type fileSystem interface {
-	MkdirAll(string, fs.FileMode) error
-	Mkdir(string, fs.FileMode) error
-}
-
-type defaultFileSystem struct{}
-
-func (dfs *defaultFileSystem) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-func (dfs *defaultFileSystem) Mkdir(path string, perm fs.FileMode) error {
-	return os.Mkdir(path, perm)
-}
-
-var defaultSys = &defaultSysCall{}
-
-type systemCall interface {
-	Mount(string, string, string, uintptr, string) error
-}
-
-type defaultSysCall struct{}
-
-func (dfs *defaultSysCall) Mount(source string, target string, fstype string, flags uintptr, data string) error {
-	return syscall.Mount(source, target, fstype, flags, data)
-}
 
 // VolatileDir creates a new cache directory that is stored on a tmpfs.
 // This means data stored in this directory will NOT survive a reboot.
@@ -49,17 +17,17 @@ func (dfs *defaultSysCall) Mount(source string, target string, fstype string, fl
 // It is the caller's responsibility to remove the directory when no longer needed.
 // If the directory already exist error of type os.IsExist will be returned
 func VolatileDir(name string, size uint64) (string, error) {
-	return volatileDir(name, size, defaultFS, defaultSys)
+	return volatileDir(name, size, pkg.DefaultSystemOS, pkg.DefaultSysCall)
 }
 
-func volatileDir(name string, size uint64, fs fileSystem, syscall systemCall) (string, error) {
+func volatileDir(name string, size uint64, os pkg.SystemOS, syscall pkg.SystemCall) (string, error) {
 	const volatileBaseDir = "/var/run/cache"
 	name = filepath.Join(volatileBaseDir, name)
-	if err := fs.MkdirAll(volatileBaseDir, 0700); err != nil {
+	if err := os.MkdirAll(volatileBaseDir, 0700); err != nil {
 		return name, err
 	}
 
-	if err := fs.Mkdir(name, 0700); err != nil {
+	if err := os.Mkdir(name, 0700); err != nil {
 		return name, err
 	}
 	return name, syscall.Mount("none", name, "tmpfs", 0, fmt.Sprintf("size=%d", size))

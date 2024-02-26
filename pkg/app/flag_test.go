@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/threefoldtech/zos/pkg"
 )
 
 // TestSetFlag tests the setFlag function against multiple scenarios.
@@ -18,12 +19,12 @@ func TestSetFlag(t *testing.T) {
 	testFilePath := filepath.Join(flagsDir, testFile)
 
 	t.Run("setFlag invalid flag", func(t *testing.T) {
-		exec := &testExecuter{}
+		exec := &pkg.TestExecuter{}
 		exec.On("MkdirAll", flagsDir, os.ModePerm).
 			Return(nil)
 
 		exec.On("Create", testFilePath).
-			Return(&testReadWriteCloser{}, fmt.Errorf("failed to create file"))
+			Return(&pkg.FSTestExecuter{}, fmt.Errorf("failed to create file"))
 
 		err := setFlag(testFile, flagsDir, exec)
 		require.Error(t, err)
@@ -31,12 +32,12 @@ func TestSetFlag(t *testing.T) {
 	})
 
 	t.Run("setFlag valid flag", func(t *testing.T) {
-		exec := &testExecuter{}
+		exec := &pkg.TestExecuter{}
 		exec.On("MkdirAll", flagsDir, os.ModePerm).
 			Return(nil)
 
 		exec.On("Create", testFilePath).
-			Return(&testReadWriteCloser{}, nil)
+			Return(&pkg.FSTestExecuter{}, nil)
 
 		err := setFlag(testFile, flagsDir, exec)
 		require.NoError(t, err)
@@ -52,7 +53,7 @@ func TestCheckFlag(t *testing.T) {
 	testFilePath := filepath.Join(flagsDir, testFile)
 
 	t.Run("checkFlag flag exist", func(t *testing.T) {
-		exec := &testExecuter{}
+		exec := &pkg.TestExecuter{}
 
 		exec.On("Stat", testFilePath).
 			Return(nil, nil)
@@ -66,7 +67,7 @@ func TestCheckFlag(t *testing.T) {
 	})
 
 	t.Run("checkFlag flag does not exist", func(t *testing.T) {
-		exec := &testExecuter{}
+		exec := &pkg.TestExecuter{}
 
 		exec.On("Stat", testFilePath).
 			Return(nil, fs.ErrNotExist)
@@ -87,7 +88,7 @@ func TestDeleteFlag(t *testing.T) {
 		key := "/"
 		flagsDir := "tmp/flags"
 
-		exec := &testExecuter{}
+		exec := &pkg.TestExecuter{}
 		err := deleteFlag(key, flagsDir, exec)
 		require.Error(t, err)
 		exec.AssertExpectations(t)
@@ -97,7 +98,7 @@ func TestDeleteFlag(t *testing.T) {
 		key := LimitedCache
 		flagsDir := "tmp/flags"
 
-		exec := &testExecuter{}
+		exec := &pkg.TestExecuter{}
 		exec.On("RemoveAll", filepath.Join(flagsDir, key)).
 			Return(nil)
 
