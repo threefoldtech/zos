@@ -352,6 +352,7 @@ type ZMachineResult struct {
 	ID          string `json:"id"`
 	IP          string `json:"ip"`
 	PlanetaryIP string `json:"planetary_ip"`
+	MyceliumIP  string `json:"mycelium_ip"`
 	ConsoleURL  string `json:"console_url"`
 }
 
