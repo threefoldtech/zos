@@ -34,21 +34,21 @@ import (
 	"reflect"
 )
 
-// BaseObject is a helper resource that can be used to abstract access
+// BaseResource is a helper resource that can be used to abstract access
 // to resource storages
-type BaseObject[R any] struct{}
+type BaseResource[R any] struct{}
 
 // Current returns the current associated resource
-func (r BaseObject[R]) Current(ctx context.Context) (R, error) {
-	store := GetStore(ctx)
+func (r BaseResource[R]) Current(ctx Context) (R, error) {
+	store := ctx.Store()
 
 	var resource R
 
-	if !Exists(ctx) {
+	if !ctx.Exists() {
 		return resource, ErrObjectNotFound
 	}
 
-	id := GetObjectID(ctx)
+	id := ctx.Object()
 
 	typ, bytes, err := store.ResourceGet(id)
 	if err != nil {
@@ -68,54 +68,52 @@ func (r BaseObject[R]) Current(ctx context.Context) (R, error) {
 }
 
 // Update the current resource to resource
-func (r BaseObject[R]) Set(ctx context.Context, resource R) error {
+func (r BaseResource[R]) Set(ctx Context, resource R) error {
 	bytes, err := json.Marshal(resource)
 	if err != nil {
 		return err
 	}
 
-	store := GetStore(ctx)
+	store := ctx.Store()
 	return store.ResourceSet(bytes)
 }
 
 // AddDependency tries to reserve another resource in the same space as current resource. the resource is reserved temporary during the entire execution
 // of the scope. If scope returns successfully the resource is reserved forever for the current resource.
 // A call to RemoveDependency can then be used to release a resource
-func (r BaseObject[R]) AddDependency(ctx context.Context, resource string, scope func(inner context.Context) error) error {
+//
+// probably we need ability to reserve multiple resources in one go.
+func (r BaseResource[R]) AddDependency(ctx context.Context, resource string, scope func(inner context.Context) error) error {
 	panic("not implemented")
 }
 
-func (r BaseObject[R]) RemoveDependency(ctx context.Context, resource string, scope func(inner context.Context) error) error {
+func (r BaseResource[R]) RemoveDependency(ctx context.Context, resource string, scope func(inner context.Context) error) error {
 	panic("not implemented")
 }
 
-type ObjectRequest struct {
+type ResourceRequest struct {
 	Action     string          `json:"action"`
 	ResourceID string          `json:"resource"`
 	Payload    json.RawMessage `json:"payload"`
 }
 
-type ObjectResponse struct {
+type ResourceResponse struct {
 	// TODO: add context to error (codes, etc)
 	Error   string          `json:"error"`
 	Payload json.RawMessage `json:"payload"`
 }
 
-type Type struct {
+type Resource struct {
 	name      string
 	exclusive bool
 	// all available service on this resource type
 	actions map[string]Service
 }
 
-// TODO: this probably need to be private! since it shouldn't be called outside the
-// engine context. Since the engine needs to inject some values inside the ctx for
-// proper execution
-//
 // Do maps the request to the proper action by the time this is called the context
 // already have all request related values that can be accessed via the
-func (t *Type) Do(ctx context.Context, call ObjectRequest) (response ObjectResponse, err error) {
-	ctx = withObjectID(ctx, call.ResourceID)
+func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response ResourceResponse, err error) {
+	ctx.object = call.ResourceID
 
 	service, ok := t.actions[call.Action]
 	if !ok {
@@ -124,7 +122,7 @@ func (t *Type) Do(ctx context.Context, call ObjectRequest) (response ObjectRespo
 
 	// if the resource already exist but the service require that
 	// no resource exists with that name then we need to return an error
-	if Exists(ctx) && service.flags.Is(MustNotExist) {
+	if ctx.Exists() && service.flags.Is(MustNotExist) {
 		return response, ErrActionNotAllowed
 	}
 
@@ -139,21 +137,22 @@ func (t *Type) Do(ctx context.Context, call ObjectRequest) (response ObjectRespo
 	return response, nil
 }
 
-type TypeBuilder struct {
+type ResourceBuilder struct {
 	name      string
 	exclusive bool
 	actions   map[string]Service
 }
 
-func NewTypeBuilder[R any](exclusive bool) *TypeBuilder {
-	return &TypeBuilder{
+// Build a Resource for concrete type R.
+func NewResourceBuilder[R any](exclusive bool) *ResourceBuilder {
+	return &ResourceBuilder{
 		name:      reflect.TypeFor[R]().Name(),
 		exclusive: exclusive,
 		actions:   make(map[string]Service),
 	}
 }
 
-func (t *TypeBuilder) Action(name string, action IntoService) *TypeBuilder {
+func (t *ResourceBuilder) Action(name string, action IntoService) *ResourceBuilder {
 	service := action.Into()
 	if _, ok := t.actions[name]; ok {
 		panic("action already exists")
@@ -163,8 +162,8 @@ func (t *TypeBuilder) Action(name string, action IntoService) *TypeBuilder {
 	return t
 }
 
-func (t *TypeBuilder) IntoType() Type {
-	return Type{
+func (t *ResourceBuilder) IntoResource() Resource {
+	return Resource{
 		name:      t.name,
 		exclusive: t.exclusive,
 		actions:   t.actions,

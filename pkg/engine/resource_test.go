@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -16,12 +15,12 @@ type Person struct {
 }
 
 // type definition
-type PersonType struct {
-	BaseObject[Person]
+type PersonResource struct {
+	BaseResource[Person]
 }
 
 // the action must be a valid action function
-func (p *PersonType) Create(ctx context.Context, name string) (void Void, err error) {
+func (p *PersonResource) Create(ctx Context, name string) (void Void, err error) {
 	fmt.Println("creating user")
 
 	if err := p.Set(ctx, Person{Name: name}); err != nil {
@@ -32,14 +31,15 @@ func (p *PersonType) Create(ctx context.Context, name string) (void Void, err er
 }
 
 func TestTypeBuilder(t *testing.T) {
-	var ptyp PersonType
-	typ := NewTypeBuilder[Person](false).
-		Action("create", NewAction(ptyp.Create)).
-		IntoType()
+	var ptyp PersonResource
 
-	response, err := typ.Do(
-		context.Background(),
-		ObjectRequest{
+	resource := NewResourceBuilder[Person](false).
+		Action("create", NewAction(ptyp.Create)).
+		IntoResource()
+
+	response, err := resource.call(
+		&engineContext{},
+		ResourceRequest{
 			Action:  "create",
 			Payload: json.RawMessage(`"azmy"`),
 		},

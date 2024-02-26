@@ -8,7 +8,6 @@ should not care about endpoints, serialization, deserialization, of user input
 package engine
 
 import (
-	"context"
 	"encoding/json"
 	"reflect"
 )
@@ -19,7 +18,7 @@ type Void struct{}
 // The main action interface an action maps to a single
 // function call that takes input I, and returns output O
 type Action[I any, O any] interface {
-	Do(ctx context.Context, input I) (output O, err error)
+	Do(ctx Context, input I) (output O, err error)
 }
 
 type IntoService interface {
@@ -27,13 +26,13 @@ type IntoService interface {
 }
 
 // ActionFn easily builds an action from a function
-type ActionFn[I any, O any] func(ctx context.Context, input I) (output O, err error)
+type ActionFn[I any, O any] func(ctx Context, input I) (output O, err error)
 
-func NewAction[I any, O any](action func(ctx context.Context, input I) (output O, err error)) ActionFn[I, O] {
+func NewAction[I any, O any](action func(ctx Context, input I) (output O, err error)) ActionFn[I, O] {
 	return ActionFn[I, O](action)
 }
 
-func (f ActionFn[I, O]) Do(ctx context.Context, input I) (output O, err error) {
+func (f ActionFn[I, O]) Do(ctx Context, input I) (output O, err error) {
 	return f(ctx, input)
 }
 
@@ -49,7 +48,7 @@ type Service struct {
 	method reflect.Value
 }
 
-func (s *Service) Call(ctx context.Context, input []byte) (output []byte, err error) {
+func (s *Service) Call(ctx Context, input []byte) (output []byte, err error) {
 	value := reflect.New(s.input)
 	ptr := value.Interface()
 	// we use json now, this might change in the future

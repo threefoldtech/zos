@@ -23,7 +23,7 @@ type Store interface {
 	DependencyAdd(user UserID, space string, entry string, dep string) error
 	DependencyRemove(user UserID, space string, entry string, dep string) error
 
-	Scoped(user UserID, space string) ScopedStore
+	Scoped(user UserID, space string, typ string) ScopedStore
 }
 
 type ScopedStore interface {
