@@ -113,8 +113,6 @@ type Resource struct {
 // Do maps the request to the proper action by the time this is called the context
 // already have all request related values that can be accessed via the
 func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response ResourceResponse, err error) {
-	ctx.object = call.ResourceID
-
 	service, ok := t.actions[call.Action]
 	if !ok {
 		return response, err
