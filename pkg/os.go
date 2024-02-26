@@ -17,27 +17,27 @@ type SystemOS interface {
 	Create(string) (io.ReadCloser, error)
 	MkdirAll(string, fs.FileMode) error
 	Mkdir(string, fs.FileMode) error
-	Stat(string) (any, error)
+	Stat(string) (fs.FileInfo, error)
 	RemoveAll(string) error
 	IsNotExist(error) bool
 }
 
 type defaultFileSystem struct{}
 
-func (dfs *defaultFileSystem) Create(path string) (io.ReadCloser, error) {
-	return os.Create(path)
+func (dfs *defaultFileSystem) Create(name string) (io.ReadCloser, error) {
+	return os.Create(name)
 }
 
 func (dfs *defaultFileSystem) MkdirAll(path string, perm fs.FileMode) error {
 	return os.MkdirAll(path, perm)
 }
 
-func (dfs *defaultFileSystem) Mkdir(path string, perm fs.FileMode) error {
-	return os.Mkdir(path, perm)
+func (dfs *defaultFileSystem) Mkdir(name string, perm fs.FileMode) error {
+	return os.Mkdir(name, perm)
 }
 
-func (dfs *defaultFileSystem) Stat(path string) (any, error) {
-	return os.Stat(path)
+func (dfs *defaultFileSystem) Stat(name string) (fs.FileInfo, error) {
+	return os.Stat(name)
 }
 
 func (dfs *defaultFileSystem) IsNotExist(err error) bool {
@@ -67,7 +67,7 @@ type SystemOSMock struct {
 
 func (os *SystemOSMock) Create(path string) (io.ReadCloser, error) {
 	args := os.Called(path)
-	return args.Get(0).(*FSMock), args.Error(1)
+	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
 func (os *SystemOSMock) MkdirAll(path string, perm fs.FileMode) error {
@@ -80,9 +80,9 @@ func (os *SystemOSMock) Mkdir(path string, perm fs.FileMode) error {
 	return args.Error(0)
 }
 
-func (os *SystemOSMock) Stat(path string) (any, error) {
+func (os *SystemOSMock) Stat(path string) (fs.FileInfo, error) {
 	args := os.Called(path)
-	return args.Get(0), args.Error(1)
+	return args.Get(0).(fs.FileInfo), args.Error(1)
 }
 
 func (os *SystemOSMock) IsNotExist(err error) bool {
@@ -98,12 +98,4 @@ func (os *SystemOSMock) RemoveAll(path string) error {
 func (os *SystemOSMock) Mount(source string, target string, fstype string, flags uintptr, data string) error {
 	args := os.Called(source, target, fstype, flags, data)
 	return args.Error(0)
-}
-
-type FSMock struct {
-	io.Reader
-}
-
-func (fs *FSMock) Close() error {
-	return nil
 }

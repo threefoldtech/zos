@@ -2,13 +2,49 @@ package app
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg"
 )
+
+type readCloser struct {
+	io.Reader
+}
+
+func (fs *readCloser) Close() error {
+	return nil
+}
+
+type fileInfo struct{}
+
+func (f fileInfo) Name() string {
+	return ""
+}
+
+func (f fileInfo) Size() int64 {
+	return 0
+}
+
+func (f fileInfo) Mode() fs.FileMode {
+	return fs.FileMode(0000)
+}
+
+func (f fileInfo) ModTime() time.Time {
+	return time.Now()
+}
+
+func (f fileInfo) IsDir() bool {
+	return false
+}
+
+func (f fileInfo) Sys() any {
+	return nil
+}
 
 // TestMarkBooted tests the markBooted function against multiple scenarios.
 // it tests different scenarios of failures during directory creation or file creation.
@@ -35,7 +71,7 @@ func TestMarkBooted(t *testing.T) {
 			Return(nil)
 
 		os.On("Create", testFilePath).
-			Return(&pkg.FSMock{}, fmt.Errorf("couldn't create file with name file1"))
+			Return(&readCloser{}, fmt.Errorf("couldn't create file with name file1"))
 
 		err := markBooted(testFile, bootedPath, os)
 		require.Error(t, err)
@@ -48,7 +84,7 @@ func TestMarkBooted(t *testing.T) {
 			Return(nil)
 
 		os.On("Create", testFilePath).
-			Return(&pkg.FSMock{}, nil)
+			Return(&readCloser{}, nil)
 
 		err := markBooted(testFile, bootedPath, os)
 		require.NoError(t, err)
@@ -66,7 +102,7 @@ func TestIsFirstBoot(t *testing.T) {
 	t.Run("the file is first booted", func(t *testing.T) {
 		os := &pkg.SystemOSMock{}
 		os.On("Stat", testFilePath).
-			Return(nil, nil)
+			Return(fileInfo{}, nil)
 
 		firstBoot := isFirstBoot(testFile, bootedPath, os)
 		require.False(t, firstBoot)
@@ -76,7 +112,7 @@ func TestIsFirstBoot(t *testing.T) {
 	t.Run("the file is not first booted", func(t *testing.T) {
 		os := &pkg.SystemOSMock{}
 		os.On("Stat", testFilePath).
-			Return(nil, fmt.Errorf("couldn't find file in the bootedPath"))
+			Return(fileInfo{}, fmt.Errorf("couldn't find file in the bootedPath"))
 
 		firstBoot := isFirstBoot(testFile, bootedPath, os)
 		require.True(t, firstBoot)

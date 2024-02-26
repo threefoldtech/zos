@@ -23,7 +23,7 @@ func TestSetFlag(t *testing.T) {
 			Return(nil)
 
 		os.On("Create", testFilePath).
-			Return(&pkg.FSMock{}, fmt.Errorf("failed to create file"))
+			Return(&readCloser{}, fmt.Errorf("failed to create file"))
 
 		err := setFlag(testFile, flagsDir, os)
 		require.Error(t, err)
@@ -36,7 +36,7 @@ func TestSetFlag(t *testing.T) {
 			Return(nil)
 
 		os.On("Create", testFilePath).
-			Return(&pkg.FSMock{}, nil)
+			Return(&readCloser{}, nil)
 
 		err := setFlag(testFile, flagsDir, os)
 		require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestCheckFlag(t *testing.T) {
 		os := &pkg.SystemOSMock{}
 
 		os.On("Stat", testFilePath).
-			Return(nil, nil)
+			Return(fileInfo{}, nil)
 
 		os.On("IsNotExist", nil).
 			Return(false)
@@ -69,7 +69,7 @@ func TestCheckFlag(t *testing.T) {
 		os := &pkg.SystemOSMock{}
 
 		os.On("Stat", testFilePath).
-			Return(nil, fs.ErrNotExist)
+			Return(fileInfo{}, fs.ErrNotExist)
 
 		os.On("IsNotExist", fs.ErrNotExist).
 			Return(true)
