@@ -18,40 +18,40 @@ func TestVolatileDir(t *testing.T) {
 	const volatileBaseDir = "/var/run/cache"
 
 	t.Run("volatileDir failed to Mount", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
+		os := &pkg.SystemOSMock{}
 
 		filePath := filepath.Join(volatileBaseDir, name)
 
-		exec.On("MkdirAll", volatileBaseDir, fs.FileMode(0700)).
+		os.On("MkdirAll", volatileBaseDir, fs.FileMode(0700)).
 			Return(nil)
 
-		exec.On("Mkdir", filePath, fs.FileMode(0700)).
+		os.On("Mkdir", filePath, fs.FileMode(0700)).
 			Return(nil)
 
-		exec.On("Mount", "none", filePath, "tmpfs", uintptr(0), fmt.Sprintf("size=%d", size)).
+		os.On("Mount", "none", filePath, "tmpfs", uintptr(0), fmt.Sprintf("size=%d", size)).
 			Return(fmt.Errorf("failed to Mount"))
 
-		_, err := volatileDir(name, size, exec, exec)
+		_, err := volatileDir(name, size, os, os)
 		require.Error(t, err)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 	t.Run("volatileDir Mounted successfully", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
+		os := &pkg.SystemOSMock{}
 
 		filePath := filepath.Join(volatileBaseDir, name)
 
-		exec.On("MkdirAll", volatileBaseDir, fs.FileMode(0700)).
+		os.On("MkdirAll", volatileBaseDir, fs.FileMode(0700)).
 			Return(nil)
 
-		exec.On("Mkdir", filePath, fs.FileMode(0700)).
+		os.On("Mkdir", filePath, fs.FileMode(0700)).
 			Return(nil)
 
-		exec.On("Mount", "none", filePath, "tmpfs", uintptr(0), fmt.Sprintf("size=%d", size)).
+		os.On("Mount", "none", filePath, "tmpfs", uintptr(0), fmt.Sprintf("size=%d", size)).
 			Return(nil)
 
-		n, err := volatileDir(name, size, exec, exec)
+		n, err := volatileDir(name, size, os, os)
 		require.NoError(t, err)
 		require.Equal(t, n, filePath)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 }

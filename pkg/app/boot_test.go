@@ -18,41 +18,41 @@ func TestMarkBooted(t *testing.T) {
 	testFilePath := filepath.Join(bootedPath, testFile)
 
 	t.Run("markBooted failed to MkdirAll", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
+		os := &pkg.SystemOSMock{}
 		errMkdir := fmt.Errorf("failed to MkdirAll")
-		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
+		os.On("MkdirAll", bootedPath, fs.FileMode(0770)).
 			Return(fmt.Errorf("failed to MkdirAll"))
 
-		err := markBooted(testFile, bootedPath, exec)
+		err := markBooted(testFile, bootedPath, os)
 		require.Error(t, err)
 		require.Equal(t, err, errMkdir)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 
 	t.Run("markBooted failed to Create", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
-		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
+		os := &pkg.SystemOSMock{}
+		os.On("MkdirAll", bootedPath, fs.FileMode(0770)).
 			Return(nil)
 
-		exec.On("Create", testFilePath).
-			Return(&pkg.FSTestExecuter{}, fmt.Errorf("couldn't create file with name file1"))
+		os.On("Create", testFilePath).
+			Return(&pkg.FSMock{}, fmt.Errorf("couldn't create file with name file1"))
 
-		err := markBooted(testFile, bootedPath, exec)
+		err := markBooted(testFile, bootedPath, os)
 		require.Error(t, err)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 
 	t.Run("markBooted valid file", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
-		exec.On("MkdirAll", bootedPath, fs.FileMode(0770)).
+		os := &pkg.SystemOSMock{}
+		os.On("MkdirAll", bootedPath, fs.FileMode(0770)).
 			Return(nil)
 
-		exec.On("Create", testFilePath).
-			Return(&pkg.FSTestExecuter{}, nil)
+		os.On("Create", testFilePath).
+			Return(&pkg.FSMock{}, nil)
 
-		err := markBooted(testFile, bootedPath, exec)
+		err := markBooted(testFile, bootedPath, os)
 		require.NoError(t, err)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 }
 
@@ -64,22 +64,22 @@ func TestIsFirstBoot(t *testing.T) {
 	testFilePath := filepath.Join(bootedPath, testFile)
 
 	t.Run("the file is first booted", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
-		exec.On("Stat", testFilePath).
+		os := &pkg.SystemOSMock{}
+		os.On("Stat", testFilePath).
 			Return(nil, nil)
 
-		firstBoot := isFirstBoot(testFile, bootedPath, exec)
+		firstBoot := isFirstBoot(testFile, bootedPath, os)
 		require.False(t, firstBoot)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 
 	t.Run("the file is not first booted", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
-		exec.On("Stat", testFilePath).
+		os := &pkg.SystemOSMock{}
+		os.On("Stat", testFilePath).
 			Return(nil, fmt.Errorf("couldn't find file in the bootedPath"))
 
-		firstBoot := isFirstBoot(testFile, bootedPath, exec)
+		firstBoot := isFirstBoot(testFile, bootedPath, os)
 		require.True(t, firstBoot)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 }

@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -19,29 +18,29 @@ func TestSetFlag(t *testing.T) {
 	testFilePath := filepath.Join(flagsDir, testFile)
 
 	t.Run("setFlag invalid flag", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
-		exec.On("MkdirAll", flagsDir, os.ModePerm).
+		os := &pkg.SystemOSMock{}
+		os.On("MkdirAll", flagsDir, fs.ModePerm).
 			Return(nil)
 
-		exec.On("Create", testFilePath).
-			Return(&pkg.FSTestExecuter{}, fmt.Errorf("failed to create file"))
+		os.On("Create", testFilePath).
+			Return(&pkg.FSMock{}, fmt.Errorf("failed to create file"))
 
-		err := setFlag(testFile, flagsDir, exec)
+		err := setFlag(testFile, flagsDir, os)
 		require.Error(t, err)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 
 	t.Run("setFlag valid flag", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
-		exec.On("MkdirAll", flagsDir, os.ModePerm).
+		os := &pkg.SystemOSMock{}
+		os.On("MkdirAll", flagsDir, fs.ModePerm).
 			Return(nil)
 
-		exec.On("Create", testFilePath).
-			Return(&pkg.FSTestExecuter{}, nil)
+		os.On("Create", testFilePath).
+			Return(&pkg.FSMock{}, nil)
 
-		err := setFlag(testFile, flagsDir, exec)
+		err := setFlag(testFile, flagsDir, os)
 		require.NoError(t, err)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 }
 
@@ -53,31 +52,31 @@ func TestCheckFlag(t *testing.T) {
 	testFilePath := filepath.Join(flagsDir, testFile)
 
 	t.Run("checkFlag flag exist", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
+		os := &pkg.SystemOSMock{}
 
-		exec.On("Stat", testFilePath).
+		os.On("Stat", testFilePath).
 			Return(nil, nil)
 
-		exec.On("IsNotExist", nil).
+		os.On("IsNotExist", nil).
 			Return(false)
 
-		flagExists := checkFlag(testFile, flagsDir, exec)
+		flagExists := checkFlag(testFile, flagsDir, os)
 		require.True(t, flagExists)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 
 	t.Run("checkFlag flag does not exist", func(t *testing.T) {
-		exec := &pkg.TestExecuter{}
+		os := &pkg.SystemOSMock{}
 
-		exec.On("Stat", testFilePath).
+		os.On("Stat", testFilePath).
 			Return(nil, fs.ErrNotExist)
 
-		exec.On("IsNotExist", fs.ErrNotExist).
+		os.On("IsNotExist", fs.ErrNotExist).
 			Return(true)
 
-		flagExists := checkFlag(testFile, flagsDir, exec)
+		flagExists := checkFlag(testFile, flagsDir, os)
 		require.False(t, flagExists)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 }
 
@@ -88,22 +87,22 @@ func TestDeleteFlag(t *testing.T) {
 		key := "/"
 		flagsDir := "tmp/flags"
 
-		exec := &pkg.TestExecuter{}
-		err := deleteFlag(key, flagsDir, exec)
+		os := &pkg.SystemOSMock{}
+		err := deleteFlag(key, flagsDir, os)
 		require.Error(t, err)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 
 	t.Run("delete valid cache type", func(t *testing.T) {
 		key := LimitedCache
 		flagsDir := "tmp/flags"
 
-		exec := &pkg.TestExecuter{}
-		exec.On("RemoveAll", filepath.Join(flagsDir, key)).
+		os := &pkg.SystemOSMock{}
+		os.On("RemoveAll", filepath.Join(flagsDir, key)).
 			Return(nil)
 
-		err := deleteFlag(key, flagsDir, exec)
+		err := deleteFlag(key, flagsDir, os)
 		require.NoError(t, err)
-		exec.AssertExpectations(t)
+		os.AssertExpectations(t)
 	})
 }
