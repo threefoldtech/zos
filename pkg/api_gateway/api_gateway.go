@@ -41,34 +41,34 @@ func (g *apiGateway) EnsureAccount(activationURL string, termsAndConditionsLink 
 	return g.sub.EnsureAccount(g.identity, activationURL, terminsAndConditionsHash, terminsAndConditionsHash)
 }
 
-func (g *apiGateway) GetContract(id uint64) (substrate.Contract, pkg.Error) {
-	var outErr pkg.Error
+func (g *apiGateway) GetContract(id uint64) (substrate.Contract, pkg.ZBusError) {
+	var zbusError pkg.ZBusError
 	contract, err := g.sub.GetContract(id)
 	if contract == nil {
 		contract = &substrate.Contract{}
 	}
 	if errors.Is(err, substrate.ErrNotFound) {
-		outErr.Err = err
-		outErr.Code = pkg.CodeNotFound
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeNotFound
 	} else if err != nil {
-		outErr.Err = err
-		outErr.Code = pkg.CodeGenericError
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeGenericError
 	}
-	return *contract, outErr
+	return *contract, zbusError
 }
 
-func (g *apiGateway) GetContractIDByNameRegistration(name string) (uint64, pkg.Error) {
-	var outErr pkg.Error
+func (g *apiGateway) GetContractIDByNameRegistration(name string) (uint64, pkg.ZBusError) {
+	var zbusError pkg.ZBusError
 	contractID, err := g.sub.GetContractIDByNameRegistration(name)
 
 	if errors.Is(err, substrate.ErrNotFound) {
-		outErr.Err = err
-		outErr.Code = pkg.CodeNotFound
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeNotFound
 	} else if err != nil {
-		outErr.Err = err
-		outErr.Code = pkg.CodeGenericError
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeGenericError
 	}
-	return contractID, outErr
+	return contractID, zbusError
 }
 
 func (g *apiGateway) GetFarm(id uint32) (substrate.Farm, error) {
@@ -87,36 +87,36 @@ func (g *apiGateway) GetNode(id uint32) (substrate.Node, error) {
 	return *node, err
 }
 
-func (g *apiGateway) GetNodeByTwinID(twin uint32) (uint32, pkg.Error) {
-	var outErr pkg.Error
+func (g *apiGateway) GetNodeByTwinID(twin uint32) (uint32, pkg.ZBusError) {
+	var zbusError pkg.ZBusError
 	nodeID, err := g.sub.GetNodeByTwinID(twin)
 
 	if errors.Is(err, substrate.ErrNotFound) {
-		outErr.Err = err
-		outErr.Code = pkg.CodeNotFound
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeNotFound
 	} else if err != nil {
-		outErr.Err = err
-		outErr.Code = pkg.CodeGenericError
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeGenericError
 	}
-	return nodeID, outErr
+	return nodeID, zbusError
 }
 
 func (g *apiGateway) GetNodeContracts(node uint32) ([]types.U64, error) {
 	return g.sub.GetNodeContracts(node)
 }
 
-func (g *apiGateway) GetNodeRentContract(node uint32) (uint64, pkg.Error) {
-	var outErr pkg.Error
+func (g *apiGateway) GetNodeRentContract(node uint32) (uint64, pkg.ZBusError) {
+	var zbusError pkg.ZBusError
 	contractID, err := g.sub.GetNodeRentContract(node)
 
 	if errors.Is(err, substrate.ErrNotFound) {
-		outErr.Err = err
-		outErr.Code = pkg.CodeNotFound
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeNotFound
 	} else if err != nil {
-		outErr.Err = err
-		outErr.Code = pkg.CodeGenericError
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeGenericError
 	}
-	return contractID, outErr
+	return contractID, zbusError
 }
 
 func (g *apiGateway) GetNodes(farmID uint32) ([]uint32, error) {
@@ -135,18 +135,24 @@ func (g *apiGateway) GetTwin(id uint32) (substrate.Twin, error) {
 	return *twin, err
 }
 
-func (g *apiGateway) GetTwinByPubKey(pk []byte) (uint32, pkg.Error) {
-	var outErr pkg.Error
+func (g *apiGateway) GetTwinByPubKey(pk []byte) (uint32, pkg.ZBusError) {
+	var zbusError pkg.ZBusError
 	twinID, err := g.sub.GetTwinByPubKey(pk)
 
 	if errors.Is(err, substrate.ErrNotFound) {
-		outErr.Err = err
-		outErr.Code = pkg.CodeNotFound
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeNotFound
 	} else if err != nil {
-		outErr.Err = err
-		outErr.Code = pkg.CodeGenericError
+		zbusError.Err = err
+		zbusError.Code = pkg.CodeGenericError
 	}
-	return twinID, outErr
+	return twinID, zbusError
+}
+
+func (g *apiGateway) Report(consumptions []substrate.NruConsumption) (types.Hash, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.sub.Report(g.identity, consumptions)
 }
 
 func (g *apiGateway) SetContractConsumption(resources ...substrate.ContractResources) error {

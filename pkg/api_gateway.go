@@ -11,33 +11,34 @@ type APIGateway interface {
 	CreateNode(node substrate.Node) (uint32, error)
 	CreateTwin(relay string, pk []byte) (uint32, error)
 	EnsureAccount(activationURL string, termsAndConditionsLink string, terminsAndConditionsHash string) (info substrate.AccountInfo, err error)
-	GetContract(id uint64) (substrate.Contract, Error)
-	GetContractIDByNameRegistration(name string) (uint64, Error)
+	GetContract(id uint64) (substrate.Contract, ZBusError)
+	GetContractIDByNameRegistration(name string) (uint64, ZBusError)
 	GetFarm(id uint32) (substrate.Farm, error)
 	GetNode(id uint32) (substrate.Node, error)
-	GetNodeByTwinID(twin uint32) (uint32, Error)
+	GetNodeByTwinID(twin uint32) (uint32, ZBusError)
 	GetNodeContracts(node uint32) ([]types.U64, error)
-	GetNodeRentContract(node uint32) (uint64, Error)
+	GetNodeRentContract(node uint32) (uint64, ZBusError)
 	GetNodes(farmID uint32) ([]uint32, error)
 	GetPowerTarget(nodeID uint32) (power substrate.NodePower, err error)
 	GetTwin(id uint32) (substrate.Twin, error)
-	GetTwinByPubKey(pk []byte) (uint32, Error)
+	GetTwinByPubKey(pk []byte) (uint32, ZBusError)
+	Report(consumptions []substrate.NruConsumption) (types.Hash, error)
 	SetContractConsumption(resources ...substrate.ContractResources) error
 	SetNodePowerState(up bool) (hash types.Hash, err error)
 	UpdateNode(node substrate.Node) (uint32, error)
 	UpdateNodeUptimeV2(uptime uint64, timestampHint uint64) (hash types.Hash, err error)
 }
 
-type Error struct {
+type ZBusError struct {
 	Err  error
 	Code int
 }
 
-func (e *Error) IsError() bool {
+func (e *ZBusError) IsError() bool {
 	return e.Code != CodeNoError
 }
 
-func (e *Error) IsCode(codes ...int) bool {
+func (e *ZBusError) IsCode(codes ...int) bool {
 	for _, code := range codes {
 		if code == e.Code {
 			return true

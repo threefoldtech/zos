@@ -157,7 +157,7 @@ func registerNode(
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "failed to ensure twin")
 	}
-	var zbusErr pkg.Error
+	var zbusErr pkg.ZBusError
 	nodeID, zbusErr = apiGateway.GetNodeByTwinID(ctx, twinID)
 
 	var serial substrate.OptionBoardSerial
