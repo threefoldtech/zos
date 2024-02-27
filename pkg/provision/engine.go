@@ -206,7 +206,6 @@ type deploymentValue struct {
 	deployment uint64
 }
 type contractKey struct{}
-type substrateKey struct{}
 type rentKey struct{}
 
 // GetEngine gets engine from context
