@@ -38,7 +38,7 @@ name and input data
 */
 type Engine struct {
 	store     Store
-	resources map[string]Resource
+	resources map[string]*Resource
 }
 
 func (e *Engine) Do(ctx context.Context, request Request) (response Response, err error) {
@@ -52,7 +52,7 @@ func (e *Engine) Do(ctx context.Context, request Request) (response Response, er
 		return response, ErrObjectDoesNotExist
 	}
 
-	exists, typ, err := e.store.ResourceExists(request.User, request.Space, request.ResourceID)
+	exists, typ, err := e.store.RecordExists(request.User, request.Space, request.ResourceID)
 	if err != nil {
 		return response, err
 	}
@@ -85,7 +85,7 @@ func (e *Engine) Do(ctx context.Context, request Request) (response Response, er
 	return Response{result}, nil
 }
 
-func (e *Engine) Resource(typ Resource) {
+func (e *Engine) Resource(typ *Resource) {
 	if _, ok := e.resources[typ.name]; ok {
 		panic("resource with same type already registered")
 	}

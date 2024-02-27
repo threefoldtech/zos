@@ -57,9 +57,9 @@ func TestTypeBuilder(t *testing.T) {
 		store:  store.Scoped(0, "space", "person1", "Person"),
 	}
 
-	resource := NewResourceBuilder[Person](false).
-		Action("create", NewAction(ptyp.Create), MustNotExist).
-		Action("set-age", NewAction(ptyp.SetAge), MustExists).
+	resource := NewResourceBuilder[Person]().
+		Action("create", NewAction(ptyp.Create), ServiceObjectMustNotExist).
+		Action("set-age", NewAction(ptyp.SetAge), ServiceObjectMustExists).
 		IntoResource()
 
 	response, err := resource.call(
@@ -74,11 +74,11 @@ func TestTypeBuilder(t *testing.T) {
 	require.EqualValues(t, "null", response.Payload)
 
 	record := store.users[0].spaces["space"].objects["person1"]
-	require.EqualValues(t, "Person", record.typ)
-	require.EqualValues(t, "person1", record.id)
+	require.EqualValues(t, "Person", record.Type)
+	require.EqualValues(t, "person1", record.ID)
 
 	var p Person
-	require.NoError(t, json.Unmarshal(record.data, &p))
+	require.NoError(t, json.Unmarshal(record.Data, &p))
 
 	require.EqualValues(t, Person{Name: "azmy"}, p)
 
@@ -107,7 +107,7 @@ func TestTypeBuilder(t *testing.T) {
 	require.NoError(t, err)
 
 	record = store.users[0].spaces["space"].objects["person1"]
-	require.NoError(t, json.Unmarshal(record.data, &p))
+	require.NoError(t, json.Unmarshal(record.Data, &p))
 
 	require.EqualValues(t, Person{Name: "azmy", Age: 40}, p)
 }

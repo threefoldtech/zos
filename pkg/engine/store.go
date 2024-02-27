@@ -1,8 +1,10 @@
 package engine
 
-type Entry struct {
-	Payload      []byte
-	Dependencies []string
+type Record struct {
+	ID      string
+	Version uint
+	Type    string
+	Data    []byte
 }
 
 type UserID uint32
@@ -14,34 +16,29 @@ type Store interface {
 	SpacesList(user UserID) ([]string, error)
 	SpaceExists(user UserID, name string) (bool, error)
 
-	ResourceSet(user UserID, space string, entry string, typ string, payload []byte) error
-	ResourceGet(user UserID, space string, entry string) (typ string, payload []byte, err error)
-	ResourceList(user UserID, space string) ([]string, error)
-	ResourceExists(user UserID, space string, name string) (exists bool, typ string, err error)
-	ResourceDelete(user UserID, space string, name string) error
+	RecordSet(user UserID, space string, record Record) error
+	RecordGet(user UserID, space string, id string) (record Record, err error)
+	RecordList(user UserID, space string) ([]string, error)
+	RecordExists(user UserID, space string, id string) (exists bool, typ string, err error)
+	RecordDelete(user UserID, space string, id string) error
 
-	DependencyAdd(user UserID, space string, entry string, dep string) error
-	DependencyRemove(user UserID, space string, entry string, dep string) error
+	DependencyAdd(user UserID, space string, id string, dep string) error
+	DependencyRemove(user UserID, space string, id string, dep string) error
 
 	Scoped(user UserID, space string, entry, typ string) ScopedStore
 }
 
 type ScopedStore interface {
-	ResourceSet(payload []byte) error
-	ResourceGet(entry string) (typ string, payload []byte, err error)
-	ResourceList() ([]string, error)
-	ResourceExists(name string) (exists bool, typ string, err error)
-}
-
-type objectBucket struct {
-	id   string
-	typ  string
-	data []byte
+	RecordSet(payload []byte) error
+	RecordGet(entry string) (record Record, err error)
+	RecordList() ([]string, error)
+	RecordExists(id string) (exists bool, typ string, err error)
 }
 
 type spaceBucket struct {
-	objects map[string]objectBucket
+	objects map[string]Record
 }
+
 type userBucket struct {
 	spaces map[string]*spaceBucket
 }
@@ -70,7 +67,7 @@ func (s *MemStore) SpaceCreate(user UserID, name string) error {
 	}
 
 	bucket.spaces[name] = &spaceBucket{
-		objects: make(map[string]objectBucket),
+		objects: make(map[string]Record),
 	}
 
 	s.users[user] = bucket
@@ -119,35 +116,31 @@ func (s *MemStore) getSpace(user UserID, name string) (*spaceBucket, bool) {
 	return space, ok
 }
 
-func (s *MemStore) ResourceSet(user UserID, space string, entry string, typ string, payload []byte) error {
+func (s *MemStore) RecordSet(user UserID, space string, record Record) error {
 	bkt, ok := s.getSpace(user, space)
 	if !ok {
 		return ErrSpaceNotFound
 	}
 
-	bkt.objects[entry] = objectBucket{
-		id:   entry,
-		typ:  typ,
-		data: payload,
-	}
+	bkt.objects[record.ID] = record
 
 	return nil
 }
-func (s *MemStore) ResourceGet(user UserID, space string, entry string) (typ string, payload []byte, err error) {
+func (s *MemStore) RecordGet(user UserID, space string, entry string) (record Record, err error) {
 	bkt, ok := s.getSpace(user, space)
 	if !ok {
-		return typ, nil, ErrSpaceNotFound
+		return record, ErrSpaceNotFound
 	}
 
-	obj, ok := bkt.objects[entry]
+	record, ok = bkt.objects[entry]
 	if !ok {
-		return typ, nil, ErrObjectDoesNotExist
+		return record, ErrObjectDoesNotExist
 	}
 
-	return obj.typ, obj.data, nil
+	return record, nil
 }
 
-func (s *MemStore) ResourceList(user UserID, space string) ([]string, error) {
+func (s *MemStore) RecordList(user UserID, space string) ([]string, error) {
 	bkt, ok := s.getSpace(user, space)
 	if !ok {
 		return nil, ErrSpaceNotFound
@@ -161,7 +154,7 @@ func (s *MemStore) ResourceList(user UserID, space string) ([]string, error) {
 	return objs, nil
 
 }
-func (s *MemStore) ResourceExists(user UserID, space string, name string) (exists bool, typ string, err error) {
+func (s *MemStore) RecordExists(user UserID, space string, name string) (exists bool, typ string, err error) {
 	bkt, ok := s.getSpace(user, space)
 	if !ok {
 		return false, typ, ErrSpaceNotFound
@@ -172,10 +165,10 @@ func (s *MemStore) ResourceExists(user UserID, space string, name string) (exist
 		return false, typ, nil
 	}
 
-	return true, obj.typ, nil
+	return true, obj.Type, nil
 }
 
-func (s *MemStore) ResourceDelete(user UserID, space string, name string) error {
+func (s *MemStore) RecordDelete(user UserID, space string, name string) error {
 	bkt, ok := s.getSpace(user, space)
 	if !ok {
 		return nil
@@ -211,25 +204,25 @@ type scopedMemStore struct {
 	id, typ string
 }
 
-func (s *scopedMemStore) ResourceSet(payload []byte) error {
-	s.space.objects[s.id] = objectBucket{
-		id:   s.id,
-		typ:  s.typ,
-		data: payload,
+func (s *scopedMemStore) RecordSet(payload []byte) error {
+	s.space.objects[s.id] = Record{
+		ID:   s.id,
+		Type: s.typ,
+		Data: payload,
 	}
 
 	return nil
 }
 
-func (s *scopedMemStore) ResourceGet(entry string) (typ string, payload []byte, err error) {
-	obj, ok := s.space.objects[entry]
+func (s *scopedMemStore) RecordGet(entry string) (record Record, err error) {
+	record, ok := s.space.objects[entry]
 	if !ok {
-		return typ, payload, ErrObjectDoesNotExist
+		return record, ErrObjectDoesNotExist
 	}
-	return obj.typ, obj.data, nil
+	return record, nil
 }
 
-func (s *scopedMemStore) ResourceList() ([]string, error) {
+func (s *scopedMemStore) RecordList() ([]string, error) {
 	var names []string
 	for n := range s.space.objects {
 		names = append(names, n)
@@ -237,11 +230,11 @@ func (s *scopedMemStore) ResourceList() ([]string, error) {
 
 	return names, nil
 }
-func (s *scopedMemStore) ResourceExists(name string) (exists bool, typ string, err error) {
+func (s *scopedMemStore) RecordExists(name string) (exists bool, typ string, err error) {
 	obj, ok := s.space.objects[name]
 	if ok {
-		return true, obj.typ, nil
+		return true, obj.Type, nil
 	}
 
-	return false, typ, nil
+	return false, obj.Type, nil
 }
