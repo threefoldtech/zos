@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -30,15 +31,39 @@ func (p *PersonResource) Create(ctx Context, name string) (void Void, err error)
 	return void, nil
 }
 
+func (p *PersonResource) SetAge(ctx Context, age uint) (void Void, err error) {
+	fmt.Println("setting age:", age)
+	person, err := p.Current(ctx)
+	if err != nil {
+		return void, err
+	}
+
+	person.Age = age
+	return void, p.Set(ctx, person)
+}
+
 func TestTypeBuilder(t *testing.T) {
 	var ptyp PersonResource
 
+	store := NewMemStore()
+	store.SpaceCreate(0, "space")
+
+	ctx := &engineContext{
+		ctx:    context.TODO(),
+		space:  "space",
+		user:   0,
+		object: "person1",
+		exists: false,
+		store:  store.Scoped(0, "space", "person1", "Person"),
+	}
+
 	resource := NewResourceBuilder[Person](false).
-		Action("create", NewAction(ptyp.Create)).
+		Action("create", NewAction(ptyp.Create), MustNotExist).
+		Action("set-age", NewAction(ptyp.SetAge), MustExists).
 		IntoResource()
 
 	response, err := resource.call(
-		&engineContext{},
+		ctx,
 		ResourceRequest{
 			Action:  "create",
 			Payload: json.RawMessage(`"azmy"`),
@@ -46,5 +71,43 @@ func TestTypeBuilder(t *testing.T) {
 	)
 
 	require.NoError(t, err)
-	fmt.Println(response.Payload)
+	require.EqualValues(t, "null", response.Payload)
+
+	record := store.users[0].spaces["space"].objects["person1"]
+	require.EqualValues(t, "Person", record.typ)
+	require.EqualValues(t, "person1", record.id)
+
+	var p Person
+	require.NoError(t, json.Unmarshal(record.data, &p))
+
+	require.EqualValues(t, Person{Name: "azmy"}, p)
+
+	// trying create again should fail since the object already exists
+	// this is set by the engine but we can now
+	// set it manually here.
+	ctx.exists = true
+	_, err = resource.call(
+		ctx,
+		ResourceRequest{
+			Action:  "create",
+			Payload: json.RawMessage(`"azmy"`),
+		},
+	)
+
+	require.ErrorIs(t, ErrObjectExists, err)
+
+	_, err = resource.call(
+		ctx,
+		ResourceRequest{
+			Action:  "set-age",
+			Payload: json.RawMessage(`40`),
+		},
+	)
+
+	require.NoError(t, err)
+
+	record = store.users[0].spaces["space"].objects["person1"]
+	require.NoError(t, json.Unmarshal(record.data, &p))
+
+	require.EqualValues(t, Person{Name: "azmy", Age: 40}, p)
 }

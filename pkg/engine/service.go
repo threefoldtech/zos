@@ -15,6 +15,10 @@ import (
 // Empty struct used as a quick shortcut to return No type
 type Void struct{}
 
+func (v Void) MarshalJSON() ([]byte, error) {
+	return []byte("null"), nil
+}
+
 // The main action interface an action maps to a single
 // function call that takes input I, and returns output O
 type Action[I any, O any] interface {
@@ -102,6 +106,7 @@ type ServiceFlag uint8
 
 const (
 	MustNotExist ServiceFlag = 1 << iota
+	MustExists
 )
 
 func (s ServiceFlag) Is(f ServiceFlag) bool {

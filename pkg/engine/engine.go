@@ -6,12 +6,12 @@ import (
 )
 
 var (
-	ErrActionNotFound    = fmt.Errorf("action not found")
-	ErrResourceUnknown   = fmt.Errorf("resource unknown")
-	ErrObjectNotFound    = fmt.Errorf("object not found")
-	ErrObjectInvalidType = fmt.Errorf("invalid object type")
-	ErrSpaceNotFound     = fmt.Errorf("space not found")
-	ErrActionNotAllowed  = fmt.Errorf("action not allowed")
+	ErrActionNotFound     = fmt.Errorf("action not found")
+	ErrResourceUnknown    = fmt.Errorf("resource unknown")
+	ErrObjectInvalidType  = fmt.Errorf("invalid object type")
+	ErrSpaceNotFound      = fmt.Errorf("space not found")
+	ErrObjectExists       = fmt.Errorf("object exists")
+	ErrObjectDoesNotExist = fmt.Errorf("object does not exist")
 )
 
 // Request is an engine request
@@ -49,7 +49,7 @@ func (e *Engine) Do(ctx context.Context, request Request) (response Response, er
 	}
 
 	if !exists {
-		return response, ErrObjectNotFound
+		return response, ErrObjectDoesNotExist
 	}
 
 	exists, typ, err := e.store.ResourceExists(request.User, request.Space, request.ResourceID)

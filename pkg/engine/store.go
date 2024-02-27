@@ -51,6 +51,14 @@ type MemStore struct {
 	users map[UserID]*userBucket
 }
 
+var _ Store = (*MemStore)(nil)
+
+func NewMemStore() *MemStore {
+	return &MemStore{
+		users: make(map[UserID]*userBucket),
+	}
+}
+
 func (s *MemStore) SpaceCreate(user UserID, name string) error {
 	bucket := s.users[user]
 
@@ -133,7 +141,7 @@ func (s *MemStore) ResourceGet(user UserID, space string, entry string) (typ str
 
 	obj, ok := bkt.objects[entry]
 	if !ok {
-		return typ, nil, ErrObjectNotFound
+		return typ, nil, ErrObjectDoesNotExist
 	}
 
 	return obj.typ, obj.data, nil
@@ -216,7 +224,7 @@ func (s *scopedMemStore) ResourceSet(payload []byte) error {
 func (s *scopedMemStore) ResourceGet(entry string) (typ string, payload []byte, err error) {
 	obj, ok := s.space.objects[entry]
 	if !ok {
-		return typ, payload, ErrObjectNotFound
+		return typ, payload, ErrObjectDoesNotExist
 	}
 	return obj.typ, obj.data, nil
 }

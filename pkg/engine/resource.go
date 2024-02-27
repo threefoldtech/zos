@@ -45,7 +45,7 @@ func (r BaseResource[R]) Current(ctx Context) (R, error) {
 	var resource R
 
 	if !ctx.Exists() {
-		return resource, ErrObjectNotFound
+		return resource, ErrObjectDoesNotExist
 	}
 
 	id := ctx.Object()
@@ -120,8 +120,11 @@ func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response Reso
 
 	// if the resource already exist but the service require that
 	// no resource exists with that name then we need to return an error
-	if ctx.Exists() && service.flags.Is(MustNotExist) {
-		return response, ErrActionNotAllowed
+	exists := ctx.Exists()
+	if exists && service.flags.Is(MustNotExist) {
+		return response, ErrObjectExists
+	} else if !exists && service.flags.Is(MustExists) {
+		return response, ErrObjectDoesNotExist
 	}
 
 	output, err := service.Call(ctx, call.Payload)
@@ -150,8 +153,8 @@ func NewResourceBuilder[R any](exclusive bool) *ResourceBuilder {
 	}
 }
 
-func (t *ResourceBuilder) Action(name string, action IntoService) *ResourceBuilder {
-	service := action.Into()
+func (t *ResourceBuilder) Action(name string, action IntoService, flags ...ServiceFlag) *ResourceBuilder {
+	service := action.Into(flags...)
 	if _, ok := t.actions[name]; ok {
 		panic("action already exists")
 	}
