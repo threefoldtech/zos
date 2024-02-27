@@ -532,19 +532,19 @@ func (g *gatewayModule) configPath(name string) string {
 
 func (g *gatewayModule) validateNameContract(name string, twinID uint32) error {
 
-	contractID, zErr := g.apiGateway.GetContractIDByNameRegistration(context.Background(), string(name))
-	if zErr.IsCode(pkg.CodeNotFound) {
+	contractID, subErr := g.apiGateway.GetContractIDByNameRegistration(context.Background(), string(name))
+	if subErr.IsCode(pkg.CodeNotFound) {
 		return ErrContractNotReserved
 	}
-	if zErr.IsError() {
-		return zErr.Err
+	if subErr.IsError() {
+		return subErr.Err
 	}
-	contract, zErr := g.apiGateway.GetContract(context.Background(), contractID)
-	if zErr.IsCode(pkg.CodeNotFound) {
+	contract, subErr := g.apiGateway.GetContract(context.Background(), contractID)
+	if subErr.IsCode(pkg.CodeNotFound) {
 		return fmt.Errorf("contract by name returned %d, but retreiving it results in 'not found' error", contractID)
 	}
-	if zErr.IsError() {
-		return zErr.Err
+	if subErr.IsError() {
+		return subErr.Err
 	}
 	if !contract.State.IsCreated {
 		return ErrInvalidContractState

@@ -573,9 +573,9 @@ func (e *NativeEngine) validate(ctx context.Context, dl *gridtypes.Deployment, n
 		return ctx, fmt.Errorf("substrate is not configured in engine")
 	}
 
-	contract, zErr := e.apiGateway.GetContract(ctx, uint64(dl.ContractID))
-	if zErr.IsError() {
-		return nil, errors.Wrap(zErr.Err, "failed to get deployment contract")
+	contract, subErr := e.apiGateway.GetContract(ctx, uint64(dl.ContractID))
+	if subErr.IsError() {
+		return nil, errors.Wrap(subErr.Err, "failed to get deployment contract")
 	}
 
 	if !contract.ContractType.IsNodeContract {
@@ -583,12 +583,12 @@ func (e *NativeEngine) validate(ctx context.Context, dl *gridtypes.Deployment, n
 	}
 	ctx = withContract(ctx, contract.ContractType.NodeContract)
 
-	rent, zErr := e.apiGateway.GetNodeRentContract(ctx, e.nodeID)
-	if zErr.IsError() && !zErr.IsCode(pkg.CodeNotFound) {
+	rent, subErr := e.apiGateway.GetNodeRentContract(ctx, e.nodeID)
+	if subErr.IsError() && !subErr.IsCode(pkg.CodeNotFound) {
 		return nil, fmt.Errorf("failed to check node rent state")
 	}
 
-	ctx = withRented(ctx, !zErr.IsError() && rent != 0)
+	ctx = withRented(ctx, !subErr.IsError() && rent != 0)
 
 	if noValidation {
 		return ctx, nil

@@ -276,14 +276,14 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to get substrate keypair from secure key")
 	}
 
-	twin, zErr := apiGateway.GetTwinByPubKey(ctx, kp.PublicKey())
-	if zErr.IsError() {
-		return errors.Wrap(zErr.Err, "failed to get node twin id")
+	twin, subErr := apiGateway.GetTwinByPubKey(ctx, kp.PublicKey())
+	if subErr.IsError() {
+		return errors.Wrap(subErr.Err, "failed to get node twin id")
 	}
 
-	node, zErr := apiGateway.GetNodeByTwinID(ctx, twin)
-	if zErr.IsError() {
-		return errors.Wrap(zErr.Err, "failed to get node from twin")
+	node, subErr := apiGateway.GetNodeByTwinID(ctx, twin)
+	if subErr.IsError() {
+		return errors.Wrap(subErr.Err, "failed to get node from twin")
 	}
 
 	queues := filepath.Join(rootDir, "queues")

@@ -80,7 +80,7 @@ func (s *APIGatewayStub) EnsureAccount(ctx context.Context, arg0 string, arg1 st
 	return
 }
 
-func (s *APIGatewayStub) GetContract(ctx context.Context, arg0 uint64) (ret0 tfchainclientgo.Contract, ret1 pkg.ZBusError) {
+func (s *APIGatewayStub) GetContract(ctx context.Context, arg0 uint64) (ret0 tfchainclientgo.Contract, ret1 pkg.SubstrateError) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetContract", args...)
 	if err != nil {
@@ -97,7 +97,7 @@ func (s *APIGatewayStub) GetContract(ctx context.Context, arg0 uint64) (ret0 tfc
 	return
 }
 
-func (s *APIGatewayStub) GetContractIDByNameRegistration(ctx context.Context, arg0 string) (ret0 uint64, ret1 pkg.ZBusError) {
+func (s *APIGatewayStub) GetContractIDByNameRegistration(ctx context.Context, arg0 string) (ret0 uint64, ret1 pkg.SubstrateError) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetContractIDByNameRegistration", args...)
 	if err != nil {
@@ -148,7 +148,7 @@ func (s *APIGatewayStub) GetNode(ctx context.Context, arg0 uint32) (ret0 tfchain
 	return
 }
 
-func (s *APIGatewayStub) GetNodeByTwinID(ctx context.Context, arg0 uint32) (ret0 uint32, ret1 pkg.ZBusError) {
+func (s *APIGatewayStub) GetNodeByTwinID(ctx context.Context, arg0 uint32) (ret0 uint32, ret1 pkg.SubstrateError) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetNodeByTwinID", args...)
 	if err != nil {
@@ -182,7 +182,7 @@ func (s *APIGatewayStub) GetNodeContracts(ctx context.Context, arg0 uint32) (ret
 	return
 }
 
-func (s *APIGatewayStub) GetNodeRentContract(ctx context.Context, arg0 uint32) (ret0 uint64, ret1 pkg.ZBusError) {
+func (s *APIGatewayStub) GetNodeRentContract(ctx context.Context, arg0 uint32) (ret0 uint64, ret1 pkg.SubstrateError) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetNodeRentContract", args...)
 	if err != nil {
@@ -250,7 +250,7 @@ func (s *APIGatewayStub) GetTwin(ctx context.Context, arg0 uint32) (ret0 tfchain
 	return
 }
 
-func (s *APIGatewayStub) GetTwinByPubKey(ctx context.Context, arg0 []uint8) (ret0 uint32, ret1 pkg.ZBusError) {
+func (s *APIGatewayStub) GetTwinByPubKey(ctx context.Context, arg0 []uint8) (ret0 uint32, ret1 pkg.SubstrateError) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetTwinByPubKey", args...)
 	if err != nil {

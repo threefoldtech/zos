@@ -157,8 +157,8 @@ func registerNode(
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "failed to ensure twin")
 	}
-	var zbusErr pkg.ZBusError
-	nodeID, zbusErr = apiGateway.GetNodeByTwinID(ctx, twinID)
+	var subErr pkg.SubstrateError
+	nodeID, subErr = apiGateway.GetNodeByTwinID(ctx, twinID)
 
 	var serial substrate.OptionBoardSerial
 	if len(info.SerialNumber) != 0 {
@@ -177,16 +177,16 @@ func registerNode(
 	}
 
 	var onChain substrate.Node
-	if zbusErr.IsCode(pkg.CodeNotFound) {
+	if subErr.IsCode(pkg.CodeNotFound) {
 		// node not found, create node
 		nodeID, err = apiGateway.CreateNode(ctx, real)
 		if err != nil {
 			return 0, 0, errors.Wrap(err, "failed to create node on chain")
 		}
 
-	} else if zbusErr.IsError() {
+	} else if subErr.IsError() {
 		// other error occurred
-		return 0, 0, errors.Wrapf(zbusErr.Err, "failed to get node information for twin id: %d", twinID)
+		return 0, 0, errors.Wrapf(subErr.Err, "failed to get node information for twin id: %d", twinID)
 	} else {
 		// node exists
 		onChain, err = apiGateway.GetNode(ctx, nodeID)
@@ -222,11 +222,11 @@ func ensureTwin(ctx context.Context, apiGateway *stubs.APIGatewayStub, sk ed2551
 	if err != nil {
 		return 0, err
 	}
-	twinID, zbusErr := apiGateway.GetTwinByPubKey(ctx, identity.PublicKey())
-	if zbusErr.IsCode(pkg.CodeNotFound) {
+	twinID, subErr := apiGateway.GetTwinByPubKey(ctx, identity.PublicKey())
+	if subErr.IsCode(pkg.CodeNotFound) {
 		return apiGateway.CreateTwin(ctx, "", nil)
-	} else if zbusErr.IsError() {
-		return 0, errors.Wrap(zbusErr.Err, "failed to list twins")
+	} else if subErr.IsError() {
+		return 0, errors.Wrap(subErr.Err, "failed to list twins")
 	}
 
 	return twinID, nil
