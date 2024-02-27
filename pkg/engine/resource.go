@@ -32,7 +32,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"sync"
 )
 
 // BaseResource is a helper resource that can be used to abstract access
@@ -104,24 +103,6 @@ type ResourceResponse struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-// resourceLock is used internally to
-// manage exclusive access to services
-// (functions that can't be executed in parallel)
-// against
-type resourceGuard struct {
-	sync.RWMutex
-	count uint32
-}
-
-func (g *resourceGuard) Enter() {
-	g.count += 1
-}
-
-func (g *resourceGuard) Exist() bool {
-	g.count -= 1
-	return g.count == 0
-}
-
 type Resource struct {
 	name string
 	flag ResourceFlag
@@ -137,8 +118,7 @@ type Resource struct {
 	// then this should be fine to prevent race conditions
 	// of course this is not a good solution if resource can
 	// be modified from different nodes. luckily it's not
-	guards map[string]*resourceGuard
-	m      sync.Mutex
+	guard *AccessGuard
 }
 
 // Do maps the request to the proper action by the time this is called the context
@@ -151,27 +131,8 @@ func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response Reso
 
 	// full qualified name
 	id := fmt.Sprintf("%d/%s/%s", ctx.user, ctx.space, ctx.object)
-	t.m.Lock()
-	guard, ok := t.guards[id]
-	if !ok {
-		guard = &resourceGuard{}
-		t.guards[id] = guard
-	}
-	// need to happen here before releasing the map lock
-	guard.Enter()
-	t.m.Unlock()
-
-	// before we return we need to clean up the guard
-	// delete it if not used anymore by anyone
-	defer func(id string) {
-		t.m.Lock()
-		defer t.m.Unlock()
-
-		guard := t.guards[id]
-		if guard.Exist() {
-			delete(t.guards, id)
-		}
-	}(id)
+	guard := t.guard.Enter(id)
+	defer guard.Exit()
 
 	// it's now safe to lock the guard before
 	// processing
@@ -184,6 +145,10 @@ func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response Reso
 		guard.RLock()
 		defer guard.RUnlock()
 	}
+
+	// TODO: an operation that takes very long time will hold all following
+	// requests.
+	// TODO: asynchronous requests ?
 
 	// if the resource already exist but the service require that
 	// no resource exists with that name then we need to return an error
@@ -238,12 +203,12 @@ func (t *ResourceBuilder) Action(name string, action IntoService, flags ...Servi
 	return t
 }
 
-func (t *ResourceBuilder) IntoResource() Resource {
-	return Resource{
+func (t *ResourceBuilder) Build() *Resource {
+	return &Resource{
 		name:    t.name,
 		flag:    t.flag,
 		actions: t.actions,
-		guards:  make(map[string]*resourceGuard),
+		guard:   NewAccessGuard(),
 	}
 }
 

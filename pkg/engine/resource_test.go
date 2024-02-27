@@ -42,7 +42,8 @@ func (p *PersonResource) SetAge(ctx Context, age uint) (void Void, err error) {
 	return void, p.Set(ctx, person)
 }
 
-func TestTypeBuilder(t *testing.T) {
+// tests normal operation of a resource
+func TestResource(t *testing.T) {
 	var ptyp PersonResource
 
 	store := NewMemStore()
@@ -60,7 +61,7 @@ func TestTypeBuilder(t *testing.T) {
 	resource := NewResourceBuilder[Person]().
 		Action("create", NewAction(ptyp.Create), ServiceObjectMustNotExist).
 		Action("set-age", NewAction(ptyp.SetAge), ServiceObjectMustExists).
-		IntoResource()
+		Build()
 
 	response, err := resource.call(
 		ctx,

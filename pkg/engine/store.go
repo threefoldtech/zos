@@ -1,10 +1,11 @@
 package engine
 
 type Record struct {
-	ID      string
-	Version uint
-	Type    string
-	Data    []byte
+	ID           string
+	Version      uint
+	Type         string
+	Data         []byte
+	Dependencies []string
 }
 
 type UserID uint32
@@ -24,6 +25,7 @@ type Store interface {
 
 	DependencyAdd(user UserID, space string, id string, dep string) error
 	DependencyRemove(user UserID, space string, id string, dep string) error
+	// Used(user UserID, space, id string) (bool, error)
 
 	Scoped(user UserID, space string, entry, typ string) ScopedStore
 }
