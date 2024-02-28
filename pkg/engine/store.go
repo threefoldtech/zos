@@ -1,11 +1,13 @@
 package engine
 
+import "slices"
+
 type Record struct {
-	ID           string
-	Version      uint
-	Type         string
-	Data         []byte
-	Dependencies []string
+	ID      string
+	Version uint
+	Type    string
+	Data    []byte
+	Masters []string
 }
 
 type UserID uint32
@@ -23,9 +25,8 @@ type Store interface {
 	RecordExists(user UserID, space string, id string) (exists bool, typ string, err error)
 	RecordDelete(user UserID, space string, id string) error
 
-	DependencyAdd(user UserID, space string, id string, dep string) error
-	DependencyRemove(user UserID, space string, id string, dep string) error
-	// Used(user UserID, space, id string) (bool, error)
+	MasterAdd(user UserID, space string, id string, master string) error
+	MasterRemove(user UserID, space string, id string, master string) error
 
 	Scoped(user UserID, space string, entry, typ string) ScopedStore
 }
@@ -180,11 +181,47 @@ func (s *MemStore) RecordDelete(user UserID, space string, name string) error {
 	return nil
 }
 
-func (s *MemStore) DependencyAdd(user UserID, space string, entry string, dep string) error {
-	panic("not implemented")
+func (s *MemStore) MasterAdd(user UserID, space string, entry string, dep string) error {
+	bkt, ok := s.getSpace(user, space)
+	if !ok {
+		return ErrSpaceNotFound
+	}
+
+	record, ok := bkt.objects[entry]
+	if !ok {
+		return ErrObjectDoesNotExist
+	}
+
+	record.Masters = append(record.Masters, dep)
+	slices.Sort(record.Masters)
+	record.Masters = slices.Compact(record.Masters)
+	bkt.objects[entry] = record
+
+	return nil
 }
-func (s *MemStore) DependencyRemove(user UserID, space string, entry string, dep string) error {
-	panic("not implemented")
+func (s *MemStore) MasterRemove(user UserID, space string, entry string, dep string) error {
+	bkt, ok := s.getSpace(user, space)
+	if !ok {
+		return ErrSpaceNotFound
+	}
+
+	record, ok := bkt.objects[entry]
+	if !ok {
+		return ErrObjectDoesNotExist
+	}
+
+	masters := record.Masters[:0]
+	for _, m := range record.Masters {
+		if m == dep {
+			continue
+		}
+		masters = append(masters, m)
+	}
+
+	record.Masters = masters
+	bkt.objects[entry] = record
+
+	return nil
 }
 
 func (s *MemStore) Scoped(user UserID, space string, entry, typ string) ScopedStore {
