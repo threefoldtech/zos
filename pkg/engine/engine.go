@@ -96,7 +96,7 @@ func (e *Engine) Resource(typ *Resource) *Engine {
 }
 
 // hold is an internal function that
-func (e *Engine) hold(ctx Context, cb func(Context) error, resources ...string) {
+func (e *Engine) hold(ctx Context, cb func(Context) error, resources ...string) error {
 	// reserve holds resources inside a space for during the execution time
 	// of the call back. Then commit dependency once the function returns successfully
 
@@ -109,19 +109,41 @@ func (e *Engine) hold(ctx Context, cb func(Context) error, resources ...string) 
 
 	guard.Lock()
 	defer guard.Unlock()
-	//TODO:
-	// We should always have a read lock on a space. And only update to read/write when
-	// we are about to do a space wide operation (for example when adding dependency)
-	// The down side of this design is that we can't do calls that are independent from
-	// the items involved in the current operation.
 
-	// Another approach maybe is have exclusive lock on all items instead of the entire
-	// space. <<<< -----
+	var guards []Guard
+	defer func() {
+		for _, g := range guards {
+			g.Unlock()
+			g.Exit()
+		}
+	}()
 
-	// - check if resource is free or not
-	// what if resource is free BUT is being executed on concurrently
-	// we also need to have exclusive resource lock
+	// hold exclusive access to resources by their type.
+	for _, resource := range resources {
+		record, err := e.store.RecordGet(ctx.User(), ctx.Space(), resource)
+		if err != nil {
+			return fmt.Errorf("resource %s: %w", resource, err)
+		}
 
-	// - if all are free proceed with the cb
-	// - if cb returned successfully commit dependency
+		typ, ok := e.resources[record.Type]
+		if !ok {
+			// This is totally shouldn't be possible if an object
+			// is in store its type should exist.
+			return fmt.Errorf("resource %s: %w", resource, ErrObjectInvalidType)
+		}
+
+		// hold guard on that specific resource
+		// note that holding the guard does not relate to if the resource object
+		// actually exists or not or what its status is. It's a mechanism that
+		// forces the engine to block actions on that resource until this process
+		// is finished.
+		guard := typ.getGuard(ctx, resource)
+		guard.Lock()
+
+		guards = append(guards, guard)
+
+		// Get the record now that should be in consistent state
+	}
+
+	return nil
 }

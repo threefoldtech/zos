@@ -121,6 +121,16 @@ type Resource struct {
 	guard *AccessGuard
 }
 
+// get a guard for a resource with given context and id
+// the object does not have to exist because that's an in memory lock
+// that can auto clean up when exited so operations on a specific id
+// an be synchronized
+func (t *Resource) getGuard(ctx Context, obj string) Guard {
+	// full qualified name
+	id := fmt.Sprintf("%d/%s/%s", ctx.User(), ctx.Space(), obj)
+	return t.guard.Enter(id)
+}
+
 // Do maps the request to the proper action by the time this is called the context
 // already have all request related values that can be accessed via the
 func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response ResourceResponse, err error) {
@@ -129,9 +139,7 @@ func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response Reso
 		return response, ErrActionNotFound
 	}
 
-	// full qualified name
-	id := fmt.Sprintf("%d/%s/%s", ctx.user, ctx.space, ctx.object)
-	guard := t.guard.Enter(id)
+	guard := t.getGuard(ctx, ctx.object)
 	defer guard.Exit()
 
 	// it's now safe to lock the guard before

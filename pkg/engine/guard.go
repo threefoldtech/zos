@@ -11,8 +11,8 @@ type Guard interface {
 	sync.Locker
 	RLock()
 	RUnlock()
-	// drop the guard it's now illegal to
-	// try to acquire the lock again
+	// Exit drops the Guard completely and
+	// it's illegal to try to lock it after it has been exited
 	Exit()
 }
 
