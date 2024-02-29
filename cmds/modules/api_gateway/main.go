@@ -60,9 +60,12 @@ func action(cli *cli.Context) error {
 		return err
 	}
 
-	subtrateURL := environment.MustGet().SubstrateURL
+	manager, err := environment.GetSubstrate()
+	if err != nil {
+		return fmt.Errorf("failed to create substrate manager: %w", err)
+	}
 
-	gw, err := apigateway.NewAPIGateway(subtrateURL, id)
+	gw, err := apigateway.NewAPIGateway(manager, id)
 	if err != nil {
 		return fmt.Errorf("failed to create api gateway: %w", err)
 	}

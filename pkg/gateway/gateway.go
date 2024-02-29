@@ -542,8 +542,7 @@ func (g *gatewayModule) validateNameContract(name string, twinID uint32) error {
 	contract, subErr := g.apiGateway.GetContract(context.Background(), contractID)
 	if subErr.IsCode(pkg.CodeNotFound) {
 		return fmt.Errorf("contract by name returned %d, but retreiving it results in 'not found' error", contractID)
-	}
-	if subErr.IsError() {
+	} else if subErr.IsError() {
 		return subErr.Err
 	}
 	if !contract.State.IsCreated {

@@ -17,8 +17,8 @@ type apiGateway struct {
 	identity substrate.Identity
 }
 
-func NewAPIGateway(substrateURL []string, identity substrate.Identity) (pkg.APIGateway, error) {
-	sub, err := substrate.NewManager(substrateURL...).Substrate()
+func NewAPIGateway(manager substrate.Manager, identity substrate.Identity) (pkg.APIGateway, error) {
+	sub, err := manager.Substrate()
 	if err != nil {
 		return nil, err
 	}
@@ -55,36 +55,23 @@ func (g *apiGateway) EnsureAccount(activationURL string, termsAndConditionsLink 
 	return g.sub.EnsureAccount(g.identity, activationURL, termsAndConditionsLink, termsAndConditionsHash)
 }
 
-func (g *apiGateway) GetContract(id uint64) (substrate.Contract, pkg.SubstrateError) {
+func (g *apiGateway) GetContract(id uint64) (result substrate.Contract, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetContract").Uint64("id", id).Msg("method called")
-	var SubstrateError pkg.SubstrateError
 	contract, err := g.sub.GetContract(id)
-	if contract == nil {
-		contract = &substrate.Contract{}
+
+	serr = buildSubstrateError(err)
+	if err != nil {
+		return
 	}
-	if errors.Is(err, substrate.ErrNotFound) {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeNotFound
-	} else if err != nil {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeGenericError
-	}
-	return *contract, SubstrateError
+	return *contract, serr
 }
 
-func (g *apiGateway) GetContractIDByNameRegistration(name string) (uint64, pkg.SubstrateError) {
+func (g *apiGateway) GetContractIDByNameRegistration(name string) (result uint64, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetContractIDByNameRegistration").Str("name", name).Msg("method called")
-	var SubstrateError pkg.SubstrateError
 	contractID, err := g.sub.GetContractIDByNameRegistration(name)
 
-	if errors.Is(err, substrate.ErrNotFound) {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeNotFound
-	} else if err != nil {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeGenericError
-	}
-	return contractID, SubstrateError
+	serr = buildSubstrateError(err)
+	return contractID, serr
 }
 
 func (g *apiGateway) GetFarm(id uint32) (substrate.Farm, error) {
@@ -105,19 +92,12 @@ func (g *apiGateway) GetNode(id uint32) (substrate.Node, error) {
 	return *node, err
 }
 
-func (g *apiGateway) GetNodeByTwinID(twin uint32) (uint32, pkg.SubstrateError) {
+func (g *apiGateway) GetNodeByTwinID(twin uint32) (result uint32, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetNodeByTwinID").Uint32("twin", twin).Msg("method called")
-	var SubstrateError pkg.SubstrateError
 	nodeID, err := g.sub.GetNodeByTwinID(twin)
 
-	if errors.Is(err, substrate.ErrNotFound) {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeNotFound
-	} else if err != nil {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeGenericError
-	}
-	return nodeID, SubstrateError
+	serr = buildSubstrateError(err)
+	return nodeID, serr
 }
 
 func (g *apiGateway) GetNodeContracts(node uint32) ([]types.U64, error) {
@@ -125,19 +105,12 @@ func (g *apiGateway) GetNodeContracts(node uint32) ([]types.U64, error) {
 	return g.sub.GetNodeContracts(node)
 }
 
-func (g *apiGateway) GetNodeRentContract(node uint32) (uint64, pkg.SubstrateError) {
+func (g *apiGateway) GetNodeRentContract(node uint32) (result uint64, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetNodeRentContract").Uint32("node", node).Msg("method called")
-	var SubstrateError pkg.SubstrateError
 	contractID, err := g.sub.GetNodeRentContract(node)
 
-	if errors.Is(err, substrate.ErrNotFound) {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeNotFound
-	} else if err != nil {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeGenericError
-	}
-	return contractID, SubstrateError
+	serr = buildSubstrateError(err)
+	return contractID, serr
 }
 
 func (g *apiGateway) GetNodes(farmID uint32) ([]uint32, error) {
@@ -159,19 +132,12 @@ func (g *apiGateway) GetTwin(id uint32) (substrate.Twin, error) {
 	return *twin, err
 }
 
-func (g *apiGateway) GetTwinByPubKey(pk []byte) (uint32, pkg.SubstrateError) {
+func (g *apiGateway) GetTwinByPubKey(pk []byte) (result uint32, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetTwinByPubKey").Str("pk", hex.EncodeToString(pk)).Msg("method called")
-	var SubstrateError pkg.SubstrateError
 	twinID, err := g.sub.GetTwinByPubKey(pk)
 
-	if errors.Is(err, substrate.ErrNotFound) {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeNotFound
-	} else if err != nil {
-		SubstrateError.Err = err
-		SubstrateError.Code = pkg.CodeGenericError
-	}
-	return twinID, SubstrateError
+	serr = buildSubstrateError(err)
+	return twinID, serr
 }
 
 func (g *apiGateway) Report(consumptions []substrate.NruConsumption) (types.Hash, error) {
@@ -219,4 +185,18 @@ func (g *apiGateway) UpdateNodeUptimeV2(uptime uint64, timestampHint uint64) (ha
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.sub.UpdateNodeUptimeV2(g.identity, uptime, timestampHint)
+}
+
+func buildSubstrateError(err error) (serr pkg.SubstrateError) {
+	if err == nil {
+		return
+	}
+
+	serr.Err = err
+	serr.Code = pkg.CodeGenericError
+
+	if errors.Is(err, substrate.ErrNotFound) {
+		serr.Code = pkg.CodeNotFound
+	}
+	return
 }
