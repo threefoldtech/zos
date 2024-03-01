@@ -60,7 +60,7 @@ func TestResource(t *testing.T) {
 
 	resource := NewResourceBuilder[Person]().
 		Action("create", NewAction(ptyp.Create), ServiceObjectMustNotExist).
-		Action("set-age", NewAction(ptyp.SetAge), ServiceObjectMustExists).
+		Action("set-age", NewAction(ptyp.SetAge)).
 		Build()
 
 	response, err := resource.call(

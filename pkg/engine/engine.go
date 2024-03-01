@@ -43,6 +43,13 @@ type Engine struct {
 	resources map[string]*Resource
 }
 
+func NewEngine(store Store) *Engine {
+	return &Engine{
+		store:     store,
+		resources: make(map[string]*Resource),
+	}
+}
+
 func (e *Engine) Handle(ctx context.Context, request Request) (response Response, err error) {
 	// injection of higher level request data like the store for example
 	exists, err := e.store.SpaceExists(request.User, request.Space)
@@ -51,7 +58,7 @@ func (e *Engine) Handle(ctx context.Context, request Request) (response Response
 	}
 
 	if !exists {
-		return response, ErrObjectDoesNotExist
+		return response, ErrSpaceNotFound
 	}
 
 	exists, typ, err := e.store.RecordExists(request.User, request.Space, request.ResourceID)
@@ -63,7 +70,7 @@ func (e *Engine) Handle(ctx context.Context, request Request) (response Response
 		return response, fmt.Errorf("resource '%s' exists but it's not of type '%s': %w", request.ResourceID, request.Type, ErrObjectInvalidType)
 	}
 
-	scoped := e.store.Scoped(request.User, request.Space, request.ResourceID, typ)
+	scoped := e.store.Scoped(request.User, request.Space, request.ResourceID, request.Type)
 
 	engineCtx := engineContext{
 		ctx:    ctx,

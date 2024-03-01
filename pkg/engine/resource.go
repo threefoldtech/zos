@@ -163,7 +163,7 @@ func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response Reso
 	exists := ctx.Exists()
 	if exists && service.flags.Is(ServiceObjectMustNotExist) {
 		return response, ErrObjectExists
-	} else if !exists && service.flags.Is(ServiceObjectMustExists) {
+	} else if !exists && !service.flags.Is(ServiceObjectMustNotExist) {
 		return response, ErrObjectDoesNotExist
 	}
 

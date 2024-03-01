@@ -1,6 +1,9 @@
 package engine
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 // Guard is a kind of shared lock on a single resource.
 // Once a guard is retrieved by a call to AccessGuard.Enter()
@@ -22,7 +25,7 @@ type accessGuard struct {
 	id     string
 	parent *AccessGuard
 	sync.RWMutex
-	count uint32
+	count atomic.Int32
 }
 
 func (g *accessGuard) Exit() {
@@ -50,8 +53,9 @@ func (g *AccessGuard) Enter(id string) Guard {
 			id:     id,
 			parent: g,
 		}
+		g.guards[id] = guard
 	}
-	guard.count += 1
+	guard.count.Add(1)
 	return guard
 }
 
@@ -60,8 +64,10 @@ func (g *AccessGuard) exit(id string) {
 	defer g.m.Unlock()
 
 	guard := g.guards[id]
-	guard.count -= 1
-	if guard.count == 0 {
+	n := guard.count.Add(-1)
+	if n == 0 {
 		delete(g.guards, id)
+	} else if n < 0 {
+		panic("invalid guard exit")
 	}
 }
