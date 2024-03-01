@@ -70,15 +70,13 @@ func (e *Engine) Handle(ctx context.Context, request Request) (response Response
 		return response, fmt.Errorf("resource '%s' exists but it's not of type '%s': %w", request.ResourceID, request.Type, ErrObjectInvalidType)
 	}
 
-	scoped := e.store.Scoped(request.User, request.Space, request.ResourceID, request.Type)
-
 	engineCtx := engineContext{
 		ctx:    ctx,
 		space:  request.Space,
 		user:   request.User,
 		object: request.ResourceID,
 		exists: exists,
-		store:  scoped,
+		typ:    request.Type,
 		engine: e,
 	}
 

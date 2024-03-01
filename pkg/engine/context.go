@@ -43,7 +43,7 @@ type engineContext struct {
 	user   UserID
 	object string
 	exists bool
-	store  ScopedStore
+	typ    string
 	engine *Engine
 }
 
@@ -77,7 +77,7 @@ func (ctx *engineContext) Exists() bool {
 // Store gives scoped (limited) access to store to get/set current
 // resource data and also inspect other resource in the same space
 func (ctx *engineContext) Store() ScopedStore {
-	return ctx.store
+	return ctx.engine.store.Scoped(ctx.user, ctx.space, ctx.object, ctx.typ)
 }
 
 // Use runs callback `use` while holding exclusive lock to resources
@@ -96,5 +96,5 @@ func (ctx *engineContext) Use(use Use, resources ...string) error {
 // UnUse exactly like Use but should remove the dependency. Same rules apply. It also
 // remove the current resource as master to the resources supplied
 func (ctx *engineContext) UnUse(use Use, resources ...string) error {
-	return ctx.engine.use(ctx, use, resources...)
+	return ctx.engine.unUse(ctx, use, resources...)
 }

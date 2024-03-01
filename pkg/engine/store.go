@@ -27,6 +27,7 @@ type Store interface {
 
 	MasterAdd(user UserID, space string, id string, master string) error
 	MasterRemove(user UserID, space string, id string, master string) error
+	IsSlave(user UserID, space, id string) (bool, error)
 
 	Scoped(user UserID, space string, entry, typ string) ScopedStore
 }
@@ -199,6 +200,21 @@ func (s *MemStore) MasterAdd(user UserID, space string, entry string, dep string
 
 	return nil
 }
+
+func (s *MemStore) IsSlave(user UserID, space string, entry string) (bool, error) {
+	bkt, ok := s.getSpace(user, space)
+	if !ok {
+		return false, ErrSpaceNotFound
+	}
+
+	record, ok := bkt.objects[entry]
+	if !ok {
+		return false, ErrObjectDoesNotExist
+	}
+
+	return len(record.Masters) > 0, nil
+}
+
 func (s *MemStore) MasterRemove(user UserID, space string, entry string, dep string) error {
 	bkt, ok := s.getSpace(user, space)
 	if !ok {

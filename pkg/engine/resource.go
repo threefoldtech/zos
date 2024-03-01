@@ -32,6 +32,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
+)
+
+const (
+	deleteServiceName = "delete"
+)
+
+var (
+	reservedActionsNames = []string{
+		deleteServiceName,
+	}
 )
 
 // BaseResource is a helper resource that can be used to abstract access
@@ -108,7 +119,6 @@ type Resource struct {
 	flag ResourceFlag
 	// all available service on this resource type
 	actions map[string]Service
-
 	// synchronize access to local resource
 	// this is to make sure actions has exclusive
 	// access to this resource.
@@ -154,10 +164,6 @@ func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response Reso
 		defer guard.RUnlock()
 	}
 
-	// TODO: an operation that takes very long time will hold all following
-	// requests.
-	// TODO: asynchronous requests ?
-
 	// if the resource already exist but the service require that
 	// no resource exists with that name then we need to return an error
 	exists := ctx.Exists()
@@ -167,12 +173,33 @@ func (t *Resource) call(ctx *engineContext, call ResourceRequest) (response Reso
 		return response, ErrObjectDoesNotExist
 	}
 
+	// special handling for the special delete action
+	// a delete action will only be possible if resource is unused
+	if call.Action == deleteServiceName {
+		slave, err := ctx.engine.store.IsSlave(ctx.user, ctx.space, ctx.object)
+		if err != nil {
+			return response, err
+		}
+
+		if slave {
+			return response, ErrObjectInUse
+		}
+	}
+
 	output, err := service.Call(ctx, call.Payload)
 	if err != nil {
 		response.Error = err.Error()
 		return
 	} else {
 		response.Payload = output
+	}
+
+	if call.Action == deleteServiceName {
+		// successful delete action happened
+		//TODO: actually delete object
+		if err := ctx.engine.store.RecordDelete(ctx.user, ctx.space, ctx.object); err != nil {
+			return response, err
+		}
 	}
 
 	return response, nil
@@ -201,14 +228,26 @@ func NewResourceBuilder[R any](flags ...ResourceFlag) *ResourceBuilder {
 	}
 }
 
-func (t *ResourceBuilder) Action(name string, action IntoService, flags ...ServiceFlag) *ResourceBuilder {
+func (t *ResourceBuilder) WithAction(name string, action IntoService, flags ...ServiceFlag) *ResourceBuilder {
+	if slices.Contains(reservedActionsNames, name) {
+		panic(fmt.Sprintf("action '%s' is reserved", name))
+	}
+
+	return t.withAction(name, action, flags...)
+}
+
+func (t *ResourceBuilder) withAction(name string, action IntoService, flags ...ServiceFlag) *ResourceBuilder {
 	service := action.Into(flags...)
 	if _, ok := t.actions[name]; ok {
-		panic("action already exists")
+		panic(fmt.Sprintf("action '%s' already exists", name))
 	}
 
 	t.actions[name] = service
 	return t
+}
+
+func (t *ResourceBuilder) WithDelete(action IntoService) *ResourceBuilder {
+	return t.withAction(deleteServiceName, action, ServiceExclusive)
 }
 
 func (t *ResourceBuilder) Build() *Resource {

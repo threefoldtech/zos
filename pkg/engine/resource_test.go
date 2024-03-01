@@ -55,12 +55,13 @@ func TestResource(t *testing.T) {
 		user:   0,
 		object: "person1",
 		exists: false,
-		store:  store.Scoped(0, "space", "person1", "Person"),
+		typ:    "Person",
+		engine: NewEngine(store),
 	}
 
 	resource := NewResourceBuilder[Person]().
-		Action("create", NewAction(ptyp.Create), ServiceObjectMustNotExist).
-		Action("set-age", NewAction(ptyp.SetAge)).
+		WithAction("create", NewAction(ptyp.Create), ServiceObjectMustNotExist).
+		WithAction("set-age", NewAction(ptyp.SetAge)).
 		Build()
 
 	response, err := resource.call(

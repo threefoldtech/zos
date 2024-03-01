@@ -108,9 +108,6 @@ const (
 	// A call to this service only if no object exist with this id. It also implies
 	// exclusive access
 	ServiceObjectMustNotExist ServiceFlag = 1 << iota
-	// A call to this service is only possible if object exists with this id. Default
-	// if ObjectMustNotExist is not set
-	// ServiceObjectMustExists
 	// An exclusive service means the function must have an exclusive
 	// access to the resource when executing this service.
 	ServiceExclusive
