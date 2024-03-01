@@ -168,7 +168,15 @@ func (e *Engine) use(ctx Context, cb Use, resources ...string) error {
 			// can't be a dependency to multiple master resources at the same
 			// time. For example multiple VMs can't use the same disk, but they
 			// can use the same network for example.
-			if len(record.Masters) >= 1 {
+
+			var count int
+			for _, m := range record.Masters {
+				if m != ctx.Object() {
+					count += 1
+				}
+			}
+
+			if count >= 1 {
 				return fmt.Errorf("resource %s: %w", resource, ErrObjectInUse)
 			}
 		}
