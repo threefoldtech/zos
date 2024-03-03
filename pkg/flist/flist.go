@@ -32,6 +32,8 @@ const (
 
 	defaultNamespace = "ndmz"
 	publicNamespace  = "public"
+
+	defaultHubCallTimeout = 20 * time.Second
 )
 
 var (
@@ -603,7 +605,12 @@ func (f *flistModule) Unmount(name string) error {
 func (f *flistModule) FlistHash(url string) (string, error) {
 	// first check if the md5 of the flist is available
 	md5URL := url + ".md5"
-	resp, err := http.Get(md5URL)
+
+	cl := &http.Client{
+		Timeout: defaultHubCallTimeout,
+	}
+
+	resp, err := cl.Get(md5URL)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get flist hash from '%s'", md5URL)
 	}
@@ -642,7 +649,12 @@ func (f *flistModule) downloadFlist(url string) (Hash, Path, error) {
 	// for now we re-download every time and compute the hash on the fly
 
 	// we don't have the flist locally yet, let's download it
-	resp, err := http.Get(url)
+
+	cl := &http.Client{
+		Timeout: defaultHubCallTimeout,
+	}
+
+	resp, err := cl.Get(url)
 	if err != nil {
 		return "", "", err
 	}

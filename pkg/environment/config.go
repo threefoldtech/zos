@@ -7,9 +7,14 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	defaultHttpTimeout = 10 * time.Second
 )
 
 // Config is configuration set by the organization
@@ -36,12 +41,12 @@ func GetConfig() (base Config, err error) {
 	if err != nil {
 		return
 	}
-	base, err = getConfig(env.RunningMode, baseExtendedURL)
+	base, err = getConfig(env.RunningMode, baseExtendedURL, defaultHttpTimeout)
 	if err != nil {
 		return
 	}
 	if env.ExtendedConfigURL != "" {
-		custom, err := getConfig(env.RunningMode, env.ExtendedConfigURL)
+		custom, err := getConfig(env.RunningMode, env.ExtendedConfigURL, defaultHttpTimeout)
 		if err != nil {
 			log.Error().Err(err).Msg("fetching the config from the env config-url failed")
 		}
@@ -63,13 +68,17 @@ func uniqueStr(slice []string) []string {
 	return list
 }
 
-func getConfig(run RunMode, url string) (ext Config, err error) {
+func getConfig(run RunMode, url string, timeout time.Duration) (ext Config, err error) {
 	if !strings.HasSuffix(url, "/") {
 		url += "/"
 	}
 	u := url + fmt.Sprintf("%s.json", run)
 
-	response, err := http.Get(u)
+	cl := &http.Client{
+		Timeout: timeout,
+	}
+
+	response, err := cl.Get(u)
 	if err != nil {
 		return ext, err
 	}

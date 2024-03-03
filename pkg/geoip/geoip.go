@@ -4,8 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	defaultHttpTimeout = 10 * time.Second
 )
 
 // Location holds the result of a geoip request
@@ -47,7 +52,11 @@ func getLocation(geoIPService string) (Location, error) {
 		City:      "Unknown",
 	}
 
-	resp, err := http.Get(geoIPService)
+	cl := &http.Client{
+		Timeout: defaultHttpTimeout,
+	}
+
+	resp, err := cl.Get(geoIPService)
 	if err != nil {
 		return l, err
 	}
