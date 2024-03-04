@@ -42,6 +42,12 @@ func networkCheck(ctx context.Context) []error {
 	}
 	wg.Wait()
 
+	if len(errors) == 0 {
+		if err := app.DeleteFlag(app.NotReachable); err != nil {
+			log.Error().Err(err).Msg("failed to delete readonly flag")
+		}
+	}
+
 	return errors
 }
 
