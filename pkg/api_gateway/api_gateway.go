@@ -74,20 +74,20 @@ func (g *apiGateway) GetContractIDByNameRegistration(name string) (result uint64
 	return contractID, serr
 }
 
-func (g *apiGateway) GetFarm(id uint32) (substrate.Farm, error) {
+func (g *apiGateway) GetFarm(id uint32) (result substrate.Farm, err error) {
 	log.Trace().Str("method", "GetFarm").Uint32("id", id).Msg("method called")
 	farm, err := g.sub.GetFarm(id)
-	if farm == nil {
-		farm = &substrate.Farm{}
+	if err != nil {
+		return
 	}
 	return *farm, err
 }
 
-func (g *apiGateway) GetNode(id uint32) (substrate.Node, error) {
+func (g *apiGateway) GetNode(id uint32) (result substrate.Node, err error) {
 	log.Trace().Str("method", "GetNode").Uint32("id", id).Msg("method called")
 	node, err := g.sub.GetNode(id)
-	if node == nil {
-		node = &substrate.Node{}
+	if err != nil {
+		return
 	}
 	return *node, err
 }
@@ -123,11 +123,11 @@ func (g *apiGateway) GetPowerTarget(nodeID uint32) (power substrate.NodePower, e
 	return g.sub.GetPowerTarget(nodeID)
 }
 
-func (g *apiGateway) GetTwin(id uint32) (substrate.Twin, error) {
+func (g *apiGateway) GetTwin(id uint32) (result substrate.Twin, err error) {
 	log.Trace().Str("method", "GetTwin").Uint32("id", id).Msg("method called")
 	twin, err := g.sub.GetTwin(id)
-	if twin == nil {
-		twin = &substrate.Twin{}
+	if err != nil {
+		return
 	}
 	return *twin, err
 }
@@ -197,6 +197,24 @@ func buildSubstrateError(err error) (serr pkg.SubstrateError) {
 
 	if errors.Is(err, substrate.ErrNotFound) {
 		serr.Code = pkg.CodeNotFound
+	} else if errors.Is(err, substrate.ErrBurnTransactionNotFound) {
+		serr.Code = pkg.CodeBurnTransactionNotFound
+	} else if errors.Is(err, substrate.ErrRefundTransactionNotFound) {
+		serr.Code = pkg.CodeRefundTransactionNotFound
+	} else if errors.Is(err, substrate.ErrFailedToDecode) {
+		serr.Code = pkg.CodeFailedToDecode
+	} else if errors.Is(err, substrate.ErrInvalidVersion) {
+		serr.Code = pkg.CodeInvalidVersion
+	} else if errors.Is(err, substrate.ErrUnknownVersion) {
+		serr.Code = pkg.CodeUnknownVersion
+	} else if errors.Is(err, substrate.ErrIsUsurped) {
+		serr.Code = pkg.CodeIsUsurped
+	} else if errors.Is(err, substrate.ErrAccountNotFound) {
+		serr.Code = pkg.CodeAccountNotFound
+	} else if errors.Is(err, substrate.ErrDepositFeeNotFound) {
+		serr.Code = pkg.CodeDepositFeeNotFound
+	} else if errors.Is(err, substrate.ErrMintTransactionNotFound) {
+		serr.Code = pkg.CodeMintTransactionNotFound
 	}
 	return
 }

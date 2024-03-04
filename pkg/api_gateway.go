@@ -51,4 +51,13 @@ const (
 	CodeGenericError = iota - 1
 	CodeNoError
 	CodeNotFound
+	CodeBurnTransactionNotFound
+	CodeRefundTransactionNotFound
+	CodeFailedToDecode
+	CodeInvalidVersion
+	CodeUnknownVersion
+	CodeIsUsurped
+	CodeAccountNotFound
+	CodeDepositFeeNotFound
+	CodeMintTransactionNotFound
 )
