@@ -64,7 +64,18 @@ func MatchType(typ FListType) FListFilter {
 }
 
 // HubClient API for f-list
-type HubClient struct{}
+type HubClient struct {
+	httpClient *http.Client
+}
+
+// NewHubClient create new hub client with the passed option for the http client
+func NewHubClient(timeout time.Duration) *HubClient {
+	return &HubClient{
+		httpClient: &http.Client{
+			Timeout: timeout,
+		},
+	}
+}
 
 // MountURL returns the full url of given flist.
 func (h *HubClient) MountURL(flist string) string {
@@ -89,11 +100,8 @@ func (h *HubClient) Info(repo, name string) (info FList, err error) {
 	}
 
 	u.Path = filepath.Join("api", "flist", repo, name, "light")
-	cl := &http.Client{
-		Timeout: defaultHubCallTimeout,
-	}
 
-	response, err := cl.Get(u.String())
+	response, err := h.httpClient.Get(u.String())
 	if err != nil {
 		return info, err
 	}
@@ -141,11 +149,8 @@ func (h *HubClient) List(repo string) ([]FList, error) {
 	}
 
 	u.Path = filepath.Join("api", "flist", repo)
-	cl := &http.Client{
-		Timeout: defaultHubCallTimeout,
-	}
 
-	response, err := cl.Get(u.String())
+	response, err := h.httpClient.Get(u.String())
 	if err != nil {
 		return nil, err
 	}
@@ -174,11 +179,8 @@ func (h *HubClient) ListTag(repo, tag string) ([]Symlink, error) {
 	}
 
 	u.Path = filepath.Join("api", "flist", repo, "tags", tag)
-	cl := &http.Client{
-		Timeout: defaultHubCallTimeout,
-	}
 
-	response, err := cl.Get(u.String())
+	response, err := h.httpClient.Get(u.String())
 	if err != nil {
 		return nil, err
 	}
@@ -240,11 +242,8 @@ func (h *HubClient) Download(cache, repo, name string) (string, error) {
 
 	u.Path = filepath.Join(repo, name)
 	log.Debug().Str("url", u.String()).Msg("downloading flist")
-	cl := &http.Client{
-		Timeout: defaultHubCallTimeout,
-	}
 
-	response, err := cl.Get(u.String())
+	response, err := h.httpClient.Get(u.String())
 	if err != nil {
 		return "", errors.Wrap(err, "failed to download flist")
 	}

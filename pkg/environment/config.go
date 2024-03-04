@@ -27,6 +27,10 @@ type Config struct {
 	} `json:"mycelium"`
 }
 
+type httpClientOption struct {
+	timeout time.Duration
+}
+
 // Merge, updates current config with cfg merging and override config
 // based on some update rules.
 func (c *Config) Merge(cfg Config) {
@@ -41,12 +45,17 @@ func GetConfig() (base Config, err error) {
 	if err != nil {
 		return
 	}
-	base, err = getConfig(env.RunningMode, baseExtendedURL, defaultHttpTimeout)
+
+	opts := httpClientOption{
+		timeout: defaultHttpTimeout,
+	}
+
+	base, err = getConfig(env.RunningMode, baseExtendedURL, opts)
 	if err != nil {
 		return
 	}
 	if env.ExtendedConfigURL != "" {
-		custom, err := getConfig(env.RunningMode, env.ExtendedConfigURL, defaultHttpTimeout)
+		custom, err := getConfig(env.RunningMode, env.ExtendedConfigURL, opts)
 		if err != nil {
 			log.Error().Err(err).Msg("fetching the config from the env config-url failed")
 		}
@@ -68,14 +77,14 @@ func uniqueStr(slice []string) []string {
 	return list
 }
 
-func getConfig(run RunMode, url string, timeout time.Duration) (ext Config, err error) {
+func getConfig(run RunMode, url string, opts httpClientOption) (ext Config, err error) {
 	if !strings.HasSuffix(url, "/") {
 		url += "/"
 	}
 	u := url + fmt.Sprintf("%s.json", run)
 
 	cl := &http.Client{
-		Timeout: timeout,
+		Timeout: opts.timeout,
 	}
 
 	response, err := cl.Get(u)

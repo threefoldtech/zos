@@ -122,6 +122,8 @@ type flistModule struct {
 	storage   volumeAllocator
 	commander commander
 	system    system
+
+	httpClient *http.Client
 }
 
 func newFlister(root string, storage volumeAllocator, commander commander, system system) *flistModule {
@@ -162,6 +164,10 @@ func newFlister(root string, storage volumeAllocator, commander commander, syste
 		storage:   storage,
 		commander: commander,
 		system:    system,
+
+		httpClient: &http.Client{
+			Timeout: defaultHubCallTimeout,
+		},
 	}
 }
 
@@ -606,11 +612,7 @@ func (f *flistModule) FlistHash(url string) (string, error) {
 	// first check if the md5 of the flist is available
 	md5URL := url + ".md5"
 
-	cl := &http.Client{
-		Timeout: defaultHubCallTimeout,
-	}
-
-	resp, err := cl.Get(md5URL)
+	resp, err := f.httpClient.Get(md5URL)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get flist hash from '%s'", md5URL)
 	}
@@ -649,12 +651,7 @@ func (f *flistModule) downloadFlist(url string) (Hash, Path, error) {
 	// for now we re-download every time and compute the hash on the fly
 
 	// we don't have the flist locally yet, let's download it
-
-	cl := &http.Client{
-		Timeout: defaultHubCallTimeout,
-	}
-
-	resp, err := cl.Get(url)
+	resp, err := f.httpClient.Get(url)
 	if err != nil {
 		return "", "", err
 	}
