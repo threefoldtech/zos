@@ -75,6 +75,8 @@ type activeCounters struct {
 	deployments int
 	// Total workloads count
 	workloads int
+	// last deployment timestamp
+	lastDeploymentTimestamp gridtypes.Timestamp
 }
 
 // Get all used capacity from storage + reserved / deployments count and workloads count
@@ -88,11 +90,27 @@ func (s *Statistics) active(exclude ...provision.Exclude) (activeCounters, error
 		return activeCounters{}, err
 	}
 	storageCap.Cap.Add(&reserved)
+
+	lastDeploymentTimestamp := getLastDeploymentTimestamp(storageCap.Deployments)
+
 	return activeCounters{
 		storageCap.Cap,
 		len(storageCap.Deployments),
 		storageCap.Workloads,
+		lastDeploymentTimestamp,
 	}, err
+}
+
+func getLastDeploymentTimestamp(deployments []gridtypes.Deployment) gridtypes.Timestamp {
+	lastTimestamp := gridtypes.Timestamp(0)
+	for _, deployment := range deployments {
+		for _, workload := range deployment.Workloads {
+			if workload.Result.Created > lastTimestamp {
+				lastTimestamp = workload.Result.Created
+			}
+		}
+	}
+	return lastTimestamp
 }
 
 // Total returns the node total capacity
@@ -214,6 +232,8 @@ type UsersCounters struct {
 	Deployments int `json:"deployments"`
 	// Total workloads count
 	Workloads int `json:"workloads"`
+	// Last deployment timestamp
+	LastDeploymentTimestamp gridtypes.Timestamp `json:"last_deployment_timestamp"`
 }
 
 func (s *statisticsMessageBus) getCounters(ctx context.Context, payload []byte) (interface{}, error) {
@@ -242,8 +262,9 @@ func (s *statisticsMessageBus) getCounters(ctx context.Context, payload []byte) 
 		Used:   activeCounters.cap,
 		System: reserved,
 		Users: UsersCounters{
-			Deployments: activeCounters.deployments,
-			Workloads:   activeCounters.workloads,
+			Deployments:             activeCounters.deployments,
+			Workloads:               activeCounters.workloads,
+			LastDeploymentTimestamp: activeCounters.lastDeploymentTimestamp,
 		},
 	}, nil
 }
