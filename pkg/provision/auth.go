@@ -1,29 +1,30 @@
 package provision
 
 import (
+	"context"
 	"crypto/ed25519"
 	"fmt"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
-	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 type substrateTwins struct {
-	mgr substrate.Manager
-	mem *lru.Cache
+	apiGateway *stubs.APIGatewayStub
+	mem        *lru.Cache
 }
 
 // NewSubstrateTwins creates a substrate users db that implements the provision.Users interface.
-func NewSubstrateTwins(sub substrate.Manager) (Twins, error) {
+func NewSubstrateTwins(apiGateway *stubs.APIGatewayStub) (Twins, error) {
 	cache, err := lru.New(1024)
 	if err != nil {
 		return nil, err
 	}
 
 	return &substrateTwins{
-		mgr: sub,
-		mem: cache,
+		apiGateway: apiGateway,
+		mem:        cache,
 	}, nil
 }
 
@@ -32,13 +33,7 @@ func (s *substrateTwins) GetKey(id uint32) ([]byte, error) {
 	if value, ok := s.mem.Get(id); ok {
 		return value.([]byte), nil
 	}
-	sub, err := s.mgr.Substrate()
-	if err != nil {
-		return nil, err
-	}
-	defer sub.Close()
-
-	user, err := sub.GetTwin(id)
+	user, err := s.apiGateway.GetTwin(context.Background(), id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not get user with id '%d'", id)
 	}
@@ -55,18 +50,13 @@ type substrateAdmins struct {
 
 // NewSubstrateAdmins creates a substrate twins db that implements the provision.Users interface.
 // but it also make sure the user is an admin
-func NewSubstrateAdmins(mgr substrate.Manager, farmID uint32) (Twins, error) {
-	sub, err := mgr.Substrate()
-	if err != nil {
-		return nil, err
-	}
-	defer sub.Close()
-	farm, err := sub.GetFarm(farmID)
+func NewSubstrateAdmins(apiGateway *stubs.APIGatewayStub, farmID uint32) (Twins, error) {
+	farm, err := apiGateway.GetFarm(context.Background(), farmID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get farm")
 	}
 
-	twin, err := sub.GetTwin(uint32(farm.TwinID))
+	twin, err := apiGateway.GetTwin(context.Background(), uint32(farm.TwinID))
 	if err != nil {
 		return nil, err
 	}
