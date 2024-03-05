@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
 )
 
@@ -40,6 +42,12 @@ func networkCheck(ctx context.Context) []error {
 	}
 	wg.Wait()
 
+	if len(errors) == 0 {
+		if err := app.DeleteFlag(app.NotReachable); err != nil {
+			log.Error().Err(err).Msg("failed to delete readonly flag")
+		}
+	}
+
 	return errors
 }
 
@@ -50,6 +58,9 @@ func checkService(ctx context.Context, serviceUrl string) error {
 	address := parseUrl(serviceUrl)
 	err := isReachable(ctx, address)
 	if err != nil {
+		if err := app.SetFlag(app.NotReachable); err != nil {
+			log.Error().Err(err).Msg("failed to set not reachable flag")
+		}
 		return fmt.Errorf("%s is not reachable: %w", serviceUrl, err)
 	}
 
