@@ -15,6 +15,8 @@ const (
 	LimitedCache = "limited-cache"
 	// ReadonlyCache represents the flag for cache is read only
 	ReadonlyCache = "readonly-cache"
+	// NotReachable represents the flag when a grid service is not reachable
+	NotReachable = "not-reachable"
 )
 
 // SetFlag is used when the /var/cache cannot be mounted on a SSD or HDD,

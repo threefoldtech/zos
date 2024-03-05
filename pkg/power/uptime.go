@@ -129,5 +129,9 @@ func isNodeHealthy() bool {
 		log.Error().Msg("node is running on limited cache")
 		healthy = false
 	}
+	if app.CheckFlag(app.NotReachable) {
+		log.Error().Msg("node can not reach grid services")
+		healthy = false
+	}
 	return healthy
 }
