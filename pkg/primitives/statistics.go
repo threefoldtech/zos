@@ -91,26 +91,12 @@ func (s *Statistics) active(exclude ...provision.Exclude) (activeCounters, error
 	}
 	storageCap.Cap.Add(&reserved)
 
-	lastDeploymentTimestamp := getLastDeploymentTimestamp(storageCap.Deployments)
-
 	return activeCounters{
 		storageCap.Cap,
 		len(storageCap.Deployments),
 		storageCap.Workloads,
-		lastDeploymentTimestamp,
+		storageCap.LastDeploymentTimestamp,
 	}, err
-}
-
-func getLastDeploymentTimestamp(deployments []gridtypes.Deployment) gridtypes.Timestamp {
-	lastTimestamp := gridtypes.Timestamp(0)
-	for _, deployment := range deployments {
-		for _, workload := range deployment.Workloads {
-			if workload.Result.Created > lastTimestamp {
-				lastTimestamp = workload.Result.Created
-			}
-		}
-	}
-	return lastTimestamp
 }
 
 // Total returns the node total capacity
