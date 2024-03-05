@@ -7,13 +7,16 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/0-fs/meta"
+	"github.com/threefoldtech/zos/pkg/upgrade/hub"
 )
 
 func TestUpgraderDownload(t *testing.T) {
 	require := require.New(t)
 
+	hubClient := hub.NewHubClient(defaultHubTimeout)
 	up := &Upgrader{
 		root: "/tmp/zfs-test-cache",
+		hub:  *hubClient,
 	}
 
 	err := Storage(defaultHubStorage)(up)
