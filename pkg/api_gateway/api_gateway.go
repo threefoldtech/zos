@@ -3,26 +3,72 @@ package apigateway
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
+	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/capacity"
+	"github.com/threefoldtech/zos/pkg/diagnostics"
+	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 type apiGateway struct {
+	oracle                 *capacity.ResourceOracle
+	versionMonitorStub     *stubs.VersionMonitorStub
+	provisionStub          *stubs.ProvisionStub
+	networkerStub          *stubs.NetworkerStub
+	statisticsStub         *stubs.StatisticsStub
+	storageStub            *stubs.StorageModuleStub
+	performanceMonitorStub *stubs.PerformanceMonitorStub
+	diagnosticsManager     *diagnostics.DiagnosticsManager
+	farmerID               uint32
+
 	sub      *substrate.Substrate
 	mu       sync.Mutex
 	identity substrate.Identity
 }
 
-func NewAPIGateway(manager substrate.Manager, identity substrate.Identity) (pkg.APIGateway, error) {
+func NewAPIGateway(manager substrate.Manager, identity substrate.Identity, client zbus.Client, router peer.Router, msgBrokerCon string) (pkg.APIGateway, error) {
 	sub, err := manager.Substrate()
 	if err != nil {
 		return nil, err
 	}
-	return &apiGateway{sub: sub, mu: sync.Mutex{}, identity: identity}, nil
+	diagnosticsManager, err := diagnostics.NewDiagnosticsManager(msgBrokerCon, client)
+	if err != nil {
+		return nil, err
+	}
+	storageModuleStub := stubs.NewStorageModuleStub(client)
+	gw := &apiGateway{
+		oracle:                 capacity.NewResourceOracle(storageModuleStub),
+		versionMonitorStub:     stubs.NewVersionMonitorStub(client),
+		provisionStub:          stubs.NewProvisionStub(client),
+		networkerStub:          stubs.NewNetworkerStub(client),
+		statisticsStub:         stubs.NewStatisticsStub(client),
+		storageStub:            storageModuleStub,
+		performanceMonitorStub: stubs.NewPerformanceMonitorStub(client),
+		diagnosticsManager:     diagnosticsManager,
+		sub:                    sub,
+		mu:                     sync.Mutex{},
+		identity:               identity,
+	}
+	farm, err := gw.GetFarm(uint32(environment.MustGet().FarmID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get farm: %w", err)
+	}
+
+	farmer, err := gw.GetTwin(uint32(farm.TwinID))
+	if err != nil {
+		return nil, err
+	}
+	gw.farmerID = uint32(farmer.ID)
+	gw.setupRoutes(router)
+	return gw, nil
 }
 
 func (g *apiGateway) CreateNode(node substrate.Node) (uint32, error) {

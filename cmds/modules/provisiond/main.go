@@ -13,7 +13,6 @@ import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/pkg/errors"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/capacity"
@@ -407,34 +406,10 @@ func action(cli *cli.Context) error {
 	}()
 
 	// and start the zbus server in the background
-	go func() {
-		if err := server.Run(ctx); err != nil && err != context.Canceled {
-			log.Fatal().Err(err).Msg("zbus provision engine api exited unexpectedly")
-		}
-		log.Info().Msg("zbus server stopped")
-	}()
-
-	mBus, err := rmb.NewRouter(msgBrokerCon)
-	if err != nil {
-		return errors.Wrap(err, "Failed to initialize message bus")
+	if err := server.Run(ctx); err != nil && err != context.Canceled {
+		log.Fatal().Err(err).Msg("zbus provision engine api exited unexpectedly")
 	}
-
-	zosRouter := mBus.Subroute("zos")
-	zosRouter.Use(rmb.LoggerMiddleware)
-
-	if err := setupApi(zosRouter, cl, engine, store, statistics); err != nil {
-		return err
-	}
-
-	log.Info().Msg("running rmb handler")
-
-	for _, handler := range mBus.Handlers() {
-		log.Debug().Msgf("registered handler: %s", handler)
-	}
-
-	if err := mBus.Run(ctx); err != nil && err != context.Canceled {
-		return errors.Wrap(err, "message bus error")
-	}
+	log.Info().Msg("zbus server stopped")
 
 	log.Info().Msg("provision engine stopped")
 	return nil

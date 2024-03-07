@@ -1003,6 +1003,140 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 	return err
 }
 
+func (n *NativeEngine) CreateOrUpdate(twin uint32, deployment gridtypes.Deployment, update bool) error {
+	if err := deployment.Valid(); err != nil {
+		return err
+	}
+
+	if deployment.TwinID != twin {
+		return fmt.Errorf("twin id mismatch (deployment: %d, message: %d)", deployment.TwinID, twin)
+	}
+
+	if err := deployment.Verify(n.twins); err != nil {
+		return err
+	}
+
+	// we need to ge the contract here and make sure
+	// we can validate the contract against it.
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	action := n.Provision
+	if update {
+		action = n.Update
+	}
+
+	return action(ctx, deployment)
+
+}
+
+func (n *NativeEngine) Get(twin uint32, contractID uint64) (gridtypes.Deployment, error) {
+	deployment, err := n.storage.Get(twin, contractID)
+	if errors.Is(err, ErrDeploymentNotExists) {
+		return gridtypes.Deployment{}, fmt.Errorf("deployment not found")
+	} else if err != nil {
+		return gridtypes.Deployment{}, err
+	}
+
+	return deployment, nil
+}
+func (n *NativeEngine) List(twin uint32) ([]gridtypes.Deployment, error) {
+	deploymentIDs, err := n.storage.ByTwin(twin)
+	if err != nil {
+		return nil, err
+	}
+	deployments := make([]gridtypes.Deployment, 0)
+	for _, id := range deploymentIDs {
+		deployment, err := n.storage.Get(twin, id)
+		if err != nil {
+			return nil, err
+		}
+		if !deployment.IsActive() {
+			continue
+		}
+		deployments = append(deployments, deployment)
+	}
+	return deployments, nil
+}
+func (n *NativeEngine) Changes(twin uint32, contractID uint64) ([]gridtypes.Workload, error) {
+	changes, err := n.storage.Changes(twin, contractID)
+	if errors.Is(err, ErrDeploymentNotExists) {
+		return nil, fmt.Errorf("deployment not found")
+	} else if err != nil {
+		return nil, err
+	}
+	return changes, nil
+}
+func (n *NativeEngine) ListPublicIPs() ([]string, error) {
+	// for efficiency this method should just find out configured public Ips.
+	// but currently the only way to do this is by scanning the nft rules
+	// another less efficient but good for now solution is to scan all
+	// reservations and find the ones with public IPs.
+
+	twins, err := n.storage.Twins()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list twins")
+	}
+	ips := make([]string, 0)
+	for _, twin := range twins {
+		deploymentsIDs, err := n.storage.ByTwin(twin)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to list twin deployment")
+		}
+		for _, id := range deploymentsIDs {
+			deployment, err := n.storage.Get(twin, id)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to load deployment")
+			}
+			workloads := deployment.ByType(zos.PublicIPv4Type, zos.PublicIPType)
+
+			for _, workload := range workloads {
+				if workload.Result.State != gridtypes.StateOk {
+					continue
+				}
+
+				var result zos.PublicIPResult
+				if err := workload.Result.Unmarshal(&result); err != nil {
+					return nil, err
+				}
+
+				if result.IP.IP != nil {
+					ips = append(ips, result.IP.String())
+				}
+			}
+		}
+	}
+
+	return ips, nil
+}
+func (n *NativeEngine) ListPrivateIPs(twin uint32, network gridtypes.Name) ([]string, error) {
+	deployments, err := n.List(twin)
+	if err != nil {
+		return nil, err
+	}
+	ips := make([]string, 0)
+	for _, deployment := range deployments {
+		vms := deployment.ByType(zos.ZMachineType)
+		for _, vm := range vms {
+			if vm.Result.State.IsAny(gridtypes.StateDeleted, gridtypes.StateError) {
+				continue
+			}
+			data, err := vm.WorkloadData()
+			if err != nil {
+				return nil, err
+			}
+			zmachine := data.(*zos.ZMachine)
+			for _, inf := range zmachine.Network.Interfaces {
+				if inf.Network == network {
+					ips = append(ips, inf.IP.String())
+				}
+			}
+		}
+	}
+	return ips, nil
+}
+
 func isNotFoundError(err error) bool {
 	if errors.Is(err, ErrWorkloadNotExist) || errors.Is(err, ErrDeploymentNotExists) {
 		return true
