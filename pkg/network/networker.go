@@ -788,7 +788,7 @@ func (n *networker) Interfaces(iface string, netns string) (pkg.Interfaces, erro
 		}
 	}
 
-	return pkg.Interfaces{interfaces}, nil
+	return pkg.Interfaces{Interfaces: interfaces}, nil
 }
 
 // [obsolete] use Interfaces instead Addrs return the IP addresses of interface
