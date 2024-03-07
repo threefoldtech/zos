@@ -6,24 +6,24 @@ import (
 
 func (g *apiGateway) setupRoutes(router peer.Router) {
 
-	r := router.SubRoute("zos")
-	system := r.SubRoute("system")
+	root := router.SubRoute("zos")
+	system := root.SubRoute("system")
 	system.WithHandler("version", g.systemVersionHandler)
 	system.WithHandler("dmi", g.systemDMIHandler)
 	system.WithHandler("hypervisor", g.systemHypervisorHandler)
 	system.WithHandler("diagnostics", g.systemDiagnosticsHandler)
 
-	perf := r.SubRoute("perf")
+	perf := root.SubRoute("perf")
 	perf.WithHandler("get", g.perfGetHandler)
 	perf.WithHandler("get_all", g.perfGetAllHandler)
 
-	gpu := r.SubRoute("gpu")
+	gpu := root.SubRoute("gpu")
 	gpu.WithHandler("list", g.gpuListHandler)
 
-	storage := r.SubRoute("storage")
+	storage := root.SubRoute("storage")
 	storage.WithHandler("pools", g.storagePoolsHandler)
 
-	network := r.SubRoute("network")
+	network := root.SubRoute("network")
 	network.WithHandler("list_wg_ports", g.networkListWGPortsHandler)
 	network.WithHandler("public_config_get", g.networkPublicConfigGetHandler)
 	network.WithHandler("interfaces", g.networkInterfacesHandler)
@@ -31,10 +31,10 @@ func (g *apiGateway) setupRoutes(router peer.Router) {
 	network.WithHandler("list_public_ips", g.networkListPublicIPsHandler)
 	network.WithHandler("list_private_ips", g.networkListPrivateIPsHandler)
 
-	statistics := r.SubRoute("statistics")
+	statistics := root.SubRoute("statistics")
 	statistics.WithHandler("get", g.statisticsGetHandler)
 
-	deployment := r.SubRoute("deployment")
+	deployment := root.SubRoute("deployment")
 	deployment.WithHandler("deploy", g.deploymentDeployHandler)
 	deployment.WithHandler("update", g.deploymentUpdateHandler)
 	deployment.WithHandler("delete", g.deploymentDeleteHandler)
@@ -42,7 +42,7 @@ func (g *apiGateway) setupRoutes(router peer.Router) {
 	deployment.WithHandler("list", g.deploymentListHandler)
 	deployment.WithHandler("changes", g.deploymentChangesHandler)
 
-	admin := r.SubRoute("admin")
+	admin := root.SubRoute("admin")
 	// not working!
 	// admin.Use(g.authorized)
 	admin.WithHandler("interfaces", g.adminInterfacesHandler)
