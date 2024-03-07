@@ -85,7 +85,6 @@ func check() error {
 	f := func() error {
 		retries += 1
 
-		log.Info().Msg("testing internet connection. trying out bootstrap.grid.tf:80")
 		// print some helpful debugging information to help with debugging issues
 		// if internet connection wasn't established
 		if err := debugZos(); err != nil {
@@ -94,7 +93,19 @@ func check() error {
 
 		// we only care about possibility of establishing a connection
 		// so just establishing a connection then close it is good enough
-		con, err := net.Dial("tcp", "bootstrap.grid.tf:http")
+
+		log.Info().Msg("testing internet connection. trying out hub.grid.tf:80")
+		con, err := net.Dial("tcp", "hub.grid.tf:http")
+		if err != nil {
+			return errors.Wrap(err, "failed to reach hub.grid.tf")
+		}
+
+		if err := con.Close(); err != nil {
+			return err
+		}
+
+		log.Info().Msg("testing internet connection. trying out bootstrap.grid.tf:80")
+		con, err = net.Dial("tcp", "bootstrap.grid.tf:http")
 		if err != nil {
 			return errors.Wrap(err, "failed to reach bootstrap.grid.tf")
 		}
@@ -128,7 +139,6 @@ before but with the next twist:
 - link is added to vlan as `bridge vlan add vid <id> dev <link>`
 */
 func configureZOS() error {
-
 	env := environment.MustGet()
 
 	f := func() error {
