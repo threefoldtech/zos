@@ -10,7 +10,8 @@ func TestHub(t *testing.T) {
 	const tag = "3b51aa5"
 	const repo = "tf-autobuilder"
 
-	var hub HubClient
+	hub := NewHubClient(defaultHubCallTimeout)
+
 	results, err := hub.ListTag(repo, tag)
 	require.NoError(t, err)
 	require.Len(t, results, 20)
