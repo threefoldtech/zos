@@ -54,7 +54,7 @@ type Upgrader struct {
 	zinit        *zinit.Client
 	root         string
 	noZosUpgrade bool
-	hub          hub.HubClient
+	hub          *hub.HubClient
 	storage      storage.Storage
 }
 
@@ -99,7 +99,7 @@ func NewUpgrader(root string, opts ...UpgraderOption) (*Upgrader, error) {
 	hubClient := hub.NewHubClient(defaultHubTimeout)
 	u := &Upgrader{
 		root: root,
-		hub:  *hubClient,
+		hub:  hubClient,
 	}
 
 	for _, dir := range []string{u.fileCache(), u.flistCache()} {

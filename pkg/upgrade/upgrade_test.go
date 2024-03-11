@@ -16,7 +16,7 @@ func TestUpgraderDownload(t *testing.T) {
 	hubClient := hub.NewHubClient(defaultHubTimeout)
 	up := &Upgrader{
 		root: "/tmp/zfs-test-cache",
-		hub:  *hubClient,
+		hub:  hubClient,
 	}
 
 	err := Storage(defaultHubStorage)(up)
