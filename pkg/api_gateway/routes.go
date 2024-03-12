@@ -4,7 +4,7 @@ import (
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
 )
 
-func (g *apiGateway) setupRoutes(router peer.Router) {
+func (g *apiGateway) setupRoutes(router *peer.Router) {
 
 	root := router.SubRoute("zos")
 	system := root.SubRoute("system")
@@ -43,8 +43,7 @@ func (g *apiGateway) setupRoutes(router peer.Router) {
 	deployment.WithHandler("changes", g.deploymentChangesHandler)
 
 	admin := root.SubRoute("admin")
-	// not working!
-	// admin.Use(g.authorized)
+	admin.Use(g.authorized)
 	admin.WithHandler("interfaces", g.adminInterfacesHandler)
 	admin.WithHandler("set_public_nic", g.adminSetPublicNICHandler)
 	admin.WithHandler("get_public_nic", g.adminGetPublicNICHandler)
