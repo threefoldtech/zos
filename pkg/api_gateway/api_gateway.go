@@ -34,7 +34,7 @@ type apiGateway struct {
 	identity substrate.Identity
 }
 
-func NewAPIGateway(manager substrate.Manager, identity substrate.Identity, client zbus.Client, router peer.Router, msgBrokerCon string) (pkg.APIGateway, error) {
+func NewAPIGateway(manager substrate.Manager, identity substrate.Identity, client zbus.Client, router *peer.Router, msgBrokerCon string) (pkg.APIGateway, error) {
 	sub, err := manager.Substrate()
 	if err != nil {
 		return nil, err

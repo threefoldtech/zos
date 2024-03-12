@@ -46,7 +46,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/threefoldtech/0-fs v1.3.1-0.20230829115549-fb4c502d6d93
 	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240227171040-f2a20ee3e965
-	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.14.11
+	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.14.12
 	github.com/threefoldtech/zbus v1.0.1
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa

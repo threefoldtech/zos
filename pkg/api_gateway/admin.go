@@ -4,15 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
 )
 
 func (g *apiGateway) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	user := peer.GetTwinID(ctx)
-	if user != g.farmerID {
-		return nil, fmt.Errorf("unauthorized")
-	}
 	// list all interfaces on node
 	type Interface struct {
 		IPs []string `json:"ips"`
@@ -41,18 +35,10 @@ func (g *apiGateway) adminInterfacesHandler(ctx context.Context, payload []byte)
 }
 
 func (g *apiGateway) adminGetPublicNICHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	user := peer.GetTwinID(ctx)
-	if user != g.farmerID {
-		return nil, fmt.Errorf("unauthorized")
-	}
 	return g.networkerStub.GetPublicExitDevice(ctx)
 }
 
 func (g *apiGateway) adminSetPublicNICHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	user := peer.GetTwinID(ctx)
-	if user != g.farmerID {
-		return nil, fmt.Errorf("unauthorized")
-	}
 	var iface string
 	if err := json.Unmarshal(payload, &iface); err != nil {
 		return nil, fmt.Errorf("failed to decode input, expecting string: %w", err)
