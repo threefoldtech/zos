@@ -19,7 +19,7 @@ type PerformanceMonitorStub struct {
 func NewPerformanceMonitorStub(client zbus.Client) *PerformanceMonitorStub {
 	return &PerformanceMonitorStub{
 		client: client,
-		module: "performance-monitor",
+		module: "node",
 		object: zbus.ObjectID{
 			Name:    "performance-monitor",
 			Version: "0.0.1",
