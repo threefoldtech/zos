@@ -229,7 +229,7 @@ func action(cli *cli.Context) error {
 
 	server.Register(zbus.ObjectID{Name: "host", Version: "0.0.1"}, host)
 	server.Register(zbus.ObjectID{Name: "system", Version: "0.0.1"}, system)
-	server.Register(zbus.ObjectID{Name: "host", Version: "0.0.1"}, perfMon)
+	server.Register(zbus.ObjectID{Name: "performance-monitor", Version: "0.0.1"}, perfMon)
 
 	log.Info().Uint32("node", node).Uint32("twin", twin).Msg("node registered")
 
