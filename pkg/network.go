@@ -178,7 +178,7 @@ type Networker interface {
 	// if the interface is in a network namespace netns needs to be not empty
 	// if iface is empty, return ALL interfaces in the given namespace
 	// if they are physical
-	Interfaces(iface string, netns string) (map[string]Interface, error)
+	Interfaces(iface string, netns string) (Interfaces, error)
 
 	// Addrs return the IP addresses of interface
 	// if the interface is in a network namespace netns needs to be not empty
@@ -285,4 +285,10 @@ func (p PublicConfig) Equal(cfg PublicConfig) bool {
 type OptionPublicConfig struct {
 	PublicConfig
 	HasPublicConfig bool
+}
+
+// Interfaces struct to bypass zbus generation error
+// where it generate a stub with map as interface instead of map
+type Interfaces struct {
+	Interfaces map[string]Interface
 }
