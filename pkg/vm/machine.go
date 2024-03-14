@@ -52,9 +52,9 @@ const (
 )
 
 type Console struct {
-	Namespace   string    `json:"namespace"`
-	NetworkAddr net.IPNet `json:"network_addr"`
-	IP          net.IPNet `json:"ip"`
+	Namespace     string    `json:"namespace"`
+	ListenAddress net.IPNet `json:"network_addr"`
+	VmAddress     net.IPNet `json:"ip"`
 }
 
 // Interface nic struct

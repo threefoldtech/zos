@@ -234,7 +234,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) (pkg.MachineInfo
 	consoleURL := ""
 	for _, ifc := range m.Interfaces {
 		if ifc.Console != nil {
-			consoleURL, err = m.startCloudConsole(ctx, ifc.Console.Namespace, ifc.Console.NetworkAddr, ifc.Console.IP, vmData.PTYPath, logs)
+			consoleURL, err = m.startCloudConsole(ctx, ifc.Console.Namespace, ifc.Console.ListenAddress, ifc.Console.VmAddress, vmData.PTYPath, logs)
 			if err != nil {
 				log.Error().Err(err).Str("vm", m.ID).Msg("failed to start cloud-console for vm")
 			}
