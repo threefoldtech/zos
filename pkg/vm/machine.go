@@ -124,14 +124,12 @@ type VirtioFS struct {
 
 // Machine struct
 type Machine struct {
-	ID          string            `json:"id"`
-	Boot        Boot              `json:"boot-source"`
-	Disks       Disks             `json:"drives"`
-	FS          []VirtioFS        `json:"fs"`
-	Interfaces  Interfaces        `json:"network-interfaces"`
-	Config      Config            `json:"machine-config"`
-	Environment map[string]string `json:"environment"`
-	Entrypoint  string            `json:"entrypoint"`
+	ID         string     `json:"id"`
+	Boot       Boot       `json:"boot-source"`
+	Disks      Disks      `json:"drives"`
+	FS         []VirtioFS `json:"fs"`
+	Interfaces Interfaces `json:"network-interfaces"`
+	Config     Config     `json:"machine-config"`
 	// devices to attack directly to VMd
 	Devices []string `json:"devices"`
 	// NoKeepAlive is not used by firecracker, but instead a marker
