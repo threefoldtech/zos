@@ -150,6 +150,11 @@ func (p *Manager) prepContainer(
 	if len(imageInfo.KernelPath) != 0 {
 		machine.KernelImage = imageInfo.KernelPath
 		machine.InitrdImage = imageInfo.InitrdPath
+		// we are using kernel from flist, we need to respect
+		// user init
+		if len(config.Entrypoint) != 0 {
+			machine.KernelArgs["init"] = config.Entrypoint
+		}
 	}
 
 	machine.Boot = pkg.Boot{
@@ -161,7 +166,6 @@ func (p *Manager) prepContainer(
 		return errors.Wrap(err, "failed to apply startup config from flist")
 	}
 
-	machine.Entrypoint = config.Entrypoint
 	if err := p.vmMounts(ctx, deployment, config.Mounts, true, machine); err != nil {
 		return err
 	}
