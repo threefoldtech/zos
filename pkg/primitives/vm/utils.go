@@ -250,8 +250,18 @@ func (p *Manager) newPrivNetworkInterface(ctx context.Context, dl gridtypes.Depl
 		return pkg.VMIface{}, errors.Wrapf(err, "could not get network resource subnet")
 	}
 
+	inf.IP = inf.IP.To4()
+	if inf.IP == nil {
+		return pkg.VMIface{}, fmt.Errorf("invalid IPv4 supplied to wg interface")
+	}
+
 	if !subnet.Contains(inf.IP) {
 		return pkg.VMIface{}, fmt.Errorf("IP %s is not part of local nr subnet %s", inf.IP.String(), subnet.String())
+	}
+
+	// always the .1/24 ip is reserved
+	if inf.IP[3] == 1 {
+		return pkg.VMIface{}, fmt.Errorf("ip %s is reserved", inf.IP.String())
 	}
 
 	privNet, err := network.GetNet(ctx, netID)
