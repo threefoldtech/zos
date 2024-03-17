@@ -1,8 +1,11 @@
 package storage
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/brk0v/directio"
 	"github.com/pkg/errors"
 	log "github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/disk"
@@ -22,6 +26,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/kernel"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
+	"github.com/threefoldtech/zos/pkg/zinit"
 )
 
 const (
@@ -233,12 +238,18 @@ func (s *Module) initialize(ctx context.Context) error {
 			continue
 		}
 
-		_, err = pool.Mount()
+		mountPoint, err := pool.Mount()
 		if err != nil {
 			log.Error().Err(err).Str("device", device.Path).Msg("failed to mount pool")
 			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: pool.Name(), Err: err})
 			continue
 		}
+		if err := tryDirectWrite(filepath.Join(mountPoint, "test-writable")); err != nil {
+			log.Error().Err(err).Str("device", device.Path).Msg("device is read-only")
+			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
+			continue
+		}
+
 		usage, err := pool.Usage()
 		if err != nil {
 			log.Error().Err(err).Str("pool", pool.Name()).Str("device", device.Path).Msg("failed to get usage of pool")
@@ -314,6 +325,35 @@ func (s *Module) initialize(ctx context.Context) error {
 
 	s.periodicallyCheckDiskShutdown(vm)
 
+	return nil
+}
+
+func tryDirectWrite(path string) error {
+	testFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, 0644)
+	if err != nil {
+		return err
+	}
+	dio, err := directio.New(testFile)
+	if err != nil {
+		return err
+	}
+	body := make([]byte, 512)
+	if _, err := rand.Read(body); err != nil {
+		return err
+	}
+	reader := bytes.NewReader(body)
+	if _, err := io.Copy(dio, reader); err != nil {
+		return err
+	}
+	if err := dio.Flush(); err != nil {
+		return err
+	}
+	if err := testFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Remove(testFile.Name()); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -702,7 +742,12 @@ func (s *Module) checkAndResizeCache(cache filesystem.Volume, sizeMultiplier uin
 // watchCache will watch the system cache and increase (or decrease)
 // it's size as needed
 func (s *Module) watchCache(ctx context.Context, cache filesystem.Volume) {
+	cachePool := s.getCachePool()
 	for {
+		if err := s.checkReadOnly(cachePool); err != nil {
+			log.Error().Err(err).Str("device", cachePool.Device().Path).Msg("cache pool is read-only")
+			_ = zinit.Default().Reboot()
+		}
 		if err := s.checkAndResizeCache(cache, cacheSize); err != nil {
 			log.Error().Err(err).Msg("error while checking cache size")
 		}
@@ -712,6 +757,29 @@ func (s *Module) watchCache(ctx context.Context, cache filesystem.Volume) {
 			return
 		}
 	}
+}
+
+func (s *Module) getCachePool() filesystem.Pool {
+	for _, ssd := range s.ssds {
+		vols, err := ssd.Volumes()
+		if err != nil {
+			log.Error().Err(err).Str("pool", ssd.Name()).Msg("failed to get volumes for pool")
+			continue
+		}
+		for _, vol := range vols {
+			if vol.Name() == cacheLabel {
+				return ssd
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Module) checkReadOnly(pool filesystem.Pool) error {
+	if pool == nil {
+		return nil // if cache on tmpfs it won't show here so we return with no errors
+	}
+	return tryDirectWrite(filepath.Join(pool.Path(), "test-writable"))
 }
 
 // createSubvolWithQuota creates a subvolume with the given name and limits it to the given size
