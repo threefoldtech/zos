@@ -1,8 +1,11 @@
 package storage
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/brk0v/directio"
 	"github.com/pkg/errors"
 	log "github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/disk"
@@ -240,13 +244,11 @@ func (s *Module) initialize(ctx context.Context) error {
 			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: pool.Name(), Err: err})
 			continue
 		}
-		testFile, err := os.Create(filepath.Join(mountPoint, "test-writable"))
-		if err != nil {
+		if err := tryDirectWrite(filepath.Join(mountPoint, "test-writable")); err != nil {
 			log.Error().Err(err).Str("device", device.Path).Msg("device is read-only")
 			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
 			continue
 		}
-		defer os.Remove(testFile.Name())
 
 		usage, err := pool.Usage()
 		if err != nil {
@@ -323,6 +325,35 @@ func (s *Module) initialize(ctx context.Context) error {
 
 	s.periodicallyCheckDiskShutdown(vm)
 
+	return nil
+}
+
+func tryDirectWrite(path string) error {
+	testFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, 0644)
+	if err != nil {
+		return err
+	}
+	dio, err := directio.New(testFile)
+	if err != nil {
+		return err
+	}
+	body := make([]byte, 512)
+	if _, err := rand.Read(body); err != nil {
+		return err
+	}
+	reader := bytes.NewReader(body)
+	if _, err := io.Copy(dio, reader); err != nil {
+		return err
+	}
+	if err := dio.Flush(); err != nil {
+		return err
+	}
+	if err := testFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Remove(testFile.Name()); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -748,12 +779,7 @@ func (s *Module) checkReadOnly(pool filesystem.Pool) error {
 	if pool == nil {
 		return nil // if cache on tmpfs it won't show here so we return with no errors
 	}
-	testFile, err := os.Create(filepath.Join(pool.Path(), "test-writable"))
-	if err != nil {
-		return err
-	}
-	defer os.Remove(testFile.Name())
-	return nil
+	return tryDirectWrite(filepath.Join(pool.Path(), "test-writable"))
 }
 
 // createSubvolWithQuota creates a subvolume with the given name and limits it to the given size
