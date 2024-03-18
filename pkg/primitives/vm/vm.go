@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -323,6 +324,12 @@ func (p *Manager) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID)
 	volName := fmt.Sprintf("rootfs:%s", wl.ID.String())
 	if err := storage.VolumeDelete(ctx, volName); err != nil {
 		log.Error().Err(err).Str("name", volName).Msg("failed to delete rootfs volume")
+	}
+
+	cidataPath := filepath.Join("var", "cache", "modules", "vmd", "cloud-init", wl.ID.String())
+	err := os.RemoveAll(cidataPath)
+	if err != nil {
+		log.Error().Err(err).Str("path", cidataPath).Msg("failed to delete cloud-init cidata seed")
 	}
 
 	for _, inf := range cfg.Network.Interfaces {
