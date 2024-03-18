@@ -93,23 +93,19 @@ func check() error {
 
 		// we only care about possibility of establishing a connection
 		// so just establishing a connection then close it is good enough
+		for _, address := range []string{"bootstrap.grid.tf:http", "hub.grid.tf:http"} {
+			log.Info().Str("trying out address", address).Msg("testing internet connection.")
+			con, err := net.Dial("tcp", address)
+			if err != nil {
+				return errors.Wrapf(err, "failed to reach %s", address)
+			}
 
-		log.Info().Msg("testing internet connection. trying out hub.grid.tf:80")
-		con, err := net.Dial("tcp", "hub.grid.tf:http")
-		if err != nil {
-			return errors.Wrap(err, "failed to reach hub.grid.tf")
+			if err := con.Close(); err != nil {
+				return err
+			}
 		}
 
-		if err := con.Close(); err != nil {
-			return err
-		}
-
-		log.Info().Msg("testing internet connection. trying out bootstrap.grid.tf:80")
-		con, err = net.Dial("tcp", "bootstrap.grid.tf:http")
-		if err != nil {
-			return errors.Wrap(err, "failed to reach bootstrap.grid.tf")
-		}
-		return con.Close()
+		return nil
 	}
 
 	errHandler := func(err error, t time.Duration) {
@@ -139,6 +135,7 @@ before but with the next twist:
 - link is added to vlan as `bridge vlan add vid <id> dev <link>`
 */
 func configureZOS() error {
+
 	env := environment.MustGet()
 
 	f := func() error {
