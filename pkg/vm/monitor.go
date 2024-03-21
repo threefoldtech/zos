@@ -126,6 +126,9 @@ func (m *Module) monitor(ctx context.Context) error {
 }
 
 func (m *Module) cleanupCidata() error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	log.Debug().Msg("running cleanup for vms cidata")
 
 	running, err := FindAll()
