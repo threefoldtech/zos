@@ -27,7 +27,7 @@ compile_lvm() {
 install_lvm() {
     echo "[+] installing tpm"
     mkdir -p "${ROOTDIR}/bin"
-    cp tools/lvm.static "${ROOTDIR}/bin"
+    cp tools/lvm.static "${ROOTDIR}/bin/lvm"
 }
 
 build_lvm() {
