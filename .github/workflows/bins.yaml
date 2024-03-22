@@ -143,3 +143,9 @@ jobs:
       package: mycelium
     secrets:
       token: ${{ secrets.HUB_JWT }}
+  lvm:
+    uses: ./.github/workflows/bin-package-18.04.yaml
+    with:
+      package: lvm
+    secrets:
+      token: ${{ secrets.HUB_JWT }}
