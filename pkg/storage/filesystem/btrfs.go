@@ -53,9 +53,6 @@ func (p *btrfsPool) Device() DeviceInfo {
 }
 
 func (p *btrfsPool) prepare() error {
-	if p.device.Label == "" {
-		return fmt.Errorf("device '%s' label missing", p.device.Path)
-	}
 	p.name = p.device.Label
 	if p.device.Used() {
 		// device already have filesystem
