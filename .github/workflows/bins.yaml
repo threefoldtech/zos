@@ -146,6 +146,6 @@ jobs:
   lvm:
     uses: ./.github/workflows/bin-package-18.04.yaml
     with:
-      package: lvm
+      package: mdadm
     secrets:
       token: ${{ secrets.HUB_JWT }}
