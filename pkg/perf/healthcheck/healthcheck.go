@@ -62,7 +62,7 @@ func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 	log.Debug().Msg("starting health check task")
 	for k := range h.errors {
 		// reset errors on each run
-		h.errors[k] = nil
+		delete(h.errors, k)
 	}
 
 	for label, check := range h.checks {
