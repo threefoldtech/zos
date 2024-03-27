@@ -20,6 +20,7 @@ install_mdadm() {
 build_mdadm() {
     apt-get install -y \
         build-essential \
+        git \
         libudev-dev
 
     pushd "${WORKDIR}"
