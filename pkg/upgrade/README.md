@@ -1,59 +1,44 @@
 # Upgrade module
 
-The upgrade module is responsible to keep a 0-OS node always up to date.
+The upgrade module is responsible to keep a zos node always up to date.
 
-It checks the network for new releases of 0-OS pkg.
+It checks the hub for new releases of zos packages.
 
-When a new release is found, it will download the flist containing the new version of the module.
+If a new release is available, it will then update the packages and restart the updated module with the new binaries if required.
 
-If there is one available, this will then copy the new module in place, execute the migration scripts if any, and then restart the updated module with the new binaries.
+## Usage
 
-## Publisher
+To run the upgrade module you first need to create a new upgrader instance with the supported options.
 
-The upgrade module implements the Publisher interface
+|     Option     |                 Description                  |        Default        |
+| :------------: | :------------------------------------------: | :-------------------: |
+| `NoZosUpgrade` | enable or disable the update of zos binaries |  enabled by default   |
+|   `Storage`    |    overrides the default hub storage url     |     `hub.grid.tf`     |
+|    `Zinit`     |      overrides the default zinit socket      | "/var/run/zinit.sock" |
+
 ```go
-// Publisher is the interface that defines how the upgrade is published
-type Publisher interface {
-	// Get retrieves the Upgrade object for a specific version
-	Get(version semver.Version) (Upgrade, error)
-	// Latest returns the latest version available
-	Latest() (semver.Version, error)
-	// List all the versions this publisher has available
-	List() ([]semver.Version, error)
+upgrader, err := upgrade.NewUpgrader(root, upgrade.NoZosUpgrade(debug))
+if err != nil {
+    log.Fatal().Err(err).Msg("failed to initialize upgrader")
 }
 ```
 
-This interfaces defines how the module gets information about new releases.
+Then run the upgrader `upgrader.Run(ctx)`
 
-For now, the module only implements an HTTP publisher. The HTTP publisher relies on an HTTP server to get information.
-Here is a description of what is expected from the HTTP server:
+## How it works
 
-Imagine the HTTP publisher has a base URL of: `https://releases.grid.tf`
+The upgrader module has two running modes depeding on the booting method.
 
-It needs to expose 3 endpoints:
-- GET `https://releases.grid.tf/versions`: return a list of all the versions this publisher knows about, for example:
+### Bootstrap Method
 
-```json
-[
-    "0.0.1",
-    "0.0.2",
-    "0.0.3",
-    "0.1.0",
-    "0.1.1"
-]
-```
-- GET `https://releases.grid.tf/latest` return the latest version, example:
+Running the upgrader on a node run with `bootstrap` will periodically check the hub for latest tag,
+and if that tag differs from the current one, it updates the local packages to latest.
 
-```json
-"0.1.1"
-```
+If the update failed, the upgrader would attempts to install the packages again every `10 secounds` until all packages are successfully updated to prevent partial updates.
 
-- GET `https://releases.grid.tf/{versions}` : return the upgrade object for this version, example for `https://releases.grid.tf/0.0.1`:
+The upgrader runs periodically every hour to check for new updates.
 
-```json
-{
-    "flist":"https://hub.grid.tf/tf-official-apps/threefoldtech-0-db-release-1.0.0.flist",
-    "transaction_id":"",
-    "signature":"e5b2cab466e43d8765e6dcf968d1af9e"
-}
-```
+### Other Methods
+
+If the node is booted with any other method, the required packages are likely not installed.
+The upgrader checks if this is the first run, and if so, it installs all the latest packages and blocks forever.
