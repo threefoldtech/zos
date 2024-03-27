@@ -5,6 +5,10 @@ download_mdadm() {
     download_git $MDADM_LINK "mdadm-$MDADM_VERSION"
 }
 
+prepare_mdadm() {
+    echo "[+] prepare mdadm"
+    github_name "mdadm-${MDADM_VERSION}"
+}
 
 compile_mdadm() {
     echo "[+] compiling mdadm"
@@ -26,6 +30,7 @@ build_mdadm() {
     pushd "${WORKDIR}"
 
     download_mdadm
+    prepare_mdadm
 
     pushd "mdadm"
     compile_mdadm
