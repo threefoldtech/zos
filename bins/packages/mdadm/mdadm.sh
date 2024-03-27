@@ -1,5 +1,5 @@
 MDADM_VERSION="4.3"
-MDADM_LINK="git clone https://kernel.googlesource.com/pub/scm/utils/mdadm/mdadm"
+MDADM_LINK="https://kernel.googlesource.com/pub/scm/utils/mdadm/mdadm"
 
 download_mdadm() {
     download_git $MDADM_LINK "mdadm-$MDADM_VERSION"
