@@ -195,8 +195,7 @@ func (u *Upgrader) nextUpdate() time.Duration {
 	return next
 }
 
-// remote creates a new taglink for the latest version of the
-// used flist that matches the same run mode (ex: development)
+// remote finds the `tag link` associated with the node network (for example devnet)
 func (u *Upgrader) remote() (remote hub.TagLink, err error) {
 	mode := u.boot.RunMode()
 	// find all taglinks that matches the same run mode (ex: development)
