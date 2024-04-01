@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/ulikunitz/xz"
 )
 
 func isValidELFKernel(KernelImagePath string) error {
@@ -45,5 +47,25 @@ func gUnzip(data []byte) (reader io.Reader, err error) {
 	}
 
 	reader = r
+	return
+}
+
+func unXZ(data []byte) (reader io.Reader, err error) {
+	headerBytes := []byte("\3757zXZ\000") // [253 55 122 88 90 0]
+
+	var headerIndex int
+
+	for i := 0; i < bytes.Count(data, headerBytes); i++ {
+		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
+		fmt.Printf("headerIndex: %v\n", headerIndex)
+
+		reader, err = xz.NewReader(bytes.NewBuffer(data))
+		if err != nil {
+			return
+		}
+
+		headerIndex += len(headerBytes)
+	}
+
 	return
 }
