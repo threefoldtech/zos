@@ -13,6 +13,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4/v4"
 	"github.com/ulikunitz/xz"
+	"github.com/ulikunitz/xz/lzma"
 )
 
 func isValidELFKernel(KernelImagePath string) error {
@@ -84,6 +85,26 @@ func bUnzip2(data []byte) (reader io.Reader, err error) {
 		fmt.Printf("headerIndex: %v\n", headerIndex)
 
 		reader = bzip2.NewReader(bytes.NewBuffer(data))
+
+		headerIndex += len(headerBytes)
+	}
+
+	return
+}
+
+func unlzma(data []byte) (reader io.Reader, err error) {
+	headerBytes := []byte("\135\\0\\0\\0")
+
+	var headerIndex int
+
+	for i := 0; i < bytes.Count(data, headerBytes); i++ {
+		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
+		fmt.Printf("headerIndex: %v\n", headerIndex)
+
+		reader, err = lzma.NewReader(bytes.NewBuffer(data))
+		if err != nil {
+			return
+		}
 
 		headerIndex += len(headerBytes)
 	}
