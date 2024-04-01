@@ -1,6 +1,9 @@
 package vm
 
 import (
+	"bytes"
+	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -20,4 +23,27 @@ func writer(reader io.Reader, targetPath string) error {
 
 	_, err = io.Copy(writer, reader)
 	return err
+}
+
+func gUnzip(data []byte) (reader io.Reader, err error) {
+	headerBytes := []byte("\037\213\010") // []byte{0x1f, 0x8b, 8} -> [31, 139, 8]
+
+	var headerIndex int
+	var r *gzip.Reader
+
+	for i := 0; i < bytes.Count(data, headerBytes); i++ {
+		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
+		fmt.Printf("headerIndex: %v\n", headerIndex)
+
+		r, err = gzip.NewReader(bytes.NewBuffer(data))
+		if err != nil {
+			return
+		}
+		defer r.Close()
+
+		headerIndex += len(headerBytes)
+	}
+
+	reader = r
+	return
 }
