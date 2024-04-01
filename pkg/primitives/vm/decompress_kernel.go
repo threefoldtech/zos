@@ -10,7 +10,8 @@ import (
 	"os/exec"
 
 	"github.com/cyberdelia/lzo"
-	"github.com/pierrec/lz4"
+	"github.com/klauspost/compress/zstd"
+	"github.com/pierrec/lz4/v4"
 	"github.com/ulikunitz/xz"
 )
 
@@ -124,6 +125,29 @@ func lZ4(data []byte) (reader io.Reader, err error) {
 		fmt.Printf("headerIndex: %v\n", headerIndex)
 
 		reader = lz4.NewReader(bytes.NewBuffer(data))
+
+		headerIndex += len(headerBytes)
+	}
+
+	reader = r
+	return
+}
+
+func unZstd(data []byte) (reader io.Reader, err error) {
+	headerBytes := []byte("(\265/\375")
+
+	var headerIndex int
+	var r *zstd.Decoder
+
+	for i := 0; i < bytes.Count(data, headerBytes); i++ {
+		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
+		fmt.Printf("headerIndex: %v\n", headerIndex)
+
+		r, err = zstd.NewReader(bytes.NewBuffer(data))
+		if err != nil {
+			return
+		}
+		defer r.Close()
 
 		headerIndex += len(headerBytes)
 	}

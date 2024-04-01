@@ -37,6 +37,7 @@ require (
 	github.com/hasura/go-graphql-client v0.10.0
 	github.com/jbenet/go-base58 v0.0.0-20150317085156-6237cf65f3a6
 	github.com/joncrlsn/dque v0.0.0-20200702023911-3e80e3146ce5
+	github.com/klauspost/compress v1.16.7
 	github.com/lestrrat-go/jwx v1.1.7
 	github.com/machinebox/graphql v0.2.2
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
@@ -93,7 +94,6 @@ require (
 	github.com/hanwen/go-fuse/v2 v2.3.0 // indirect
 	github.com/holiman/uint256 v1.2.2-0.20230321075855-87b91420868c // indirect
 	github.com/josharian/native v0.0.0-20200817173448-b6b71def0850 // indirect
-	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/lestrrat-go/backoff/v2 v2.0.7 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.0 // indirect
