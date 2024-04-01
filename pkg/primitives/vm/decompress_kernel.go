@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/cyberdelia/lzo"
 	"github.com/ulikunitz/xz"
 )
 
@@ -85,5 +86,28 @@ func bUnzip2(data []byte) (reader io.Reader, err error) {
 		headerIndex += len(headerBytes)
 	}
 
+	return
+}
+
+func lZop(data []byte) (reader io.Reader, err error) {
+	headerBytes := []byte("\211\114\132")
+
+	var headerIndex int
+	var r *lzo.Reader
+
+	for i := 0; i < bytes.Count(data, headerBytes); i++ {
+		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
+		fmt.Printf("headerIndex: %v\n", headerIndex)
+
+		r, err = lzo.NewReader(bytes.NewBuffer(data))
+		if err != nil {
+			return
+		}
+		defer r.Close()
+
+		headerIndex += len(headerBytes)
+	}
+
+	reader = r
 	return
 }
