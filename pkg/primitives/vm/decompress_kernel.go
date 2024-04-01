@@ -8,10 +8,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/cyberdelia/lzo"
 	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4/v4"
+	"github.com/rs/zerolog/log"
 	"github.com/ulikunitz/xz"
 	"github.com/ulikunitz/xz/lzma"
 )
@@ -175,4 +178,68 @@ func unZstd(data []byte) (reader io.Reader, err error) {
 
 	reader = r
 	return
+}
+
+func tryDecompressKernel(KernelImagePath string) error {
+	if len(strings.TrimSpace(KernelImagePath)) == 0 {
+		return fmt.Errorf("kernel image is required")
+	}
+
+	// Prepare temp files:
+	tmp, err := os.MkdirTemp("/tmp/", "vmlinux-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+
+	kernelData, err := os.ReadFile(KernelImagePath)
+	if err != nil {
+		return err
+	}
+
+	// 1. gUnzip
+	reader, err := gUnzip(kernelData)
+	if err != nil {
+		log.Error().Err(err).Send()
+	}
+
+	// 2. unxz
+	reader, err = unXZ(kernelData)
+	if err != nil {
+		log.Error().Err(err).Send()
+	}
+
+	// 3. bUnzip2
+	reader, err = bUnzip2(kernelData)
+	if err != nil {
+		log.Error().Err(err).Send()
+	}
+
+	// 4. unlzma
+	reader, err = unlzma(kernelData)
+	if err != nil {
+		log.Error().Err(err).Send()
+	}
+
+	// 5. lzop
+	reader, err = lZop(kernelData)
+	if err != nil {
+		log.Error().Err(err).Send()
+	}
+
+	// 6. lz4
+	reader, err = lZ4(kernelData)
+	if err != nil {
+		log.Error().Err(err).Send()
+	}
+
+	// 7. unzstd
+	reader, err = unZstd(kernelData)
+	if err != nil {
+		log.Error().Err(err).Send()
+	}
+
+	// TODO: handle err
+
+	return writer(reader, fmt.Sprintf("%s/%s", tmp, filepath.Base(KernelImagePath)))
 }
