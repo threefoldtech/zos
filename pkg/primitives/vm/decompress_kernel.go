@@ -10,6 +10,7 @@ import (
 	"os/exec"
 
 	"github.com/cyberdelia/lzo"
+	"github.com/pierrec/lz4"
 	"github.com/ulikunitz/xz"
 )
 
@@ -104,6 +105,25 @@ func lZop(data []byte) (reader io.Reader, err error) {
 			return
 		}
 		defer r.Close()
+
+		headerIndex += len(headerBytes)
+	}
+
+	reader = r
+	return
+}
+
+func lZ4(data []byte) (reader io.Reader, err error) {
+	headerBytes := []byte("\002!L\030")
+
+	var headerIndex int
+	var r *lzo.Reader
+
+	for i := 0; i < bytes.Count(data, headerBytes); i++ {
+		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
+		fmt.Printf("headerIndex: %v\n", headerIndex)
+
+		reader = lz4.NewReader(bytes.NewBuffer(data))
 
 		headerIndex += len(headerBytes)
 	}
