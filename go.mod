@@ -88,6 +88,8 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-github/v60 v60.0.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/gtank/ristretto255 v0.1.2 // indirect
 	github.com/hanwen/go-fuse/v2 v2.3.0 // indirect

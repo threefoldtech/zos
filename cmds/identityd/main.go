@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
@@ -15,7 +18,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/identity"
 
-	"flag"
+	"github.com/google/go-github/v60/github"
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
@@ -146,7 +149,6 @@ func main() {
 		log.Error().Err(err).Msg("error during update")
 		os.Exit(1)
 	}
-
 }
 
 func getIdentityMgr(root string, debug bool) (pkg.IdentityManager, error) {
@@ -171,4 +173,50 @@ func getIdentityMgr(root string, debug bool) (pkg.IdentityManager, error) {
 		Msg("farmer identified")
 
 	return manager, nil
+}
+
+func authKeysHandler(ctx context.Context, env string, farm uint64) error {
+	authorizedKeysPath := filepath.Join("/", "root", ".ssh", "authorized_keys")
+
+	err := os.Remove(authorizedKeysPath)
+	if err != nil {
+		return err
+	}
+
+	if env == "main" {
+		if farm != 1 {
+			return nil
+		}
+		env = "testing"
+	}
+
+	// get the content of the file in `zos-config` according to the network
+	github := github.NewClient(nil)
+	file, _, _, err := github.Repositories.GetContents(ctx, "threefoldtech", "zos-config", "authorized-users.json", nil)
+	if err != nil {
+		return err
+	}
+
+	fileContentJSON, err := file.GetContent()
+	if err != nil {
+		return err
+	}
+
+	var authorizedUsers map[string][]string
+	err = json.Unmarshal([]byte(fileContentJSON), &authorizedUsers)
+	if err != nil {
+		return err
+	}
+
+	var allKeys string
+
+	for _, user := range authorizedUsers[env] {
+		keys, _, err := github.Users.ListKeys(ctx, user, nil)
+		if err != nil {
+			return err
+		}
+		allKeys = fmt.Sprintf("%s\n%s", allKeys, keys[0].GetKey())
+		fmt.Println(keys)
+	}
+	return os.WriteFile(authorizedKeysPath, []byte(allKeys), 0644)
 }
