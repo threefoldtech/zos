@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -63,6 +64,23 @@ func unXZ(data []byte) (reader io.Reader, err error) {
 		if err != nil {
 			return
 		}
+
+		headerIndex += len(headerBytes)
+	}
+
+	return
+}
+
+func bUnzip2(data []byte) (reader io.Reader, err error) {
+	headerBytes := []byte("BZh") // [66 90 104]
+
+	var headerIndex int
+
+	for i := 0; i < bytes.Count(data, headerBytes); i++ {
+		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
+		fmt.Printf("headerIndex: %v\n", headerIndex)
+
+		reader = bzip2.NewReader(bytes.NewBuffer(data))
 
 		headerIndex += len(headerBytes)
 	}
