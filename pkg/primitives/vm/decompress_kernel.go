@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
+	"debug/elf"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/cyberdelia/lzo"
+	"github.com/hashicorp/go-multierror"
 	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4/v4"
 	"github.com/rs/zerolog/log"
@@ -19,165 +19,91 @@ import (
 	"github.com/ulikunitz/xz/lzma"
 )
 
-func isValidELFKernel(KernelImagePath string) error {
-	_, err := exec.Command("readelf", "-h", KernelImagePath).CombinedOutput()
-	return err
-}
+// TODO: sudo apt install liblzo2-dev
 
-func writer(reader io.Reader, targetPath string) error {
-	writer, err := os.Create(targetPath)
+func isValidELFKernel(KernelImagePath string) error {
+	f, err := elf.Open(KernelImagePath)
 	if err != nil {
 		return err
 	}
-	defer writer.Close()
-
-	_, err = io.Copy(writer, reader)
-	return err
+	f.Close()
+	return nil
 }
 
-func gUnzip(data []byte) (reader io.Reader, err error) {
-	headerBytes := []byte("\037\213\010") // []byte{0x1f, 0x8b, 8} -> [31, 139, 8]
-
-	var headerIndex int
-	var r *gzip.Reader
-
-	for i := 0; i < bytes.Count(data, headerBytes); i++ {
-		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
-		fmt.Printf("headerIndex: %v\n", headerIndex)
-
-		r, err = gzip.NewReader(bytes.NewBuffer(data))
-		if err != nil {
-			return
-		}
-		defer r.Close()
-
-		headerIndex += len(headerBytes)
-	}
-
-	reader = r
-	return
+type algoOptions struct {
+	decompressFunc func(kernelStream io.Reader) (io.Reader, error)
+	headerBytes    []byte
 }
 
-func unXZ(data []byte) (reader io.Reader, err error) {
-	headerBytes := []byte("\3757zXZ\000") // [253 55 122 88 90 0]
-
+// TODO: []byte -> io.reader
+func decompressData(data []byte, tmpFile *os.File, o algoOptions) error {
 	var headerIndex int
+	var errs error
 
-	for i := 0; i < bytes.Count(data, headerBytes); i++ {
-		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
-		fmt.Printf("headerIndex: %v\n", headerIndex)
+	for i := 0; i < bytes.Count(data, o.headerBytes); i++ {
+		headerIndex += bytes.Index(data[headerIndex:], o.headerBytes)
 
-		reader, err = xz.NewReader(bytes.NewBuffer(data))
+		r, err := o.decompressFunc(bytes.NewBuffer(data[headerIndex:]))
 		if err != nil {
-			return
+			return err
 		}
 
-		headerIndex += len(headerBytes)
-	}
-
-	return
-}
-
-func bUnzip2(data []byte) (reader io.Reader, err error) {
-	headerBytes := []byte("BZh") // [66 90 104]
-
-	var headerIndex int
-
-	for i := 0; i < bytes.Count(data, headerBytes); i++ {
-		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
-		fmt.Printf("headerIndex: %v\n", headerIndex)
-
-		reader = bzip2.NewReader(bytes.NewBuffer(data))
-
-		headerIndex += len(headerBytes)
-	}
-
-	return
-}
-
-func unlzma(data []byte) (reader io.Reader, err error) {
-	headerBytes := []byte("\135\\0\\0\\0")
-
-	var headerIndex int
-
-	for i := 0; i < bytes.Count(data, headerBytes); i++ {
-		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
-		fmt.Printf("headerIndex: %v\n", headerIndex)
-
-		reader, err = lzma.NewReader(bytes.NewBuffer(data))
+		_, err = io.Copy(tmpFile, r)
 		if err != nil {
-			return
+			return err
 		}
 
-		headerIndex += len(headerBytes)
-	}
-
-	return
-}
-
-func lZop(data []byte) (reader io.Reader, err error) {
-	headerBytes := []byte("\211\114\132")
-
-	var headerIndex int
-	var r *lzo.Reader
-
-	for i := 0; i < bytes.Count(data, headerBytes); i++ {
-		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
-		fmt.Printf("headerIndex: %v\n", headerIndex)
-
-		r, err = lzo.NewReader(bytes.NewBuffer(data))
-		if err != nil {
-			return
+		err = isValidELFKernel(tmpFile.Name())
+		if err == nil {
+			return nil
 		}
-		defer r.Close()
 
-		headerIndex += len(headerBytes)
+		errs = multierror.Append(errs, err)
+		headerIndex += len(o.headerBytes)
 	}
 
-	reader = r
-	return
+	return errs
 }
 
-func lZ4(data []byte) (reader io.Reader, err error) {
-	headerBytes := []byte("\002!L\030")
-
-	var headerIndex int
-	var r *lzo.Reader
-
-	for i := 0; i < bytes.Count(data, headerBytes); i++ {
-		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
-		fmt.Printf("headerIndex: %v\n", headerIndex)
-
-		reader = lz4.NewReader(bytes.NewBuffer(data))
-
-		headerIndex += len(headerBytes)
+func gUnzip(kernelStream io.Reader) (io.Reader, error) {
+	r, err := gzip.NewReader(kernelStream)
+	if err != nil {
+		return nil, err
 	}
 
-	reader = r
-	return
+	r.Multistream(false)
+	// TODO: how it is read after closing !!!!
+	defer r.Close()
+
+	return r, nil
 }
 
-func unZstd(data []byte) (reader io.Reader, err error) {
-	headerBytes := []byte("(\265/\375")
+func unXZ(kernelStream io.Reader) (io.Reader, error) {
+	return xz.NewReader(kernelStream)
+}
 
-	var headerIndex int
-	var r *zstd.Decoder
+func bUnzip2(kernelStream io.Reader) (io.Reader, error) {
+	return bzip2.NewReader(kernelStream), nil
+}
 
-	for i := 0; i < bytes.Count(data, headerBytes); i++ {
-		headerIndex += bytes.Index(data[headerIndex:], headerBytes)
-		fmt.Printf("headerIndex: %v\n", headerIndex)
+func unlzma(kernelStream io.Reader) (io.Reader, error) {
+	return lzma.NewReader(kernelStream)
+}
 
-		r, err = zstd.NewReader(bytes.NewBuffer(data))
-		if err != nil {
-			return
-		}
-		defer r.Close()
+func lZop(kernelStream io.Reader) (io.Reader, error) {
+	r, err := lzo.NewReader(kernelStream)
+	r.Close()
+	return r, err
+}
 
-		headerIndex += len(headerBytes)
-	}
+func lZ4(kernelStream io.Reader) (io.Reader, error) {
+	return lz4.NewReader(kernelStream), nil
+}
 
-	reader = r
-	return
+func unZstd(kernelStream io.Reader) (io.Reader, error) {
+	r, err := zstd.NewReader(kernelStream)
+	r.Close()
+	return r, err
 }
 
 func tryDecompressKernel(KernelImagePath string) error {
@@ -185,61 +111,63 @@ func tryDecompressKernel(KernelImagePath string) error {
 		return fmt.Errorf("kernel image is required")
 	}
 
+	// if kernel is already an elf (uncompressed)
+	if err := isValidELFKernel(KernelImagePath); err == nil {
+		return nil
+	}
+
 	// Prepare temp files:
-	tmp, err := os.MkdirTemp("/tmp/", "vmlinux-")
+	tmpFile, err := os.CreateTemp("/tmp", "vmlinux-")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
 
 	kernelData, err := os.ReadFile(KernelImagePath)
 	if err != nil {
 		return err
 	}
 
+	algos := []algoOptions{
+		{
+			decompressFunc: gUnzip,
+			headerBytes:    []byte("\037\213\010"),
+		},
+		{
+			decompressFunc: unXZ,
+			headerBytes:    []byte("\3757zXZ\000"),
+		},
+		{
+			decompressFunc: bUnzip2,
+			headerBytes:    []byte("BZh"),
+		},
+		{
+			decompressFunc: unlzma,
+			headerBytes:    []byte("\135\\0\\0\\0"),
+		},
+		{
+			decompressFunc: lZop,
+			headerBytes:    []byte("\211\114\132"),
+		},
+		{
+			decompressFunc: lZ4,
+			headerBytes:    []byte("\002!L\030"),
+		},
+		{
+			decompressFunc: unZstd,
+			headerBytes:    []byte("(\265/\375"),
+		},
+	}
+
 	// 1. gUnzip
-	reader, err := gUnzip(kernelData)
-	if err != nil {
+	for _, algo := range algos {
+		err = decompressData(kernelData, tmpFile, algo)
+		if err == nil {
+			break
+		}
 		log.Error().Err(err).Send()
 	}
 
-	// 2. unxz
-	reader, err = unXZ(kernelData)
-	if err != nil {
-		log.Error().Err(err).Send()
-	}
-
-	// 3. bUnzip2
-	reader, err = bUnzip2(kernelData)
-	if err != nil {
-		log.Error().Err(err).Send()
-	}
-
-	// 4. unlzma
-	reader, err = unlzma(kernelData)
-	if err != nil {
-		log.Error().Err(err).Send()
-	}
-
-	// 5. lzop
-	reader, err = lZop(kernelData)
-	if err != nil {
-		log.Error().Err(err).Send()
-	}
-
-	// 6. lz4
-	reader, err = lZ4(kernelData)
-	if err != nil {
-		log.Error().Err(err).Send()
-	}
-
-	// 7. unzstd
-	reader, err = unZstd(kernelData)
-	if err != nil {
-		log.Error().Err(err).Send()
-	}
-
-	// TODO: handle err
-
-	return writer(reader, fmt.Sprintf("%s/%s", tmp, filepath.Base(KernelImagePath)))
+	return nil
 }
