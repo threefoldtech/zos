@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -25,6 +24,9 @@ type Config struct {
 	Mycelium struct {
 		Peers []string `json:"peers"`
 	} `json:"mycelium"`
+	Users struct {
+		Authorized []string `json:"authorized"`
+	} `json:"users"`
 }
 
 // Merge, updates current config with cfg merging and override config
@@ -35,27 +37,24 @@ func (c *Config) Merge(cfg Config) {
 	sort.Strings(c.Yggdrasil.Peers)
 }
 
-// GetConfig returns extend config for specific run mode
+// GetConfig returns extend config for current run mode
 func GetConfig() (base Config, err error) {
 	env, err := Get()
 	if err != nil {
 		return
 	}
+	return GetConfigForMode(env.RunningMode)
+}
 
+// GetConfig returns extend config for specific run mode
+func GetConfigForMode(mode RunMode) (base Config, err error) {
 	httpClient := &http.Client{
 		Timeout: defaultHttpTimeout,
 	}
 
-	base, err = getConfig(env.RunningMode, baseExtendedURL, httpClient)
+	base, err = getConfig(mode, baseExtendedURL, httpClient)
 	if err != nil {
 		return
-	}
-	if env.ExtendedConfigURL != "" {
-		custom, err := getConfig(env.RunningMode, env.ExtendedConfigURL, httpClient)
-		if err != nil {
-			log.Error().Err(err).Msg("fetching the config from the env config-url failed")
-		}
-		base.Merge(custom)
 	}
 
 	return base, nil

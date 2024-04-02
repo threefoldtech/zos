@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -10,7 +9,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/sethvargo/go-retry"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/kernel"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/upgrade"
 
@@ -142,6 +143,11 @@ func main() {
 		log.Info().Msg("received a termination signal")
 	})
 
+	err = manageSSHKeys(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+
 	err = upgrader.Run(ctx)
 	if errors.Is(err, upgrade.ErrRestartNeeded) {
 		return
@@ -175,48 +181,55 @@ func getIdentityMgr(root string, debug bool) (pkg.IdentityManager, error) {
 	return manager, nil
 }
 
-func authKeysHandler(ctx context.Context, env string, farm uint64) error {
+func manageSSHKeys(ctx context.Context) error {
 	authorizedKeysPath := filepath.Join("/", "root", ".ssh", "authorized_keys")
-
 	err := os.Remove(authorizedKeysPath)
 	if err != nil {
 		return err
 	}
 
-	if env == "main" {
-		if farm != 1 {
+	env := environment.MustGet()
+	runningMode := env.RunningMode
+
+	if runningMode == environment.RunningMain {
+		if env.FarmID != 1 {
 			return nil
 		}
-		env = "testing"
+		runningMode = environment.RunningTest
 	}
 
-	// get the content of the file in `zos-config` according to the network
+	config, err := environment.GetConfigForMode(runningMode)
+	if err != nil {
+		return err
+	}
+
+	authorizedUsers := config.Users.Authorized
+	extraUser, found := kernel.GetParams().GetOne("authorized_user")
+
+	if found {
+		authorizedUsers = append(authorizedUsers, extraUser)
+	}
+
 	github := github.NewClient(nil)
-	file, _, _, err := github.Repositories.GetContents(ctx, "threefoldtech", "zos-config", "authorized-users.json", nil)
-	if err != nil {
-		return err
-	}
-
-	fileContentJSON, err := file.GetContent()
-	if err != nil {
-		return err
-	}
-
-	var authorizedUsers map[string][]string
-	err = json.Unmarshal([]byte(fileContentJSON), &authorizedUsers)
-	if err != nil {
-		return err
-	}
-
 	var allKeys string
 
-	for _, user := range authorizedUsers[env] {
-		keys, _, err := github.Users.ListKeys(ctx, user, nil)
-		if err != nil {
-			return err
+	for _, user := range authorizedUsers {
+		if err := retry.Do(ctx, retry.WithMaxRetries(3, retry.NewConstant(1*time.Microsecond)), func(ctx context.Context) error {
+			keys, _, err := github.Users.ListKeys(ctx, user, nil)
+			if err != nil {
+				return err
+			}
+
+			for _, key := range keys {
+				allKeys = fmt.Sprintf("%s\n%s", allKeys, key.GetKey())
+			}
+			return nil
+		}); err != nil {
+			// skip user if failed to load the keys multiple times
+			// this means the username is not correct and need to be skipped
+			log.Error().Err(err).Send()
 		}
-		allKeys = fmt.Sprintf("%s\n%s", allKeys, keys[0].GetKey())
-		fmt.Println(keys)
 	}
+
 	return os.WriteFile(authorizedKeysPath, []byte(allKeys), 0644)
 }
