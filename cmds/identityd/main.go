@@ -182,6 +182,8 @@ func getIdentityMgr(root string, debug bool) (pkg.IdentityManager, error) {
 }
 
 func manageSSHKeys() error {
+	extraUser, found := kernel.GetParams().GetOne("ssh-user")
+
 	authorizedKeysPath := filepath.Join("/", "root", ".ssh", "authorized_keys")
 	err := os.Remove(authorizedKeysPath)
 	if err != nil {
@@ -189,25 +191,30 @@ func manageSSHKeys() error {
 	}
 
 	env := environment.MustGet()
-	runningMode := env.RunningMode
-
-	extraUser, authorized := kernel.GetParams().GetOne("ssh-user")
-
-	if runningMode == environment.RunningMain {
-		if env.FarmID != 1 {
-			// if the running mode is main and the farm is not free farm, unauthorize the extra user
-			authorized = false
-		}
-		runningMode = environment.RunningTest
-	}
-
-	config, err := environment.GetConfigForMode(runningMode)
+	config, err := environment.GetConfig()
 	if err != nil {
 		return err
 	}
 
 	authorizedUsers := config.Users.Authorized
-	if authorized {
+	if env.RunningMode == environment.RunningMain {
+		// use authorized users of testing if production has no authorized users
+		if len(authorizedUsers) == 0 {
+			config, err = environment.GetConfigForMode(environment.RunningTest)
+			if err != nil {
+				return err
+			}
+
+			authorizedUsers = config.Users.Authorized
+		}
+
+		// disable the extra user of any farm other than freefarm on production
+		if env.FarmID != 1 {
+			found = false
+		}
+	}
+
+	if found {
 		authorizedUsers = append(authorizedUsers, extraUser)
 	}
 
