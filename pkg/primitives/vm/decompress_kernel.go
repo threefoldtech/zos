@@ -8,15 +8,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/cyberdelia/lzo"
 	"github.com/hashicorp/go-multierror"
 	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4/v4"
-	"github.com/rs/zerolog/log"
-	"github.com/ulikunitz/xz"
 	"github.com/ulikunitz/xz/lzma"
+	"github.com/xi2/xz"
 )
 
 // TODO: sudo apt install liblzo2-dev
@@ -33,6 +33,7 @@ func isValidELFKernel(KernelImagePath string) error {
 type algoOptions struct {
 	decompressFunc func(kernelStream io.Reader) (io.Reader, error)
 	headerBytes    []byte
+	name           string
 }
 
 // TODO: []byte -> io.reader
@@ -40,17 +41,30 @@ func decompressData(data []byte, tmpFile *os.File, o algoOptions) error {
 	var headerIndex int
 	var errs error
 
-	for i := 0; i < bytes.Count(data, o.headerBytes); i++ {
+
+	headerCount := bytes.Count(data, o.headerBytes)
+	if headerCount == 0 {
+		return fmt.Errorf("%s: couldn't find the compression algorithm header", o.name)
+	}
+
+	for i := 0; i < headerCount; i++ {
 		headerIndex += bytes.Index(data[headerIndex:], o.headerBytes)
 
-		r, err := o.decompressFunc(bytes.NewBuffer(data[headerIndex:]))
+		headerData := data[headerIndex:]
+
+		// to ignore the current header in the next iteration
+		headerIndex += len(o.headerBytes)
+
+		r, err := o.decompressFunc(bytes.NewBuffer(headerData))
 		if err != nil {
-			return err
+			errs = multierror.Append(errs, err)
+			continue
 		}
 
 		_, err = io.Copy(tmpFile, r)
 		if err != nil {
-			return err
+			errs = multierror.Append(errs, err)
+			continue
 		}
 
 		err = isValidELFKernel(tmpFile.Name())
@@ -59,7 +73,6 @@ func decompressData(data []byte, tmpFile *os.File, o algoOptions) error {
 		}
 
 		errs = multierror.Append(errs, err)
-		headerIndex += len(o.headerBytes)
 	}
 
 	return errs
@@ -72,14 +85,20 @@ func gUnzip(kernelStream io.Reader) (io.Reader, error) {
 	}
 
 	r.Multistream(false)
-	// TODO: how it is read after closing !!!!
+	// TODO: how it read after closing !!!!
 	defer r.Close()
 
 	return r, nil
 }
 
 func unXZ(kernelStream io.Reader) (io.Reader, error) {
-	return xz.NewReader(kernelStream)
+	r, err := xz.NewReader(kernelStream, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Multistream(false)
+	return r, nil
 }
 
 func bUnzip2(kernelStream io.Reader) (io.Reader, error) {
@@ -92,8 +111,11 @@ func unlzma(kernelStream io.Reader) (io.Reader, error) {
 
 func lZop(kernelStream io.Reader) (io.Reader, error) {
 	r, err := lzo.NewReader(kernelStream)
-	r.Close()
-	return r, err
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return r, nil
 }
 
 func lZ4(kernelStream io.Reader) (io.Reader, error) {
@@ -102,8 +124,11 @@ func lZ4(kernelStream io.Reader) (io.Reader, error) {
 
 func unZstd(kernelStream io.Reader) (io.Reader, error) {
 	r, err := zstd.NewReader(kernelStream)
-	r.Close()
-	return r, err
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return r, nil
 }
 
 func tryDecompressKernel(KernelImagePath string) error {
@@ -133,41 +158,51 @@ func tryDecompressKernel(KernelImagePath string) error {
 		{
 			decompressFunc: gUnzip,
 			headerBytes:    []byte("\037\213\010"),
+			name:           "gunzip",
 		},
 		{
 			decompressFunc: unXZ,
 			headerBytes:    []byte("\3757zXZ\000"),
+			name:           "unxz",
 		},
 		{
 			decompressFunc: bUnzip2,
 			headerBytes:    []byte("BZh"),
+			name:           "bunzip2",
 		},
 		{
 			decompressFunc: unlzma,
-			headerBytes:    []byte("\135\\0\\0\\0"),
+			headerBytes:    []byte("\135\0\0\0"),
+			name: "unlzma",
 		},
 		{
 			decompressFunc: lZop,
 			headerBytes:    []byte("\211\114\132"),
+			name:           "lzop",
 		},
 		{
 			decompressFunc: lZ4,
 			headerBytes:    []byte("\002!L\030"),
+			name:           "lz4",
 		},
 		{
 			decompressFunc: unZstd,
 			headerBytes:    []byte("(\265/\375"),
+			name:           "zstd",
 		},
 	}
 
-	// 1. gUnzip
+	var errs error
+
 	for _, algo := range algos {
 		err = decompressData(kernelData, tmpFile, algo)
 		if err == nil {
-			break
+			return nil
 		}
-		log.Error().Err(err).Send()
+
+		errs = multierror.Append(errs, err)
 	}
 
-	return nil
+	return errs
 }
+

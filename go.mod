@@ -58,6 +58,7 @@ require (
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	github.com/whs/nacl-sealed-box v0.0.0-20180930164530-92b9ba845d8d
+	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/yggdrasil-network/yggdrasil-go v0.4.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/sys v0.13.0
