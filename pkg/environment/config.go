@@ -47,17 +47,12 @@ func GetConfig() (base Config, err error) {
 }
 
 // GetConfig returns extend config for specific run mode
-func GetConfigForMode(mode RunMode) (base Config, err error) {
+func GetConfigForMode(mode RunMode) (Config, error) {
 	httpClient := &http.Client{
 		Timeout: defaultHttpTimeout,
 	}
 
-	base, err = getConfig(mode, baseExtendedURL, httpClient)
-	if err != nil {
-		return
-	}
-
-	return base, nil
+	return getConfig(mode, baseExtendedURL, httpClient)
 }
 
 func uniqueStr(slice []string) []string {
