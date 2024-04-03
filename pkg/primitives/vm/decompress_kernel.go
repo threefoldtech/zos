@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/cyberdelia/lzo"
@@ -40,7 +39,6 @@ type algoOptions struct {
 func decompressData(data []byte, tmpFile *os.File, o algoOptions) error {
 	var headerIndex int
 	var errs error
-
 
 	headerCount := bytes.Count(data, o.headerBytes)
 	if headerCount == 0 {
@@ -172,8 +170,8 @@ func tryDecompressKernel(KernelImagePath string) error {
 		},
 		{
 			decompressFunc: unlzma,
-			headerBytes:    []byte("\135\0\0\0"),
-			name: "unlzma",
+			headerBytes:    []byte("\135\000\000\000"),
+			name:           "unlzma",
 		},
 		{
 			decompressFunc: lZop,
@@ -205,4 +203,3 @@ func tryDecompressKernel(KernelImagePath string) error {
 
 	return errs
 }
-
