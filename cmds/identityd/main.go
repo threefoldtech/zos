@@ -4,12 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
-	"github.com/sethvargo/go-retry"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/kernel"
 	"github.com/threefoldtech/zos/pkg/stubs"
@@ -18,8 +20,6 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/identity"
-
-	"github.com/google/go-github/v60/github"
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
@@ -143,9 +143,9 @@ func main() {
 		log.Info().Msg("received a termination signal")
 	})
 
-	err = manageSSHKeys(ctx)
+	err = manageSSHKeys()
 	if err != nil {
-		log.Fatal().Err(err).Send()
+		log.Error().Err(err).Msg("failed to configure ssh users")
 	}
 
 	err = upgrader.Run(ctx)
@@ -181,7 +181,7 @@ func getIdentityMgr(root string, debug bool) (pkg.IdentityManager, error) {
 	return manager, nil
 }
 
-func manageSSHKeys(ctx context.Context) error {
+func manageSSHKeys() error {
 	authorizedKeysPath := filepath.Join("/", "root", ".ssh", "authorized_keys")
 	err := os.Remove(authorizedKeysPath)
 	if err != nil {
@@ -191,9 +191,12 @@ func manageSSHKeys(ctx context.Context) error {
 	env := environment.MustGet()
 	runningMode := env.RunningMode
 
+	extraUser, authorized := kernel.GetParams().GetOne("ssh-user")
+
 	if runningMode == environment.RunningMain {
 		if env.FarmID != 1 {
-			return nil
+			// if the running mode is main and the farm is not free farm, unauthorize the extra user
+			authorized = false
 		}
 		runningMode = environment.RunningTest
 	}
@@ -204,32 +207,41 @@ func manageSSHKeys(ctx context.Context) error {
 	}
 
 	authorizedUsers := config.Users.Authorized
-	extraUser, found := kernel.GetParams().GetOne("authorized_user")
-
-	if found {
+	if authorized {
 		authorizedUsers = append(authorizedUsers, extraUser)
 	}
 
-	github := github.NewClient(nil)
-	var allKeys string
+	file, err := os.OpenFile(authorizedKeysPath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
 
 	for _, user := range authorizedUsers {
-		if err := retry.Do(ctx, retry.WithMaxRetries(3, retry.NewConstant(1*time.Microsecond)), func(ctx context.Context) error {
-			keys, _, err := github.Users.ListKeys(ctx, user, nil)
+		featchKeys := func() error {
+			res, err := http.Get(fmt.Sprintf("https://github.com/%s.keys", user))
+			if res.StatusCode == http.StatusNotFound {
+				return backoff.Permanent(fmt.Errorf("failed to get user keys for user (%s): keys not found", user))
+			}
+
 			if err != nil {
 				return err
 			}
 
-			for _, key := range keys {
-				allKeys = fmt.Sprintf("%s\n%s", allKeys, key.GetKey())
+			if res.StatusCode != http.StatusOK {
+				return fmt.Errorf("failed to get user keys for user (%s) with status code %d", user, res.StatusCode)
 			}
-			return nil
-		}); err != nil {
+
+			_, err = io.Copy(file, res.Body)
+			return err
+		}
+
+		err = backoff.Retry(featchKeys, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond), 3))
+		if err != nil {
 			// skip user if failed to load the keys multiple times
 			// this means the username is not correct and need to be skipped
 			log.Error().Err(err).Send()
 		}
 	}
 
-	return os.WriteFile(authorizedKeysPath, []byte(allKeys), 0644)
+	return nil
 }
