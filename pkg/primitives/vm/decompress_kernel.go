@@ -59,8 +59,13 @@ func decompressData(data []byte, tmpFile *os.File, o algoOptions) error {
 			continue
 		}
 
+		// close zstd reader after write
+		if reader, ok := r.(*zstd.Decoder); ok {
+			defer reader.Close()
+		}
+
 		_, err = io.Copy(tmpFile, r)
-		if err != nil {
+		if err != nil && err != bzip2.StructuralError("bad magic value in continuation file") {
 			errs = multierror.Append(errs, err)
 			continue
 		}
@@ -125,7 +130,7 @@ func unZstd(kernelStream io.Reader) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+
 	return r, nil
 }
 
