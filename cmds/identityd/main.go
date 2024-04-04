@@ -4,16 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
-	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/kernel"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/upgrade"
 
@@ -179,76 +174,4 @@ func getIdentityMgr(root string, debug bool) (pkg.IdentityManager, error) {
 		Msg("farmer identified")
 
 	return manager, nil
-}
-
-func manageSSHKeys() error {
-	extraUser, found := kernel.GetParams().GetOne("ssh-user")
-
-	authorizedKeysPath := filepath.Join("/", "root", ".ssh", "authorized_keys")
-	err := os.Remove(authorizedKeysPath)
-	if err != nil {
-		return err
-	}
-
-	env := environment.MustGet()
-	config, err := environment.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	authorizedUsers := config.Users.Authorized
-	if env.RunningMode == environment.RunningMain {
-		// use authorized users of testing if production has no authorized users
-		if len(authorizedUsers) == 0 {
-			config, err = environment.GetConfigForMode(environment.RunningTest)
-			if err != nil {
-				return err
-			}
-
-			authorizedUsers = config.Users.Authorized
-		}
-
-		// disable the extra user of any farm other than freefarm on production
-		if env.FarmID != 1 {
-			found = false
-		}
-	}
-
-	if found {
-		authorizedUsers = append(authorizedUsers, extraUser)
-	}
-
-	file, err := os.OpenFile(authorizedKeysPath, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-
-	for _, user := range authorizedUsers {
-		featchKeys := func() error {
-			res, err := http.Get(fmt.Sprintf("https://github.com/%s.keys", user))
-			if res.StatusCode == http.StatusNotFound {
-				return backoff.Permanent(fmt.Errorf("failed to get user keys for user (%s): keys not found", user))
-			}
-
-			if err != nil {
-				return err
-			}
-
-			if res.StatusCode != http.StatusOK {
-				return fmt.Errorf("failed to get user keys for user (%s) with status code %d", user, res.StatusCode)
-			}
-
-			_, err = io.Copy(file, res.Body)
-			return err
-		}
-
-		err = backoff.Retry(featchKeys, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond), 3))
-		if err != nil {
-			// skip user if failed to load the keys multiple times
-			// this means the username is not correct and need to be skipped
-			log.Error().Err(err).Send()
-		}
-	}
-
-	return nil
 }
