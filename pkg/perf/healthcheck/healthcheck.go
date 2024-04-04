@@ -65,8 +65,8 @@ func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 		if len(errors) == 0 {
 			continue
 		}
-		stringErrs := errorsToStrings(errors)
-		errs[label] = append(errs[label], stringErrs...)
+
+		errs[label] = errorsToStrings(errors)
 	}
 
 	cl := perf.GetZbusClient(ctx)
