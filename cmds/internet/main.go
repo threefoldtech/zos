@@ -219,15 +219,17 @@ func configureZOS() error {
 			}
 		}
 
-		if env.NTPServer != nil && *env.NTPServer != "" {
+		if env.NTPServer != nil && strings.TrimSpace(*env.NTPServer) != "" {
 			// override /etc/ntp.conf
 			servers := strings.Split(*env.NTPServer, ",")
 			var buffer strings.Builder
 			for _, server := range servers {
-				buffer.WriteString(fmt.Sprintf("server %s\n", server))
+				server = strings.TrimSpace(server)
+				if isValidNtp(server) {
+					buffer.WriteString(fmt.Sprintf("server %s\n", server))
+				}
 			}
-			err := os.WriteFile(ntpFilePath, []byte(buffer.String()), 0644)
-			if err != nil {
+			if err := os.WriteFile(ntpFilePath, []byte(buffer.String()), 0644); err != nil {
 				return errors.Wrap(err, "failed to write ntp server conf")
 			}
 		}
@@ -258,4 +260,8 @@ func configureZOS() error {
 	}
 
 	return backoff.RetryNotify(f, backoff.NewExponentialBackOff(), errHandler)
+}
+
+func isValidNtp(server string) bool {
+	return strings.HasSuffix(server, ".pool.ntp.org")
 }

@@ -253,10 +253,8 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 		}
 	}
 
-	if ntps, ok := params.Get("ntp"); ok {
-		if len(ntps) > 0 {
-			env.NTPServer = &ntps[0]
-		}
+	if ntps, ok := params.GetOne("ntp"); ok {
+		env.NTPServer = &ntps
 	}
 
 	farmerID, found := params.Get("farmer_id")

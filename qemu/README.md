@@ -121,6 +121,20 @@ sudo ./vm.sh -n node-01 -c "farmer_id=47 printk.devmsg=on runmode=dev ssh-user=<
 - `farmer_id` is the id of the farm you registered with `tffarmer`
 - `ssh-user` is github username provided if a user need to pass ssh-key to the node
 - `ntp` a comma separated list with ntp servers to override `/etc/ntp.conf`
+  Example: run with zonal ntp pool
+
+  ```bash
+  sudo ./vm.sh -n node-01 -c "farmer_id=47 printk.devmsg=on runmode=dev ssh-user=<github username> ntp=0.africa.pool.ntp.org,1.africa.pool.ntp.org,2.africa.pool.ntp.org"
+  ```
+
+  this override the `/etc/ntp.conf` file to be:
+
+  ```text
+  server 0.africa.pool.ntp.org
+  server 1.africa.pool.ntp.org
+  server 2.africa.pool.ntp.org
+  ```
+
 
 NOTE: it is assumed you get a proper IPv6 address, if not, omit the IPv6 parts
 
