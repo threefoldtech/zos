@@ -62,6 +62,9 @@ type Environment struct {
 
 	// PubMac value from environment
 	PubMac PubMac
+
+	// NTPServer will override the values on /etc/ntp.conf
+	NTPServer *string
 }
 
 // RunMode type
@@ -247,6 +250,12 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	if farmSecret, ok := params.Get("secret"); ok {
 		if len(farmSecret) > 0 {
 			env.FarmSecret = farmSecret[len(farmSecret)-1]
+		}
+	}
+
+	if ntps, ok := params.Get("ntp"); ok {
+		if len(ntps) > 0 {
+			env.NTPServer = &ntps[0]
 		}
 	}
 

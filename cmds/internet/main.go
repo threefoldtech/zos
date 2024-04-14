@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -23,6 +25,8 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/version"
 )
+
+const ntpFilePath = "/etc/ntp.conf"
 
 func main() {
 	app.Initialize()
@@ -212,6 +216,19 @@ func configureZOS() error {
 			// add new vlan
 			if err := netlink.BridgeVlanAdd(link, *env.PubVlan, false, false, false, false); err != nil {
 				return errors.Wrapf(err, "failed to set vlan on device '%s'", link.Attrs().Name)
+			}
+		}
+
+		if env.NTPServer != nil && *env.NTPServer != "" {
+			// override /etc/ntp.conf
+			servers := strings.Split(*env.NTPServer, ",")
+			var buffer strings.Builder
+			for _, server := range servers {
+				buffer.WriteString(fmt.Sprintf("server %s\n", server))
+			}
+			err := os.WriteFile(ntpFilePath, []byte(buffer.String()), 0644)
+			if err != nil {
+				return errors.Wrap(err, "failed to write ntp server conf")
 			}
 		}
 
