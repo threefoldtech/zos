@@ -10,7 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cyberdelia/lzo"
+	// "github.com/cyberdelia/lzo" --> it requires liblzo2-dev to be installed
+
 	"github.com/hashicorp/go-multierror"
 	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4/v4"
@@ -65,7 +66,7 @@ func decompressData(data []byte, tmpFile *os.File, o algoOptions) error {
 		}
 
 		_, err = io.Copy(tmpFile, r)
-		if err != nil && err != bzip2.StructuralError("bad magic value in continuation file") {
+		if err != nil && err != bzip2.StructuralError("bad magic value in continuation file") && err != zstd.ErrMagicMismatch {
 			errs = multierror.Append(errs, err)
 			continue
 		}
@@ -112,14 +113,14 @@ func unlzma(kernelStream io.Reader) (io.Reader, error) {
 	return lzma.NewReader(kernelStream)
 }
 
-func lZop(kernelStream io.Reader) (io.Reader, error) {
-	r, err := lzo.NewReader(kernelStream)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-	return r, nil
-}
+// func lZop(kernelStream io.Reader) (io.Reader, error) {
+// 	r, err := lzo.NewReader(kernelStream)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer r.Close()
+// 	return r, nil
+// }
 
 func lZ4(kernelStream io.Reader) (io.Reader, error) {
 	return lz4.NewReader(kernelStream), nil
@@ -178,11 +179,11 @@ func tryDecompressKernel(KernelImagePath string) error {
 			headerBytes:    []byte("\135\000\000\000"),
 			name:           "unlzma",
 		},
-		{
-			decompressFunc: lZop,
-			headerBytes:    []byte("\211\114\132"),
-			name:           "lzop",
-		},
+		// {
+		// 	decompressFunc: lZop,
+		// 	headerBytes:    []byte("\211\114\132"),
+		// 	name:           "lzop",
+		// },
 		{
 			decompressFunc: lZ4,
 			headerBytes:    []byte("\002!L\030"),
