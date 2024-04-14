@@ -36,7 +36,6 @@ type algoOptions struct {
 	name           string
 }
 
-// TODO: []byte -> io.reader
 func decompressData(data []byte, tmpFile *os.File, o algoOptions) error {
 	var headerIndex int
 	var errs error
@@ -201,6 +200,15 @@ func tryDecompressKernel(KernelImagePath string) error {
 	for _, algo := range algos {
 		err = decompressData(kernelData, tmpFile, algo)
 		if err == nil {
+			f, err := os.Create(KernelImagePath)
+			if err != nil {
+				return err
+			}
+
+			if _, err := io.Copy(f, tmpFile); err != nil {
+				return err
+			}
+
 			return nil
 		}
 
