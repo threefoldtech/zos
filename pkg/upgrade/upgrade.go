@@ -294,17 +294,25 @@ func (u *Upgrader) updateTo(link hub.TagLink) error {
 	return nil
 }
 
-func (u *Upgrader) flistCache() string {
-	return filepath.Join(u.root, "cache", "flist")
+func (u *Upgrader) flistCache(inMemory ...bool) string {
+	root := u.root
+	if len(inMemory) > 0 && inMemory[0] {
+		root = filepath.Join("/tmp", root)
+	}
+	return filepath.Join(root, "cache", "flist")
 }
 
-func (u *Upgrader) fileCache() string {
-	return filepath.Join(u.root, "cache", "files")
+func (u *Upgrader) fileCache(inMemory ...bool) string {
+	root := u.root
+	if len(inMemory) > 0 && inMemory[0] {
+		root = filepath.Join("/tmp", root)
+	}
+	return filepath.Join(root, "cache", "files")
 }
 
 // getFlist accepts fqdn of flist as `<repo>/<name>.flist`
-func (u *Upgrader) getFlist(repo, name string) (meta.Walker, error) {
-	db, err := u.hub.Download(u.flistCache(), repo, name)
+func (u *Upgrader) getFlist(repo, name string, inMemory ...bool) (meta.Walker, error) {
+	db, err := u.hub.Download(u.flistCache(inMemory...), repo, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to download flist")
 	}
@@ -326,17 +334,33 @@ func (u *Upgrader) getFlist(repo, name string) (meta.Walker, error) {
 // install from a single flist.
 func (u *Upgrader) install(repo, name string) error {
 	log.Info().Str("repo", repo).Str("name", name).Msg("start installing package")
+	inMemory := false
 
 	store, err := u.getFlist(repo, name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to process flist: %s/%s", repo, name)
+		// try in memory
+		if err := os.MkdirAll(u.fileCache(true), 0755); err != nil {
+			return fmt.Errorf("failed to create tmp file cache dir: %w", err)
+		}
+		defer os.RemoveAll(u.fileCache(true))
+		if err := os.MkdirAll(u.flistCache(true), 0755); err != nil {
+			return fmt.Errorf("failed to create tmp flist cache dir: %w", err)
+		}
+		defer os.RemoveAll(u.flistCache(true))
+
+		log.Info().Msg("downloading in memory")
+		store, err = u.getFlist(repo, name, true)
+		if err != nil {
+			return errors.Wrapf(err, "failed to process flist: %s/%s", repo, name)
+		}
+		inMemory = true
 	}
 	defer store.Close()
 
 	if err := safe(func() error {
 		// copy is done in a safe closer to avoid interrupting
 		// the installation
-		return u.copyRecursive(store, "/")
+		return u.copyRecursive(store, "/", inMemory)
 	}); err != nil {
 		return errors.Wrapf(err, "failed to install flist: %s/%s", repo, name)
 	}
@@ -417,7 +441,7 @@ func (u *Upgrader) ensureRestarted(service ...string) error {
 	return nil
 }
 
-func (u *Upgrader) copyRecursive(store meta.Walker, destination string, skip ...string) error {
+func (u *Upgrader) copyRecursive(store meta.Walker, destination string, inMemory bool, skip ...string) error {
 	return store.Walk("", func(path string, info meta.Meta) error {
 		dest := filepath.Join(destination, path)
 		if isIn(dest, skip) {
@@ -440,7 +464,7 @@ func (u *Upgrader) copyRecursive(store meta.Walker, destination string, skip ...
 		switch stat.Type {
 		case meta.RegularType:
 			// regular file (or other types that we don't handle)
-			return u.copyFile(dest, info)
+			return u.copyFile(dest, info, inMemory)
 		case meta.LinkType:
 			// fmt.Println("link target", stat.LinkTarget)
 			target := stat.LinkTarget
@@ -472,7 +496,7 @@ func isIn(target string, list []string) bool {
 	return false
 }
 
-func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
+func (u *Upgrader) copyFile(dst string, src meta.Meta, inMemory ...bool) error {
 	log.Info().Str("source", src.Name()).Str("destination", dst).Msg("copy file")
 
 	var (
@@ -513,7 +537,7 @@ func (u *Upgrader) copyFile(dst string, src meta.Meta) error {
 	}
 	defer fDst.Close()
 
-	cache := rofs.NewCache(u.fileCache(), u.storage)
+	cache := rofs.NewCache(u.fileCache(inMemory...), u.storage)
 	fSrc, err := cache.CheckAndGet(src)
 	if err != nil {
 		return err

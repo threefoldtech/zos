@@ -29,7 +29,7 @@ func TestUpgraderDownload(t *testing.T) {
 	require.NoError(err)
 	tmp := t.TempDir()
 
-	err = up.copyRecursive(store, tmp)
+	err = up.copyRecursive(store, tmp, false)
 	require.NoError(err)
 
 	// validation of download
