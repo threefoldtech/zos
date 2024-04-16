@@ -168,10 +168,17 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to initialize rmb api")
 	}
 
-	// we need to start both rmb server and zbus server.
+	// we need to start rmb server, zbus server and public config monitoring.
 	go func(ctx context.Context) {
 		if err := startRmbServer(ctx, mBus); err != nil {
 			log.Fatal().Err(err).Msg("rmb exited unexpectedly")
+		}
+	}(ctx)
+
+	go func(ctx context.Context) {
+		log.Info().Msg("monitor changes in private ip")
+		if err := startPublicConfigMonitoring(ctx, pub); err != nil {
+			log.Error().Err(err).Msg("failed to start monitoring for private ip changes")
 		}
 	}(ctx)
 
@@ -181,6 +188,28 @@ func action(cli *cli.Context) error {
 	}
 
 	return nil
+}
+
+func startPublicConfigMonitoring(ctx context.Context, cfg *pkg.PublicConfig) error {
+	timer := time.NewTicker(5 * time.Minute)
+	for {
+		newCfg, err := public.LoadPublicConfig()
+		if err != nil {
+			return err
+		}
+
+		// if the ip was changed kick start the registration again.
+		if !cfg.Equal(*newCfg) {
+			cfg = newCfg
+			// run the registration again
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
 }
 
 func startRmbServer(ctx context.Context, bus *rmb.DefaultRouter) error {
@@ -199,7 +228,6 @@ func startRmbServer(ctx context.Context, bus *rmb.DefaultRouter) error {
 }
 
 func startZBusServer(ctx context.Context, broker string, networker pkg.Networker) error {
-
 	server, err := zbus.NewRedisServer(module, broker, 1)
 	if err != nil {
 		log.Error().Err(err).Msgf("fail to connect to message broker server")
@@ -222,7 +250,7 @@ func startZBusServer(ctx context.Context, broker string, networker pkg.Networker
 func waitYggdrasilBin() {
 	log.Info().Msg("wait for yggdrasil binary to be available")
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0 //forever
+	bo.MaxElapsedTime = 0 // forever
 	_ = backoff.RetryNotify(func() error {
 		_, err := exec.LookPath("yggdrasil")
 		return err
