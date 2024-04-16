@@ -19,8 +19,6 @@ import (
 	"github.com/xi2/xz"
 )
 
-// TODO: sudo apt install liblzo2-dev
-
 func isValidELFKernel(KernelImagePath string) error {
 	f, err := elf.Open(KernelImagePath)
 	if err != nil {
@@ -66,12 +64,14 @@ func decompressData(data []byte, tmpFile *os.File, o algoOptions) error {
 
 		_, err = io.Copy(tmpFile, r)
 		if err != nil && err != bzip2.StructuralError("bad magic value in continuation file") && err != zstd.ErrMagicMismatch {
+			if o.name == "zstd" {
+				err = fmt.Errorf("%s: %v", o.name, err)
+			}
 			errs = multierror.Append(errs, err)
 			continue
 		}
 
-		err = isValidELFKernel(tmpFile.Name())
-		if err == nil {
+		if err = isValidELFKernel(tmpFile.Name()); err == nil {
 			return nil
 		}
 
@@ -112,14 +112,9 @@ func unlzma(kernelStream io.Reader) (io.Reader, error) {
 	return lzma.NewReader(kernelStream)
 }
 
-// func lZop(kernelStream io.Reader) (io.Reader, error) {
-// 	r, err := lzo.NewReader(kernelStream)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer r.Close()
-// 	return r, nil
-// }
+func lZop(kernelStream io.Reader) (io.Reader, error) {
+	return nil, fmt.Errorf("lzo: algorithm is not supported yet")
+}
 
 func lZ4(kernelStream io.Reader) (io.Reader, error) {
 	return lz4.NewReader(kernelStream), nil
@@ -134,25 +129,28 @@ func unZstd(kernelStream io.Reader) (io.Reader, error) {
 	return r, nil
 }
 
-func tryDecompressKernel(KernelImagePath string) error {
-	if len(strings.TrimSpace(KernelImagePath)) == 0 {
+func tryDecompressKernel(kernelImagePath string) error {
+	if len(strings.TrimSpace(kernelImagePath)) == 0 {
 		return fmt.Errorf("kernel image is required")
 	}
 
 	// if kernel is already an elf (uncompressed)
-	if err := isValidELFKernel(KernelImagePath); err == nil {
+	if err := isValidELFKernel(kernelImagePath); err == nil {
 		return nil
 	}
 
 	// Prepare temp files:
-	tmpFile, err := os.CreateTemp("/tmp", "vmlinux-")
+	tmpFile, err := os.CreateTemp("", "vmlinux-")
 	if err != nil {
 		return err
 	}
-	defer tmpFile.Close()
-	defer os.Remove(tmpFile.Name())
 
-	kernelData, err := os.ReadFile(KernelImagePath)
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}()
+
+	kernelData, err := os.ReadFile(kernelImagePath)
 	if err != nil {
 		return err
 	}
@@ -178,11 +176,11 @@ func tryDecompressKernel(KernelImagePath string) error {
 			headerBytes:    []byte("\135\000\000\000"),
 			name:           "unlzma",
 		},
-		// {
-		// 	decompressFunc: lZop,
-		// 	headerBytes:    []byte("\211\114\132"),
-		// 	name:           "lzop",
-		// },
+		{
+			decompressFunc: lZop,
+			headerBytes:    []byte("\211\114\132"),
+			name:           "lzop",
+		},
 		{
 			decompressFunc: lZ4,
 			headerBytes:    []byte("\002!L\030"),
@@ -198,12 +196,13 @@ func tryDecompressKernel(KernelImagePath string) error {
 	var errs error
 
 	for _, algo := range algos {
-		err = decompressData(kernelData, tmpFile, algo)
-		if err == nil {
-			f, err := os.Create(KernelImagePath)
+		if err = decompressData(kernelData, tmpFile, algo); err == nil {
+			f, err := os.Create(kernelImagePath)
 			if err != nil {
 				return err
 			}
+
+			defer f.Close()
 
 			if _, err := io.Copy(f, tmpFile); err != nil {
 				return err
