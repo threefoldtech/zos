@@ -705,7 +705,7 @@ func (n *networker) SetPublicExitDevice(iface string) error {
 	return public.SetPublicExitLink(link)
 }
 
-func (n *networker) Interfaces(iface string, netns string) (map[string]pkg.Interface, error) {
+func (n *networker) Interfaces(iface string, netns string) (pkg.Interfaces, error) {
 	getter := func(iface string) ([]netlink.Link, error) {
 		if iface != "" {
 			l, err := netlink.LinkByName(iface)
@@ -1277,21 +1277,27 @@ func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 		return result
 	}
 
+	done := make(chan struct{})
+	updateChan := make(chan netlink.AddrUpdate)
+
+	netlink.AddrSubscribe(updateChan, done)
+
 	ch := make(chan pkg.NetlinkAddresses)
 	go func() {
 		defer close(ch)
+		defer close(done)
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(30 * time.Second):
+			case <-updateChan:
 				ch <- get()
 			}
 		}
 	}()
 
 	return ch
-
 }
 
 func (n *networker) syncWGPorts() error {
