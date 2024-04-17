@@ -25,7 +25,7 @@ const (
 func (s *Module) diskPools() ([]string, error) {
 
 	var paths []string
-	for _, pool := range s.pools(SSD, HDD) {
+	for _, pool := range s.pools(PolicySSDFirst) {
 		if _, err := pool.Mounted(); err != nil {
 			continue
 		}
@@ -47,7 +47,7 @@ func (s *Module) diskPools() ([]string, error) {
 
 // VDiskFindCandidate find a suitable location for creating a vdisk of the given size
 func (s *Module) diskFindCandidate(size gridtypes.Unit) (path string, err error) {
-	candidates, err := s.findCandidates(size, SSD, HDD)
+	candidates, err := s.findCandidates(size, PolicySSDFirst)
 	if err != nil {
 		return path, err
 	}

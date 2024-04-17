@@ -403,7 +403,7 @@ func (s *Module) VolumeCreate(name string, size gridtypes.Unit) (pkg.Volume, err
 
 	// otherwise, create a new volume
 
-	fs, err := s.createSubvolWithQuota(size, name, SSD)
+	fs, err := s.createSubvolWithQuota(size, name, PolicySSDFirst)
 	if err != nil {
 		return pkg.Volume{}, err
 	}
@@ -429,7 +429,7 @@ func (s *Module) VolumeCreate(name string, size gridtypes.Unit) (pkg.Volume, err
 func (s *Module) VolumeDelete(name string) error {
 	log.Info().Msgf("Deleting volume %v", name)
 
-	for _, pool := range s.pools(SSD, HDD) {
+	for _, pool := range s.pools(PolicySSDFirst) {
 		if _, err := pool.Mounted(); err != nil {
 			continue
 		}
@@ -474,7 +474,7 @@ func (s *Module) VolumeDelete(name string) error {
 func (s *Module) VolumeList() ([]pkg.Volume, error) {
 	fss := make([]pkg.Volume, 0, 10)
 
-	for _, pool := range s.pools(SSD, HDD) {
+	for _, pool := range s.pools(PolicySSDFirst) {
 		if _, err := pool.Mounted(); err != nil {
 			continue
 		}
@@ -530,7 +530,7 @@ func (s *Module) VolumeExists(name string) (bool, error) {
 // Path return the path of the mountpoint of the named filesystem
 // if no volume with name exists, an empty path and an error is returned
 func (s *Module) path(name string) (filesystem.Pool, filesystem.Volume, pkg.Volume, error) {
-	for _, pool := range s.pools(SSD, HDD) {
+	for _, pool := range s.pools(PolicySSDFirst) {
 		if _, err := pool.Mounted(); err != nil {
 			continue
 		}
@@ -575,7 +575,7 @@ func (s *Module) ensureCache(ctx context.Context) error {
 
 	// check if cache volume available
 	// prefer SSD over hdd
-	for _, pool := range s.pools(SSD, HDD) {
+	for _, pool := range s.pools(PolicySSDFirst) {
 		log.Debug().Str("pool", pool.Name()).Msg("checking pool for cache volume")
 		if _, err := pool.Mounted(); err != nil {
 			log.Debug().Str("pool", pool.Name()).Msg("pool is not mounted")
@@ -603,7 +603,7 @@ func (s *Module) ensureCache(ctx context.Context) error {
 		log.Debug().Msgf("No cache found, try to create new cache")
 
 		log.Debug().Msgf("Trying to create new cache on SSD")
-		fs, err := s.createSubvolWithQuota(cacheSize, cacheLabel, SSD, HDD)
+		fs, err := s.createSubvolWithQuota(cacheSize, cacheLabel, PolicySSDFirst)
 
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to create new cache on SSD")
@@ -692,8 +692,8 @@ func (s *Module) watchCache(ctx context.Context, cache filesystem.Volume) {
 // createSubvolWithQuota creates a subvolume with the given name and limits it to the given size
 // if the requested disk type does not have a storage pool with enough free size available, an error is returned
 // this methods does set a quota limit equal to size on the created volume
-func (s *Module) createSubvolWithQuota(size gridtypes.Unit, name string, presence ...Presence) (filesystem.Volume, error) {
-	volume, err := s.createSubvol(size, name, presence...)
+func (s *Module) createSubvolWithQuota(size gridtypes.Unit, name string, policy Policy) (filesystem.Volume, error) {
+	volume, err := s.createSubvol(size, name, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -709,11 +709,11 @@ func (s *Module) createSubvolWithQuota(size gridtypes.Unit, name string, presenc
 // createSubvol creates a subvolume with the given name
 // if the requested disk type does not have a storage pool with enough free size available, an error is returned
 // this method does not set any quota on the subvolume, for this uses createSubvolWithQuota
-func (s *Module) createSubvol(size gridtypes.Unit, name string, presence ...Presence) (filesystem.Volume, error) {
+func (s *Module) createSubvol(size gridtypes.Unit, name string, policy Policy) (filesystem.Volume, error) {
 	var err error
 
 	// looking for candidates
-	candidates, err := s.findCandidates(size, presence...)
+	candidates, err := s.findCandidates(size, policy)
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to search candidates on mounted pools")
 		return nil, err
@@ -738,10 +738,10 @@ type candidate struct {
 	Available uint64
 }
 
-func (s *Module) findCandidates(size gridtypes.Unit, presence ...Presence) ([]candidate, error) {
+func (s *Module) findCandidates(size gridtypes.Unit, policy Policy) ([]candidate, error) {
 
 	// Look for candidates in mounted pools first
-	candidates, err := s.checkForCandidates(size, presence...)
+	candidates, err := s.checkForCandidates(size, policy)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to search candidate on mounted pools")
 	}
@@ -753,9 +753,9 @@ func (s *Module) findCandidates(size gridtypes.Unit, presence ...Presence) ([]ca
 	return candidates, nil
 }
 
-func (s *Module) checkForCandidates(size gridtypes.Unit, presence ...Presence) ([]candidate, error) {
+func (s *Module) checkForCandidates(size gridtypes.Unit, policy Policy) ([]candidate, error) {
 	var candidates []candidate
-	for _, pool := range s.pools(presence...) {
+	for _, pool := range s.pools(policy) {
 		_, err := pool.Mounted()
 		isMounted := err == nil
 

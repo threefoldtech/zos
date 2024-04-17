@@ -19,7 +19,7 @@ const (
 func (m *Module) Devices() ([]pkg.Device, error) {
 	var devices []pkg.Device
 	log.Debug().Int("disks", len(m.hdds)).Msg("listing zdb devices")
-	for _, hdd := range m.pools(HDD) {
+	for _, hdd := range m.pools(PolicyHDDOnly) {
 		log.Debug().Str("device", hdd.Path()).Msg("checking device")
 		if _, err := hdd.Mounted(); err != nil {
 			log.Debug().Str("device", hdd.Path()).Msg("not mounted")
@@ -60,7 +60,7 @@ func (m *Module) Devices() ([]pkg.Device, error) {
 
 // DeviceLookup looks up device by name
 func (m *Module) DeviceLookup(name string) (pkg.Device, error) {
-	for _, hdd := range m.pools(HDD) {
+	for _, hdd := range m.pools(PolicyHDDOnly) {
 		if hdd.Name() != name {
 			continue
 		}
@@ -102,7 +102,7 @@ func (m *Module) DeviceLookup(name string) (pkg.Device, error) {
 // DeviceAllocate allocates a new free device, allocation is done
 // by creation a zdb subvolume
 func (m *Module) DeviceAllocate(min gridtypes.Unit) (pkg.Device, error) {
-	for _, hdd := range m.pools(HDD) {
+	for _, hdd := range m.pools(PolicyHDDOnly) {
 		if hdd.Device().Size < uint64(min) {
 			continue
 		}

@@ -3,13 +3,14 @@ package storage
 import (
 	"slices"
 
+	"github.com/threefoldtech/zos/pkg/kernel"
 	"github.com/threefoldtech/zos/pkg/storage/filesystem"
 )
 
 // utils for pool ordering and presence
 
-// Presence needed
-type Presence func(s *Module) []filesystem.Pool
+// Policy needed
+type Policy func(s *Module) []filesystem.Pool
 
 func poolCmp(a, b filesystem.Pool) int {
 	_, errA := a.Mounted()
@@ -27,25 +28,30 @@ func poolCmp(a, b filesystem.Pool) int {
 	}
 }
 
-func SSD(s *Module) []filesystem.Pool {
-	// we need to sort them by mount
+func PolicySSDOnly(s *Module) []filesystem.Pool {
 	slices.SortFunc(s.ssds, poolCmp)
 	return s.ssds
 }
 
-func HDD(s *Module) []filesystem.Pool {
-	// we need to sort them by mount
+func PolicyHDDOnly(s *Module) []filesystem.Pool {
 	slices.SortFunc(s.hdds, poolCmp)
 	return s.hdds
 }
 
-// get available pools in defined presence
-func (s *Module) pools(presence ...Presence) []filesystem.Pool {
-	var results []filesystem.Pool
-	for _, filter := range presence {
-		filtered := filter(s)
-		results = append(results, filtered...)
+func PolicySSDFirst(s *Module) []filesystem.Pool {
+	pools := PolicySSDOnly(s)
+
+	// if missing ssd is supported, this policy
+	// will also use the hdd pools for provisioning
+	// and cache
+	if kernel.GetParams().Exists(kernel.MissingSSD) {
+		pools = append(pools, PolicyHDDOnly(s)...)
 	}
 
-	return results
+	return pools
+}
+
+// get available pools in defined presence
+func (s *Module) pools(policy Policy) []filesystem.Pool {
+	return policy(s)
 }
