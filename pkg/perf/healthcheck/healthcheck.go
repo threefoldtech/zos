@@ -70,8 +70,7 @@ func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 			errors := check(ctx)
 			errs[label] = errorsToStrings(errors)
 
-			err := zui.PushErrors(ctx, label, errs[label])
-			if err != nil {
+			if err := zui.PushErrors(ctx, label, errs[label]); err != nil {
 				return err
 			}
 
