@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/perf"
@@ -60,21 +62,36 @@ func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 	log.Debug().Msg("starting health check task")
 	errs := make(map[string][]string)
 
-	for label, check := range h.checks {
-		errors := check(ctx)
-		if len(errors) == 0 {
-			continue
-		}
-
-		errs[label] = errorsToStrings(errors)
-	}
-
 	cl := perf.GetZbusClient(ctx)
 	zui := stubs.NewZUIStub(cl)
 
-	for label := range h.checks {
-		err := zui.PushErrors(ctx, label, errs[label])
-		if err != nil {
+	for label, check := range h.checks {
+		op := func() error {
+			errors := check(ctx)
+			errs[label] = errorsToStrings(errors)
+
+			err := zui.PushErrors(ctx, label, errs[label])
+			if err != nil {
+				return err
+			}
+
+			if len(errors) != 0 {
+				return fmt.Errorf("failed health check")
+			}
+
+			return nil
+		}
+
+		notify := func(err error, t time.Duration) {
+			log.Error().Err(err).Str("check", label).Dur("retry-in", t).Msg("failed health check. retrying")
+		}
+
+		bo := backoff.NewExponentialBackOff()
+		bo.InitialInterval = 30 * time.Second
+		bo.MaxInterval = 30 * time.Second
+		bo.MaxElapsedTime = 10 * time.Minute
+
+		if err := backoff.RetryNotify(op, bo, notify); err != nil {
 			return nil, err
 		}
 	}

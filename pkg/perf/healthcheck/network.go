@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
@@ -88,22 +87,11 @@ func parseUrl(serviceUrl string) string {
 
 func isReachable(ctx context.Context, address string) error {
 	d := net.Dialer{Timeout: defaultRequestTimeout}
-
-	op := func() error {
-		conn, err := d.DialContext(ctx, "tcp", address)
-		if err != nil {
-			return fmt.Errorf("failed to connect: %w", err)
-		}
-		defer conn.Close()
-
-		return nil
+	conn, err := d.DialContext(ctx, "tcp", address)
+	if err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
 	}
+	defer conn.Close()
 
-	notify := func(err error, t time.Duration) {
-		log.Error().Err(err).Dur("retry-in", t).Msg("network check failed")
-	}
-
-	bo := backoff.NewExponentialBackOff()
-
-	return backoff.RetryNotify(op, bo, notify)
+	return nil
 }
