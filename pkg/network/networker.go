@@ -257,6 +257,7 @@ func (n *networker) createMacVlan(iface string, master string, hw net.HardwareAd
 
 	if _, ok := err.(netlink.LinkNotFoundError); ok {
 		macVlan, err = macvlan.Create(iface, master, netNs)
+
 		if err != nil {
 			return err
 		}
@@ -554,7 +555,7 @@ func (n *networker) SetupPubIPFilter(filterName string, iface string, ipv4 net.I
 		return errors.Wrap(err, "failed to execute filter template")
 	}
 
-	// TODO: use nft.Apply
+	//TODO: use nft.Apply
 	cmd := exec.Command("/bin/sh", "-c", buffer.String())
 
 	output, err := cmd.CombinedOutput()
@@ -996,7 +997,7 @@ func (n *networker) SetPublicConfig(cfg pkg.PublicConfig) error {
 	}
 
 	if current != nil && current.Equal(cfg) {
-		// nothing to do
+		//nothing to do
 		return nil
 	}
 
@@ -1104,7 +1105,7 @@ func (n *networker) networkOf(id zos.NetID) (nr pkg.Network, err error) {
 	dec := json.NewDecoder(reader)
 
 	version := reader.Version()
-	// validV1 := versioned.MustParseRange(fmt.Sprintf("=%s", pkg.NetworkSchemaV1))
+	//validV1 := versioned.MustParseRange(fmt.Sprintf("=%s", pkg.NetworkSchemaV1))
 	validLatest := versioned.MustParseRange(fmt.Sprintf("<=%s", NetworkSchemaLatestVersion.String()))
 
 	if validLatest(version) {
@@ -1199,6 +1200,7 @@ func (n *networker) Metrics() (pkg.NetResourceMetrics, error) {
 			metrics[wl] = m
 			return nil
 		})
+
 		if err != nil {
 			log.Error().Err(err).Msg("failed to collect metrics for network")
 		}
@@ -1275,7 +1277,6 @@ func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 
 	done := make(chan struct{})
 	updateChan := make(chan netlink.AddrUpdate)
-
 	err := netlink.AddrSubscribe(updateChan, done)
 	if err != nil {
 		log.Error().Err(err).Msgf("could not subscribe to addresses updates")
@@ -1298,6 +1299,7 @@ func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 	}()
 
 	return ch
+
 }
 
 func (n *networker) syncWGPorts() error {
@@ -1342,7 +1344,7 @@ func (n *networker) syncWGPorts() error {
 			log.Error().Err(err).Str("namespace", name).Msgf("failed to read port for network namespace")
 			continue
 		}
-		// skip error cause we don't care if there are some duplicate at this point
+		//skip error cause we don't care if there are some duplicate at this point
 		_ = n.portSet.Add(uint(port))
 	}
 
@@ -1366,6 +1368,7 @@ func createNetNS(name string) (ns.NetNS, error) {
 	err = netNs.Do(func(_ ns.NetNS) error {
 		return ifaceutil.SetLoUp()
 	})
+
 	if err != nil {
 		_ = namespace.Delete(netNs)
 		return nil, fmt.Errorf("failed to bring lo interface up in namespace %s: %w", name, err)
