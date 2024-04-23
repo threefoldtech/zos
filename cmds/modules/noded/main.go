@@ -5,6 +5,8 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
+	"math"
+	"net/http"
 	"os/exec"
 	"strings"
 	"time"
@@ -29,6 +31,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/registrar"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
 
@@ -39,6 +42,7 @@ const (
 	module          = "node"
 	registrarModule = "registrar"
 	eventsBlock     = "/tmp/events.chain"
+	acceptableSkew  = 10 * time.Minute
 )
 
 // Module is entry point for module
@@ -112,6 +116,51 @@ func action(cli *cli.Context) error {
 		fmt.Println(env.RunningMode.String())
 		return nil
 	}
+
+	z := zinit.Default()
+	// monitor ntp
+	go func() {
+		for {
+			timeRes, err := http.Get("https://worldtimeapi.org/api/timezone/UTC")
+			if err != nil {
+				log.Error().Err(err).Msg("failed to get date")
+				continue
+			}
+
+			var result struct {
+				DateTime string `json:"datetime"`
+			}
+			err = json.NewDecoder(timeRes.Body).Decode(&result)
+			timeRes.Body.Close()
+			if err != nil {
+				log.Error().Err(err).Msg("failed to decode date response")
+				continue
+			}
+
+			layout := "2006-01-02T15:04:05+00:00"
+			t, err := time.Parse(layout, result.DateTime)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to parse date")
+				continue
+			}
+
+			if math.Abs(float64(time.Since(t))) > float64(acceptableSkew) {
+				if err := z.Kill("ntp", zinit.SIGTERM); err != nil {
+					log.Error().Err(err).Msg("failed to restart ntpd")
+					continue
+				}
+			}
+
+			select {
+			case <-cli.Done():
+				if cli.Err() != nil {
+					log.Error().Err(cli.Err()).Msg("cli context done with error")
+				}
+				return
+			case <-time.After(10 * time.Second):
+			}
+		}
+	}()
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, 1)
 	if err != nil {
