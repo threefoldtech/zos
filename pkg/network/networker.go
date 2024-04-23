@@ -1275,9 +1275,8 @@ func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 		return result
 	}
 
-	done := make(chan struct{})
 	updateChan := make(chan netlink.AddrUpdate)
-	err := netlink.AddrSubscribe(updateChan, done)
+	err := netlink.AddrSubscribe(updateChan, ctx.Done())
 	if err != nil {
 		log.Error().Err(err).Msgf("could not subscribe to addresses updates")
 		return nil
@@ -1286,7 +1285,6 @@ func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresse
 	ch := make(chan pkg.NetlinkAddresses)
 	go func() {
 		defer close(ch)
-		defer close(done)
 
 		for {
 			select {
