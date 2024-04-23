@@ -7,8 +7,8 @@ the context, it will be considered to be either a VM or a container. In either
 scenario, the `Zmachine` is started from an `Flist`.
 
 > Note, both VM and Container on ZOS are actually served as Virtual Machines. The
-only difference is that if you are running in VM mode, you only need to provide a **raw**
-disk image (image.raw) in your flist.
+only difference is that if you are running in VM mode, you only need to provide
+a kernel at `/boot/vmlinuz` in your flist.
 
 ## Container
 
@@ -151,3 +151,9 @@ sudo tar -czf ubuntu-jammy.tar.gz -C ubuntu:jammy .
 ```
 
 Upload to the hub, and use it to create a Zmachine
+
+## cloud-console
+
+`cloud-console` is a tool used to interact with Zmachines deployed through 0-OS. It manages to connect to VMs over `pseudoterminal` (`pty`) exposed by `cloud-hypervisor`.
+For more details on how it is integrated with 0-OS check out [cloud-console](./cloud-console.md).
+For more details on `cloud-console` itself and how it works check out [cloud-console](https://github.com/threefoldtech/cloud-console).
