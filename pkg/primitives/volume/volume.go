@@ -3,9 +3,7 @@ package volume
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
 
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
@@ -46,11 +44,11 @@ func (m Manager) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (i
 		return VolumeResult{ID: volumeName}, provision.ErrNoActionNeeded
 	}
 
-	_, err = storage.VolumeCreate(ctx, volumeName, volume.Size)
+	vol, err := storage.VolumeCreate(ctx, volumeName, volume.Size)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new volume with name %q: %w", volumeName, err)
 	}
-	return VolumeResult{ID: volumeName}, nil
+	return VolumeResult{ID: vol.Name}, nil
 }
 func (m Manager) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
 	storage := stubs.NewStorageModuleStub(m.client)
@@ -81,10 +79,15 @@ func (m Manager) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (inte
 	}
 	volumeName := wl.ID.String()
 
-	vol, err := storage.VolumeLookup(ctx, volumeName)
-	if errors.Is(err, os.ErrNotExist) {
+	exists, err := storage.VolumeExists(ctx, volumeName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup volume %q: %w", volumeName, err)
+	} else if !exists {
 		return nil, fmt.Errorf("no volume with name %q found: %w", volumeName, err)
-	} else if err != nil {
+	}
+
+	vol, err := storage.VolumeLookup(ctx, volumeName)
+	if err != nil {
 		return nil, fmt.Errorf("failed to lookup volume %q: %w", volumeName, err)
 	}
 
