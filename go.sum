@@ -101,8 +101,6 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsr
 github.com/cpuguy83/go-md2man/v2 v2.0.2 h1:p1EgwI/C7NhT0JmVkwCD2ZBK8j4aeHQX2pMHHBfMQ6w=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/cyberdelia/lzo v1.0.0 h1:smmvcahczwI/VWSzZ7iikt50lubari5py3qL4hAEHII=
-github.com/cyberdelia/lzo v1.0.0/go.mod h1:UVNk6eM6Sozt1wx17TECJKuqmIY58TJOVeJxjlGGAGs=
 github.com/cyphar/filepath-securejoin v0.2.3/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
 github.com/d2g/dhcp4 v0.0.0-20170904100407-a1d1b6c41b1c/go.mod h1:Ct2BUK8SB0YC1SMSibvLzxjeJLnrYEVLULFNiHY9YfQ=
 github.com/d2g/dhcp4client v1.0.0/go.mod h1:j0hNfjhrt2SxUOw55nL0ATM/z4Yt3t2Kd1mW34z5W5s=
@@ -537,8 +535,8 @@ github.com/stripe/safesql v0.2.0/go.mod h1:q7b2n0JmzM1mVGfcYpanfVb2j23cXZeWFxcIL
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/threefoldtech/0-fs v1.3.1-0.20230829115549-fb4c502d6d93 h1:zUuaeCpE92+1yOhMp267rslwdBiYl5UvE1K3lzlHBfk=
 github.com/threefoldtech/0-fs v1.3.1-0.20230829115549-fb4c502d6d93/go.mod h1:6CV22IyiPkZoHxA7+140GBZ0EN5l9k7EjfY6ihQDiwY=
-github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240116163757-68c63d80a9e0 h1:0ZMm/xYPgYv3vICNRw3vXTiJ/jVg8LkBLe8TPBEO0MQ=
-github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240116163757-68c63d80a9e0/go.mod h1:dtDKAPiUDxAwIkfHV7xcAFZcOm+xwNIuOI1MLFS+MeQ=
+github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240416134707-eb36aa90df2d h1:vWHR33VfphOahBlo3aGCE/eKPlfb4BCInhKidGkdp5s=
+github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240416134707-eb36aa90df2d/go.mod h1:dtDKAPiUDxAwIkfHV7xcAFZcOm+xwNIuOI1MLFS+MeQ=
 github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.11.4 h1:A5UXbV+UhqL3RKIoVLSjfk+bNLJP7IhyfyfAHbvjx+o=
 github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.11.4/go.mod h1:syWja2/ZiUoGXnhRWiCGWmTMZ9B1vf5exZ5gdIj9118=
 github.com/threefoldtech/zbus v1.0.1 h1:3KaEpyOiDYAw+lrAyoQUGIvY9BcjVRXlQ1beBRqhRNk=
