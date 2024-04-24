@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/blang/semver"
@@ -331,18 +332,20 @@ type cache interface {
 type inMemoryCache struct {
 	file  string
 	flist string
+	root  string
 }
 
-func newInMemoryCache(root string) (*inMemoryCache, error) {
-	file := filepath.Join("/tmp", root, "cache", "file")
-	flist := filepath.Join("/tmp", root, "cache", "flist")
+func newInMemoryCache() (*inMemoryCache, error) {
+	root := filepath.Join("/tmp", service)
+	file := filepath.Join(root, "cache", "file")
+	flist := filepath.Join(root, "cache", "flist")
 	if err := os.MkdirAll(file, 0755); err != nil {
 		return nil, err
 	}
 	if err := os.MkdirAll(flist, 0755); err != nil {
 		return nil, err
 	}
-	return &inMemoryCache{file: file, flist: flist}, nil
+	return &inMemoryCache{file: file, flist: flist, root: root}, nil
 }
 
 func (c *inMemoryCache) flistCache() string {
@@ -352,8 +355,7 @@ func (c *inMemoryCache) fileCache() string {
 	return c.file
 }
 func (c *inMemoryCache) clean() {
-	os.RemoveAll(c.file)
-	os.RemoveAll(c.flist)
+	os.RemoveAll(c.root)
 }
 
 // install from a single flist.
@@ -361,9 +363,11 @@ func (u *Upgrader) install(repo, name string) error {
 	log.Info().Str("repo", repo).Str("name", name).Msg("start installing package")
 	var cache cache = u
 	store, err := u.getFlist(repo, name, cache)
-	if err != nil && app.CheckFlag(app.ReadonlyCache) {
+	if errors.Is(err, syscall.EROFS) ||
+		errors.Is(err, syscall.EPERM) ||
+		errors.Is(err, syscall.EIO) {
 		// try in memory
-		inMemoryCache, err := newInMemoryCache(u.root)
+		inMemoryCache, err := newInMemoryCache()
 		if err != nil {
 			return fmt.Errorf("failed to create in memory cache: %w", err)
 		}
