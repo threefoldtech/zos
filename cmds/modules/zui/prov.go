@@ -20,6 +20,7 @@ const (
 func resourcesRender(client zbus.Client, grid *ui.Grid, render *signalFlag) error {
 	prov := widgets.NewTable()
 	usage := widgets.NewTable()
+	prov.FillRow = true
 
 	grid.Set(
 		ui.NewRow(1.0,
@@ -45,11 +46,11 @@ func provRender(client zbus.Client, render *signalFlag, prov *widgets.Table) err
 
 	prov.Rows = [][]string{
 		{"", "Total", "Reserved"},
-		{"CRU", "", ""},
-		{"Memory", "", ""},
-		{"SSD", "", ""},
-		{"HDD", "", ""},
-		{"IPv4", "", ""},
+		{"CRU", "Loading...", "Loading..."},
+		{"Memory", "Loading...", "Loading..."},
+		{"SSD", "Loading...", "Loading..."},
+		{"HDD", "Loading...", "Loading..."},
+		{"IPv4", "Loading...", "Loading..."},
 	}
 
 	monitor := stubs.NewStatisticsStub(client)
@@ -85,8 +86,8 @@ func usageRender(client zbus.Client, render *signalFlag, usage *widgets.Table) e
 	usage.FillRow = true
 
 	usage.Rows = [][]string{
-		{"CPU", ""},
-		{"Memory", ""},
+		{"CPU", "Loading..."},
+		{"Memory", "Loading..."},
 	}
 
 	sysMonitor := stubs.NewSystemMonitorStub(client)
