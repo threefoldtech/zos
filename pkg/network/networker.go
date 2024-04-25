@@ -1260,7 +1260,7 @@ func (n *networker) PublicAddresses(ctx context.Context) <-chan pkg.OptionPublic
 func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
 
 	var index int
-	backoff.Retry(func() error {
+	_ = backoff.Retry(func() error {
 		link, err := netlink.LinkByName(types.DefaultBridge)
 		if err != nil {
 			log.Error().Err(err).Msg("can't get defaut bridge")
