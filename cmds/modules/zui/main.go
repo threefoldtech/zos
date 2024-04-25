@@ -80,22 +80,23 @@ func action(ctx *cli.Context) error {
 
 	width, _ := ui.TerminalDimensions()
 
+	netgrid := ui.NewGrid()
+	netgrid.Title = "Network"
+
+	resources := ui.NewGrid()
+	resources.Title = "Provision"
+
 	header := widgets.NewParagraph()
 	header.Border = true
 	header.SetRect(0, 0, width, 8)
 
-	netgrid := ui.NewGrid()
-	netgrid.Title = "Network"
-	netgrid.SetRect(0, 8, width, 14)
-
-	resources := ui.NewGrid()
-	resources.Title = "Provision"
-	resources.SetRect(0, 14, width, 22)
-	resources.Border = false
+	services := ui.NewGrid()
+	services.Title = "Progress"
+	services.SetRect(0, 8, width, 18)
 
 	errorsParagraph := widgets.NewParagraph()
 	errorsParagraph.Title = "Errors"
-	errorsParagraph.SetRect(0, 22, width, 26)
+	errorsParagraph.SetRect(0, 18, width, 26)
 	errorsParagraph.Border = true
 	errorsParagraph.WrapText = true
 
@@ -105,13 +106,31 @@ func action(ctx *cli.Context) error {
 		log.Error().Err(err).Msg("failed to start header renderer")
 	}
 
-	if err := netRender(client, netgrid, &flag); err != nil {
-		log.Error().Err(err).Msg("failed to start net renderer")
+	done, err := serviceRender(ctx.Context, client, services, &flag)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to start services renderer")
 	}
 
-	if err := resourcesRender(client, resources, &flag); err != nil {
-		log.Error().Err(err).Msg("failed to start resources renderer")
-	}
+	go func() {
+		<-done
+
+		errorsParagraph.SetRect(0, 22, width, 26)
+
+		netgrid.Title = "Network"
+		netgrid.SetRect(0, 8, width, 14)
+
+		resources.Title = "Provision"
+		resources.SetRect(0, 14, width, 22)
+		resources.Border = false
+
+		if err := netRender(client, netgrid, &flag); err != nil {
+			log.Error().Err(err).Msg("failed to start net renderer")
+		}
+
+		if err := resourcesRender(client, resources, &flag); err != nil {
+			log.Error().Err(err).Msg("failed to start resources renderer")
+		}
+	}()
 
 	mod := zui.New(ctx.Context, errorsParagraph, &flag)
 
@@ -121,11 +140,10 @@ func action(ctx *cli.Context) error {
 		if err := server.Run(ctx.Context); err != nil && err != context.Canceled {
 			log.Error().Err(err).Msg("unexpected error")
 		}
-
 	}()
 
 	render := func() {
-		ui.Render(header, netgrid, resources, errorsParagraph)
+		ui.Render(header, services, netgrid, resources, errorsParagraph)
 	}
 
 	render()
