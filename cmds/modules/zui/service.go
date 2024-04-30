@@ -34,7 +34,6 @@ func serviceRender(ctx context.Context, client zbus.Client, grid *ui.Grid, rende
 		{"Networkd", InProgressStatus},
 		{"Registerar", InactiveStatus},
 		{"Statistics", InactiveStatus},
-
 		{"Containerd", InactiveStatus},
 		{"Storaged", InactiveStatus},
 		{"Noded", InactiveStatus},
@@ -109,12 +108,10 @@ func getRegistrarStatus(ctx context.Context, client zbus.Client) string {
 	if _, err := register.NodeID(ctx); err != nil {
 		if isInProgressError(err) {
 			return InProgressStatus
-		} else {
-			return red(FailedStatus)
 		}
-	} else {
-		return green(activeStatus)
+		return red(FailedStatus)
 	}
+	return green(activeStatus)
 }
 
 func getNetworkStatus(ctx context.Context, client zbus.Client) string {
