@@ -17,12 +17,12 @@ func ntpCheck(ctx context.Context) []error {
 	var errs []error
 	z := zinit.Default()
 
-	localTime, err := getCurrentLocalTime()
+	utcTime, err := getCurrentUTCTime()
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	if math.Abs(float64(time.Since(localTime))) > float64(acceptableSkew) {
+	if math.Abs(float64(time.Since(utcTime))) > float64(acceptableSkew) {
 		if err := z.Kill("ntp", zinit.SIGTERM); err != nil {
 			errs = append(errs, errors.Wrapf(err, "failed to restart ntpd"))
 		}
@@ -31,26 +31,20 @@ func ntpCheck(ctx context.Context) []error {
 	return errs
 }
 
-func getCurrentLocalTime() (time.Time, error) {
+func getCurrentUTCTime() (time.Time, error) {
 	timeRes, err := http.Get("https://worldtimeapi.org/api/timezone/UTC")
 	if err != nil {
 		return time.Time{}, errors.Wrapf(err, "failed to get date")
 	}
 
-	var result struct {
-		DateTime string `json:"datetime"`
+	var utcTime struct {
+		DateTime time.Time `json:"datetime"`
 	}
-	err = json.NewDecoder(timeRes.Body).Decode(&result)
+	err = json.NewDecoder(timeRes.Body).Decode(&utcTime)
 	timeRes.Body.Close()
 	if err != nil {
 		return time.Time{}, errors.Wrapf(err, "failed to decode date response")
 	}
 
-	timeLayout := "2006-01-02T15:04:05+00:00"
-	localTime, err := time.Parse(timeLayout, result.DateTime)
-	if err != nil {
-		return time.Time{}, errors.Wrapf(err, "failed to parse date")
-	}
-
-	return localTime, nil
+	return utcTime.DateTime, nil
 }
