@@ -91,8 +91,8 @@ func (m Manager) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (inte
 		return nil, fmt.Errorf("failed to lookup volume %q: %w", volumeName, err)
 	}
 
-	if volume.Size < vol.Usage.Used {
-		return nil, fmt.Errorf("cannot shrink volume to be less than used space. used: %d, requested: %d", vol.Usage.Used, volume.Size)
+	if volume.Size < vol.Usage.Size {
+		return nil, fmt.Errorf("cannot shrink volume to be less than provisioned space. old: %d, requested: %d", vol.Usage.Size, volume.Size)
 	}
 
 	if err := storage.VolumeUpdate(ctx, volumeName, volume.Size); err != nil {
