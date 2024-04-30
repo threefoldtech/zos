@@ -5,11 +5,11 @@ socket="/tmp/virtiofs.sock"
 rootfs=""
 kernel="$rootfs/boot/vmlinuz"
 initram="$rootfs/boot/initrd.img"
+cmdline="rw console=ttyS0 reboot=k panic=1 root=vroot rootfstype=virtiofs rootdelay=30"
 
 user="user"
 pass="pass"
 name="cloud"
-init="/sbin/init"
 
 fspid=0
 
@@ -21,10 +21,11 @@ fail() {
 usage() {
     echo ""
     echo "Usage: $0 [OPTIONS]"
-    echo "  -r, --rootfs  Path to the root filesystem image (required)"
-    echo "  -u, --user     Username for the system (optional)"
-    echo "  -p, --pass     Password for the user (optional)"
-    echo "  -n, --name     Hostname for the system (optional)"
+    echo "   --rootfs  Path to the root filesystem image (required)"
+    echo "   --user     Username for the system (optional)"
+    echo "   --pass     Password for the user (optional)"
+    echo "   --name     Hostname for the system (optional)"
+    echo "   --init     Entrypoint for the system (optional)"
     echo ""
     exit 1
 }
@@ -56,7 +57,9 @@ handle_options() {
             shift
             ;;
         --init)
-            init="$2"
+            if [ ! -z "$2" ]; then
+                cmdline="$cmdline init=$2"
+            fi
             shift
             ;;
         *)
@@ -129,7 +132,7 @@ run_hypervisor() {
         --initramfs "${initram}" \
         --fs tag=vroot,socket="${socket}" \
         --disk path="${cidata}" \
-        --cmdline "rw console=ttyS0 reboot=k panic=1 root=vroot rootfstype=virtiofs rootdelay=30 init=${init}" \
+        --cmdline "${cmdline}" \
         --serial tty \
         --console off
 }
