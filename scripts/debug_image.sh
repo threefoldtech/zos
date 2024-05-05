@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 socket="/tmp/virtiofs.sock"
 
 rootfs=""
@@ -30,73 +29,40 @@ usage() {
     echo "   --name     Hostname for the system (optional)"
     echo "   --init     Entrypoint for the system (optional)"
     echo ""
-    exit 1
 }
 
+declare -A options
 handle_options() {
 
     while [[ "$#" -gt 0 ]]; do
         case $1 in
-        --rootfs)
-            rootfs="$2"
-            kernel="$rootfs/boot/vmlinuz"
-            initram="$rootfs/boot/initrd.img"
-            shift
+        --image|--cidata|--kernel|--initramfs|--init|--user|--pass|--name)
+            options[$1]="$2"
+            shift 2
             ;;
-        --flist)
-            flist="$2"
-            shift
-            ;;
-        --cidata)
-            cidata="$2"
-            shift
-            ;;
-        --init)
-            if [ ! -z "$2" ]; then
-                cmdline="$cmdline init=$2"
-            fi
-            shift
-            ;;
-        
-        --user)
-            user="$2"
-            shift
-            ;;
-        --pass)
-            pass="$2"
-            shift
-            ;;
-        --name)
-            name="$2"
-            shift
-            ;;
-        
         *)
             usage
+            exit 1
             ;;
         esac
-        shift
     done
-
 }
 
 validate() {
-    # if no rootfs or metadata, fail
-    # check other binaries
-    which virtiofsd &>/dev/null || fail "virtiofsd not found in PATH"
-    which cloud-hypervisor &>/dev/null || fail "cloud-hypervior not found in path"
+    for tool in virtiofsd cloud-hypervisor mkdosfs rfs1; do
+        which "$tool" &>/dev/null || fail "'$tool' not found in PATH"
+    done
 
-    if [ ! -f "${kernel}" ]; then
-        fail "kernel file not found"
-    fi
-
-    if [ ! -f "${initram}" ]; then
-        fail "kernel file not found"
-    fi
+    [ -z "${options[--image]}" ] && fail "rootfs image not provided"
 }
 
 cidata="/tmp/cidata.img"
 create_cidata() {
+    [[ -f "${options[--cidata]}" ]] && return
+    
+    echo "Creating cidata"
+    # todo: cloud-init clean
+
     rm -f "${cidata}"
     mkdosfs -n CIDATA -C "${cidata}" 8192
 
@@ -120,20 +86,18 @@ EOF
     rm -f meta-data
 }
 
-start_fs() {
-    sudo virtiofsd \
-        --socket-path="${socket}" \
-        --shared-dir="${overlayfs}" \
-        --cache=never \
-        &
-
-    fspid=$!
-}
 
 cleanup() {
-    sudo umount "$overlayfs"
-    kill "$flpid" &>/dev/null
-    kill "$fspid" &>/dev/null || true
+    local pids=( "$flpid" "$fspid" )
+
+    # unmount and remove overlayfs
+    sudo umount "$overlayfs" 2>/dev/null || true
+    sudo rm -rf /tmp/upper /tmp/workdir "$overlayfs" 2>/dev/null || true
+
+    # kill any running processes
+    for pid in "${pids[@]}"; do
+        kill "$pid" 2>/dev/null || true
+    done
 }
 trap cleanup EXIT
 
@@ -150,53 +114,66 @@ run_hypervisor() {
         --console off
 }
 
-create_rwlayer() {
+prepare_rootfs() {
+    local image_path="${options[--image]}"
+
     sudo mkdir -p /tmp/upper /tmp/workdir "$overlayfs"
 
+    if [[ ${image_path} == *.flist ]]; then
+        echo "${image_path} is flist, mounting"
+
+        rootfs=/tmp/lower
+        sudo mkdir -p "$rootfs" && sudo chmod 777 "$rootfs" 
+
+        rfs1 --meta "$image_path" "$rootfs" &
+        flpid=$!
+    else 
+        rootfs="${image_path}"
+    fi
+
+    echo "Mounting overlay"
     sudo mount \
         -t overlay \
         -o lowerdir="$rootfs",upperdir=/tmp/upper,workdir=/tmp/workdir \
         none \
         "$overlayfs"
+
+    echo "Starting virtiofs"
+    sudo virtiofsd \
+        --socket-path="${socket}" \
+        --shared-dir="${overlayfs}" \
+        --cache=never \
+        &
+    fspid=$!
 }
 
-mount_flist() {
-    wget "$flist" -O /tmp/flist.flist
+prepare_boot() {
+    kernel="${options[--kernel]}"
+    if [ -z "$kernel" ]; then
+        kernel="${overlayfs}/boot/vmlinuz"
+    fi
 
-    rootfs=/home/omar/tmp
-    mkdir -p "$rootfs"
-    rfs1 --meta /tmp/flist.flist "$rootfs" &
+    initramfs="${options[--initramfs]}"
+    if [ -z "$initramfs" ]; then
+        initramfs="${overlayfs}/boot/initrd.img"
+    fi
 
-    flpid=$!
-}
+    init="${options[--init]}"
+    if [ ! -z "$init" ]; then
+        cmdline="$cmdline init=$init"
+    fi
 
-# decompress_kernel() {
-#     wget -O /tmp/extract-vmlinux https://raw.githubusercontent.com/torvalds/linux/master/scripts/extract-vmlinux
-#     chmod +x /tmp/extract-vmlinux
-    
-# }
-
-prepare_cloud_image() {
-    # chroot and install ci
-    # symlink to host vmlinuz/initrd
-    # load virtiofs and update ramfs
-}
-
-boot() {
-    start_fs
-    run_hypervisor
+    if [ ! -f "$kernel" ] | [ ! -f "$initramfs" ]; then
+        fail "kernel or initramfs not found"
+        # in case no kernel or initramfs, it is a container image
+        # chroot and install ci and add symlink to host vmlinuz/initrd and update initramfs
+    fi
 }
 
 handle_options "$@"
-
 validate
-
-# if no cidata
+prepare_rootfs
+prepare_boot
 create_cidata
 
-# if is metadata
-mount_flist
-
-create_rwlayer
-
-boot
+# run_hypervisor
