@@ -1,67 +1,77 @@
 #!/bin/bash
-socket="/tmp/virtiofs.sock"
 
-rootfs=""
-kernel="$rootfs/boot/vmlinuz"
-initram="$rootfs/boot/initrd.img"
-cmdline="rw console=ttyS0 reboot=k panic=1 root=vroot rootfstype=virtiofs rootdelay=30"
-overlayfs="/tmp/merged"
-flist=""
+set -euo pipefail
 
+# constants
+readonly SOCKET="/tmp/virtiofs.sock"
+readonly OVERLAYFS="/tmp/merged"
+
+# defaults
+cidata="/tmp/cidata.img"
 user="user"
 pass="pass"
 name="cloud"
+cmdline="rw console=ttyS0 reboot=k panic=1 root=vroot rootfstype=virtiofs rootdelay=30"
 
+# globals
+init=""
+kernel=""
+initramfs=""
 fspid=0
 flpid=0
 
 fail() {
-    echo "$1" >&2
+    echo "Error: $*" >&2
     exit 1
 }
 
 usage() {
     echo ""
-    echo "Usage: $0 [OPTIONS]"
-    echo "   --rootfs  Path to the root filesystem image (required)"
-    echo "   --user     Username for the system (optional)"
-    echo "   --pass     Password for the user (optional)"
-    echo "   --name     Hostname for the system (optional)"
-    echo "   --init     Entrypoint for the system (optional)"
-    echo ""
 }
 
-declare -A options
-handle_options() {
-
+handle_options() { 
     while [[ "$#" -gt 0 ]]; do
         case $1 in
-        --image|--cidata|--kernel|--initramfs|--init|--user|--pass|--name)
-            options[$1]="$2"
-            shift 2
-            ;;
-        *)
-            usage
-            exit 1
-            ;;
+            --image|--cidata|--kernel|--initramfs|--init|--user|--pass|--name|--debug)
+                options[$1]="$2"
+                shift 2
+                ;;
+            *)
+                usage
+                exit 1
+                ;;
         esac
     done
 }
 
+
 validate() {
-    for tool in virtiofsd cloud-hypervisor mkdosfs rfs1; do
-        which "$tool" &>/dev/null || fail "'$tool' not found in PATH"
+    for tool in virtiofsd cloud-hypervisor rfs1; do
+        command -v "$tool" >/dev/null 2>&1 || fail "'$tool' not found in PATH"
     done
 
-    [ -z "${options[--image]}" ] && fail "rootfs image not provided"
+    if [ ! -z "${options[--cidata]}" ]; then
+        command -v mkdosfs >/dev/null 2>&1 || fail "mkdosfs not found in PATH"
+    fi
+
+    if [ -z "${options[--image]}" ]; then
+        fail "rootfs image not provided"
+    fi
 }
 
-cidata="/tmp/cidata.img"
 create_cidata() {
-    [[ -f "${options[--cidata]}" ]] && return
+    sudo chroot "${OVERLAYFS}" cloud-init clean
+
+    if [[ -f "${options[--cidata]}" ]]; then
+        cidata="${options[--cidata]}"
+        return
+    fi
+
+    [ ! -z "${options[--user]}" ] && user="${options[--user]}"
+    [ ! -z "${options[--pass]}" ] && pass="${options[--pass]}"
+    [ ! -z "${options[--name]}" ] && name="${options[--name]}"
     
     echo "Creating cidata"
-    # todo: cloud-init clean
 
     rm -f "${cidata}"
     mkdosfs -n CIDATA -C "${cidata}" 8192
@@ -90,24 +100,21 @@ EOF
 cleanup() {
     local pids=( "$flpid" "$fspid" )
 
-    # unmount and remove overlayfs
-    sudo umount "$overlayfs" 2>/dev/null || true
-    sudo rm -rf /tmp/upper /tmp/workdir "$overlayfs" 2>/dev/null || true
+    sudo umount "${OVERLAYFS}" 2>/dev/null || true
+    sudo rm -rf /tmp/upper /tmp/workdir "${OVERLAYFS}" 2>/dev/null || true
 
-    # kill any running processes
     for pid in "${pids[@]}"; do
         kill "$pid" 2>/dev/null || true
     done
 }
-trap cleanup EXIT
 
-run_hypervisor() {
+boot() {
     sudo cloud-hypervisor \
         --cpus boot=1,max=1 \
         --memory size=1024M,shared=on \
         --kernel "${kernel}" \
-        --initramfs "${initram}" \
-        --fs tag=vroot,socket="${socket}" \
+        --initramfs "${initramfs}" \
+        --fs tag=vroot,socket="${SOCKET}" \
         --disk path="${cidata}" \
         --cmdline "${cmdline}" \
         --serial tty \
@@ -117,7 +124,7 @@ run_hypervisor() {
 prepare_rootfs() {
     local image_path="${options[--image]}"
 
-    sudo mkdir -p /tmp/upper /tmp/workdir "$overlayfs"
+    sudo mkdir -p /tmp/upper /tmp/workdir "${OVERLAYFS}"
 
     if [[ ${image_path} == *.flist ]]; then
         echo "${image_path} is flist, mounting"
@@ -136,30 +143,26 @@ prepare_rootfs() {
         -t overlay \
         -o lowerdir="$rootfs",upperdir=/tmp/upper,workdir=/tmp/workdir \
         none \
-        "$overlayfs"
+        "${OVERLAYFS}"
 
     echo "Starting virtiofs"
     sudo virtiofsd \
-        --socket-path="${socket}" \
-        --shared-dir="${overlayfs}" \
+        --socket-path="${SOCKET}" \
+        --shared-dir="${OVERLAYFS}" \
         --cache=never \
         &
     fspid=$!
 }
 
 prepare_boot() {
-    kernel="${options[--kernel]}"
-    if [ -z "$kernel" ]; then
-        kernel="${overlayfs}/boot/vmlinuz"
-    fi
+    kernel="${options[--kernel]-}"
+    kernel="${kernel:-"${OVERLAYFS}/boot/vmlinuz"}"
 
-    initramfs="${options[--initramfs]}"
-    if [ -z "$initramfs" ]; then
-        initramfs="${overlayfs}/boot/initrd.img"
-    fi
+    initramfs="${options[--initramfs]-}"
+    initramfs="${initramfs:-"${OVERLAYFS}/boot/initrd.img"}"
 
-    init="${options[--init]}"
-    if [ ! -z "$init" ]; then
+    init="${options[--init]-}"
+    if [ -n "$init" ]; then
         cmdline="$cmdline init=$init"
     fi
 
@@ -170,10 +173,38 @@ prepare_boot() {
     fi
 }
 
-handle_options "$@"
-validate
-prepare_rootfs
-prepare_boot
-create_cidata
+# main 
 
-# run_hypervisor
+# move defaults here
+declare -A options=(
+    [--debug]="false"
+    [--cidata]=""
+    [--kernel]=""
+    [--initramfs]=""
+    [--init]=""
+    [--user]=""
+    [--pass]=""
+    [--name]=""
+)
+
+handle_options "$@"
+
+if [[ "${options[--debug]}" == true ]]; then
+    set -x
+fi
+
+echo "validating requirements"
+validate
+
+echo "preparing rootfs"
+prepare_rootfs
+
+echo "preparing boot"
+prepare_boot
+
+echo "creating cidata"
+create_cidata
+trap cleanup EXIT
+
+echo "booting"
+boot
