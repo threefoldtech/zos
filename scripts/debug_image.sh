@@ -1,25 +1,31 @@
 #!/bin/bash
 
-set -euo pipefail
-
-# constants
+# Constants
 readonly SOCKET="/tmp/virtiofs.sock"
 readonly OVERLAYFS="/tmp/merged"
 
-# defaults
+# Defaults
 cidata="/tmp/cidata.img"
-user="user"
-pass="pass"
-name="cloud"
 cmdline="rw console=ttyS0 reboot=k panic=1 root=vroot rootfstype=virtiofs rootdelay=30"
 
-# globals
+# Globals
+declare -A options=(
+    [--debug]="false"
+    [--cidata]=""
+    [--kernel]=""
+    [--initramfs]=""
+    [--init]=""
+    [--user]="user"
+    [--pass]="pass"
+    [--name]="cloud"
+)
 init=""
 kernel=""
 initramfs=""
 fspid=0
 flpid=0
 
+# Functions
 fail() {
     echo "Error: $*" >&2
     exit 1
@@ -42,8 +48,11 @@ handle_options() {
                 ;;
         esac
     done
-}
 
+    if [[ "${options[--debug]}" == true ]]; then
+        set -x
+    fi
+}
 
 validate() {
     for tool in virtiofsd cloud-hypervisor rfs1; do
@@ -60,42 +69,33 @@ validate() {
 }
 
 create_cidata() {
-    sudo chroot "${OVERLAYFS}" cloud-init clean
-
     if [[ -f "${options[--cidata]}" ]]; then
         cidata="${options[--cidata]}"
         return
     fi
 
-    [ ! -z "${options[--user]}" ] && user="${options[--user]}"
-    [ ! -z "${options[--pass]}" ] && pass="${options[--pass]}"
-    [ ! -z "${options[--name]}" ] && name="${options[--name]}"
-    
-    echo "Creating cidata"
+    local user="${options[--user]}"
+    local pass="${options[--pass]}"
+    local name="${options[--name]}"
+
+    echo '#cloud-config' > user-data
+    echo 'users:' >> user-data
+    echo "  - name: $user" >> user-data
+    echo "    plain_text_passwd: $pass" >> user-data
+    echo "    shell: /bin/bash" >> user-data
+    echo "    lock_passwd: false" >> user-data
+    echo "    sudo: ALL=(ALL) NOPASSWD:ALL" >> user-data
+
+    echo "instance-id: $name" > meta-data
+    echo "local-hostname: $name" >> meta-data
 
     rm -f "${cidata}"
     mkdosfs -n CIDATA -C "${cidata}" 8192
-
-    cat >user-data <<EOF
-#cloud-config
-users:
-  - name: $user
-    plain_text_passwd: $pass
-    shell: /bin/bash
-    lock_passwd: false
-    sudo: ALL=(ALL) NOPASSWD:ALL
-EOF
     mcopy -oi "${cidata}" -s user-data ::
-    rm -f user-data
-
-    cat >meta-data <<EOF
-instance-id: $name
-local-hostname: $name
-EOF
     mcopy -oi "${cidata}" -s meta-data ::
-    rm -f meta-data
-}
 
+    rm -f user-data meta-data
+}
 
 cleanup() {
     local pids=( "$flpid" "$fspid" )
@@ -130,11 +130,11 @@ prepare_rootfs() {
         echo "${image_path} is flist, mounting"
 
         rootfs=/tmp/lower
-        sudo mkdir -p "$rootfs" && sudo chmod 777 "$rootfs" 
+        sudo mkdir -p "$rootfs" && sudo chmod 777 "$rootfs"
 
         rfs1 --meta "$image_path" "$rootfs" &
         flpid=$!
-    else 
+    else
         rootfs="${image_path}"
     fi
 
@@ -166,45 +166,26 @@ prepare_boot() {
         cmdline="$cmdline init=$init"
     fi
 
-    if [ ! -f "$kernel" ] | [ ! -f "$initramfs" ]; then
+    if [ ! -f "$kernel" ] || [ ! -f "$initramfs" ]; then
         fail "kernel or initramfs not found"
-        # in case no kernel or initramfs, it is a container image
-        # chroot and install ci and add symlink to host vmlinuz/initrd and update initramfs
     fi
 }
 
-# main 
-
-# move defaults here
-declare -A options=(
-    [--debug]="false"
-    [--cidata]=""
-    [--kernel]=""
-    [--initramfs]=""
-    [--init]=""
-    [--user]=""
-    [--pass]=""
-    [--name]=""
-)
-
+# Main
 handle_options "$@"
 
-if [[ "${options[--debug]}" == true ]]; then
-    set -x
-fi
-
-echo "validating requirements"
+echo "Validating requirements"
 validate
 
-echo "preparing rootfs"
+echo "Preparing rootfs"
 prepare_rootfs
 
-echo "preparing boot"
+echo "Preparing boot"
 prepare_boot
 
-echo "creating cidata"
+echo "Creating cidata"
 create_cidata
 trap cleanup EXIT
 
-echo "booting"
+echo "Booting"
 boot
