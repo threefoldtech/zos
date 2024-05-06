@@ -134,6 +134,12 @@ prepare_rootfs() {
 
         rfs1 --meta "$image_path" "$rootfs" &
         flpid=$!
+        
+        while [ -z "$(ls -A "$rootfs")" ]; do
+            echo "Waiting for flist mount"
+            sleep 1
+        done
+
     else
         rootfs="${image_path}"
     fi
@@ -166,9 +172,9 @@ prepare_boot() {
         cmdline="$cmdline init=$init"
     fi
 
-    if [ ! -f "$kernel" ] || [ ! -f "$initramfs" ]; then
-        fail "kernel or initramfs not found"
-    fi
+    # if [ ! -f "$kernel" ] || [ ! -f "$initramfs" ]; then
+    #     fail "kernel or initramfs not found"
+    # fi
 }
 
 # Main
