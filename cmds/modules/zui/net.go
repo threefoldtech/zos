@@ -21,11 +21,11 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 	table.RowSeparator = false
 
 	table.Rows = [][]string{
-		{"ZOS", "Loading..."},
-		{"DMZ", "Loading..."},
-		{"YGG", "Loading..."},
-		{"PUB", "Loading..."},
-		{"DUL", "Loading..."},
+		{"ZOS", loading},
+		{"DMZ", loading},
+		{"YGG", loading},
+		{"PUB", loading},
+		{"DUL", loading},
 	}
 
 	stub := stubs.NewNetworkerStub(client)
