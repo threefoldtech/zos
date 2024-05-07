@@ -15,8 +15,17 @@ const (
 	InProgressStatus = "In progress"
 	FailedStatus     = "Failed"
 	InactiveStatus   = "Inactive"
+
+	networkdService     = "Networkd"
+	registrationService = "Registerar"
+	statisticsService   = "Statistics"
+	containerdService   = "Containerd"
+	storagedService     = "Storaged"
+	nodedService        = "Noded"
+	PowerdService       = "Powerd"
 )
 
+// serviceRender monitors the state of some services
 func serviceRender(ctx context.Context, client zbus.Client, grid *ui.Grid, render *signalFlag) (chan bool, error) {
 	services := widgets.NewTable()
 
@@ -31,13 +40,13 @@ func serviceRender(ctx context.Context, client zbus.Client, grid *ui.Grid, rende
 
 	services.Rows = [][]string{
 		{"", "Status"},
-		{"Networkd", InProgressStatus},
-		{"Registerar", InactiveStatus},
-		{"Statistics", InactiveStatus},
-		{"Containerd", InactiveStatus},
-		{"Storaged", InactiveStatus},
-		{"Noded", InactiveStatus},
-		{"Powerd", InactiveStatus},
+		{networkdService, InProgressStatus},
+		{registrationService, InactiveStatus},
+		{statisticsService, InactiveStatus},
+		{containerdService, InactiveStatus},
+		{storagedService, InactiveStatus},
+		{nodedService, InactiveStatus},
+		{PowerdService, InactiveStatus},
 	}
 
 	render.Signal()
@@ -45,61 +54,69 @@ func serviceRender(ctx context.Context, client zbus.Client, grid *ui.Grid, rende
 	done := make(chan bool)
 
 	go func() {
-		networkStatus := make(chan string)
-		statisticsStatus := make(chan bool)
-		containerdStatus := make(chan bool)
-		storagedStatus := make(chan bool)
-		nodedStatus := make(chan bool)
-		powerdStatus := make(chan bool)
+		type serviceStatus struct {
+			service string
+			status  bool
+		}
+		servicesStatus := make(chan serviceStatus)
 
 		go func() {
-			networkStatus <- getNetworkStatus(ctx, client)
+			status := getNetworkStatus(ctx, client)
+			servicesStatus <- serviceStatus{service: networkdService, status: status}
 		}()
 
 		go func() {
 			getStatisticsStatus(ctx, client)
-			statisticsStatus <- true
+			servicesStatus <- serviceStatus{service: statisticsService, status: true}
 		}()
 
 		go func() {
 			getContainerdStatus(ctx, client)
-			containerdStatus <- true
+			servicesStatus <- serviceStatus{service: containerdService, status: true}
 		}()
 		go func() {
 			getStoragedStatus(ctx, client)
-			storagedStatus <- true
+			servicesStatus <- serviceStatus{service: storagedService, status: true}
 		}()
 		go func() {
 			getNodedStatus(ctx, client)
-			nodedStatus <- true
+			servicesStatus <- serviceStatus{service: nodedService, status: true}
 		}()
 		go func() {
 			getPowerdStatus(ctx, client)
-			powerdStatus <- true
+			servicesStatus <- serviceStatus{service: PowerdService, status: true}
 		}()
 
 		for i := 0; i < 6; i++ {
 			services.Rows[2][1] = getRegistrarStatus(ctx, client)
 
-			select {
-			case status := <-networkStatus:
-				services.Rows[1][1] = status
-			case <-statisticsStatus:
-				services.Rows[3][1] = green(activeStatus)
-			case <-containerdStatus:
-				services.Rows[4][1] = green(activeStatus)
-			case <-storagedStatus:
-				services.Rows[5][1] = green(activeStatus)
-			case <-nodedStatus:
-				services.Rows[6][1] = green(activeStatus)
-			case <-powerdStatus:
-				services.Rows[7][1] = green(activeStatus)
-				render.Signal()
+			service := <-servicesStatus
+			status := red(FailedStatus)
+			if service.status {
+				status = green(activeStatus)
 			}
+
+			switch service.service {
+			case networkdService:
+				services.Rows[1][1] = status
+			case statisticsService:
+				services.Rows[3][1] = status
+			case containerdService:
+				services.Rows[4][1] = status
+			case storagedService:
+				services.Rows[5][1] = status
+			case nodedService:
+				services.Rows[6][1] = status
+			case PowerdService:
+				services.Rows[7][1] = status
+			}
+
+			render.Signal()
 		}
 
 		done <- true
 	}()
+
 	return done, nil
 }
 
@@ -114,13 +131,13 @@ func getRegistrarStatus(ctx context.Context, client zbus.Client) string {
 	return green(activeStatus)
 }
 
-func getNetworkStatus(ctx context.Context, client zbus.Client) string {
+func getNetworkStatus(ctx context.Context, client zbus.Client) bool {
 	network := stubs.NewNetworkerStub(client)
-	err := network.Ready(ctx)
-	if err != nil {
-		return red(FailedStatus)
+
+	if err := network.Ready(ctx); err != nil {
+		return false
 	}
-	return green(activeStatus)
+	return true
 }
 
 func getStatisticsStatus(ctx context.Context, client zbus.Client) {

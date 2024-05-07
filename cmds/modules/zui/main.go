@@ -81,10 +81,7 @@ func action(ctx *cli.Context) error {
 	width, _ := ui.TerminalDimensions()
 
 	netgrid := ui.NewGrid()
-	netgrid.Title = "Network"
-
 	resources := ui.NewGrid()
-	resources.Title = "Provision"
 
 	header := widgets.NewParagraph()
 	header.Border = true
@@ -114,14 +111,16 @@ func action(ctx *cli.Context) error {
 	go func() {
 		<-done
 
-		errorsParagraph.SetRect(0, 22, width, 26)
-
+		// resize the errors paragraph and replace the services status grid
+		// with Network and Provision After are services are active
 		netgrid.Title = "Network"
 		netgrid.SetRect(0, 8, width, 14)
 
 		resources.Title = "Provision"
 		resources.SetRect(0, 14, width, 22)
 		resources.Border = false
+
+		errorsParagraph.SetRect(0, 22, width, 26)
 
 		if err := netRender(client, netgrid, &flag); err != nil {
 			log.Error().Err(err).Msg("failed to start net renderer")
