@@ -35,20 +35,18 @@ if err := zui.PushErrors(ctx, label, errors); err != nil {
 
 ## Usage
 
-- To allow gui:
+To allow gui use one of the following methods:
 
-1. Using `qemu`:
-
-- Use `-g` to allow GUI
+1. To run node in a VM using `qemu` run [vm.sh](../../qemu/vm.sh) script using `-g` flag to allow gui
 
 ```
-sudo ./vm.sh -g -n node-01 -c "farmer_id=$(id) version=v3 printk.devmsg=on runmode=dev nomodeset ssh-user=$(user)"
+sudo ./vm.sh -g -n node-01 -c "farmer_id=$(id) version=v3 printk.devmsg=on runmode=dev"
 
 ```
 
-2. While the zos node is running:
+2. While the zos node is running run `zui` command in the node to open the GUI.
 
-- ssh to the node and run `zui` command to open the GUI.
+3. Use `alt+F2` to toggle between logs and zui
 
 ## Update zui display
 
