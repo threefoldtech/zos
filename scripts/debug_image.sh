@@ -2,7 +2,10 @@
 
 # Constants
 readonly SOCKET="/tmp/virtiofs.sock"
-readonly OVERLAYFS="/tmp/merged"
+readonly OVERLAYFS="/tmp/overlay"
+readonly CCFLIST="https://hub.grid.tf/tf-autobuilder/cloud-container-9dba60e.flist"
+readonly MACHINE_TYPE="machine"
+readonly CONTAINER_TYPE="container"
 
 # Defaults
 cidata="/tmp/cidata.img"
@@ -19,11 +22,12 @@ declare -A options=(
     [--pass]="pass"
     [--name]="cloud"
 )
+
+image_type=$MACHINE_TYPE
 init=""
 kernel=""
 initramfs=""
-fspid=0
-flpid=0
+pids=()
 
 # Functions
 fail() {
@@ -32,15 +36,44 @@ fail() {
 }
 
 usage() {
+    echo "Usage: debug_image.sh --image IMAGE [OPTIONS]"
     echo ""
+    echo "Options:"
+    echo "  --image IMAGE         Path to the directory containing the rootfs or the flist url."
+    echo "  --kernel KERNEL       Path to kernel file (compressed or uncompressed). Default: '<rootfs>/boot/vmlinuz'."
+    echo "  --initramfs INITRAMFS Path to initramfs image. Default: '<rootfs>/boot/initrd.img'."
+    echo "  --init INIT           Entrypoint for the machine."
+    echo "  --cidata CIDATA       Path to optional cloud init image."
+    echo "  --user USER           Cloud-init username. Default: 'user'."
+    echo "  --pass PASS           Cloud-init password. Default: 'pass'."
+    echo "  --name NAME           Cloud-init machine name. Default: 'cloud'."
+    echo ""
+    echo "  -d                    Enable debugging mode with 'set -x'."
+    echo "  -h                    Show this help message."
+    echo "  -c                    Run on container mode (will provide a kernel and initrd)."
+    echo ""
+    echo "Example:"
+    echo "  debug_image.sh --image /path/to/rootfs --debug true"
 }
 
 handle_options() { 
     while [[ "$#" -gt 0 ]]; do
         case $1 in
-            --image|--cidata|--kernel|--initramfs|--init|--user|--pass|--name|--debug)
-                options[$1]="$2"
+            --image|--cidata|--kernel|--initramfs|--init|--user|--pass|--name)
+                options["$1"]="$2"
                 shift 2
+                ;;
+            -d)
+                set -x
+                shift
+                ;;
+            -h)
+                usage
+                exit 0
+                ;;
+            -c)
+                image_type=$CONTAINER_TYPE
+                shift
                 ;;
             *)
                 usage
@@ -49,23 +82,69 @@ handle_options() {
         esac
     done
 
-    if [[ "${options[--debug]}" == true ]]; then
-        set -x
+    if [[ -z "${options[--image]}" ]]; then
+        fail "rootfs image is required"
     fi
 }
 
-validate() {
-    for tool in virtiofsd cloud-hypervisor rfs1; do
-        command -v "$tool" >/dev/null 2>&1 || fail "'$tool' not found in PATH"
-    done
+check_or_install_deps() {
+    mkdir -p ~/chv
+    cd ~/chv
 
-    if [ ! -z "${options[--cidata]}" ]; then
-        command -v mkdosfs >/dev/null 2>&1 || fail "mkdosfs not found in PATH"
+    if ! command -v cloud-hypervisor &>/dev/null; then
+        wget https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/v39.0/cloud-hypervisor
+        chmod +x cloud-hypervisor
+        sudo ln -s $(realpath ./cloud-hypervisor) /usr/local/bin/cloud-hypervisor
     fi
 
-    if [ -z "${options[--image]}" ]; then
-        fail "rootfs image not provided"
+    if ! command -v virtiofsd &>/dev/null; then
+        git clone https://gitlab.com/muhamad.azmy/virtiofsd.git
+        pushd virtiofsd
+        cargo build --release
+        sudo ln -s $(realpath ./target/release/virtiofsd) /usr/local/bin/virtiofsd
+        popd
     fi
+
+    if ! command -v rfs1 &>/dev/null; then
+        wget https://github.com/threefoldtech/rfs/releases/download/v1.1.1/rfs
+        chmod +x rfs
+        sudo ln -s $(realpath ./rfs) /usr/local/bin/rfs1
+    fi
+
+    if [[ -n "${options[--cidata]}" && ! $(command -v mkdosfs &>/dev/null) ]]; then
+        sudo apt update
+        sudo apt -y install dosfstools
+    fi
+
+    if ! command -v screen &>/dev/null; then
+        sudo apt update
+        sudo apt -y install screen
+    fi
+}
+
+decide_kernel() {
+    local init="${options[--init]-}"
+    if [[ -n "$init" ]]; then
+        cmdline+=" init=$init"
+    fi
+
+    # if options provided, use them and return
+    kernel="${options[--kernel]}"
+    initramfs="${options[--initramfs]}"
+    if [[ -n "${kernel}" && -n "${initramfs}" ]]; then
+        return
+    fi
+
+    # if container mode, use cloud-container kernel
+    if [[ ${image_type} == $CONTAINER_TYPE ]]; then
+        kernel="$OVERLAYFS/kernel"
+        initramfs="$OVERLAYFS/initramfs-linux.img"
+        return
+    fi
+
+    # default is to run a full vm
+    kernel="$OVERLAYFS/boot/vmlinuz"
+    initramfs="$OVERLAYFS/boot/initrd.img"
 }
 
 create_cidata() {
@@ -90,21 +169,85 @@ create_cidata() {
     echo "local-hostname: $name" >> meta-data
 
     rm -f "${cidata}"
-    mkdosfs -n CIDATA -C "${cidata}" 8192
+
+    label="CIDATA"
+    if [[ "${image_type}" == $CONTAINER_TYPE ]]; then
+        label="cidata"
+    fi
+
+    mkdosfs -n "${label}" -C "${cidata}" 8192
     mcopy -oi "${cidata}" -s user-data ::
     mcopy -oi "${cidata}" -s meta-data ::
 
     rm -f user-data meta-data
 }
 
-cleanup() {
-    local pids=( "$flpid" "$fspid" )
+mount_flist() {
+    flist_url=$1
+    mountpoint=$2
 
-    sudo umount "${OVERLAYFS}" 2>/dev/null || true
-    sudo rm -rf /tmp/upper /tmp/workdir "${OVERLAYFS}" 2>/dev/null || true
+    echo "mounting $flist_url at $mountpoint"
+
+    flist_path=$(basename "$flist_url")
+    flist_path="/tmp/$flist_path"
+
+    if [ ! -f "$flist_path" ]; then
+        wget $flist_url -O $flist_path
+    fi
+
+    sudo mkdir -p "$mountpoint"
+
+    rfs1 --meta "$flist_path" "$mountpoint" &
+    pids+=($!)
+
+    while [ -z "$(ls -A "$mountpoint")" ]; do
+        echo "waiting for flist mount"
+        sleep 1
+    done
+}
+
+prepare_rootfs() {
+    local image="${options[--image]}"
+
+    lowerdir="$image"
+    if [[ ${image} == *.flist ]]; then
+        path="/tmp/flist"
+        mount_flist "$image" "$path"
+
+        lowerdir="$path"
+    fi
+
+    if [[ ${image_type} == $CONTAINER_TYPE ]]; then
+        path="/tmp/cloud-container"
+        mount_flist "$CCFLIST" "$path"
+
+        lowerdir="$lowerdir:$path"
+    fi
+
+    echo "Mounting overlay"
+    sudo mkdir -p /tmp/upper /tmp/workdir "$OVERLAYFS"
+    sudo mount \
+        -t overlay \
+        -o lowerdir="$lowerdir",upperdir=/tmp/upper,workdir=/tmp/workdir \
+        none \
+        "$OVERLAYFS"
+
+    echo "Starting virtiofs"
+    # a trick to not mess the logs, it asks for sudo
+    screen -dmS virtiofsd_session virtiofsd --socket-path="$SOCKET" --shared-dir="$OVERLAYFS" --cache=never
+    pids+=($!)
+}
+
+cleanup() {
+    screen -S virtiofsd_session -X kill
+
+    sudo umount "$OVERLAYFS" &>/dev/null || true
+    sudo umount /tmp/flist &>/dev/null || true
+    sudo umount /tmp/cloud-container &>/dev/null || true
+    sudo rm -rf /tmp/upper /tmp/workdir "$OVERLAYFS" &>/dev/null || true
 
     for pid in "${pids[@]}"; do
-        kill "$pid" 2>/dev/null || true
+        kill "$pid" &>/dev/null || true
     done
 }
 
@@ -114,84 +257,32 @@ boot() {
         --memory size=1024M,shared=on \
         --kernel "${kernel}" \
         --initramfs "${initramfs}" \
-        --fs tag=vroot,socket="${SOCKET}" \
-        --disk path="${cidata}" \
-        --cmdline "${cmdline}" \
+        --fs tag=vroot,socket="$SOCKET" \
+        --disk path="$cidata" \
+        --cmdline "$cmdline" \
         --serial tty \
         --console off
 }
 
-prepare_rootfs() {
-    local image_path="${options[--image]}"
+cleanup
 
-    sudo mkdir -p /tmp/upper /tmp/workdir "${OVERLAYFS}"
-
-    if [[ ${image_path} == *.flist ]]; then
-        echo "${image_path} is flist, mounting"
-
-        rootfs=/tmp/lower
-        sudo mkdir -p "$rootfs" && sudo chmod 777 "$rootfs"
-
-        rfs1 --meta "$image_path" "$rootfs" &
-        flpid=$!
-        
-        while [ -z "$(ls -A "$rootfs")" ]; do
-            echo "Waiting for flist mount"
-            sleep 1
-        done
-
-    else
-        rootfs="${image_path}"
-    fi
-
-    echo "Mounting overlay"
-    sudo mount \
-        -t overlay \
-        -o lowerdir="$rootfs",upperdir=/tmp/upper,workdir=/tmp/workdir \
-        none \
-        "${OVERLAYFS}"
-
-    echo "Starting virtiofs"
-    sudo virtiofsd \
-        --socket-path="${SOCKET}" \
-        --shared-dir="${OVERLAYFS}" \
-        --cache=never \
-        &
-    fspid=$!
-}
-
-prepare_boot() {
-    kernel="${options[--kernel]-}"
-    kernel="${kernel:-"${OVERLAYFS}/boot/vmlinuz"}"
-
-    initramfs="${options[--initramfs]-}"
-    initramfs="${initramfs:-"${OVERLAYFS}/boot/initrd.img"}"
-
-    init="${options[--init]-}"
-    if [ -n "$init" ]; then
-        cmdline="$cmdline init=$init"
-    fi
-
-    # if [ ! -f "$kernel" ] || [ ! -f "$initramfs" ]; then
-    #     fail "kernel or initramfs not found"
-    # fi
-}
-
-# Main
+echo "Starting ..."
 handle_options "$@"
 
-echo "Validating requirements"
-validate
+echo "Check or install deps"
+check_or_install_deps
 
-echo "Preparing rootfs"
-prepare_rootfs
-
-echo "Preparing boot"
-prepare_boot
+echo "Decide kernel"
+decide_kernel
 
 echo "Creating cidata"
 create_cidata
-trap cleanup EXIT
 
-echo "Booting"
+echo "Prepare rootfs"
+prepare_rootfs
+
+trap cleanup EXIT
+trap cleanup ERR
+
+echo "Booting ..."
 boot

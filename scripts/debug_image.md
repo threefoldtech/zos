@@ -6,7 +6,7 @@ The debug image script facilitates development and debugging of flists runs on Z
 
 ## Usage
 
-Either during development, specify a directory containing the rootfs. Or to debug existing flist, pass an flist file.
+Either during development, specify a directory containing the rootfs. Or to debug existing flist, pass an flist url.
 
 ```bash
 # run image from a directory
@@ -16,7 +16,7 @@ Either during development, specify a directory containing the rootfs. Or to debu
 ./debug_image.sh --image /tmp/rootfs --debug true --cidata /tmp/cloud-init.img
 
 # run image from an flist with login cred. `foo:bar`
-./debug_image.sh --image /tmp/ubuntu:jammy.flist --user foo --pass bar
+./debug_image.sh --image https://hub.grid.tf/tf-official-apps/discourse-v4.0.flist --init /start.sh --user foo --pass bar
 ```
 
 ## Image Types
@@ -29,8 +29,10 @@ Either during development, specify a directory containing the rootfs. Or to debu
 
 ## Flags
 
-- `--image`: [REQUIRED] directory or flist file path
-- `--debug`: enables `set -x` in the bash script
+- `--image`: [REQUIRED] directory or flist url
+- `--d`: enables `set -x` in the bash script
+- `--h`: show the help message
+- `--c`: run the image in container mode, will provide kernel/initrd from cloud-container
 - `--kernel`: kernel file path (compressed or uncompressed). default: `<rootfs>/boot/vmlinuz`
 - `--initramfs`: Initrd image path. default: `<rootfs>/boot/initrd.img`
 - `--init`: entrypoint for the machine.
@@ -106,4 +108,10 @@ Either during development, specify a directory containing the rootfs. Or to debu
 
     ```bash
     apt-get install dosfstools
+    ```
+
+- **screen**
+
+    ```bash
+    apt-get install screen
     ```
