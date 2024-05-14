@@ -234,21 +234,24 @@ prepare_rootfs() {
 
     echo "Starting virtiofs"
     # a trick to not mess the logs, it asks for sudo
-    screen -dmS virtiofsd_session virtiofsd --socket-path="$SOCKET" --shared-dir="$OVERLAYFS" --cache=never
+    sudo screen -dmS virtiofsd_session sudo virtiofsd --socket-path="$SOCKET" --shared-dir="$OVERLAYFS" --cache=never
     pids+=($!)
 }
 
 cleanup() {
-    screen -S virtiofsd_session -X kill
+    screen -S virtiofsd_session -X kill &>/dev/null || true
 
-    sudo umount "$OVERLAYFS" &>/dev/null || true
-    sudo umount /tmp/flist &>/dev/null || true
-    sudo umount /tmp/cloud-container &>/dev/null || true
-    sudo rm -rf /tmp/upper /tmp/workdir "$OVERLAYFS" &>/dev/null || true
+    dirs=("$OVERLAYFS" /tmp/flist /tmp/cloud-container /tmp/upper /tmp/workdir)
+    for dir in "${dirs_to_umount[@]}"; do
+        sudo umount "$dir" &>/dev/null || true
+        sudo rm -rf "$dir" &>/dev/null || true
+    done
 
     for pid in "${pids[@]}"; do
         kill "$pid" &>/dev/null || true
     done
+
+    echo "CLEAR!"
 }
 
 boot() {
@@ -263,6 +266,11 @@ boot() {
         --serial tty \
         --console off
 }
+
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
 
 cleanup
 

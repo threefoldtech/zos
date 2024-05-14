@@ -41,6 +41,10 @@ Either during development, specify a directory containing the rootfs. Or to debu
 - `--pass`: cloud-init password. default is pass
 - `--name`: cloud-init machine name. default is cloud
 
+NOTE:
+
+- if you are passing a path to rootfs directory to `--image` flag, make sure it doesn't contain `:`
+
 ## Technologies Used
 
 - [cloud-hypervisor](https://github.com/cloud-hypervisor/cloud-hypervisor): hypervisor that booting the machine
