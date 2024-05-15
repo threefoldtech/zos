@@ -35,8 +35,6 @@ type Interface struct {
 	Mac  string
 }
 
-type Interfaces map[string]Interface
-
 type ExitDevice struct {
 	// IsSingle is set to true if br-pub
 	// is connected to zos bridge
