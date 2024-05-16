@@ -1,4 +1,4 @@
-package apigateway
+package zosapi
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func (g *apiGateway) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	// list all interfaces on node
 	type Interface struct {
 		IPs []string `json:"ips"`
@@ -34,11 +34,11 @@ func (g *apiGateway) adminInterfacesHandler(ctx context.Context, payload []byte)
 	return output, nil
 }
 
-func (g *apiGateway) adminGetPublicNICHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) adminGetPublicNICHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.networkerStub.GetPublicExitDevice(ctx)
 }
 
-func (g *apiGateway) adminSetPublicNICHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) adminSetPublicNICHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var iface string
 	if err := json.Unmarshal(payload, &iface); err != nil {
 		return nil, fmt.Errorf("failed to decode input, expecting string: %w", err)

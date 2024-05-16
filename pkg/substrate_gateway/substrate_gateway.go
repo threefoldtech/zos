@@ -1,77 +1,36 @@
-package apigateway
+package substrategw
 
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
-	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/capacity"
-	"github.com/threefoldtech/zos/pkg/diagnostics"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-type apiGateway struct {
-	oracle                 *capacity.ResourceOracle
-	versionMonitorStub     *stubs.VersionMonitorStub
-	provisionStub          *stubs.ProvisionStub
-	networkerStub          *stubs.NetworkerStub
-	statisticsStub         *stubs.StatisticsStub
-	storageStub            *stubs.StorageModuleStub
-	performanceMonitorStub *stubs.PerformanceMonitorStub
-	diagnosticsManager     *diagnostics.DiagnosticsManager
-	farmerID               uint32
-
+type substrateGateway struct {
 	sub      *substrate.Substrate
 	mu       sync.Mutex
 	identity substrate.Identity
 }
 
-func NewAPIGateway(manager substrate.Manager, identity substrate.Identity, client zbus.Client, router *peer.Router, msgBrokerCon string) (pkg.APIGateway, error) {
+func NewSubstrateGateway(manager substrate.Manager, identity substrate.Identity) (pkg.SubstrateGateway, error) {
 	sub, err := manager.Substrate()
 	if err != nil {
 		return nil, err
 	}
-	diagnosticsManager, err := diagnostics.NewDiagnosticsManager(msgBrokerCon, client)
-	if err != nil {
-		return nil, err
+	gw := &substrateGateway{
+		sub:      sub,
+		mu:       sync.Mutex{},
+		identity: identity,
 	}
-	storageModuleStub := stubs.NewStorageModuleStub(client)
-	gw := &apiGateway{
-		oracle:                 capacity.NewResourceOracle(storageModuleStub),
-		versionMonitorStub:     stubs.NewVersionMonitorStub(client),
-		provisionStub:          stubs.NewProvisionStub(client),
-		networkerStub:          stubs.NewNetworkerStub(client),
-		statisticsStub:         stubs.NewStatisticsStub(client),
-		storageStub:            storageModuleStub,
-		performanceMonitorStub: stubs.NewPerformanceMonitorStub(client),
-		diagnosticsManager:     diagnosticsManager,
-		sub:                    sub,
-		mu:                     sync.Mutex{},
-		identity:               identity,
-	}
-	farm, err := gw.GetFarm(uint32(environment.MustGet().FarmID))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get farm: %w", err)
-	}
-
-	farmer, err := gw.GetTwin(uint32(farm.TwinID))
-	if err != nil {
-		return nil, err
-	}
-	gw.farmerID = uint32(farmer.ID)
-	gw.setupRoutes(router)
 	return gw, nil
 }
 
-func (g *apiGateway) CreateNode(node substrate.Node) (uint32, error) {
+func (g *substrateGateway) CreateNode(node substrate.Node) (uint32, error) {
 	log.Debug().
 		Str("method", "CreateNode").
 		Uint32("twin id", uint32(node.TwinID)).
@@ -82,14 +41,14 @@ func (g *apiGateway) CreateNode(node substrate.Node) (uint32, error) {
 	return g.sub.CreateNode(g.identity, node)
 }
 
-func (g *apiGateway) CreateTwin(relay string, pk []byte) (uint32, error) {
+func (g *substrateGateway) CreateTwin(relay string, pk []byte) (uint32, error) {
 	log.Debug().Str("method", "CreateTwin").Str("relay", relay).Str("pk", hex.EncodeToString(pk)).Msg("method called")
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.sub.CreateTwin(g.identity, relay, pk)
 }
 
-func (g *apiGateway) EnsureAccount(activationURL string, termsAndConditionsLink string, termsAndConditionsHash string) (info substrate.AccountInfo, err error) {
+func (g *substrateGateway) EnsureAccount(activationURL string, termsAndConditionsLink string, termsAndConditionsHash string) (info substrate.AccountInfo, err error) {
 	log.Debug().
 		Str("method", "EnsureAccount").
 		Str("activation url", activationURL).
@@ -101,7 +60,7 @@ func (g *apiGateway) EnsureAccount(activationURL string, termsAndConditionsLink 
 	return g.sub.EnsureAccount(g.identity, activationURL, termsAndConditionsLink, termsAndConditionsHash)
 }
 
-func (g *apiGateway) GetContract(id uint64) (result substrate.Contract, serr pkg.SubstrateError) {
+func (g *substrateGateway) GetContract(id uint64) (result substrate.Contract, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetContract").Uint64("id", id).Msg("method called")
 	contract, err := g.sub.GetContract(id)
 
@@ -112,7 +71,7 @@ func (g *apiGateway) GetContract(id uint64) (result substrate.Contract, serr pkg
 	return *contract, serr
 }
 
-func (g *apiGateway) GetContractIDByNameRegistration(name string) (result uint64, serr pkg.SubstrateError) {
+func (g *substrateGateway) GetContractIDByNameRegistration(name string) (result uint64, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetContractIDByNameRegistration").Str("name", name).Msg("method called")
 	contractID, err := g.sub.GetContractIDByNameRegistration(name)
 
@@ -120,7 +79,7 @@ func (g *apiGateway) GetContractIDByNameRegistration(name string) (result uint64
 	return contractID, serr
 }
 
-func (g *apiGateway) GetFarm(id uint32) (result substrate.Farm, err error) {
+func (g *substrateGateway) GetFarm(id uint32) (result substrate.Farm, err error) {
 	log.Trace().Str("method", "GetFarm").Uint32("id", id).Msg("method called")
 	farm, err := g.sub.GetFarm(id)
 	if err != nil {
@@ -129,7 +88,7 @@ func (g *apiGateway) GetFarm(id uint32) (result substrate.Farm, err error) {
 	return *farm, err
 }
 
-func (g *apiGateway) GetNode(id uint32) (result substrate.Node, err error) {
+func (g *substrateGateway) GetNode(id uint32) (result substrate.Node, err error) {
 	log.Trace().Str("method", "GetNode").Uint32("id", id).Msg("method called")
 	node, err := g.sub.GetNode(id)
 	if err != nil {
@@ -138,7 +97,7 @@ func (g *apiGateway) GetNode(id uint32) (result substrate.Node, err error) {
 	return *node, err
 }
 
-func (g *apiGateway) GetNodeByTwinID(twin uint32) (result uint32, serr pkg.SubstrateError) {
+func (g *substrateGateway) GetNodeByTwinID(twin uint32) (result uint32, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetNodeByTwinID").Uint32("twin", twin).Msg("method called")
 	nodeID, err := g.sub.GetNodeByTwinID(twin)
 
@@ -146,12 +105,12 @@ func (g *apiGateway) GetNodeByTwinID(twin uint32) (result uint32, serr pkg.Subst
 	return nodeID, serr
 }
 
-func (g *apiGateway) GetNodeContracts(node uint32) ([]types.U64, error) {
+func (g *substrateGateway) GetNodeContracts(node uint32) ([]types.U64, error) {
 	log.Trace().Str("method", "GetNodeContracts").Uint32("node", node).Msg("method called")
 	return g.sub.GetNodeContracts(node)
 }
 
-func (g *apiGateway) GetNodeRentContract(node uint32) (result uint64, serr pkg.SubstrateError) {
+func (g *substrateGateway) GetNodeRentContract(node uint32) (result uint64, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetNodeRentContract").Uint32("node", node).Msg("method called")
 	contractID, err := g.sub.GetNodeRentContract(node)
 
@@ -159,17 +118,17 @@ func (g *apiGateway) GetNodeRentContract(node uint32) (result uint64, serr pkg.S
 	return contractID, serr
 }
 
-func (g *apiGateway) GetNodes(farmID uint32) ([]uint32, error) {
+func (g *substrateGateway) GetNodes(farmID uint32) ([]uint32, error) {
 	log.Trace().Str("method", "GetNodes").Uint32("farm id", farmID).Msg("method called")
 	return g.sub.GetNodes(farmID)
 }
 
-func (g *apiGateway) GetPowerTarget(nodeID uint32) (power substrate.NodePower, err error) {
+func (g *substrateGateway) GetPowerTarget(nodeID uint32) (power substrate.NodePower, err error) {
 	log.Trace().Str("method", "GetPowerTarget").Uint32("node id", nodeID).Msg("method called")
 	return g.sub.GetPowerTarget(nodeID)
 }
 
-func (g *apiGateway) GetTwin(id uint32) (result substrate.Twin, err error) {
+func (g *substrateGateway) GetTwin(id uint32) (result substrate.Twin, err error) {
 	log.Trace().Str("method", "GetTwin").Uint32("id", id).Msg("method called")
 	twin, err := g.sub.GetTwin(id)
 	if err != nil {
@@ -178,7 +137,7 @@ func (g *apiGateway) GetTwin(id uint32) (result substrate.Twin, err error) {
 	return *twin, err
 }
 
-func (g *apiGateway) GetTwinByPubKey(pk []byte) (result uint32, serr pkg.SubstrateError) {
+func (g *substrateGateway) GetTwinByPubKey(pk []byte) (result uint32, serr pkg.SubstrateError) {
 	log.Trace().Str("method", "GetTwinByPubKey").Str("pk", hex.EncodeToString(pk)).Msg("method called")
 	twinID, err := g.sub.GetTwinByPubKey(pk)
 
@@ -186,7 +145,7 @@ func (g *apiGateway) GetTwinByPubKey(pk []byte) (result uint32, serr pkg.Substra
 	return twinID, serr
 }
 
-func (g *apiGateway) Report(consumptions []substrate.NruConsumption) (types.Hash, error) {
+func (g *substrateGateway) Report(consumptions []substrate.NruConsumption) (types.Hash, error) {
 	contractIDs := make([]uint64, 0, len(consumptions))
 	for _, v := range consumptions {
 		contractIDs = append(contractIDs, uint64(v.ContractID))
@@ -197,7 +156,7 @@ func (g *apiGateway) Report(consumptions []substrate.NruConsumption) (types.Hash
 	return g.sub.Report(g.identity, consumptions)
 }
 
-func (g *apiGateway) SetContractConsumption(resources ...substrate.ContractResources) error {
+func (g *substrateGateway) SetContractConsumption(resources ...substrate.ContractResources) error {
 	contractIDs := make([]uint64, 0, len(resources))
 	for _, v := range resources {
 		contractIDs = append(contractIDs, uint64(v.ContractID))
@@ -208,21 +167,21 @@ func (g *apiGateway) SetContractConsumption(resources ...substrate.ContractResou
 	return g.sub.SetContractConsumption(g.identity, resources...)
 }
 
-func (g *apiGateway) SetNodePowerState(up bool) (hash types.Hash, err error) {
+func (g *substrateGateway) SetNodePowerState(up bool) (hash types.Hash, err error) {
 	log.Debug().Str("method", "SetNodePowerState").Bool("up", up).Msg("method called")
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.sub.SetNodePowerState(g.identity, up)
 }
 
-func (g *apiGateway) UpdateNode(node substrate.Node) (uint32, error) {
+func (g *substrateGateway) UpdateNode(node substrate.Node) (uint32, error) {
 	log.Debug().Str("method", "UpdateNode").Msg("method called")
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.sub.UpdateNode(g.identity, node)
 }
 
-func (g *apiGateway) UpdateNodeUptimeV2(uptime uint64, timestampHint uint64) (hash types.Hash, err error) {
+func (g *substrateGateway) UpdateNodeUptimeV2(uptime uint64, timestampHint uint64) (hash types.Hash, err error) {
 	log.Debug().
 		Str("method", "UpdateNodeUptimeV2").
 		Uint64("uptime", uptime).

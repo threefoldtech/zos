@@ -1,4 +1,4 @@
-package apigateway
+package zosapi
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func (g *apiGateway) systemVersionHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) systemVersionHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	output, err := exec.CommandContext(ctx, "zinit", "-V").CombinedOutput()
 	var zInitVer string
 	if err != nil {
@@ -26,14 +26,14 @@ func (g *apiGateway) systemVersionHandler(ctx context.Context, payload []byte) (
 	return version, nil
 }
 
-func (g *apiGateway) systemDMIHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) systemDMIHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.oracle.DMI()
 }
 
-func (g *apiGateway) systemHypervisorHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) systemHypervisorHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.oracle.GetHypervisor()
 }
 
-func (g *apiGateway) systemDiagnosticsHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) systemDiagnosticsHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.diagnosticsManager.GetSystemDiagnostics(ctx)
 }

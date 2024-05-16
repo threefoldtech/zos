@@ -1,4 +1,4 @@
-package apigateway
+package zosapi
 
 import (
 	"context"
@@ -10,13 +10,13 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-func (g *apiGateway) networkListWGPortsHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) networkListWGPortsHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.networkerStub.WireguardPorts(ctx)
 }
-func (g *apiGateway) networkPublicConfigGetHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) networkPublicConfigGetHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.networkerStub.GetPublicConfig(ctx)
 }
-func (g *apiGateway) networkInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) networkInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	results := make(map[string][]net.IP)
 	type q struct {
 		inf    string
@@ -42,16 +42,16 @@ func (g *apiGateway) networkInterfacesHandler(ctx context.Context, payload []byt
 
 	return results, nil
 }
-func (g *apiGateway) networkHasIPv6Handler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) networkHasIPv6Handler(ctx context.Context, payload []byte) (interface{}, error) {
 	ipData, err := g.networkerStub.GetPublicIPv6Subnet(ctx)
 	hasIP := ipData.IP != nil && err == nil
 	return hasIP, err
 }
-func (g *apiGateway) networkListPublicIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) networkListPublicIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.provisionStub.ListPublicIPs(ctx)
 }
 
-func (g *apiGateway) networkListPrivateIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) networkListPrivateIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var args struct {
 		NetworkName gridtypes.Name `json:"network_name"`
 	}

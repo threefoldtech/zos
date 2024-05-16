@@ -1,10 +1,10 @@
-package apigateway
+package zosapi
 
 import (
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
 )
 
-func (g *apiGateway) setupRoutes(router *peer.Router) {
+func (g *ZosAPI) SetupRoutes(router *peer.Router) {
 
 	root := router.SubRoute("zos")
 	system := root.SubRoute("system")

@@ -11,10 +11,11 @@ import (
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
 	"github.com/threefoldtech/zbus"
-	apigateway "github.com/threefoldtech/zos/pkg/api_gateway"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/stubs"
+	substrategw "github.com/threefoldtech/zos/pkg/substrate_gateway"
 	"github.com/threefoldtech/zos/pkg/utils"
+	zosapi "github.com/threefoldtech/zos/pkg/zos_api"
 	"github.com/urfave/cli/v2"
 )
 
@@ -68,12 +69,18 @@ func action(cli *cli.Context) error {
 	}
 
 	router := peer.NewRouter()
-	gw, err := apigateway.NewAPIGateway(manager, id, redis, router, msgBrokerCon)
+	gw, err := substrategw.NewSubstrateGateway(manager, id)
 	if err != nil {
 		return fmt.Errorf("failed to create api gateway: %w", err)
 	}
 
 	server.Register(zbus.ObjectID{Name: "api-gateway", Version: "0.0.1"}, gw)
+	api, err := zosapi.NewZosAPI(manager, redis, msgBrokerCon)
+	if err != nil {
+		return fmt.Errorf("failed to create zos api: %w", err)
+	}
+	api.SetupRoutes(router)
+
 	pair, err := id.KeyPair()
 	if err != nil {
 		return err

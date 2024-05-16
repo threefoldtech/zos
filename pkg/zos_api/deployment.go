@@ -1,4 +1,4 @@
-package apigateway
+package zosapi
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-func (g *apiGateway) deploymentDeployHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) deploymentDeployHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var deployment gridtypes.Deployment
 	if err := json.Unmarshal(payload, &deployment); err != nil {
 		return nil, err
@@ -18,7 +18,7 @@ func (g *apiGateway) deploymentDeployHandler(ctx context.Context, payload []byte
 	return nil, err
 }
 
-func (g *apiGateway) deploymentUpdateHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) deploymentUpdateHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var deployment gridtypes.Deployment
 	if err := json.Unmarshal(payload, &deployment); err != nil {
 		return nil, err
@@ -27,11 +27,11 @@ func (g *apiGateway) deploymentUpdateHandler(ctx context.Context, payload []byte
 	return nil, err
 }
 
-func (g *apiGateway) deploymentDeleteHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) deploymentDeleteHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return nil, fmt.Errorf("deletion over the api is disabled, please cancel your contract instead")
 }
 
-func (g *apiGateway) deploymentGetHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) deploymentGetHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var args struct {
 		ContractID uint64 `json:"contract_id"`
 	}
@@ -44,11 +44,11 @@ func (g *apiGateway) deploymentGetHandler(ctx context.Context, payload []byte) (
 
 }
 
-func (g *apiGateway) deploymentListHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) deploymentListHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.provisionStub.List(ctx, peer.GetTwinID(ctx))
 }
 
-func (g *apiGateway) deploymentChangesHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) deploymentChangesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var args struct {
 		ContractID uint64 `json:"contract_id"`
 	}

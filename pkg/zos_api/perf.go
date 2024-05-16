@@ -1,4 +1,4 @@
-package apigateway
+package zosapi
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func (g *apiGateway) perfGetHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) perfGetHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	type Payload struct {
 		Name string
 	}
@@ -18,6 +18,6 @@ func (g *apiGateway) perfGetHandler(ctx context.Context, payload []byte) (interf
 	return g.performanceMonitorStub.Get(ctx, request.Name)
 }
 
-func (g *apiGateway) perfGetAllHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) perfGetAllHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	return g.performanceMonitorStub.GetAll(ctx)
 }

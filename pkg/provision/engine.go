@@ -46,8 +46,8 @@ func WithStartupOrder(t ...gridtypes.WorkloadType) EngineOption {
 // WithAPIGateway sets the API Gateway. If set it will
 // be used by the engine to fetch (and validate) the deployment contract
 // then contract with be available on the deployment context
-func WithAPIGateway(node uint32, apiGateway *stubs.APIGatewayStub) EngineOption {
-	return &withAPIGateway{node, apiGateway}
+func WithAPIGateway(node uint32, substrateGateway *stubs.SubstrateGatewayStub) EngineOption {
+	return &withAPIGateway{node, substrateGateway}
 }
 
 // WithRerunAll if set forces the engine to re-run all reservations
@@ -116,9 +116,9 @@ type NativeEngine struct {
 	typeIndex map[gridtypes.WorkloadType]int
 	rerunAll  bool
 	//substrate specific attributes
-	nodeID     uint32
-	apiGateway *stubs.APIGatewayStub
-	callback   Callback
+	nodeID           uint32
+	substrateGateway *stubs.SubstrateGatewayStub
+	callback         Callback
 }
 
 var _ Engine = (*NativeEngine)(nil)
@@ -141,13 +141,13 @@ func (o *withAdminsKeyGetter) apply(e *NativeEngine) {
 }
 
 type withAPIGateway struct {
-	nodeID     uint32
-	apiGateway *stubs.APIGatewayStub
+	nodeID           uint32
+	substrateGateway *stubs.SubstrateGatewayStub
 }
 
 func (o *withAPIGateway) apply(e *NativeEngine) {
 	e.nodeID = o.nodeID
-	e.apiGateway = o.apiGateway
+	e.substrateGateway = o.substrateGateway
 }
 
 type withStartupOrder struct {
@@ -568,11 +568,11 @@ func (e *NativeEngine) safeCallback(d *gridtypes.Deployment, delete bool) {
 // validate validates and injects the deployment contracts is substrate is configured
 // for this instance of the provision engine. If noValidation is set contracts checks is skipped
 func (e *NativeEngine) validate(ctx context.Context, dl *gridtypes.Deployment, noValidation bool) (context.Context, error) {
-	if e.apiGateway == nil {
+	if e.substrateGateway == nil {
 		return ctx, fmt.Errorf("substrate is not configured in engine")
 	}
 
-	contract, subErr := e.apiGateway.GetContract(ctx, uint64(dl.ContractID))
+	contract, subErr := e.substrateGateway.GetContract(ctx, uint64(dl.ContractID))
 	if subErr.IsError() {
 		return nil, errors.Wrap(subErr.Err, "failed to get deployment contract")
 	}
@@ -582,7 +582,7 @@ func (e *NativeEngine) validate(ctx context.Context, dl *gridtypes.Deployment, n
 	}
 	ctx = withContract(ctx, contract.ContractType.NodeContract)
 
-	rent, subErr := e.apiGateway.GetNodeRentContract(ctx, e.nodeID)
+	rent, subErr := e.substrateGateway.GetNodeRentContract(ctx, e.nodeID)
 	if subErr.IsError() && !subErr.IsCode(pkg.CodeNotFound) {
 		return nil, fmt.Errorf("failed to check node rent state")
 	}

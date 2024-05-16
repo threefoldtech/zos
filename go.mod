@@ -19,6 +19,7 @@ require (
 	github.com/containerd/typeurl v1.0.2
 	github.com/containernetworking/cni v0.8.1
 	github.com/containernetworking/plugins v0.9.1
+	github.com/dave/jennifer v1.3.0
 	github.com/deckarep/golang-set v1.8.0
 	github.com/decred/base58 v1.0.5
 	github.com/diskfs/go-diskfs v1.2.0
