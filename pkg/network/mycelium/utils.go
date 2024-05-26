@@ -38,14 +38,14 @@ func EnsureMycelium(ctx context.Context, privateKey ed25519.PrivateKey, ns Mycel
 		return nil, err
 	}
 
-	gw, err := server.Gateway()
-	if err != nil {
-		return nil, errors.Wrap(err, "fail read mycelium subnet")
-	}
-
-	if err := ns.SetMyIP(gw, nil); err != nil {
-		return nil, errors.Wrap(err, "fail to configure mycelium subnet gateway IP")
-	}
+	// gw, err := server.Gateway()
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "fail read mycelium subnet")
+	// }
+	//
+	// if err := ns.SetMyIP(gw, nil); err != nil {
+	// 	return nil, errors.Wrap(err, "fail to configure mycelium subnet gateway IP")
+	// }
 
 	return server, nil
 }

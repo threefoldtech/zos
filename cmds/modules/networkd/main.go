@@ -11,6 +11,7 @@ import (
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
+	"github.com/threefoldtech/zos/pkg/network/mycelium"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -112,12 +113,13 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create ndmz")
 	}
 	log.Debug().Msg("starting yggdrasil")
-	yggNamespace := dmz.Namespace()
+
+	namespace := dmz.Namespace()
 	if public.HasPublicSetup() {
-		yggNamespace = public.PublicNamespace
+		namespace = public.PublicNamespace
 	}
 
-	yggNs, err := yggdrasil.NewYggdrasilNamespace(yggNamespace)
+	yggNs, err := yggdrasil.NewYggdrasilNamespace(namespace)
 	if err != nil {
 		return errors.Wrap(err, "failed to create yggdrasil namespace")
 	}
@@ -125,6 +127,16 @@ func action(cli *cli.Context) error {
 	ygg, err := yggdrasil.EnsureYggdrasil(ctx, identity.PrivateKey(cli.Context), yggNs)
 	if err != nil {
 		return errors.Wrap(err, "failed to start yggdrasil")
+	}
+
+	myNs, err := mycelium.NewMyNamespace(namespace)
+	if err != nil {
+		return errors.Wrap(err, "failed to create mycelium namespace")
+	}
+
+	_, err = mycelium.EnsureMycelium(ctx, identity.PrivateKey(cli.Context), myNs)
+	if err != nil {
+		return errors.Wrap(err, "failed to start mycelium")
 	}
 
 	if public.HasPublicSetup() {
@@ -151,6 +163,7 @@ func action(cli *cli.Context) error {
 		}
 	}
 
+	// update this to have mycelium too
 	networker, err := network.NewNetworker(identity, dmz, ygg)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
@@ -199,7 +212,6 @@ func startRmbServer(ctx context.Context, bus *rmb.DefaultRouter) error {
 }
 
 func startZBusServer(ctx context.Context, broker string, networker pkg.Networker) error {
-
 	server, err := zbus.NewRedisServer(module, broker, 1)
 	if err != nil {
 		log.Error().Err(err).Msgf("fail to connect to message broker server")
@@ -222,7 +234,7 @@ func startZBusServer(ctx context.Context, broker string, networker pkg.Networker
 func waitYggdrasilBin() {
 	log.Info().Msg("wait for yggdrasil binary to be available")
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0 //forever
+	bo.MaxElapsedTime = 0 // forever
 	_ = backoff.RetryNotify(func() error {
 		_, err := exec.LookPath("yggdrasil")
 		return err
