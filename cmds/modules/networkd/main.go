@@ -134,7 +134,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to create mycelium namespace")
 	}
 
-	_, err = mycelium.EnsureMycelium(ctx, identity.PrivateKey(cli.Context), myNs)
+	myc, err := mycelium.EnsureMycelium(ctx, identity.PrivateKey(cli.Context), myNs)
 	if err != nil {
 		return errors.Wrap(err, "failed to start mycelium")
 	}
@@ -164,7 +164,7 @@ func action(cli *cli.Context) error {
 	}
 
 	// update this to have mycelium too
-	networker, err := network.NewNetworker(identity, dmz, ygg)
+	networker, err := network.NewNetworker(identity, dmz, ygg, myc)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
 	}
