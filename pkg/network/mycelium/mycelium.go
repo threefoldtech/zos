@@ -24,7 +24,8 @@ const (
 	tunName      = "utun9"
 	myBin        = "mycelium"
 	zinitService = "mycelium"
-	confPath     = "/var/cache/modules/networkd/mycelium_priv_key.bin"
+	MyListenTCP  = 9651
+	confPath     = "/tmp/mycelium_priv_key.bin"
 )
 
 // MyServer represent a mycelium server
@@ -32,10 +33,13 @@ type MyServer struct {
 	cfg *NodeConfig
 	ns  string
 }
-type myceliumInfo struct {
+
+type MyceliumInspection struct {
 	PublicKey string `json:"publicKey"`
-	Address   string `json:"address"`
+	Address   net.IP `json:"address"`
 }
+
+type Subnet [8]byte
 
 // NewMyServer create a new mycelium Server
 func NewMyServer(cfg *NodeConfig) *MyServer {
@@ -111,88 +115,99 @@ func (s *MyServer) NodeID() (ed25519.PublicKey, error) {
 	return hex.DecodeString(s.cfg.PublicKey)
 }
 
-// Address return the address in the 400::/7 subnet allocated by mycelium
-func (s *MyServer) Address() (net.IP, error) {
+func (s *MyServer) InspectMycelium() (inspection MyceliumInspection, err error) {
+	// we check if the file exists before we do inspect because mycelium will create a random seed
+	// file if file does not exist
+	_, err = os.Stat(confPath)
+	if err != nil {
+		return inspection, err
+	}
+
 	bin, err := exec.LookPath(myBin)
 	if err != nil {
-		return nil, err
+		return inspection, err
 	}
 
-	cmd := fmt.Sprintf(`exec ip netns exec %s %s inspect --key-file %s --json`, s.ns, bin, confPath)
-	c := exec.Command("sh", "-c", cmd)
-
-	data, err := c.Output()
+	cmd := fmt.Sprintf(`exec ip netns exec %s %s --key-file %s inspect --json`, s.ns, bin, confPath)
+	output, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to inspect mycelium ip")
-	}
-	var myc myceliumInfo
-	err = json.Unmarshal(data, &myc)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse mycelium ip")
+		return inspection, errors.Wrap(err, "failed to inspect mycelium ip")
 	}
 
-	return net.IP(myc.Address), nil
+	if err := json.Unmarshal(output, &inspection); err != nil {
+		return inspection, errors.Wrap(err, "failed to load mycelium information from key")
+	}
+
+	return
 }
 
-// // -> how should I do this?
-// // Subnet return the 700::/64 subnet allocated by mycelium
-//
-//	func (s *MyServer) Subnet() (net.IPNet, error) {
-//		add, err := s.Address()
-//		if err != nil {
-//			return net.IPNet{}, err
-//		}
-//
-//		snet := *address.SubnetForKey(nodeID)
-//		ipnet := net.IPNet{
-//			IP:   append(snet[:], 0, 0, 0, 0, 0, 0, 0, 0),
-//			Mask: net.CIDRMask(len(snet)*8, 128),
-//		}
-//
-//		return ipnet, nil
-//	}
-//
-// // Gateway return the first IP of the 700::/64 subnet allocated by mycelium
-//
-//	func (s *MyServer) Gateway() (net.IPNet, error) {
-//		subnet, err := s.Subnet()
-//		if err != nil {
-//			return net.IPNet{}, err
-//		}
-//		subnet.IP[len(subnet.IP)-1] = 0x1
-//
-//		return subnet, nil
-//	}
-//
-// Tun return the name of the TUN interface created by mycelium
+// IP return the address in the 400::/7 subnet allocated by mycelium
+func (m *MyceliumInspection) IP() net.IP {
+	return net.IP(m.Address)
+}
 
+// Subnet return the 400::/64 subnet allocated by mycelium
+func (m *MyceliumInspection) Subnet() (subnet net.IPNet, err error) {
+	ipv6 := m.Address.To16()
+	if ipv6 == nil {
+		return subnet, errors.Errorf("invalid mycelium ip")
+	}
+
+	ip := make(net.IP, net.IPv6len)
+	copy(ip[0:8], ipv6[0:8])
+
+	subnet = net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(64, 128),
+	}
+
+	return
+}
+
+// Gateway derive the gateway IP from the mycelium IP in the /64 range.
+func (m *MyceliumInspection) Gateway() (gw net.IPNet, err error) {
+	subnet, err := m.Subnet()
+	if err != nil {
+		return gw, err
+	}
+
+	ip := subnet.IP
+	ip[net.IPv6len-1] = 1
+
+	gw = net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(64, 128),
+	}
+
+	return
+}
+
+// Tun return the name of the TUN interface created by mycelium
 func (s *MyServer) Tun() string {
 	return s.cfg.TunName
 }
 
-//
-// // SubnetFor return an IP address out of the node allocated subnet by hasing b and using it
-// // to generate the last 64 bits of the IPV6 address
-//
-//	func (s *MyServer) SubnetFor(b []byte) (net.IPNet, error) {
-//		subnet, err := s.Subnet()
-//		if err != nil {
-//			return net.IPNet{}, err
-//		}
-//
-//		ip := make([]byte, net.IPv6len)
-//		copy(ip, subnet.IP)
-//
-//		subIP, err := subnetFor(ip, b)
-//		if err != nil {
-//			return net.IPNet{}, err
-//		}
-//
-//		return net.IPNet{
-//			IP:   subIP,
-//			Mask: net.CIDRMask(64, 128),
-//		}, nil
-//	}
+// SubnetFor return an IP address out of the node allocated subnet by hasing b and using it
+// to generate the last 64 bits of the IPV6 address
+func (m *MyceliumInspection) SubnetFor(b []byte) (net.IPNet, error) {
+	subnet, err := m.Subnet()
+	if err != nil {
+		return net.IPNet{}, err
+	}
+
+	ip := make([]byte, net.IPv6len)
+	copy(ip, subnet.IP)
+
+	subIP, err := subnetFor(ip, b)
+	if err != nil {
+		return net.IPNet{}, err
+	}
+
+	return net.IPNet{
+		IP:   subIP,
+		Mask: net.CIDRMask(64, 128),
+	}, nil
+}
 
 func subnetFor(prefix net.IP, b []byte) (net.IP, error) {
 	h := sha512.New()
