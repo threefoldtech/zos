@@ -20,12 +20,11 @@ import (
 )
 
 const (
-	MyIface      = "my0"
-	tunName      = "utun9"
+	tunName      = "my0"
 	myBin        = "mycelium"
 	zinitService = "mycelium"
-	MyListenTCP  = 9651
 	confPath     = "/tmp/mycelium_priv_key.bin"
+	MyListenTCP  = 9651
 )
 
 // MyServer represent a mycelium server
@@ -128,7 +127,7 @@ func (s *MyServer) InspectMycelium() (inspection MyceliumInspection, err error) 
 		return inspection, err
 	}
 
-	cmd := fmt.Sprintf(`exec ip netns exec %s %s --key-file %s inspect --json`, s.ns, bin, confPath)
+	cmd := fmt.Sprintf(`exec ip netns exec %s %s inspect --json --key-file %s `, s.ns, bin, confPath)
 	output, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
 		return inspection, errors.Wrap(err, "failed to inspect mycelium ip")

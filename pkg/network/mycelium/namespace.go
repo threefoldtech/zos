@@ -76,7 +76,7 @@ func dumdumHack() error {
 		return errors.Wrap(err, "failed to get br-my")
 	}
 
-	const name = "dumdum"
+	const name = "mydumdum"
 	link, err := netlink.LinkByName(name)
 	if _, ok := err.(netlink.LinkNotFoundError); ok {
 		if err := netlink.LinkAdd(&netlink.Dummy{
@@ -91,7 +91,7 @@ func dumdumHack() error {
 
 		link, err = netlink.LinkByName(name)
 		if err != nil {
-			return errors.Wrap(err, "failed to get dumdum device")
+			return errors.Wrap(err, "failed to get mydumdum device")
 		}
 	} else if err != nil {
 		return err
