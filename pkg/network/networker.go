@@ -82,15 +82,14 @@ type networker struct {
 	myceliumKeyDir string
 	portSet        *set.UIntSet
 
-	ndmz     ndmz.DMZ
-	ygg      *yggdrasil.YggServer
-	mycelium *mycelium.MyServer
+	ndmz ndmz.DMZ
+	ygg  *yggdrasil.YggServer
 }
 
 var _ pkg.Networker = (*networker)(nil)
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdrasil.YggServer, myc *mycelium.MyServer) (pkg.Networker, error) {
+func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdrasil.YggServer) (pkg.Networker, error) {
 	vd, err := cache.VolatileDir("networkd", 50*mib)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("failed to create networkd cache directory: %w", err)
@@ -115,9 +114,8 @@ func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdr
 		myceliumKeyDir: myceliumKey,
 		portSet:        set.NewInt(),
 
-		ygg:      ygg,
-		ndmz:     ndmz,
-		mycelium: myc,
+		ygg:  ygg,
+		ndmz: ndmz,
 	}
 
 	// always add the reserved yggdrasil any mycelium ports to the port set so we make sure they are never

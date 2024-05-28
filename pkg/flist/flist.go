@@ -6,7 +6,9 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -78,6 +80,7 @@ type defaultSystem struct{}
 func (d *defaultSystem) Mount(source string, target string, fstype string, flags uintptr, data string) (err error) {
 	return syscall.Mount(source, target, fstype, flags, data)
 }
+
 func (d *defaultSystem) Unmount(target string, flags int) error {
 	return syscall.Unmount(target, flags)
 }
@@ -257,9 +260,6 @@ func (f *flistModule) mountRO(url, storage string) (string, error) {
 	args = append(args, mountpoint)
 	// we run the flist binary
 	nsName := defaultNamespace
-	if namespace.Exists(publicNamespace) {
-		nsName = publicNamespace
-	}
 
 	// we do get the namespace via the commander
 	// only to be able to mock it via tests.
@@ -391,7 +391,6 @@ func (f *flistModule) mountOverlay(ctx context.Context, name, ro string, opt *pk
 			ro, rw, wd,
 		),
 	)
-
 	if err != nil {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
@@ -522,6 +521,7 @@ func (f *flistModule) waitMountpoint(path string, seconds int) error {
 
 	return fmt.Errorf("was not mounted in time")
 }
+
 func (f *flistModule) isMountpoint(path string) error {
 	log.Debug().Str("mnt", path).Msg("testing mountpoint")
 	return f.commander.Command("mountpoint", path).Run()
@@ -612,7 +612,7 @@ func (f *flistModule) FlistHash(url string) (string, error) {
 	// first check if the md5 of the flist is available
 	md5URL := url + ".md5"
 
-	resp, err := f.httpClient.Get(md5URL)
+	resp, err := downloadInDefaultNamespace(defaultNamespace, url)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get flist hash from '%s'", md5URL)
 	}
@@ -651,7 +651,8 @@ func (f *flistModule) downloadFlist(url string) (Hash, Path, error) {
 	// for now we re-download every time and compute the hash on the fly
 
 	// we don't have the flist locally yet, let's download it
-	resp, err := f.httpClient.Get(url)
+
+	resp, err := downloadInDefaultNamespace(defaultNamespace, url)
 	if err != nil {
 		return "", "", err
 	}
@@ -696,3 +697,38 @@ func (f *flistModule) saveFlist(r io.Reader) (Hash, Path, error) {
 }
 
 var _ pkg.Flister = (*flistModule)(nil)
+
+func downloadInDefaultNamespace(name, u string) (resp *http.Response, err error) {
+	namespace, err := namespace.GetByName(name)
+	if err != nil {
+		return resp, errors.Wrapf(err, "failed to get namespace %s", name)
+	}
+
+	err = namespace.Do(func(_ ns.NetNS) error {
+		url, err := url.Parse(u)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse url")
+		}
+
+		con, err := net.Dial("tcp", url.Host)
+		if err != nil {
+			return errors.Wrap(err, "failed to start tcp connection")
+		}
+
+		defer con.Close()
+
+		cl := http.Client{
+			Transport: &http.Transport{
+				DisableKeepAlives: true,
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return con, nil
+				},
+			},
+		}
+
+		resp, err = cl.Get(u)
+		return err
+	})
+
+	return
+}

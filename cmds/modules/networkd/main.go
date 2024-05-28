@@ -111,13 +111,13 @@ func action(cli *cli.Context) error {
 	if err := dmz.Create(ctx); err != nil {
 		return errors.Wrap(err, "failed to create ndmz")
 	}
-	log.Debug().Msg("starting yggdrasil")
 
 	namespace := dmz.Namespace()
 	if public.HasPublicSetup() {
 		namespace = public.PublicNamespace
 	}
 
+	log.Debug().Msg("starting yggdrasil")
 	yggNs, err := yggdrasil.NewYggdrasilNamespace(namespace)
 	if err != nil {
 		return errors.Wrap(err, "failed to create yggdrasil namespace")
@@ -128,6 +128,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to start yggdrasil")
 	}
 
+	log.Debug().Msg("starting mycelium")
 	myNs, err := mycelium.NewMyNamespace(namespace)
 	if err != nil {
 		return errors.Wrap(err, "failed to create mycelium namespace")
@@ -160,10 +161,34 @@ func action(cli *cli.Context) error {
 		if err := dmzYgg.SetYggIP(ip, gw.IP); err != nil {
 			return errors.Wrap(err, "failed to set yggdrasil ip for dmz")
 		}
+
+		// set up mycelium in ndmz
+		dmzMy, err := mycelium.NewMyNamespace(dmz.Namespace())
+		if err != nil {
+			return errors.Wrap(err, "failed to setup mycelium for dmz namespace")
+		}
+
+		inspcet, err := myc.InspectMycelium()
+		if err != nil {
+			return err
+		}
+
+		ip, err = inspcet.SubnetFor([]byte(fmt.Sprintf("my:%s", dmz.Namespace())))
+		if err != nil {
+			return errors.Wrap(err, "failed to calculate ip for mycelium inside dmz")
+		}
+
+		gw, err = inspcet.Gateway()
+		if err != nil {
+			return err
+		}
+
+		if err := dmzMy.SetMyIP(ip, gw.IP); err != nil {
+			return errors.Wrap(err, "failed to set mycelium ip for dmz")
+		}
 	}
 
-	// update this to have mycelium too
-	networker, err := network.NewNetworker(identity, dmz, ygg, myc)
+	networker, err := network.NewNetworker(identity, dmz, ygg)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
 	}
