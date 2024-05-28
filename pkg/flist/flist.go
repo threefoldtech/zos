@@ -193,13 +193,13 @@ func New(root string, storage *stubs.StorageModuleStub) pkg.Flister {
 
 // MountRO mounts an flist in read-only mode. This mount then can be shared between multiple rw mounts
 // TODO: how to know that this ro mount is no longer used, hence can be unmounted and cleaned up?
-func (f *flistModule) mountRO(url, storage string) (string, error) {
+func (f *flistModule) mountRO(url, storage, namespace string) (string, error) {
 	// this should return always the flist mountpoint. which is used
 	// as a base for all RW mounts.
 	sublog := log.With().Str("url", url).Str("storage", storage).Logger()
 	sublog.Info().Msg("request to mount flist")
 
-	hash, flistPath, err := f.downloadFlist(url)
+	hash, flistPath, err := f.downloadFlist(url, namespace)
 	if err != nil {
 		sublog.Err(err).Msg("fail to download flist")
 		return "", err
@@ -415,6 +415,10 @@ func (f *flistModule) Exists(name string) (bool, error) {
 }
 
 func (f *flistModule) Mount(name, url string, opt pkg.MountOptions) (string, error) {
+	return f.mountInNamespace(name, url, opt, defaultNamespace)
+}
+
+func (f *flistModule) mountInNamespace(name, url string, opt pkg.MountOptions, namespace string) (string, error) {
 	sublog := log.With().Str("name", name).Str("url", url).Str("storage", opt.Storage).Logger()
 	sublog.Info().Msgf("request to mount flist: %+v", opt)
 
@@ -435,7 +439,7 @@ func (f *flistModule) Mount(name, url string, opt pkg.MountOptions) (string, err
 		return "", errors.Wrap(err, "validating of mount point failed")
 	}
 
-	ro, err := f.mountRO(url, opt.Storage)
+	ro, err := f.mountRO(url, opt.Storage, namespace)
 	if err != nil {
 		return "", errors.Wrap(err, "ro mount of flist failed")
 	}
@@ -612,7 +616,7 @@ func (f *flistModule) FlistHash(url string) (string, error) {
 	// first check if the md5 of the flist is available
 	md5URL := url + ".md5"
 
-	resp, err := downloadInDefaultNamespace(defaultNamespace, url)
+	resp, err := f.downloadInNamespace(defaultNamespace, url)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get flist hash from '%s'", md5URL)
 	}
@@ -638,7 +642,7 @@ func (f *flistModule) FlistHash(url string) (string, error) {
 	return hashStr, nil
 }
 
-func (f *flistModule) downloadFlist(url string) (Hash, Path, error) {
+func (f *flistModule) downloadFlist(url, namespace string) (Hash, Path, error) {
 	// the problem here is that the same url (to an flist) might
 	// be completely differnet flists. because the flist was update
 	// on remote. so we can't optimize the download by avoiding redownloading
@@ -652,7 +656,7 @@ func (f *flistModule) downloadFlist(url string) (Hash, Path, error) {
 
 	// we don't have the flist locally yet, let's download it
 
-	resp, err := downloadInDefaultNamespace(defaultNamespace, url)
+	resp, err := f.downloadInNamespace(namespace, url)
 	if err != nil {
 		return "", "", err
 	}
@@ -698,7 +702,10 @@ func (f *flistModule) saveFlist(r io.Reader) (Hash, Path, error) {
 
 var _ pkg.Flister = (*flistModule)(nil)
 
-func downloadInDefaultNamespace(name, u string) (resp *http.Response, err error) {
+func (f *flistModule) downloadInNamespace(name, u string) (resp *http.Response, err error) {
+	if len(name) == 0 {
+		return f.httpClient.Get(u)
+	}
 	namespace, err := namespace.GetByName(name)
 	if err != nil {
 		return resp, errors.Wrapf(err, "failed to get namespace %s", name)
