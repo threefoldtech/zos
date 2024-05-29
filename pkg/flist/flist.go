@@ -616,12 +616,15 @@ func (f *flistModule) FlistHash(url string) (string, error) {
 	// first check if the md5 of the flist is available
 	md5URL := url + ".md5"
 
-	resp, err := f.downloadInNamespace(defaultNamespace, url)
+	resp, con, err := f.downloadInNamespace(defaultNamespace, md5URL)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get flist hash from '%s'", md5URL)
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		resp.Body.Close()
+		con.Close()
+	}()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return "", ErrHashNotSupported
@@ -656,11 +659,15 @@ func (f *flistModule) downloadFlist(url, namespace string) (Hash, Path, error) {
 
 	// we don't have the flist locally yet, let's download it
 
-	resp, err := f.downloadInNamespace(namespace, url)
+	resp, con, err := f.downloadInNamespace(namespace, url)
 	if err != nil {
 		return "", "", err
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		resp.Body.Close()
+		con.Close()
+	}()
 
 	if resp.StatusCode != 200 {
 		return "", "", fmt.Errorf("fail to download flist: %v", resp.Status)
@@ -702,27 +709,27 @@ func (f *flistModule) saveFlist(r io.Reader) (Hash, Path, error) {
 
 var _ pkg.Flister = (*flistModule)(nil)
 
-func (f *flistModule) downloadInNamespace(name, u string) (resp *http.Response, err error) {
+func (f *flistModule) downloadInNamespace(name, u string) (resp *http.Response, con net.Conn, err error) {
 	if len(name) == 0 {
-		return f.httpClient.Get(u)
+		resp, err = f.httpClient.Get(u)
+		return
 	}
+
 	namespace, err := namespace.GetByName(name)
 	if err != nil {
-		return resp, errors.Wrapf(err, "failed to get namespace %s", name)
+		return resp, con, errors.Wrapf(err, "failed to get namespace %s", name)
 	}
 
 	err = namespace.Do(func(_ ns.NetNS) error {
-		url, err := url.Parse(u)
+		hostPort, err := parseURL(u)
 		if err != nil {
-			return errors.Wrap(err, "failed to parse url")
+			return err
 		}
 
-		con, err := net.Dial("tcp", url.Host)
+		con, err = net.Dial("tcp", hostPort)
 		if err != nil {
 			return errors.Wrap(err, "failed to start tcp connection")
 		}
-
-		defer con.Close()
 
 		cl := http.Client{
 			Transport: &http.Transport{
@@ -738,4 +745,23 @@ func (f *flistModule) downloadInNamespace(name, u string) (resp *http.Response, 
 	})
 
 	return
+}
+
+func parseURL(u string) (hostPort string, err error) {
+	rawURL, err := url.Parse(u)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse url")
+	}
+
+	port := rawURL.Port()
+	if port == "" {
+		p, err := net.LookupPort("tcp", rawURL.Scheme)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to lookup url port")
+		}
+		port = fmt.Sprint(p)
+	}
+
+	hostPort = net.JoinHostPort(rawURL.Hostname(), port)
+	return hostPort, nil
 }
