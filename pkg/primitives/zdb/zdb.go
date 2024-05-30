@@ -445,7 +445,7 @@ func (p *Manager) waitZDBIPs(ctx context.Context, namespace string, created time
 		containerIPs = containerIPs[:0]
 
 		for _, ip := range ips {
-			if isPublic(ip) && !isYgg(ip) {
+			if isPublic(ip) && !isYgg(ip) && !isMy(ip) {
 				log.Warn().IPAddr("ip", ip).Msg("0-db container public ip found")
 				public = true
 				containerIPs = append(containerIPs, ip)
