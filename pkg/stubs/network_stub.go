@@ -706,6 +706,21 @@ func (s *NetworkerStub) ZDBDestroy(ctx context.Context, arg0 string) (ret0 error
 	return
 }
 
+func (s *NetworkerStub) ZDBEnsureMycelium(ctx context.Context, arg0 string) (ret0 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "ZDBEnsureMycelium", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret0 = result.CallError()
+	loader := zbus.Loader{}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerStub) ZDBPrepare(ctx context.Context, arg0 string) (ret0 string, ret1 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "ZDBPrepare", args...)

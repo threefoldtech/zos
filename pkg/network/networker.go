@@ -58,6 +58,7 @@ const (
 	PubIface = "eth0"
 	// ZDBYggIface is ygg interface name of the interface used in the 0-db network namespace
 	ZDBYggIface = "ygg0"
+	ZDBMyIface  = "my0"
 
 	networkDir          = "networks"
 	linkDir             = "link"
@@ -84,12 +85,13 @@ type networker struct {
 
 	ndmz ndmz.DMZ
 	ygg  *yggdrasil.YggServer
+	myc  *mycelium.MyServer
 }
 
 var _ pkg.Networker = (*networker)(nil)
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdrasil.YggServer) (pkg.Networker, error) {
+func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdrasil.YggServer, myc *mycelium.MyServer) (pkg.Networker, error) {
 	vd, err := cache.VolatileDir("networkd", 50*mib)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("failed to create networkd cache directory: %w", err)
@@ -115,6 +117,7 @@ func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdr
 		portSet:        set.NewInt(),
 
 		ygg:  ygg,
+		myc:  myc,
 		ndmz: ndmz,
 	}
 
@@ -193,6 +196,61 @@ func (n *networker) detachYgg(id string, netNs ns.NetNS) error {
 	})
 }
 
+func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error) {
+	// new hardware address for mycelium interface
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("my:" + id))
+
+	myc, err := n.myc.InspectMycelium()
+	if err != nil {
+		return net.IPNet{}, err
+	}
+
+	ip, err := myc.SubnetFor(hw)
+	log.Info().Msgf("myc subnet is %s", ip)
+	if err != nil {
+		return net.IPNet{}, fmt.Errorf("failed to generate mycelium subnet IP: %w", err)
+	}
+
+	ips := []*net.IPNet{
+		&ip,
+	}
+
+	gw, err := myc.Gateway()
+	if err != nil {
+		return net.IPNet{}, fmt.Errorf("failed to get mycelium gateway IP: %w", err)
+	}
+
+	routes := []*netlink.Route{
+		{
+			Dst: &net.IPNet{
+				IP:   net.ParseIP("400::"),
+				Mask: net.CIDRMask(7, 128),
+			},
+			Gw: gw.IP,
+			// LinkIndex:... this is set by macvlan.Install
+		},
+	}
+
+	if err := n.createMacVlan(ZDBMyIface, types.MyBridge, hw, ips, routes, netNs); err != nil {
+		return net.IPNet{}, errors.Wrap(err, "failed to setup zdb mycelium interface")
+	}
+
+	return ip, nil
+}
+
+func (n *networker) detachMycelium(netNs ns.NetNS) error {
+	return netNs.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(ZDBMyIface)
+		if err != nil {
+			return err
+		}
+		if err := netlink.LinkDel(link); err != nil {
+			return errors.Wrap(err, "failed to delete zdb mycelium interface")
+		}
+		return nil
+	})
+}
+
 // prepare creates a unique namespace (based on id) with "prefix"
 // and make sure it's wired to the bridge on host namespace
 func (n *networker) prepare(id, prefix, bridge string) (string, error) {
@@ -210,11 +268,22 @@ func (n *networker) prepare(id, prefix, bridge string) (string, error) {
 		return "", errors.Wrap(err, "failed to setup zdb public interface")
 	}
 
-	if n.ygg == nil {
-		return netNSName, nil
+	if n.ygg != nil {
+		_, err = n.attachYgg(id, netNs)
+		if err != nil {
+			return "", err
+		}
+
 	}
-	_, err = n.attachYgg(id, netNs)
-	return netNSName, err
+
+	if n.myc != nil {
+		_, err = n.attachMycelium(id, netNs)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return netNSName, nil
 }
 
 func (n *networker) destroy(ns string) error {
@@ -237,6 +306,25 @@ func (n *networker) destroy(ns string) error {
 // network namespace of a ZDB container
 func (n *networker) ZDBPrepare(id string) (string, error) {
 	return n.prepare(id, zdbNamespacePrefix, types.PublicBridge)
+}
+
+// ZDBEnsureMycelium ensures that mycelium is setup for zdb container
+func (n *networker) ZDBEnsureMycelium(id string) error {
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("pub:" + id))
+
+	netNSName := zdbNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
+	netNs, err := namespace.GetByName(netNSName)
+	if err != nil {
+		return err
+	}
+
+	_, err = net.InterfaceByName(ZDBMyIface)
+	if err != nil && strings.Contains(err.Error(), "no such network interface") {
+		_, err := n.attachMycelium(id, netNs)
+		return err
+	}
+
+	return err
 }
 
 // ZDBDestroy is the opposite of ZDPrepare, it makes sure network setup done

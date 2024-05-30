@@ -188,7 +188,7 @@ func action(cli *cli.Context) error {
 		}
 	}
 
-	networker, err := network.NewNetworker(identity, dmz, ygg)
+	networker, err := network.NewNetworker(identity, dmz, ygg, myc)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
 	}
