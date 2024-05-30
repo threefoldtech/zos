@@ -666,7 +666,9 @@ func (f *flistModule) downloadFlist(url, namespace string) (Hash, Path, error) {
 
 	defer func() {
 		resp.Body.Close()
-		con.Close()
+		if con != nil {
+			con.Close()
+		}
 	}()
 
 	if resp.StatusCode != 200 {

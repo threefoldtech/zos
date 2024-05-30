@@ -121,7 +121,7 @@ func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdr
 		ndmz: ndmz,
 	}
 
-	// always add the reserved yggdrasil any mycelium ports to the port set so we make sure they are never
+	// always add the reserved yggdrasil and mycelium ports to the port set so we make sure they are never
 	// picked for wireguard endpoints
 	// we also add http, https, and traefik metrics ports 8082 to the list.
 	for _, port := range []int{yggdrasil.YggListenTCP, yggdrasil.YggListenTLS, yggdrasil.YggListenLinkLocal, mycelium.MyListenTCP, iperf.IperfPort, 80, 443, 8082} {
@@ -236,19 +236,6 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 	}
 
 	return ip, nil
-}
-
-func (n *networker) detachMycelium(netNs ns.NetNS) error {
-	return netNs.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(ZDBMyIface)
-		if err != nil {
-			return err
-		}
-		if err := netlink.LinkDel(link); err != nil {
-			return errors.Wrap(err, "failed to delete zdb mycelium interface")
-		}
-		return nil
-	})
 }
 
 // prepare creates a unique namespace (based on id) with "prefix"

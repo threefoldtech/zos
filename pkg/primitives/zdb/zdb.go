@@ -229,6 +229,7 @@ func (p *Manager) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZ
 
 	// ensure zdb has mycelium address for backward compatibility
 	err = p.ensureMyceliumInZdbContainer(ctx, device.ID)
+	log.Error().Err(err).Msg("failed to ensure mycelium setup")
 
 	cont, err = container.Inspect(ctx, zdbContainerNS, name)
 	if err != nil {
