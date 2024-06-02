@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	// MyNSInf inside the namespace
-	MyNSInf  = "nmy6"
-	myBridge = types.MyBridge
+	// MyceliumNSInf inside the namespace
+	MyceliumNSInf  = "nmy6"
+	myceliumBridge = types.MyceliumBridge
 )
 
 var MyRange = net.IPNet{
@@ -39,9 +39,9 @@ type MyceliumNamespace interface {
 
 // ensureMy Plumbing this ensures that the mycelium plumbing is in place inside this namespace
 func ensureMyPlumbing(netNS ns.NetNS) error {
-	if !bridge.Exists(myBridge) {
-		if _, err := bridge.New(myBridge); err != nil {
-			return errors.Wrapf(err, "couldn't create bridge %s", myBridge)
+	if !bridge.Exists(myceliumBridge) {
+		if _, err := bridge.New(myceliumBridge); err != nil {
+			return errors.Wrapf(err, "couldn't create bridge %s", myceliumBridge)
 		}
 	}
 
@@ -49,14 +49,14 @@ func ensureMyPlumbing(netNS ns.NetNS) error {
 		log.Error().Err(err).Msg("failed to create the dummy hack for mycelium-bridge")
 	}
 
-	if !ifaceutil.Exists(MyNSInf, netNS) {
-		if _, err := macvlan.Create(MyNSInf, myBridge, netNS); err != nil {
-			return errors.Wrapf(err, "couldn't create %s inside", MyNSInf)
+	if !ifaceutil.Exists(MyceliumNSInf, netNS) {
+		if _, err := macvlan.Create(MyceliumNSInf, myceliumBridge, netNS); err != nil {
+			return errors.Wrapf(err, "couldn't create %s inside", MyceliumNSInf)
 		}
 	}
 
 	return netNS.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(MyNSInf)
+		link, err := netlink.LinkByName(MyceliumNSInf)
 		if err != nil {
 			return err
 		}
@@ -69,9 +69,9 @@ func dumdumHack() error {
 	// dumdum hack. this hack to fix a weird issue with linux kernel
 	// 5.10.version 55
 	// it seems that the macvlan on a bridge does not bring the bridge
-	// up. So we have to plug in a dummy device into myBridge and set
+	// up. So we have to plug in a dummy device into myceliumBridge and set
 	// the device up to keep the bridge state UP.
-	br, err := bridge.Get(myBridge)
+	br, err := bridge.Get(myceliumBridge)
 	if err != nil {
 		return errors.Wrap(err, "failed to get br-my")
 	}
@@ -162,7 +162,7 @@ func (d *myNS) SetMyIP(subnet net.IPNet, gw net.IP) error {
 	}
 
 	err = netns.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(MyNSInf)
+		link, err := netlink.LinkByName(MyceliumNSInf)
 		if err != nil {
 			return err
 		}

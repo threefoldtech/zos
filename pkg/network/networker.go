@@ -57,8 +57,8 @@ const (
 	// PubIface is pub interface name of the interface used in the 0-db network namespace
 	PubIface = "eth0"
 	// ZDBYggIface is ygg interface name of the interface used in the 0-db network namespace
-	ZDBYggIface = "ygg0"
-	ZDBMyIface  = "my0"
+	ZDBYggIface      = "ygg0"
+	ZDBMyceliumIface = "my0"
 
 	networkDir          = "networks"
 	linkDir             = "link"
@@ -83,15 +83,15 @@ type networker struct {
 	myceliumKeyDir string
 	portSet        *set.UIntSet
 
-	ndmz ndmz.DMZ
-	ygg  *yggdrasil.YggServer
-	myc  *mycelium.MyServer
+	ndmz     ndmz.DMZ
+	ygg      *yggdrasil.YggServer
+	mycelium *mycelium.MyceliumServer
 }
 
 var _ pkg.Networker = (*networker)(nil)
 
 // NewNetworker create a new pkg.Networker that can be used over zbus
-func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdrasil.YggServer, myc *mycelium.MyServer) (pkg.Networker, error) {
+func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdrasil.YggServer, myc *mycelium.MyceliumServer) (pkg.Networker, error) {
 	vd, err := cache.VolatileDir("networkd", 50*mib)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("failed to create networkd cache directory: %w", err)
@@ -116,9 +116,9 @@ func NewNetworker(identity *stubs.IdentityManagerStub, ndmz ndmz.DMZ, ygg *yggdr
 		myceliumKeyDir: myceliumKey,
 		portSet:        set.NewInt(),
 
-		ygg:  ygg,
-		myc:  myc,
-		ndmz: ndmz,
+		ygg:      ygg,
+		mycelium: myc,
+		ndmz:     ndmz,
 	}
 
 	// always add the reserved yggdrasil and mycelium ports to the port set so we make sure they are never
@@ -200,13 +200,13 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 	// new hardware address for mycelium interface
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("my:" + id))
 
-	myc, err := n.myc.InspectMycelium()
+	myc, err := n.mycelium.InspectMycelium()
 	if err != nil {
 		return net.IPNet{}, err
 	}
 
-	ip, err := myc.SubnetFor(hw)
-	log.Info().Msgf("myc subnet is %s", ip)
+	ip, err := myc.IPFor(hw)
+	log.Info().Msgf("mycelium subnet is %s", ip)
 	if err != nil {
 		return net.IPNet{}, fmt.Errorf("failed to generate mycelium subnet IP: %w", err)
 	}
@@ -231,7 +231,7 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 		},
 	}
 
-	if err := n.createMacVlan(ZDBMyIface, types.MyBridge, hw, ips, routes, netNs); err != nil {
+	if err := n.createMacVlan(ZDBMyceliumIface, types.MyceliumBridge, hw, ips, routes, netNs); err != nil {
 		return net.IPNet{}, errors.Wrap(err, "failed to setup zdb mycelium interface")
 	}
 
@@ -263,7 +263,7 @@ func (n *networker) prepare(id, prefix, bridge string) (string, error) {
 
 	}
 
-	if n.myc != nil {
+	if n.mycelium != nil {
 		_, err = n.attachMycelium(id, netNs)
 		if err != nil {
 			return "", err
@@ -305,7 +305,7 @@ func (n *networker) ZDBEnsureMycelium(id string) error {
 		return err
 	}
 
-	_, err = net.InterfaceByName(ZDBMyIface)
+	_, err = net.InterfaceByName(ZDBMyceliumIface)
 	if err != nil && strings.Contains(err.Error(), "no such network interface") {
 		_, err := n.attachMycelium(id, netNs)
 		return err

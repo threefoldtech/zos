@@ -15,6 +15,6 @@ const (
 	PublicBridge = "br-pub"
 	// YggBridge ygg bridge
 	YggBridge = "br-ygg"
-	// MyBridge mycelium bridge
-	MyBridge = "br-my"
+	// MyceliumBridge mycelium bridge
+	MyceliumBridge = "br-my"
 )

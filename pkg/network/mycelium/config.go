@@ -3,9 +3,8 @@ package mycelium
 import (
 	"context"
 	"crypto/ed25519"
-	"encoding/hex"
 
-	"github.com/decred/base58"
+	"github.com/oasisprotocol/curve25519-voi/primitives/x25519"
 	"github.com/pkg/errors"
 )
 
@@ -13,9 +12,7 @@ type NodeConfig struct {
 	KeyFile    string
 	TunName    string
 	Peers      []string
-	PrivateKey ed25519.PrivateKey
-	PublicKey  string
-	NodeInfo   map[string]interface{}
+	privateKey x25519.PrivateKey
 }
 
 func (n *NodeConfig) FindPeers(ctx context.Context, filter ...Filter) error {
@@ -43,14 +40,8 @@ func GenerateConfig(privateKey ed25519.PrivateKey) (cfg NodeConfig) {
 	}
 
 	if privateKey != nil {
-		cfg.PrivateKey = privateKey
-
-		signingPublicKey := privateKey.Public().(ed25519.PublicKey)
-		cfg.PublicKey = hex.EncodeToString(signingPublicKey)
-
-		cfg.NodeInfo = map[string]interface{}{
-			"name": base58.Encode(signingPublicKey)[:6],
-		}
+		cfg.privateKey = x25519.PrivateKey(x25519.EdPrivateKeyToX25519([]byte(privateKey)))
 	}
+
 	return
 }

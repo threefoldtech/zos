@@ -193,13 +193,13 @@ func New(root string, storage *stubs.StorageModuleStub) pkg.Flister {
 
 // MountRO mounts an flist in read-only mode. This mount then can be shared between multiple rw mounts
 // TODO: how to know that this ro mount is no longer used, hence can be unmounted and cleaned up?
-func (f *flistModule) mountRO(url, storage, namespace string) (string, error) {
+func (f *flistModule) mountRO(url, storage, nsName string) (string, error) {
 	// this should return always the flist mountpoint. which is used
 	// as a base for all RW mounts.
 	sublog := log.With().Str("url", url).Str("storage", storage).Logger()
 	sublog.Info().Msg("request to mount flist")
 
-	hash, flistPath, err := f.downloadFlist(url, namespace)
+	hash, flistPath, err := f.downloadFlist(url, nsName)
 	if err != nil {
 		sublog.Err(err).Msg("fail to download flist")
 		return "", err
@@ -258,8 +258,6 @@ func (f *flistModule) mountRO(url, storage, namespace string) (string, error) {
 	}
 
 	args = append(args, mountpoint)
-	// we run the flist binary
-	nsName := defaultNamespace
 
 	// we do get the namespace via the commander
 	// only to be able to mock it via tests.

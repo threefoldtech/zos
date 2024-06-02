@@ -229,7 +229,9 @@ func (p *Manager) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZ
 
 	// ensure zdb has mycelium address for backward compatibility
 	err = p.ensureMyceliumInZdbContainer(ctx, device.ID)
-	log.Error().Err(err).Msg("failed to ensure mycelium setup")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to ensure mycelium setup")
+	}
 
 	cont, err = container.Inspect(ctx, zdbContainerNS, name)
 	if err != nil {
@@ -432,21 +434,21 @@ func (p *Manager) waitZDBIPs(ctx context.Context, namespace string, created time
 		}
 		ips = append(ips, yggIps...)
 
-		MyIps, _, err := network.Addrs(ctx, nwmod.ZDBMyIface, namespace)
+		MyceliumIps, _, err := network.Addrs(ctx, nwmod.ZDBMyceliumIface, namespace)
 		if err != nil {
 			return err
 		}
-		ips = append(ips, MyIps...)
+		ips = append(ips, MyceliumIps...)
 
 		var (
-			public = false
-			ygg    = false
-			myc    = false
+			public   = false
+			ygg      = false
+			mycelium = false
 		)
 		containerIPs = containerIPs[:0]
 
 		for _, ip := range ips {
-			if isPublic(ip) && !isYgg(ip) && !isMy(ip) {
+			if isPublic(ip) && !isYgg(ip) && !isMycelium(ip) {
 				log.Warn().IPAddr("ip", ip).Msg("0-db container public ip found")
 				public = true
 				containerIPs = append(containerIPs, ip)
@@ -456,15 +458,15 @@ func (p *Manager) waitZDBIPs(ctx context.Context, namespace string, created time
 				ygg = true
 				containerIPs = append(containerIPs, ip)
 			}
-			if isMy(ip) {
+			if isMycelium(ip) {
 				log.Warn().IPAddr("ip", ip).Msg("0-db container mycelium ip found")
-				myc = true
+				mycelium = true
 				containerIPs = append(containerIPs, ip)
 			}
 		}
 
-		log.Warn().Msgf("public %v ygg: %v mycelium: %v", public, ygg, myc)
-		if public && ygg && myc || time.Since(created) > 2*time.Minute {
+		log.Warn().Msgf("public %v ygg: %v mycelium: %v", public, ygg, mycelium)
+		if public && ygg && mycelium || time.Since(created) > 2*time.Minute {
 			// if we have all ips detected or if the container is older than 2 minutes
 			// so it's safe we assume ips are final
 			return nil
@@ -786,7 +788,7 @@ var yggNet = net.IPNet{
 	Mask: net.CIDRMask(7, 128),
 }
 
-var myNet = net.IPNet{
+var myceliumNet = net.IPNet{
 	IP:   net.ParseIP("400::"),
 	Mask: net.CIDRMask(7, 128),
 }
@@ -795,8 +797,8 @@ func isYgg(ip net.IP) bool {
 	return yggNet.Contains(ip)
 }
 
-func isMy(ip net.IP) bool {
-	return myNet.Contains(ip)
+func isMycelium(ip net.IP) bool {
+	return myceliumNet.Contains(ip)
 }
 
 // InitializeZDB makes sure all required zdbs are running
