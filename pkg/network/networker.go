@@ -238,9 +238,9 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 	return ip, nil
 }
 
-// prepare creates a unique namespace (based on id) with "prefix"
+// ensurePrepare ensurets that a unique namespace is created (based on id) with "prefix"
 // and make sure it's wired to the bridge on host namespace
-func (n *networker) prepare(id, prefix, bridge string) (string, error) {
+func (n *networker) ensurePrepare(id, prefix, bridge string) (string, error) {
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("pub:" + id))
 
 	netNSName := prefix + strings.Replace(hw.String(), ":", "", -1)
@@ -289,29 +289,10 @@ func (n *networker) destroy(ns string) error {
 }
 
 // func (n *networker) NSPrepare(id string, )
-// ZDBPrepare sends a macvlan interface into the
+// EnsureZDBPrepare sends a macvlan interface into the
 // network namespace of a ZDB container
-func (n *networker) ZDBPrepare(id string) (string, error) {
-	return n.prepare(id, zdbNamespacePrefix, types.PublicBridge)
-}
-
-// ZDBEnsureMycelium ensures that mycelium is setup for zdb container
-func (n *networker) ZDBEnsureMycelium(id string) error {
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("pub:" + id))
-
-	netNSName := zdbNamespacePrefix + strings.Replace(hw.String(), ":", "", -1)
-	netNs, err := namespace.GetByName(netNSName)
-	if err != nil {
-		return err
-	}
-
-	_, err = net.InterfaceByName(ZDBMyceliumIface)
-	if err != nil && strings.Contains(err.Error(), "no such network interface") {
-		_, err := n.attachMycelium(id, netNs)
-		return err
-	}
-
-	return err
+func (n *networker) EnsureZDBPrepare(id string) (string, error) {
+	return n.ensurePrepare(id, zdbNamespacePrefix, types.PublicBridge)
 }
 
 // ZDBDestroy is the opposite of ZDPrepare, it makes sure network setup done

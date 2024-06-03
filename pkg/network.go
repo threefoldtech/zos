@@ -85,21 +85,16 @@ type Networker interface {
 	// // Leave delete a container nameapce created by Join
 	// Leave(networkdID NetID, containerID string) (err error)
 
-	// ZDBPrepare creates a network namespace with a macvlan interface into it
-	// to allow the 0-db container to be publicly accessible
+	// EnsureZDBPrepare ensures a network namespace is created with a macvlan
+	// interface into it to allow the 0-db container to be publicly accessible
 	// it returns the name of the network namespace created
 	// id is the zdb id (should be unique) is used to drive the hw mac
 	// address for the interface so they always get the same IP
-	ZDBPrepare(id string) (string, error)
+	EnsureZDBPrepare(id string) (string, error)
 
 	// ZDBDestroy is the opposite of ZDPrepare, it makes sure network setup done
 	// for zdb is rewind. ns param is the namespace return by the ZDBPrepare
 	ZDBDestroy(ns string) error
-
-	// ZDBEnsureMycelium ensures that zdb has mycelium ip
-	// to allow the 0-db container to be accessible through mycelium
-	// it returns err if it failed to ensure mycelium connection
-	ZDBEnsureMycelium(id string) error
 
 	// QSFSNamespace returns the namespace of the qsfs workload
 	QSFSNamespace(id string) string

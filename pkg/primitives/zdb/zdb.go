@@ -216,28 +216,24 @@ func (p *Manager) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZ
 	container := stubs.NewContainerModuleStub(p.zbus)
 
 	name := pkg.ContainerID(device.ID)
+
 	cont, err := container.Inspect(ctx, zdbContainerNS, name)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		// container not found, create one
 		if err := p.createZdbContainer(ctx, device); err != nil {
 			return tZDBContainer(cont), err
 		}
+
+		cont, err = container.Inspect(ctx, zdbContainerNS, name)
+		if err != nil {
+			return tZDBContainer{}, err
+		}
 	} else if err != nil {
 		// other error
 		return tZDBContainer{}, err
 	}
 
-	// ensure zdb has mycelium address for backward compatibility
-	err = p.ensureMyceliumInZdbContainer(ctx, device.ID)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to ensure mycelium setup")
-	}
-
-	cont, err = container.Inspect(ctx, zdbContainerNS, name)
-	if err != nil {
-		return tZDBContainer{}, err
-	}
-	return tZDBContainer(cont), err
+	return tZDBContainer(cont), nil
 }
 
 func (p *Manager) zdbRootFS(ctx context.Context) (string, error) {
@@ -290,7 +286,7 @@ func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) err
 	}
 
 	// create the network namespace and macvlan for the 0-db container
-	netNsName, err := network.ZDBPrepare(ctx, device.ID)
+	netNsName, err := network.EnsureZDBPrepare(ctx, device.ID)
 	if err != nil {
 		if err := flist.Unmount(ctx, string(name)); err != nil {
 			slog.Error().Err(err).Str("path", rootFS).Msgf("failed to unmount")
@@ -338,16 +334,6 @@ func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) err
 		return errors.Wrapf(err, "failed to establish connection to zdb")
 	}
 
-	return nil
-}
-
-func (p *Manager) ensureMyceliumInZdbContainer(ctx context.Context, id string) error {
-	network := stubs.NewNetworkerStub(p.zbus)
-
-	err := network.ZDBEnsureMycelium(ctx, id)
-	if err != nil {
-		return errors.Wrap(err, "failed to prepare mycelium in zdb network")
-	}
 	return nil
 }
 
