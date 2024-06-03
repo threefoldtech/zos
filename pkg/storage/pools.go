@@ -44,11 +44,7 @@ func PolicySSDFirst(s *Module) []filesystem.Pool {
 	// if missing ssd is supported, this policy
 	// will also use the hdd pools for provisioning
 	// and cache
-	//
-	// TODO: this is fully disabled now. and a ssd first policy
-	// will act like a ssd-only policy.
-	// to enable workloads on hdd, drop the false part.
-	if false && kernel.GetParams().Exists(kernel.MissingSSD) {
+	if kernel.GetParams().Exists(kernel.MissingSSD) {
 		pools = append(pools, PolicyHDDOnly(s)...)
 	}
 
