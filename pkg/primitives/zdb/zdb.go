@@ -214,7 +214,6 @@ func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 
 func (p *Manager) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZDBContainer, error) {
 	container := stubs.NewContainerModuleStub(p.zbus)
-
 	name := pkg.ContainerID(device.ID)
 
 	cont, err := container.Inspect(ctx, zdbContainerNS, name)
@@ -223,7 +222,6 @@ func (p *Manager) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZ
 		if err := p.createZdbContainer(ctx, device); err != nil {
 			return tZDBContainer(cont), err
 		}
-
 		cont, err = container.Inspect(ctx, zdbContainerNS, name)
 		if err != nil {
 			return tZDBContainer{}, err
@@ -792,6 +790,7 @@ func (p *Manager) Initialize(ctx context.Context) error {
 	var (
 		storage  = stubs.NewStorageModuleStub(p.zbus)
 		contmod  = stubs.NewContainerModuleStub(p.zbus)
+		network  = stubs.NewNetworkerStub(p.zbus)
 		flistmod = stubs.NewFlisterStub(p.zbus)
 	)
 	// fetching extected hash
@@ -821,6 +820,12 @@ func (p *Manager) Initialize(ctx context.Context) error {
 	for _, container := range containers {
 		if err := p.upgradeRuntime(ctx, expected, container); err != nil {
 			log.Error().Err(err).Msg("failed to upgrade running zdb container")
+		}
+
+		log.Debug().Str("container", string(container)).Msg("enusreing zdb network setup")
+		_, err := network.EnsureZDBPrepare(ctx, poolNames[string(container)].ID)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to prepare zdb network")
 		}
 
 		delete(poolNames, string(container))

@@ -206,9 +206,9 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 	}
 
 	ip, err := myc.IPFor(hw)
-	log.Info().Msgf("mycelium subnet is %s", ip)
+	log.Info().Msgf("mycelium IP is %s", ip.IP)
 	if err != nil {
-		return net.IPNet{}, fmt.Errorf("failed to generate mycelium subnet IP: %w", err)
+		return net.IPNet{}, fmt.Errorf("failed to generate mycelium IP: %w", err)
 	}
 
 	ips := []*net.IPNet{
