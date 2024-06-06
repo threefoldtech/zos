@@ -129,8 +129,10 @@ func (m *DiagnosticsManager) isHealthy() bool {
 		return false
 	}
 
-	if len(result.Result.(map[string]interface{})) != 0 {
-		return false
+	for _, errors := range result.Result.(map[string]interface{}) {
+		if len(errors.([]interface{})) != 0 {
+			return false
+		}
 	}
 
 	return true
