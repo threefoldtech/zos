@@ -118,13 +118,8 @@ func (m *DiagnosticsManager) isHealthy() bool {
 	conn := m.redisPool.Get()
 	defer conn.Close()
 
-	data, err := conn.Do("GET", testNetworkKey)
+	data, err := redis.Bytes(conn.Do("GET", testNetworkKey))
 	if err != nil || data == nil {
-		return false
-	}
-
-	byteData, ok := data.([]byte)
-	if !ok {
 		return false
 	}
 
@@ -132,7 +127,7 @@ func (m *DiagnosticsManager) isHealthy() bool {
 		Result map[string][]string `json:"result"`
 	}
 
-	if err := json.Unmarshal(byteData, &result); err != nil {
+	if err := json.Unmarshal(data, &result); err != nil {
 		return false
 	}
 
