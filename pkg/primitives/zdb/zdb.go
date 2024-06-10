@@ -34,9 +34,7 @@ const (
 	zdbPort             = 9900
 )
 
-var (
-	uuidRegex = regexp.MustCompile(`([0-9a-f]{8})\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}`)
-)
+var uuidRegex = regexp.MustCompile(`([0-9a-f]{8})\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}`)
 
 // ZDB types
 type ZDB = zos.ZDB
@@ -93,9 +91,7 @@ func (p *Manager) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (
 }
 
 func (p *Manager) zdbListContainers(ctx context.Context) (map[pkg.ContainerID]tZDBContainer, error) {
-	var (
-		contmod = stubs.NewContainerModuleStub(p.zbus)
-	)
+	contmod := stubs.NewContainerModuleStub(p.zbus)
 
 	containerIDs, err := contmod.List(ctx, zdbContainerNS)
 	if err != nil {
@@ -126,7 +122,7 @@ func (p *Manager) zdbListContainers(ctx context.Context) (map[pkg.ContainerID]tZ
 
 func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (zos.ZDBResult, error) {
 	var (
-		//contmod = stubs.NewContainerModuleStub(p.zbus)
+		// contmod = stubs.NewContainerModuleStub(p.zbus)
 		storage = stubs.NewStorageModuleStub(p.zbus)
 		nsID    = wl.ID.String()
 		config  ZDB
@@ -217,8 +213,7 @@ func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 }
 
 func (p *Manager) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZDBContainer, error) {
-	var container = stubs.NewContainerModuleStub(p.zbus)
-
+	container := stubs.NewContainerModuleStub(p.zbus)
 	name := pkg.ContainerID(device.ID)
 
 	cont, err := container.Inspect(ctx, zdbContainerNS, name)
@@ -237,11 +232,10 @@ func (p *Manager) ensureZdbContainer(ctx context.Context, device pkg.Device) (tZ
 	}
 
 	return tZDBContainer(cont), nil
-
 }
 
 func (p *Manager) zdbRootFS(ctx context.Context) (string, error) {
-	var flist = stubs.NewFlisterStub(p.zbus)
+	flist := stubs.NewFlisterStub(p.zbus)
 	var err error
 	var rootFS string
 
@@ -254,7 +248,6 @@ func (p *Manager) zdbRootFS(ctx context.Context) (string, error) {
 		Limit:    10 * gridtypes.Megabyte,
 		ReadOnly: false,
 	})
-
 	if err != nil {
 		return "", errors.Wrap(err, "failed to mount zdb flist")
 	}
@@ -291,7 +284,7 @@ func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) err
 	}
 
 	// create the network namespace and macvlan for the 0-db container
-	netNsName, err := network.ZDBPrepare(ctx, device.ID)
+	netNsName, err := network.EnsureZDBPrepare(ctx, device.ID)
 	if err != nil {
 		if err := flist.Unmount(ctx, string(name)); err != nil {
 			slog.Error().Err(err).Str("path", rootFS).Msgf("failed to unmount")
@@ -362,7 +355,7 @@ func (p *Manager) dataMigration(ctx context.Context, volume string) {
 }
 
 func (p *Manager) zdbRun(ctx context.Context, name string, rootfs string, cmd string, netns string, volumepath string, socketdir string) error {
-	var cont = stubs.NewContainerModuleStub(p.zbus)
+	cont := stubs.NewContainerModuleStub(p.zbus)
 
 	// we do data migration here because this is called
 	// on new zdb starts, or updating the runtime.
@@ -423,17 +416,23 @@ func (p *Manager) waitZDBIPs(ctx context.Context, namespace string, created time
 		if err != nil {
 			return err
 		}
-
 		ips = append(ips, yggIps...)
 
+		MyceliumIps, _, err := network.Addrs(ctx, nwmod.ZDBMyceliumIface, namespace)
+		if err != nil {
+			return err
+		}
+		ips = append(ips, MyceliumIps...)
+
 		var (
-			public = false
-			ygg    = false
+			public   = false
+			ygg      = false
+			mycelium = false
 		)
 		containerIPs = containerIPs[:0]
 
 		for _, ip := range ips {
-			if isPublic(ip) && !isYgg(ip) {
+			if isPublic(ip) && !isYgg(ip) && !isMycelium(ip) {
 				log.Warn().IPAddr("ip", ip).Msg("0-db container public ip found")
 				public = true
 				containerIPs = append(containerIPs, ip)
@@ -443,10 +442,15 @@ func (p *Manager) waitZDBIPs(ctx context.Context, namespace string, created time
 				ygg = true
 				containerIPs = append(containerIPs, ip)
 			}
+			if isMycelium(ip) {
+				log.Warn().IPAddr("ip", ip).Msg("0-db container mycelium ip found")
+				mycelium = true
+				containerIPs = append(containerIPs, ip)
+			}
 		}
 
-		log.Warn().Msgf("public %v ygg: %v", public, ygg)
-		if public && ygg || time.Since(created) > 2*time.Minute {
+		log.Warn().Msgf("public %v ygg: %v mycelium: %v", public, ygg, mycelium)
+		if public && ygg && mycelium || time.Since(created) > 2*time.Minute {
 			// if we have all ips detected or if the container is older than 2 minutes
 			// so it's safe we assume ips are final
 			return nil
@@ -768,8 +772,17 @@ var yggNet = net.IPNet{
 	Mask: net.CIDRMask(7, 128),
 }
 
+var myceliumNet = net.IPNet{
+	IP:   net.ParseIP("400::"),
+	Mask: net.CIDRMask(7, 128),
+}
+
 func isYgg(ip net.IP) bool {
 	return yggNet.Contains(ip)
+}
+
+func isMycelium(ip net.IP) bool {
+	return myceliumNet.Contains(ip)
 }
 
 // InitializeZDB makes sure all required zdbs are running
@@ -777,6 +790,7 @@ func (p *Manager) Initialize(ctx context.Context) error {
 	var (
 		storage  = stubs.NewStorageModuleStub(p.zbus)
 		contmod  = stubs.NewContainerModuleStub(p.zbus)
+		network  = stubs.NewNetworkerStub(p.zbus)
 		flistmod = stubs.NewFlisterStub(p.zbus)
 	)
 	// fetching extected hash
@@ -808,6 +822,12 @@ func (p *Manager) Initialize(ctx context.Context) error {
 			log.Error().Err(err).Msg("failed to upgrade running zdb container")
 		}
 
+		log.Debug().Str("container", string(container)).Msg("enusreing zdb network setup")
+		_, err := network.EnsureZDBPrepare(ctx, poolNames[string(container)].ID)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to prepare zdb network")
+		}
+
 		delete(poolNames, string(container))
 	}
 
@@ -827,7 +847,6 @@ func (p *Manager) upgradeRuntime(ctx context.Context, expected string, container
 		contmod  = stubs.NewContainerModuleStub(p.zbus)
 	)
 	continfo, err := contmod.Inspect(ctx, zdbContainerNS, container)
-
 	if err != nil {
 		return err
 	}
