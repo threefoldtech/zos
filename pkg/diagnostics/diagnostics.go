@@ -8,7 +8,6 @@ import (
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/utils"
 )
 
@@ -124,13 +123,21 @@ func (m *DiagnosticsManager) isHealthy() bool {
 		return false
 	}
 
-	var result pkg.TaskResult
-	if err := json.Unmarshal(data.([]byte), &result); err != nil {
+	byteData, ok := data.([]byte)
+	if !ok {
 		return false
 	}
 
-	for _, errors := range result.Result.(map[string]interface{}) {
-		if len(errors.([]interface{})) != 0 {
+	var result struct {
+		Result map[string][]string `json:"result"`
+	}
+
+	if err := json.Unmarshal(byteData, &result); err != nil {
+		return false
+	}
+
+	for _, errors := range result.Result {
+		if len(errors) > 0 {
 			return false
 		}
 	}
