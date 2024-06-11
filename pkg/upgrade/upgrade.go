@@ -236,7 +236,7 @@ func (u *Upgrader) update() error {
 	}
 
 	log.Info().Str("version", filepath.Base(remote.Target)).Msg("updating system...")
-	if err := u.updateTo(remote); err != nil {
+	if err := u.updateTo(remote, current); err != nil {
 		return errors.Wrapf(err, "failed to update to new tag '%s'", remote.Target)
 	}
 
@@ -249,7 +249,7 @@ func (u *Upgrader) update() error {
 
 // updateTo updates flist packages to match "link"
 // and only update zos package if u.noZosUpgrade is set to false
-func (u *Upgrader) updateTo(link hub.TagLink) error {
+func (u *Upgrader) updateTo(link hub.TagLink, current hub.TagLink) error {
 	repo, tag, err := link.Destination()
 	if err != nil {
 		return errors.Wrap(err, "failed to get destination tag")
@@ -260,9 +260,28 @@ func (u *Upgrader) updateTo(link hub.TagLink) error {
 		return errors.Wrapf(err, "failed to list tag '%s' packages", tag)
 	}
 
+	// get current pkgs list to compare the new pkgs against it
+	curRepo, curTag, err := current.Destination()
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve current link")
+	}
+	curPkgs, err := u.hub.ListTag(curRepo, curTag)
+	// store curPkgs names, the only part needed for the comparison
+	var curPkgsNames []string
+	for _, pkg := range curPkgs {
+		_, name, err := pkg.Destination(curRepo)
+		if err == nil {
+			curPkgsNames = append(curPkgsNames, name)
+		}
+	}
+
 	var later [][]string
 	for _, pkg := range packages {
 		pkgRepo, name, err := pkg.Destination(repo)
+		// if the new pkg is the same as the current pkg no need to reinstall it
+		if slices.Contains(curPkgsNames, name) {
+			continue
+		}
 		if pkg.Name == ZosPackage {
 			// this is the last to do to make sure all dependencies are installed before updating zos
 			log.Debug().Str("repo", pkgRepo).Str("name", name).Msg("schedule package for later")
@@ -363,6 +382,7 @@ func (u *Upgrader) install(repo, name string) error {
 	log.Info().Str("repo", repo).Str("name", name).Msg("start installing package")
 	var cache cache = u
 	store, err := u.getFlist(repo, name, cache)
+
 	if errors.Is(err, syscall.EROFS) ||
 		errors.Is(err, syscall.EPERM) ||
 		errors.Is(err, syscall.EIO) {
