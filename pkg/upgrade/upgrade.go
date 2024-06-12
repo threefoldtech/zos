@@ -146,7 +146,7 @@ func (u *Upgrader) Run(ctx context.Context) error {
 				return errors.Wrap(err, "failed to get remote tag")
 			}
 
-			if err := u.updateTo(remote); err != nil {
+			if err := u.updateTo(remote, nil); err != nil {
 				return errors.Wrap(err, "failed to run update")
 			}
 		}
@@ -236,7 +236,7 @@ func (u *Upgrader) update() error {
 	}
 
 	log.Info().Str("version", filepath.Base(remote.Target)).Msg("updating system...")
-	if err := u.updateTo(remote, current); err != nil {
+	if err := u.updateTo(remote, &current); err != nil {
 		return errors.Wrapf(err, "failed to update to new tag '%s'", remote.Target)
 	}
 
@@ -249,7 +249,7 @@ func (u *Upgrader) update() error {
 
 // updateTo updates flist packages to match "link"
 // and only update zos package if u.noZosUpgrade is set to false
-func (u *Upgrader) updateTo(link hub.TagLink, current hub.TagLink) error {
+func (u *Upgrader) updateTo(link hub.TagLink, current *hub.TagLink) error {
 	repo, tag, err := link.Destination()
 	if err != nil {
 		return errors.Wrap(err, "failed to get destination tag")
@@ -260,18 +260,23 @@ func (u *Upgrader) updateTo(link hub.TagLink, current hub.TagLink) error {
 		return errors.Wrapf(err, "failed to list tag '%s' packages", tag)
 	}
 
-	// get current pkgs list to compare the new pkgs against it
-	curRepo, curTag, err := current.Destination()
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve current link")
-	}
-	curPkgs, err := u.hub.ListTag(curRepo, curTag)
-	// store curPkgs names, the only part needed for the comparison
 	var curPkgsNames []string
-	for _, pkg := range curPkgs {
-		_, name, err := pkg.Destination(curRepo)
-		if err == nil {
-			curPkgsNames = append(curPkgsNames, name)
+	if current != nil {
+		// get current pkgs list to compare the new pkgs against it
+		curRepo, curTag, err := current.Destination()
+		if err != nil {
+			return errors.Wrap(err, "failed to resolve current link")
+		}
+		curPkgs, err := u.hub.ListTag(curRepo, curTag)
+		if err != nil {
+			return errors.Wrapf(err, "failed to list tag %s", curTag)
+		}
+		// store curPkgs names, the only part needed for the comparison
+		for _, pkg := range curPkgs {
+			_, name, err := pkg.Destination(curRepo)
+			if err == nil {
+				curPkgsNames = append(curPkgsNames, name)
+			}
 		}
 	}
 
@@ -280,6 +285,7 @@ func (u *Upgrader) updateTo(link hub.TagLink, current hub.TagLink) error {
 		pkgRepo, name, err := pkg.Destination(repo)
 		// if the new pkg is the same as the current pkg no need to reinstall it
 		if slices.Contains(curPkgsNames, name) {
+			log.Info().Str("package", name).Msg("skipping package")
 			continue
 		}
 		if pkg.Name == ZosPackage {
