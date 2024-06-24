@@ -2,6 +2,7 @@
 
 # Constants
 readonly SOCKET="/tmp/virtiofs.sock"
+readonly CH_API_SOCKET="/tmp/ch-api.sock"
 readonly OVERLAYFS="/tmp/overlay"
 readonly CCFLIST="https://hub.grid.tf/tf-autobuilder/cloud-container-9dba60e.flist"
 readonly MACHINE_TYPE="machine"
@@ -255,6 +256,7 @@ boot() {
         --fs tag=vroot,socket="$SOCKET" \
         --disk path="$cidata" \
         --cmdline "$cmdline" \
+        --api-socket="$CH_API_SOCKET" \
         --serial tty \
         --console off
 }

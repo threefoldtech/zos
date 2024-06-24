@@ -88,3 +88,21 @@ Use the `install_deps.sh` script to install the needed binaries.
 - **Cleanup:**
   - Kills all attached processes.
   - Unmounts and clears directories.
+
+## Control vm
+
+a `ch-remote` is a very useful tool that can control cloud-hypervisor on the runtime. check the [docs](https://www.cloudhypervisor.org/docs/prologue/commands/#ch-remote-binary)
+
+Install
+
+```bash
+wget https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/v36.0/ch-remote 
+chmod +x ch-remote
+```
+
+Usage
+
+```bash
+# connect with the api socket connected plugged in cloud-hypervisor. found it on the script
+sudo ./ch-remote --api-socket=/tmp/ch-sock shutdown-vmm
+```
