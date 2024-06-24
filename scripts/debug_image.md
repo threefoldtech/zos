@@ -8,6 +8,8 @@ The debug image script facilitates development and debugging of flists runs on Z
 
 Either during development, specify a directory containing the rootfs. Or to debug existing flist, pass an flist url.
 
+> NOTE: script must run as a superuser
+
 ```bash
 # run image from a directory
 ./debug_image.sh --image /tmp/rootfs
@@ -62,6 +64,8 @@ Use the `install_deps.sh` script to install the needed binaries.
 - rfs1: required
 - mkdosfs, mcopy: needed to create cidata image
 - rust compiler and cargo: needed to build virtiofsd
+
+> NOTE: script must run as a superuser
 
 ## Script Walkthrough
 

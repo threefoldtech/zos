@@ -187,7 +187,7 @@ mount_flist() {
         wget $flist_url -O $flist_path
     fi
 
-    sudo mkdir -p "$mountpoint"
+    mkdir -p "$mountpoint"
 
     rfs1 --meta "$flist_path" "$mountpoint" &
     pids+=($!)
@@ -217,8 +217,8 @@ prepare_rootfs() {
     fi
 
     echo "Mounting overlay"
-    sudo mkdir -p /tmp/upper /tmp/workdir "$OVERLAYFS"
-    sudo mount \
+    mkdir -p /tmp/upper /tmp/workdir "$OVERLAYFS"
+    mount \
         -t overlay \
         -o lowerdir="$lowerdir",upperdir=/tmp/upper,workdir=/tmp/workdir \
         none \
@@ -226,7 +226,7 @@ prepare_rootfs() {
 
     echo "Starting virtiofs"
     # a trick to not mess the logs, it asks for sudo
-    sudo screen -dmS virtiofsd_session sudo virtiofsd --socket-path="$SOCKET" --shared-dir="$OVERLAYFS" --cache=never
+    screen -dmS virtiofsd_session sudo virtiofsd --socket-path="$SOCKET" --shared-dir="$OVERLAYFS" --cache=never
     pids+=($!)
 }
 
@@ -235,8 +235,8 @@ cleanup() {
 
     dirs=("$OVERLAYFS" /tmp/flist /tmp/cloud-container /tmp/upper /tmp/workdir)
     for dir in "${dirs_to_umount[@]}"; do
-        sudo umount "$dir" &>/dev/null || true
-        sudo rm -rf "$dir" &>/dev/null || true
+        umount "$dir" &>/dev/null || true
+        rm -rf "$dir" &>/dev/null || true
     done
 
     for pid in "${pids[@]}"; do
@@ -247,7 +247,7 @@ cleanup() {
 }
 
 boot() {
-    sudo cloud-hypervisor \
+    cloud-hypervisor \
         --cpus boot=1,max=1 \
         --memory size=1024M,shared=on \
         --kernel "${kernel}" \
@@ -259,9 +259,10 @@ boot() {
         --console off
 }
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as root"
-  exit
+# must run as superuser
+if [ $(id -u) != "0" ]; then
+echo "You must be the superuser to run this script" >&2
+exit 1
 fi
 
 cleanup

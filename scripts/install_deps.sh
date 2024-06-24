@@ -26,11 +26,11 @@ install_virtiofsd() {
     pushd virtiofsd
 
     # specially needed for virtiofsd bin    
-    sudo apt -y update
-    sudo apt -y install libseccomp-dev libcap-ng-dev
+    apt -y update
+    apt -y install libseccomp-dev libcap-ng-dev
 
     cargo build --release
-    sudo mv ./target/release/virtiofsd /usr/local/bin/virtiofsd
+    mv ./target/release/virtiofsd /usr/local/bin/virtiofsd
     popd
 }
 
@@ -38,7 +38,7 @@ install_rfs() {
     echo "Installing rfs ${RFS_VERSION} ..."
     wget -q ${RFS_URL}
     chmod +x rfs
-    sudo mv ./rfs /usr/local/bin/rfs1
+    mv ./rfs /usr/local/bin/rfs1
 }
 
 main() {
@@ -72,11 +72,11 @@ main() {
     fi
 
     # install mcopy/mkdosfs needed to create cidata image. comment if you a have the image
-    sudo apt -y install dosfstools mtools
+    apt -y install dosfstools mtools
 
     # install screen for managing multiple servers
     # NOTE: rust bins like virtiofsd miss the logs, runs on a screen session to workaround that
-    sudo apt -y install screen
+    apt -y install screen
 
     popd
     rm -rf $TEMP_DIR
