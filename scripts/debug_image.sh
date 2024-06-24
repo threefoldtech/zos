@@ -24,6 +24,7 @@ declare -A options=(
 )
 
 image_type=$MACHINE_TYPE
+install_deps=false
 init=""
 kernel=""
 initramfs=""
@@ -51,6 +52,7 @@ usage() {
     echo "  -d                    Enable debugging mode with 'set -x'."
     echo "  -h                    Show this help message."
     echo "  -c                    Run on container mode (will provide a kernel and initrd)."
+    echo "  -i                    Don't fail on missing deps and install them."
     echo ""
     echo "Example:"
     echo "  debug_image.sh --image /path/to/rootfs --debug true"
@@ -75,6 +77,10 @@ handle_options() {
                 image_type=$CONTAINER_TYPE
                 shift
                 ;;
+            -i)
+                install_deps=true
+                shift
+                ;;
             *)
                 usage
                 exit 1
@@ -88,37 +94,23 @@ handle_options() {
 }
 
 check_or_install_deps() {
-    mkdir -p ~/chv
-    cd ~/chv
-
-    if ! command -v cloud-hypervisor &>/dev/null; then
-        wget https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/v39.0/cloud-hypervisor
-        chmod +x cloud-hypervisor
-        sudo ln -s $(realpath ./cloud-hypervisor) /usr/local/bin/cloud-hypervisor
+    if [ "$install_deps" = true ]; then
+        bash ./install_deps.sh
+        return
     fi
 
-    if ! command -v virtiofsd &>/dev/null; then
-        git clone https://gitlab.com/muhamad.azmy/virtiofsd.git
-        pushd virtiofsd
-        cargo build --release
-        sudo ln -s $(realpath ./target/release/virtiofsd) /usr/local/bin/virtiofsd
-        popd
-    fi
+    for cmd in cloud-hypervisor virtiofsd rfs1 screen; do
+        if ! command -v $cmd &>/dev/null; then
+            fail "$cmd command not found"
+        fi
+    done
 
-    if ! command -v rfs1 &>/dev/null; then
-        wget https://github.com/threefoldtech/rfs/releases/download/v1.1.1/rfs
-        chmod +x rfs
-        sudo ln -s $(realpath ./rfs) /usr/local/bin/rfs1
-    fi
-
-    if [[ -n "${options[--cidata]}" && ! $(command -v mkdosfs &>/dev/null) ]]; then
-        sudo apt update
-        sudo apt -y install dosfstools
-    fi
-
-    if ! command -v screen &>/dev/null; then
-        sudo apt update
-        sudo apt -y install screen
+    if [[ -n "${options[--cidata]}" ]]; then
+        for cmd in mcopy mkdosfs; do
+            if ! command -v $cmd &>/dev/null; then
+                fail "$cmd command not found"
+            fi
+        done
     fi
 }
 
