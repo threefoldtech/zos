@@ -8,6 +8,8 @@ The debug image script facilitates development and debugging of flists runs on Z
 
 Either during development, specify a directory containing the rootfs. Or to debug existing flist, pass an flist url.
 
+> NOTE: script must run as a superuser
+
 ```bash
 # run image from a directory
 ./debug_image.sh --image /tmp/rootfs
@@ -30,9 +32,6 @@ Either during development, specify a directory containing the rootfs. Or to debu
 ## Flags
 
 - `--image`: [REQUIRED] directory or flist url
-- `--d`: enables `set -x` in the bash script
-- `--h`: show the help message
-- `--c`: run the image in container mode, will provide kernel/initrd from cloud-container
 - `--kernel`: kernel file path (compressed or uncompressed). default: `<rootfs>/boot/vmlinuz`
 - `--initramfs`: Initrd image path. default: `<rootfs>/boot/initrd.img`
 - `--init`: entrypoint for the machine.
@@ -40,6 +39,10 @@ Either during development, specify a directory containing the rootfs. Or to debu
 - `--user`: cloud-init username. default is user
 - `--pass`: cloud-init password. default is pass
 - `--name`: cloud-init machine name. default is cloud
+- `-d`: enables `set -x` in the bash script
+- `-h`: show the help message
+- `-c`: run the image in container mode, will provide kernel/initrd from cloud-container
+- `-i`: install any missing deps
 
 NOTE:
 
@@ -51,6 +54,18 @@ NOTE:
 - [virtiofsd](https://gitlab.com/muhamad.azmy/virtiofsd/): used to share a host directory for the rootfs. we are using a forked version
 - [rfs v1](https://github.com/threefoldtech/rfs/tree/v1): mounts the flist file into a directory serving as the lower layer of the overlay file system.
 - `overlayfs`: mounts a read-write layer on the rootfs
+
+## Install dependencies
+
+Use the `install_deps.sh` script to install the needed binaries.
+
+- cloud-hypervisor: required
+- virtiofsd: required
+- rfs1: required
+- mkdosfs, mcopy: needed to create cidata image
+- rust compiler and cargo: needed to build virtiofsd
+
+> NOTE: script must run as a superuser
 
 ## Script Walkthrough
 
@@ -74,48 +89,20 @@ NOTE:
   - Kills all attached processes.
   - Unmounts and clears directories.
 
-## Install dependencies
+## Control vm
 
-- **cloud-hypervisor**
+a `ch-remote` is a very useful tool that can control cloud-hypervisor on the runtime. check the [docs](https://www.cloudhypervisor.org/docs/prologue/commands/#ch-remote-binary)
 
-    ```bash
-    git clone https://github.com/cloud-hypervisor/cloud-hypervisor.git
-    cd cloud-hypervisor
-    cargo build --release
-    sudo setcap cap_net_admin+ep ./target/release/cloud-hypervisor
+Install
 
-    sudo ln -s $(realpath ./target/release/cloud-hypervisor) /usr/local/bin/cloud-hypervisor
-    ```
+```bash
+wget https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/v36.0/ch-remote 
+chmod +x ch-remote
+```
 
-- **virtiofsd**
+Usage
 
-    ```bash
-    git clone https://gitlab.com/muhamad.azmy/virtiofsd.git
-    cd virtiofsd
-    cargo build --release
-    sudo setcap cap_net_admin+ep ./target/release/virtiofsd
-
-    sudo ln -s $(realpath ./target/release/virtiofsd) /usr/local/bin/virtiofsd
-    ```
-
-- **rfs**
-
-    ```bash
-    wget https://github.com/threefoldtech/rfs/releases/download/v1.1.1/rfs
-    chmod +x ./rfs
-
-    sudo ln -s $(realpath ./rfs) /usr/local/bin/rfs1
-    ```
-
-- **mkdosfs**
-    only needed if the script gonna create the cidata image.
-
-    ```bash
-    apt-get install dosfstools
-    ```
-
-- **screen**
-
-    ```bash
-    apt-get install screen
-    ```
+```bash
+# connect with the api socket connected plugged in cloud-hypervisor. found it on the script
+sudo ./ch-remote --api-socket=/tmp/ch-sock shutdown-vmm
+```
