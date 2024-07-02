@@ -2,15 +2,236 @@
 package zos_rpc
 
 type GoOpenRPCService interface {
-	// get system version
 	SystemVersion() (*SystemVersionResult, error)
+
+	SystemDmi() (*SystemDmiResult, error)
+
+	SystemHypervisor() (*SystemHypervisorResult, error)
+
+	SystemDiagnostics() (*SystemDiagnosticsResult, error)
+
+	StorageMetrics() (*StorageMetricsResult, error)
+
+	Statistics() (*StatisticsResult, error)
+
+	PerfGet() (*PerfGetResult, error)
+
+	PerfGetAll() (*PerfGetAllResult, error)
 }
 type Version struct {
-	Zos string `json:"zos"`
-
 	Zinit string `json:"zinit"`
+
+	Zos string `json:"zos"`
 }
 type SystemVersionResult struct {
-	// zos and zinit version on the node
 	Version
+}
+type Tooling struct {
+	Aggregator string `json:"aggregator"`
+
+	Decoder string `json:"decoder"`
+}
+type DMI struct {
+	Tooling []Tooling `json:"tooling"`
+
+	Sections []Sections `json:"sections"`
+}
+type Section struct {
+	HandleLine string `json:"handleLine"`
+
+	TypeStr string `json:"typeStr"`
+
+	Type uint64 `json:"type"`
+
+	SubSections []SubSections `json:"subSections"`
+}
+type SubSection struct {
+	Title string `json:"title"`
+
+	Properties []Properties `json:"properties"`
+}
+type PropertyData struct {
+	Val string `json:"val"`
+
+	Items []string `json:"items"`
+}
+type Properties struct {
+	PropertyData
+
+	Val string `json:"val"`
+
+	Items []string `json:"items"`
+}
+type SubSections struct {
+	SubSection
+
+	Title string `json:"title"`
+
+	Properties []Properties `json:"properties"`
+}
+type Sections struct {
+	Section
+
+	TypeStr string `json:"typeStr"`
+
+	Type uint64 `json:"type"`
+
+	SubSections []SubSections `json:"subSections"`
+
+	HandleLine string `json:"handleLine"`
+}
+type SystemDmiResult struct {
+	DMI
+}
+type SystemHypervisorResult struct {
+	Hypervisor string `json:"hypervisor"`
+}
+type Diagnostics struct {
+	Healthy bool `json:"healthy"`
+
+	SystemStatusOk bool `json:"systemStatusOk"`
+
+	ZosModules []ZosModules `json:"zosModules"`
+}
+type ModuleStatus struct {
+	Err string `json:"err"`
+
+	Name string `json:"name"`
+
+	Status
+}
+type ObjectID struct {
+	Name string `json:"name"`
+
+	Version
+}
+type Objects struct {
+	ObjectID
+
+	Name string `json:"name"`
+
+	Version
+}
+type Status struct {
+	Objects []Objects `json:"objects"`
+
+	Workers []Workers `json:"workers"`
+}
+type WorkerStatus struct {
+	State string `json:"state"`
+
+	StartTime string `json:"startTime"`
+
+	Action string `json:"action"`
+}
+type Workers struct {
+	WorkerStatus
+
+	StartTime string `json:"startTime"`
+
+	Action string `json:"action"`
+
+	State string `json:"state"`
+}
+type ZosModules struct {
+	ModuleStatus
+
+	Name string `json:"name"`
+
+	Status
+
+	Err string `json:"err"`
+}
+type SystemDiagnosticsResult struct {
+	Diagnostics
+}
+type PoolMetrics struct {
+	Name string `json:"name"`
+
+	Type string `json:"type"`
+
+	Size uint64 `json:"size"`
+
+	Used uint64 `json:"used"`
+}
+type StorageMetricsResult struct {
+	PoolMetrics []PoolMetrics `json:"poolMetrics"`
+}
+type Total struct {
+	CRU uint64 `json:"cRU"`
+
+	SRU uint64 `json:"sRU"`
+
+	HRU uint64 `json:"hRU"`
+
+	MRU uint64 `json:"mRU"`
+
+	IPV4U uint64 `json:"iPV4U"`
+}
+type Counters struct {
+	Total
+
+	Used
+
+	System
+
+	Users
+}
+type Used struct {
+	SRU uint64 `json:"sRU"`
+
+	HRU uint64 `json:"hRU"`
+
+	MRU uint64 `json:"mRU"`
+
+	IPV4U uint64 `json:"iPV4U"`
+
+	CRU uint64 `json:"cRU"`
+}
+type System struct {
+	CRU uint64 `json:"cRU"`
+
+	SRU uint64 `json:"sRU"`
+
+	HRU uint64 `json:"hRU"`
+
+	MRU uint64 `json:"mRU"`
+
+	IPV4U uint64 `json:"iPV4U"`
+}
+type Users struct {
+	LastDeploymentTimestamp uint64 `json:"lastDeploymentTimestamp"`
+
+	Deployments uint64 `json:"deployments"`
+
+	Workloads uint64 `json:"workloads"`
+}
+type StatisticsResult struct {
+	Counters
+}
+type TaskResult struct {
+	Name string `json:"name"`
+
+	Description string `json:"description"`
+
+	Timestamp uint64 `json:"timestamp"`
+
+	Result string `json:"result"`
+}
+type PerfGetResult struct {
+	TaskResult
+}
+type Result struct {
+	TaskResult
+
+	Result string `json:"result"`
+
+	Name string `json:"name"`
+
+	Description string `json:"description"`
+
+	Timestamp uint64 `json:"timestamp"`
+}
+type PerfGetAllResult struct {
+	Result []Result `json:"result"`
 }

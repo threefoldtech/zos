@@ -1,32 +1,342 @@
 {
-  "openrpc": "1.0.0",
+  "openrpc": "1.2.6",
   "info": {
-    "version": "1.0.0",
-    "title": "ZOS RPC API"
+    "title": "ZosRpcApi",
+    "description": "This is an API for interacting with the Zos system.",
+    "version": "1.0.0"
   },
   "methods": [
     {
-      "name": "system_version",
-      "summary": "get system version",
+      "name": "SystemVersion",
+      "params": [],
       "result": {
-        "name": "version",
-        "description": "zos and zinit version on the node",
+        "name": "Version",
         "schema": {
           "$ref": "#/components/schemas/Version"
+        }
+      }
+    },
+    {
+      "name": "SystemDmi",
+      "params": [],
+      "result": {
+        "name": "DMI",
+        "schema": {
+          "$ref": "#/components/schemas/DMI"
+        }
+      }
+    },
+    {
+      "name": "SystemHypervisor",
+      "params": [],
+      "result": {
+        "name": "Hypervisor",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "name": "SystemDiagnostics",
+      "params": [],
+      "result": {
+        "name": "Diagnostics",
+        "schema": {
+          "$ref": "#/components/schemas/Diagnostics"
+        }
+      }
+    },
+    {
+      "name": "StorageMetrics",
+      "params": [],
+      "result": {
+        "name": "PoolMetrics",
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PoolMetrics"
+          }
+        }
+      }
+    },
+    {
+      "name": "Statistics",
+      "params": [],
+      "result": {
+        "name": "Counters",
+        "schema": {
+          "$ref": "#/components/schemas/Counters"
+        }
+      }
+    },
+    {
+      "name": "PerfGet",
+      "params": [],
+      "result": {
+        "name": "TaskResult",
+        "schema": {
+          "$ref": "#/components/schemas/TaskResult"
+        }
+      }
+    },
+    {
+      "name": "PerfGetAll",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {
+          "type": "TaskResults",
+          "items": {
+            "$ref": "#/components/schemas/TaskResult"
+          }
         }
       }
     }
   ],
   "components": {
-    "contentDescriptors": {},
     "schemas": {
       "Version": {
         "type": "object",
         "properties": {
-          "zos": {
+          "Zinit": {
             "type": "string"
           },
-          "zinit": {
+          "Zos": {
+            "type": "string"
+          }
+        }
+      },
+      "DMI": {
+        "type": "object",
+        "properties": {
+          "Tooling": {
+            "type": "object",
+            "items": {
+              "$ref": "#/components/schemas/Tooling"
+            }
+          },
+          "Sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Section"
+            }
+          }
+        }
+      },
+      "Tooling": {
+        "type": "object",
+        "properties": {
+          "Aggregator": {
+            "type": "string"
+          },
+          "Decoder": {
+            "type": "string"
+          }
+        }
+      },
+      "Section": {
+        "type": "object",
+        "properties": {
+          "HandleLine": {
+            "type": "string"
+          },
+          "TypeStr": {
+            "type": "string"
+          },
+          "Type": {
+            "type": "uint64"
+          },
+          "SubSections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubSection"
+            }
+          }
+        }
+      },
+      "SubSection": {
+        "type": "object",
+        "properties": {
+          "Title": {
+            "type": "string"
+          },
+          "Properties": {
+            "type": "object",
+            "items": {
+              "$ref": "#/components/schemas/PropertyData"
+            }
+          }
+        }
+      },
+      "PropertyData": {
+        "type": "object",
+        "properties": {
+          "Val": {
+            "type": "string"
+          },
+          "Items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Diagnostics": {
+        "type": "object",
+        "properties": {
+          "SystemStatusOk": {
+            "type": "boolean"
+          },
+          "ZosModules": {
+            "type": "object",
+            "items": {
+              "$ref": "#/components/schemas/ModuleStatus"
+            }
+          },
+          "Healthy": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ModuleStatus": {
+        "type": "object",
+        "properties": {
+          "Name": {
+            "type": "string"
+          },
+          "Status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "Err": {
+            "type": "string"
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "properties": {
+          "Objects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ObjectID"
+            }
+          },
+          "Workers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkerStatus"
+            }
+          }
+        }
+      },
+      "ObjectID": {
+        "type": "object",
+        "properties": {
+          "Name": {
+            "type": "string"
+          },
+          "Version": {
+            "$ref": "#/components/schemas/Version"
+          }
+        }
+      },
+      "WorkerStatus": {
+        "type": "object",
+        "properties": {
+          "State": {
+            "type": "string"
+          },
+          "StartTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "Action": {
+            "type": "string"
+          }
+        }
+      },
+      "PoolMetrics": {
+        "type": "object",
+        "properties": {
+          "Name": {
+            "type": "string"
+          },
+          "Type": {
+            "type": "string"
+          },
+          "Size": {
+            "type": "uint64"
+          },
+          "Used": {
+            "type": "uint64"
+          }
+        }
+      },
+      "Counters": {
+        "type": "object",
+        "properties": {
+          "Total": {
+            "$ref": "#/components/schemas/Capacity"
+          },
+          "Used": {
+            "$ref": "#/components/schemas/Capacity"
+          },
+          "System": {
+            "$ref": "#/components/schemas/Capacity"
+          },
+          "Users": {
+            "$ref": "#/components/schemas/UsersCounters"
+          }
+        }
+      },
+      "Capacity": {
+        "type": "object",
+        "properties": {
+          "CRU": {
+            "type": "uint64"
+          },
+          "SRU": {
+            "type": "uint64"
+          },
+          "HRU": {
+            "type": "uint64"
+          },
+          "MRU": {
+            "type": "uint64"
+          },
+          "IPV4U": {
+            "type": "uint64"
+          }
+        }
+      },
+      "UsersCounters": {
+        "type": "object",
+        "properties": {
+          "Deployments": {
+            "type": "uint64"
+          },
+          "Workloads": {
+            "type": "uint64"
+          },
+          "LastDeploymentTimestamp": {
+            "type": "uint64"
+          }
+        }
+      },
+      "TaskResult": {
+        "type": "object",
+        "properties": {
+          "Name": {
+            "type": "string"
+          },
+          "Description": {
+            "type": "string"
+          },
+          "Timestamp": {
+            "type": "uint64"
+          },
+          "Result": {
             "type": "string"
           }
         }

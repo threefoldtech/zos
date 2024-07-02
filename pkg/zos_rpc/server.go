@@ -227,8 +227,22 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var out interface{}
 
 	switch in.Method {
-	case "system_version":
+	case "SystemVersion":
 		out, err = srv.service.SystemVersion()
+	case "SystemDmi":
+		out, err = srv.service.SystemDmi()
+	case "SystemHypervisor":
+		out, err = srv.service.SystemHypervisor()
+	case "SystemDiagnostics":
+		out, err = srv.service.SystemDiagnostics()
+	case "StorageMetrics":
+		out, err = srv.service.StorageMetrics()
+	case "Statistics":
+		out, err = srv.service.Statistics()
+	case "PerfGet":
+		out, err = srv.service.PerfGet()
+	case "PerfGetAll":
+		out, err = srv.service.PerfGetAll()
 	}
 
 	if err != nil {

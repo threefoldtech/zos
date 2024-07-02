@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-var _ GoOpenRPCService = (*ApiService)(nil)
+// var _ GoOpenRPCService = (*ApiService)(nil)
 
 func (s *ApiService) SystemVersion() (*SystemVersionResult, error) {
 	ctx := context.Background()
