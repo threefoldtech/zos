@@ -17,6 +17,36 @@ type GoOpenRPCService interface {
 	PerfGet() (*PerfGetResult, error)
 
 	PerfGetAll() (*PerfGetAllResult, error)
+
+	NetworkPrivateIps(*NetworkPrivateIpsParams) (*NetworkPrivateIpsResult, error)
+
+	NetworkPublicIps() (*NetworkPublicIpsResult, error)
+
+	NetworkHasIpv6() (*NetworkHasIpv6Result, error)
+
+	NetworkInterface() (*NetworkInterfaceResult, error)
+
+	NetworkPublicConfig() (*NetworkPublicConfigResult, error)
+
+	NetworkWGPorts() (*NetworkWGPortsResult, error)
+
+	GpuList() (*GpuListResult, error)
+
+	DeploymentChanges(*DeploymentChangesParams) (*DeploymentChangesResult, error)
+
+	DeploymentList() (*DeploymentListResult, error)
+
+	DeploymentGet(*DeploymentGetParams) (*DeploymentGetResult, error)
+
+	DeploymentUpdate(*DeploymentUpdateParams) (*DeploymentUpdateResult, error)
+
+	DeploymentCreate(*DeploymentCreateParams) (*DeploymentCreateResult, error)
+
+	AdminPublicNICSet(*AdminPublicNICSetParams) (*AdminPublicNICSetResult, error)
+
+	AdminPublicNICGet() (*AdminPublicNICGetResult, error)
+
+	AdminInterfaces() (*AdminInterfacesResult, error)
 }
 type Version struct {
 	Zinit string `json:"zinit"`
@@ -45,11 +75,6 @@ type Section struct {
 
 	SubSections []SubSections `json:"subSections"`
 }
-type SubSection struct {
-	Title string `json:"title"`
-
-	Properties []Properties `json:"properties"`
-}
 type PropertyData struct {
 	Val string `json:"val"`
 
@@ -62,6 +87,11 @@ type Properties struct {
 
 	Items []string `json:"items"`
 }
+type SubSection struct {
+	Properties []Properties `json:"properties"`
+
+	Title string `json:"title"`
+}
 type SubSections struct {
 	SubSection
 
@@ -72,13 +102,13 @@ type SubSections struct {
 type Sections struct {
 	Section
 
-	TypeStr string `json:"typeStr"`
-
-	Type uint64 `json:"type"`
-
 	SubSections []SubSections `json:"subSections"`
 
 	HandleLine string `json:"handleLine"`
+
+	TypeStr string `json:"typeStr"`
+
+	Type uint64 `json:"type"`
 }
 type SystemDmiResult struct {
 	DMI
@@ -87,18 +117,18 @@ type SystemHypervisorResult struct {
 	Hypervisor string `json:"hypervisor"`
 }
 type Diagnostics struct {
-	Healthy bool `json:"healthy"`
-
 	SystemStatusOk bool `json:"systemStatusOk"`
 
 	ZosModules []ZosModules `json:"zosModules"`
+
+	Healthy bool `json:"healthy"`
 }
 type ModuleStatus struct {
-	Err string `json:"err"`
-
 	Name string `json:"name"`
 
 	Status
+
+	Err string `json:"err"`
 }
 type ObjectID struct {
 	Name string `json:"name"`
@@ -127,46 +157,46 @@ type WorkerStatus struct {
 type Workers struct {
 	WorkerStatus
 
+	State string `json:"state"`
+
 	StartTime string `json:"startTime"`
 
 	Action string `json:"action"`
-
-	State string `json:"state"`
 }
 type ZosModules struct {
 	ModuleStatus
 
-	Name string `json:"name"`
-
 	Status
 
 	Err string `json:"err"`
+
+	Name string `json:"name"`
 }
 type SystemDiagnosticsResult struct {
 	Diagnostics
 }
 type PoolMetrics struct {
-	Name string `json:"name"`
-
 	Type string `json:"type"`
 
 	Size uint64 `json:"size"`
 
 	Used uint64 `json:"used"`
+
+	Name string `json:"name"`
 }
 type StorageMetricsResult struct {
 	PoolMetrics []PoolMetrics `json:"poolMetrics"`
 }
 type Total struct {
+	MRU uint64 `json:"mRU"`
+
+	IPV4U uint64 `json:"iPV4U"`
+
 	CRU uint64 `json:"cRU"`
 
 	SRU uint64 `json:"sRU"`
 
 	HRU uint64 `json:"hRU"`
-
-	MRU uint64 `json:"mRU"`
-
-	IPV4U uint64 `json:"iPV4U"`
 }
 type Counters struct {
 	Total
@@ -178,6 +208,8 @@ type Counters struct {
 	Users
 }
 type Used struct {
+	CRU uint64 `json:"cRU"`
+
 	SRU uint64 `json:"sRU"`
 
 	HRU uint64 `json:"hRU"`
@@ -185,8 +217,6 @@ type Used struct {
 	MRU uint64 `json:"mRU"`
 
 	IPV4U uint64 `json:"iPV4U"`
-
-	CRU uint64 `json:"cRU"`
 }
 type System struct {
 	CRU uint64 `json:"cRU"`
@@ -200,28 +230,28 @@ type System struct {
 	IPV4U uint64 `json:"iPV4U"`
 }
 type Users struct {
-	LastDeploymentTimestamp uint64 `json:"lastDeploymentTimestamp"`
-
 	Deployments uint64 `json:"deployments"`
 
 	Workloads uint64 `json:"workloads"`
+
+	LastDeploymentTimestamp uint64 `json:"lastDeploymentTimestamp"`
 }
 type StatisticsResult struct {
 	Counters
 }
 type TaskResult struct {
+	Result string `json:"result"`
+
 	Name string `json:"name"`
 
 	Description string `json:"description"`
 
 	Timestamp uint64 `json:"timestamp"`
-
-	Result string `json:"result"`
 }
 type PerfGetResult struct {
 	TaskResult
 }
-type Result struct {
+type TaskResults struct {
 	TaskResult
 
 	Result string `json:"result"`
@@ -233,5 +263,249 @@ type Result struct {
 	Timestamp uint64 `json:"timestamp"`
 }
 type PerfGetAllResult struct {
-	Result []Result `json:"result"`
+	TaskResults []TaskResults `json:"taskResults"`
+}
+type NetworkPrivateIpsParams struct {
+	NetworkName string `json:"networkName"`
+}
+type NetworkPrivateIpsResult struct {
+	PrivateIps []string `json:"privateIps"`
+}
+type NetworkPublicIpsResult struct {
+	PublicIps []string `json:"publicIps"`
+}
+type NetworkHasIpv6Result struct {
+	HasIpv6 bool `json:"hasIpv6"`
+}
+type NetworkInterfaceResult struct {
+	Interface []string `json:"interface"`
+}
+type PublicConfig struct {
+	IPv4 string `json:"iPv4"`
+
+	IPv6 string `json:"iPv6"`
+
+	GW4 string `json:"gW4"`
+
+	GW6 string `json:"gW6"`
+
+	Domain string `json:"domain"`
+
+	Type string `json:"type"`
+}
+type NetworkPublicConfigResult struct {
+	PublicConfig []PublicConfig `json:"publicConfig"`
+}
+type NetworkWGPortsResult struct {
+	WGPorts []uint64 `json:"wGPorts"`
+}
+type GPUInfo struct {
+	Device string `json:"device"`
+
+	Contract uint64 `json:"contract"`
+
+	ID string `json:"iD"`
+
+	Vendor string `json:"vendor"`
+}
+type Gpus struct {
+	GPUInfo
+
+	Contract uint64 `json:"contract"`
+
+	ID string `json:"iD"`
+
+	Vendor string `json:"vendor"`
+
+	Device string `json:"device"`
+}
+type GpuListResult struct {
+	Gpus []Gpus `json:"gpus"`
+}
+type DeploymentChangesParams struct {
+	ContractId uint64 `json:"contractId"`
+}
+type Workload struct {
+	Description string `json:"description"`
+
+	Result
+
+	Version uint64 `json:"version"`
+
+	Name string `json:"name"`
+
+	Type string `json:"type"`
+
+	Data string `json:"data"`
+
+	Metadata string `json:"metadata"`
+}
+type Result struct {
+	Created uint64 `json:"created"`
+
+	State string `json:"state"`
+
+	Error string `json:"error"`
+
+	Data string `json:"data"`
+}
+type Workloads struct {
+	Workload
+
+	Type string `json:"type"`
+
+	Data string `json:"data"`
+
+	Metadata string `json:"metadata"`
+
+	Description string `json:"description"`
+
+	Result
+
+	Version uint64 `json:"version"`
+
+	Name string `json:"name"`
+}
+type DeploymentChangesResult struct {
+	Workloads []Workloads `json:"workloads"`
+}
+type Deployment struct {
+	Metadata string `json:"metadata"`
+
+	Description string `json:"description"`
+
+	Expiration uint64 `json:"expiration"`
+
+	SignatureRequirement
+
+	Workloads []Workloads `json:"workloads"`
+
+	Version uint64 `json:"version"`
+
+	TwinID uint64 `json:"twinID"`
+
+	ContractID uint64 `json:"contractID"`
+}
+type SignatureRequest struct {
+	TwinID uint64 `json:"twinID"`
+
+	Required bool `json:"required"`
+
+	Weight uint64 `json:"weight"`
+}
+type Requests struct {
+	SignatureRequest
+
+	TwinID uint64 `json:"twinID"`
+
+	Required bool `json:"required"`
+
+	Weight uint64 `json:"weight"`
+}
+type SignatureRequirement struct {
+	Requests []Requests `json:"requests"`
+
+	WeightRequired uint64 `json:"weightRequired"`
+
+	Signatures []Signatures `json:"signatures"`
+
+	SignatureStyle string `json:"signatureStyle"`
+}
+type Signature struct {
+	TwinID uint64 `json:"twinID"`
+
+	Signature string `json:"signature"`
+
+	SignatureType string `json:"signatureType"`
+}
+type Signatures struct {
+	Signature string `json:"signature"`
+
+	TwinID uint64 `json:"twinID"`
+
+	SignatureType string `json:"signatureType"`
+}
+type Deployments struct {
+	Deployment
+
+	Description string `json:"description"`
+
+	Expiration uint64 `json:"expiration"`
+
+	SignatureRequirement
+
+	Workloads []Workloads `json:"workloads"`
+
+	Version uint64 `json:"version"`
+
+	TwinID uint64 `json:"twinID"`
+
+	ContractID uint64 `json:"contractID"`
+
+	Metadata string `json:"metadata"`
+}
+type DeploymentListResult struct {
+	Deployments []Deployments `json:"deployments"`
+}
+type DeploymentGetParams struct {
+	ContractId uint64 `json:"contractId"`
+}
+type DeploymentGetResult struct {
+	Deployment
+}
+type DeploymentUpdateParams struct {
+	Deployment
+}
+type UpdateResult struct {
+	Success bool `json:"success"`
+}
+type DeploymentUpdateResult struct {
+	UpdateResult
+}
+type DeploymentCreateParams struct {
+	Deployment
+}
+type CreateResult struct {
+	Success bool `json:"success"`
+}
+type DeploymentCreateResult struct {
+	CreateResult
+}
+type AdminPublicNICSetParams struct {
+	Iface string `json:"iface"`
+}
+type SetResult struct {
+	Success bool `json:"success"`
+}
+type AdminPublicNICSetResult struct {
+	SetResult
+}
+type PublicNIC struct {
+	IsSingle bool `json:"isSingle"`
+
+	IsDual bool `json:"isDual"`
+
+	AsDualInterface string `json:"asDualInterface"`
+}
+type AdminPublicNICGetResult struct {
+	PublicNIC
+}
+type Interface struct {
+	Name string `json:"name"`
+
+	IPs []string `json:"iPs"`
+
+	Mac string `json:"mac"`
+}
+type Interfaces struct {
+	Interface
+
+	Name string `json:"name"`
+
+	IPs []string `json:"iPs"`
+
+	Mac string `json:"mac"`
+}
+type AdminInterfacesResult struct {
+	Interfaces []Interfaces `json:"interfaces"`
 }

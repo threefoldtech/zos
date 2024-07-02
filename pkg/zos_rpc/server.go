@@ -243,6 +243,60 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		out, err = srv.service.PerfGet()
 	case "PerfGetAll":
 		out, err = srv.service.PerfGetAll()
+	case "NetworkPrivateIps":
+		req := new(NetworkPrivateIpsParams)
+		err = ParamsToStruct(in.Params, req)
+		if err == nil {
+			out, err = srv.service.NetworkPrivateIps(req)
+		}
+	case "NetworkPublicIps":
+		out, err = srv.service.NetworkPublicIps()
+	case "NetworkHasIpv6":
+		out, err = srv.service.NetworkHasIpv6()
+	case "NetworkInterface":
+		out, err = srv.service.NetworkInterface()
+	case "NetworkPublicConfig":
+		out, err = srv.service.NetworkPublicConfig()
+	case "NetworkWGPorts":
+		out, err = srv.service.NetworkWGPorts()
+	case "GpuList":
+		out, err = srv.service.GpuList()
+	case "DeploymentChanges":
+		req := new(DeploymentChangesParams)
+		err = ParamsToStruct(in.Params, req)
+		if err == nil {
+			out, err = srv.service.DeploymentChanges(req)
+		}
+	case "DeploymentList":
+		out, err = srv.service.DeploymentList()
+	case "DeploymentGet":
+		req := new(DeploymentGetParams)
+		err = ParamsToStruct(in.Params, req)
+		if err == nil {
+			out, err = srv.service.DeploymentGet(req)
+		}
+	case "DeploymentUpdate":
+		req := new(DeploymentUpdateParams)
+		err = ParamsToStruct(in.Params, req)
+		if err == nil {
+			out, err = srv.service.DeploymentUpdate(req)
+		}
+	case "DeploymentCreate":
+		req := new(DeploymentCreateParams)
+		err = ParamsToStruct(in.Params, req)
+		if err == nil {
+			out, err = srv.service.DeploymentCreate(req)
+		}
+	case "AdminPublicNICSet":
+		req := new(AdminPublicNICSetParams)
+		err = ParamsToStruct(in.Params, req)
+		if err == nil {
+			out, err = srv.service.AdminPublicNICSet(req)
+		}
+	case "AdminPublicNICGet":
+		out, err = srv.service.AdminPublicNICGet()
+	case "AdminInterfaces":
+		out, err = srv.service.AdminInterfaces()
 	}
 
 	if err != nil {

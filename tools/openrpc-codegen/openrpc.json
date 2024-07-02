@@ -83,11 +83,222 @@
       "name": "PerfGetAll",
       "params": [],
       "result": {
-        "name": "result",
+        "name": "TaskResults",
         "schema": {
           "type": "TaskResults",
           "items": {
             "$ref": "#/components/schemas/TaskResult"
+          }
+        }
+      }
+    },
+    {
+      "name": "NetworkPrivateIps",
+      "params": [
+        {
+          "name": "networkName",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "PrivateIps",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "NetworkPublicIps",
+      "result": {
+        "name": "PublicIps",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "NetworkHasIpv6",
+      "result": {
+        "name": "HasIpv6",
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    },
+    {
+      "name": "NetworkInterface",
+      "result": {
+        "name": "Interface",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "ipv4"
+          }
+        }
+      }
+    },
+    {
+      "name": "NetworkPublicConfig",
+      "result": {
+        "name": "PublicConfig",
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PublicConfig"
+          }
+        }
+      }
+    },
+    {
+      "name": "NetworkWGPorts",
+      "result": {
+        "name": "WGPorts",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "uint64"
+          }
+        }
+      }
+    },
+    {
+      "name": "GpuList",
+      "result": {
+        "name": "Gpus",
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/GPUInfo"
+          }
+        }
+      }
+    },
+    {
+      "name": "DeploymentChanges",
+      "params": [
+        {
+          "name": "contractId",
+          "schema": {
+            "type": "uint64"
+          }
+        }
+      ],
+      "result": {
+        "name": "Workloads",
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Workload"
+          }
+        }
+      }
+    },
+    {
+      "name": "DeploymentList",
+      "result": {
+        "name": "Deployments",
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Deployment"
+          }
+        }
+      }
+    },
+    {
+      "name": "DeploymentGet",
+      "params": [
+        {
+          "name": "contractId",
+          "schema": {
+            "type": "uint64"
+          }
+        }
+      ],
+      "result": {
+        "name": "Deployment",
+        "schema": {
+          "$ref": "#/components/schemas/Deployment"
+        }
+      }
+    },
+    {
+      "name": "DeploymentUpdate",
+      "params": [
+        {
+          "name": "deployment",
+          "schema": {
+            "$ref": "#/components/schemas/Deployment"
+          }
+        }
+      ],
+      "result": {
+        "name": "updateResult",
+        "schema": {
+          "$ref": "#/components/schemas/Null"
+        }
+      }
+    },
+    {
+      "name": "DeploymentCreate",
+      "params": [
+        {
+          "name": "deployment",
+          "schema": {
+            "$ref": "#/components/schemas/Deployment"
+          }
+        }
+      ],
+      "result": {
+        "name": "createResult",
+        "schema": {
+          "$ref": "#/components/schemas/Null"
+        }
+      }
+    },
+    {
+      "name": "AdminPublicNICSet",
+      "params": [
+        {
+          "name": "iface",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "SetResult",
+        "schema": {
+          "$ref": "#/components/schemas/Null"
+        }
+      }
+    },
+    {
+      "name": "AdminPublicNICGet",
+      "result": {
+        "name": "PublicNIC",
+        "schema": {
+          "$ref": "#/components/schemas/ExitDevice"
+        }
+      }
+    },
+    {
+      "name": "AdminInterfaces",
+      "result": {
+        "name": "Interfaces",
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Interface"
           }
         }
       }
@@ -338,6 +549,217 @@
           },
           "Result": {
             "type": "string"
+          }
+        }
+      },
+      "PublicConfig": {
+        "type": "object",
+        "properties": {
+          "Type": {
+            "type": "string"
+          },
+          "IPv4": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "IPv6": {
+            "type": "string",
+            "format": "ipv6"
+          },
+          "GW4": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "GW6": {
+            "type": "string",
+            "format": "ipv6"
+          },
+          "Domain": {
+            "type": "string"
+          }
+        }
+      },
+      "GPUInfo": {
+        "type": "object",
+        "properties": {
+          "ID": {
+            "type": "string"
+          },
+          "Vendor": {
+            "type": "string"
+          },
+          "Device": {
+            "type": "string"
+          },
+          "Contract": {
+            "type": "uint64"
+          }
+        }
+      },
+      "Workload": {
+        "type": "object",
+        "properties": {
+          "Version": {
+            "type": "uint64"
+          },
+          "Name": {
+            "type": "string"
+          },
+          "Type": {
+            "type": "string"
+          },
+          "Data": {
+            "type": "string"
+          },
+          "Metadata": {
+            "type": "string"
+          },
+          "Description": {
+            "type": "string"
+          },
+          "Result": {
+            "$ref": "#/components/schemas/Result"
+          }
+        }
+      },
+      "Result": {
+        "type": "object",
+        "properties": {
+          "Created": {
+            "type": "uint64",
+            "format": "int64"
+          },
+          "State": {
+            "type": "string"
+          },
+          "Error": {
+            "type": "string"
+          },
+          "Data": {
+            "type": "string"
+          }
+        }
+      },
+      "Deployment": {
+        "type": "object",
+        "properties": {
+          "Version": {
+            "type": "uint64"
+          },
+          "TwinID": {
+            "type": "uint64"
+          },
+          "ContractID": {
+            "type": "uint64"
+          },
+          "Metadata": {
+            "type": "string"
+          },
+          "Description": {
+            "type": "string"
+          },
+          "Expiration": {
+            "type": "uint64",
+            "format": "int64"
+          },
+          "SignatureRequirement": {
+            "$ref": "#/components/schemas/SignatureRequirement"
+          },
+          "Workloads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Workload"
+            }
+          }
+        }
+      },
+      "SignatureRequirement": {
+        "type": "object",
+        "properties": {
+          "Requests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignatureRequest"
+            }
+          },
+          "WeightRequired": {
+            "type": "uint64"
+          },
+          "Signatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Signature"
+            }
+          },
+          "SignatureStyle": {
+            "type": "string"
+          }
+        }
+      },
+      "SignatureRequest": {
+        "type": "object",
+        "properties": {
+          "TwinID": {
+            "type": "uint64"
+          },
+          "Required": {
+            "type": "boolean"
+          },
+          "Weight": {
+            "type": "uint64"
+          }
+        }
+      },
+      "Signature": {
+        "type": "object",
+        "properties": {
+          "TwinID": {
+            "type": "uint64"
+          },
+          "Signature": {
+            "type": "string"
+          },
+          "SignatureType": {
+            "type": "string"
+          }
+        }
+      },
+      "ExitDevice": {
+        "type": "object",
+        "properties": {
+          "IsSingle": {
+            "type": "boolean"
+          },
+          "IsDual": {
+            "type": "boolean"
+          },
+          "AsDualInterface": {
+            "type": "string"
+          }
+        }
+      },
+      "Interface": {
+        "type": "object",
+        "properties": {
+          "Name": {
+            "type": "string"
+          },
+          "IPs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "Mac": {
+            "type": "string"
+          }
+        }
+      },
+      "Null": {
+        "type": "object",
+        "properties": {
+          "Success": {
+            "type": "boolean"
           }
         }
       }
