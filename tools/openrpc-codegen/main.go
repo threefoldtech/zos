@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/gobuffalo/packr/v2"
 	"github.com/gregdhill/go-openrpc/generate"
@@ -15,7 +16,10 @@ var specFile = "openrpc.json"
 var rpcPkgDir = "../../pkg/zos_rpc"
 
 func main() {
-	if err := os.RemoveAll(rpcPkgDir); err != nil {
+	if err := os.Remove(filepath.Join(rpcPkgDir, "/server.go")); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(rpcPkgDir, "/types.go")); err != nil {
 		log.Fatal(err)
 	}
 
@@ -32,14 +36,12 @@ func main() {
 	parse.GetTypes(spec, spec.Objects)
 	box := packr.New("template", "./templates")
 
-	if err = generate.WriteFile(box, "handlers", rpcPkgDir, spec); err != nil {
+	if err = generate.WriteFile(box, "server", rpcPkgDir, spec); err != nil {
 		log.Fatal(err)
 	}
 
 	if err = generate.WriteFile(box, "types", rpcPkgDir, spec); err != nil {
 		log.Fatal(err)
 	}
-	if err = generate.WriteFile(box, "server", rpcPkgDir, spec); err != nil {
-		log.Fatal(err)
-	}
+
 }

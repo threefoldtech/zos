@@ -2,50 +2,15 @@
 package zos_rpc
 
 type GoOpenRPCService interface {
-	// List all pets
-	ListPets(*ListPetsParams) (*ListPetsResult, error)
-	// Create a pet
-	CreatePet(*CreatePetParams) (*CreatePetResult, error)
-	// Info for a specific pet
-	GetPet(*GetPetParams) (*GetPetResult, error)
+	// get system version
+	SystemVersion() (*SystemVersionResult, error)
 }
-type ListPetsParams struct {
-	// How many items to return at one time (max 100)
-	Limit uint32 `json:"limit"`
-}
-type Pet struct {
-	Name string `json:"name"`
+type Version struct {
+	Zos string `json:"zos"`
 
-	Tag string `json:"tag"`
-
-	Id uint32 `json:"id"`
+	Zinit string `json:"zinit"`
 }
-type Pets struct {
-	Pet
-
-	Id uint32 `json:"id"`
-
-	Name string `json:"name"`
-
-	Tag string `json:"tag"`
-}
-type ListPetsResult struct {
-	// A paged array of pets
-	Pets []Pets `json:"pets"`
-}
-type CreatePetParams struct {
-	// Name of pet to create
-	NewPetName string `json:"newPetName"`
-	// Pet tag to create
-	NewPetTag string `json:"newPetTag"`
-}
-type CreatePetResult struct {
-	PetId uint32 `json:"petId"`
-}
-type GetPetParams struct {
-	PetId uint32 `json:"petId"`
-}
-type GetPetResult struct {
-	// Expected response to a valid request
-	Pet
+type SystemVersionResult struct {
+	// zos and zinit version on the node
+	Version
 }

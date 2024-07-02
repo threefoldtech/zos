@@ -16,6 +16,7 @@ import (
 	substrategw "github.com/threefoldtech/zos/pkg/substrate_gateway"
 	"github.com/threefoldtech/zos/pkg/utils"
 	zosapi "github.com/threefoldtech/zos/pkg/zos_api"
+	"github.com/threefoldtech/zos/pkg/zos_rpc"
 	"github.com/urfave/cli/v2"
 )
 
@@ -97,6 +98,15 @@ func action(cli *cli.Context) error {
 		return fmt.Errorf("failed to create zos api: %w", err)
 	}
 	api.SetupRoutes(router)
+
+	go func() {
+		log.Info().Uint("port", 3000).Msg("Rpc server started")
+		err = zos_rpc.Run(manager, redis, msgBrokerCon)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to run zos rpc")
+			return
+		}
+	}()
 
 	pair, err := id.KeyPair()
 	if err != nil {
