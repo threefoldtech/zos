@@ -8,13 +8,14 @@ import (
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/threefoldtech/zbus"
+	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/utils"
 )
 
-const (
-	callTimeout    = 3 * time.Second
-	testNetworkKey = "perf.healthcheck"
-)
+const callTimeout = 3 * time.Second
+
+var testNetworkKey = perf.GeneratePerfKey(pkg.HealthCheckTaskName)
 
 // Modules is all the registered modules on zbus
 var Modules = []string{
@@ -32,6 +33,8 @@ var Modules = []string{
 
 // ModuleStatus represents the status of a module or shows if error
 type ModuleStatus struct {
+	// Name is the name of the module
+	Name string `json:"name"`
 	// Status holds the status of the module
 	Status zbus.Status `json:"status,omitempty"`
 	// Err contains any error related to the module
@@ -43,7 +46,7 @@ type Diagnostics struct {
 	// SystemStatusOk is the overall system status
 	SystemStatusOk bool `json:"system_status_ok"`
 	// ZosModules is a list of modules with their objects and workers
-	ZosModules map[string]ModuleStatus `json:"modules"`
+	ZosModules []ModuleStatus `json:"modules"`
 	// Healthy is the state of the node health check
 	Healthy bool `json:"healthy"`
 }
@@ -70,7 +73,7 @@ func NewDiagnosticsManager(
 func (m *DiagnosticsManager) GetSystemDiagnostics(ctx context.Context) (Diagnostics, error) {
 	results := Diagnostics{
 		SystemStatusOk: true,
-		ZosModules:     make(map[string]ModuleStatus),
+		ZosModules:     []ModuleStatus{},
 	}
 
 	var wg sync.WaitGroup
@@ -86,7 +89,7 @@ func (m *DiagnosticsManager) GetSystemDiagnostics(ctx context.Context) (Diagnost
 			mut.Lock()
 			defer mut.Unlock()
 
-			results.ZosModules[module] = report
+			results.ZosModules = append(results.ZosModules, report)
 
 			if report.Err != nil {
 				hasError = true
@@ -109,6 +112,7 @@ func (m *DiagnosticsManager) getModuleStatus(ctx context.Context, module string)
 
 	status, err := m.zbusClient.Status(ctx, module)
 	return ModuleStatus{
+		Name:   module,
 		Status: status,
 		Err:    err,
 	}

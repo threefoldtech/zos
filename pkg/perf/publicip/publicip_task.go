@@ -14,6 +14,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/network/macvlan"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
@@ -43,6 +44,7 @@ const testNamespace = "pubtestns"
 type publicIPValidationTask struct{}
 
 type IPReport struct {
+	Ip     string `json:"ip"`
 	State  string `json:"state"`
 	Reason string `json:"reason"`
 }
@@ -54,11 +56,11 @@ func NewTask() perf.Task {
 }
 
 func (p *publicIPValidationTask) ID() string {
-	return "public-ip-validation"
+	return pkg.PublicIpTaskName
 }
 
 func (p *publicIPValidationTask) Cron() string {
-	return "0 0 */6 * * *"
+	return "0 * * * * *"
 }
 
 func (p *publicIPValidationTask) Description() string {
@@ -91,7 +93,7 @@ func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get farm with id %d: %w", farmID, err)
 	}
-	var report map[string]IPReport
+	var report []IPReport
 	err = netNS.Do(func(_ ns.NetNS) error {
 		report, err = p.validateIPs(farm.PublicIPs)
 		return err
@@ -103,8 +105,8 @@ func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
 	return report, nil
 }
 
-func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) (map[string]IPReport, error) {
-	report := make(map[string]IPReport)
+func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) ([]IPReport, error) {
+	reports := []IPReport{}
 	mv, err := macvlan.GetByName(testMacvlan)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get macvlan %s in namespace %s: %w", testMacvlan, testNamespace, err)
@@ -116,65 +118,76 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) (ma
 	}
 
 	for _, publicIP := range publicIPs {
-		report[publicIP.IP] = IPReport{
-			State: ValidState,
-		}
-		if publicIP.ContractID != 0 {
-			report[publicIP.IP] = IPReport{
-				State:  SkippedState,
-				Reason: IPIsUsed,
-			}
-			continue
-		}
-
-		ip, ipNet, routes, err := getIPWithRoute(publicIP)
-		if err != nil {
-			report[publicIP.IP] = IPReport{
-				State:  InvalidState,
-				Reason: PublicIPDataInvalid,
-			}
-			log.Err(err).Send()
-			continue
-		}
-		err = macvlan.Install(mv, nil, ipNet, routes, nil)
-		if err != nil {
-			report[publicIP.IP] = IPReport{
-				State:  InvalidState,
-				Reason: PublicIPDataInvalid,
-			}
-			log.Err(err).Msgf("failed to install macvlan %s with ip %s to namespace %s", testMacvlan, ipNet, testNamespace)
-			continue
-		}
-
-		realIP, err := getRealPublicIP()
-		if errors.Is(err, errPublicIPLookup) {
-			report[publicIP.IP] = IPReport{
-				State:  InvalidState,
-				Reason: PublicIPDataInvalid,
-			}
-		} else if err != nil {
-			report[publicIP.IP] = IPReport{
-				State:  SkippedState,
-				Reason: FetchRealIPFailed,
-			}
-		} else if !ip.Equal(realIP) {
-			report[publicIP.IP] = IPReport{
-				State:  InvalidState,
-				Reason: IPsNotMatching,
-			}
-		}
-
-		err = deleteAllIPsAndRoutes(mv)
-		if err != nil {
-			log.Err(err).Send()
-		}
+		report := validateIp(publicIP, mv)
+		report.Ip = publicIP.IP
+		reports = append(reports, report)
 	}
+
 	err = netlink.LinkSetDown(mv)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set link down: %w", err)
 	}
 
-	return report, nil
+	return reports, nil
+}
+
+func validateIp(publicIp substrate.PublicIP, mv *netlink.Macvlan) (report IPReport) {
+	report = IPReport{
+		State: ValidState,
+	}
+
+	if publicIp.ContractID != 0 {
+		report = IPReport{
+			State:  SkippedState,
+			Reason: IPIsUsed,
+		}
+		return
+	}
+
+	ip, ipNet, routes, err := getIPWithRoute(publicIp)
+	if err != nil {
+		report = IPReport{
+			State:  InvalidState,
+			Reason: PublicIPDataInvalid,
+		}
+		log.Err(err).Send()
+		return
+	}
+
+	err = macvlan.Install(mv, nil, ipNet, routes, nil)
+	if err != nil {
+		report = IPReport{
+			State:  InvalidState,
+			Reason: PublicIPDataInvalid,
+		}
+		log.Err(err).Msgf("failed to install macvlan %s with ip %s to namespace %s", testMacvlan, ipNet, testNamespace)
+		return
+	}
+
+	realIP, err := getRealPublicIP()
+	if errors.Is(err, errPublicIPLookup) {
+		report = IPReport{
+			State:  InvalidState,
+			Reason: PublicIPDataInvalid,
+		}
+	} else if err != nil {
+		report = IPReport{
+			State:  SkippedState,
+			Reason: FetchRealIPFailed,
+		}
+	} else if !ip.Equal(realIP) {
+		report = IPReport{
+			State:  InvalidState,
+			Reason: IPsNotMatching,
+		}
+	}
+
+	err = deleteAllIPsAndRoutes(mv)
+	if err != nil {
+		log.Err(err).Send()
+	}
+
+	return
 }
 
 func isLeastValidNode(ctx context.Context, farmID uint32, substrateGateway *stubs.SubstrateGatewayStub) (bool, error) {
