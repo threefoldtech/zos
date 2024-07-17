@@ -297,7 +297,7 @@
       }
     },
     {
-      "name": "zos.DeploymentCreate",
+      "name": "zos.DeploymentDeploy",
       "params": [
         {
           "name": "deployment",

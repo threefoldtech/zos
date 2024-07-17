@@ -46,8 +46,10 @@ func executeTemplate(buf *bytes.Buffer, tmpl string, data interface{}) error {
 	return nil
 }
 
-func addPackageName(buf *bytes.Buffer, pkg string) error {
-	pkgLine := fmt.Sprintf("package %s\n", pkg)
-	_, err := buf.Write([]byte(pkgLine))
+func addHeading(buf *bytes.Buffer, pkg string) error {
+	heading := ""
+	heading += "// AUTO-GENERATED: this file is auto generated please don't edit\n"
+	heading += fmt.Sprintf("package %s\n", pkg)
+	_, err := buf.Write([]byte(heading))
 	return err
 }

@@ -116,7 +116,7 @@ func getTypeFromSchema(schema schema.Schema) string {
 }
 
 func GenerateServerCode(buf *bytes.Buffer, spec schema.Spec, pkg string) error {
-	if err := addPackageName(buf, pkg); err != nil {
+	if err := addHeading(buf, pkg); err != nil {
 		return fmt.Errorf("failed to write pkg name: %w", err)
 	}
 

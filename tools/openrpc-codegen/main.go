@@ -20,7 +20,7 @@ func run() error {
 	var f flags
 	flag.StringVar(&f.spec, "spec", "", "openrpc spec file")
 	flag.StringVar(&f.output, "output", "", "generated go code")
-	flag.StringVar(&f.pkg, "pkg", "apirpc", "name of the go package")
+	flag.StringVar(&f.pkg, "pkg", "rpc", "name of the go package")
 	flag.Parse()
 
 	if f.spec == "" || f.output == "" {
