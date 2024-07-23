@@ -179,7 +179,7 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) (ma
 
 func isLeastValidNode(ctx context.Context, farmID uint32, substrateGateway *stubs.SubstrateGatewayStub) (bool, error) {
 	env := environment.MustGet()
-	gql := graphql.NewGraphQl(env.GraphQL)
+	gql := graphql.NewGraphQl(env.GraphQL...)
 
 	nodes, err := gql.GetUpNodes(ctx, 0, farmID, 0, false, false)
 	if err != nil {
