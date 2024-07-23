@@ -94,7 +94,7 @@ func action(cli *cli.Context) error {
 	err = resource.Create("dmz", bridge, &net.IPNet{
 		IP:   net.ParseIP("100.127.0.2"),
 		Mask: net.CIDRMask(16, 32),
-	}, nil, myceliumSeedFromIdentity(identity.PrivateKey(cli.Context)))
+	}, netlight.NDMZGwIP, nil, myceliumSeedFromIdentity(identity.PrivateKey(cli.Context)))
 
 	if err != nil {
 		return fmt.Errorf("failed to create ndmz resource: %w", err)

@@ -24,7 +24,7 @@ const (
 // }
 
 // Create creates a network name space and wire it to the master bridge
-func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, privateNet *net.IPNet, seed []byte) error {
+func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *net.IPNet, privateNet *net.IPNet, seed []byte) error {
 	privateNetBr := fmt.Sprintf("r%s", name)
 	myBr := fmt.Sprintf("m%s", name)
 	nsName := fmt.Sprintf("n%s", name)
@@ -76,6 +76,12 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, privateNet *
 	err = netNS.Do(func(_ ns.NetNS) error {
 		if err := setLinkAddr(INF_PUBLIC, ndmzIP); err != nil {
 			return fmt.Errorf("couldn't set link addr for public interface in namespace %s: %w", nsName, err)
+		}
+
+		if err := netlink.RouteAdd(&netlink.Route{
+			Gw: ndmzGwIP.IP,
+		}); err != nil && !os.IsExist(err) {
+			return fmt.Errorf("failed to add ndmz routing")
 		}
 
 		return nil

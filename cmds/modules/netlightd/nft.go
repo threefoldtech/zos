@@ -16,6 +16,7 @@ func ensureHostFw(ctx context.Context) error {
 nft 'add table inet filter'
 nft 'add table arp filter'
 nft 'add table bridge filter'
+nft 'add table nat'
 
 # duo to a bug we had we need to make sure those chains are
 # deleted and then recreated later
@@ -29,6 +30,8 @@ nft 'delete chain bridge filter output'
 
 nft 'delete chain arp filter input'
 nft 'delete chain arp filter output'
+
+nft 'delete chain nat postrouting'
 
 # recreate chains correctly
 nft 'add chain inet filter input   { type filter hook input priority filter; policy accept; }'
@@ -45,12 +48,16 @@ nft 'add chain bridge filter prerouting { type filter hook prerouting priority f
 nft 'add chain bridge filter postrouting { type filter hook postrouting priority filter; policy accept; }'
 nft 'add chain bridge filter output  { type filter hook output priority filter; policy accept; }'
 
+nft 'add chain nat postrouting { type nat hook postrouting priority 100 ; }'
+
 nft 'flush chain bridge filter forward'
 nft 'flush chain inet filter forward'
 nft 'flush chain inet filter prerouting'
+nft 'flush chain nat postrouting'
 
 # drop smtp traffic for hidden nodes
 nft 'add rule inet filter prerouting iifname "b-*" tcp dport {25, 587, 465} reject with icmp type admin-prohibited'
+nft 'add rule nat postrouting masquerade'
 `)
 
 	if err := cmd.Run(); err != nil {
