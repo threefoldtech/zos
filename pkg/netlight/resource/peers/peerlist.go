@@ -1,4 +1,4 @@
-package mycelium
+package peers
 
 import (
 	"net"
@@ -45,7 +45,7 @@ func IPV4Only(ip net.IP) bool {
 	return ip.To4() != nil
 }
 
-func fetchZosMyList() (Peers, error) {
+func PeersList() (Peers, error) {
 	cfg, err := environment.GetConfig()
 	if err != nil {
 		return nil, err

@@ -11,6 +11,7 @@ import (
 	"github.com/threefoldtech/zos/cmds/modules/contd"
 	"github.com/threefoldtech/zos/cmds/modules/flistd"
 	"github.com/threefoldtech/zos/cmds/modules/gateway"
+	"github.com/threefoldtech/zos/cmds/modules/netlightd"
 	"github.com/threefoldtech/zos/cmds/modules/networkd"
 	"github.com/threefoldtech/zos/cmds/modules/noded"
 	"github.com/threefoldtech/zos/cmds/modules/powerd"
@@ -52,6 +53,7 @@ func main() {
 			&vmd.Module,
 			&noded.Module,
 			&networkd.Module,
+			&netlightd.Module,
 			&provisiond.Module,
 			&zbusdebug.Module,
 			&gateway.Module,
