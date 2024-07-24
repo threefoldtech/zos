@@ -92,7 +92,7 @@ func action(cli *cli.Context) error {
 		return fmt.Errorf("failed to create ndmz bridge: %w", err)
 	}
 
-	err = resource.Create("dmz", bridge, &net.IPNet{
+	_, err = resource.Create("dmz", bridge, &net.IPNet{
 		IP:   net.ParseIP("100.127.0.2"),
 		Mask: net.CIDRMask(16, 32),
 	}, netlight.NDMZGwIP, nil, myceliumSeedFromIdentity(identity.PrivateKey(cli.Context)))
@@ -102,7 +102,7 @@ func action(cli *cli.Context) error {
 	}
 
 	// create a test user network
-	err = resource.Create("test", bridge, &net.IPNet{
+	_, err = resource.Create("test", bridge, &net.IPNet{
 		IP:   net.ParseIP("100.127.0.10"),
 		Mask: net.CIDRMask(16, 32),
 	}, netlight.NDMZGwIP, &net.IPNet{

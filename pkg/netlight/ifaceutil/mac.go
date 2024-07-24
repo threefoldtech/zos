@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/md5"
 	"net"
+
+	"github.com/decred/base58"
 )
 
 // HardwareAddrFromInputBytes returns a deterministic hardware address
@@ -35,6 +37,21 @@ outerLoop:
 		}
 		return addr
 	}
+}
+
+func DeviceNameFromInputBytes(input []byte) string {
+	// Unique generate a unique predetermined short name based
+	// on that ID and input value n.
+	// returns a max of 13 char str which is suitable
+	// to be used as devices and tap devices names.
+
+	h := md5.Sum(input)
+	b := base58.Encode(h[:])
+	if len(b) > 13 {
+		b = b[:13]
+	}
+
+	return "t-" + string(b)
 }
 
 func isHardwareAddrInValidRange(addr net.HardwareAddr) bool {

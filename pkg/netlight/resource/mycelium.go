@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +20,19 @@ import (
 const (
 	myceliumBin     = "mycelium"
 	myceliumSeedDir = "/tmp/network/mycelium"
+
+	myceliumSeedLen = 6
+)
+
+var (
+	myceliumIpBase = []byte{
+		0xff, 0x0f,
+	}
+
+	invalidMyceliumSeeds = [][]byte{
+		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+	}
 )
 
 type MyceliumInspection struct {
@@ -42,7 +56,11 @@ func inspectMycelium(seed []byte) (inspection MyceliumInspection, err error) {
 
 	tmp.Close()
 
-	output, err := exec.Command(myceliumBin, "inspect", "--json", "--key-file", tmp.Name()).Output()
+	return inspectMyceliumFile(tmp.Name())
+}
+
+func inspectMyceliumFile(path string) (inspection MyceliumInspection, err error) {
+	output, err := exec.Command(myceliumBin, "inspect", "--json", "--key-file", path).Output()
 	if err != nil {
 		return inspection, fmt.Errorf("failed to inspect mycelium ip: %w", err)
 	}
@@ -91,6 +109,38 @@ func (m *MyceliumInspection) Gateway() (gw net.IPNet, err error) {
 		IP:   ip,
 		Mask: net.CIDRMask(64, 128),
 	}
+
+	return
+}
+
+func (m *MyceliumInspection) IPFor(seed []byte) (ip net.IPNet, gw net.IPNet, err error) {
+	if len(seed) != myceliumSeedLen {
+		return ip, gw, fmt.Errorf("invalid seed length")
+	}
+
+	if slices.ContainsFunc(invalidMyceliumSeeds, func(b []byte) bool {
+		return slices.Equal(seed, b)
+	}) {
+		return ip, gw, fmt.Errorf("invalid seed")
+	}
+
+	// first find the base subnet.
+	gw, err = m.Gateway()
+	if err != nil {
+		return ip, gw, err
+	}
+
+	ip = net.IPNet{
+		IP:   slices.Clone(gw.IP),
+		Mask: slices.Clone(gw.Mask),
+	}
+
+	// the subnet already have the /64 part of the network (that's 8 bytes)
+	// we then add a fixed 2 bytes this will avoid reusing the same gw or
+	// the device ip
+	copy(ip.IP[8:10], myceliumIpBase)
+	// then finally we use the 6 bytes seed to build the rest of the IP
+	copy(ip.IP[10:16], seed)
 
 	return
 }

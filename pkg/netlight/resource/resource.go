@@ -24,6 +24,10 @@ const (
 //go:embed nft/rules.nft
 var nftRules embed.FS
 
+type Resource struct {
+	name string
+}
+
 // Create creates a network resource (please check docs)
 // name: is the name of the network resource. The Create function is idempotent which means if the same name is used the function
 // will not recreate the resource.
@@ -33,7 +37,7 @@ var nftRules embed.FS
 // ndmzGwIP: the gw Ip for the resource. Normally this is the ip assigned to the master bridge.
 // privateNet: optional private network range
 // seed: mycelium seed
-func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *net.IPNet, privateNet *net.IPNet, seed []byte) error {
+func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *net.IPNet, privateNet *net.IPNet, seed []byte) (*Resource, error) {
 	privateNetBr := fmt.Sprintf("r%s", name)
 	myBr := fmt.Sprintf("m%s", name)
 	nsName := fmt.Sprintf("n%s", name)
@@ -46,7 +50,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	for _, name := range bridges {
 		if !bridge.Exists(name) {
 			if _, err := bridge.New(name); err != nil {
-				return fmt.Errorf("couldn't create bridge %s: %w", name, err)
+				return nil, fmt.Errorf("couldn't create bridge %s: %w", name, err)
 			}
 		}
 	}
@@ -55,7 +59,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	if err != nil {
 		netNS, err = namespace.Create(nsName)
 		if err != nil {
-			return fmt.Errorf("failed to create namespace %s", err)
+			return nil, fmt.Errorf("failed to create namespace %s", err)
 		}
 	}
 
@@ -63,12 +67,12 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 
 	if privateNet != nil {
 		if privateNet.IP.To4() == nil {
-			return fmt.Errorf("private ip range must be IPv4 address")
+			return nil, fmt.Errorf("private ip range must be IPv4 address")
 		}
 
 		if !ifaceutil.Exists(INF_PRIVATE, netNS) {
 			if _, err = macvlan.Create(INF_PRIVATE, privateNetBr, netNS); err != nil {
-				return fmt.Errorf("failed to create private link: %w", err)
+				return nil, fmt.Errorf("failed to create private link: %w", err)
 			}
 		}
 	}
@@ -76,13 +80,13 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	// create public interface and attach it to ndmz bridge
 	if !ifaceutil.Exists(INF_PUBLIC, netNS) {
 		if _, err = macvlan.Create(INF_PUBLIC, master.Name, netNS); err != nil {
-			return fmt.Errorf("failed to create public link: %w", err)
+			return nil, fmt.Errorf("failed to create public link: %w", err)
 		}
 	}
 
 	if !ifaceutil.Exists(INF_MYCELIUM, netNS) {
 		if _, err = macvlan.Create(INF_MYCELIUM, myBr, netNS); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -118,19 +122,19 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	rules, err := nftRules.Open("nft/rules.nft")
 	if err != nil {
-		return fmt.Errorf("failed to load nft.rules file")
+		return nil, fmt.Errorf("failed to load nft.rules file")
 	}
 
 	if err := nft.Apply(rules, nsName); err != nil {
-		return fmt.Errorf("failed to apply nft rules for namespace '%s': %w", name, err)
+		return nil, fmt.Errorf("failed to apply nft rules for namespace '%s': %w", name, err)
 	}
 
-	return setupMycelium(netNS, INF_MYCELIUM, seed)
+	return &Resource{name}, setupMycelium(netNS, INF_MYCELIUM, seed)
 }
 
 func setLinkAddr(name string, ip *net.IPNet) error {
@@ -152,4 +156,52 @@ func setLinkAddr(name string, ip *net.IPNet) error {
 	}
 
 	return netlink.LinkSetUp(link)
+}
+
+// Get return resource handler
+func Get(name string) (*Resource, error) {
+	// validate that namespace (n{name}) exists
+
+	panic("unimplemented")
+	return &Resource{name}, nil
+}
+
+func Delete(name string) error {
+	// - stop mycelium (and delete the config files)
+	// - delete namespace
+	// - delete bridges (r{name}, m{name})
+	panic("unimplemented")
+}
+
+type TapDevice struct {
+	// name of the tap device
+	Name    string
+	Mac     net.HardwareAddr
+	IP      *net.IPNet
+	Gateway *net.IPNet
+	// Routing ?
+}
+
+// myceliumIpSeed is 6 bytes
+func (r *Resource) AttachPrivate(id string, vmIp *net.IPNet) (device TapDevice, err error) {
+	// 192.168.20.0/24
+
+	// +priv
+	// 192.168.20.30/24
+	// 192.168.20.1/24
+	// tap device !!
+	//
+	panic("unimplemented")
+}
+
+func (r *Resource) AttachMycelium(id string, seed [6]byte) (device TapDevice, err error) {
+	// inspect !!
+	// IPfor(seed)
+	panic("unimplemented")
+}
+
+// detach everything for this id
+func (r *Resource) Detach(id string) error {
+	// delete all tap devices for both mycelium and priv (if exists)
+	panic("unimplemented")
 }
