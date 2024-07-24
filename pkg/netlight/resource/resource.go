@@ -21,7 +21,7 @@ const (
 	INF_MYCELIUM = "mycelium"
 )
 
-//go:embed nft/nft.rules
+//go:embed nft/rules.nft
 var nftRules embed.FS
 
 // Create creates a network resource (please check docs)
@@ -121,7 +121,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 		return err
 	}
 
-	rules, err := nftRules.Open("nft/nft.rules")
+	rules, err := nftRules.Open("nft/rules.nft")
 	if err != nil {
 		return fmt.Errorf("failed to load nft.rules file")
 	}

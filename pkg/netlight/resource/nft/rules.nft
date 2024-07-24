@@ -1,3 +1,4 @@
+add table nat;
 flush table nat;
 
 table ip nat {
