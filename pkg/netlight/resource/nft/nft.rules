@@ -1,0 +1,8 @@
+flush table nat;
+
+table ip nat {
+        chain postrouting {
+                type nat hook postrouting priority srcnat; policy accept;
+                iifname "private" masquerade;
+        }
+}
