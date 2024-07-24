@@ -160,6 +160,7 @@ func ensureMyceliumService(z *zinit.Client, namespace string, peers []string) er
 	args := []string{
 		"ip", "netns", "exec", namespace,
 		bin,
+		"--silent",
 		"--key-file", filepath.Join(myceliumSeedDir, namespace),
 		"--tun-name", "my0",
 		"--peers",

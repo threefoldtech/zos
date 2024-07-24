@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"embed"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
 	"github.com/threefoldtech/zos/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos/pkg/network/nft"
 	"github.com/vishvananda/netlink"
 )
 
@@ -19,11 +21,18 @@ const (
 	INF_MYCELIUM = "mycelium"
 )
 
-// type Resource struct {
-// 	name string
-// }
+//go:embed nft/nft.rules
+var nftRules embed.FS
 
-// Create creates a network name space and wire it to the master bridge
+// Create creates a network resource (please check docs)
+// name: is the name of the network resource. The Create function is idempotent which means if the same name is used the function
+// will not recreate the resource.
+// master: Normally the br-ndmz bridge, this is the resource "way out" to the public internet. A `public` interface is created and wired
+// to the master bridge
+// ndmzIP: the IP assigned to the `public` interface.
+// ndmzGwIP: the gw Ip for the resource. Normally this is the ip assigned to the master bridge.
+// privateNet: optional private network range
+// seed: mycelium seed
 func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *net.IPNet, privateNet *net.IPNet, seed []byte) error {
 	privateNetBr := fmt.Sprintf("r%s", name)
 	myBr := fmt.Sprintf("m%s", name)
@@ -53,6 +62,10 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	defer netNS.Close()
 
 	if privateNet != nil {
+		if privateNet.IP.To4() == nil {
+			return fmt.Errorf("private ip range must be IPv4 address")
+		}
+
 		if !ifaceutil.Exists(INF_PRIVATE, netNS) {
 			if _, err = macvlan.Create(INF_PRIVATE, privateNetBr, netNS); err != nil {
 				return fmt.Errorf("failed to create private link: %w", err)
@@ -74,10 +87,27 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	}
 
 	err = netNS.Do(func(_ ns.NetNS) error {
+		if err := ifaceutil.SetLoUp(); err != nil {
+			return fmt.Errorf("failed to set lo up for namespace '%s': %w", nsName, err)
+		}
+
 		if err := setLinkAddr(INF_PUBLIC, ndmzIP); err != nil {
 			return fmt.Errorf("couldn't set link addr for public interface in namespace %s: %w", nsName, err)
 		}
 
+		if privateNet != nil {
+			privGwIp := privateNet.IP.To4()
+			// this is to take the first IP of the private range
+			// and use it as the gw address for the entire private range
+			privGwIp[net.IPv4len-1] = 1
+			// this IP is then set on the private interface
+			privateNet.IP = privGwIp
+			if err := setLinkAddr(INF_PRIVATE, privateNet); err != nil {
+				return fmt.Errorf("couldn't set link addr for private interface in namespace %s: %w", nsName, err)
+			}
+		}
+
+		// if err := setLinkAddr(INF_PRIVATE, )
 		if err := netlink.RouteAdd(&netlink.Route{
 			Gw: ndmzGwIP.IP,
 		}); err != nil && !os.IsExist(err) {
@@ -89,6 +119,15 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 
 	if err != nil {
 		return err
+	}
+
+	rules, err := nftRules.Open("nft/nft.rules")
+	if err != nil {
+		return fmt.Errorf("failed to load nft.rules file")
+	}
+
+	if err := nft.Apply(rules, nsName); err != nil {
+		return fmt.Errorf("failed to apply nft rules for namespace '%s': %w", name, err)
 	}
 
 	return setupMycelium(netNS, INF_MYCELIUM, seed)

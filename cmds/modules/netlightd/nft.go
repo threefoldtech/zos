@@ -57,7 +57,7 @@ nft 'flush chain nat postrouting'
 
 # drop smtp traffic for hidden nodes
 nft 'add rule inet filter prerouting iifname "b-*" tcp dport {25, 587, 465} reject with icmp type admin-prohibited'
-nft 'add rule nat postrouting masquerade'
+nft 'add rule nat postrouting iifname gw masquerade fully-random'
 `)
 
 	if err := cmd.Run(); err != nil {
