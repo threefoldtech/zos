@@ -10,7 +10,6 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/primitives/x25519"
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/netlight"
 	"github.com/threefoldtech/zos/pkg/netlight/resource"
 	"github.com/urfave/cli/v2"
@@ -43,6 +42,11 @@ var Module cli.Command = cli.Command{
 			Usage: "connection string to the message `BROKER`",
 			Value: "unix:///var/run/redis.sock",
 		},
+		&cli.UintFlag{
+			Name:  "workers",
+			Usage: "number of workers `N`",
+			Value: 1,
+		},
 	},
 	Action: action,
 }
@@ -54,8 +58,9 @@ func myceliumSeedFromIdentity(privKey []byte) []byte {
 
 func action(cli *cli.Context) error {
 	var (
-		root   string = cli.String("root")
-		broker string = cli.String("broker")
+		root     string = cli.String("root")
+		broker   string = cli.String("broker")
+		workerNr uint   = cli.Uint("workers")
 	)
 
 	if err := os.MkdirAll(root, 0755); err != nil {
@@ -69,6 +74,11 @@ func action(cli *cli.Context) error {
 	}
 
 	client, err := zbus.NewRedisClient(broker)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect to zbus broker")
+	}
+
+	server, err := zbus.NewRedisServer(module, broker, workerNr)
 	if err != nil {
 		return errors.Wrap(err, "failed to connect to zbus broker")
 	}
@@ -102,20 +112,39 @@ func action(cli *cli.Context) error {
 	}
 
 	// create a test user network
-	_, err = resource.Create("test", bridge, &net.IPNet{
-		IP:   net.ParseIP("100.127.0.10"),
-		Mask: net.CIDRMask(16, 32),
-	}, netlight.NDMZGwIP, &net.IPNet{
-		IP:   net.ParseIP("192.168.1.0"),
-		Mask: net.CIDRMask(24, 32),
-	}, zos.MustBytesFromHex("8ad7d29b81df3f3ef0a5ff95c25cc0824ef33137fbbcf22d2f23b0222ae3ac00"))
+	// r, err := resource.Create("test", bridge, &net.IPNet{
+	// 	IP:   net.ParseIP("100.127.0.10"),
+	// 	Mask: net.CIDRMask(16, 32),
+	// }, netlight.NDMZGwIP, &net.IPNet{
+	// 	IP:   net.ParseIP("192.168.1.0"),
+	// 	Mask: net.CIDRMask(24, 32),
+	// }, zos.MustBytesFromHex("8ad7d29b81df3f3ef0a5ff95c25cc0824ef33137fbbcf22d2f23b0222ae3ac00"))
 
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create user resource: %w", err)
+	// }
+	// tap, err := r.AttachPrivate("123", &net.IPNet{
+	// 	IP:   net.ParseIP("192.168.1.15"),
+	// 	Mask: net.CIDRMask(24, 32),
+	// })
+
+	// if err != nil {
+	// 	return fmt.Errorf("failed to attach to private network: %w", err)
+	// }
+	// fmt.Println(tap)
+
+	mod, err := netlight.NewNetworker()
 	if err != nil {
-		return fmt.Errorf("failed to create user resource: %w", err)
+		return fmt.Errorf("failed to create Networker: %w", err)
+	}
+	if err := server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, mod); err != nil {
+		return fmt.Errorf("failed to register network light module: %w", err)
 	}
 
-	select {}
-	//return nil
+	if err := server.Run(ctx); err != nil && err != context.Canceled {
+		return errors.Wrap(err, "unexpected error")
+	}
+	return nil
 }
 
 func waitMyceliumBin() {

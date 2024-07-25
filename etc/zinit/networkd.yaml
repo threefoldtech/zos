@@ -1,7 +1,5 @@
-exec: |
-  sh -c '
-  netlightd --broker unix:///var/run/redis.sock --root /var/cache/modules/networkd
-'
+exec: netlightd --broker unix:///var/run/redis.sock --root /var/cache/modules/networkd
+
 # test: zbusdebug --module network
 after:
   - boot

@@ -117,6 +117,7 @@ func action(cli *cli.Context) error {
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("shutting down")
 	})
+	log.Debug().Msg("123")
 
 	oracle := capacity.NewResourceOracle(stubs.NewStorageModuleStub(redis))
 	cap, err := oracle.Total()
@@ -132,6 +133,8 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get dmi information")
 	}
+
+	log.Debug().Msg("456")
 
 	hypervisor, err := oracle.GetHypervisor()
 	if err != nil {
@@ -155,11 +158,14 @@ func action(cli *cli.Context) error {
 		info = info.WithGPU(gpu.ShortID())
 	}
 
+	log.Debug().Msg("789")
+
 	info = info.WithCapacity(cap).
 		WithSerialNumber(dmi.BoardVersion()).
 		WithSecureBoot(secureBoot).
 		WithVirtualized(len(hypervisor) != 0)
 
+	log.Debug().Msg("shouldn't be logged")
 	go registerationServer(ctx, msgBrokerCon, env, info)
 	log.Info().Msg("start perf scheduler")
 

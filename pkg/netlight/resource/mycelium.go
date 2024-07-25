@@ -235,3 +235,18 @@ func ensureMyceliumService(z *zinit.Client, namespace string, peers []string) er
 
 	return z.StartWait(time.Second*20, zinitService)
 }
+
+func destroyMycelium(netNS ns.NetNS, z *zinit.Client) error {
+	name := filepath.Base(netNS.Path())
+
+	zinitService := fmt.Sprintf("mycelium-%s", name)
+
+	if err := z.StopWait(5*time.Second, zinitService); err != nil && !errors.Is(err, zinit.ErrUnknownService) {
+		return fmt.Errorf("failed to stop service %q: %w", zinitService, err)
+	}
+	if err := z.Forget(zinitService); err != nil && !errors.Is(err, zinit.ErrUnknownService) {
+		return fmt.Errorf("failed to forget service %q: %w", zinitService, err)
+	}
+
+	return os.Remove(filepath.Join(myceliumSeedDir, name))
+}

@@ -5,20 +5,25 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/pkg/errors"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/netlight/bridge"
 	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
+	"github.com/threefoldtech/zos/pkg/netlight/macvtap"
 	"github.com/threefoldtech/zos/pkg/netlight/namespace"
 	"github.com/threefoldtech/zos/pkg/network/nft"
+	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/vishvananda/netlink"
 )
 
 const (
-	INF_PUBLIC   = "public"
-	INF_PRIVATE  = "private"
-	INF_MYCELIUM = "mycelium"
+	infPublic   = "public"
+	infPrivate  = "private"
+	infMycelium = "mycelium"
 )
 
 //go:embed nft/rules.nft
@@ -70,22 +75,22 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 			return nil, fmt.Errorf("private ip range must be IPv4 address")
 		}
 
-		if !ifaceutil.Exists(INF_PRIVATE, netNS) {
-			if _, err = macvlan.Create(INF_PRIVATE, privateNetBr, netNS); err != nil {
+		if !ifaceutil.Exists(infPrivate, netNS) {
+			if _, err = macvlan.Create(infPrivate, privateNetBr, netNS); err != nil {
 				return nil, fmt.Errorf("failed to create private link: %w", err)
 			}
 		}
 	}
 
 	// create public interface and attach it to ndmz bridge
-	if !ifaceutil.Exists(INF_PUBLIC, netNS) {
-		if _, err = macvlan.Create(INF_PUBLIC, master.Name, netNS); err != nil {
+	if !ifaceutil.Exists(infPublic, netNS) {
+		if _, err = macvlan.Create(infPublic, master.Name, netNS); err != nil {
 			return nil, fmt.Errorf("failed to create public link: %w", err)
 		}
 	}
 
-	if !ifaceutil.Exists(INF_MYCELIUM, netNS) {
-		if _, err = macvlan.Create(INF_MYCELIUM, myBr, netNS); err != nil {
+	if !ifaceutil.Exists(infMycelium, netNS) {
+		if _, err = macvlan.Create(infMycelium, myBr, netNS); err != nil {
 			return nil, err
 		}
 	}
@@ -95,7 +100,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 			return fmt.Errorf("failed to set lo up for namespace '%s': %w", nsName, err)
 		}
 
-		if err := setLinkAddr(INF_PUBLIC, ndmzIP); err != nil {
+		if err := setLinkAddr(infPublic, ndmzIP); err != nil {
 			return fmt.Errorf("couldn't set link addr for public interface in namespace %s: %w", nsName, err)
 		}
 
@@ -106,12 +111,12 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 			privGwIp[net.IPv4len-1] = 1
 			// this IP is then set on the private interface
 			privateNet.IP = privGwIp
-			if err := setLinkAddr(INF_PRIVATE, privateNet); err != nil {
+			if err := setLinkAddr(infPrivate, privateNet); err != nil {
 				return fmt.Errorf("couldn't set link addr for private interface in namespace %s: %w", nsName, err)
 			}
 		}
 
-		// if err := setLinkAddr(INF_PRIVATE, )
+		// if err := setLinkAddr(infPrivate, )
 		if err := netlink.RouteAdd(&netlink.Route{
 			Gw: ndmzGwIP.IP,
 		}); err != nil && !os.IsExist(err) {
@@ -134,7 +139,37 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 		return nil, fmt.Errorf("failed to apply nft rules for namespace '%s': %w", name, err)
 	}
 
-	return &Resource{name}, setupMycelium(netNS, INF_MYCELIUM, seed)
+	return &Resource{name}, setupMycelium(netNS, infMycelium, seed)
+}
+
+func Delete(name string) error {
+	nsName := fmt.Sprintf("n%s", name)
+	netNS, err := namespace.GetByName(nsName)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if err := destroyMycelium(netNS, zinit.Default()); err != nil {
+		return err
+	}
+
+	if err := namespace.Delete(netNS); err != nil {
+		return err
+	}
+
+	privateNetBr := fmt.Sprintf("r%s", name)
+	myBr := fmt.Sprintf("m%s", name)
+
+	if err := bridge.Delete(privateNetBr); err != nil {
+		return err
+	}
+
+	return bridge.Delete(myBr)
+
 }
 
 func setLinkAddr(name string, ip *net.IPNet) error {
@@ -160,48 +195,110 @@ func setLinkAddr(name string, ip *net.IPNet) error {
 
 // Get return resource handler
 func Get(name string) (*Resource, error) {
-	// validate that namespace (n{name}) exists
+	nsName := fmt.Sprintf("n%s", name)
 
-	panic("unimplemented")
-	return &Resource{name}, nil
-}
+	if namespace.Exists(nsName) {
+		return &Resource{name}, nil
+	}
 
-func Delete(name string) error {
-	// - stop mycelium (and delete the config files)
-	// - delete namespace
-	// - delete bridges (r{name}, m{name})
-	panic("unimplemented")
-}
-
-type TapDevice struct {
-	// name of the tap device
-	Name    string
-	Mac     net.HardwareAddr
-	IP      *net.IPNet
-	Gateway *net.IPNet
-	// Routing ?
+	return nil, fmt.Errorf("resource not found: %s", name)
 }
 
 // myceliumIpSeed is 6 bytes
-func (r *Resource) AttachPrivate(id string, vmIp *net.IPNet) (device TapDevice, err error) {
-	// 192.168.20.0/24
+func (r *Resource) AttachPrivate(id string, vmIp *net.IPNet) (device pkg.TapDevice, err error) {
+	nsName := fmt.Sprintf("n%s", r.name)
+	netNs, err := namespace.GetByName(nsName)
+	if err != nil {
+		return
+	}
+	var addrs []netlink.Addr
 
-	// +priv
-	// 192.168.20.30/24
-	// 192.168.20.1/24
-	// tap device !!
-	//
-	panic("unimplemented")
+	if err = netNs.Do(func(_ ns.NetNS) error {
+		link, err := netlink.LinkByName(infPrivate)
+		if err != nil {
+			return err
+		}
+		addrs, err = netlink.AddrList(link, netlink.FAMILY_V4)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return
+	}
+	if len(addrs) != 1 {
+		return device, fmt.Errorf("expect addresses on private interface to be 1 got %d", len(addrs))
+	}
+	gw := addrs[0].IPNet
+	if !gw.Contains(vmIp.IP) {
+		return device, fmt.Errorf("ip not in range")
+	}
+
+	deviceName := ifaceutil.DeviceNameFromInputBytes([]byte(id))
+	tapName := fmt.Sprintf("b-%s", deviceName)
+
+	privateNetBr := fmt.Sprintf("r%s", r.name)
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(tapName))
+
+	mtap, err := macvtap.CreateMACvTap(tapName, privateNetBr, hw)
+	if err != nil {
+		return
+	}
+
+	if err = netlink.AddrAdd(mtap, &netlink.Addr{
+		IPNet: vmIp,
+	}); err != nil {
+		return
+	}
+
+	return pkg.TapDevice{
+		Name:    tapName,
+		Mac:     hw,
+		IP:      vmIp,
+		Gateway: gw,
+	}, nil
 }
 
-func (r *Resource) AttachMycelium(id string, seed [6]byte) (device TapDevice, err error) {
-	// inspect !!
-	// IPfor(seed)
-	panic("unimplemented")
-}
+func (r *Resource) AttachMycelium(id string, seed [6]byte) (device pkg.TapDevice, err error) {
+	netNS, err := namespace.GetByName(r.name)
+	if err != nil {
+		return
+	}
+	name := filepath.Base(netNS.Path())
+	netSeed, err := os.ReadFile(filepath.Join(myceliumSeedDir, name))
+	if err != nil {
+		return
+	}
+	inspect, err := inspectMycelium(netSeed)
+	if err != nil {
+		return
+	}
+	ip, gw, err := inspect.IPFor(seed[:])
+	if err != nil {
+		return
+	}
 
-// detach everything for this id
-func (r *Resource) Detach(id string) error {
-	// delete all tap devices for both mycelium and priv (if exists)
-	panic("unimplemented")
+	deviceName := ifaceutil.DeviceNameFromInputBytes([]byte(id))
+	tapName := fmt.Sprintf("m-%s", deviceName)
+
+	myBr := fmt.Sprintf("m%s", r.name)
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(tapName))
+
+	mtap, err := macvtap.CreateMACvTap(tapName, myBr, hw)
+	if err != nil {
+		return
+	}
+
+	if err = netlink.AddrAdd(mtap, &netlink.Addr{
+		IPNet: &ip,
+	}); err != nil {
+		return
+	}
+
+	return pkg.TapDevice{
+		Name:    tapName,
+		IP:      &ip,
+		Gateway: &gw,
+		Mac:     hw,
+	}, nil
 }
