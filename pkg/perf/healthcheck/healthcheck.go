@@ -9,13 +9,13 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 const (
-	id          = "healthcheck"
 	schedule    = "0 */15 * * * *"
 	description = "health check task runs multiple checks to ensure the node is in a usable state and set flags for the power daemon to stop reporting uptime if it is not usable"
 )
@@ -41,7 +41,7 @@ var _ perf.Task = (*healthcheckTask)(nil)
 
 // ID returns task ID.
 func (h *healthcheckTask) ID() string {
-	return id
+	return pkg.HealthCheckTaskName
 }
 
 func (h *healthcheckTask) Jitter() uint32 {
@@ -61,7 +61,7 @@ func (h *healthcheckTask) Description() string {
 // Run executes the health checks.
 func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 	log.Debug().Msg("starting health check task")
-	errs := make(map[string][]string)
+	errs := []pkg.HealthReport{}
 
 	cl := perf.GetZbusClient(ctx)
 	zui := stubs.NewZUIStub(cl)
@@ -79,9 +79,13 @@ func (h *healthcheckTask) Run(ctx context.Context) (interface{}, error) {
 
 				mut.Lock()
 				defer mut.Unlock()
-				errs[label] = errorsToStrings(errors)
+				errsStr := errorsToStrings(errors)
+				errs = append(errs, pkg.HealthReport{
+					TestName: label,
+					Errors:   errsStr,
+				})
 
-				if err := zui.PushErrors(ctx, label, errs[label]); err != nil {
+				if err := zui.PushErrors(ctx, label, errsStr); err != nil {
 					return err
 				}
 

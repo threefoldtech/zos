@@ -12,6 +12,7 @@ import (
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/rpc"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	substrategw "github.com/threefoldtech/zos/pkg/substrate_gateway"
 	"github.com/threefoldtech/zos/pkg/utils"
@@ -36,6 +37,11 @@ var Module cli.Command = cli.Command{
 			Usage: "number of workers `N`",
 			Value: 1,
 		},
+		&cli.UintFlag{
+			Name:  "port",
+			Usage: "rpc server port",
+			Value: 3000,
+		},
 	},
 	Action: action,
 }
@@ -44,6 +50,7 @@ func action(cli *cli.Context) error {
 	var (
 		msgBrokerCon string = cli.String("broker")
 		workerNr     uint   = cli.Uint("workers")
+		port         uint   = cli.Uint("port")
 	)
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
@@ -97,6 +104,13 @@ func action(cli *cli.Context) error {
 		return fmt.Errorf("failed to create zos api: %w", err)
 	}
 	api.SetupRoutes(router)
+
+	go func() {
+		if err := rpc.Run(ctx, port, manager, redis, msgBrokerCon); err != nil {
+			log.Error().Err(err).Msg("failed to run rpc server")
+			return
+		}
+	}()
 
 	pair, err := id.KeyPair()
 	if err != nil {
