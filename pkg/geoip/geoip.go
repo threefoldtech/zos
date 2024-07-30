@@ -22,7 +22,7 @@ type Location struct {
 var (
 	geoipURLs = []string{"https://geoip.grid.tf/", "https://02.geoip.grid.tf/", "https://03.geoip.grid.tf/"}
 
-	defaultHttpClient = &http.Client{
+	defaultHTTPClient = &http.Client{
 		Timeout: 10 * time.Second,
 	}
 )
@@ -52,7 +52,7 @@ func getLocation(geoIPService string) (Location, error) {
 		City:      "Unknown",
 	}
 
-	resp, err := defaultHttpClient.Get(geoIPService)
+	resp, err := defaultHTTPClient.Get(geoIPService)
 	if err != nil {
 		return l, err
 	}
