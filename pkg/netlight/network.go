@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/cache"
@@ -13,6 +14,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/netlight/ipam"
 	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
+	"github.com/threefoldtech/zos/pkg/netlight/namespace"
 	"github.com/threefoldtech/zos/pkg/netlight/options"
 	"github.com/threefoldtech/zos/pkg/netlight/resource"
 	"github.com/vishvananda/netlink"
@@ -71,15 +73,15 @@ func (n *networker) Delete(name string) error {
 
 }
 
-func (n *networker) AttachPrivate(name, id string, vmIp net.IPNet) (device pkg.TapDevice, err error) {
+func (n *networker) AttachPrivate(name, id string, vmIp net.IP) (device pkg.TapDevice, err error) {
 	resource, err := resource.Get(name)
 	if err != nil {
 		return
 	}
-	return resource.AttachPrivate(id, &vmIp)
+	return resource.AttachPrivate(id, vmIp)
 }
 
-func (n *networker) AttachMycelium(name, id string, seed [6]byte) (device pkg.TapDevice, err error) {
+func (n *networker) AttachMycelium(name, id string, seed []byte) (device pkg.TapDevice, err error) {
 	resource, err := resource.Get(name)
 	if err != nil {
 		return
@@ -100,6 +102,92 @@ func (n *networker) Detach(id string) error {
 	tapName := fmt.Sprintf("b-%s", deviceName)
 
 	return ifaceutil.Delete(tapName, nil)
+}
+
+func (n *networker) Interfaces(iface string, netns string) (pkg.Interfaces, error) {
+	getter := func(iface string) ([]netlink.Link, error) {
+		if iface != "" {
+			l, err := netlink.LinkByName(iface)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get interface %s", iface)
+			}
+			return []netlink.Link{l}, nil
+		}
+
+		all, err := netlink.LinkList()
+		if err != nil {
+			return nil, err
+		}
+		filtered := all[:0]
+		for _, l := range all {
+			name := l.Attrs().Name
+
+			if name == "lo" ||
+				(l.Type() != "device" && name != "zos") {
+
+				continue
+			}
+
+			filtered = append(filtered, l)
+		}
+
+		return filtered, nil
+	}
+
+	interfaces := make(map[string]pkg.Interface)
+	f := func(_ ns.NetNS) error {
+		links, err := getter(iface)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get interfaces (query: '%s')", iface)
+		}
+
+		for _, link := range links {
+
+			addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+			if err != nil {
+				return errors.Wrapf(err, "failed to list addresses of interfaces %s", iface)
+			}
+			ips := make([]net.IPNet, 0, len(addrs))
+			for _, addr := range addrs {
+				ip := addr.IP
+				if ip6 := ip.To16(); ip6 != nil {
+					// ipv6
+					if !ip6.IsGlobalUnicast() || ifaceutil.IsULA(ip6) {
+						// skip if not global or is ula address
+						continue
+					}
+				}
+
+				ips = append(ips, *addr.IPNet)
+			}
+
+			interfaces[link.Attrs().Name] = pkg.Interface{
+				Name: link.Attrs().Name,
+				Mac:  link.Attrs().HardwareAddr.String(),
+				IPs:  ips,
+			}
+		}
+
+		return nil
+	}
+
+	if netns != "" {
+		netNS, err := namespace.GetByName(netns)
+		if err != nil {
+			return pkg.Interfaces{}, errors.Wrapf(err, "failed to get network namespace %s", netns)
+		}
+		defer netNS.Close()
+
+		if err := netNS.Do(f); err != nil {
+			return pkg.Interfaces{}, err
+		}
+	} else {
+		if err := f(nil); err != nil {
+			return pkg.Interfaces{}, err
+		}
+	}
+
+	return pkg.Interfaces{Interfaces: interfaces}, nil
 }
 
 func CreateNDMZBridge() (*netlink.Bridge, error) {

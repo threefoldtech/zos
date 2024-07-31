@@ -28,7 +28,7 @@ func NewNetworkerLightStub(client zbus.Client) *NetworkerLightStub {
 	}
 }
 
-func (s *NetworkerLightStub) AttachMycelium(ctx context.Context, arg0 string, arg1 string, arg2 interface{}) (ret0 pkg.TapDevice, ret1 error) {
+func (s *NetworkerLightStub) AttachMycelium(ctx context.Context, arg0 string, arg1 string, arg2 []uint8) (ret0 pkg.TapDevice, ret1 error) {
 	args := []interface{}{arg0, arg1, arg2}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "AttachMycelium", args...)
 	if err != nil {
@@ -45,7 +45,7 @@ func (s *NetworkerLightStub) AttachMycelium(ctx context.Context, arg0 string, ar
 	return
 }
 
-func (s *NetworkerLightStub) AttachPrivate(ctx context.Context, arg0 string, arg1 string, arg2 net.IPNet) (ret0 pkg.TapDevice, ret1 error) {
+func (s *NetworkerLightStub) AttachPrivate(ctx context.Context, arg0 string, arg1 string, arg2 []uint8) (ret0 pkg.TapDevice, ret1 error) {
 	args := []interface{}{arg0, arg1, arg2}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "AttachPrivate", args...)
 	if err != nil {
@@ -101,6 +101,23 @@ func (s *NetworkerLightStub) Detach(ctx context.Context, arg0 string) (ret0 erro
 	result.PanicOnError()
 	ret0 = result.CallError()
 	loader := zbus.Loader{}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerLightStub) Interfaces(ctx context.Context, arg0 string, arg1 string) (ret0 pkg.Interfaces, ret1 error) {
+	args := []interface{}{arg0, arg1}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "Interfaces", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret1 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
+	}
 	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}

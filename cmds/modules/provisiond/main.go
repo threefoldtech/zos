@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cenkalti/backoff/v3"
 	"github.com/pkg/errors"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zos/pkg"
@@ -173,22 +172,6 @@ func action(cli *cli.Context) error {
 	identity := stubs.NewIdentityManagerStub(cl)
 	sk := ed25519.PrivateKey(identity.PrivateKey(ctx))
 
-	// block until networkd is ready to serve request from zbus
-	// this is used to prevent uptime and online status to the explorer if the node is not in a fully ready
-	// https://github.com/threefoldtech/zos/issues/632
-	// NOTE - UPDATE: this block of code should be deprecated
-	// since we do the waiting in zinit now since provisiond waits for networkd
-	// which has a 'test' condition in the zinit yaml file for networkd to wait
-	// for zbus
-	network := stubs.NewNetworkerStub(cl)
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
-	backoff.RetryNotify(func() error {
-		return network.Ready(cli.Context)
-	}, bo, func(err error, d time.Duration) {
-		log.Error().Err(err).Msg("networkd is not ready yet")
-	})
-
 	// the v1 endpoint will be used by all components to register endpoints
 	// that are specific for that component
 	//v1 := router.PathPrefix("/api/v1").Subrouter()
@@ -320,9 +303,11 @@ func action(cli *cli.Context) error {
 			zos.VolumeType,
 			zos.QuantumSafeFSType,
 			zos.NetworkType,
+			zos.NetworkLightType,
 			zos.PublicIPv4Type,
 			zos.PublicIPType,
 			zos.ZMachineType,
+			zos.ZMachineLightType,
 			zos.ZLogsType, //make sure zlogs comes after zmachine
 		),
 		// if this is a node reboot, the node needs to

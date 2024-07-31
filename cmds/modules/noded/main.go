@@ -92,11 +92,6 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
-	consumer, err := events.NewConsumer(msgBrokerCon, module)
-	if err != nil {
-		return errors.Wrap(err, "failed to to create event consumer")
-	}
-
 	if printID {
 		sysCl := stubs.NewSystemMonitorStub(redis)
 		fmt.Println(sysCl.NodeID(cli.Context))
@@ -117,7 +112,6 @@ func action(cli *cli.Context) error {
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("shutting down")
 	})
-	log.Debug().Msg("123")
 
 	oracle := capacity.NewResourceOracle(stubs.NewStorageModuleStub(redis))
 	cap, err := oracle.Total()
@@ -133,8 +127,6 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get dmi information")
 	}
-
-	log.Debug().Msg("456")
 
 	hypervisor, err := oracle.GetHypervisor()
 	if err != nil {
@@ -158,14 +150,11 @@ func action(cli *cli.Context) error {
 		info = info.WithGPU(gpu.ShortID())
 	}
 
-	log.Debug().Msg("789")
-
 	info = info.WithCapacity(cap).
 		WithSerialNumber(dmi.BoardVersion()).
 		WithSecureBoot(secureBoot).
 		WithVirtualized(len(hypervisor) != 0)
 
-	log.Debug().Msg("shouldn't be logged")
 	go registerationServer(ctx, msgBrokerCon, env, info)
 	log.Info().Msg("start perf scheduler")
 
@@ -238,15 +227,6 @@ func action(cli *cli.Context) error {
 	server.Register(zbus.ObjectID{Name: "performance-monitor", Version: "0.0.1"}, perfMon)
 
 	log.Info().Uint32("node", node).Uint32("twin", twin).Msg("node registered")
-
-	go func() {
-		for {
-			if err := public(ctx, node, redis, consumer); err != nil {
-				log.Error().Err(err).Msg("setting public config failed")
-				<-time.After(10 * time.Second)
-			}
-		}
-	}()
 
 	log.Info().Uint32("twin", twin).Msg("node has been registered")
 	idStub := stubs.NewIdentityManagerStub(redis)

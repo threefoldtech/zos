@@ -131,12 +131,16 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) (pkg.MachineInfo
 
 		for _, nic := range m.Interfaces {
 			var typ InterfaceType
-			typ, _, err = nic.getType()
+			typ, idx, err := nic.getType()
 			if err != nil {
 				return pkg.MachineInfo{}, errors.Wrapf(err, "failed to detect interface type '%s'", nic.Tap)
 			}
 			if typ == InterfaceTAP {
 				interfaces = append(interfaces, nic.asTap())
+			} else if typ == InterfaceMacvtap {
+				fd := len(fds) + 3
+				fds = append(fds, idx)
+				interfaces = append(interfaces, nic.asMACvTap(fd))
 			} else {
 				err = fmt.Errorf("unsupported tap device type '%s'", nic.Tap)
 				return pkg.MachineInfo{}, err
@@ -222,22 +226,13 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) (pkg.MachineInfo
 		return pkg.MachineInfo{}, err
 	}
 	client := NewClient(socket)
-	vmData, err := client.Inspect(ctx)
+	_, err = client.Inspect(ctx)
 
 	if err != nil {
 		return pkg.MachineInfo{}, errors.Wrapf(err, "failed to Inspect vm with id: '%s'", m.ID)
 	}
-	consoleURL := ""
-	for _, ifc := range m.Interfaces {
-		if ifc.Console != nil {
-			consoleURL, err = m.startCloudConsole(ctx, ifc.Console.Namespace, ifc.Console.ListenAddress, ifc.Console.VmAddress, vmData.PTYPath, logs)
-			if err != nil {
-				log.Error().Err(err).Str("vm", m.ID).Msg("failed to start cloud-console for vm")
-			}
-		}
-	}
 
-	return pkg.MachineInfo{ConsoleURL: consoleURL}, nil
+	return pkg.MachineInfo{}, nil
 }
 
 func (m *Machine) waitAndAdjOom(ctx context.Context, name string, socket string) error {

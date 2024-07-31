@@ -20,7 +20,7 @@ func AllocateIPv4(networkID, leaseDir string) (*net.IPNet, error) {
 	defer store.Close()
 
 	r := allocator.Range{
-		RangeStart: net.ParseIP("100.127.0.2"),
+		RangeStart: net.ParseIP("100.127.0.3"),
 		RangeEnd:   net.ParseIP("100.127.255.254"),
 		Subnet: types.IPNet(net.IPNet{
 			IP:   net.ParseIP("100.127.0.0"),

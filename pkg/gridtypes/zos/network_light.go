@@ -28,7 +28,7 @@ type NetworkLight struct {
 	// VMs in this network can use the mycelium feature.
 	// if no mycelium configuration is provided, vms can't
 	// get mycelium IPs.
-	Mycelium *Mycelium `json:"mycelium,omitempty"`
+	Mycelium Mycelium `json:"mycelium,omitempty"`
 }
 
 // Valid checks if the network resource is valid.
@@ -37,10 +37,8 @@ func (n NetworkLight) Valid(getter gridtypes.WorkloadGetter) error {
 		return fmt.Errorf("network resource subnet cannot empty")
 	}
 
-	if n.Mycelium != nil {
-		if err := n.Mycelium.Valid(); err != nil {
-			return err
-		}
+	if err := n.Mycelium.Valid(); err != nil {
+		return err
 	}
 
 	return nil
@@ -52,10 +50,8 @@ func (n NetworkLight) Challenge(b io.Writer) error {
 		return err
 	}
 
-	if n.Mycelium != nil {
-		if err := n.Mycelium.Challenge(b); err != nil {
-			return err
-		}
+	if err := n.Mycelium.Challenge(b); err != nil {
+		return err
 	}
 
 	return nil

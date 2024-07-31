@@ -202,5 +202,4 @@ type ZMachineLiteResult struct {
 	ID         string `json:"id"`
 	IP         string `json:"ip"`
 	MyceliumIP string `json:"mycelium_ip"`
-	ConsoleURL string `json:"console_url"`
 }

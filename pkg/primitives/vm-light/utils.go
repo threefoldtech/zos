@@ -1,4 +1,4 @@
-package vm
+package vmlight
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
-	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -29,7 +28,7 @@ func (p *Manager) prepVirtualMachine(
 	cloudImage string,
 	imageInfo FListInfo,
 	machine *pkg.VM,
-	config *zos.ZMachine,
+	config *zos.ZMachineLight,
 	deployment *gridtypes.Deployment,
 	wl *gridtypes.WorkloadWithID,
 ) error {
@@ -80,7 +79,7 @@ func (p *Manager) prepContainer(
 	cloudImage string,
 	imageInfo FListInfo,
 	machine *pkg.VM,
-	config *zos.ZMachine,
+	config *zos.ZMachineLight,
 	deployment *gridtypes.Deployment,
 	wl *gridtypes.WorkloadWithID,
 ) error {
@@ -179,11 +178,11 @@ func (p *Manager) prepContainer(
 }
 
 func (p *Manager) newMyceliumNetworkInterface(ctx context.Context, dl gridtypes.Deployment, wl *gridtypes.WorkloadWithID, config *zos.MyceliumIP) (pkg.VMIface, error) {
-	network := stubs.NewNetworkerStub(p.zbus)
+	network := stubs.NewNetworkerLightStub(p.zbus)
 	netID := zos.NetworkID(dl.TwinID, config.Network)
 
-	tapName := wl.ID.Unique("mycelium")
-	iface, err := network.SetupMyceliumTap(ctx, tapName, netID, *config)
+	tapName := wl.ID.Unique(string(config.Network))
+	iface, err := network.AttachMycelium(ctx, string(netID), tapName, config.Seed)
 
 	if err != nil {
 		return pkg.VMIface{}, errors.Wrap(err, "could not set up tap device")
@@ -191,9 +190,9 @@ func (p *Manager) newMyceliumNetworkInterface(ctx context.Context, dl gridtypes.
 
 	out := pkg.VMIface{
 		Tap: iface.Name,
-		MAC: iface.HW.String(),
+		MAC: iface.Mac.String(),
 		IPs: []net.IPNet{
-			iface.IP,
+			*iface.IP,
 		},
 		Routes: []pkg.Route{
 			{
@@ -212,73 +211,34 @@ func (p *Manager) newMyceliumNetworkInterface(ctx context.Context, dl gridtypes.
 }
 
 func (p *Manager) newPrivNetworkInterface(ctx context.Context, dl gridtypes.Deployment, wl *gridtypes.WorkloadWithID, inf zos.MachineInterface) (pkg.VMIface, error) {
-	network := stubs.NewNetworkerStub(p.zbus)
+	network := stubs.NewNetworkerLightStub(p.zbus)
 	netID := zos.NetworkID(dl.TwinID, inf.Network)
 
-	subnet, err := network.GetSubnet(ctx, netID)
-	if err != nil {
-		return pkg.VMIface{}, errors.Wrapf(err, "could not get network resource subnet")
-	}
-
-	inf.IP = inf.IP.To4()
-	if inf.IP == nil {
-		return pkg.VMIface{}, fmt.Errorf("invalid IPv4 supplied to wg interface")
-	}
-
-	if !subnet.Contains(inf.IP) {
-		return pkg.VMIface{}, fmt.Errorf("IP %s is not part of local nr subnet %s", inf.IP.String(), subnet.String())
-	}
-
-	// always the .1/24 ip is reserved
-	if inf.IP[3] == 1 {
-		return pkg.VMIface{}, fmt.Errorf("ip %s is reserved", inf.IP.String())
-	}
-
-	privNet, err := network.GetNet(ctx, netID)
-	if err != nil {
-		return pkg.VMIface{}, errors.Wrapf(err, "could not get network range")
-	}
-
-	addrCIDR := net.IPNet{
-		IP:   inf.IP,
-		Mask: subnet.Mask,
-	}
-
-	gw4, gw6, err := network.GetDefaultGwIP(ctx, netID)
-	if err != nil {
-		return pkg.VMIface{}, errors.Wrap(err, "could not get network resource default gateway")
-	}
-
-	privIP6, err := network.GetIPv6From4(ctx, netID, inf.IP)
-	if err != nil {
-		return pkg.VMIface{}, errors.Wrap(err, "could not convert private ipv4 to ipv6")
-	}
-
 	tapName := wl.ID.Unique(string(inf.Network))
-	iface, err := network.SetupPrivTap(ctx, netID, tapName)
+	iface, err := network.AttachPrivate(ctx, string(netID), tapName, inf.IP)
 	if err != nil {
 		return pkg.VMIface{}, errors.Wrap(err, "could not set up tap device")
 	}
 
-	// the mac address uses the global workload id
-	// this needs to be the same as how we get it in the actual IP reservation
-	mac := ifaceutil.HardwareAddrFromInputBytes([]byte(tapName))
-
 	out := pkg.VMIface{
-		Tap: iface,
-		MAC: mac.String(),
+		Tap: iface.Name,
+		MAC: iface.Mac.String(),
 		IPs: []net.IPNet{
-			addrCIDR, privIP6,
+			*iface.IP,
+			// privIP6,
 		},
 		Routes: []pkg.Route{
-			{Net: privNet, Gateway: gw4},
-			{Net: networkResourceNet, Gateway: gw4},
+			{
+				// Net: privNet,
+				Gateway: iface.Gateway.IP,
+			},
+			{Net: networkResourceNet, Gateway: iface.Gateway.IP},
 		},
-		IP4DefaultGateway: net.IP(gw4),
-		IP6DefaultGateway: gw6,
-		PublicIPv4:        false,
-		PublicIPv6:        false,
-		NetID:             netID,
+		IP4DefaultGateway: net.IP(iface.Gateway.IP),
+		// IP6DefaultGateway: gw6,
+		PublicIPv4: false,
+		PublicIPv6: false,
+		NetID:      netID,
 	}
 
 	return out, nil
@@ -397,7 +357,7 @@ func (e entry) Envs() map[string]string {
 // variables. this is used *with* the container configuration like this
 // - if no zmachine entry point is defined, use the one from .startup.toml
 // - if envs are defined in flist, merge with the env variables from the
-func fListStartup(data *zos.ZMachine, path string) error {
+func fListStartup(data *zos.ZMachineLight, path string) error {
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return nil

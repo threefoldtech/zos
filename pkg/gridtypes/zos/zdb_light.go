@@ -1,0 +1,63 @@
+package zos
+
+import (
+	"fmt"
+	"io"
+
+	"github.com/threefoldtech/zos/pkg/gridtypes"
+)
+
+// ZDBLight namespace creation info
+type ZDBLight struct {
+	Size     gridtypes.Unit `json:"size"`
+	Mode     ZDBMode        `json:"mode"`
+	Password string         `json:"password"`
+	Public   bool           `json:"public"`
+}
+
+// Valid implementation
+func (z ZDBLight) Valid(getter gridtypes.WorkloadGetter) error {
+	if z.Size == 0 {
+		return fmt.Errorf("invalid size")
+	}
+
+	if err := z.Mode.Valid(); err != nil {
+		return fmt.Errorf("invalid mode")
+	}
+
+	return nil
+}
+
+// Challenge implementation
+func (z ZDBLight) Challenge(b io.Writer) error {
+
+	if _, err := fmt.Fprintf(b, "%d", z.Size); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(b, "%s", z.Mode.String()); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(b, "%s", z.Password); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(b, "%t", z.Public); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Capacity implements WorkloadData
+func (z ZDBLight) Capacity() (cap gridtypes.Capacity, err error) {
+	cap.HRU = z.Size
+	return
+}
+
+// ZDBLightResult is the information return to the BCDB
+// after deploying a 0-db namespace
+type ZDBLightResult struct {
+	Namespace string
+	IP        string
+	Port      uint
+}

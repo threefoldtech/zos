@@ -11,9 +11,10 @@ import (
 type NetworkerLight interface {
 	Create(name string, privateNet net.IPNet, seed []byte) error
 	Delete(name string) error
-	AttachPrivate(name, id string, vmIp net.IPNet) (device TapDevice, err error)
-	AttachMycelium(name, id string, seed [6]byte) (device TapDevice, err error)
+	AttachPrivate(name, id string, vmIp net.IP) (device TapDevice, err error)
+	AttachMycelium(name, id string, seed []byte) (device TapDevice, err error)
 	Detach(id string) error
+	Interfaces(iface string, netns string) (Interfaces, error)
 }
 
 type TapDevice struct {

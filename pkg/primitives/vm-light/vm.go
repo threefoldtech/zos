@@ -1,4 +1,4 @@
-package vm
+package vmlight
 
 import (
 	"context"
@@ -24,7 +24,7 @@ const (
 )
 
 // ZMachine type
-type ZMachine = zos.ZMachine
+type ZMachine = zos.ZMachineLight
 
 var (
 	_ provision.Manager     = (*Manager)(nil)
@@ -120,7 +120,7 @@ func (p *Manager) mountQsfs(wl *gridtypes.WorkloadWithID, mount zos.MachineMount
 
 func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.ZMachineResult, err error) {
 	var (
-		network = stubs.NewNetworkerStub(p.zbus)
+		network = stubs.NewNetworkerLightStub(p.zbus)
 		flist   = stubs.NewFlisterStub(p.zbus)
 		vm      = stubs.NewVMModuleStub(p.zbus)
 
@@ -175,17 +175,10 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 		Nameservers: []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("1.1.1.1"), net.ParseIP("2001:4860:4860::8888")},
 	}
 
-	var ifs []string
-	var pubIf string
-
 	defer func() {
+		tapName := wl.ID.Unique(string(config.Network.Mycelium.Network))
 		if err != nil {
-			for _, nic := range ifs {
-				_ = network.RemoveTap(ctx, nic)
-			}
-			if pubIf != "" {
-				_ = network.DisconnectPubTap(ctx, pubIf)
-			}
+			_ = network.Detach(ctx, tapName)
 		}
 	}()
 
@@ -194,7 +187,6 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 		if err != nil {
 			return result, err
 		}
-		ifs = append(ifs, wl.ID.Unique(string(nic.Network)))
 		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
 	}
 
@@ -203,7 +195,6 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 		if err != nil {
 			return result, err
 		}
-		ifs = append(ifs, wl.ID.Unique("mycelium"))
 		networkInfo.Ifaces = append(networkInfo.Ifaces, inf)
 		result.MyceliumIP = inf.IPs[0].IP.String()
 	}
@@ -284,7 +275,7 @@ func (p *Manager) copyFile(srcPath string, destPath string, permissions os.FileM
 func (p *Manager) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID) error {
 	var (
 		flist   = stubs.NewFlisterStub(p.zbus)
-		network = stubs.NewNetworkerStub(p.zbus)
+		network = stubs.NewNetworkerLightStub(p.zbus)
 		vm      = stubs.NewVMModuleStub(p.zbus)
 		storage = stubs.NewStorageModuleStub(p.zbus)
 
@@ -310,39 +301,10 @@ func (p *Manager) Deprovision(ctx context.Context, wl *gridtypes.WorkloadWithID)
 		log.Error().Err(err).Str("name", volName).Msg("failed to delete rootfs volume")
 	}
 
-	for _, inf := range cfg.Network.Interfaces {
-		tapName := wl.ID.Unique(string(inf.Network))
+	tapName := wl.ID.Unique(string(cfg.Network.Mycelium.Network))
 
-		if err := network.RemoveTap(ctx, tapName); err != nil {
-			return errors.Wrap(err, "could not clean up tap device")
-		}
-	}
-
-	if cfg.Network.Planetary {
-		var tapName string
-		if cfg.Network.Mycelium == nil {
-			// yggdrasil network
-			tapName = wl.ID.Unique("ygg")
-		} else {
-			tapName = wl.ID.Unique("mycelium")
-		}
-
-		if err := network.RemoveTap(ctx, tapName); err != nil {
-			return errors.Wrap(err, "could not clean up tap device")
-		}
-	}
-
-	if len(cfg.Network.PublicIP) > 0 {
-		// TODO: we need to make sure workload status reflects the actual status by the engine
-		// this is not the case anymore.
-		ipWl, err := provision.GetWorkload(ctx, cfg.Network.PublicIP)
-		if err != nil {
-			return err
-		}
-		ifName := ipWl.ID.Unique("pub")
-		if err := network.RemovePubTap(ctx, ifName); err != nil {
-			return errors.Wrap(err, "could not clean up public tap device")
-		}
+	if err := network.Detach(ctx, tapName); err != nil {
+		return errors.Wrap(err, "could not clean up tap device")
 	}
 
 	return nil

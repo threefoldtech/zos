@@ -15,6 +15,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
 	"github.com/threefoldtech/zos/pkg/netlight/macvtap"
 	"github.com/threefoldtech/zos/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos/pkg/netlight/options"
 	"github.com/threefoldtech/zos/pkg/network/nft"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/vishvananda/netlink"
@@ -102,6 +103,9 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 
 		if err := setLinkAddr(infPublic, ndmzIP); err != nil {
 			return fmt.Errorf("couldn't set link addr for public interface in namespace %s: %w", nsName, err)
+		}
+		if err := options.SetIPv6Forwarding(true); err != nil {
+			return fmt.Errorf("failed to enable ipv6 forwarding in namespace %q: %w", nsName, err)
 		}
 
 		if privateNet != nil {
@@ -205,12 +209,16 @@ func Get(name string) (*Resource, error) {
 }
 
 // myceliumIpSeed is 6 bytes
-func (r *Resource) AttachPrivate(id string, vmIp *net.IPNet) (device pkg.TapDevice, err error) {
+func (r *Resource) AttachPrivate(id string, vmIp net.IP) (device pkg.TapDevice, err error) {
 	nsName := fmt.Sprintf("n%s", r.name)
 	netNs, err := namespace.GetByName(nsName)
 	if err != nil {
 		return
 	}
+	if vmIp[3] == 1 {
+		return device, fmt.Errorf("ip %s is reserved", vmIp.String())
+	}
+
 	var addrs []netlink.Addr
 
 	if err = netNs.Do(func(_ ns.NetNS) error {
@@ -230,7 +238,7 @@ func (r *Resource) AttachPrivate(id string, vmIp *net.IPNet) (device pkg.TapDevi
 		return device, fmt.Errorf("expect addresses on private interface to be 1 got %d", len(addrs))
 	}
 	gw := addrs[0].IPNet
-	if !gw.Contains(vmIp.IP) {
+	if !gw.Contains(vmIp) {
 		return device, fmt.Errorf("ip not in range")
 	}
 
@@ -244,9 +252,13 @@ func (r *Resource) AttachPrivate(id string, vmIp *net.IPNet) (device pkg.TapDevi
 	if err != nil {
 		return
 	}
+	ip := &net.IPNet{
+		IP:   vmIp,
+		Mask: gw.Mask,
+	}
 
 	if err = netlink.AddrAdd(mtap, &netlink.Addr{
-		IPNet: vmIp,
+		IPNet: ip,
 	}); err != nil {
 		return
 	}
@@ -254,13 +266,14 @@ func (r *Resource) AttachPrivate(id string, vmIp *net.IPNet) (device pkg.TapDevi
 	return pkg.TapDevice{
 		Name:    tapName,
 		Mac:     hw,
-		IP:      vmIp,
+		IP:      ip,
 		Gateway: gw,
 	}, nil
 }
 
-func (r *Resource) AttachMycelium(id string, seed [6]byte) (device pkg.TapDevice, err error) {
-	netNS, err := namespace.GetByName(r.name)
+func (r *Resource) AttachMycelium(id string, seed []byte) (device pkg.TapDevice, err error) {
+	nsName := fmt.Sprintf("n%s", r.name)
+	netNS, err := namespace.GetByName(nsName)
 	if err != nil {
 		return
 	}
@@ -269,11 +282,13 @@ func (r *Resource) AttachMycelium(id string, seed [6]byte) (device pkg.TapDevice
 	if err != nil {
 		return
 	}
+
 	inspect, err := inspectMycelium(netSeed)
 	if err != nil {
 		return
 	}
-	ip, gw, err := inspect.IPFor(seed[:])
+
+	ip, gw, err := inspect.IPFor(seed)
 	if err != nil {
 		return
 	}
@@ -284,16 +299,16 @@ func (r *Resource) AttachMycelium(id string, seed [6]byte) (device pkg.TapDevice
 	myBr := fmt.Sprintf("m%s", r.name)
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(tapName))
 
-	mtap, err := macvtap.CreateMACvTap(tapName, myBr, hw)
+	_, err = macvtap.CreateMACvTap(tapName, myBr, hw)
 	if err != nil {
 		return
 	}
 
-	if err = netlink.AddrAdd(mtap, &netlink.Addr{
-		IPNet: &ip,
-	}); err != nil {
-		return
-	}
+	// if err = netlink.AddrAdd(mtap, &netlink.Addr{
+	// 	IPNet: &ip,
+	// }); err != nil {
+	// 	return
+	// }
 
 	return pkg.TapDevice{
 		Name:    tapName,
