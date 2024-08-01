@@ -104,6 +104,59 @@ func (n *networker) Detach(id string) error {
 	return ifaceutil.Delete(tapName, nil)
 }
 
+func (n *networker) AttachZDB(id string) (string, error) {
+	name := ifaceutil.DeviceNameFromInputBytes([]byte(id))
+	nsName := fmt.Sprintf("n%s", name)
+
+	ns, err := namespace.GetByName(nsName)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	if ns == nil {
+		ns, err = namespace.Create(nsName)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	r, err := resource.Get("dmz")
+	if err != nil {
+		return "", err
+	}
+
+	return nsName, r.AttachMyceliumZDB(id, ns)
+}
+
+func (n *networker) ZDBIPs(zdbNamespace string) ([]net.IP, error) {
+	ips := make([]net.IP, 0)
+
+	netNs, err := namespace.GetByName(zdbNamespace)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	err = netNs.Do(func(_ ns.NetNS) error {
+		links, err := netlink.LinkList()
+		if err != nil {
+			return err
+		}
+		for _, link := range links {
+			addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+			if err != nil {
+				return err
+			}
+			for _, addr := range addrs {
+				ips = append(ips, addr.IP)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return ips, nil
+}
+
 func (n *networker) Interfaces(iface string, netns string) (pkg.Interfaces, error) {
 	getter := func(iface string) ([]netlink.Link, error) {
 		if iface != "" {

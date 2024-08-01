@@ -58,6 +58,6 @@ func (z ZDBLight) Capacity() (cap gridtypes.Capacity, err error) {
 // after deploying a 0-db namespace
 type ZDBLightResult struct {
 	Namespace string
-	IP        string
+	IPs       []string
 	Port      uint
 }

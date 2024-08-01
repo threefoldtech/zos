@@ -11,6 +11,7 @@ import (
 	vmlight "github.com/threefoldtech/zos/pkg/primitives/vm-light"
 	"github.com/threefoldtech/zos/pkg/primitives/volume"
 	"github.com/threefoldtech/zos/pkg/primitives/zdb"
+	zdblight "github.com/threefoldtech/zos/pkg/primitives/zdb-light"
 	"github.com/threefoldtech/zos/pkg/primitives/zlogs"
 	"github.com/threefoldtech/zos/pkg/primitives/zmount"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -23,6 +24,7 @@ func NewPrimitivesProvisioner(zbus zbus.Client) provision.Provisioner {
 		zos.ZLogsType:         zlogs.NewManager(zbus),
 		zos.QuantumSafeFSType: qsfs.NewManager(zbus),
 		zos.ZDBType:           zdb.NewManager(zbus),
+		zos.ZDBLightType:      zdblight.NewManager(zbus),
 		zos.NetworkType:       network.NewManager(zbus),
 		zos.NetworkLightType:  netlight.NewManager(zbus),
 		zos.ZMachineType:      vm.NewManager(zbus),

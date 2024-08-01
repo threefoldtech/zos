@@ -302,11 +302,9 @@ func action(cli *cli.Context) error {
 			zos.ZMountType,
 			zos.VolumeType,
 			zos.QuantumSafeFSType,
-			zos.NetworkType,
 			zos.NetworkLightType,
 			zos.PublicIPv4Type,
 			zos.PublicIPType,
-			zos.ZMachineType,
 			zos.ZMachineLightType,
 			zos.ZLogsType, //make sure zlogs comes after zmachine
 		),

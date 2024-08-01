@@ -15,6 +15,8 @@ type NetworkerLight interface {
 	AttachMycelium(name, id string, seed []byte) (device TapDevice, err error)
 	Detach(id string) error
 	Interfaces(iface string, netns string) (Interfaces, error)
+	AttachZDB(id string) (string, error)
+	ZDBIPs(namespace string) ([]net.IP, error)
 }
 
 type TapDevice struct {

@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"crypto/rand"
 	"embed"
 	"fmt"
 	"net"
@@ -316,4 +317,65 @@ func (r *Resource) AttachMycelium(id string, seed []byte) (device pkg.TapDevice,
 		Gateway: &gw,
 		Mac:     hw,
 	}, nil
+}
+
+func (r *Resource) AttachMyceliumZDB(id string, zdbNS ns.NetNS) (err error) {
+	nsName := fmt.Sprintf("n%s", r.name)
+	netNS, err := namespace.GetByName(nsName)
+	if err != nil {
+		return
+	}
+	name := filepath.Base(netNS.Path())
+	netSeed, err := os.ReadFile(filepath.Join(myceliumSeedDir, name))
+	if err != nil {
+		return
+	}
+
+	inspect, err := inspectMycelium(netSeed)
+	if err != nil {
+		return
+	}
+	seed := make([]byte, 6)
+
+	_, err = rand.Read(seed)
+	if err != nil {
+		return
+	}
+
+	ip, gw, err := inspect.IPFor(seed)
+	if err != nil {
+		return
+	}
+	routes := []*netlink.Route{
+		{
+			Dst: &net.IPNet{
+				IP:   net.ParseIP("400::"),
+				Mask: net.CIDRMask(7, 128),
+			},
+			Gw: gw.IP,
+		},
+	}
+
+	deviceName := ifaceutil.DeviceNameFromInputBytes([]byte(id))
+	macvlanName := fmt.Sprintf("m-%s", deviceName)
+
+	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(macvlanName))
+
+	link, err := macvlan.Create(macvlanName, "mdmz", zdbNS)
+	if err != nil {
+		return
+	}
+
+	return macvlan.Install(link, hw, []*net.IPNet{&ip}, routes, zdbNS)
+}
+
+func (r *Resource) Seed() (seed []byte, err error) {
+	nsName := fmt.Sprintf("n%s", r.name)
+	netNS, err := namespace.GetByName(nsName)
+	if err != nil {
+		return
+	}
+	name := filepath.Base(netNS.Path())
+	seed, err = os.ReadFile(filepath.Join(myceliumSeedDir, name))
+	return
 }
