@@ -1,13 +1,19 @@
 package netlight
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
+	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/cache"
 	"github.com/threefoldtech/zos/pkg/netlight/bridge"
@@ -21,10 +27,11 @@ import (
 )
 
 const (
-	NDMZBridge   = "br-ndmz"
-	NDMZGw       = "gw"
-	mib          = 1024 * 1024
-	ipamLeaseDir = "ndmz-lease"
+	NDMZBridge    = "br-ndmz"
+	NDMZGw        = "gw"
+	mib           = 1024 * 1024
+	ipamLeaseDir  = "ndmz-lease"
+	DefaultBridge = "zos"
 )
 
 var (
@@ -155,6 +162,85 @@ func (n *networker) ZDBIPs(zdbNamespace string) ([]net.IP, error) {
 	}
 
 	return ips, nil
+}
+
+func (n *networker) Ready() error {
+	return nil
+}
+
+func (n *networker) Namespace(id string) string {
+	return fmt.Sprintf("n-%s", id)
+}
+
+func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
+	var index int
+	_ = backoff.Retry(func() error {
+		link, err := netlink.LinkByName(DefaultBridge)
+		if err != nil {
+			log.Error().Err(err).Msg("can't get defaut bridge")
+			return err
+		}
+		index = link.Attrs().Index
+		return nil
+	}, backoff.NewConstantBackOff(2*time.Second))
+
+	get := func() pkg.NetlinkAddresses {
+		var result pkg.NetlinkAddresses
+		link, err := netlink.LinkByName(DefaultBridge)
+		if err != nil {
+			log.Error().Err(err).Msgf("could not find the '%s' bridge", DefaultBridge)
+			return nil
+		}
+		values, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+		if err != nil {
+			log.Error().Err(err).Msgf("could not list the '%s' bridge ips", DefaultBridge)
+			return nil
+		}
+		for _, value := range values {
+			result = append(result, *value.IPNet)
+		}
+
+		slices.SortFunc(result, func(a, b net.IPNet) int {
+			return bytes.Compare(a.IP, b.IP)
+		})
+
+		return result
+	}
+
+	updateChan := make(chan netlink.AddrUpdate)
+	if err := netlink.AddrSubscribe(updateChan, ctx.Done()); err != nil {
+		log.Error().Err(err).Msgf("could not subscribe to addresses updates")
+		return nil
+	}
+
+	ch := make(chan pkg.NetlinkAddresses)
+	var current pkg.NetlinkAddresses
+	go func() {
+		defer close(ch)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case update := <-updateChan:
+				if update.LinkIndex != index || !update.NewAddr {
+					continue
+				}
+				new := get()
+				if slices.CompareFunc(current, new, func(a, b net.IPNet) int {
+					return bytes.Compare(a.IP, b.IP)
+				}) == 0 {
+					// if the 2 sets of IPs are identitcal, we don't
+					// trigger the event
+					continue
+				}
+				current = new
+				ch <- new
+			}
+		}
+	}()
+
+	return ch
 }
 
 func (n *networker) Interfaces(iface string, netns string) (pkg.Interfaces, error) {

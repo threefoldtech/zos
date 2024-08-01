@@ -29,12 +29,6 @@ type PlanetaryTap struct {
 	Gateway net.IPNet
 }
 
-type Interface struct {
-	Name string
-	IPs  []net.IPNet
-	Mac  string
-}
-
 type ExitDevice struct {
 	// IsSingle is set to true if br-pub
 	// is connected to zos bridge
@@ -220,7 +214,7 @@ type Networker interface {
 
 // Network type
 type Network struct {
-	zos.Network
+	zos.NetworkLight
 	NetID NetID `json:"net_id"`
 }
 
@@ -285,10 +279,4 @@ func (p PublicConfig) Equal(cfg PublicConfig) bool {
 type OptionPublicConfig struct {
 	PublicConfig
 	HasPublicConfig bool
-}
-
-// Interfaces struct to bypass zbus generation error
-// where it generate a stub with map as interface instead of map
-type Interfaces struct {
-	Interfaces map[string]Interface
 }

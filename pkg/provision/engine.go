@@ -1126,7 +1126,7 @@ func (n *NativeEngine) ListPrivateIPs(twin uint32, network gridtypes.Name) ([]st
 			if err != nil {
 				return nil, err
 			}
-			zmachine := data.(*zos.ZMachine)
+			zmachine := data.(*zos.ZMachineLight)
 			for _, inf := range zmachine.Network.Interfaces {
 				if inf.Network == network {
 					ips = append(ips, inf.IP.String())

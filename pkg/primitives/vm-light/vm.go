@@ -118,7 +118,7 @@ func (p *Manager) mountQsfs(wl *gridtypes.WorkloadWithID, mount zos.MachineMount
 	return nil
 }
 
-func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.ZMachineResult, err error) {
+func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.ZMachineLightResult, err error) {
 	var (
 		network = stubs.NewNetworkerLightStub(p.zbus)
 		flist   = stubs.NewFlisterStub(p.zbus)
@@ -216,7 +216,7 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 	// mount cloud-container flist (or reuse) which has kernel, initrd and also firmware
 	hash, err := flist.FlistHash(ctx, cloudContainerFlist)
 	if err != nil {
-		return zos.ZMachineResult{}, errors.Wrap(err, "failed to get cloud-container flist hash")
+		return zos.ZMachineLightResult{}, errors.Wrap(err, "failed to get cloud-container flist hash")
 	}
 
 	// if the name changes (because flist changed, a new mount will be created)
@@ -244,13 +244,12 @@ func (p *Manager) virtualMachineProvisionImpl(ctx context.Context, wl *gridtypes
 	machine.Environment = config.Env
 	machine.Hostname = wl.Name.String()
 
-	machineInfo, err := vm.Run(ctx, machine)
+	_, err = vm.Run(ctx, machine)
 	if err != nil {
 		// attempt to delete the vm, should the process still be lingering
 		log.Error().Err(err).Msg("cleaning up vm deployment duo to an error")
 		_ = vm.Delete(ctx, wl.ID.String())
 	}
-	result.ConsoleURL = machineInfo.ConsoleURL
 	return result, err
 }
 

@@ -10,12 +10,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-func (g *ZosAPI) networkListWGPortsHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	return g.networkerStub.WireguardPorts(ctx)
-}
-func (g *ZosAPI) networkPublicConfigGetHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	return g.networkerStub.GetPublicConfig(ctx)
-}
 func (g *ZosAPI) networkInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	results := make(map[string][]net.IP)
 	type q struct {
@@ -46,9 +40,6 @@ func (g *ZosAPI) networkHasIPv6Handler(ctx context.Context, payload []byte) (int
 	ipData, err := g.networkerStub.GetPublicIPv6Subnet(ctx)
 	hasIP := ipData.IP != nil && err == nil
 	return hasIP, err
-}
-func (g *ZosAPI) networkListPublicIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	return g.provisionStub.ListPublicIPs(ctx)
 }
 
 func (g *ZosAPI) networkListPrivateIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {

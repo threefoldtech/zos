@@ -88,7 +88,7 @@ func TestGetMountSize(t *testing.T) {
 	})
 	t.Run("different data type", func(t *testing.T) {
 		wl := gridtypes.WorkloadWithID{
-			Workload: &gridtypes.Workload{Type: zos.ZDBType, Data: json.RawMessage(`{"size": 10}`)},
+			Workload: &gridtypes.Workload{Type: zos.ZDBLightType, Data: json.RawMessage(`{"size": 10}`)},
 		}
 		_, err := getMountSize(wl.Workload)
 		assert.Error(t, err)

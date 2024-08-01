@@ -715,7 +715,7 @@ func (p *Manager) Initialize(ctx context.Context) error {
 	var (
 		storage  = stubs.NewStorageModuleStub(p.zbus)
 		contmod  = stubs.NewContainerModuleStub(p.zbus)
-		network  = stubs.NewNetworkerStub(p.zbus)
+		network  = stubs.NewNetworkerLightStub(p.zbus)
 		flistmod = stubs.NewFlisterStub(p.zbus)
 	)
 	// fetching extected hash
@@ -748,7 +748,7 @@ func (p *Manager) Initialize(ctx context.Context) error {
 		}
 
 		log.Debug().Str("container", string(container)).Msg("enusreing zdb network setup")
-		_, err := network.EnsureZDBPrepare(ctx, poolNames[string(container)].ID)
+		_, err := network.AttachZDB(ctx, poolNames[string(container)].ID)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to prepare zdb network")
 		}

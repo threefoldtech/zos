@@ -141,6 +141,37 @@ func (s *NetworkerLightStub) Interfaces(ctx context.Context, arg0 string, arg1 s
 	return
 }
 
+func (s *NetworkerLightStub) Namespace(ctx context.Context, arg0 string) (ret0 string) {
+	args := []interface{}{arg0}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "Namespace", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *NetworkerLightStub) Ready(ctx context.Context) (ret0 error) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "Ready", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret0 = result.CallError()
+	loader := zbus.Loader{}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerLightStub) ZDBIPs(ctx context.Context, arg0 string) (ret0 [][]uint8, ret1 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "ZDBIPs", args...)
@@ -156,4 +187,28 @@ func (s *NetworkerLightStub) ZDBIPs(ctx context.Context, arg0 string) (ret0 [][]
 		panic(err)
 	}
 	return
+}
+
+func (s *NetworkerLightStub) ZOSAddresses(ctx context.Context) (<-chan pkg.NetlinkAddresses, error) {
+	ch := make(chan pkg.NetlinkAddresses, 1)
+	recv, err := s.client.Stream(ctx, s.module, s.object, "ZOSAddresses")
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		defer close(ch)
+		for event := range recv {
+			var obj pkg.NetlinkAddresses
+			if err := event.Unmarshal(&obj); err != nil {
+				panic(err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- obj:
+			default:
+			}
+		}
+	}()
+	return ch, nil
 }

@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"context"
 	"net"
 )
 
@@ -17,6 +18,9 @@ type NetworkerLight interface {
 	Interfaces(iface string, netns string) (Interfaces, error)
 	AttachZDB(id string) (string, error)
 	ZDBIPs(namespace string) ([]net.IP, error)
+	Namespace(id string) string
+	Ready() error
+	ZOSAddresses(ctx context.Context) <-chan NetlinkAddresses
 }
 
 type TapDevice struct {
@@ -24,4 +28,16 @@ type TapDevice struct {
 	Mac     net.HardwareAddr
 	IP      *net.IPNet
 	Gateway *net.IPNet
+}
+
+// Interfaces struct to bypass zbus generation error
+// where it generate a stub with map as interface instead of map
+type Interfaces struct {
+	Interfaces map[string]Interface
+}
+
+type Interface struct {
+	Name string
+	IPs  []net.IPNet
+	Mac  string
 }

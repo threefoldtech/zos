@@ -2,7 +2,6 @@ package zui
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"strings"
 
@@ -92,13 +91,7 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 				table.Rows[3][1] = str
 			}
 
-			exit, err := stub.GetPublicExitDevice(ctx)
-			dual := exit.String()
-			if err != nil {
-				dual = fmt.Sprintf("error: %s", err)
-			}
-
-			table.Rows[4][1] = dual
+			table.Rows[4][1] = "single" // light has only single stack setup
 		}
 	}()
 
@@ -113,11 +106,12 @@ func netRender(client zbus.Client, grid *ui.Grid, render *signalFlag) error {
 			ui.NewCol(1, addresses),
 		),
 	)
-	ctx := context.Background()
+	// TODO: Fix ZUI addresses
+	// ctx := context.Background()
 
-	if err := addressRender(ctx, addresses, client, render); err != nil {
-		return err
-	}
+	// if err := addressRender(ctx, addresses, client, render); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }

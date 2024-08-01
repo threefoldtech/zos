@@ -15,6 +15,28 @@ type ZDBLight struct {
 	Public   bool           `json:"public"`
 }
 
+// ZDBMode is the enumeration of the modes 0-db can operate in
+type ZDBMode string
+
+// Enumeration of the modes 0-db can operate in
+const (
+	ZDBModeUser = "user"
+	ZDBModeSeq  = "seq"
+)
+
+func (m ZDBMode) String() string {
+	return string(m)
+}
+
+// Valid validates the mode
+func (m ZDBMode) Valid() error {
+	if m != ZDBModeUser && m != ZDBModeSeq {
+		return fmt.Errorf("invalid zdb mode")
+	}
+
+	return nil
+}
+
 // Valid implementation
 func (z ZDBLight) Valid(getter gridtypes.WorkloadGetter) error {
 	if z.Size == 0 {
