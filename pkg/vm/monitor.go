@@ -216,12 +216,11 @@ func (m *Module) monitorID(ctx context.Context, running map[string]Process, id s
 			reason = m.withLogs(m.logsPath(id), err)
 		}
 	} else {
-		reason = fmt.Errorf("deleting vm due to so many crashes")
+		reason = fmt.Errorf("resulting error for vm due to so many crashes")
 	}
 
 	if reason != nil {
-		log.Debug().Err(reason).Msg("deleting vm due to restart error")
-		m.removeConfig(id)
+		log.Debug().Err(reason).Msg("resulting error for vm due to restart error")
 
 		if err := stub.DecommissionCached(ctx, id, reason.Error()); err != nil {
 			return errors.Wrapf(err, "failed to decommission reservation '%s'", id)
