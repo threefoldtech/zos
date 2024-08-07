@@ -16,8 +16,8 @@ import (
 	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
 	"github.com/threefoldtech/zos/pkg/netlight/macvtap"
 	"github.com/threefoldtech/zos/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos/pkg/netlight/nft"
 	"github.com/threefoldtech/zos/pkg/netlight/options"
-	"github.com/threefoldtech/zos/pkg/network/nft"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/vishvananda/netlink"
 )

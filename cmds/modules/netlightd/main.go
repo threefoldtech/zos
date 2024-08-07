@@ -17,7 +17,7 @@ import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/network/bootstrap"
+	"github.com/threefoldtech/zos/pkg/netlight/bootstrap"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/utils"
 )
@@ -148,13 +148,13 @@ func action(cli *cli.Context) error {
 }
 
 func waitMyceliumBin() {
-	log.Info().Msg("wait for yggdrasil binary to be available")
+	log.Info().Msg("wait for mycelium binary to be available")
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0 // forever
 	_ = backoff.RetryNotify(func() error {
 		_, err := exec.LookPath("mycelium")
 		return err
 	}, bo, func(err error, d time.Duration) {
-		log.Warn().Err(err).Msgf("yggdrasil binary not found, retying in %s", d.String())
+		log.Warn().Err(err).Msgf("mycelium binary not found, retying in %s", d.String())
 	})
 }

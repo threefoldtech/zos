@@ -12,14 +12,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/threefoldtech/zos/pkg/network/dhcp"
-	"github.com/threefoldtech/zos/pkg/network/namespace"
-	"github.com/threefoldtech/zos/pkg/network/options"
+	"github.com/threefoldtech/zos/pkg/netlight/dhcp"
+	"github.com/threefoldtech/zos/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos/pkg/netlight/options"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
 	"github.com/vishvananda/netlink"
 )
 

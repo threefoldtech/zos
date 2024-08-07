@@ -750,7 +750,7 @@ func (p *Manager) Initialize(ctx context.Context) error {
 		log.Debug().Str("container", string(container)).Msg("enusreing zdb network setup")
 		_, err := network.AttachZDB(ctx, poolNames[string(container)].ID)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to prepare zdb network")
+			log.Error().Err(err).Msg("failed to initialize zdb network")
 		}
 
 		delete(poolNames, string(container))

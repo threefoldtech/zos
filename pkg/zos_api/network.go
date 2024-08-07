@@ -11,35 +11,25 @@ import (
 )
 
 func (g *ZosAPI) networkInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	results := make(map[string][]net.IP)
+	results := make(map[string][]net.IPNet)
 	type q struct {
 		inf    string
 		ns     string
 		rename string
 	}
-	for _, i := range []q{{"zos", "", "zos"}, {"nygg6", "ndmz", "ygg"}} {
-		ips, _, err := g.networkerStub.Addrs(ctx, i.inf, i.ns)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ips for '%s' interface: %w", i, err)
-		}
-
-		results[i.rename] = func() []net.IP {
-			list := make([]net.IP, 0, len(ips))
-			for _, item := range ips {
-				ip := net.IP(item)
-				list = append(list, ip)
-			}
-
-			return list
-		}()
+	interfaces, err := g.networkerLightStub.Interfaces(ctx, "zos", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ips for 'zos' interface: %w", err)
 	}
+	zosIfc := interfaces.Interfaces["zos"]
+	results["zos"] = zosIfc.IPs
 
 	return results, nil
 }
+
 func (g *ZosAPI) networkHasIPv6Handler(ctx context.Context, payload []byte) (interface{}, error) {
-	ipData, err := g.networkerStub.GetPublicIPv6Subnet(ctx)
-	hasIP := ipData.IP != nil && err == nil
-	return hasIP, err
+	// networkd light
+	return false, nil
 }
 
 func (g *ZosAPI) networkListPrivateIPsHandler(ctx context.Context, payload []byte) (interface{}, error) {

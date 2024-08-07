@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/network/namespace"
-	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos/pkg/netlight/types"
 )
 
 func TestCreatePublicNS(t *testing.T) {
