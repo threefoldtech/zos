@@ -154,7 +154,7 @@ func (n *NodeClient) DeploymentList(ctx context.Context) (dls []gridtypes.Deploy
 	return
 }
 
-// DeploymentGet gets a deployment via contract ID
+// DeploymentChanges gets a deployment changes via contract ID
 func (n *NodeClient) DeploymentChanges(ctx context.Context, contractID uint64) (changes []gridtypes.Workload, err error) {
 	const cmd = "zos.deployment.changes"
 	in := args{

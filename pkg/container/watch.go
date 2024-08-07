@@ -55,11 +55,11 @@ func (c *Module) handlerEventTaskExit(ctx context.Context, ns string, event *eve
 		<-time.After(restartDelay) // wait for 2 seconds
 		reason = c.start(ns, event.ContainerID)
 	} else {
-		reason = fmt.Errorf("deleting container due to so many crashes")
+		reason = fmt.Errorf("container failed due to so many crashes")
 	}
 
 	if reason != nil {
-		log.Debug().Err(reason).Msg("deleting container due to restart error")
+		log.Debug().Err(reason).Msg("resulting error for container due to restart error")
 
 		stub := stubs.NewProvisionStub(c.client)
 		if err := stub.DecommissionCached(ctx, event.ContainerID, reason.Error()); err != nil {
