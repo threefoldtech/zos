@@ -2,6 +2,7 @@ package filesystem
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 )
 
@@ -39,6 +41,7 @@ type bcachefsPool struct {
 }
 
 func (p *bcachefsPool) prepare() error {
+	//p.name = uuid.New().String() //p.device.Label TODO
 	// check if already have filesystem
 	if p.device.Used() {
 		return nil
@@ -61,6 +64,7 @@ func (p *bcachefsPool) format(ctx context.Context) error {
 		"-L", name,
 		p.device.Path,
 	}
+	log.Info().Str("device", p.device.Path).Msg("formatting device")
 
 	if _, err := p.utils.run(ctx, "mkfs.bcachefs", args...); err != nil {
 		return errors.Wrapf(err, "failed to format device '%s'", p.device.Path)
@@ -80,13 +84,36 @@ func (b *bcachefsPool) Path() string {
 }
 
 // Usage returns the pool usage
-func (b *bcachefsPool) Usage() (Usage, error) {
-	return Usage{}, errNotImplemented
+func (b *bcachefsPool) Usage() (usage Usage, err error) {
+	mnt, err := b.Mounted()
+	if err != nil {
+		return usage, err
+	}
+
+	volumes, err := b.Volumes()
+
+	if err != nil {
+		return usage, errors.Wrapf(err, "failed to list pool '%s' volumes", mnt)
+	}
+
+	usage.Size = b.device.Size
+
+	for _, volume := range volumes {
+		vol, err := volume.Usage()
+		if err != nil {
+			return Usage{}, errors.Wrapf(err, "failed to calculate volume '%s' usage", volume.Path())
+		}
+
+		usage.Used += vol.Used
+		usage.Excl += vol.Excl
+	}
+
+	return
 }
 
 // Limit on a pool is not supported yet
 func (b *bcachefsPool) Limit(size uint64) error {
-	return errNotImplemented
+	return errNotImplemented // btrfs also doesn't support this
 }
 
 // Name of the volume
@@ -146,7 +173,8 @@ func (p *bcachefsPool) Mount() (string, error) {
 }
 
 func (p *bcachefsPool) maintenance() error {
-	return errNotImplemented
+	// TODO
+	return nil
 }
 
 // UnMount the pool
@@ -165,7 +193,22 @@ func (p *bcachefsPool) UnMount() error {
 // Volumes are all subvolumes of this volume
 // TODO: bcachefs doesn't have the feature
 func (p *bcachefsPool) Volumes() ([]Volume, error) {
-	return nil, errNotImplemented
+	mnt, err := p.Mounted()
+	if err != nil {
+		return nil, err
+	}
+
+	var volumes []Volume
+
+	subs, err := p.utils.SubvolumeList(context.Background(), mnt)
+	if err != nil {
+		return nil, fmt.Errorf("subvolumelist failed: %v", err)
+	}
+
+	for _, sub := range subs {
+		volumes = append(volumes, sub.ToStorageVolume(mnt))
+	}
+	return volumes, nil
 }
 
 // AddVolume adds a new subvolume with the given name
@@ -181,7 +224,8 @@ func (p *bcachefsPool) AddVolume(name string) (Volume, error) {
 
 func (p *bcachefsPool) addVolume(root string) (Volume, error) {
 	ctx := context.Background()
-	if err := p.utils.SubvolumeAdd(ctx, root); err != nil {
+	vol, err := p.utils.SubvolumeAdd(ctx, root)
+	if err != nil {
 		return nil, err
 	}
 
@@ -189,10 +233,7 @@ func (p *bcachefsPool) addVolume(root string) (Volume, error) {
 	//if err != nil {
 	//	return nil, err
 	//}
-	return &bcachefsVolume{
-		id:   0,
-		path: root,
-	}, nil
+	return &vol, nil
 }
 
 // RemoveVolume removes a subvolume with the given name
@@ -286,38 +327,4 @@ func (b *bcachefsPool) Type() (zos.DeviceType, bool, error) {
 	}
 
 	return zos.DeviceType(diskType), true, nil
-}
-
-type bcachefsVolume struct {
-	id   int
-	path string
-}
-
-func (v *bcachefsVolume) ID() int {
-	return v.id
-}
-
-func (v *bcachefsVolume) Path() string {
-	return v.path
-}
-
-// Name of the filesystem
-func (v *bcachefsVolume) Name() string {
-	return filepath.Base(v.Path())
-}
-
-// FsType of the filesystem
-func (v *bcachefsVolume) FsType() string {
-	return "bcachefs"
-}
-
-// Usage return the volume usage
-func (v *bcachefsVolume) Usage() (usage Usage, err error) {
-	err = errNotImplemented
-	return
-}
-
-// Limit size of volume, setting size to 0 means unlimited
-func (v *bcachefsVolume) Limit(size uint64) error {
-	return errNotImplemented
 }
