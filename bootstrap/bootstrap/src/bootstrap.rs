@@ -115,12 +115,16 @@ fn update_bootstrap() -> Result<()> {
 pub fn install(cfg: &config::Config) -> Result<()> {
     let repo = Repo::new(ZOS_REPO);
 
-    let runmode = cfg.runmode.to_string();
-    // we need to list all taglinks inside the repo
+    let mut runmode = cfg.runmode.to_string();
 
+    let mut listname = runmode;
+    if cfg.light {
+        listname = format!("{}-light", runmode)
+    }
+    // we need to list all taglinks
     let mut tag = None;
     for list in repo.list()? {
-        if list.kind == Kind::TagLink && list.name == runmode {
+        if list.kind == Kind::TagLink && list.name == listname {
             tag = Some(list);
             break;
         }
