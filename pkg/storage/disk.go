@@ -150,19 +150,19 @@ func (s *Module) DiskWrite(name string, image string) error {
 	// the sequential write is slow because the data source is from the remote server.
 	var (
 		// use errgroup because there is no point in continuing if one of the goroutines failed
-		group               = new(errgroup.Group)
-		concurrentNum int   = 5
-		imgSize       int64 = imgStat.Size()
-		chunkSize           = imgSize / int64(concurrentNum)
+		group            = new(errgroup.Group)
+		numWorkers int   = 5
+		imgSize    int64 = imgStat.Size()
+		chunkSize        = imgSize / int64(numWorkers)
 	)
 
-	log.Info().Int("concurrentNum", concurrentNum).Msg("writing image concurrently")
-	for i := 0; i < concurrentNum; i++ {
+	log.Info().Int("numWorkers", numWorkers).Msg("writing image concurrently")
+	for i := 0; i < numWorkers; i++ {
 		index := i
 		group.Go(func() error {
 			start := chunkSize * int64(index)
 			len := chunkSize
-			if index == concurrentNum-1 { //last chunk
+			if index == numWorkers-1 { //last chunk
 				len = imgSize - start
 			}
 			wr := io.NewOffsetWriter(file, start)
