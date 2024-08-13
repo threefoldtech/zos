@@ -14,6 +14,7 @@ import (
 	log "github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -145,10 +146,35 @@ func (s *Module) DiskWrite(name string, image string) error {
 		return fmt.Errorf("image size is bigger than disk")
 	}
 
-	_, err = io.Copy(file, source)
-	if err != nil {
+	// writing the image concurrently to speedup the previous sequential write.
+	// the sequential write is slow because the data source is from the remote server.
+	var (
+		// use errgroup because there is no point in continuing if one of the goroutines failed
+		group               = new(errgroup.Group)
+		concurrentNum int   = 5
+		imgSize       int64 = imgStat.Size()
+		chunkSize           = imgSize / int64(concurrentNum)
+	)
+
+	log.Info().Int("concurrentNum", concurrentNum).Msg("writing image concurrently")
+	for i := 0; i < concurrentNum; i++ {
+		index := i
+		group.Go(func() error {
+			start := chunkSize * int64(index)
+			len := chunkSize
+			if index == concurrentNum-1 { //last chunk
+				len = imgSize - start
+			}
+			wr := io.NewOffsetWriter(file, start)
+			rd := io.NewSectionReader(source, start, len)
+			_, err = io.Copy(wr, rd)
+			return err
+		})
+	}
+	if err := group.Wait(); err != nil {
 		return errors.Wrap(err, "failed to write disk image")
 	}
+	log.Info().Msg("writing image finished")
 
 	return nil
 }
