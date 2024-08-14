@@ -79,6 +79,11 @@ func (b *Boot) RunMode() environment.RunMode {
 	return env.RunningMode
 }
 
+func (b *Boot) IsLight() bool {
+	env := environment.MustGet()
+	return env.Light
+}
+
 func (b *Boot) Version() semver.Version {
 	current, err := b.Current()
 	if err != nil {

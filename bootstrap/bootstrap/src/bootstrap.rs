@@ -115,9 +115,9 @@ fn update_bootstrap() -> Result<()> {
 pub fn install(cfg: &config::Config) -> Result<()> {
     let repo = Repo::new(ZOS_REPO);
 
-    let mut runmode = cfg.runmode.to_string();
+    let runmode = cfg.runmode.to_string();
 
-    let mut listname = runmode;
+    let mut listname = runmode.clone();
     if cfg.light {
         listname = format!("{}-light", runmode)
     }

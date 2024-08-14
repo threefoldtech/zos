@@ -13,6 +13,8 @@ const (
 	// Debug means zos is running in debug mode
 	// applications can handle this flag differently
 	Debug = "zos-debug"
+	// Light means the node running in light mode
+	Light = "light"
 	// VirtualMachine forces zos to think it's running
 	// on a virtual machine. used mainly for development
 	VirtualMachine = "zos-debug-vm"
@@ -61,6 +63,11 @@ func (k Params) GetOne(key string) (string, bool) {
 // IsDebug checks if zos-debug is set
 func (k Params) IsDebug() bool {
 	return k.Exists(Debug)
+}
+
+// IsLight checks if in light mode
+func (k Params) IsLight() bool {
+	return k.Exists(Light)
 }
 
 // GPUDisabled checks if gpu is diabled

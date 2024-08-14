@@ -78,6 +78,14 @@ fn version() -> Result<Version> {
     Ok(ver)
 }
 
+fn light() -> Result<bool> {
+    let params = kparams::params()?;
+    if params.contains_key("light") {
+        return Ok(true);
+    }
+    Ok(false)
+}
+
 pub struct Config {
     pub stage: u32,
     pub debug: bool,
@@ -130,7 +138,7 @@ impl Config {
             debug: matches.occurrences_of("debug") > 0,
             runmode: runmode()?,
             version: version()?,
-            light: matches.occurrences_of("light") > 0,
+            light: light()?,
         })
     }
 }
