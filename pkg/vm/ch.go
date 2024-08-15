@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -23,43 +22,6 @@ const (
 	chBin           = "cloud-hypervisor"
 	cloudConsoleBin = "cloud-console"
 )
-
-// startCloudConsole Starts the cloud console for the vm on it's private network ip
-func (m *Machine) startCloudConsole(ctx context.Context, namespace string, networkAddr net.IPNet, machineIP net.IPNet, ptyPath string, logs string) (string, error) {
-	ipv4 := machineIP.IP.To4()
-	if ipv4 == nil {
-		return "", fmt.Errorf("invalid vm ip address (%s) not ipv4", machineIP.IP.String())
-	}
-	port := 20000 + uint16(ipv4[3])
-	if port == math.MaxUint16 {
-		// this should be impossible since a byte max value is 512 hence 20_000 + 512 can never be over
-		// max of uint16
-		return "", fmt.Errorf("couldn't start cloud console port number exceeds %d", port)
-	}
-	args := []string{
-		"setsid",
-		"ip",
-		"netns",
-		"exec", namespace,
-		cloudConsoleBin,
-		ptyPath,
-		networkAddr.IP.String(),
-		fmt.Sprint(port),
-		logs,
-	}
-
-	log.Debug().Msgf("running cloud-console : %+v", args)
-
-	cmd := exec.CommandContext(ctx, "busybox", args...)
-	if err := cmd.Start(); err != nil {
-		return "", errors.Wrap(err, "failed to start cloud-hypervisor")
-	}
-	if err := m.release(cmd.Process); err != nil {
-		return "", err
-	}
-	consoleURL := fmt.Sprintf("%s:%d", networkAddr.IP.String(), port)
-	return consoleURL, nil
-}
 
 // Run run the machine with cloud-hypervisor
 func (m *Machine) Run(ctx context.Context, socket, logs string) (pkg.MachineInfo, error) {

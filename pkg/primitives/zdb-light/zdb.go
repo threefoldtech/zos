@@ -679,37 +679,6 @@ func ipsToString(ips []net.IP) []string {
 	return result
 }
 
-// isPublic check if ip is a IPv6 public address
-func isPublic(ip net.IP) bool {
-	if ip.To4() != nil {
-		return false
-	}
-
-	return !(ip.IsLoopback() ||
-		ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() ||
-		ip.IsInterfaceLocalMulticast())
-}
-
-// isPublic check if ip is a part of the yggdrasil 200::/7 range
-var yggNet = net.IPNet{
-	IP:   net.ParseIP("200::"),
-	Mask: net.CIDRMask(7, 128),
-}
-
-var myceliumNet = net.IPNet{
-	IP:   net.ParseIP("400::"),
-	Mask: net.CIDRMask(7, 128),
-}
-
-func isYgg(ip net.IP) bool {
-	return yggNet.Contains(ip)
-}
-
-func isMycelium(ip net.IP) bool {
-	return myceliumNet.Contains(ip)
-}
-
 // InitializeZDB makes sure all required zdbs are running
 func (p *Manager) Initialize(ctx context.Context) error {
 	var (
