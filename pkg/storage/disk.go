@@ -14,6 +14,7 @@ import (
 	log "github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -146,6 +147,23 @@ func (s *Module) DiskWrite(name string, image string) error {
 		return fmt.Errorf("image size is bigger than disk")
 	}
 
+	// do sequential copy on HDD only node
+	// otherwise do concurrent copy
+	if n, _ := s.Total(zos.SSDDevice); n == uint64(0) {
+		_, err = io.Copy(file, source)
+
+	} else {
+		err = s.concurrentCopy(file, source, imgStat)
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "failed to write disk image")
+	}
+
+	return nil
+}
+
+func (s *Module) concurrentCopy(dst io.WriterAt, src io.ReaderAt, imgStat os.FileInfo) error {
 	// writing the image concurrently to speedup the previous sequential write.
 	// the sequential write is slow because the data source is from the remote server.
 	var (
@@ -165,17 +183,16 @@ func (s *Module) DiskWrite(name string, image string) error {
 			if index == numWorkers-1 { //last chunk
 				len = imgSize - start
 			}
-			wr := io.NewOffsetWriter(file, start)
-			rd := io.NewSectionReader(source, start, len)
-			_, err = io.Copy(wr, rd)
+			wr := io.NewOffsetWriter(dst, start)
+			rd := io.NewSectionReader(src, start, len)
+			_, err := io.Copy(wr, rd)
 			return err
 		})
 	}
 	if err := group.Wait(); err != nil {
-		return errors.Wrap(err, "failed to write disk image")
+		return err
 	}
-	log.Info().Msg("writing image finished")
-
+	log.Info().Msg("writing image concurrently finished")
 	return nil
 }
 
