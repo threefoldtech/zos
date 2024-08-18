@@ -19,16 +19,11 @@ func RunNTPCheck(ctx context.Context) {
 	go func() {
 		for {
 			exp := backoff.NewExponentialBackOff()
-			check := func() error {
-				return ntpCheck()
-			}
-
 			retryNotify := func(err error, d time.Duration) {
 				log.Error().Err(err).Msg("failed to run ntp check")
 			}
 
-			err := backoff.RetryNotify(check, backoff.WithContext(exp, ctx), retryNotify)
-			if err != nil {
+			if err := backoff.RetryNotify(ntpCheck, backoff.WithContext(exp, ctx), retryNotify); err != nil {
 				log.Error().Err(err).Send()
 				continue
 			}
