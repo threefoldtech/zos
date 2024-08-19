@@ -1,4 +1,4 @@
-package zdblight
+package zdb
 
 import (
 	"context"
@@ -36,7 +36,7 @@ const (
 var uuidRegex = regexp.MustCompile(`([0-9a-f]{8})\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}`)
 
 // ZDB types
-type ZDB = zos.ZDBLight
+type ZDB = zos.ZDB
 
 type tZDBContainer pkg.Container
 
@@ -119,7 +119,7 @@ func (p *Manager) zdbListContainers(ctx context.Context) (map[pkg.ContainerID]tZ
 	return m, nil
 }
 
-func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (zos.ZDBLightResult, error) {
+func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (zos.ZDBResult, error) {
 	var (
 		// contmod = stubs.NewContainerModuleStub(p.zbus)
 		storage = stubs.NewStorageModuleStub(p.zbus)
@@ -127,14 +127,14 @@ func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 		config  ZDB
 	)
 	if err := json.Unmarshal(wl.Data, &config); err != nil {
-		return zos.ZDBLightResult{}, errors.Wrap(err, "failed to decode reservation schema")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to decode reservation schema")
 	}
 
 	// for each container we try to find a free space to jam in this new zdb namespace
 	// request
 	containers, err := p.zdbListContainers(ctx)
 	if err != nil {
-		return zos.ZDBLightResult{}, errors.Wrap(err, "failed to list container data volumes")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to list container data volumes")
 	}
 
 	var candidates []tZDBContainer
@@ -157,10 +157,10 @@ func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 
 			containerIPs, err := p.waitZDBIPs(ctx, container.Network.Namespace, container.CreatedAt)
 			if err != nil {
-				return zos.ZDBLightResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
+				return zos.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
 			}
 
-			return zos.ZDBLightResult{
+			return zos.ZDBResult{
 				Namespace: nsID,
 				IPs:       ipsToString(containerIPs),
 				Port:      zdbPort,
@@ -185,26 +185,26 @@ func (p *Manager) zdbProvisionImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 		// allocate new disk
 		device, err := storage.DeviceAllocate(ctx, config.Size)
 		if err != nil {
-			return zos.ZDBLightResult{}, errors.Wrap(err, "couldn't allocate device to satisfy namespace size")
+			return zos.ZDBResult{}, errors.Wrap(err, "couldn't allocate device to satisfy namespace size")
 		}
 		cont, err = p.ensureZdbContainer(ctx, device)
 		if err != nil {
-			return zos.ZDBLightResult{}, errors.Wrap(err, "failed to start zdb container")
+			return zos.ZDBResult{}, errors.Wrap(err, "failed to start zdb container")
 		}
 	}
 
 	containerIPs, err := p.waitZDBIPs(ctx, cont.Network.Namespace, cont.CreatedAt)
 	if err != nil {
-		return zos.ZDBLightResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
 	}
 
 	log.Warn().Msgf("ip for zdb containers %s", containerIPs)
 	// this call will actually configure the namespace in zdb and set the password
 	if err := p.createZDBNamespace(pkg.ContainerID(cont.Name), nsID, config); err != nil {
-		return zos.ZDBLightResult{}, errors.Wrap(err, "failed to create zdb namespace")
+		return zos.ZDBResult{}, errors.Wrap(err, "failed to create zdb namespace")
 	}
 
-	return zos.ZDBLightResult{
+	return zos.ZDBResult{
 		Namespace: nsID,
 		IPs:       ipsToString(containerIPs),
 		Port:      zdbPort,
@@ -536,7 +536,7 @@ func (p *Manager) Update(ctx context.Context, wl *gridtypes.WorkloadWithID) (int
 	return res, newSafeError(err)
 }
 
-func (p *Manager) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.ZDBLightResult, err error) {
+func (p *Manager) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithID) (result zos.ZDBResult, err error) {
 	current, err := provision.GetWorkload(ctx, wl.Name)
 	if err != nil {
 		// this should not happen but we need to have the check anyway
@@ -619,10 +619,10 @@ func (p *Manager) zdbUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWithI
 
 		containerIPs, err := p.waitZDBIPs(ctx, container.Network.Namespace, container.CreatedAt)
 		if err != nil {
-			return zos.ZDBLightResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
+			return zos.ZDBResult{}, errors.Wrap(err, "failed to find IP address on zdb0 interface")
 		}
 
-		return zos.ZDBLightResult{
+		return zos.ZDBResult{
 			Namespace: name,
 			IPs:       ipsToString(containerIPs),
 			Port:      zdbPort,

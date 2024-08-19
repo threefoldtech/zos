@@ -12,11 +12,6 @@ import (
 
 func (g *ZosAPI) networkInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	results := make(map[string][]net.IPNet)
-	type q struct {
-		inf    string
-		ns     string
-		rename string
-	}
 	interfaces, err := g.networkerLightStub.Interfaces(ctx, "zos", "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ips for 'zos' interface: %w", err)

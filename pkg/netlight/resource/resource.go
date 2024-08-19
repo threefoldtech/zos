@@ -209,7 +209,11 @@ func Get(name string) (*Resource, error) {
 	return nil, fmt.Errorf("resource not found: %s", name)
 }
 
-// myceliumIpSeed is 6 bytes
+var networkResourceNet = net.IPNet{
+	IP:   net.ParseIP("100.64.0.0"),
+	Mask: net.IPv4Mask(0xff, 0xff, 0, 0),
+}
+
 func (r *Resource) AttachPrivate(id string, vmIp net.IP) (device pkg.TapDevice, err error) {
 	nsName := fmt.Sprintf("n%s", r.name)
 	netNs, err := namespace.GetByName(nsName)
@@ -249,26 +253,38 @@ func (r *Resource) AttachPrivate(id string, vmIp net.IP) (device pkg.TapDevice, 
 	privateNetBr := fmt.Sprintf("r%s", r.name)
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(tapName))
 
-	mtap, err := macvtap.CreateMACvTap(tapName, privateNetBr, hw)
-	if err != nil {
-		return
-	}
 	ip := &net.IPNet{
 		IP:   vmIp,
 		Mask: gw.Mask,
 	}
+	_, getLinkErr := netlink.LinkByName(tapName)
+	if getLinkErr != nil {
+		mtap, err := macvtap.CreateMACvTap(tapName, privateNetBr, hw)
+		if err != nil {
+			return pkg.TapDevice{}, err
+		}
 
-	if err = netlink.AddrAdd(mtap, &netlink.Addr{
-		IPNet: ip,
-	}); err != nil {
-		return
+		if err = netlink.AddrAdd(mtap, &netlink.Addr{
+			IPNet: ip,
+		}); err != nil {
+			return pkg.TapDevice{}, err
+		}
 	}
 
+	routes := []pkg.Route{
+		{
+			Gateway: gw.IP,
+		},
+		{
+			Net:     networkResourceNet,
+			Gateway: gw.IP,
+		},
+	}
 	return pkg.TapDevice{
-		Name:    tapName,
-		Mac:     hw,
-		IP:      ip,
-		Gateway: gw,
+		Name:   tapName,
+		Mac:    hw,
+		IP:     ip,
+		Routes: routes,
 	}, nil
 }
 
@@ -305,17 +321,19 @@ func (r *Resource) AttachMycelium(id string, seed []byte) (device pkg.TapDevice,
 		return
 	}
 
-	// if err = netlink.AddrAdd(mtap, &netlink.Addr{
-	// 	IPNet: &ip,
-	// }); err != nil {
-	// 	return
-	// }
+	route := pkg.Route{
 
+		Net: net.IPNet{
+			IP:   net.ParseIP("400::"),
+			Mask: net.CIDRMask(7, 128),
+		},
+		Gateway: gw.IP,
+	}
 	return pkg.TapDevice{
-		Name:    tapName,
-		IP:      &ip,
-		Gateway: &gw,
-		Mac:     hw,
+		Name:   tapName,
+		IP:     &ip,
+		Routes: []pkg.Route{route},
+		Mac:    hw,
 	}, nil
 }
 

@@ -201,7 +201,7 @@ func (u *Upgrader) remote() (remote hub.TagLink, err error) {
 	mode := u.boot.RunMode()
 	// find all taglinks that matches the same run mode (ex: development)
 	envName := mode.String()
-	if u.boot.IsLight() {
+	if u.boot.Version().Major == 4 {
 		envName = fmt.Sprintf("%s-light", envName)
 	}
 	matches, err := u.hub.Find(

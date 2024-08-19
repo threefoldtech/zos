@@ -24,10 +24,10 @@ type NetworkerLight interface {
 }
 
 type TapDevice struct {
-	Name    string
-	Mac     net.HardwareAddr
-	IP      *net.IPNet
-	Gateway *net.IPNet
+	Name   string
+	Mac    net.HardwareAddr
+	IP     *net.IPNet
+	Routes []Route
 }
 
 // Interfaces struct to bypass zbus generation error

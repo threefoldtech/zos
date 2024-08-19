@@ -14,8 +14,8 @@ const (
 	NetworkType gridtypes.WorkloadType = "network"
 	// NetworkLightType type
 	NetworkLightType gridtypes.WorkloadType = "network-light"
-	// ZDBLightType type
-	ZDBLightType gridtypes.WorkloadType = "zdb-light"
+	// ZDBType type
+	ZDBType gridtypes.WorkloadType = "zdb"
 	// ZMachineType type
 	ZMachineType gridtypes.WorkloadType = "zmachine"
 	// ZMachineLightType type
@@ -43,7 +43,7 @@ func init() {
 	// deployments.
 	gridtypes.RegisterType(ZMachineLightType, ZMachineLight{})
 	gridtypes.RegisterSharableType(NetworkLightType, NetworkLight{})
-	gridtypes.RegisterType(ZDBLightType, ZDBLight{})
+	gridtypes.RegisterType(ZDBType, ZDB{})
 	gridtypes.RegisterType(ZMountType, ZMount{})
 	gridtypes.RegisterType(VolumeType, Volume{})
 	gridtypes.RegisterType(PublicIPv4Type, PublicIP4{})

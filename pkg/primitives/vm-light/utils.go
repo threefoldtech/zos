@@ -17,11 +17,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
-var networkResourceNet = net.IPNet{
-	IP:   net.ParseIP("100.64.0.0"),
-	Mask: net.IPv4Mask(0xff, 0xff, 0, 0),
-}
-
 // fill up the VM (machine) object with write boot config for a full virtual machine (with a disk image)
 func (p *Manager) prepVirtualMachine(
 	ctx context.Context,
@@ -194,15 +189,7 @@ func (p *Manager) newMyceliumNetworkInterface(ctx context.Context, dl gridtypes.
 		IPs: []net.IPNet{
 			*iface.IP,
 		},
-		Routes: []pkg.Route{
-			{
-				Net: net.IPNet{
-					IP:   net.ParseIP("400::"),
-					Mask: net.CIDRMask(7, 128),
-				},
-				Gateway: iface.Gateway.IP,
-			},
-		},
+		Routes:     iface.Routes,
 		PublicIPv4: false,
 		PublicIPv6: false,
 	}
@@ -227,14 +214,8 @@ func (p *Manager) newPrivNetworkInterface(ctx context.Context, dl gridtypes.Depl
 			*iface.IP,
 			// privIP6,
 		},
-		Routes: []pkg.Route{
-			{
-				// Net: privNet,
-				Gateway: iface.Gateway.IP,
-			},
-			{Net: networkResourceNet, Gateway: iface.Gateway.IP},
-		},
-		IP4DefaultGateway: net.IP(iface.Gateway.IP),
+		Routes:            iface.Routes,
+		IP4DefaultGateway: net.IP(iface.Routes[0].Gateway),
 		// IP6DefaultGateway: gw6,
 		PublicIPv4: false,
 		PublicIPv6: false,

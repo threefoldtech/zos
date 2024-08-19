@@ -2,6 +2,7 @@ package netlightd
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"net"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/primitives/x25519"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos/pkg/netlight"
+	"github.com/threefoldtech/zos/pkg/netlight/nft"
 	"github.com/threefoldtech/zos/pkg/netlight/resource"
 	"github.com/urfave/cli/v2"
 
@@ -26,6 +28,9 @@ const (
 	redisSocket = "unix:///var/run/redis.sock"
 	module      = "netlight"
 )
+
+//go:embed nft/rules.nft
+var nftRules embed.FS
 
 // Module is entry point for module
 var Module cli.Command = cli.Command{
@@ -93,8 +98,13 @@ func action(cli *cli.Context) error {
 		log.Info().Msg("shutting down")
 	})
 
-	if err := ensureHostFw(ctx); err != nil {
-		return errors.Wrap(err, "failed to host firewall rules")
+	rules, err := nftRules.Open("nft/rules.nft")
+	if err != nil {
+		return fmt.Errorf("failed to load rules.nft file")
+	}
+
+	if err := nft.Apply(rules, ""); err != nil {
+		return fmt.Errorf("failed to apply host nft rules: %w", err)
 	}
 
 	bridge, err := netlight.CreateNDMZBridge()

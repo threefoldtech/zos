@@ -8,7 +8,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/primitives/qsfs"
 	vmlight "github.com/threefoldtech/zos/pkg/primitives/vm-light"
 	"github.com/threefoldtech/zos/pkg/primitives/volume"
-	zdblight "github.com/threefoldtech/zos/pkg/primitives/zdb-light"
+	"github.com/threefoldtech/zos/pkg/primitives/zdb"
 	"github.com/threefoldtech/zos/pkg/primitives/zlogs"
 	"github.com/threefoldtech/zos/pkg/primitives/zmount"
 	"github.com/threefoldtech/zos/pkg/provision"
@@ -20,7 +20,7 @@ func NewPrimitivesProvisioner(zbus zbus.Client) provision.Provisioner {
 		zos.ZMountType:        zmount.NewManager(zbus),
 		zos.ZLogsType:         zlogs.NewManager(zbus),
 		zos.QuantumSafeFSType: qsfs.NewManager(zbus),
-		zos.ZDBLightType:      zdblight.NewManager(zbus),
+		zos.ZDBType:           zdb.NewManager(zbus),
 		zos.NetworkLightType:  netlight.NewManager(zbus),
 		zos.ZMachineLightType: vmlight.NewManager(zbus),
 		zos.VolumeType:        volume.NewManager(zbus),

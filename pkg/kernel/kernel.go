@@ -65,11 +65,6 @@ func (k Params) IsDebug() bool {
 	return k.Exists(Debug)
 }
 
-// IsLight checks if in light mode
-func (k Params) IsLight() bool {
-	return k.Exists(Light)
-}
-
 // GPUDisabled checks if gpu is diabled
 func (k Params) IsGPUDisabled() bool {
 	return k.Exists(DisableGPU)

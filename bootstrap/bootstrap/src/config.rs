@@ -28,6 +28,7 @@ impl Display for RunMode {
 #[derive(Debug)]
 pub enum Version {
     V3,
+    V4,
 }
 
 fn runmode() -> Result<RunMode> {
@@ -64,6 +65,7 @@ fn version() -> Result<Version> {
         Some(input) => match input {
             Some(input) => match input.as_ref() {
                 "v3" => Version::V3,
+                "v4" => Version::V4,
                 m => {
                     bail!("unknown version: {}", m);
                 }
@@ -78,20 +80,11 @@ fn version() -> Result<Version> {
     Ok(ver)
 }
 
-fn light() -> Result<bool> {
-    let params = kparams::params()?;
-    if params.contains_key("light") {
-        return Ok(true);
-    }
-    Ok(false)
-}
-
 pub struct Config {
     pub stage: u32,
     pub debug: bool,
     pub runmode: RunMode,
     pub version: Version,
-    pub light: bool,
 }
 
 impl Config {
@@ -114,12 +107,6 @@ impl Config {
                     .takes_value(false)
                     .help("run in debug mode, will use the bootstrap:development.flist"),
             )
-            .arg(
-                Arg::with_name("light")
-                    .short("l")
-                    .takes_value(false)
-                    .help("run in light mode, will use the bootstrap:development.flist"),
-            )
             .get_matches();
 
         let stage: u32 = match matches.value_of("stage").unwrap().parse() {
@@ -138,7 +125,6 @@ impl Config {
             debug: matches.occurrences_of("debug") > 0,
             runmode: runmode()?,
             version: version()?,
-            light: light()?,
         })
     }
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
-// ZDBLight namespace creation info
-type ZDBLight struct {
+// ZDB namespace creation info
+type ZDB struct {
 	Size     gridtypes.Unit `json:"size"`
 	Mode     ZDBMode        `json:"mode"`
 	Password string         `json:"password"`
@@ -38,7 +38,7 @@ func (m ZDBMode) Valid() error {
 }
 
 // Valid implementation
-func (z ZDBLight) Valid(getter gridtypes.WorkloadGetter) error {
+func (z ZDB) Valid(getter gridtypes.WorkloadGetter) error {
 	if z.Size == 0 {
 		return fmt.Errorf("invalid size")
 	}
@@ -51,7 +51,7 @@ func (z ZDBLight) Valid(getter gridtypes.WorkloadGetter) error {
 }
 
 // Challenge implementation
-func (z ZDBLight) Challenge(b io.Writer) error {
+func (z ZDB) Challenge(b io.Writer) error {
 
 	if _, err := fmt.Fprintf(b, "%d", z.Size); err != nil {
 		return err
@@ -71,14 +71,14 @@ func (z ZDBLight) Challenge(b io.Writer) error {
 }
 
 // Capacity implements WorkloadData
-func (z ZDBLight) Capacity() (cap gridtypes.Capacity, err error) {
+func (z ZDB) Capacity() (cap gridtypes.Capacity, err error) {
 	cap.HRU = z.Size
 	return
 }
 
-// ZDBLightResult is the information return to the BCDB
+// ZDBResult is the information return to the BCDB
 // after deploying a 0-db namespace
-type ZDBLightResult struct {
+type ZDBResult struct {
 	Namespace string
 	IPs       []string
 	Port      uint

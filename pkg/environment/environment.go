@@ -41,7 +41,6 @@ type Environment struct {
 
 	FarmID       pkg.FarmID
 	Orphan       bool
-	Light        bool
 	FarmSecret   string
 	SubstrateURL []string
 	// IMPORTANT NOTICE:
@@ -321,10 +320,5 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	if e := os.Getenv("ZOS_BIN_REPO"); e != "" {
 		env.BinRepo = e
 	}
-	env.Light = false
-	if params.Exists("light") {
-		env.Light = true
-	}
-
 	return env, nil
 }
