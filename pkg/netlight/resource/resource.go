@@ -14,10 +14,10 @@ import (
 	"github.com/threefoldtech/zos/pkg/netlight/bridge"
 	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
-	"github.com/threefoldtech/zos/pkg/netlight/macvtap"
 	"github.com/threefoldtech/zos/pkg/netlight/namespace"
 	"github.com/threefoldtech/zos/pkg/netlight/nft"
 	"github.com/threefoldtech/zos/pkg/netlight/options"
+	"github.com/threefoldtech/zos/pkg/netlight/tuntap"
 	"github.com/threefoldtech/zos/pkg/zinit"
 	"github.com/vishvananda/netlink"
 )
@@ -143,7 +143,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	if err := nft.Apply(rules, nsName); err != nil {
 		return nil, fmt.Errorf("failed to apply nft rules for namespace '%s': %w", name, err)
 	}
-
+	rules.Close()
 	return &Resource{name}, setupMycelium(netNS, infMycelium, seed)
 }
 
@@ -259,7 +259,7 @@ func (r *Resource) AttachPrivate(id string, vmIp net.IP) (device pkg.TapDevice, 
 	}
 	_, getLinkErr := netlink.LinkByName(tapName)
 	if getLinkErr != nil {
-		mtap, err := macvtap.CreateMACvTap(tapName, privateNetBr, hw)
+		mtap, err := tuntap.CreateTap(tapName, privateNetBr)
 		if err != nil {
 			return pkg.TapDevice{}, err
 		}
@@ -316,7 +316,7 @@ func (r *Resource) AttachMycelium(id string, seed []byte) (device pkg.TapDevice,
 	myBr := fmt.Sprintf("m%s", r.name)
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(tapName))
 
-	_, err = macvtap.CreateMACvTap(tapName, myBr, hw)
+	_, err = tuntap.CreateTap(tapName, myBr)
 	if err != nil {
 		return
 	}

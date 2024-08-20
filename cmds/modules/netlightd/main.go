@@ -106,7 +106,7 @@ func action(cli *cli.Context) error {
 	if err := nft.Apply(rules, ""); err != nil {
 		return fmt.Errorf("failed to apply host nft rules: %w", err)
 	}
-
+	rules.Close()
 	bridge, err := netlight.CreateNDMZBridge()
 	if err != nil {
 		return fmt.Errorf("failed to create ndmz bridge: %w", err)

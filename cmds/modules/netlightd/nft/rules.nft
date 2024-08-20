@@ -1,29 +1,54 @@
-add table inet filter;
-add table arp filter;
-add table bridge filter;
-add table nat;
+table inet filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+	}
 
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+	}
 
-add chain inet filter input   { type filter hook input priority filter; policy accept; }
-add chain inet filter forward { type filter hook forward priority filter; policy accept; }
-add chain inet filter output  { type filter hook output priority filter; policy accept; }
-add chain inet filter prerouting  { type filter hook prerouting priority filter; policy accept; }
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
 
-add chain arp filter input  { type filter hook input priority filter; policy accept; }
-add chain arp filter output { type filter hook output priority filter; policy accept; }
+	chain prerouting {
+		type filter hook prerouting priority filter; policy accept;
+		meta nfproto ipv4 iifname "b-*" tcp dport { 25, 465, 587 } reject with icmp type admin-prohibited
+	}
+}
+table arp filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+	}
 
-add chain bridge filter input   { type filter hook input priority filter; policy accept; }
-add chain bridge filter forward { type filter hook forward priority filter; policy accept; }
-add chain bridge filter prerouting { type filter hook prerouting priority filter; policy accept; }
-add chain bridge filter postrouting { type filter hook postrouting priority filter; policy accept; }
-add chain bridge filter output  { type filter hook output priority filter; policy accept; }
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
+}
+table bridge filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+	}
 
-add chain nat postrouting { type nat hook postrouting priority 100 ; }
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+	}
 
-flush chain bridge filter forward;
-flush chain inet filter forward;
-flush chain inet filter prerouting;
-flush chain nat postrouting
+	chain prerouting {
+		type filter hook prerouting priority filter; policy accept;
+	}
 
-add rule inet filter prerouting iifname "b-*" tcp dport {25, 587, 465} reject with icmp type admin-prohibited;
-add rule nat postrouting iifname gw masquerade fully-random;
+	chain postrouting {
+		type filter hook postrouting priority filter; policy accept;
+	}
+
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
+}
+table ip nat {
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		iifname "gw" masquerade fully-random
+	}
+}

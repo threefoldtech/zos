@@ -13,14 +13,6 @@ import (
 
 //go:generate zbusc -module vmd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos/pkg+VMModule stubs/vmd_stub.go
 
-// Route structure
-type Route struct {
-	Net net.IPNet
-	// Gateway can be nil, in that
-	// case the device is used as a dev instead
-	Gateway net.IP
-}
-
 // VMIface structure
 type VMIface struct {
 	// Tap device name

@@ -200,10 +200,7 @@ func (u *Upgrader) nextUpdate() time.Duration {
 func (u *Upgrader) remote() (remote hub.TagLink, err error) {
 	mode := u.boot.RunMode()
 	// find all taglinks that matches the same run mode (ex: development)
-	envName := mode.String()
-	if u.boot.Version().Major == 4 {
-		envName = fmt.Sprintf("%s-light", envName)
-	}
+	envName := fmt.Sprintf("%s-v4", mode.String())
 	matches, err := u.hub.Find(
 		ZosRepo,
 		hub.MatchName(envName),

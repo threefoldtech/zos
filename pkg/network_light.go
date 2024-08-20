@@ -5,6 +5,13 @@ import (
 	"net"
 )
 
+type Route struct {
+	Net net.IPNet
+	// Gateway can be nil, in that
+	// case the device is used as a dev instead
+	Gateway net.IP
+}
+
 //go:generate mkdir -p stubs
 //go:generate zbusc -module netlight -version 0.0.1 -name netlight -package stubs github.com/threefoldtech/zos/pkg+NetworkerLight stubs/network_light_stub.go
 

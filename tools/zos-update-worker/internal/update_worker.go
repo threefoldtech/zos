@@ -132,7 +132,7 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 	zosLatest := fmt.Sprintf("%v/%v", w.dst, network)
 	// zos light
 	zosLightCurrent := fmt.Sprintf("%v/.tag-%v", w.src, versions.ZosLight)
-	zosLightLatest := fmt.Sprintf("%v/%v-light", w.dst, network)
+	zosLightLatest := fmt.Sprintf("%v/%v-v4", w.dst, network)
 	// the link is like zosCurrent but it has the path relative from the symlink
 	// point of view (so relative to the symlink, how to reach zosCurrent)
 	// hence the link is instead used in all calls to symlink
