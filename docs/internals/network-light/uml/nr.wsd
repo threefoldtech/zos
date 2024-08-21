@@ -1,0 +1,30 @@
+@startuml
+
+() "br-ndmz" as brndmz
+() "m-<NR>" as my
+() "b-<NR>" as bnr
+
+component "n-<NR>" {
+    component public as pub
+    pub -up->brndmz: macvlan
+    note bottom of pub
+    gets assigned static IP by ZOS in the range <b>100.127.0.0/16</b>
+    end note
+
+    component my0
+    note bottom of my0
+    created by mycelium process
+    end note
+
+
+    component nmy
+    nmy -up-> my: macvlan
+
+    component private
+    private -up->bnr: macvlan
+}
+
+component "VM"
+
+VM -right-> bnr
+@enduml

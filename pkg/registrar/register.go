@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
@@ -106,24 +105,24 @@ func registerNode(
 ) (nodeID, twinID uint32, err error) {
 	var (
 		mgr              = stubs.NewIdentityManagerStub(cl)
-		netMgr           = stubs.NewNetworkerStub(cl)
+		netMgr           = stubs.NewNetworkerLightStub(cl)
 		substrateGateway = stubs.NewSubstrateGatewayStub(cl)
 	)
 
-	zosIps, zosMac, err := netMgr.Addrs(ctx, "zos", "")
+	infs, err := netMgr.Interfaces(ctx, "zos", "")
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "failed to get zos bridge information")
 	}
 
 	interfaces := []substrate.Interface{
 		{
-			Name: "zos",
-			Mac:  zosMac,
+			Name: infs.Interfaces["zos"].Name,
+			Mac:  infs.Interfaces["zos"].Mac,
 			IPs: func() []string {
-				var ips []string
-				for _, ip := range zosIps {
-					ipV := net.IP(ip)
-					ips = append(ips, ipV.String())
+				ips := make([]string, 0)
+				for _, ip := range infs.Interfaces["zos"].IPs {
+
+					ips = append(ips, ip.IP.String())
 				}
 				return ips
 			}(),

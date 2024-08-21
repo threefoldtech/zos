@@ -7,6 +7,14 @@ import (
 	"github.com/threefoldtech/zos/pkg/gridtypes"
 )
 
+// ZDB namespace creation info
+type ZDB struct {
+	Size     gridtypes.Unit `json:"size"`
+	Mode     ZDBMode        `json:"mode"`
+	Password string         `json:"password"`
+	Public   bool           `json:"public"`
+}
+
 // ZDBMode is the enumeration of the modes 0-db can operate in
 type ZDBMode string
 
@@ -27,14 +35,6 @@ func (m ZDBMode) Valid() error {
 	}
 
 	return nil
-}
-
-// ZDB namespace creation info
-type ZDB struct {
-	Size     gridtypes.Unit `json:"size"`
-	Mode     ZDBMode        `json:"mode"`
-	Password string         `json:"password"`
-	Public   bool           `json:"public"`
 }
 
 // Valid implementation

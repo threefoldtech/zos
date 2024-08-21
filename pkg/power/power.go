@@ -12,7 +12,7 @@ import (
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/events"
-	"github.com/threefoldtech/zos/pkg/network/bridge"
+	"github.com/threefoldtech/zos/pkg/netlight/bridge"
 	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
 )

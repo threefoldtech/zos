@@ -77,8 +77,8 @@ jobs:
           token: ${{ secrets.HUB_JWT }}
           action: tag
           user: tf-autobuilder
-          name: ${{ steps.tag.outputs.reference }}/zos.flist
-          target: tf-autobuilder/zos:${{ steps.version.outputs.version }}.flist
+          name: ${{ steps.tag.outputs.reference }}/zos-light.flist
+          target: tf-autobuilder/zos-light:${{ steps.version.outputs.version }}.flist
 
       # only for main branch (devnet)
       # this basically releases this build to devnet
@@ -89,5 +89,5 @@ jobs:
           token: ${{ secrets.HUB_JWT }}
           action: crosstag
           user: tf-zos
-          name: development
+          name: development-zos-light
           target: tf-autobuilder/${{ steps.tag.outputs.reference }}

@@ -12,10 +12,14 @@ const (
 	ZMountType gridtypes.WorkloadType = "zmount"
 	// NetworkType type
 	NetworkType gridtypes.WorkloadType = "network"
+	// NetworkLightType type
+	NetworkLightType gridtypes.WorkloadType = "network-light"
 	// ZDBType type
 	ZDBType gridtypes.WorkloadType = "zdb"
 	// ZMachineType type
 	ZMachineType gridtypes.WorkloadType = "zmachine"
+	// ZMachineLightType type
+	ZMachineLightType gridtypes.WorkloadType = "zmachine-light"
 	// VolumeType type
 	VolumeType gridtypes.WorkloadType = "volume"
 	//PublicIPv4Type type [deprecated]
@@ -37,15 +41,13 @@ func init() {
 	// network is a sharable type, which means for a single
 	// twin, the network objects can be 'used' from different
 	// deployments.
-	gridtypes.RegisterSharableType(NetworkType, Network{})
+	gridtypes.RegisterType(ZMachineLightType, ZMachineLight{})
+	gridtypes.RegisterSharableType(NetworkLightType, NetworkLight{})
+	gridtypes.RegisterType(ZDBType, ZDB{})
 	gridtypes.RegisterType(ZMountType, ZMount{})
 	gridtypes.RegisterType(VolumeType, Volume{})
-	gridtypes.RegisterType(ZDBType, ZDB{})
-	gridtypes.RegisterType(ZMachineType, ZMachine{})
 	gridtypes.RegisterType(PublicIPv4Type, PublicIP4{})
 	gridtypes.RegisterType(PublicIPType, PublicIP{})
-	gridtypes.RegisterType(GatewayNameProxyType, GatewayNameProxy{})
-	gridtypes.RegisterType(GatewayFQDNProxyType, GatewayFQDNProxy{})
 	gridtypes.RegisterType(QuantumSafeFSType, QuantumSafeFS{})
 	gridtypes.RegisterType(ZLogsType, ZLogs{})
 }

@@ -1,0 +1,29 @@
+add table inet filter;
+add table arp filter;
+add table bridge filter;
+add table nat;
+
+
+add chain inet filter input   { type filter hook input priority filter; policy accept; }
+add chain inet filter forward { type filter hook forward priority filter; policy accept; }
+add chain inet filter output  { type filter hook output priority filter; policy accept; }
+add chain inet filter prerouting  { type filter hook prerouting priority filter; policy accept; }
+
+add chain arp filter input  { type filter hook input priority filter; policy accept; }
+add chain arp filter output { type filter hook output priority filter; policy accept; }
+
+add chain bridge filter input   { type filter hook input priority filter; policy accept; }
+add chain bridge filter forward { type filter hook forward priority filter; policy accept; }
+add chain bridge filter prerouting { type filter hook prerouting priority filter; policy accept; }
+add chain bridge filter postrouting { type filter hook postrouting priority filter; policy accept; }
+add chain bridge filter output  { type filter hook output priority filter; policy accept; }
+
+add chain nat postrouting { type nat hook postrouting priority 100 ; }
+
+flush chain bridge filter forward;
+flush chain inet filter forward;
+flush chain inet filter prerouting;
+flush chain nat postrouting
+
+add rule inet filter prerouting iifname "b-*" tcp dport {25, 587, 465} reject with icmp type admin-prohibited;
+add rule nat postrouting iifname gw masquerade fully-random;

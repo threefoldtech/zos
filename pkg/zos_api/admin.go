@@ -13,7 +13,7 @@ func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (in
 		Mac string   `json:"mac"`
 	}
 
-	interfaces, err := g.networkerStub.Interfaces(ctx, "", "")
+	interfaces, err := g.networkerLightStub.Interfaces(ctx, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (in
 }
 
 func (g *ZosAPI) adminGetPublicNICHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	return g.networkerStub.GetPublicExitDevice(ctx)
+	return nil, fmt.Errorf("not supported")
 }
 
 func (g *ZosAPI) adminSetPublicNICHandler(ctx context.Context, payload []byte) (interface{}, error) {
@@ -43,5 +43,6 @@ func (g *ZosAPI) adminSetPublicNICHandler(ctx context.Context, payload []byte) (
 	if err := json.Unmarshal(payload, &iface); err != nil {
 		return nil, fmt.Errorf("failed to decode input, expecting string: %w", err)
 	}
-	return nil, g.networkerStub.SetPublicExitDevice(ctx, iface)
+	return nil, fmt.Errorf("not supported")
+
 }

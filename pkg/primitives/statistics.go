@@ -277,7 +277,7 @@ func (s *statsStream) ListGPUs() ([]pkg.GPUInfo, error) {
 				if wl.Type != zos.ZMachineType {
 					continue
 				}
-				var vm zos.ZMachine
+				var vm zos.ZMachineLight
 				if err := json.Unmarshal(wl.Data, &vm); err != nil {
 					return nil, errors.Wrapf(err, "invalid workload data (%d.%s)", dl.ContractID, wl.Name)
 				}

@@ -13,12 +13,12 @@ import (
 
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/network/bootstrap"
-	"github.com/threefoldtech/zos/pkg/network/bridge"
-	"github.com/threefoldtech/zos/pkg/network/dhcp"
-	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
-	"github.com/threefoldtech/zos/pkg/network/options"
-	"github.com/threefoldtech/zos/pkg/network/types"
+	"github.com/threefoldtech/zos/pkg/netlight/bootstrap"
+	"github.com/threefoldtech/zos/pkg/netlight/bridge"
+	"github.com/threefoldtech/zos/pkg/netlight/dhcp"
+	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
+	"github.com/threefoldtech/zos/pkg/netlight/options"
+	"github.com/threefoldtech/zos/pkg/netlight/types"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
 	"github.com/threefoldtech/zos/pkg/version"

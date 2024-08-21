@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/vm/cloudinit"
 )
 
@@ -148,31 +146,6 @@ func (m *Module) Exists(id string) bool {
 	return err == nil
 }
 
-func (m *Module) getConsoleConfig(ctx context.Context, ifc pkg.VMIface) (*Console, error) {
-	stub := stubs.NewNetworkerStub(m.client)
-	namespace := stub.Namespace(ctx, ifc.NetID)
-
-	networkAddr, err := stub.GetSubnet(ctx, ifc.NetID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get network '%s'", ifc.NetID)
-	}
-
-	networkAddr.IP = networkAddr.IP.To4()
-
-	if len(networkAddr.IP) != net.IPv4len {
-		return nil, fmt.Errorf("invalid network address: %s", networkAddr.IP.String())
-	}
-
-	// always listen on ip .1
-	networkAddr.IP[3] = 1
-
-	return &Console{
-		Namespace:     namespace,
-		ListenAddress: networkAddr,
-		VmAddress:     ifc.IPs[0],
-	}, nil
-}
-
 func (m *Module) makeNetwork(ctx context.Context, vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interface, error) {
 	// assume there is always at least 1 iface present
 
@@ -201,14 +174,6 @@ func (m *Module) makeNetwork(ctx context.Context, vm *pkg.VM, cfg *cloudinit.Con
 			ID:  fmt.Sprintf("eth%d", i),
 			Tap: ifcfg.Tap,
 			Mac: ifcfg.MAC,
-		}
-		if ifcfg.NetID != "" && len(ifcfg.IPs) > 0 {
-			// if NetID is set on this interface means it is a private network so we add console config to it.
-			console, err := m.getConsoleConfig(ctx, ifcfg)
-			if err != nil {
-				return nil, errors.Wrapf(err, "could not get console config for vm %s", vm.Name)
-			}
-			nic.Console = console
 		}
 		nics = append(nics, nic)
 

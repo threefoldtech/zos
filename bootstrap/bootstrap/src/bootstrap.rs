@@ -26,15 +26,19 @@ fn bootstrap_zos(cfg: &config::Config) -> Result<()> {
     let flist = match &cfg.runmode {
         RunMode::Prod => match &cfg.version {
             Version::V3 => "zos:production-3:latest.flist",
+            _ => bail!("unsupported version in old style"),
         },
         RunMode::Dev => match &cfg.version {
             Version::V3 => "zos:development-3:latest.flist",
+            _ => bail!("unsupported version in old style"),
         },
         RunMode::Test => match &cfg.version {
             Version::V3 => "zos:testing-3:latest.flist",
+            _ => bail!("unsupported version in old style"),
         },
         RunMode::QA => match &cfg.version {
             Version::V3 => "zos:qa-3:latest.flist",
+            _ => bail!("unsupported version in old style"),
         },
     };
 
@@ -116,11 +120,16 @@ pub fn install(cfg: &config::Config) -> Result<()> {
     let repo = Repo::new(ZOS_REPO);
 
     let runmode = cfg.runmode.to_string();
-    // we need to list all taglinks inside the repo
 
+    let mut listname = runmode.clone();
+    match cfg.version {
+        Version::V3 => {}
+        Version::V4 => listname = format!("{}-v4", runmode),
+    }
+    // we need to list all taglinks
     let mut tag = None;
     for list in repo.list()? {
-        if list.kind == Kind::TagLink && list.name == runmode {
+        if list.kind == Kind::TagLink && list.name == listname {
             tag = Some(list);
             break;
         }
@@ -163,6 +172,7 @@ pub fn install(cfg: &config::Config) -> Result<()> {
 fn install_packages_old(cfg: &config::Config) -> Result<()> {
     let name = match cfg.version {
         Version::V3 => BIN_REPO_V3,
+        _ => bail!("unsupported version for old style"),
     };
 
     let repo = match cfg.runmode {

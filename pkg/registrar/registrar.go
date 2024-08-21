@@ -132,7 +132,7 @@ func (r *Registrar) register(ctx context.Context, cl zbus.Client, env environmen
 
 	register()
 
-	stub := stubs.NewNetworkerStub(cl)
+	stub := stubs.NewNetworkerLightStub(cl)
 	addressesUpdate, err := stub.ZOSAddresses(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to monitor ip changes")

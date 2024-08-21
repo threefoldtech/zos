@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/network/iperf"
+	"github.com/threefoldtech/zos/pkg/netlight/iperf"
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/perf/graphql"
 )

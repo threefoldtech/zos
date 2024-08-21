@@ -29,7 +29,7 @@ func NewManager(zbus zbus.Client) *Manager {
 func (p *Manager) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (interface{}, error) {
 	var (
 		vm      = stubs.NewVMModuleStub(p.zbus)
-		network = stubs.NewNetworkerStub(p.zbus)
+		network = stubs.NewNetworkerLightStub(p.zbus)
 	)
 
 	var cfg zos.ZLogs
@@ -46,7 +46,7 @@ func (p *Manager) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (
 		return nil, errors.Wrapf(err, "machine state is not ok")
 	}
 
-	var machineCfg zos.ZMachine
+	var machineCfg zos.ZMachineLight
 	if err := json.Unmarshal(machine.Data, &machineCfg); err != nil {
 		return nil, errors.Wrap(err, "failed to decode zlogs config")
 	}
@@ -60,10 +60,11 @@ func (p *Manager) Provision(ctx context.Context, wl *gridtypes.WorkloadWithID) (
 	}
 
 	twin, _ := provision.GetDeploymentID(ctx)
+	netID := zos.NetworkID(twin, net)
 
 	return nil, vm.StreamCreate(ctx, machine.ID.String(), pkg.Stream{
 		ID:        wl.ID.String(),
-		Namespace: network.Namespace(ctx, zos.NetworkID(twin, net)),
+		Namespace: network.Namespace(ctx, netID.String()),
 		Output:    cfg.Output,
 	})
 

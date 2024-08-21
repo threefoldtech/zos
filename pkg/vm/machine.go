@@ -48,7 +48,8 @@ type InterfaceType string
 
 const (
 	// InterfaceTAP tuntap type
-	InterfaceTAP InterfaceType = "tuntap"
+	InterfaceTAP     InterfaceType = "tuntap"
+	InterfaceMacvtap InterfaceType = "macvtap"
 )
 
 type Console struct {
@@ -76,6 +77,17 @@ func (i Interface) asTap() string {
 	return buf.String()
 }
 
+// asMACvTap returns the command line argument for this interface as a macvtap
+func (i Interface) asMACvTap(fd int) string {
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("fd=%d", fd))
+	if len(i.Mac) > 0 {
+		buf.WriteString(fmt.Sprintf(",mac=%s", i.Mac))
+	}
+
+	return buf.String()
+}
+
 // getType detects the interface type
 func (i *Interface) getType() (InterfaceType, int, error) {
 	link, err := netlink.LinkByName(i.Tap)
@@ -87,8 +99,10 @@ func (i *Interface) getType() (InterfaceType, int, error) {
 	switch InterfaceType(link.Type()) {
 	case InterfaceTAP:
 		return InterfaceTAP, link.Attrs().Index, nil
+	case InterfaceMacvtap:
+		return InterfaceMacvtap, link.Attrs().Index, nil
 	default:
-		return "", 0, fmt.Errorf("unknown tap type")
+		return "", 0, fmt.Errorf("unknown tap type %s", link.Type())
 	}
 }
 
