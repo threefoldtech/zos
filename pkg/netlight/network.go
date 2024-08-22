@@ -19,7 +19,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/netlight/bridge"
 	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/netlight/ipam"
-	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
 	"github.com/threefoldtech/zos/pkg/netlight/namespace"
 	"github.com/threefoldtech/zos/pkg/netlight/options"
 	"github.com/threefoldtech/zos/pkg/netlight/resource"
@@ -352,22 +351,9 @@ func createNDMZBridge(name string, gw string) (*netlink.Bridge, error) {
 	if link.Type() != "bridge" {
 		return nil, fmt.Errorf("ndmz is not a bridge")
 	}
-
-	if !ifaceutil.Exists(gw, nil) {
-		gwLink, err := macvlan.Create(gw, name, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		err = netlink.AddrAdd(gwLink, &netlink.Addr{IPNet: NDMZGwIP})
-		if err != nil && !os.IsExist(err) {
-			return nil, err
-		}
-
-		if err := netlink.LinkSetUp(gwLink); err != nil {
-			return nil, err
-		}
-
+	err = netlink.AddrAdd(link, &netlink.Addr{IPNet: NDMZGwIP})
+	if err != nil && !os.IsExist(err) {
+		return nil, err
 	}
 
 	if err := netlink.LinkSetUp(link); err != nil {

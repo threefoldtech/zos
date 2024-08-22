@@ -137,7 +137,7 @@ func RandomName(prefix string) (string, error) {
 func MakeVethPair(name, master string, mtu int) (netlink.Link, error) {
 	masterLink, err := netlink.LinkByName(master)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("master link: %s not found: %v", master, err)
 	}
 
 	peer := fmt.Sprintf("%s-p", name)

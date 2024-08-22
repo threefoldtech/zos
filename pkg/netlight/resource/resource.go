@@ -13,7 +13,6 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/netlight/bridge"
 	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
-	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
 	"github.com/threefoldtech/zos/pkg/netlight/namespace"
 	"github.com/threefoldtech/zos/pkg/netlight/nft"
 	"github.com/threefoldtech/zos/pkg/netlight/options"
@@ -78,7 +77,12 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 		}
 
 		if !ifaceutil.Exists(infPrivate, netNS) {
-			if _, err = macvlan.Create(infPrivate, privateNetBr, netNS); err != nil {
+			err = netNS.Do(func(_ ns.NetNS) error {
+				_, err = ifaceutil.MakeVethPair(infPrivate, privateNetBr, 1500)
+				return err
+
+			})
+			if err != nil {
 				return nil, fmt.Errorf("failed to create private link: %w", err)
 			}
 		}
@@ -86,14 +90,25 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 
 	// create public interface and attach it to ndmz bridge
 	if !ifaceutil.Exists(infPublic, netNS) {
-		if _, err = macvlan.Create(infPublic, master.Name, netNS); err != nil {
+		pubLink, err := ifaceutil.MakeVethPair(infPublic, master.Name, 1500)
+		if err != nil {
 			return nil, fmt.Errorf("failed to create public link: %w", err)
 		}
+		err = netlink.LinkSetNsFd(pubLink, int(netNS.Fd()))
+		if err != nil {
+			return nil, fmt.Errorf("failed to move public link %s to namespace:%s : %w", infPublic, netNS.Path(), err)
+		}
+
 	}
 
 	if !ifaceutil.Exists(infMycelium, netNS) {
-		if _, err = macvlan.Create(infMycelium, myBr, netNS); err != nil {
-			return nil, err
+		myceliumLink, err := ifaceutil.MakeVethPair(infMycelium, myBr, 1500)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create mycelium link: %w", err)
+		}
+		err = netlink.LinkSetNsFd(myceliumLink, int(netNS.Fd()))
+		if err != nil {
+			return nil, fmt.Errorf("failed to move mycelium link: %s to namespace:%s : %w", infMycelium, netNS.Path(), err)
 		}
 	}
 
@@ -364,27 +379,44 @@ func (r *Resource) AttachMyceliumZDB(id string, zdbNS ns.NetNS) (err error) {
 	if err != nil {
 		return
 	}
-	routes := []*netlink.Route{
-		{
+	// routes := []*netlink.Route{
+	// 	{
+	// 		Dst: &net.IPNet{
+	// 			IP:   net.ParseIP("400::"),
+	// 			Mask: net.CIDRMask(7, 128),
+	// 		},
+	// 		Gw: gw.IP,
+	// 	},
+	// }
+
+	deviceName := ifaceutil.DeviceNameFromInputBytes([]byte(id))
+	linkName := fmt.Sprintf("m-%s", deviceName)
+
+	//
+	if !ifaceutil.Exists(linkName, zdbNS) {
+		zdbLink, err := ifaceutil.MakeVethPair(linkName, "mdmz", 1500)
+		if err != nil {
+			return fmt.Errorf("failed to create zdb link: %w", err)
+		}
+		err = netlink.LinkSetNsFd(zdbLink, int(netNS.Fd()))
+		if err != nil {
+			return fmt.Errorf("failed to move mycelium link: %s to namespace:%s : %w", linkName, netNS.Path(), err)
+		}
+		err = setLinkAddr(linkName, &ip)
+		if err != nil {
+			return err
+		}
+		return netlink.RouteAdd(&netlink.Route{
 			Dst: &net.IPNet{
 				IP:   net.ParseIP("400::"),
 				Mask: net.CIDRMask(7, 128),
 			},
 			Gw: gw.IP,
-		},
+		})
 	}
+	return nil
+	//
 
-	deviceName := ifaceutil.DeviceNameFromInputBytes([]byte(id))
-	macvlanName := fmt.Sprintf("m-%s", deviceName)
-
-	hw := ifaceutil.HardwareAddrFromInputBytes([]byte(macvlanName))
-
-	link, err := macvlan.Create(macvlanName, "mdmz", zdbNS)
-	if err != nil {
-		return
-	}
-
-	return macvlan.Install(link, hw, []*net.IPNet{&ip}, routes, zdbNS)
 }
 
 func (r *Resource) Seed() (seed []byte, err error) {
