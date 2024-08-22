@@ -82,6 +82,7 @@ jobs:
 
       # only for main branch (devnet)
       # this basically releases this build to devnet
+      # TODO remove zos-light
       - name: Cross tagging (development)
         if: success() && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/zos-light')
         uses: threefoldtech/publish-flist@master
