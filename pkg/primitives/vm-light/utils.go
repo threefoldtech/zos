@@ -204,7 +204,7 @@ func (p *Manager) newPrivNetworkInterface(ctx context.Context, dl gridtypes.Depl
 	tapName := wl.ID.Unique(string(inf.Network))
 	iface, err := network.AttachPrivate(ctx, string(netID), tapName, inf.IP)
 	if err != nil {
-		return pkg.VMIface{}, errors.Wrap(err, "could not set up tap device")
+		return pkg.VMIface{}, errors.Wrap(err, "could not set up tap device for private interface")
 	}
 
 	out := pkg.VMIface{

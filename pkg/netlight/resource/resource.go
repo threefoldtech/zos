@@ -77,22 +77,23 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 		}
 
 		if !ifaceutil.Exists(infPrivate, netNS) {
-			err = netNS.Do(func(_ ns.NetNS) error {
-				_, err = ifaceutil.MakeVethPair(infPrivate, privateNetBr, 1500)
-				return err
-
-			})
+			privateLink, err := ifaceutil.MakeVethPair(infPrivate, privateNetBr, 1500, nsName[0:3])
 			if err != nil {
 				return nil, fmt.Errorf("failed to create private link: %w", err)
 			}
+			err = netlink.LinkSetNsFd(privateLink, int(netNS.Fd()))
+			if err != nil {
+				return nil, fmt.Errorf("failed to move public link %s to namespace:%s : %w", infPublic, netNS.Path(), err)
+			}
+
 		}
 	}
 
 	// create public interface and attach it to ndmz bridge
 	if !ifaceutil.Exists(infPublic, netNS) {
-		pubLink, err := ifaceutil.MakeVethPair(infPublic, master.Name, 1500)
+		pubLink, err := ifaceutil.MakeVethPair(infPublic, master.Name, 1500, nsName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create public link: %w", err)
+			return nil, fmt.Errorf("failed to create public link in namespace %s: %w", nsName[0:3], err)
 		}
 		err = netlink.LinkSetNsFd(pubLink, int(netNS.Fd()))
 		if err != nil {
@@ -102,7 +103,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	}
 
 	if !ifaceutil.Exists(infMycelium, netNS) {
-		myceliumLink, err := ifaceutil.MakeVethPair(infMycelium, myBr, 1500)
+		myceliumLink, err := ifaceutil.MakeVethPair(infMycelium, myBr, 1500, nsName[0:3])
 		if err != nil {
 			return nil, fmt.Errorf("failed to create mycelium link: %w", err)
 		}
@@ -136,7 +137,6 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 			}
 		}
 
-		// if err := setLinkAddr(infPrivate, )
 		if err := netlink.RouteAdd(&netlink.Route{
 			Gw: ndmzGwIP.IP,
 		}); err != nil && !os.IsExist(err) {
@@ -379,39 +379,43 @@ func (r *Resource) AttachMyceliumZDB(id string, zdbNS ns.NetNS) (err error) {
 	if err != nil {
 		return
 	}
-	// routes := []*netlink.Route{
-	// 	{
-	// 		Dst: &net.IPNet{
-	// 			IP:   net.ParseIP("400::"),
-	// 			Mask: net.CIDRMask(7, 128),
-	// 		},
-	// 		Gw: gw.IP,
-	// 	},
-	// }
 
 	deviceName := ifaceutil.DeviceNameFromInputBytes([]byte(id))
 	linkName := fmt.Sprintf("m-%s", deviceName)
 
 	//
 	if !ifaceutil.Exists(linkName, zdbNS) {
-		zdbLink, err := ifaceutil.MakeVethPair(linkName, "mdmz", 1500)
+		zdbLink, err := ifaceutil.MakeVethPair(linkName, "mdmz", 1500, nsName[0:3])
 		if err != nil {
-			return fmt.Errorf("failed to create zdb link: %w", err)
+			return fmt.Errorf("failed to create zdb link %s : %w", linkName, err)
 		}
-		err = netlink.LinkSetNsFd(zdbLink, int(netNS.Fd()))
+		err = netlink.LinkSetNsFd(zdbLink, int(zdbNS.Fd()))
 		if err != nil {
-			return fmt.Errorf("failed to move mycelium link: %s to namespace:%s : %w", linkName, netNS.Path(), err)
+			return fmt.Errorf("failed to move zdb link: %s to namespace:%s : %w", linkName, netNS.Path(), err)
 		}
-		err = setLinkAddr(linkName, &ip)
-		if err != nil {
-			return err
-		}
-		return netlink.RouteAdd(&netlink.Route{
-			Dst: &net.IPNet{
-				IP:   net.ParseIP("400::"),
-				Mask: net.CIDRMask(7, 128),
-			},
-			Gw: gw.IP,
+
+		return zdbNS.Do(func(_ ns.NetNS) error {
+			err = setLinkAddr(linkName, &ip)
+			if err != nil {
+				return err
+			}
+
+			if err := ifaceutil.SetLoUp(); err != nil {
+				return fmt.Errorf("failed to set lo up for namespace '%s': %w", nsName, err)
+			}
+
+			if err := options.SetIPv6Forwarding(true); err != nil {
+				return fmt.Errorf("failed to enable ipv6 forwarding in namespace %q: %w", nsName, err)
+			}
+
+			return netlink.RouteAdd(&netlink.Route{
+				Dst: &net.IPNet{
+					IP:   net.ParseIP("400::"),
+					Mask: net.CIDRMask(7, 128),
+				},
+				Gw: gw.IP,
+			})
+
 		})
 	}
 	return nil

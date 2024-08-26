@@ -49,6 +49,6 @@ table bridge filter {
 table ip nat {
 	chain postrouting {
 		type nat hook postrouting priority srcnat; policy accept;
-		iifname "gw" masquerade fully-random
+		iifname "br-ndmz" masquerade fully-random
 	}
 }
