@@ -9,7 +9,7 @@ To get the location of the system calling this function, use exported method `Fe
 
 1. use `geoip.Fetch()`:
 
-    This method uses 3 paths of geoip, It starts with first path of `geoipURLs` if any error was produced it continues and tries out the next path, REturnes the default unknown location and the error in case it coulnd't receive correct response from all paths.
+    This method uses 3 paths of geoip, It starts with first path of `geoipURLs` if any error was produced it continues and tries out the next path, REturnes the default unknown location and the error in case it couldn't receive correct response from all paths.
 
 ## Tests
 
