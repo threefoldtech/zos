@@ -121,28 +121,6 @@ func action(cli *cli.Context) error {
 		return fmt.Errorf("failed to create ndmz resource: %w", err)
 	}
 
-	// create a test user network
-	// r, err := resource.Create("test", bridge, &net.IPNet{
-	// 	IP:   net.ParseIP("100.127.0.10"),
-	// 	Mask: net.CIDRMask(16, 32),
-	// }, netlight.NDMZGwIP, &net.IPNet{
-	// 	IP:   net.ParseIP("192.168.1.0"),
-	// 	Mask: net.CIDRMask(24, 32),
-	// }, zos.MustBytesFromHex("8ad7d29b81df3f3ef0a5ff95c25cc0824ef33137fbbcf22d2f23b0222ae3ac00"))
-
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create user resource: %w", err)
-	// }
-	// tap, err := r.AttachPrivate("123", &net.IPNet{
-	// 	IP:   net.ParseIP("192.168.1.15"),
-	// 	Mask: net.CIDRMask(24, 32),
-	// })
-
-	// if err != nil {
-	// 	return fmt.Errorf("failed to attach to private network: %w", err)
-	// }
-	// fmt.Println(tap)
-
 	mod, err := netlight.NewNetworker()
 	if err != nil {
 		return fmt.Errorf("failed to create Networker: %w", err)

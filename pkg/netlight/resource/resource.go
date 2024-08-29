@@ -91,9 +91,9 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 
 	// create public interface and attach it to ndmz bridge
 	if !ifaceutil.Exists(infPublic, netNS) {
-		pubLink, err := ifaceutil.MakeVethPair(infPublic, master.Name, 1500, nsName)
+		pubLink, err := ifaceutil.MakeVethPair(infPublic, master.Name, 1500, nsName[0:3])
 		if err != nil {
-			return nil, fmt.Errorf("failed to create public link in namespace %s: %w", nsName[0:3], err)
+			return nil, fmt.Errorf("failed to create public link in namespace %s: %w", nsName, err)
 		}
 		err = netlink.LinkSetNsFd(pubLink, int(netNS.Fd()))
 		if err != nil {
