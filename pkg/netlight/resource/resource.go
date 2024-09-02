@@ -313,12 +313,12 @@ func (r *Resource) AttachMycelium(id string, seed []byte) (device pkg.TapDevice,
 		return
 	}
 	name := filepath.Base(netNS.Path())
-	netSeed, err := os.ReadFile(filepath.Join(myceliumSeedDir, name))
+	netSeed, err := os.ReadFile(filepath.Join(MyceliumSeedDir, name))
 	if err != nil {
 		return
 	}
 
-	inspect, err := inspectMycelium(netSeed)
+	inspect, err := InspectMycelium(netSeed)
 	if err != nil {
 		return
 	}
@@ -362,12 +362,12 @@ func (r *Resource) AttachMyceliumZDB(id string, zdbNS ns.NetNS) (err error) {
 		return
 	}
 	name := filepath.Base(netNS.Path())
-	netSeed, err := os.ReadFile(filepath.Join(myceliumSeedDir, name))
+	netSeed, err := os.ReadFile(filepath.Join(MyceliumSeedDir, name))
 	if err != nil {
 		return
 	}
 
-	inspect, err := inspectMycelium(netSeed)
+	inspect, err := InspectMycelium(netSeed)
 	if err != nil {
 		return
 	}
@@ -437,6 +437,6 @@ func (r *Resource) Seed() (seed []byte, err error) {
 		return
 	}
 	name := filepath.Base(netNS.Path())
-	seed, err = os.ReadFile(filepath.Join(myceliumSeedDir, name))
+	seed, err = os.ReadFile(filepath.Join(MyceliumSeedDir, name))
 	return
 }

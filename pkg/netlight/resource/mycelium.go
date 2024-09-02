@@ -19,7 +19,7 @@ import (
 
 const (
 	myceliumBin     = "mycelium"
-	myceliumSeedDir = "/tmp/network/mycelium"
+	MyceliumSeedDir = "/tmp/network/mycelium"
 
 	myceliumSeedLen = 6
 )
@@ -40,7 +40,7 @@ type MyceliumInspection struct {
 	Address   net.IP `json:"address"`
 }
 
-func inspectMycelium(seed []byte) (inspection MyceliumInspection, err error) {
+func InspectMycelium(seed []byte) (inspection MyceliumInspection, err error) {
 	// we check if the file exists before we do inspect because mycelium will create a random seed
 	// file if file does not exist
 	tmp, err := os.CreateTemp("", "my-inspect")
@@ -146,11 +146,11 @@ func (m *MyceliumInspection) IPFor(seed []byte) (ip net.IPNet, gw net.IPNet, err
 }
 
 func setupMycelium(netNS ns.NetNS, mycelium string, seed []byte) error {
-	if err := os.MkdirAll(myceliumSeedDir, 0744); err != nil {
+	if err := os.MkdirAll(MyceliumSeedDir, 0744); err != nil {
 		return fmt.Errorf("failed to create seed temp location: %w", err)
 	}
 
-	inspect, err := inspectMycelium(seed)
+	inspect, err := InspectMycelium(seed)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func setupMycelium(netNS ns.NetNS, mycelium string, seed []byte) error {
 	}
 
 	name := filepath.Base(netNS.Path())
-	if err := os.WriteFile(filepath.Join(myceliumSeedDir, name), seed, 0444); err != nil {
+	if err := os.WriteFile(filepath.Join(MyceliumSeedDir, name), seed, 0444); err != nil {
 		return fmt.Errorf("failed to create seed file '%s': %w", name, err)
 	}
 
@@ -211,7 +211,7 @@ func ensureMyceliumService(z *zinit.Client, namespace string, peers []string) er
 		"ip", "netns", "exec", namespace,
 		bin,
 		"--silent",
-		"--key-file", filepath.Join(myceliumSeedDir, namespace),
+		"--key-file", filepath.Join(MyceliumSeedDir, namespace),
 		"--tun-name", "my0",
 		"--peers",
 	}
@@ -248,5 +248,5 @@ func destroyMycelium(netNS ns.NetNS, z *zinit.Client) error {
 		return fmt.Errorf("failed to forget service %q: %w", zinitService, err)
 	}
 
-	return os.Remove(filepath.Join(myceliumSeedDir, name))
+	return os.Remove(filepath.Join(MyceliumSeedDir, name))
 }

@@ -3,6 +3,7 @@ package netlight
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -10,18 +11,21 @@ import (
 	"slices"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/cenkalti/backoff"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/cache"
+	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos/pkg/netlight/bridge"
 	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/netlight/ipam"
 	"github.com/threefoldtech/zos/pkg/netlight/namespace"
 	"github.com/threefoldtech/zos/pkg/netlight/options"
 	"github.com/threefoldtech/zos/pkg/netlight/resource"
+	"github.com/threefoldtech/zos/pkg/versioned"
 	"github.com/vishvananda/netlink"
 )
 
@@ -31,6 +35,7 @@ const (
 	mib           = 1024 * 1024
 	ipamLeaseDir  = "ndmz-lease"
 	DefaultBridge = "zos"
+	networkDir    = "networks"
 )
 
 var (
@@ -40,8 +45,11 @@ var (
 	}
 )
 
+var NetworkSchemaLatestVersion = semver.MustParse("0.1.0")
+
 type networker struct {
-	ipamLease string
+	ipamLease  string
+	networkDir string
 }
 
 var _ pkg.NetworkerLight = (*networker)(nil)
@@ -53,7 +61,12 @@ func NewNetworker() (pkg.NetworkerLight, error) {
 	}
 
 	ipamLease := filepath.Join(vd, ipamLeaseDir)
-	return &networker{ipamLease: ipamLease}, nil
+	runtimeDir := filepath.Join(vd, networkDir)
+
+	return &networker{
+		ipamLease:  ipamLease,
+		networkDir: runtimeDir,
+	}, nil
 }
 
 func (n *networker) Create(name string, privateNet net.IPNet, seed []byte) error {
@@ -131,6 +144,55 @@ func (n *networker) AttachZDB(id string) (string, error) {
 	}
 
 	return nsName, r.AttachMyceliumZDB(id, ns)
+}
+
+// GetSubnet of a local network resource identified by the network ID, ipv4 and ipv6
+// subnet respectively
+func (n *networker) GetSubnet(networkID pkg.NetID) (net.IPNet, error) {
+	localNR, err := n.networkOf(networkID)
+	if err != nil {
+		return net.IPNet{}, errors.Wrapf(err, "couldn't load network with id (%s)", networkID)
+	}
+
+	return localNR.Subnet.IPNet, nil
+}
+
+func (n *networker) networkOf(id zos.NetID) (nr pkg.Network, err error) {
+	path := filepath.Join(n.networkDir, string(id))
+	file, err := os.OpenFile(path, os.O_RDWR, 0660)
+	if err != nil {
+		return nr, err
+	}
+	defer file.Close()
+
+	reader, err := versioned.NewReader(file)
+	if versioned.IsNotVersioned(err) {
+		// old data that doesn't have any version information
+		if _, err := file.Seek(0, 0); err != nil {
+			return nr, err
+		}
+
+		reader = versioned.NewVersionedReader(NetworkSchemaLatestVersion, file)
+	} else if err != nil {
+		return nr, err
+	}
+
+	var net pkg.Network
+	dec := json.NewDecoder(reader)
+
+	version := reader.Version()
+	// validV1 := versioned.MustParseRange(fmt.Sprintf("=%s", pkg.NetworkSchemaV1))
+	validLatest := versioned.MustParseRange(fmt.Sprintf("<=%s", NetworkSchemaLatestVersion.String()))
+
+	if validLatest(version) {
+		if err := dec.Decode(&net); err != nil {
+			return nr, err
+		}
+	} else {
+		return nr, fmt.Errorf("unknown network object version (%s)", version)
+	}
+
+	return net, nil
 }
 
 func (n *networker) ZDBIPs(zdbNamespace string) ([]net.IP, error) {

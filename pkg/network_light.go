@@ -28,6 +28,7 @@ type NetworkerLight interface {
 	Namespace(id string) string
 	Ready() error
 	ZOSAddresses(ctx context.Context) <-chan NetlinkAddresses
+	GetSubnet(networkID NetID) (net.IPNet, error)
 }
 
 type TapDevice struct {
