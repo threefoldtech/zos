@@ -47,7 +47,10 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	privateNetBr := fmt.Sprintf("r%s", name)
 	myBr := fmt.Sprintf("m%s", name)
 	nsName := fmt.Sprintf("n%s", name)
-
+	peerPrefix := name
+	if len(name) > 4 {
+		peerPrefix = name[0:4]
+	}
 	bridges := []string{myBr}
 	if privateNet != nil {
 		bridges = append(bridges, privateNetBr)
@@ -77,7 +80,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 		}
 
 		if !ifaceutil.Exists(infPrivate, netNS) {
-			privateLink, err := ifaceutil.MakeVethPair(infPrivate, privateNetBr, 1500, nsName[0:3])
+			privateLink, err := ifaceutil.MakeVethPair(infPrivate, privateNetBr, 1500, peerPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create private link: %w", err)
 			}
@@ -91,7 +94,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 
 	// create public interface and attach it to ndmz bridge
 	if !ifaceutil.Exists(infPublic, netNS) {
-		pubLink, err := ifaceutil.MakeVethPair(infPublic, master.Name, 1500, nsName[0:3])
+		pubLink, err := ifaceutil.MakeVethPair(infPublic, master.Name, 1500, peerPrefix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create public link in namespace %s: %w", nsName, err)
 		}
@@ -103,7 +106,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	}
 
 	if !ifaceutil.Exists(infMycelium, netNS) {
-		myceliumLink, err := ifaceutil.MakeVethPair(infMycelium, myBr, 1500, nsName[0:3])
+		myceliumLink, err := ifaceutil.MakeVethPair(infMycelium, myBr, 1500, peerPrefix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create mycelium link: %w", err)
 		}
@@ -383,9 +386,13 @@ func (r *Resource) AttachMyceliumZDB(id string, zdbNS ns.NetNS) (err error) {
 	deviceName := ifaceutil.DeviceNameFromInputBytes([]byte(id))
 	linkName := fmt.Sprintf("m-%s", deviceName)
 
-	//
+	peerPrefix := r.name
+	if len(r.name) > 4 {
+		peerPrefix = name[0:4]
+	}
+
 	if !ifaceutil.Exists(linkName, zdbNS) {
-		zdbLink, err := ifaceutil.MakeVethPair(linkName, "mdmz", 1500, nsName[0:3])
+		zdbLink, err := ifaceutil.MakeVethPair(linkName, "mdmz", 1500, peerPrefix)
 		if err != nil {
 			return fmt.Errorf("failed to create zdb link %s : %w", linkName, err)
 		}
