@@ -27,7 +27,6 @@ const (
 
 // startCloudConsole Starts the cloud console for the vm on it's private network ip
 func (m *Machine) startCloudConsole(ctx context.Context, namespace string, machineIP net.IPNet, ptyPath string, logs string) (string, error) {
-	// TODO: get myc add for my0
 	netSeed, err := os.ReadFile(filepath.Join(resource.MyceliumSeedDir, namespace))
 	if err != nil {
 		return "", err

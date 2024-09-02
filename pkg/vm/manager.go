@@ -254,19 +254,23 @@ func (m *Module) getConsoleConfig(ctx context.Context, ifc pkg.VMIface) (*Consol
 	stub := stubs.NewNetworkerLightStub(m.client)
 	namespace := stub.Namespace(ctx, ifc.NetID.String())
 
-	networkAddr, err := stub.GetSubnet(ctx, ifc.NetID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get network '%s'", ifc.NetID)
+	// networkAddr, err := stub.GetSubnet(ctx, ifc.NetID)
+	// if err != nil {
+	// 	return nil, errors.Wrapf(err, "failed to get network '%s'", ifc.NetID)
+	// }
+
+	// networkAddr.IP = networkAddr.IP.To4()
+
+	// if len(networkAddr.IP) != net.IPv4len {
+	// 	return nil, fmt.Errorf("invalid network address: %s", networkAddr.IP.String())
+	// }
+
+	// // always listen on ip .1
+	// networkAddr.IP[3] = 1
+
+	networkAddr := net.IPNet{
+		IP: ifc.IP4DefaultGateway.To4(),
 	}
-
-	networkAddr.IP = networkAddr.IP.To4()
-
-	if len(networkAddr.IP) != net.IPv4len {
-		return nil, fmt.Errorf("invalid network address: %s", networkAddr.IP.String())
-	}
-
-	// always listen on ip .1
-	networkAddr.IP[3] = 1
 
 	return &Console{
 		Namespace:     namespace,

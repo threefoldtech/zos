@@ -230,7 +230,7 @@ func (n *networker) Ready() error {
 }
 
 func (n *networker) Namespace(id string) string {
-	return fmt.Sprintf("n-%s", id)
+	return fmt.Sprintf("n%s", id)
 }
 
 func (n *networker) ZOSAddresses(ctx context.Context) <-chan pkg.NetlinkAddresses {
