@@ -134,13 +134,20 @@ func RandomName(prefix string) (string, error) {
 }
 
 // MakeVethPair creates a veth pair
-func MakeVethPair(name, master string, mtu int) (netlink.Link, error) {
+func MakeVethPair(name, master string, mtu int, peerPrefix string) (netlink.Link, error) {
 	masterLink, err := netlink.LinkByName(master)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("master link: %s not found: %v", master, err)
 	}
-
-	peer := fmt.Sprintf("%s-p", name)
+	peer := ""
+	if peerPrefix == "" {
+		peer = fmt.Sprintf("p-%s", name)
+	} else {
+		peer = fmt.Sprintf("%s-%s", peerPrefix, name)
+	}
+	if len(peer) > 15 {
+		peer = peer[0:15]
+	}
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:  name,

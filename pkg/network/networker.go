@@ -26,6 +26,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/iperf"
 	"github.com/threefoldtech/zos/pkg/network/mycelium"
 	"github.com/threefoldtech/zos/pkg/network/ndmz"
+	"github.com/threefoldtech/zos/pkg/network/options"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/tuntap"
 	"github.com/threefoldtech/zos/pkg/network/wireguard"
@@ -156,28 +157,54 @@ func (n *networker) attachYgg(id string, netNs ns.NetNS) (net.IPNet, error) {
 		return net.IPNet{}, fmt.Errorf("failed to generate ygg subnet IP: %w", err)
 	}
 
-	ips := []*net.IPNet{
-		&ip,
-	}
-
 	gw, err := n.ygg.Gateway()
 	if err != nil {
 		return net.IPNet{}, fmt.Errorf("failed to get ygg gateway IP: %w", err)
 	}
 
-	routes := []*netlink.Route{
-		{
-			Dst: &net.IPNet{
-				IP:   net.ParseIP("200::"),
-				Mask: net.CIDRMask(7, 128),
-			},
-			Gw: gw.IP,
-			// LinkIndex:... this is set by macvlan.Install
+	route := netlink.Route{
+		Dst: &net.IPNet{
+			IP:   net.ParseIP("200::"),
+			Mask: net.CIDRMask(7, 128),
 		},
+		Gw: gw.IP,
 	}
 
-	if err := n.createMacVlan(ZDBYggIface, types.YggBridge, hw, ips, routes, netNs); err != nil {
-		return net.IPNet{}, errors.Wrap(err, "failed to setup zdb ygg interface")
+	name := filepath.Base(netNs.Path())
+	peerPrefix := name
+	if len(name) > 4 {
+		peerPrefix = name[0:4]
+	}
+
+	if !ifaceutil.Exists(ZDBYggIface, netNs) {
+		yggLink, err := ifaceutil.MakeVethPair(ZDBYggIface, types.YggBridge, 1500, peerPrefix)
+		if err != nil {
+			return net.IPNet{}, fmt.Errorf("failed to create ygg link: %w", err)
+		}
+
+		err = netlink.LinkSetNsFd(yggLink, int(netNs.Fd()))
+		if err != nil {
+			return net.IPNet{}, fmt.Errorf("failed to move ygg link: %s to namespace:%s : %w", ZDBYggIface, netNs.Path(), err)
+		}
+
+		if err := netNs.Do(func(_ ns.NetNS) error {
+			err = setLinkAddr(ZDBYggIface, &ip)
+			if err != nil {
+				return err
+			}
+
+			if err := ifaceutil.SetLoUp(); err != nil {
+				return fmt.Errorf("failed to set lo up for namespace '%s': %w", name, err)
+			}
+
+			if err := options.SetIPv6Forwarding(true); err != nil {
+				return fmt.Errorf("failed to enable ipv6 forwarding in namespace %q: %w", name, err)
+			}
+
+			return netlink.RouteAdd(&route)
+		}); err != nil {
+			return net.IPNet{}, fmt.Errorf("failed to setup link addresses %s: %w", ZDBYggIface, err)
+		}
 	}
 
 	return ip, nil
@@ -199,7 +226,6 @@ func (n *networker) detachYgg(id string, netNs ns.NetNS) error {
 func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error) {
 	// new hardware address for mycelium interface
 	hw := ifaceutil.HardwareAddrFromInputBytes([]byte("my:" + id))
-
 	myc, err := n.mycelium.InspectMycelium()
 	if err != nil {
 		return net.IPNet{}, err
@@ -210,32 +236,76 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 	if err != nil {
 		return net.IPNet{}, fmt.Errorf("failed to generate mycelium IP: %w", err)
 	}
-
-	ips := []*net.IPNet{
-		&ip,
-	}
-
 	gw, err := myc.Gateway()
 	if err != nil {
 		return net.IPNet{}, fmt.Errorf("failed to get mycelium gateway IP: %w", err)
 	}
 
-	routes := []*netlink.Route{
-		{
-			Dst: &net.IPNet{
-				IP:   net.ParseIP("400::"),
-				Mask: net.CIDRMask(7, 128),
-			},
-			Gw: gw.IP,
-			// LinkIndex:... this is set by macvlan.Install
+	route := netlink.Route{
+		Dst: &net.IPNet{
+			IP:   net.ParseIP("400::"),
+			Mask: net.CIDRMask(7, 128),
 		},
+		Gw: gw.IP,
 	}
 
-	if err := n.createMacVlan(ZDBMyceliumIface, types.MyceliumBridge, hw, ips, routes, netNs); err != nil {
-		return net.IPNet{}, errors.Wrap(err, "failed to setup zdb mycelium interface")
+	name := filepath.Base(netNs.Path())
+	peerPrefix := name
+	if len(name) > 4 {
+		peerPrefix = name[0:4]
+	}
+	if !ifaceutil.Exists(ZDBMyceliumIface, netNs) {
+		myceliumLink, err := ifaceutil.MakeVethPair(ZDBMyceliumIface, types.MyceliumBridge, 1500, peerPrefix)
+		if err != nil {
+			return net.IPNet{}, fmt.Errorf("failed to create mycelium link: %w", err)
+		}
+		err = netlink.LinkSetNsFd(myceliumLink, int(netNs.Fd()))
+		if err != nil {
+			return net.IPNet{}, fmt.Errorf("failed to move mycelium link: %s to namespace:%s : %w", ZDBMyceliumIface, netNs.Path(), err)
+		}
+
+		if err := netNs.Do(func(_ ns.NetNS) error {
+			err = setLinkAddr(ZDBMyceliumIface, &ip)
+			if err != nil {
+				return err
+			}
+
+			if err := ifaceutil.SetLoUp(); err != nil {
+				return fmt.Errorf("failed to set lo up for namespace '%s': %w", name, err)
+			}
+
+			if err := options.SetIPv6Forwarding(true); err != nil {
+				return fmt.Errorf("failed to enable ipv6 forwarding in namespace %q: %w", name, err)
+			}
+
+			return netlink.RouteAdd(&route)
+		}); err != nil {
+			return net.IPNet{}, fmt.Errorf("failed to setup link addresses %s: %w", ZDBMyceliumIface, err)
+		}
 	}
 
 	return ip, nil
+}
+
+func setLinkAddr(name string, ip *net.IPNet) error {
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		return fmt.Errorf("failed to set link address: %w", err)
+	}
+
+	// if err := options.Set(name, options.IPv6Disable(false)); err != nil {
+	// 	return fmt.Errorf("failed to enable ip6 on interface %s: %w", name, err)
+	// }
+
+	addr := netlink.Addr{
+		IPNet: ip,
+	}
+	err = netlink.AddrAdd(link, &addr)
+	if err != nil && !os.IsExist(err) {
+		return fmt.Errorf("failed to add ip address to link: %w", err)
+	}
+
+	return netlink.LinkSetUp(link)
 }
 
 // ensurePrepare ensurets that a unique namespace is created (based on id) with "prefix"
