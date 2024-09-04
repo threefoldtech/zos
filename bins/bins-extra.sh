@@ -264,6 +264,8 @@ exclude_libs() {
     rm -rf ${ROOTDIR}/usr/lib/ld-linux*
     rm -rf ${ROOTDIR}/usr/lib/libc.*
     rm -rf ${ROOTDIR}/usr/lib/libdl.*
+    rm -rf ${ROOTDIR}/usr/lib/librt.*
+    rm -rf ${ROOTDIR}/usr/lib/libresolv.*
     rm -rf ${ROOTDIR}/usr/lib/libpthread.*
 }
 
