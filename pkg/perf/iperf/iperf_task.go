@@ -76,10 +76,20 @@ func (t *IperfTest) Jitter() uint32 {
 // Run runs the tcp test and returns the result
 func (t *IperfTest) Run(ctx context.Context) (interface{}, error) {
 	env := environment.MustGet()
-	g := graphql.NewGraphQl(env.GraphQL)
+	var (
+		g             graphql.GraphQl
+		err           error
+		freeFarmNodes []graphql.Node
+	)
 
 	// get public up nodes
-	freeFarmNodes, err := g.GetUpNodes(ctx, 0, 1, 0, true, true)
+	for _, url := range env.GraphQL {
+		g = graphql.NewGraphQl(url)
+		freeFarmNodes, err = g.GetUpNodes(ctx, 0, 1, 0, true, true)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list freefarm nodes from graphql")
 	}

@@ -34,11 +34,15 @@ const (
 	FetchRealIPFailed   = "failed to get real public IP to the node"
 )
 
-var errPublicIPLookup = errors.New("failed to reach public ip service")
-var errSkippedValidating = errors.New("skipped, there is a node with less ID available")
+var (
+	errPublicIPLookup    = errors.New("failed to reach public ip service")
+	errSkippedValidating = errors.New("skipped, there is a node with less ID available")
+)
 
-const testMacvlan = "pub"
-const testNamespace = "pubtestns"
+const (
+	testMacvlan   = "pub"
+	testNamespace = "pubtestns"
+)
 
 type publicIPValidationTask struct{}
 
@@ -96,7 +100,6 @@ func (p *publicIPValidationTask) Run(ctx context.Context) (interface{}, error) {
 		report, err = p.validateIPs(farm.PublicIPs)
 		return err
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to run public IP validation: %w", err)
 	}
@@ -179,12 +182,23 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) (ma
 
 func isLeastValidNode(ctx context.Context, farmID uint32, substrateGateway *stubs.SubstrateGatewayStub) (bool, error) {
 	env := environment.MustGet()
-	gql := graphql.NewGraphQl(env.GraphQL)
+	var (
+		nodes []graphql.Node
+		err   error
+	)
 
-	nodes, err := gql.GetUpNodes(ctx, 0, farmID, 0, false, false)
+	for _, url := range env.GraphQL {
+		gql := graphql.NewGraphQl(url)
+
+		nodes, err = gql.GetUpNodes(ctx, 0, farmID, 0, false, false)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return false, fmt.Errorf("failed to get farm %d nodes: %w", farmID, err)
 	}
+
 	cl := perf.GetZbusClient(ctx)
 	registrar := stubs.NewRegistrarStub(cl)
 	var nodeID uint32
@@ -196,7 +210,6 @@ func isLeastValidNode(ctx context.Context, farmID uint32, substrateGateway *stub
 		}
 		return nil
 	}, backoff.NewConstantBackOff(10*time.Second))
-
 	if err != nil {
 		return false, fmt.Errorf("failed to get node id: %w", err)
 	}
