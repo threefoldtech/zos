@@ -263,6 +263,7 @@ exclude_libs() {
     echo "[+] excluding host critical libs"
     rm -rf ${ROOTDIR}/usr/lib/ld-linux*
     rm -rf ${ROOTDIR}/usr/lib/libc.*
+    rm -rf ${ROOTDIR}/usr/lib/libm.*
     rm -rf ${ROOTDIR}/usr/lib/libdl.*
     rm -rf ${ROOTDIR}/usr/lib/librt.*
     rm -rf ${ROOTDIR}/usr/lib/libresolv.*
