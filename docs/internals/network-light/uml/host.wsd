@@ -1,0 +1,23 @@
+@startuml
+
+
+component "Host" {
+    component NIC as nic
+    () ZOS as zos
+    note left of zos
+    ZOS bridge, get the Ip address
+    assigned by physical network (dhcp)
+    end note
+
+    nic --> zos: attached
+
+    () "br-ndmz" as brndmz
+    note right of brndmz
+    ndmz bridge will always have <b>100.127.0.1</b>
+    end note
+    zos .right. brndmz: Natted
+
+    () "br-my" as brmy
+}
+
+@enduml

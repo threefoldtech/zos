@@ -103,7 +103,7 @@ func (p *Manager) zMountUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 			continue
 		}
 
-		var data zos.ZMachine
+		var data zos.ZMachineLight
 		if err := json.Unmarshal(vm.Data, &data); err != nil {
 			return vol, provision.UnChanged(errors.Wrap(err, "failed to load vm information"))
 		}

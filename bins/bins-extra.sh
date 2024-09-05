@@ -263,13 +263,16 @@ exclude_libs() {
     echo "[+] excluding host critical libs"
     rm -rf ${ROOTDIR}/usr/lib/ld-linux*
     rm -rf ${ROOTDIR}/usr/lib/libc.*
+    rm -rf ${ROOTDIR}/usr/lib/libm.*
     rm -rf ${ROOTDIR}/usr/lib/libdl.*
+    rm -rf ${ROOTDIR}/usr/lib/librt.*
+    rm -rf ${ROOTDIR}/usr/lib/libresolv.*
     rm -rf ${ROOTDIR}/usr/lib/libpthread.*
 }
 
 github_name() {
     # force github print
-    echo "name=${1}" >> $GITHUB_OUTPUT
+    echo "name=${1}-amd64-z4" >> $GITHUB_OUTPUT
     echo "[+] github exported name: ${1}"
 }
 

@@ -10,12 +10,10 @@ import (
 	apigateway "github.com/threefoldtech/zos/cmds/modules/api_gateway"
 	"github.com/threefoldtech/zos/cmds/modules/contd"
 	"github.com/threefoldtech/zos/cmds/modules/flistd"
-	"github.com/threefoldtech/zos/cmds/modules/gateway"
-	"github.com/threefoldtech/zos/cmds/modules/networkd"
+	"github.com/threefoldtech/zos/cmds/modules/netlightd"
 	"github.com/threefoldtech/zos/cmds/modules/noded"
 	"github.com/threefoldtech/zos/cmds/modules/powerd"
 	"github.com/threefoldtech/zos/cmds/modules/provisiond"
-	"github.com/threefoldtech/zos/cmds/modules/qsfsd"
 	"github.com/threefoldtech/zos/cmds/modules/storaged"
 	"github.com/threefoldtech/zos/cmds/modules/vmd"
 	"github.com/threefoldtech/zos/cmds/modules/zbusdebug"
@@ -51,11 +49,9 @@ func main() {
 			&contd.Module,
 			&vmd.Module,
 			&noded.Module,
-			&networkd.Module,
+			&netlightd.Module,
 			&provisiond.Module,
 			&zbusdebug.Module,
-			&gateway.Module,
-			&qsfsd.Module,
 			&powerd.Module,
 			&apigateway.Module,
 		},

@@ -24,7 +24,7 @@ var (
 		"identityd": {},
 		"vmd":       {},
 		"flist":     {},
-		"network":   {},
+		"netlight":  {},
 		"container": {},
 		"provision": {},
 		"gateway":   {},
