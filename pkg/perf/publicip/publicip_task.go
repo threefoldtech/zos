@@ -186,11 +186,11 @@ func isLeastValidNode(ctx context.Context, farmID uint32, substrateGateway *stub
 	if err != nil {
 		return false, err
 	}
+
 	nodes, err := gql.GetUpNodes(ctx, 0, farmID, 0, false, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to get farm %d nodes: %w", farmID, err)
 	}
-
 	cl := perf.GetZbusClient(ctx)
 	registrar := stubs.NewRegistrarStub(cl)
 	var nodeID uint32

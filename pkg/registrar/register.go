@@ -149,12 +149,7 @@ func registerNode(
 
 	sk := ed25519.PrivateKey(mgr.PrivateKey(ctx))
 
-	for _, url := range env.ActivationURL {
-		if _, err = substrateGateway.EnsureAccount(ctx, url, tcUrl, tcHash); err == nil {
-			break
-		}
-	}
-	if err != nil {
+	if _, err := substrateGateway.EnsureAccount(ctx, env.ActivationURL, tcUrl, tcHash); err != nil {
 		return 0, 0, errors.Wrap(err, "failed to ensure account")
 	}
 

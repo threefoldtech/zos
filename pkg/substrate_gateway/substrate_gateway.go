@@ -48,16 +48,21 @@ func (g *substrateGateway) CreateTwin(relay string, pk []byte) (uint32, error) {
 	return g.sub.CreateTwin(g.identity, relay, pk)
 }
 
-func (g *substrateGateway) EnsureAccount(activationURL string, termsAndConditionsLink string, termsAndConditionsHash string) (info substrate.AccountInfo, err error) {
+func (g *substrateGateway) EnsureAccount(activationURL []string, termsAndConditionsLink string, termsAndConditionsHash string) (info substrate.AccountInfo, err error) {
 	log.Debug().
 		Str("method", "EnsureAccount").
-		Str("activation url", activationURL).
+		Strs("activation url", activationURL).
 		Str("terms and conditions link", termsAndConditionsLink).
 		Str("terms and conditions hash", termsAndConditionsHash).
 		Msg("method called")
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.sub.EnsureAccount(g.identity, activationURL, termsAndConditionsLink, termsAndConditionsHash)
+	for _, url := range activationURL {
+		if info, err = g.sub.EnsureAccount(g.identity, url, termsAndConditionsLink, termsAndConditionsHash); err == nil {
+			return
+		}
+	}
+	return
 }
 
 func (g *substrateGateway) GetContract(id uint64) (result substrate.Contract, serr pkg.SubstrateError) {

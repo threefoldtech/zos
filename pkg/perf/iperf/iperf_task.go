@@ -81,6 +81,7 @@ func (t *IperfTest) Run(ctx context.Context) (interface{}, error) {
 		return nil, err
 	}
 
+	// get public up nodes
 	freeFarmNodes, err := g.GetUpNodes(ctx, 0, 1, 0, true, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list freefarm nodes from graphql")
