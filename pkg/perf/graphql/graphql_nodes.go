@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -20,11 +21,11 @@ type GraphQl struct {
 }
 
 // NewGraphQl creates a new tf graphql client
-func NewGraphQl(urls ...string) GraphQl {
+func NewGraphQl(urls ...string) (GraphQl, error) {
 	if len(urls) == 0 {
-		panic("urls can't be empty")
+		return GraphQl{}, errors.New("urls can't be empty")
 	}
-	return GraphQl{urls: urls}
+	return GraphQl{urls: urls}, nil
 }
 
 // Node from graphql
@@ -114,8 +115,7 @@ func (g *GraphQl) getItemTotalCount(ctx context.Context, itemName string, option
 func (g *GraphQl) exec(ctx context.Context, query string, result interface{}, variables map[string]interface{}, options ...graphql.Option) (err error) {
 	for _, url := range g.urls {
 		client := graphql.NewClient(url, nil)
-		err = client.Exec(ctx, query, result, variables, options...)
-		if err == nil {
+		if err = client.Exec(ctx, query, result, variables, options...); err == nil {
 			return
 		}
 	}
