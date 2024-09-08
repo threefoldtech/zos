@@ -58,9 +58,13 @@ func (g *substrateGateway) EnsureAccount(activationURL []string, termsAndConditi
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	for _, url := range activationURL {
-		if info, err = g.sub.EnsureAccount(g.identity, url, termsAndConditionsLink, termsAndConditionsHash); err == nil {
-			return
+		info, err = g.sub.EnsureAccount(g.identity, url, termsAndConditionsLink, termsAndConditionsHash)
+		// check other activationURL only if EnsureAccount failed with ActivationServiceError
+		if errors.Is(err, substrate.ActivationServiceError{}) {
+			log.Debug().Str("activation url", url).Err(err).Msg("failed to EnsureAccount with ActivationServiceError")
+			continue
 		}
+		return
 	}
 	return
 }
