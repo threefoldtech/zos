@@ -8,7 +8,8 @@ table inet filter {
 	}
 
 	chain output {
-		type filter hook output priority filter; policy accept;
+		type filter hook output priority filter; policy drop;
+		ip daddr 192.168.1.1 accept # the router ip
 	}
 
 	chain prerouting {
