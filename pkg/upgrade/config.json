@@ -1,0 +1,18 @@
+{
+	"development": {
+		"test_farms": [73],
+		"safe_to_upgrade": false
+	}, 
+	"qa": {
+		"test_farms": [73],
+		"safe_to_upgrade": false
+	}, 
+	"testing": {
+		"test_farms": [73],
+		"safe_to_upgrade": false
+	}, 
+	"production": {
+		"test_farms": [73],
+		"safe_to_upgrade": false
+	}
+}

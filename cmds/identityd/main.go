@@ -68,8 +68,9 @@ func main() {
 		version.ShowAndExit(false)
 	}
 
+	env := environment.MustGet()
+
 	if farm {
-		env := environment.MustGet()
 		fmt.Println(env.FarmID)
 		os.Exit(0)
 	} else if net {
@@ -107,7 +108,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create identity manager")
 	}
 
-	upgrader, err := upgrade.NewUpgrader(root, upgrade.NoZosUpgrade(debug))
+	upgrader, err := upgrade.NewUpgrader(root, uint32(env.FarmID), upgrade.NoZosUpgrade(debug))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize upgrader")
 	}

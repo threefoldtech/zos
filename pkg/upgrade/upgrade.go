@@ -57,6 +57,7 @@ type Upgrader struct {
 	noZosUpgrade bool
 	hub          *hub.HubClient
 	storage      storage.Storage
+	farmID       uint32
 }
 
 // UpgraderOption interface
@@ -96,11 +97,12 @@ func Zinit(socket string) UpgraderOption {
 }
 
 // NewUpgrader creates a new upgrader instance
-func NewUpgrader(root string, opts ...UpgraderOption) (*Upgrader, error) {
+func NewUpgrader(root string, farmID uint32, opts ...UpgraderOption) (*Upgrader, error) {
 	hubClient := hub.NewHubClient(defaultHubTimeout)
 	u := &Upgrader{
-		root: root,
-		hub:  hubClient,
+		root:   root,
+		farmID: farmID,
+		hub:    hubClient,
 	}
 
 	for _, dir := range []string{u.fileCache(), u.flistCache()} {
@@ -131,7 +133,7 @@ func NewUpgrader(root string, opts ...UpgraderOption) (*Upgrader, error) {
 	return u, nil
 }
 
-// Run strats the upgrader module and run the update according to the detected boot method
+// Run starts the upgrader module and run the update according to the detected boot method
 func (u *Upgrader) Run(ctx context.Context) error {
 	method := u.boot.DetectBootMethod()
 	if method == BootMethodOther {
@@ -233,6 +235,19 @@ func (u *Upgrader) update() error {
 	if remote.Target == current.Target {
 		// nothing to do!
 		return nil
+	}
+
+	rolloutConfigs, err := readRolloutConfig(u.boot.RunMode().String())
+	if err != nil {
+		return errors.Wrap(err, "failed to read rollout configs")
+	}
+
+	if !rolloutConfigs.SafeToUpgrade {
+		if !slices.Contains(rolloutConfigs.TestFarms, u.farmID) {
+			// nothing to do! waiting for the flag `safe to upgrade to be enabled after A/B testing`
+			// node is not a part of A/B testing
+			return nil
+		}
 	}
 
 	log.Info().Str("version", filepath.Base(remote.Target)).Msg("updating system...")
