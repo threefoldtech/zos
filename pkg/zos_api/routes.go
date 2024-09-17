@@ -5,7 +5,6 @@ import (
 )
 
 func (g *ZosAPI) SetupRoutes(router *peer.Router) {
-
 	root := router.SubRoute("zos")
 	root.Use(g.log)
 	system := root.SubRoute("system")
@@ -27,6 +26,7 @@ func (g *ZosAPI) SetupRoutes(router *peer.Router) {
 	network := root.SubRoute("network")
 	network.WithHandler("list_wg_ports", g.networkListWGPortsHandler)
 	network.WithHandler("public_config_get", g.networkPublicConfigGetHandler)
+	network.WithHandler("node_features_get", g.networkNodeFeaturesGetHandler)
 	network.WithHandler("interfaces", g.networkInterfacesHandler)
 	network.WithHandler("has_ipv6", g.networkHasIPv6Handler)
 	network.WithHandler("list_public_ips", g.networkListPublicIPsHandler)

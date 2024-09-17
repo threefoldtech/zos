@@ -149,6 +149,32 @@ PublicConfig {
 returns the node public config or error if not set. If a node has public config
 it means it can act like an access node to user private networks
 
+### Get node features
+
+| command |body| return|
+|---|---|---|
+| `zos.network.node_features_get` | - |`NodeFeatures` |
+
+Where
+
+```json
+NodeFeatures {
+	"zmount_type": "string",
+	"network_type": "string",
+	"zdb_type": "string",
+	"zmachine_type": "string",
+	"volume_type": "string",
+	"public_ipv4_type": "string",
+	"public_ip_type": "string",
+	"gateway_name_proxy_type": "string",
+	"gateway_fqdn_proxy_type": "string",
+	"qantum_safe_fs_type": "string",
+	"zlog_type": "string",
+}
+```
+
+returns the features of the network manager running on the node
+
 ## Admin
 
 The next set of commands are ONLY possible to be called by the `farmer` only.

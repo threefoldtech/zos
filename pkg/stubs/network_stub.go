@@ -188,6 +188,23 @@ func (s *NetworkerStub) GetNet(ctx context.Context, arg0 zos.NetID) (ret0 net.IP
 	return
 }
 
+func (s *NetworkerStub) GetNodeFeatures(ctx context.Context) (ret0 pkg.NodeFeatures, ret1 error) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetNodeFeatures", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret1 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *NetworkerStub) GetPublicConfig(ctx context.Context) (ret0 pkg.PublicConfig, ret1 error) {
 	args := []interface{}{}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetPublicConfig", args...)

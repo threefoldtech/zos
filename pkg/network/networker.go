@@ -1139,6 +1139,24 @@ func (n *networker) GetPublicConfig() (pkg.PublicConfig, error) {
 	return cfg, nil
 }
 
+// Get the features of the network manager running on the node
+func (n *networker) GetNodeFeatures() (pkg.NodeFeatures, error) {
+	feat := pkg.NodeFeatures{
+		ZMountType:           zos.ZMountType,
+		NetworkType:          zos.NetworkType,
+		ZDBType:              zos.ZDBType,
+		ZMachineType:         zos.ZMachineType,
+		VolumeType:           zos.VolumeType,
+		PublicIPv4Type:       zos.PublicIPv4Type,
+		PublicIPType:         zos.PublicIPType,
+		GatewayNameProxyType: zos.GatewayNameProxyType,
+		GatewayFQDNProxyType: zos.GatewayFQDNProxyType,
+		QuantumSafeFSType:    zos.QuantumSafeFSType,
+		ZLogsType:            zos.ZLogsType,
+	}
+	return feat, nil
+}
+
 func (n *networker) networkOf(id zos.NetID) (nr pkg.Network, err error) {
 	path := filepath.Join(n.networkDir, string(id))
 	file, err := os.OpenFile(path, os.O_RDWR, 0660)
