@@ -75,14 +75,13 @@ func (s *SystemMonitorStub) Disks(ctx context.Context) (<-chan pkg.DisksIOCounte
 	return ch, nil
 }
 
-func (s *SystemMonitorStub) GetNodeFeatures(ctx context.Context) (ret0 []pkg.NodeFeature, ret1 error) {
+func (s *SystemMonitorStub) GetNodeFeatures(ctx context.Context) (ret0 []pkg.NodeFeature) {
 	args := []interface{}{}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetNodeFeatures", args...)
 	if err != nil {
 		panic(err)
 	}
 	result.PanicOnError()
-	ret1 = result.CallError()
 	loader := zbus.Loader{
 		&ret0,
 	}

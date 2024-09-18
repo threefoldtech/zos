@@ -39,5 +39,5 @@ func (g *ZosAPI) systemDiagnosticsHandler(ctx context.Context, payload []byte) (
 }
 
 func (g *ZosAPI) systemNodeFeaturesHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	return g.systemMonitorStub.GetNodeFeatures(ctx)
+	return g.systemMonitorStub.GetNodeFeatures(ctx), nil
 }

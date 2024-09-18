@@ -200,7 +200,7 @@ func (m *systemMonitor) Nics(ctx context.Context) <-chan pkg.NicsIOCounterStat {
 }
 
 // Get the types of workloads can be deployed depending on the network manager running on the node
-func (n *systemMonitor) GetNodeFeatures() ([]pkg.NodeFeature, error) {
+func (n *systemMonitor) GetNodeFeatures() []pkg.NodeFeature {
 	feat := []pkg.NodeFeature{
 		pkg.NodeFeature(zos.ZMountType),
 		pkg.NodeFeature(zos.NetworkType),
@@ -214,5 +214,5 @@ func (n *systemMonitor) GetNodeFeatures() ([]pkg.NodeFeature, error) {
 		pkg.NodeFeature(zos.QuantumSafeFSType),
 		pkg.NodeFeature(zos.ZLogsType),
 	}
-	return feat, nil
+	return feat
 }

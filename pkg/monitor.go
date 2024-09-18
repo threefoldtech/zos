@@ -88,7 +88,7 @@ type SystemMonitor interface {
 	CPU(ctx context.Context) <-chan TimesStat
 	Disks(ctx context.Context) <-chan DisksIOCountersStat
 	Nics(ctx context.Context) <-chan NicsIOCounterStat
-	GetNodeFeatures() ([]NodeFeature, error)
+	GetNodeFeatures() []NodeFeature
 }
 
 // HostMonitor interface (provided by noded)
