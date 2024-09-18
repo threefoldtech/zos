@@ -20,6 +20,7 @@ import (
 	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/upgrade/hub"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
@@ -57,7 +58,6 @@ type Upgrader struct {
 	noZosUpgrade bool
 	hub          *hub.HubClient
 	storage      storage.Storage
-	farmID       uint32
 }
 
 // UpgraderOption interface
@@ -97,12 +97,11 @@ func Zinit(socket string) UpgraderOption {
 }
 
 // NewUpgrader creates a new upgrader instance
-func NewUpgrader(root string, farmID uint32, opts ...UpgraderOption) (*Upgrader, error) {
+func NewUpgrader(root string, opts ...UpgraderOption) (*Upgrader, error) {
 	hubClient := hub.NewHubClient(defaultHubTimeout)
 	u := &Upgrader{
-		root:   root,
-		farmID: farmID,
-		hub:    hubClient,
+		root: root,
+		hub:  hubClient,
 	}
 
 	for _, dir := range []string{u.fileCache(), u.flistCache()} {
@@ -237,13 +236,16 @@ func (u *Upgrader) update() error {
 		return nil
 	}
 
-	rolloutConfigs, err := readRolloutConfig(u.boot.RunMode().String())
+	env := environment.MustGet()
+	config, err := environment.GetConfig()
 	if err != nil {
-		return errors.Wrap(err, "failed to read rollout configs")
+		return errors.Wrap(err, "failed to get network config")
 	}
 
+	rolloutConfigs := config.RolloutUpgrade
+
 	if !rolloutConfigs.SafeToUpgrade {
-		if !slices.Contains(rolloutConfigs.TestFarms, u.farmID) {
+		if !slices.Contains(rolloutConfigs.TestFarms, uint32(env.FarmID)) {
 			// nothing to do! waiting for the flag `safe to upgrade to be enabled after A/B testing`
 			// node is not a part of A/B testing
 			return nil
