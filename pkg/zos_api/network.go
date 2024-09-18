@@ -18,10 +18,6 @@ func (g *ZosAPI) networkPublicConfigGetHandler(ctx context.Context, payload []by
 	return g.networkerStub.GetPublicConfig(ctx)
 }
 
-func (g *ZosAPI) networkNodeFeaturesGetHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	return g.networkerStub.GetNodeFeatures(ctx)
-}
-
 func (g *ZosAPI) networkInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	results := make(map[string][]net.IP)
 	type q struct {

@@ -188,7 +188,7 @@ func (s *NetworkerStub) GetNet(ctx context.Context, arg0 zos.NetID) (ret0 net.IP
 	return
 }
 
-func (s *NetworkerStub) GetNodeFeatures(ctx context.Context) (ret0 pkg.NodeFeatures, ret1 error) {
+func (s *NetworkerStub) GetNodeFeatures(ctx context.Context) (ret0 []pkg.NodeFeature, ret1 error) {
 	args := []interface{}{}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetNodeFeatures", args...)
 	if err != nil {

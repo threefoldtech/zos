@@ -198,8 +198,8 @@ type Networker interface {
 	// Get node public namespace config
 	GetPublicConfig() (PublicConfig, error)
 
-	// Get the features of the network manager running on the node
-	GetNodeFeatures() (NodeFeatures, error)
+	// Get the types of workloads can be deployed depending on the network manager running on the node
+	GetNodeFeatures() ([]NodeFeature, error)
 
 	// GetPublicExitDevice either return "singe" or "dual(<nic>)"
 	GetPublicExitDevice() (ExitDevice, error)
@@ -260,31 +260,7 @@ type PublicConfig struct {
 	Domain string `json:"domain"`
 }
 
-type NodeFeatures struct {
-	// ZMountType type
-	ZMountType gridtypes.WorkloadType `json:"zmount_type"`
-	// NetworkType type
-	NetworkType gridtypes.WorkloadType `json:"network_type"`
-	// ZDBType type
-	ZDBType gridtypes.WorkloadType `json:"zdb_type"`
-	// ZMachineType type
-	ZMachineType gridtypes.WorkloadType `json:"zmachine_type"`
-	// VolumeType type
-	VolumeType gridtypes.WorkloadType `json:"volume_type"`
-	// PublicIPv4Type type [deprecated]
-	PublicIPv4Type gridtypes.WorkloadType `json:"public_ipv4_type"`
-	// PublicIPType type is the new way to assign public ips
-	// to a VM. this has flags (V4, and V6) that has to be set.
-	PublicIPType gridtypes.WorkloadType `json:"public_ip_type"`
-	// GatewayNameProxyType type
-	GatewayNameProxyType gridtypes.WorkloadType `json:"gateway_name_proxy_type"`
-	// GatewayFQDNProxyType type
-	GatewayFQDNProxyType gridtypes.WorkloadType `json:"gateway_fqdn_proxy_type"`
-	// QuantumSafeFSType type
-	QuantumSafeFSType gridtypes.WorkloadType `json:"qantum_safe_fs_type"`
-	// ZLogsType type
-	ZLogsType gridtypes.WorkloadType `json:"zlog_type"`
-}
+type NodeFeature string
 
 func (p *PublicConfig) IsEmpty() bool {
 	return p.IPv4.Nil() && p.IPv6.Nil()

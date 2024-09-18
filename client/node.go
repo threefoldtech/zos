@@ -320,8 +320,8 @@ func (n *NodeClient) NetworkGetPublicConfig(ctx context.Context) (cfg pkg.Public
 	return
 }
 
-func (n *NodeClient) NetworkGetNodeFeatures(ctx context.Context) (feat pkg.NodeFeatures, err error) {
-	const cmd = "zos.network.node_features_get"
+func (n *NodeClient) SystemGetNodeFeatures(ctx context.Context) (feat []pkg.NodeFeature, err error) {
+	const cmd = "zos.system.node_features_get"
 
 	err = n.bus.Call(ctx, n.nodeTwin, cmd, nil, &feat)
 	return
