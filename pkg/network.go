@@ -198,9 +198,6 @@ type Networker interface {
 	// Get node public namespace config
 	GetPublicConfig() (PublicConfig, error)
 
-	// Get the types of workloads can be deployed depending on the network manager running on the node
-	GetNodeFeatures() ([]NodeFeature, error)
-
 	// GetPublicExitDevice either return "singe" or "dual(<nic>)"
 	GetPublicExitDevice() (ExitDevice, error)
 
@@ -259,8 +256,6 @@ type PublicConfig struct {
 	// or similar
 	Domain string `json:"domain"`
 }
-
-type NodeFeature string
 
 func (p *PublicConfig) IsEmpty() bool {
 	return p.IPv4.Nil() && p.IPv6.Nil()
