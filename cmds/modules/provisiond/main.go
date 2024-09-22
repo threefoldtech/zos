@@ -113,7 +113,7 @@ func runChecks(ctx context.Context, rootDir string, cl zbus.Client) error {
 
 	zui := stubs.NewZUIStub(cl)
 	if er := zui.PushErrors(ctx, "integrity", []string{
-		fmt.Errorf("integrity check failed, resetting rrd db stderr=%s: %w", buf.String(), err).Error(),
+		fmt.Sprintf("integrity check failed, resetting rrd db stderr=%s: %v", buf.String(), err),
 	}); er != nil {
 		log.Error().Err(er).Msg("failed to push errors to zui")
 	}
