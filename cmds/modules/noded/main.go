@@ -23,6 +23,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/perf/publicip"
 	"github.com/threefoldtech/zos/pkg/registrar"
 	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos/pkg/updater"
 	"github.com/threefoldtech/zos/pkg/utils"
 
 	"github.com/rs/zerolog/log"
@@ -161,6 +162,15 @@ func action(cli *cli.Context) error {
 		WithVirtualized(len(hypervisor) != 0)
 
 	go registerationServer(ctx, msgBrokerCon, env, info)
+
+	log.Info().Msg("start node updater")
+	nodeUpdater := updater.NewUpdater(redis)
+	if err != nil {
+		return errors.Wrap(err, "failed to create new node updater")
+	}
+
+	go nodeUpdater.Start(ctx)
+
 	log.Info().Msg("start perf scheduler")
 
 	perfMon, err := perf.NewPerformanceMonitor(msgBrokerCon)
