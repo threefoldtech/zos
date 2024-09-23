@@ -47,8 +47,8 @@ func Probe(ctx context.Context, inf string) (output ProbeOutput, err error) {
 		"-i", inf, //the interface to prope
 		"-q",       // exist once lease is optained
 		"-f",       //foreground
-		"-t", "20", //send 20 dhcp queries
-		"-T", "1", // every second
+		"-t", "32", //send 20 dhcp queries
+		"-T", "2", // every second
 		"-s", "/usr/share/udhcp/probe.script", // use the prope script
 		"--now", // exit if lease is not obtained
 	)
