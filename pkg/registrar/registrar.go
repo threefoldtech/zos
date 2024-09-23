@@ -2,28 +2,33 @@ package registrar
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"reflect"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
 // should any of this be moved to pkg?
+type RegistrationState string
 
 const (
-	Failed     pkg.RegistrationState = "Failed"
-	InProgress pkg.RegistrationState = "InProgress"
-	Done       pkg.RegistrationState = "Done"
+	Failed     RegistrationState = "Failed"
+	InProgress RegistrationState = "InProgress"
+	Done       RegistrationState = "Done"
 
-	monitorAccountEvery = 30 * time.Minute
+	monitorAccountEvery    = 30 * time.Minute
+	updateLocationInterval = 24 * time.Hour
 )
 
 var (
@@ -31,8 +36,15 @@ var (
 	ErrFailed     = errors.New("registration failed")
 )
 
-func FailedState(err error) pkg.State {
-	return pkg.State{
+type State struct {
+	NodeID uint32
+	TwinID uint32
+	State  RegistrationState
+	Msg    string
+}
+
+func FailedState(err error) State {
+	return State{
 		0,
 		0,
 		Failed,
@@ -40,8 +52,8 @@ func FailedState(err error) pkg.State {
 	}
 }
 
-func InProgressState() pkg.State {
-	return pkg.State{
+func InProgressState() State {
+	return State{
 		0,
 		0,
 		InProgress,
@@ -49,8 +61,8 @@ func InProgressState() pkg.State {
 	}
 }
 
-func DoneState(nodeID uint32, twinID uint32) pkg.State {
-	return pkg.State{
+func DoneState(nodeID uint32, twinID uint32) State {
+	return State{
 		nodeID,
 		twinID,
 		Done,
@@ -59,31 +71,32 @@ func DoneState(nodeID uint32, twinID uint32) pkg.State {
 }
 
 type Registrar struct {
-	state pkg.State
+	state State
 	mutex sync.RWMutex
 }
 
 func NewRegistrar(ctx context.Context, cl zbus.Client, env environment.Environment, info RegistrationInfo) *Registrar {
 	r := Registrar{
-		pkg.State{
+		state: State{
 			0,
 			0,
 			InProgress,
 			"",
 		},
-		sync.RWMutex{},
+		mutex: sync.RWMutex{},
 	}
+
 	go r.register(ctx, cl, env, info)
 	return &r
 }
 
-func (r *Registrar) setState(s pkg.State) {
+func (r *Registrar) setState(s State) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.state = s
 }
 
-func (r *Registrar) GetState() pkg.State {
+func (r *Registrar) getState() State {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	return r.state
@@ -139,6 +152,10 @@ func (r *Registrar) register(ctx context.Context, cl zbus.Client, env environmen
 			if err := r.reActivate(ctx, cl, env); err != nil {
 				log.Error().Err(err).Msg("failed to reactivate account")
 			}
+		case <-time.After(updateLocationInterval):
+			if err := r.updateLocation(ctx, cl); err != nil {
+				log.Error().Err(err).Msg("updating location failed")
+			}
 		case <-addressesUpdate:
 			log.Info().Msg("zos address has changed, re-register")
 			register()
@@ -154,12 +171,52 @@ func (r *Registrar) reActivate(ctx context.Context, cl zbus.Client, env environm
 	return err
 }
 
+// updateLocation validates the node location on chain against the geoip
+// service and update it if needed.
+func (r *Registrar) updateLocation(ctx context.Context, cl zbus.Client) error {
+	nodeId, err := r.NodeID()
+	if err != nil {
+		return fmt.Errorf("failed to get node id: %w", err)
+	}
+
+	substrateGw := stubs.NewSubstrateGatewayStub(cl)
+	node, err := substrateGw.GetNode(ctx, nodeId)
+	if err != nil {
+		return fmt.Errorf("failed to get node from chain: %w", err)
+	}
+
+	loc, err := geoip.Fetch()
+	if err != nil {
+		return fmt.Errorf("failed to fetch location info: %w", err)
+	}
+
+	newLoc := substrate.Location{
+		City:      loc.City,
+		Country:   loc.Country,
+		Latitude:  fmt.Sprintf("%f", loc.Latitude),
+		Longitude: fmt.Sprintf("%f", loc.Longitude),
+	}
+
+	if reflect.DeepEqual(newLoc, node.Location) {
+		// no need to update
+		return nil
+	}
+
+	node.Location = newLoc
+	if _, err := substrateGw.UpdateNode(ctx, node); err != nil {
+		return fmt.Errorf("failed to update node on chain: %w", err)
+	}
+
+	log.Info().Msg("node location updated")
+	return nil
+}
+
 func (r *Registrar) NodeID() (uint32, error) {
-	return r.returnIfDone(r.GetState().NodeID)
+	return r.returnIfDone(r.getState().NodeID)
 }
 
 func (r *Registrar) TwinID() (uint32, error) {
-	return r.returnIfDone(r.GetState().TwinID)
+	return r.returnIfDone(r.getState().TwinID)
 }
 
 func (r *Registrar) returnIfDone(v uint32) (uint32, error) {

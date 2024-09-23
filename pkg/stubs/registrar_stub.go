@@ -7,7 +7,6 @@ package stubs
 import (
 	"context"
 	zbus "github.com/threefoldtech/zbus"
-	pkg "github.com/threefoldtech/zos/pkg"
 )
 
 type RegistrarStub struct {
@@ -25,22 +24,6 @@ func NewRegistrarStub(client zbus.Client) *RegistrarStub {
 			Version: "0.0.1",
 		},
 	}
-}
-
-func (s *RegistrarStub) GetState(ctx context.Context) (ret0 pkg.State) {
-	args := []interface{}{}
-	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetState", args...)
-	if err != nil {
-		panic(err)
-	}
-	result.PanicOnError()
-	loader := zbus.Loader{
-		&ret0,
-	}
-	if err := result.Unmarshal(&loader); err != nil {
-		panic(err)
-	}
-	return
 }
 
 func (s *RegistrarStub) NodeID(ctx context.Context) (ret0 uint32, ret1 error) {
