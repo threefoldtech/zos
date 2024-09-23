@@ -77,17 +77,6 @@ func (i Interface) asTap() string {
 	return buf.String()
 }
 
-// asMACvTap returns the command line argument for this interface as a macvtap
-func (i Interface) asMACvTap(fd int) string {
-	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("fd=%d", fd))
-	if len(i.Mac) > 0 {
-		buf.WriteString(fmt.Sprintf(",mac=%s", i.Mac))
-	}
-
-	return buf.String()
-}
-
 // getType detects the interface type
 func (i *Interface) getType() (InterfaceType, int, error) {
 	link, err := netlink.LinkByName(i.Tap)
