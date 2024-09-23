@@ -161,7 +161,6 @@ func action(cli *cli.Context) error {
 		WithVirtualized(len(hypervisor) != 0)
 
 	go registerationServer(ctx, msgBrokerCon, env, info)
-
 	log.Info().Msg("start perf scheduler")
 
 	perfMon, err := perf.NewPerformanceMonitor(msgBrokerCon)
