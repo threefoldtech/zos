@@ -11,14 +11,14 @@ Either during development, specify a directory containing the rootfs. Or to debu
 > NOTE: script must run as a superuser
 
 ```bash
+# enter a sudo shell
+sudo -i
+
+# install deps 
+./install_deps
+
 # run image from a directory
-./debug_image.sh --image /tmp/rootfs
-
-# run image from a directory with a create cidata image
-./debug_image.sh --image /tmp/rootfs --debug true --cidata /tmp/cloud-init.img
-
-# run image from an flist with login cred. `foo:bar`
-./debug_image.sh --image https://hub.grid.tf/tf-official-apps/discourse-v4.0.flist --init /start.sh --user foo --pass bar
+./debug_image.sh -d --image https://hub.grid.tf/omarabdulaziz.3bot/ubuntu-jammy.flist
 ```
 
 ## Image Types

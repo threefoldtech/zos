@@ -12,6 +12,7 @@ install_chv() {
     echo "Installing cloud-hypervisor ${CHV_VERSION} ..."
     wget -q ${CHV_URL} -O /usr/local/bin/cloud-hypervisor
     chmod +x /usr/local/bin/cloud-hypervisor
+    setcap cap_sys_admin,cap_dac_override+eip /usr/local/bin/cloud-hypervisor
 }
 
 
@@ -23,8 +24,9 @@ install_virtiofsd() {
     apt -y install libseccomp-dev libcap-ng-dev
 
     curl -L -k -o "/tmp/virtiofsd-rs.zip" ${VIRTIOFSD_REPO}
-    unzip -p /tmp/virtiofsd-rs.zip > /bin/virtiofsd-rs
-    chmod +x /bin/virtiofsd-rs
+    unzip -p /tmp/virtiofsd-rs.zip > /usr/local/bin/virtiofsd
+    chmod +x /usr/local/bin/virtiofsd
+    setcap cap_sys_admin,cap_dac_override+eip /usr/local/bin/virtiofsd
 }
 
 install_rfs() {
