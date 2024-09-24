@@ -61,7 +61,7 @@ main() {
     fi
 
     # install mcopy/mkdosfs needed to create cidata image. comment if you a have the image
-    apt -y install dosfstools mtools
+    apt -y install dosfstools mtools fuse
 
     # install screen for managing multiple servers
     # NOTE: rust bins like virtiofsd miss the logs, runs on a screen session to workaround that
