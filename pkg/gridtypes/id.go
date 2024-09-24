@@ -71,13 +71,17 @@ func (i WorkloadID) Unique(n string) string {
 		b = b[:13]
 	}
 
-	return string(b)
+	return b
 }
 
 // IsValidName validates workload name
 func IsValidName(n Name) error {
 	if len(n) == 0 {
 		return fmt.Errorf("name cannot be empty")
+	}
+
+	if len(n) > 50 {
+		return fmt.Errorf("name cannot exceed 50 characters")
 	}
 
 	if !nameMatch.MatchString(string(n)) {
