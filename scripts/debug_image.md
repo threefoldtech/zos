@@ -8,6 +8,7 @@ The debug image script facilitates development and debugging of flists runs on Z
 
 Either during development, specify a directory containing the rootfs. Or to debug existing flist, pass an flist url.
 
+> NOTE: the script can't be run on a vm on the grid due to nested virtualization isn't supported
 > NOTE: script must run as a superuser
 
 ```bash
