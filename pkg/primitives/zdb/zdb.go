@@ -21,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
-	nwmod "github.com/threefoldtech/zos/pkg/network"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -261,7 +260,7 @@ func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) err
 		cont       = stubs.NewContainerModuleStub(p.zbus)
 		flist      = stubs.NewFlisterStub(p.zbus)
 		volumePath = device.Path
-		network    = stubs.NewNetworkerStub(p.zbus)
+		network    = stubs.NewNetworkerLightStub(p.zbus)
 
 		slog = log.With().Str("containerID", string(name)).Logger()
 	)
@@ -284,7 +283,7 @@ func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) err
 	}
 
 	// create the network namespace and macvlan for the 0-db container
-	netNsName, err := network.EnsureZDBPrepare(ctx, device.ID)
+	netNsName, err := network.AttachZDB(ctx, device.ID)
 	if err != nil {
 		if err := flist.Unmount(ctx, string(name)); err != nil {
 			slog.Error().Err(err).Str("path", rootFS).Msgf("failed to unmount")
@@ -335,31 +334,8 @@ func (p *Manager) createZdbContainer(ctx context.Context, device pkg.Device) err
 	return nil
 }
 
-// dataMigration will make sure that we delete any data files from v1. This is
-// hardly a data migration but at this early stage it's fine since there is still
-// no real data loads live on the grid. All v2 zdbs, will be safe.
-func (p *Manager) dataMigration(ctx context.Context, volume string) {
-	v1, _ := zdb.IsZDBVersion1(ctx, volume)
-	// TODO: what if there is an error?
-	if !v1 {
-		// it's eather a new volume, or already on version 2
-		// so nothing to do.
-		return
-	}
-
-	for _, sub := range []string{"data", "index"} {
-		if err := os.RemoveAll(filepath.Join(volume, sub)); err != nil {
-			log.Error().Err(err).Msg("failed to delete obsolete data directories")
-		}
-	}
-}
-
 func (p *Manager) zdbRun(ctx context.Context, name string, rootfs string, cmd string, netns string, volumepath string, socketdir string) error {
 	cont := stubs.NewContainerModuleStub(p.zbus)
-
-	// we do data migration here because this is called
-	// on new zdb starts, or updating the runtime.
-	p.dataMigration(ctx, volumepath)
 
 	conf := pkg.Container{
 		Name:        name,
@@ -389,73 +365,22 @@ func (p *Manager) zdbRun(ctx context.Context, name string, rootfs string, cmd st
 }
 
 func (p *Manager) waitZDBIPs(ctx context.Context, namespace string, created time.Time) ([]net.IP, error) {
-	// TODO: this method need to be abstracted, since it's now depends on the knewledge
-	// of the networking daemon internal (interfaces names)
-	// may be at least just get all ips from all interfaces inside the namespace
-	// will be a slightly better solution
+	// TODO: is there a need for retrying anymore??
 	var (
-		network      = stubs.NewNetworkerStub(p.zbus)
+		network      = stubs.NewNetworkerLightStub(p.zbus)
 		containerIPs []net.IP
 	)
 
 	log.Debug().Time("created-at", created).Str("namespace", namespace).Msg("checking zdb container ips")
 	getIP := func() error {
-		// some older setups that might still be running has PubIface set to zdb0 not eth0
-		// so we need to make sure that this we also try this older name
-		ips, _, err := network.Addrs(ctx, nwmod.PubIface, namespace)
-		if err != nil {
-			var err2 error
-			ips, _, err2 = network.Addrs(ctx, "zdb0", namespace)
-			if err2 != nil {
-				log.Debug().Err(err).Msg("no public ip found, waiting")
-				return err
-			}
-		}
-
-		yggIps, _, err := network.Addrs(ctx, nwmod.ZDBYggIface, namespace)
+		ips, err := network.ZDBIPs(ctx, namespace)
 		if err != nil {
 			return err
 		}
-		ips = append(ips, yggIps...)
-
-		MyceliumIps, _, err := network.Addrs(ctx, nwmod.ZDBMyceliumIface, namespace)
-		if err != nil {
-			return err
-		}
-		ips = append(ips, MyceliumIps...)
-
-		var (
-			public   = false
-			ygg      = false
-			mycelium = false
-		)
-		containerIPs = containerIPs[:0]
-
 		for _, ip := range ips {
-			if isPublic(ip) && !isYgg(ip) && !isMycelium(ip) {
-				log.Warn().IPAddr("ip", ip).Msg("0-db container public ip found")
-				public = true
-				containerIPs = append(containerIPs, ip)
-			}
-			if isYgg(ip) {
-				log.Warn().IPAddr("ip", ip).Msg("0-db container ygg ip found")
-				ygg = true
-				containerIPs = append(containerIPs, ip)
-			}
-			if isMycelium(ip) {
-				log.Warn().IPAddr("ip", ip).Msg("0-db container mycelium ip found")
-				mycelium = true
-				containerIPs = append(containerIPs, ip)
-			}
+			containerIPs = append(containerIPs, ip)
 		}
-
-		log.Warn().Msgf("public %v ygg: %v mycelium: %v", public, ygg, mycelium)
-		if public && ygg && mycelium || time.Since(created) > 2*time.Minute {
-			// if we have all ips detected or if the container is older than 2 minutes
-			// so it's safe we assume ips are final
-			return nil
-		}
-		return fmt.Errorf("waiting for more addresses")
+		return nil
 	}
 
 	bo := backoff.NewExponentialBackOff()
@@ -754,43 +679,12 @@ func ipsToString(ips []net.IP) []string {
 	return result
 }
 
-// isPublic check if ip is a IPv6 public address
-func isPublic(ip net.IP) bool {
-	if ip.To4() != nil {
-		return false
-	}
-
-	return !(ip.IsLoopback() ||
-		ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() ||
-		ip.IsInterfaceLocalMulticast())
-}
-
-// isPublic check if ip is a part of the yggdrasil 200::/7 range
-var yggNet = net.IPNet{
-	IP:   net.ParseIP("200::"),
-	Mask: net.CIDRMask(7, 128),
-}
-
-var myceliumNet = net.IPNet{
-	IP:   net.ParseIP("400::"),
-	Mask: net.CIDRMask(7, 128),
-}
-
-func isYgg(ip net.IP) bool {
-	return yggNet.Contains(ip)
-}
-
-func isMycelium(ip net.IP) bool {
-	return myceliumNet.Contains(ip)
-}
-
 // InitializeZDB makes sure all required zdbs are running
 func (p *Manager) Initialize(ctx context.Context) error {
 	var (
 		storage  = stubs.NewStorageModuleStub(p.zbus)
 		contmod  = stubs.NewContainerModuleStub(p.zbus)
-		network  = stubs.NewNetworkerStub(p.zbus)
+		network  = stubs.NewNetworkerLightStub(p.zbus)
 		flistmod = stubs.NewFlisterStub(p.zbus)
 	)
 	// fetching extected hash
@@ -823,9 +717,9 @@ func (p *Manager) Initialize(ctx context.Context) error {
 		}
 
 		log.Debug().Str("container", string(container)).Msg("enusreing zdb network setup")
-		_, err := network.EnsureZDBPrepare(ctx, poolNames[string(container)].ID)
+		_, err := network.AttachZDB(ctx, poolNames[string(container)].ID)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to prepare zdb network")
+			log.Error().Err(err).Msg("failed to initialize zdb network")
 		}
 
 		delete(poolNames, string(container))

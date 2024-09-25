@@ -48,7 +48,8 @@ type InterfaceType string
 
 const (
 	// InterfaceTAP tuntap type
-	InterfaceTAP InterfaceType = "tuntap"
+	InterfaceTAP     InterfaceType = "tuntap"
+	InterfaceMacvtap InterfaceType = "macvtap"
 )
 
 type Console struct {
@@ -87,8 +88,10 @@ func (i *Interface) getType() (InterfaceType, int, error) {
 	switch InterfaceType(link.Type()) {
 	case InterfaceTAP:
 		return InterfaceTAP, link.Attrs().Index, nil
+	case InterfaceMacvtap:
+		return InterfaceMacvtap, link.Attrs().Index, nil
 	default:
-		return "", 0, fmt.Errorf("unknown tap type")
+		return "", 0, fmt.Errorf("unknown tap type %s", link.Type())
 	}
 }
 

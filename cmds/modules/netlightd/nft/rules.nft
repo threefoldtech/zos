@@ -1,0 +1,54 @@
+table inet filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+	}
+
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
+
+	chain prerouting {
+		type filter hook prerouting priority filter; policy accept;
+		meta nfproto ipv4 iifname "b-*" tcp dport { 25, 465, 587 } reject with icmp type admin-prohibited
+	}
+}
+table arp filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+	}
+
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
+}
+table bridge filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+	}
+
+	chain prerouting {
+		type filter hook prerouting priority filter; policy accept;
+	}
+
+	chain postrouting {
+		type filter hook postrouting priority filter; policy accept;
+	}
+
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
+}
+table ip nat {
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		iifname "br-ndmz" masquerade fully-random
+	}
+}

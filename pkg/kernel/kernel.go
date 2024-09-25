@@ -13,6 +13,8 @@ const (
 	// Debug means zos is running in debug mode
 	// applications can handle this flag differently
 	Debug = "zos-debug"
+	// Light means the node running in light mode
+	Light = "light"
 	// VirtualMachine forces zos to think it's running
 	// on a virtual machine. used mainly for development
 	VirtualMachine = "zos-debug-vm"

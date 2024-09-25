@@ -23,7 +23,7 @@ import (
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/network/namespace"
+	"github.com/threefoldtech/zos/pkg/netlight/namespace"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 

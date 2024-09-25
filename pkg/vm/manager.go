@@ -148,31 +148,6 @@ func (m *Module) Exists(id string) bool {
 	return err == nil
 }
 
-func (m *Module) getConsoleConfig(ctx context.Context, ifc pkg.VMIface) (*Console, error) {
-	stub := stubs.NewNetworkerStub(m.client)
-	namespace := stub.Namespace(ctx, ifc.NetID)
-
-	networkAddr, err := stub.GetSubnet(ctx, ifc.NetID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get network '%s'", ifc.NetID)
-	}
-
-	networkAddr.IP = networkAddr.IP.To4()
-
-	if len(networkAddr.IP) != net.IPv4len {
-		return nil, fmt.Errorf("invalid network address: %s", networkAddr.IP.String())
-	}
-
-	// always listen on ip .1
-	networkAddr.IP[3] = 1
-
-	return &Console{
-		Namespace:     namespace,
-		ListenAddress: networkAddr,
-		VmAddress:     ifc.IPs[0],
-	}, nil
-}
-
 func (m *Module) makeNetwork(ctx context.Context, vm *pkg.VM, cfg *cloudinit.Configuration) ([]Interface, error) {
 	// assume there is always at least 1 iface present
 
@@ -202,6 +177,7 @@ func (m *Module) makeNetwork(ctx context.Context, vm *pkg.VM, cfg *cloudinit.Con
 			Tap: ifcfg.Tap,
 			Mac: ifcfg.MAC,
 		}
+		// TODO:
 		if ifcfg.NetID != "" && len(ifcfg.IPs) > 0 {
 			// if NetID is set on this interface means it is a private network so we add console config to it.
 			console, err := m.getConsoleConfig(ctx, ifcfg)
@@ -272,6 +248,35 @@ func (m *Module) makeNetwork(ctx context.Context, vm *pkg.VM, cfg *cloudinit.Con
 	}
 
 	return nics, nil
+}
+
+func (m *Module) getConsoleConfig(ctx context.Context, ifc pkg.VMIface) (*Console, error) {
+	stub := stubs.NewNetworkerLightStub(m.client)
+	namespace := stub.Namespace(ctx, ifc.NetID.String())
+
+	// networkAddr, err := stub.GetSubnet(ctx, ifc.NetID)
+	// if err != nil {
+	// 	return nil, errors.Wrapf(err, "failed to get network '%s'", ifc.NetID)
+	// }
+
+	// networkAddr.IP = networkAddr.IP.To4()
+
+	// if len(networkAddr.IP) != net.IPv4len {
+	// 	return nil, fmt.Errorf("invalid network address: %s", networkAddr.IP.String())
+	// }
+
+	// // always listen on ip .1
+	// networkAddr.IP[3] = 1
+
+	networkAddr := net.IPNet{
+		IP: ifc.IP4DefaultGateway.To4(),
+	}
+
+	return &Console{
+		Namespace:     namespace,
+		ListenAddress: networkAddr,
+		VmAddress:     ifc.IPs[0],
+	}, nil
 }
 
 func (m *Module) tail(path string) (string, error) {
@@ -524,7 +529,7 @@ func (m *Module) Run(vm pkg.VM) (pkg.MachineInfo, error) {
 
 	defer func() {
 		if err != nil {
-			log.Error().Err(err).Msg("decomission duo to failure to create the VM")
+			log.Error().Err(err).Msg("decommission duo to failure to create the VM")
 			_ = m.Delete(machine.ID)
 		}
 	}()
