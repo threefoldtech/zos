@@ -30,7 +30,8 @@ func TestKeys(t *testing.T) {
 	strEncrypted := fmt.Sprintf("%x", encrypted)
 
 	strDecrypted := ""
-	fmt.Sscanf(strEncrypted, "%x", &strDecrypted)
+	_, err = fmt.Sscanf(strEncrypted, "%x", &strDecrypted)
+	require.NoError(t, err)
 
 	decrypted, err := crypto.Decrypt([]byte(strDecrypted), sk)
 	require.NoError(t, err)

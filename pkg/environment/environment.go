@@ -48,8 +48,8 @@ type Environment struct {
 	//   SINCE RELAYS FOR A NODE IS STORED ON THE CHAIN IN A LIMITED SPACE
 	//   PLEASE MAKE SURE THAT ANY ENV HAS NO MORE THAN FOUR RELAYS CONFIGURED
 	RelayURL      []string
-	ActivationURL string
-	GraphQL       string
+	ActivationURL []string
+	GraphQL       []string
 
 	// private vlan to join
 	// if set, zos will use this as its priv vlan
@@ -108,30 +108,44 @@ var (
 		RunningMode: RunningDev,
 		SubstrateURL: []string{
 			"wss://tfchain.dev.grid.tf/",
+			"wss://tfchain.02.dev.grid.tf",
 		},
 		RelayURL: []string{
 			"wss://relay.dev.grid.tf",
 			"wss://relay.02.dev.grid.tf",
 		},
-		ActivationURL: "https://activation.dev.grid.tf/activation/activate",
-		FlistURL:      "redis://hub.grid.tf:9900",
-		BinRepo:       "tf-zos-v3-bins.dev",
-		GraphQL:       "https://graphql.dev.grid.tf/graphql",
+		ActivationURL: []string{
+			"https://activation.dev.grid.tf/activation/activate",
+			"https://activation.02.dev.grid.tf/activation/activate",
+		},
+		FlistURL: "redis://hub.grid.tf:9900",
+		BinRepo:  "tf-zos-v3-bins.dev",
+		GraphQL: []string{
+			"https://graphql.dev.grid.tf/graphql",
+			"https://graphql.02.dev.grid.tf/graphql",
+		},
 	}
 
 	envTest = Environment{
 		RunningMode: RunningTest,
 		SubstrateURL: []string{
 			"wss://tfchain.test.grid.tf/",
+			"wss://tfchain.02.test.grid.tf",
 		},
 		RelayURL: []string{
 			"wss://relay.test.grid.tf",
 			"wss://relay.02.test.grid.tf",
 		},
-		ActivationURL: "https://activation.test.grid.tf/activation/activate",
-		FlistURL:      "redis://hub.grid.tf:9900",
-		BinRepo:       "tf-zos-v3-bins.test",
-		GraphQL:       "https://graphql.test.grid.tf/graphql",
+		ActivationURL: []string{
+			"https://activation.test.grid.tf/activation/activate",
+			"https://activation.02.test.grid.tf/activation/activate",
+		},
+		FlistURL: "redis://hub.grid.tf:9900",
+		BinRepo:  "tf-zos-v3-bins.test",
+		GraphQL: []string{
+			"https://graphql.test.grid.tf/graphql",
+			"https://graphql.02.test.grid.tf/graphql",
+		},
 	}
 
 	envQA = Environment{
@@ -142,17 +156,25 @@ var (
 		},
 		RelayURL: []string{
 			"wss://relay.qa.grid.tf",
+			"wss://relay.02.qa.grid.tf",
 		},
-		ActivationURL: "https://activation.qa.grid.tf/activation/activate",
-		FlistURL:      "redis://hub.grid.tf:9900",
-		BinRepo:       "tf-zos-v3-bins.qanet",
-		GraphQL:       "https://graphql.qa.grid.tf/graphql",
+		ActivationURL: []string{
+			"https://activation.qa.grid.tf/activation/activate",
+			"https://activation.02.qa.grid.tf/activation/activate",
+		},
+		FlistURL: "redis://hub.grid.tf:9900",
+		BinRepo:  "tf-zos-v3-bins.qanet",
+		GraphQL: []string{
+			"https://graphql.qa.grid.tf/graphql",
+			"https://graphql.02.qa.grid.tf/graphql",
+		},
 	}
 
 	envProd = Environment{
 		RunningMode: RunningMain,
 		SubstrateURL: []string{
 			"wss://tfchain.grid.tf/",
+			"wss://tfchain.02.grid.tf",
 			"wss://02.tfchain.grid.tf/",
 			"wss://03.tfchain.grid.tf/",
 			"wss://04.tfchain.grid.tf/",
@@ -161,10 +183,16 @@ var (
 			"wss://relay.grid.tf",
 			"wss://relay.02.grid.tf",
 		},
-		ActivationURL: "https://activation.grid.tf/activation/activate",
-		FlistURL:      "redis://hub.grid.tf:9900",
-		BinRepo:       "tf-zos-v3-bins",
-		GraphQL:       "https://graphql.grid.tf/graphql",
+		ActivationURL: []string{
+			"https://activation.grid.tf/activation/activate",
+			"https://activation.02.grid.tf/activation/activate",
+		},
+		FlistURL: "redis://hub.grid.tf:9900",
+		BinRepo:  "tf-zos-v3-bins",
+		GraphQL: []string{
+			"https://graphql.grid.tf/graphql",
+			"https://graphql.02.grid.tf/graphql",
+		},
 	}
 )
 
@@ -241,7 +269,7 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 
 	if activation, ok := params.Get("activation"); ok {
 		if len(activation) > 0 {
-			env.ActivationURL = activation[len(activation)-1]
+			env.ActivationURL = activation
 		}
 	}
 
