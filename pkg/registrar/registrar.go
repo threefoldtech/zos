@@ -2,20 +2,16 @@ package registrar
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"reflect"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos/pkg/app"
 	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/geoip"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
 
@@ -28,7 +24,7 @@ const (
 	Done       RegistrationState = "Done"
 
 	monitorAccountEvery    = 30 * time.Minute
-	updateLocationInterval = 24 * time.Hour
+	updateNodeInfoInterval = 24 * time.Hour
 )
 
 var (
@@ -152,10 +148,9 @@ func (r *Registrar) register(ctx context.Context, cl zbus.Client, env environmen
 			if err := r.reActivate(ctx, cl, env); err != nil {
 				log.Error().Err(err).Msg("failed to reactivate account")
 			}
-		case <-time.After(updateLocationInterval):
-			if err := r.updateLocation(ctx, cl); err != nil {
-				log.Error().Err(err).Msg("updating location failed")
-			}
+		case <-time.After(updateNodeInfoInterval):
+			log.Info().Msg("update interval passed, re-register")
+			register()
 		case <-addressesUpdate:
 			log.Info().Msg("zos address has changed, re-register")
 			register()
@@ -169,46 +164,6 @@ func (r *Registrar) reActivate(ctx context.Context, cl zbus.Client, env environm
 	_, err := substrateGateway.EnsureAccount(ctx, env.ActivationURL, tcUrl, tcHash)
 
 	return err
-}
-
-// updateLocation validates the node location on chain against the geoip
-// service and update it if needed.
-func (r *Registrar) updateLocation(ctx context.Context, cl zbus.Client) error {
-	nodeId, err := r.NodeID()
-	if err != nil {
-		return fmt.Errorf("failed to get node id: %w", err)
-	}
-
-	substrateGw := stubs.NewSubstrateGatewayStub(cl)
-	node, err := substrateGw.GetNode(ctx, nodeId)
-	if err != nil {
-		return fmt.Errorf("failed to get node from chain: %w", err)
-	}
-
-	loc, err := geoip.Fetch()
-	if err != nil {
-		return fmt.Errorf("failed to fetch location info: %w", err)
-	}
-
-	newLoc := substrate.Location{
-		City:      loc.City,
-		Country:   loc.Country,
-		Latitude:  fmt.Sprintf("%f", loc.Latitude),
-		Longitude: fmt.Sprintf("%f", loc.Longitude),
-	}
-
-	if reflect.DeepEqual(newLoc, node.Location) {
-		// no need to update
-		return nil
-	}
-
-	node.Location = newLoc
-	if _, err := substrateGw.UpdateNode(ctx, node); err != nil {
-		return fmt.Errorf("failed to update node on chain: %w", err)
-	}
-
-	log.Info().Msg("node location updated")
-	return nil
 }
 
 func (r *Registrar) NodeID() (uint32, error) {
