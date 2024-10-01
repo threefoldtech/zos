@@ -989,18 +989,13 @@ func (e *NativeEngine) DecommissionCached(id string, reason string) error {
 		return nil
 	}
 
-	//to bad we have to repeat this here
-	ctx := context.WithValue(context.Background(), engineKey{}, e)
-	ctx = withDeployment(ctx, twin, dlID)
+	result := gridtypes.Result{
+		State:   gridtypes.StateError,
+		Error:   reason,
+		Created: gridtypes.Timestamp(time.Now().Unix()),
+	}
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
-	defer cancel()
-
-	err = e.uninstallWorkload(ctx, &gridtypes.WorkloadWithID{Workload: &wl, ID: globalID},
-		fmt.Sprintf("workload decommissioned by system, reason: %s", reason),
-	)
-
-	return err
+	return e.storage.Transaction(twin, dlID, wl.WithResults(result))
 }
 
 func (n *NativeEngine) CreateOrUpdate(twin uint32, deployment gridtypes.Deployment, update bool) error {
