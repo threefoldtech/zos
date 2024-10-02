@@ -215,7 +215,7 @@ func (p *Manager) newPrivNetworkInterface(ctx context.Context, dl gridtypes.Depl
 			// privIP6,
 		},
 		Routes:            iface.Routes,
-		IP4DefaultGateway: net.IP(iface.Routes[0].Gateway),
+		IP4DefaultGateway: iface.Routes[0].Gateway,
 		// IP6DefaultGateway: gw6,
 		PublicIPv4: false,
 		PublicIPv6: false,
