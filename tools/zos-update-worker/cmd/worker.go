@@ -24,7 +24,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/spf13/cobra"
-	"github.com/threefoldtech/zos/tools/zos-update-version/internal"
+	"github.com/threefoldtech/zos4/tools/zos-update-version/internal"
 )
 
 var rootCmd = &cobra.Command{

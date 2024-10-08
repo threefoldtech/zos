@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gizak/termui/v3/widgets"
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos4/pkg"
 )
 
 type module struct {

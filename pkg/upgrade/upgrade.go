@@ -19,9 +19,9 @@ import (
 	"github.com/threefoldtech/0-fs/meta"
 	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/upgrade/hub"
-	"github.com/threefoldtech/zos/pkg/zinit"
+	"github.com/threefoldtech/zos4/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/upgrade/hub"
+	"github.com/threefoldtech/zos4/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
 )

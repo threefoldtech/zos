@@ -8,9 +8,9 @@ import (
 
 	"github.com/pkg/errors"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos4/pkg"
 
-	"github.com/threefoldtech/zos/pkg/kernel"
+	"github.com/threefoldtech/zos4/pkg/kernel"
 )
 
 const (

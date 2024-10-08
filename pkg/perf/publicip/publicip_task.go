@@ -14,12 +14,12 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
-	"github.com/threefoldtech/zos/pkg/netlight/namespace"
-	"github.com/threefoldtech/zos/pkg/perf"
-	"github.com/threefoldtech/zos/pkg/perf/graphql"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/netlight/macvlan"
+	"github.com/threefoldtech/zos4/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos4/pkg/perf"
+	"github.com/threefoldtech/zos4/pkg/perf/graphql"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 	"github.com/vishvananda/netlink"
 )
 

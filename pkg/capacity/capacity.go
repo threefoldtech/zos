@@ -9,12 +9,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/host"
-	"github.com/threefoldtech/zos/pkg/capacity/dmi"
-	"github.com/threefoldtech/zos/pkg/capacity/smartctl"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/kernel"
-	"github.com/threefoldtech/zos/pkg/storage/filesystem"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/capacity/dmi"
+	"github.com/threefoldtech/zos4/pkg/capacity/smartctl"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/kernel"
+	"github.com/threefoldtech/zos4/pkg/storage/filesystem"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 )
 
 // Capacity hold the amount of resource unit of a node

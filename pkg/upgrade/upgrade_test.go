@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/0-fs/meta"
-	"github.com/threefoldtech/zos/pkg/upgrade/hub"
+	"github.com/threefoldtech/zos4/pkg/upgrade/hub"
 )
 
 func TestUpgraderDownload(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	zoscrypt "github.com/threefoldtech/zos/pkg/crypto"
+	zoscrypt "github.com/threefoldtech/zos4/pkg/crypto"
 	"github.com/yggdrasil-network/yggdrasil-go/src/address"
 	"github.com/yggdrasil-network/yggdrasil-go/src/crypto"
 )

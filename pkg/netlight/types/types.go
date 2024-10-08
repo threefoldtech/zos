@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
 )
 
 // MacAddress type

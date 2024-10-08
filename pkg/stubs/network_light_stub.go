@@ -6,10 +6,11 @@ package stubs
 
 import (
 	"context"
-	zbus "github.com/threefoldtech/zbus"
-	pkg "github.com/threefoldtech/zos/pkg"
-	zos "github.com/threefoldtech/zos/pkg/gridtypes/zos"
 	"net"
+
+	zbus "github.com/threefoldtech/zbus"
+	pkg "github.com/threefoldtech/zos4/pkg"
+	zos "github.com/threefoldtech/zos4/pkg/gridtypes/zos"
 )
 
 type NetworkerLightStub struct {
