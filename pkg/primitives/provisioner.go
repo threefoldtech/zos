@@ -2,16 +2,16 @@ package primitives
 
 import (
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
-	netlight "github.com/threefoldtech/zos/pkg/primitives/network-light"
-	"github.com/threefoldtech/zos/pkg/primitives/qsfs"
-	vmlight "github.com/threefoldtech/zos/pkg/primitives/vm-light"
-	"github.com/threefoldtech/zos/pkg/primitives/volume"
-	"github.com/threefoldtech/zos/pkg/primitives/zdb"
-	"github.com/threefoldtech/zos/pkg/primitives/zlogs"
-	"github.com/threefoldtech/zos/pkg/primitives/zmount"
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
+	netlight "github.com/threefoldtech/zos4/pkg/primitives/network-light"
+	"github.com/threefoldtech/zos4/pkg/primitives/qsfs"
+	vmlight "github.com/threefoldtech/zos4/pkg/primitives/vm-light"
+	"github.com/threefoldtech/zos4/pkg/primitives/volume"
+	"github.com/threefoldtech/zos4/pkg/primitives/zdb"
+	"github.com/threefoldtech/zos4/pkg/primitives/zlogs"
+	"github.com/threefoldtech/zos4/pkg/primitives/zmount"
+	"github.com/threefoldtech/zos4/pkg/provision"
 )
 
 // NewPrimitivesProvisioner creates a new 0-OS provisioner

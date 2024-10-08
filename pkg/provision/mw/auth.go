@@ -15,7 +15,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos4/pkg/provision"
 )
 
 type twinPublicKeyID struct{}

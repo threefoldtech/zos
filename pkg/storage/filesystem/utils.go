@@ -13,7 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/zdb"
+	"github.com/threefoldtech/zos4/pkg/zdb"
 )
 
 const (

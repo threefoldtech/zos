@@ -9,7 +9,7 @@ import (
 	"regexp"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
 )
 
 // Prefix is a string used as prefix in the filesystem volume used

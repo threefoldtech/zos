@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/jbenet/go-base58"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
 )
 
 const (

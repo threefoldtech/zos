@@ -6,8 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
-	"github.com/threefoldtech/zos/pkg/netlight/options"
+	"github.com/threefoldtech/zos4/pkg/netlight/ifaceutil"
+	"github.com/threefoldtech/zos4/pkg/netlight/options"
 	"github.com/vishvananda/netlink"
 )
 

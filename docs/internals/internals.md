@@ -11,7 +11,7 @@ we will go through about how it works in this documentation for more info about 
 - The entrypoint for building the efi image is the `initramfs.sh` script
 - normally we don't modify this repo unless we want ot change something in the base image like kernel version for example
 - This efi image contains Kernel, zinit and some packages(the pkgs are defined in the main func of the initramfs.sh)
-- Under `packages/` directory you will find the list of packages that we need to build those packages are required during boot other packages that need to run the node are defined in [zos repo](https://github.com/threefoldtech/zos/tree/main/bins/packages) but the ones in 0-initramfs are required during boot then the bootstrap service download zos packages
+- Under `packages/` directory you will find the list of packages that we need to build those packages are required during boot other packages that need to run the node are defined in [zos repo](https://github.com/threefoldtech/zos4/tree/main/bins/packages) but the ones in 0-initramfs are required during boot then the bootstrap service download zos packages
 - Since zos uses zinit as its init process if we modified zinit for example we need to
   - Do the required modification in zinit repo
   - Create a release

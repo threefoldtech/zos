@@ -8,9 +8,9 @@ import (
 	"github.com/gizak/termui/v3/widgets"
 	_ "github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/netlight/types"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/netlight/types"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 )
 
 func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client, render *signalFlag) error {

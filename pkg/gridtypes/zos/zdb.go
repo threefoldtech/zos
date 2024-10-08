@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
 )
 
 // ZDB namespace creation info

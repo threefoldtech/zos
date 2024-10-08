@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/app"
 )
 
 func reader(c io.Reader, r *redis.Client, channel string) {

@@ -6,9 +6,10 @@ package stubs
 
 import (
 	"context"
-	zbus "github.com/threefoldtech/zbus"
-	pkg "github.com/threefoldtech/zos/pkg"
 	"time"
+
+	zbus "github.com/threefoldtech/zbus"
+	pkg "github.com/threefoldtech/zos4/pkg"
 )
 
 type ContainerModuleStub struct {

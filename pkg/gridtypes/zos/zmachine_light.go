@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
 )
 
 const (
