@@ -14,6 +14,7 @@ import (
 	log "github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -145,10 +146,38 @@ func (s *Module) DiskWrite(name string, image string) error {
 		return fmt.Errorf("image size is bigger than disk")
 	}
 
-	_, err = io.Copy(file, source)
-	if err != nil {
+	var (
+		g                   = new(errgroup.Group)
+		concurrentNUm int   = 5
+		imgSize       int64 = imgStat.Size()
+		chunkSize           = imgSize / int64(concurrentNUm)
+	)
+
+	log.Info().Int("concurrentNum", concurrentNUm).Msg("writing image concurrently")
+
+	for i := 0; i < concurrentNUm; i++ {
+		index := i
+		g.Go(func() error {
+			start := chunkSize * int64(index)
+			len := chunkSize
+			if index == concurrentNUm-1 {
+				len = imgSize - start
+			}
+			wr := io.NewOffsetWriter(file, start)
+			rd := io.NewSectionReader(source, start, len)
+			_, err = io.Copy(wr, rd)
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
 		return errors.Wrap(err, "failed to write disk image")
 	}
+	log.Info().Msg("writing image finished")
+
+	/*_, err = io.Copy(file, source)
+	if err != nil {
+		return errors.Wrap(err, "failed to write disk image")
+	}*/
 
 	return nil
 }

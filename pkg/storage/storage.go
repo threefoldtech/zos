@@ -226,7 +226,8 @@ func (s *Module) initialize(ctx context.Context) error {
 
 	for _, device := range devices {
 		log.Debug().Msgf("device: %+v", device)
-		pool, err := filesystem.NewBtrfsPool(device)
+		//pool, err := filesystem.NewBtrfsPool(device)
+		pool, err := filesystem.NewBcachefsPool(device)
 		if err != nil {
 			log.Error().Err(err).Str("device", device.Path).Msg("failed to create pool on device")
 			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
