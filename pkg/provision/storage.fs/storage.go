@@ -283,7 +283,7 @@ func (s *Fs) byTwin(twin uint32) ([]uint64, error) {
 			continue
 		}
 
-		ids = append(ids, uint64(id))
+		ids = append(ids, id)
 	}
 
 	return ids, nil

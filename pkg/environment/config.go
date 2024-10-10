@@ -27,6 +27,9 @@ type Config struct {
 	Users struct {
 		Authorized []string `json:"authorized"`
 	} `json:"users"`
+	RolloutUpgrade struct {
+		TestFarms []uint32 `json:"test_farms"`
+	} `json:"rollout_upgrade"`
 }
 
 // Merge, updates current config with cfg merging and override config

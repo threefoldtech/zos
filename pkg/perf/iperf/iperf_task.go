@@ -76,7 +76,10 @@ func (t *IperfTest) Jitter() uint32 {
 // Run runs the tcp test and returns the result
 func (t *IperfTest) Run(ctx context.Context) (interface{}, error) {
 	env := environment.MustGet()
-	g := graphql.NewGraphQl(env.GraphQL)
+	g, err := graphql.NewGraphQl(env.GraphQL...)
+	if err != nil {
+		return nil, err
+	}
 
 	// get public up nodes
 	freeFarmNodes, err := g.GetUpNodes(ctx, 0, 1, 0, true, true)
@@ -151,7 +154,7 @@ func (t *IperfTest) runIperfTest(ctx context.Context, clientIP string, tcp bool)
 	operation := func() error {
 		res := runIperfCommand(ctx, opts)
 		if res.Error == errServerBusy {
-			return fmt.Errorf(errServerBusy)
+			return errors.New(errServerBusy)
 		}
 
 		report = res

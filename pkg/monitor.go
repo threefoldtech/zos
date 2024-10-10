@@ -78,6 +78,9 @@ type PoolStats struct {
 // PoolsStats alias for map[string]PoolStats
 type PoolsStats map[string]PoolStats
 
+// Types of workloads can be deployed depending on the network manager running on the node
+type NodeFeature string
+
 // SystemMonitor interface (provided by noded)
 type SystemMonitor interface {
 	NodeID() uint32
@@ -85,6 +88,7 @@ type SystemMonitor interface {
 	CPU(ctx context.Context) <-chan TimesStat
 	Disks(ctx context.Context) <-chan DisksIOCountersStat
 	Nics(ctx context.Context) <-chan NicsIOCounterStat
+	GetNodeFeatures() []NodeFeature
 }
 
 // HostMonitor interface (provided by noded)

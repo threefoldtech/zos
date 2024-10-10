@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -19,7 +20,9 @@ import (
 	"github.com/threefoldtech/0-fs/meta"
 	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
+	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zos/pkg/app"
+	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/upgrade/hub"
 	"github.com/threefoldtech/zos/pkg/zinit"
 
@@ -47,6 +50,42 @@ const (
 	ZosRepo    = "tf-zos"
 	ZosPackage = "zos.flist"
 )
+
+type ChainVersion struct {
+	SafeToUpgrade bool   `json:"safe_to_upgrade"`
+	Version       string `json:"version"`
+}
+
+func getRolloutConfig(env environment.Environment) (ChainVersion, []uint32, error) {
+	config, err := environment.GetConfig()
+	if err != nil {
+		return ChainVersion{}, nil, errors.Wrap(err, "failed to get network config")
+	}
+
+	manager := substrate.NewManager(env.SubstrateURL...)
+
+	con, err := manager.Substrate()
+	if err != nil {
+		return ChainVersion{}, nil, err
+	}
+
+	v, err := con.GetZosVersion()
+	if err != nil {
+		return ChainVersion{}, nil, errors.Wrap(err, "failed to get zos version from chain")
+	}
+
+	var chainVersion ChainVersion
+	err = json.Unmarshal([]byte(v), &chainVersion)
+	if err != nil {
+		log.Debug().Err(err).Msg("failed to unmarshal chain version and safe to upgrade flag")
+		chainVersion = ChainVersion{
+			SafeToUpgrade: true,
+			Version:       v,
+		}
+	}
+
+	return chainVersion, config.RolloutUpgrade.TestFarms, nil
+}
 
 // Upgrader is the component that is responsible
 // to keep 0-OS up to date
@@ -131,7 +170,7 @@ func NewUpgrader(root string, opts ...UpgraderOption) (*Upgrader, error) {
 	return u, nil
 }
 
-// Run strats the upgrader module and run the update according to the detected boot method
+// Run starts the upgrader module and run the update according to the detected boot method
 func (u *Upgrader) Run(ctx context.Context) error {
 	method := u.boot.DetectBootMethod()
 	if method == BootMethodOther {
@@ -233,6 +272,27 @@ func (u *Upgrader) update() error {
 	if remote.Target == current.Target {
 		// nothing to do!
 		return nil
+	}
+
+	env := environment.MustGet()
+	chainVer, testFarms, err := getRolloutConfig(env)
+	if err != nil {
+		return errors.Wrap(err, "failed to get rollout config and version")
+	}
+
+	remoteVer := remote.Target[strings.LastIndex(remote.Target, "/")+1:]
+
+	if remoteVer != chainVer.Version {
+		// nothing to do! hub version is not the same as the chain
+		return nil
+	}
+
+	if !chainVer.SafeToUpgrade {
+		if !slices.Contains(testFarms, uint32(env.FarmID)) {
+			// nothing to do! waiting for the flag `safe to upgrade to be enabled after A/B testing`
+			// node is not a part of A/B testing
+			return nil
+		}
 	}
 
 	log.Info().Str("version", filepath.Base(remote.Target)).Msg("updating system...")
