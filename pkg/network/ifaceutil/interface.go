@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 
@@ -134,31 +135,49 @@ func RandomName(prefix string) (string, error) {
 }
 
 // MakeVethPair creates a veth pair
-func MakeVethPair(name, master string, mtu int, peerPrefix string) (netlink.Link, error) {
+func MakeVethPair(name, master string, mtu int, peerPrefix string, netNs ns.NetNS) (netlink.Link, error) {
+	// due to kernel bug we have to create with tmpName or it might
+	// collide with the name on the host and error out
+	tmpName, err := ip.RandomVethName()
+	if err != nil {
+		return nil, err
+	}
+
+	// name is (eth0/ygg0/my0)
+	ifName := name
+	if netNs != nil {
+		ifName = tmpName
+	}
+
+	// getting the master bridge (br-pub/ygg/my)
 	masterLink, err := netlink.LinkByName(master)
 	if err != nil {
 		return nil, fmt.Errorf("master link: %s not found: %v", master, err)
 	}
-	peer := ""
+
+	// peer name is the other end from veth
+	// will be connected from (eth0/ygg0/my0) to br-
+	peer := fmt.Sprintf("%s-%s", peerPrefix, name)
 	if peerPrefix == "" {
 		peer = fmt.Sprintf("p-%s", name)
-	} else {
-		peer = fmt.Sprintf("%s-%s", peerPrefix, name)
 	}
 	if len(peer) > 15 {
 		peer = peer[0:15]
 	}
+
+	// a cable (eth0/ygg0/my0) in ns <==> (<wl>--<eth0/ygg0/my0>) on host
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{
-			Name:  name,
+			Name:  ifName,
 			Flags: net.FlagUp,
 			MTU:   mtu,
 		},
 		PeerName: peer,
 	}
 
+	// this should create the cable and the two end interfaces
 	if err = netlink.LinkAdd(veth); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add the veth: %w", err)
 	}
 
 	defer func() {
@@ -168,13 +187,49 @@ func MakeVethPair(name, master string, mtu int, peerPrefix string) (netlink.Link
 	}()
 
 	peerLink, err := netlink.LinkByName(peer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get peer link %q: %v", peer, err)
+	}
+
 	if err = netlink.LinkSetMaster(peerLink, masterLink); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to set the master up")
+	}
+
+	// due to kernel bug we have to create with tmpName or it might
+	// collide with the name on the host and error out
+	var nl netlink.Link
+	if netNs != nil {
+		// move the other end of veth to the namespace
+		err = netlink.LinkSetNsFd(veth, int(netNs.Fd()))
+		if err != nil {
+			return nil, fmt.Errorf("failed to move link: %s to namespace:%s : %w", name, netNs.Path(), err)
+		}
+
+		if err := netNs.Do(func(_ ns.NetNS) error {
+			err = ip.RenameLink(ifName, name)
+			if err != nil {
+				_ = netlink.LinkDel(veth)
+				return fmt.Errorf("failed to rename veth to %q: %v", name, err)
+			}
+
+			nl, err = netlink.LinkByName(name)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			return nil, errors.Wrap(err, "inside the netns")
+		}
 	}
 
 	// make sure the lowerhalf is up, this automatically sets the upperhalf UP
 	if err = netlink.LinkSetUp(peerLink); err != nil {
 		return nil, errors.Wrap(err, "could not set veth peer up")
+	}
+
+	if netNs != nil {
+		return nl, nil
 	}
 
 	// Re-fetch the link to get its creation-time parameters, e.g. index and mac

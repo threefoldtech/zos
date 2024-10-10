@@ -177,14 +177,9 @@ func (n *networker) attachYgg(id string, netNs ns.NetNS) (net.IPNet, error) {
 	}
 
 	if !ifaceutil.Exists(ZDBYggIface, netNs) {
-		yggLink, err := ifaceutil.MakeVethPair(ZDBYggIface, types.YggBridge, 1500, peerPrefix)
+		_, err := ifaceutil.MakeVethPair(ZDBYggIface, types.YggBridge, 1500, peerPrefix, netNs)
 		if err != nil {
 			return net.IPNet{}, fmt.Errorf("failed to create ygg link: %w", err)
-		}
-
-		err = netlink.LinkSetNsFd(yggLink, int(netNs.Fd()))
-		if err != nil {
-			return net.IPNet{}, fmt.Errorf("failed to move ygg link: %s to namespace:%s : %w", ZDBYggIface, netNs.Path(), err)
 		}
 
 		if err := netNs.Do(func(_ ns.NetNS) error {
@@ -255,13 +250,9 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 		peerPrefix = name[0:4]
 	}
 	if !ifaceutil.Exists(ZDBMyceliumIface, netNs) {
-		myceliumLink, err := ifaceutil.MakeVethPair(ZDBMyceliumIface, types.MyceliumBridge, 1500, peerPrefix)
+		_, err := ifaceutil.MakeVethPair(ZDBMyceliumIface, types.MyceliumBridge, 1500, peerPrefix, netNs)
 		if err != nil {
 			return net.IPNet{}, fmt.Errorf("failed to create mycelium link: %w", err)
-		}
-		err = netlink.LinkSetNsFd(myceliumLink, int(netNs.Fd()))
-		if err != nil {
-			return net.IPNet{}, fmt.Errorf("failed to move mycelium link: %s to namespace:%s : %w", ZDBMyceliumIface, netNs.Path(), err)
 		}
 
 		if err := netNs.Do(func(_ ns.NetNS) error {
@@ -321,8 +312,46 @@ func (n *networker) ensurePrepare(id, prefix, bridge string) (string, error) {
 	}
 	defer netNs.Close()
 
-	if err := n.createMacVlan(PubIface, bridge, hw, nil, nil, netNs); err != nil {
-		return "", errors.Wrap(err, "failed to setup zdb public interface")
+	// ====================
+	// Create Veth Pair for Public bridge
+	// ====================
+	name := filepath.Base(netNs.Path())
+	peerPrefix := name
+	if len(name) > 4 {
+		peerPrefix = name[0:4]
+	}
+
+	if !ifaceutil.Exists(PubIface, netNs) {
+		_, err := ifaceutil.MakeVethPair(PubIface, bridge, 1500, peerPrefix, netNs)
+		if err != nil {
+			return "", fmt.Errorf("failed to create link: %w", err)
+		}
+
+		setup := func(_ ns.NetNS) error {
+			// todo: set link for the public bridge
+			// err = setLinkAddr(iface, &ip)
+			// if err != nil {
+			// 	return err
+			// }
+
+			if err := ifaceutil.SetLoUp(); err != nil {
+				return fmt.Errorf("failed to set lo up for namespace '%s': %w", name, err)
+			}
+
+			if err := options.SetIPv6Forwarding(true); err != nil {
+				return fmt.Errorf("failed to enable ipv6 forwarding in namespace %q: %w", name, err)
+			}
+
+			// todo: no need to set routes for public, only for ygg/my
+			// if route != nil {
+			// 	return netlink.RouteAdd(&route)
+			// }
+			return nil
+		}
+
+		if err := netNs.Do(setup); err != nil {
+			return "", fmt.Errorf("failed to setup link addresses %s: %w", ZDBMyceliumIface, err)
+		}
 	}
 
 	if n.ygg != nil {
