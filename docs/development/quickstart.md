@@ -10,7 +10,7 @@
 
 * Make sure `qemu` is installed
 * [Create a farm](https://manual.grid.tf/documentation/farmers/3node_building/1_create_farm.html#create-a-farm)
-* [Download a zos image](https://bootstrap.grid.tf/kernel/zero-os-development-zos-v3-generic-7e587e499a.efi)
+* [Download a zos image](https://bootstrap.grid.tf/kernel/zero-os-development-zos-v3-generic-7e587e499a.efi) (Optional)
 * Make sure `zos0` bridge is allowed by qemu, you can add `allow zos0` in `/etc/qemu/bridge.conf` (create the file if it's not there)
 * Setup the network using this script [this script](../../qemu/net.sh) Or you can `cd qemu` then run `make net`
 
@@ -19,7 +19,18 @@ Then, inside zos repository
 ```
 make -C cmds
 cd qemu
+```
+If you downloaded your zos image move it here 
+```
 mv <downloaded image path> ./zos.efi
+```
+or you can simple run this command
+```
+make prepare
+mv dev.efi zos.efi
+```
+
+```
 make run id=<your_farm_id> user=<your_github_username>
 ```
 
