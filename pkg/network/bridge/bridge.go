@@ -116,7 +116,7 @@ func Attach(link netlink.Link, bridge *netlink.Bridge, vlan *uint16, name ...str
 			n = name[0]
 		}
 		//we need to create an veth pair to wire 2 bridges.
-		veth, err := ifaceutil.MakeVethPair(n, bridge.Name, 1500, "", nil)
+		veth, err := ifaceutil.MakeVethPair(n, bridge.Name, 1500, nil)
 		if err != nil {
 			return err
 		}

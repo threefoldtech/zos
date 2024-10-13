@@ -170,7 +170,7 @@ func (n *networker) attachYgg(id string, netNs ns.NetNS) (net.IPNet, error) {
 		Gw: gw.IP,
 	}
 
-	if err := createInterface(ZDBYggIface, types.YggBridge, netNs, &ip, &route); err != nil {
+	if err := CreateVethInterface(ZDBYggIface, types.YggBridge, netNs, &ip, &route); err != nil {
 		return net.IPNet{}, err
 	}
 
@@ -216,7 +216,7 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 		Gw: gw.IP,
 	}
 
-	if err := createInterface(ZDBMyceliumIface, types.MyceliumBridge, netNs, &ip, &route); err != nil {
+	if err := CreateVethInterface(ZDBMyceliumIface, types.MyceliumBridge, netNs, &ip, &route); err != nil {
 		return net.IPNet{}, err
 	}
 
@@ -229,10 +229,6 @@ func setLinkAddr(name string, ip *net.IPNet) error {
 		return fmt.Errorf("failed to set link address: %w", err)
 	}
 
-	// if err := options.Set(name, options.IPv6Disable(false)); err != nil {
-	// 	return fmt.Errorf("failed to enable ip6 on interface %s: %w", name, err)
-	// }
-
 	addr := netlink.Addr{
 		IPNet: ip,
 	}
@@ -244,23 +240,18 @@ func setLinkAddr(name string, ip *net.IPNet) error {
 	return netlink.LinkSetUp(link)
 }
 
-func createInterface(ifName, bridge string, netNs ns.NetNS, ip *net.IPNet, route *netlink.Route) error {
+func CreateVethInterface(ifName, bridge string, netNs ns.NetNS, ip *net.IPNet, route *netlink.Route) error {
 	// check if the interface exists on the namespace
 	if ifaceutil.Exists(ifName, netNs) {
 		return nil
 	}
 
-	// get nsName and the peer prefix
-	nsName := filepath.Base(netNs.Path())
-	peerPrefix := nsName
-	if len(nsName) > 4 {
-		peerPrefix = nsName[0:4]
-	}
-
 	// create the veth pair an move it to then namespace
-	if _, err := ifaceutil.MakeVethPair(ifName, bridge, 1500, peerPrefix, netNs); err != nil {
+	if _, err := ifaceutil.MakeVethPair(ifName, bridge, 1500, netNs); err != nil {
 		return fmt.Errorf("failed to create ygg link: %w", err)
 	}
+
+	nsName := filepath.Base(netNs.Path())
 
 	// setup addresses for the link in the namespace
 	setupNs := func(_ ns.NetNS) error {
@@ -305,7 +296,7 @@ func (n *networker) ensurePrepare(id, prefix, bridge string) (string, error) {
 	}
 	defer netNs.Close()
 
-	if err := createInterface(PubIface, bridge, netNs, nil, nil); err != nil {
+	if err := CreateVethInterface(PubIface, bridge, netNs, nil, nil); err != nil {
 		return "", err
 	}
 
