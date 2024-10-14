@@ -172,7 +172,7 @@ func (n *networker) attachYgg(id string, netNs ns.NetNS) (net.IPNet, error) {
 		},
 	}
 
-	if err := CreateVethInterface(ZDBYggIface, types.YggBridge, netNs, &ip, routes); err != nil {
+	if err := attachWithVeth(ZDBYggIface, types.YggBridge, netNs, &ip, routes); err != nil {
 		return net.IPNet{}, err
 	}
 
@@ -220,7 +220,7 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 		},
 	}
 
-	if err := CreateVethInterface(ZDBMyceliumIface, types.MyceliumBridge, netNs, &ip, routes); err != nil {
+	if err := attachWithVeth(ZDBMyceliumIface, types.MyceliumBridge, netNs, &ip, routes); err != nil {
 		return net.IPNet{}, err
 	}
 
@@ -244,12 +244,19 @@ func setLinkAddr(name string, ip *net.IPNet) error {
 	return netlink.LinkSetUp(link)
 }
 
-func CreateVethInterface(ifName, bridge string, netNs ns.NetNS, ip *net.IPNet, routes []netlink.Route) error {
+// attachWithVeth create an interface on the namespace (if not exist) and attach it to the given bridge
+// and setup the namespace with ips and routes
+//
+// - ifName: the name of the interface on the namespace
+// - bridge: the master bridge on the host
+// - netNs: the namespace to be wired to the bridge
+// - ip: ip for the link on the namespace
+// - routes: routes to add in the namespace
+func attachWithVeth(ifName, bridge string, netNs ns.NetNS, ip *net.IPNet, routes []netlink.Route) error {
 	if ifaceutil.Exists(ifName, netNs) {
 		return nil
 	}
 
-	// create the veth pair an move it to then namespace
 	if err := ifaceutil.MakeVethPair(ifName, bridge, 1500, netNs); err != nil {
 		return fmt.Errorf("failed to create ygg link: %w", err)
 	}
@@ -299,7 +306,14 @@ func (n *networker) ensurePrepare(id, prefix, bridge string) (string, error) {
 	}
 	defer netNs.Close()
 
-	if err := CreateVethInterface(PubIface, bridge, netNs, nil, nil); err != nil {
+	/*
+		target state will be something like this:
+		- br-pub (host) p-eth0 ---> (netNs) eth0
+		- br-my  (host) p-my0  ---> (netNs) my0
+		- br-ygg (host) p-ygg0 ---> (netNs) ygg0
+	*/
+
+	if err := attachWithVeth(PubIface, bridge, netNs, nil, nil); err != nil {
 		return "", err
 	}
 
