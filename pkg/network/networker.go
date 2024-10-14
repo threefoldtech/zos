@@ -162,15 +162,17 @@ func (n *networker) attachYgg(id string, netNs ns.NetNS) (net.IPNet, error) {
 		return net.IPNet{}, fmt.Errorf("failed to get ygg gateway IP: %w", err)
 	}
 
-	route := netlink.Route{
-		Dst: &net.IPNet{
-			IP:   net.ParseIP("200::"),
-			Mask: net.CIDRMask(7, 128),
+	routes := []netlink.Route{
+		{
+			Dst: &net.IPNet{
+				IP:   net.ParseIP("200::"),
+				Mask: net.CIDRMask(7, 128),
+			},
+			Gw: gw.IP,
 		},
-		Gw: gw.IP,
 	}
 
-	if err := CreateVethInterface(ZDBYggIface, types.YggBridge, netNs, &ip, &route); err != nil {
+	if err := CreateVethInterface(ZDBYggIface, types.YggBridge, netNs, &ip, routes); err != nil {
 		return net.IPNet{}, err
 	}
 
@@ -208,15 +210,17 @@ func (n *networker) attachMycelium(id string, netNs ns.NetNS) (net.IPNet, error)
 		return net.IPNet{}, fmt.Errorf("failed to get mycelium gateway IP: %w", err)
 	}
 
-	route := netlink.Route{
-		Dst: &net.IPNet{
-			IP:   net.ParseIP("400::"),
-			Mask: net.CIDRMask(7, 128),
+	routes := []netlink.Route{
+		{
+			Dst: &net.IPNet{
+				IP:   net.ParseIP("400::"),
+				Mask: net.CIDRMask(7, 128),
+			},
+			Gw: gw.IP,
 		},
-		Gw: gw.IP,
 	}
 
-	if err := CreateVethInterface(ZDBMyceliumIface, types.MyceliumBridge, netNs, &ip, &route); err != nil {
+	if err := CreateVethInterface(ZDBMyceliumIface, types.MyceliumBridge, netNs, &ip, routes); err != nil {
 		return net.IPNet{}, err
 	}
 
@@ -240,14 +244,13 @@ func setLinkAddr(name string, ip *net.IPNet) error {
 	return netlink.LinkSetUp(link)
 }
 
-func CreateVethInterface(ifName, bridge string, netNs ns.NetNS, ip *net.IPNet, route *netlink.Route) error {
-	// check if the interface exists on the namespace
+func CreateVethInterface(ifName, bridge string, netNs ns.NetNS, ip *net.IPNet, routes []netlink.Route) error {
 	if ifaceutil.Exists(ifName, netNs) {
 		return nil
 	}
 
 	// create the veth pair an move it to then namespace
-	if _, err := ifaceutil.MakeVethPair(ifName, bridge, 1500, netNs); err != nil {
+	if err := ifaceutil.MakeVethPair(ifName, bridge, 1500, netNs); err != nil {
 		return fmt.Errorf("failed to create ygg link: %w", err)
 	}
 
@@ -269,8 +272,8 @@ func CreateVethInterface(ifName, bridge string, netNs ns.NetNS, ip *net.IPNet, r
 			return fmt.Errorf("failed to enable ipv6 forwarding in namespace %q: %w", nsName, err)
 		}
 
-		if route != nil {
-			if err := netlink.RouteAdd(route); err != nil {
+		for _, route := range routes {
+			if err := netlink.RouteAdd(&route); err != nil {
 				return fmt.Errorf("failed to add route %q: %w", nsName, err)
 			}
 		}
