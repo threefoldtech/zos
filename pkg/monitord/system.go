@@ -215,6 +215,7 @@ func (n *systemMonitor) GetNodeFeatures() []pkg.NodeFeature {
 		pkg.NodeFeature(zos.ZLogsType),
 		pkg.NodeFeature("yggdrasil"),
 		pkg.NodeFeature("mycelium"),
+		pkg.NodeFeature("wireguard"),
 	}
 	return feat
 }
