@@ -207,10 +207,9 @@ func (n *systemMonitor) GetNodeFeatures() []pkg.NodeFeature {
 		pkg.NodeFeature(zos.ZDBType),
 		pkg.NodeFeature(zos.ZMountType),
 		pkg.NodeFeature(zos.VolumeType),
-		pkg.NodeFeature(zos.PublicIPv4Type),
-		pkg.NodeFeature(zos.PublicIPType),
 		pkg.NodeFeature(zos.QuantumSafeFSType),
 		pkg.NodeFeature(zos.ZLogsType),
+		pkg.NodeFeature("mycelium"),
 	}
 	return feat
 }
