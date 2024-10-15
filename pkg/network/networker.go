@@ -41,7 +41,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/threefoldtech/zos/pkg/network/macvlan"
 	"github.com/threefoldtech/zos/pkg/network/nr"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/set"
@@ -347,7 +346,6 @@ func (n *networker) destroy(ns string) error {
 	return namespace.Delete(nSpace)
 }
 
-// func (n *networker) NSPrepare(id string, )
 // EnsureZDBPrepare sends a macvlan interface into the
 // network namespace of a ZDB container
 func (n *networker) EnsureZDBPrepare(id string) (string, error) {
@@ -365,31 +363,31 @@ func (n *networker) ZDBDestroy(ns string) error {
 	// return n.destroy(ns)
 }
 
-func (n *networker) createMacVlan(iface string, master string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {
-	var macVlan *netlink.Macvlan
-	err := netNs.Do(func(_ ns.NetNS) error {
-		var err error
-		macVlan, err = macvlan.GetByName(iface)
-		return err
-	})
+// func (n *networker) createMacVlan(iface string, master string, hw net.HardwareAddr, ips []*net.IPNet, routes []*netlink.Route, netNs ns.NetNS) error {
+// 	var macVlan *netlink.Macvlan
+// 	err := netNs.Do(func(_ ns.NetNS) error {
+// 		var err error
+// 		macVlan, err = macvlan.GetByName(iface)
+// 		return err
+// 	})
 
-	if _, ok := err.(netlink.LinkNotFoundError); ok {
-		macVlan, err = macvlan.Create(iface, master, netNs)
-		if err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
+// 	if _, ok := err.(netlink.LinkNotFoundError); ok {
+// 		macVlan, err = macvlan.Create(iface, master, netNs)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	} else if err != nil {
+// 		return err
+// 	}
 
-	log.Debug().Str("HW", hw.String()).Str("macvlan", macVlan.Name).Msg("setting hw address on link")
-	// we don't set any route or ip
-	if err := macvlan.Install(macVlan, hw, ips, routes, netNs); err != nil {
-		return err
-	}
+// 	log.Debug().Str("HW", hw.String()).Str("macvlan", macVlan.Name).Msg("setting hw address on link")
+// 	// we don't set any route or ip
+// 	if err := macvlan.Install(macVlan, hw, ips, routes, netNs); err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // SetupTap interface in the network resource. We only allow 1 tap interface to be
 // set up per NR currently
