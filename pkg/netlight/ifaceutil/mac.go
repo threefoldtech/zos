@@ -51,7 +51,7 @@ func DeviceNameFromInputBytes(input []byte) string {
 		b = b[:13]
 	}
 
-	return string(b)
+	return b
 }
 
 func isHardwareAddrInValidRange(addr net.HardwareAddr) bool {
