@@ -80,6 +80,11 @@ func IsValidName(n Name) error {
 		return fmt.Errorf("name cannot be empty")
 	}
 
+	// this because max virtio fs tag length is 36 and it is used by cloud-hypervisor
+	if len(n) > 36 {
+		return fmt.Errorf("name cannot exceed 36 characters")
+	}
+
 	if !nameMatch.MatchString(string(n)) {
 		return fmt.Errorf("unsupported character in workload name")
 	}
