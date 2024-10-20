@@ -24,7 +24,7 @@ If you downloaded your zos image move it here
 ```
 mv <downloaded image path> ./zos.efi
 ```
-or you can simple run this command
+Or you can run this commands
 ```
 make prepare
 mv dev.efi zos.efi
