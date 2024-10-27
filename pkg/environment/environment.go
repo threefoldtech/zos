@@ -49,6 +49,7 @@ type Environment struct {
 	RelayURL      []string
 	ActivationURL string
 	GraphQL       string
+	KycURL        string
 
 	// private vlan to join
 	// if set, zos will use this as its priv vlan
@@ -116,6 +117,7 @@ var (
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.dev",
 		GraphQL:       "https://graphql.dev.grid.tf/graphql",
+		KycURL:        "",
 	}
 
 	envTest = Environment{
@@ -131,6 +133,7 @@ var (
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.test",
 		GraphQL:       "https://graphql.test.grid.tf/graphql",
+		KycURL:        "",
 	}
 
 	envQA = Environment{
@@ -146,6 +149,7 @@ var (
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins.qanet",
 		GraphQL:       "https://graphql.qa.grid.tf/graphql",
+		KycURL:        "",
 	}
 
 	envProd = Environment{
@@ -164,6 +168,7 @@ var (
 		FlistURL:      "redis://hub.grid.tf:9900",
 		BinRepo:       "tf-zos-v3-bins",
 		GraphQL:       "https://graphql.grid.tf/graphql",
+		KycURL:        "https://kyc1.gent01.dev.grid.tf",
 	}
 )
 

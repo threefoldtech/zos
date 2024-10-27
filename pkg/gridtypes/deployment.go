@@ -5,11 +5,8 @@ import (
 	"crypto/ed25519"
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"time"
 
 	sr25519 "github.com/ChainSafe/go-schnorrkel"
 	"github.com/gtank/merlin"
@@ -17,8 +14,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ErrWorkloadNotFound error
-var ErrWorkloadNotFound = fmt.Errorf("workload not found")
+var (
+	// ErrWorkloadNotFound error
+	ErrWorkloadNotFound = fmt.Errorf("workload not found")
+)
 
 const (
 	SignatureTypeEd25519 = "ed25519"
@@ -33,10 +32,8 @@ type Verifier interface {
 	Verify(msg []byte, sig []byte) bool
 }
 
-type (
-	Ed25519VerifyingKey []byte
-	Sr25519VerifyingKey []byte
-)
+type Ed25519VerifyingKey []byte
+type Sr25519VerifyingKey []byte
 
 func (k Ed25519VerifyingKey) Verify(msg []byte, sig []byte) bool {
 	return ed25519.Verify([]byte(k), msg, sig)
@@ -388,11 +385,6 @@ func (d *Deployment) Sign(twin uint32, sk Signer) error {
 // Verify verifies user signatures is mainly used by the node
 // to verify that all attached signatures are valid.
 func (d *Deployment) Verify(getter KeyGetter) error {
-	// make sure the account used is verified
-	if getTwinVerificationState(d.TwinID) != "VERIFIED" {
-		return fmt.Errorf("user is not verified")
-	}
-
 	message, err := d.ChallengeHash()
 	if err != nil {
 		return err
@@ -625,6 +617,7 @@ func (d *Deployment) Upgrade(n *Deployment) ([]UpgradeOp, error) {
 					wl,
 					OpUpdate,
 				})
+
 			}
 			// other wise. we leave it untouched
 		}
@@ -671,47 +664,4 @@ func (o JobOperation) String() string {
 	default:
 		return "unknown"
 	}
-}
-
-// getTwinVerificationState make sure the account used is verified we have the user public key in bytes(pkBytes)
-func getTwinVerificationState(twinID uint32) (status string) {
-	verificationServiceURL := "https://kyc1.gent01.dev.grid.tf/api/v1/status"
-	status = "FAILED"
-
-	request, err := http.NewRequest(http.MethodGet, verificationServiceURL, nil)
-	if err != nil {
-		return
-	}
-
-	q := request.URL.Query()
-	q.Set("twinID", fmt.Sprint(twinID))
-	request.URL.RawQuery = q.Encode()
-
-	cl := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	response, err := cl.Do(request)
-	if err != nil {
-		return
-	}
-	defer response.Body.Close()
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return
-	}
-
-	bodyMap := map[string]string{}
-	err = json.Unmarshal(body, &bodyMap)
-	if err != nil {
-		return
-	}
-
-	if response.StatusCode != http.StatusOK {
-		log.Error().Msgf("failed to verify user status: %s", bodyMap["error"])
-		return
-	}
-
-	return bodyMap["status"]
 }
