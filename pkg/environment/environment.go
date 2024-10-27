@@ -125,7 +125,7 @@ var (
 			"https://graphql.dev.grid.tf/graphql",
 			"https://graphql.02.dev.grid.tf/graphql",
 		},
-		KycURL: "https://kyc1.gent01.dev.grid.tf",
+		KycURL: "",
 	}
 
 	envTest = Environment{
@@ -197,7 +197,7 @@ var (
 			"https://graphql.grid.tf/graphql",
 			"https://graphql.02.grid.tf/graphql",
 		},
-		KycURL: "",
+		KycURL: "https://kyc1.gent01.dev.grid.tf",
 	}
 )
 

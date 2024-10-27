@@ -1185,10 +1185,7 @@ func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, bool
 // getTwinVerificationState make sure the account used is verified we have the user public key in bytes(pkBytes)
 func getTwinVerificationState(twinID uint32) (status string) {
 	status = "FAILED"
-	env, err := environment.Get()
-	if err != nil {
-		return
-	}
+	env := environment.MustGet()
 
 	verificationServiceURL, err := url.JoinPath(env.KycURL, "/api/v1/status")
 	if err != nil {
@@ -1219,16 +1216,22 @@ func getTwinVerificationState(twinID uint32) (status string) {
 		return
 	}
 
-	bodyMap := map[string]string{}
-	err = json.Unmarshal(body, &bodyMap)
+	var result struct {
+		Result struct {
+			Status string `json:"status"`
+		} `json:"result"`
+		Error string `json:"error"`
+	}
+
+	err = json.Unmarshal(body, &result)
 	if err != nil {
 		return
 	}
 
 	if response.StatusCode != http.StatusOK {
-		log.Error().Msgf("failed to verify user status: %s", bodyMap["error"])
+		log.Error().Msgf("failed to verify user status: %s", result.Error)
 		return
 	}
 
-	return bodyMap["status"]
+	return result.Result.Status
 }
