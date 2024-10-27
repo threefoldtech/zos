@@ -1192,6 +1192,10 @@ func getTwinVerificationState(twinID uint32) (status string) {
 		return
 	}
 
+	if len(verificationServiceURL) == 0 {
+		return "VERIFIED"
+	}
+
 	request, err := http.NewRequest(http.MethodGet, verificationServiceURL, nil)
 	if err != nil {
 		return
