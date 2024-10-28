@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/network/ifaceutil"
 	"github.com/threefoldtech/zos/pkg/network/namespace"
 	"github.com/threefoldtech/zos/pkg/network/options"
@@ -16,6 +17,7 @@ import (
 const (
 	zdbNsPrefix = "zdb-ns-"
 	macvlanType = "macvlan"
+	mtu         = 1500
 )
 
 type Veth struct {
@@ -31,7 +33,7 @@ func (n *networker) MigrateZdbMacvlanToVeth() error {
 		return fmt.Errorf("failed to list namespaces with prefix %q: %w", zdbNsPrefix, err)
 	}
 	if len(netNss) != 1 {
-		return fmt.Errorf("should found only one namespace with prefix %q, found %v", zdbNsPrefix, len(netNss))
+		return fmt.Errorf("should find only one namespace with prefix %q, found %v", zdbNsPrefix, len(netNss))
 	}
 
 	netNs, err := namespace.GetByName(netNss[0])
@@ -48,6 +50,8 @@ func (n *networker) MigrateZdbMacvlanToVeth() error {
 		return fmt.Errorf("failed to get old links from namespace %q: %w", filepath.Base(netNs.Path()), err)
 	}
 
+	log.Debug().Msgf("starting to create veths for zdb: %v", veths)
+
 	for _, veth := range veths {
 		master, err := netlink.LinkByIndex(veth.bridgeIdx)
 		if err != nil {
@@ -55,16 +59,25 @@ func (n *networker) MigrateZdbMacvlanToVeth() error {
 		}
 
 		if err := netNs.Do(func(_ ns.NetNS) error {
+			log.Debug().Str("ifname", veth.name).Msg("deleting old link connected with macvlan")
 			return deleteOldLink(veth.name)
 		}); err != nil {
 			return fmt.Errorf("failed to remove old link in namespace: %w", err)
 		}
 
-		if err := ifaceutil.MakeVethPair(veth.name, master.Attrs().Name, 1500, netNs); err != nil {
+		log.Debug().
+			Str("in-namespace", filepath.Base(netNs.Path())).
+			Str("from-interface", veth.name).
+			Str("to-master-bridge", master.Attrs().Name).
+			Msg("creating veth pair")
+		if err := ifaceutil.MakeVethPair(veth.name, master.Attrs().Name, mtu, netNs); err != nil {
 			return fmt.Errorf("failed to attach with veth from %q to master %q : %w", veth.name, master.Attrs().Name, err)
 		}
 
 		if err := netNs.Do(func(_ ns.NetNS) error {
+			log.Debug().
+				Str("ifname", veth.name).
+				Msg("setup address and routes for interface in namespace")
 			return setupNamespace(veth.name, veth.addresses, veth.routes)
 		}); err != nil {
 			return fmt.Errorf("failed to add address in namespace: %w", err)
