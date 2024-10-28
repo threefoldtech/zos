@@ -9,6 +9,7 @@ import (
 	"net"
 	"os/exec"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -43,22 +44,31 @@ func (p *ProbeOutput) IPNet() (*net.IPNet, error) {
 func Probe(ctx context.Context, inf string) (output ProbeOutput, err error) {
 	// use udhcpc to prope the interface.
 	// this depends on that the interface is UP
-	cmd := exec.CommandContext(ctx, "udhcpc",
-		"-i", inf, //the interface to prope
-		"-q",       // exist once lease is optained
-		"-f",       //foreground
-		"-t", "20", //send 20 dhcp queries
-		"-T", "1", // every second
-		"-s", "/usr/share/udhcp/probe.script", // use the prope script
-		"--now", // exit if lease is not obtained
-	)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	t := 1
+	check := func() error {
+		args := []string{
+			"-i", inf, // the interface to prope
+			"-q",      // exist once lease is optained
+			"-f",      // foreground
+			"-T", "1", // every second
+			"-t", fmt.Sprint(t), // send 't' dhcp queries
+			"-s", "/usr/share/udhcp/probe.script", // use the prope script
+			"--now", // exit if lease is not obtained
+		}
+
+		cmd := exec.CommandContext(ctx, "udhcpc", args...)
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		t += 5
+		return cmd.Run()
+	}
+
+	if err := backoff.Retry(check, backoff.NewExponentialBackOff()); err != nil {
 		return output, errors.Wrapf(err, "failed to prope interface '%s': %s", inf, stderr.String())
 	}
 
