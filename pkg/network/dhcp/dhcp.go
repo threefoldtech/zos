@@ -42,21 +42,21 @@ func (p *ProbeOutput) IPNet() (*net.IPNet, error) {
 }
 
 func Probe(ctx context.Context, inf string) (output ProbeOutput, err error) {
-	// use udhcpc to prope the interface.
+	// use udhcpc to probe the interface.
 	// this depends on that the interface is UP
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	t := 1
+	t := 10
 	check := func() error {
 		args := []string{
 			"-i", inf, // the interface to prope
-			"-q",      // exist once lease is optained
+			"-q",      // exit once lease is optained
 			"-f",      // foreground
-			"-T", "1", // every second
-			"-t", fmt.Sprint(t), // send 't' dhcp queries
-			"-s", "/usr/share/udhcp/probe.script", // use the prope script
+			"-T", "1", // pauses for a second between packets timeout
+			"-t", fmt.Sprint(t), // send 't' dhcp discover packets
+			"-s", "/usr/share/udhcp/probe.script", // use the probe script
 			"--now", // exit if lease is not obtained
 		}
 
@@ -69,7 +69,7 @@ func Probe(ctx context.Context, inf string) (output ProbeOutput, err error) {
 	}
 
 	if err := backoff.Retry(check, backoff.NewExponentialBackOff()); err != nil {
-		return output, errors.Wrapf(err, "failed to prope interface '%s': %s", inf, stderr.String())
+		return output, errors.Wrapf(err, "failed to probe interface '%s': %s", inf, stderr.String())
 	}
 
 	log.Debug().Str("output", stdout.String()).Msg("output from dhcp proping")

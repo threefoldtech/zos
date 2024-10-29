@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# this prope script can work as a udhcpc script
+# this probe script can work as a udhcpc script
 # that does not configure the interface but instead
 # prints out the result from the bound operation
 # in a json object.
@@ -11,7 +11,7 @@ stage=$1
 
 # we only handle bound process
 if [ $stage != "bound" ]; then
-    exit 0
+	exit 0
 fi
 
 # the idea is that we print out
