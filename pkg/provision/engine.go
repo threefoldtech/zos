@@ -1025,8 +1025,10 @@ func (n *NativeEngine) CreateOrUpdate(twin uint32, deployment gridtypes.Deployme
 
 	// make sure the account used is verified
 	check := func() error {
-		if !isTwinVerified(twin) {
-			return fmt.Errorf("user is not verified")
+		if ok, err := isTwinVerified(twin); err != nil {
+			return err
+		} else if !ok {
+			return fmt.Errorf("user with twin id %d is not verified", twin)
 		}
 		return nil
 	}
@@ -1190,7 +1192,7 @@ func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, bool
 }
 
 // isTwinVerified make sure the account used is verified
-func isTwinVerified(twinID uint32) (verified bool) {
+func isTwinVerified(twinID uint32) (verified bool, err error) {
 	const verifiedStatus = "VERIFIED"
 	env := environment.MustGet()
 
@@ -1219,8 +1221,7 @@ func isTwinVerified(twinID uint32) (verified bool) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		log.Error().Msg("failed to get user status")
-		return
+		return verified, errors.New("failed to get twin verification status")
 	}
 
 	var result struct{ Result struct{ Status string } }
@@ -1230,5 +1231,5 @@ func isTwinVerified(twinID uint32) (verified bool) {
 		return
 	}
 
-	return result.Result.Status == verifiedStatus
+	return result.Result.Status == verifiedStatus, nil
 }
