@@ -1024,7 +1024,7 @@ func (n *NativeEngine) CreateOrUpdate(twin uint32, deployment gridtypes.Deployme
 	}
 
 	// make sure the account used is verified
-	if getTwinVerificationState(twin) != "VERIFIED" {
+	if getTwinVerificationStatus(twin) != "VERIFIED" {
 		return fmt.Errorf("user is not verified")
 	}
 
@@ -1182,18 +1182,14 @@ func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, bool
 	return wl.Result.State, true, nil
 }
 
-// getTwinVerificationState make sure the account used is verified we have the user public key in bytes(pkBytes)
-func getTwinVerificationState(twinID uint32) (status string) {
+// getTwinVerificationStatus make sure the account used is verified we have the user public key in bytes(pkBytes)
+func getTwinVerificationStatus(twinID uint32) (status string) {
 	status = "FAILED"
 	env := environment.MustGet()
 
 	verificationServiceURL, err := url.JoinPath(env.KycURL, "/api/v1/status")
 	if err != nil {
 		return
-	}
-
-	if len(verificationServiceURL) == 0 {
-		return "VERIFIED"
 	}
 
 	request, err := http.NewRequest(http.MethodGet, verificationServiceURL, nil)

@@ -125,7 +125,7 @@ var (
 			"https://graphql.dev.grid.tf/graphql",
 			"https://graphql.02.dev.grid.tf/graphql",
 		},
-		KycURL: "",
+		KycURL: "https://kyc.dev.grid.tf",
 	}
 
 	envTest = Environment{
@@ -148,7 +148,7 @@ var (
 			"https://graphql.test.grid.tf/graphql",
 			"https://graphql.02.test.grid.tf/graphql",
 		},
-		KycURL: "",
+		KycURL: "https://kyc.test.grid.tf",
 	}
 
 	envQA = Environment{
@@ -171,7 +171,7 @@ var (
 			"https://graphql.qa.grid.tf/graphql",
 			"https://graphql.02.qa.grid.tf/graphql",
 		},
-		KycURL: "",
+		KycURL: "https://kyc.qa.grid.tf",
 	}
 
 	envProd = Environment{
@@ -197,7 +197,7 @@ var (
 			"https://graphql.grid.tf/graphql",
 			"https://graphql.02.grid.tf/graphql",
 		},
-		KycURL: "https://kyc1.gent01.dev.grid.tf",
+		KycURL: "https://kyc.grid.tf",
 	}
 )
 
