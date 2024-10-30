@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -1026,7 +1025,7 @@ func (n *NativeEngine) CreateOrUpdate(twin uint32, deployment gridtypes.Deployme
 
 	// make sure the account used is verified
 	check := func() error {
-		if getTwinVerificationStatus(twin) != "VERIFIED" {
+		if !isTwinVerified(twin) {
 			return fmt.Errorf("user is not verified")
 		}
 		return nil
@@ -1190,9 +1189,9 @@ func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, bool
 	return wl.Result.State, true, nil
 }
 
-// getTwinVerificationStatus make sure the account used is verified we have the user public key in bytes(pkBytes)
-func getTwinVerificationStatus(twinID uint32) (status string) {
-	status = "FAILED"
+// isTwinVerified make sure the account used is verified
+func isTwinVerified(twinID uint32) (verified bool) {
+	const verifiedStatus = "VERIFIED"
 	env := environment.MustGet()
 
 	verificationServiceURL, err := url.JoinPath(env.KycURL, "/api/v1/status")
@@ -1219,27 +1218,17 @@ func getTwinVerificationStatus(twinID uint32) (status string) {
 	}
 	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return
-	}
-
-	var result struct {
-		Result struct {
-			Status string `json:"status"`
-		} `json:"result"`
-		Error string `json:"error"`
-	}
-
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return
-	}
-
 	if response.StatusCode != http.StatusOK {
-		log.Error().Msgf("failed to verify user status: %s", result.Error)
+		log.Error().Msg("failed to get user status")
 		return
 	}
 
-	return result.Result.Status
+	var result struct{ Result struct{ Status string } }
+
+	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		return
+	}
+
+	return result.Result.Status == verifiedStatus
 }
