@@ -43,12 +43,22 @@ func (p *ProbeOutput) IPNet() (*net.IPNet, error) {
 
 func Probe(ctx context.Context, inf string) (output ProbeOutput, err error) {
 	// use udhcpc to probe the interface.
-	// this depends on that the interface is UP
+	// this check that the interface is UP before running udhcpc
+
+	interfaceByName, err := net.InterfaceByName(inf)
+	if err != nil {
+		return output, err
+	}
+
+	if (interfaceByName.Flags & net.FlagUp) == 0 {
+		return output, fmt.Errorf("failed to probe interface %s interface is not up", inf)
+	}
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
 	t := 10
+	var maxRetries uint64 = 5
 	check := func() error {
 		args := []string{
 			"-i", inf, // the interface to prope
@@ -68,7 +78,10 @@ func Probe(ctx context.Context, inf string) (output ProbeOutput, err error) {
 		return cmd.Run()
 	}
 
-	if err := backoff.Retry(check, backoff.NewExponentialBackOff()); err != nil {
+	if err := backoff.Retry(
+		check,
+		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxRetries),
+	); err != nil {
 		return output, errors.Wrapf(err, "failed to probe interface '%s': %s", inf, stderr.String())
 	}
 
