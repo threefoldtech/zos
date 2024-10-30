@@ -13,6 +13,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -1024,8 +1025,15 @@ func (n *NativeEngine) CreateOrUpdate(twin uint32, deployment gridtypes.Deployme
 	}
 
 	// make sure the account used is verified
-	if getTwinVerificationStatus(twin) != "VERIFIED" {
-		return fmt.Errorf("user is not verified")
+	check := func() error {
+		if getTwinVerificationStatus(twin) != "VERIFIED" {
+			return fmt.Errorf("user is not verified")
+		}
+		return nil
+	}
+
+	if err := backoff.Retry(check, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5)); err != nil {
+		return err
 	}
 
 	if err := deployment.Verify(n.twins); err != nil {
