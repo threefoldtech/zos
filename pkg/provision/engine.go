@@ -5,18 +5,20 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/joncrlsn/dque"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/environment"
 	"github.com/threefoldtech/zos4/pkg/gridtypes"
 	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
 	"github.com/threefoldtech/zos4/pkg/stubs"
@@ -1022,8 +1024,15 @@ func (n *NativeEngine) CreateOrUpdate(twin uint32, deployment gridtypes.Deployme
 	}
 
 	// make sure the account used is verified
-	if getTwinVerificationState(twin) != "VERIFIED" {
-		return fmt.Errorf("user is not verified")
+	check := func() error {
+		if !isTwinVerified(twin) {
+			return fmt.Errorf("user is not verified")
+		}
+		return nil
+	}
+
+	if err := backoff.Retry(check, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5)); err != nil {
+		return err
 	}
 
 	if err := deployment.Verify(n.twins); err != nil {
@@ -1180,10 +1189,15 @@ func (e *NativeEngine) GetWorkloadStatus(id string) (gridtypes.ResultState, bool
 	return wl.Result.State, true, nil
 }
 
-// getTwinVerificationState make sure the account used is verified we have the user public key in bytes(pkBytes)
-func getTwinVerificationState(twinID uint32) (status string) {
-	verificationServiceURL := "https://kyc1.gent01.dev.grid.tf/api/v1/status"
-	status = "FAILED"
+// isTwinVerified make sure the account used is verified
+func isTwinVerified(twinID uint32) (verified bool) {
+	const verifiedStatus = "VERIFIED"
+	env := environment.MustGet()
+
+	verificationServiceURL, err := url.JoinPath(env.KycURL, "/api/v1/status")
+	if err != nil {
+		return
+	}
 
 	request, err := http.NewRequest(http.MethodGet, verificationServiceURL, nil)
 	if err != nil {
@@ -1191,7 +1205,7 @@ func getTwinVerificationState(twinID uint32) (status string) {
 	}
 
 	q := request.URL.Query()
-	q.Set("twinID", fmt.Sprint(twinID))
+	q.Set("twin_id", fmt.Sprint(twinID))
 	request.URL.RawQuery = q.Encode()
 
 	cl := &http.Client{
@@ -1204,21 +1218,17 @@ func getTwinVerificationState(twinID uint32) (status string) {
 	}
 	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return
-	}
-
-	bodyMap := map[string]string{}
-	err = json.Unmarshal(body, &bodyMap)
-	if err != nil {
-		return
-	}
-
 	if response.StatusCode != http.StatusOK {
-		log.Error().Msgf("failed to verify user status: %s", bodyMap["error"])
+		log.Error().Msg("failed to get user status")
 		return
 	}
 
-	return bodyMap["status"]
+	var result struct{ Result struct{ Status string } }
+
+	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		return
+	}
+
+	return result.Result.Status == verifiedStatus
 }
