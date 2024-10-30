@@ -23,7 +23,8 @@ const (
 	InProgress RegistrationState = "InProgress"
 	Done       RegistrationState = "Done"
 
-	monitorAccountEvery = 30 * time.Minute
+	monitorAccountEvery    = 30 * time.Minute
+	updateNodeInfoInterval = 24 * time.Hour
 )
 
 var (
@@ -146,6 +147,9 @@ func (r *Registrar) register(ctx context.Context, cl zbus.Client, env environmen
 			if err := r.reActivate(ctx, cl, env); err != nil {
 				log.Error().Err(err).Msg("failed to reactivate account")
 			}
+		case <-time.After(updateNodeInfoInterval):
+			log.Info().Msg("update interval passed, re-register")
+			register()
 		case <-addressesUpdate:
 			log.Info().Msg("zos address has changed, re-register")
 			register()
