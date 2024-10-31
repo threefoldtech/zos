@@ -19,6 +19,28 @@ import (
 
 const acceptableSkew = 10 * time.Minute
 
+// TimeServer represents a time server with its name and fetching function
+type TimeServer struct {
+	Name string
+	Func func() (time.Time, error)
+}
+
+// List of time servers
+var timeServers = []TimeServer{
+	{
+		Name: "worldtimeapi",
+		Func: getWorldTimeAPI,
+	},
+	{
+		Name: "worldclockapi",
+		Func: getWorldClockAPI,
+	},
+	{
+		Name: "timeapi.io",
+		Func: getTimeAPI,
+	},
+}
+
 func RunNTPCheck(ctx context.Context) {
 	operation := func() error {
 		return ntpCheck(ctx)
