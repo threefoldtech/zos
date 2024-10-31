@@ -7,12 +7,12 @@ import (
 	"reflect"
 
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
 )
 
 //go:generate mkdir -p stubs
-//go:generate zbusc -module network -version 0.0.1 -name network -package stubs github.com/threefoldtech/zos/pkg+Networker stubs/network_stub.go
+//go:generate zbusc -module network -version 0.0.1 -name network -package stubs github.com/threefoldtech/zos4/pkg+Networker stubs/network_stub.go
 
 // ContainerNetworkConfig defines how to construct the network namespace of a container
 type ContainerNetworkConfig struct {
@@ -27,12 +27,6 @@ type PlanetaryTap struct {
 	HW      net.HardwareAddr
 	IP      net.IPNet
 	Gateway net.IPNet
-}
-
-type Interface struct {
-	Name string
-	IPs  []net.IPNet
-	Mac  string
 }
 
 type ExitDevice struct {
@@ -220,7 +214,7 @@ type Networker interface {
 
 // Network type
 type Network struct {
-	zos.Network
+	zos.NetworkLight
 	NetID NetID `json:"net_id"`
 }
 
@@ -285,10 +279,4 @@ func (p PublicConfig) Equal(cfg PublicConfig) bool {
 type OptionPublicConfig struct {
 	PublicConfig
 	HasPublicConfig bool
-}
-
-// Interfaces struct to bypass zbus generation error
-// where it generate a stub with map as interface instead of map
-type Interfaces struct {
-	Interfaces map[string]Interface
 }

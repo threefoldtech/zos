@@ -10,9 +10,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 )
 
 // should any of this be moved to pkg?
@@ -23,7 +23,8 @@ const (
 	InProgress RegistrationState = "InProgress"
 	Done       RegistrationState = "Done"
 
-	monitorAccountEvery = 30 * time.Minute
+	monitorAccountEvery    = 30 * time.Minute
+	updateNodeInfoInterval = 24 * time.Hour
 )
 
 var (
@@ -132,7 +133,7 @@ func (r *Registrar) register(ctx context.Context, cl zbus.Client, env environmen
 
 	register()
 
-	stub := stubs.NewNetworkerStub(cl)
+	stub := stubs.NewNetworkerLightStub(cl)
 	addressesUpdate, err := stub.ZOSAddresses(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to monitor ip changes")
@@ -146,6 +147,9 @@ func (r *Registrar) register(ctx context.Context, cl zbus.Client, env environmen
 			if err := r.reActivate(ctx, cl, env); err != nil {
 				log.Error().Err(err).Msg("failed to reactivate account")
 			}
+		case <-time.After(updateNodeInfoInterval):
+			log.Info().Msg("update interval passed, re-register")
+			register()
 		case <-addressesUpdate:
 			log.Info().Msg("zos address has changed, re-register")
 			register()

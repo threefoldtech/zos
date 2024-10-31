@@ -11,19 +11,19 @@ import (
 	"github.com/urfave/cli/v2"
 
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/capacity"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/events"
-	"github.com/threefoldtech/zos/pkg/monitord"
-	"github.com/threefoldtech/zos/pkg/perf"
-	"github.com/threefoldtech/zos/pkg/perf/cpubench"
-	"github.com/threefoldtech/zos/pkg/perf/healthcheck"
-	"github.com/threefoldtech/zos/pkg/perf/iperf"
-	"github.com/threefoldtech/zos/pkg/perf/publicip"
-	"github.com/threefoldtech/zos/pkg/registrar"
-	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos4/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/capacity"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/events"
+	"github.com/threefoldtech/zos4/pkg/monitord"
+	"github.com/threefoldtech/zos4/pkg/perf"
+	"github.com/threefoldtech/zos4/pkg/perf/cpubench"
+	"github.com/threefoldtech/zos4/pkg/perf/healthcheck"
+	"github.com/threefoldtech/zos4/pkg/perf/iperf"
+	"github.com/threefoldtech/zos4/pkg/perf/publicip"
+	"github.com/threefoldtech/zos4/pkg/registrar"
+	"github.com/threefoldtech/zos4/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/utils"
 
 	"github.com/rs/zerolog/log"
 
@@ -90,11 +90,6 @@ func action(cli *cli.Context) error {
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
-	}
-
-	consumer, err := events.NewConsumer(msgBrokerCon, module)
-	if err != nil {
-		return errors.Wrap(err, "failed to to create event consumer")
 	}
 
 	if printID {
@@ -232,15 +227,6 @@ func action(cli *cli.Context) error {
 	server.Register(zbus.ObjectID{Name: "performance-monitor", Version: "0.0.1"}, perfMon)
 
 	log.Info().Uint32("node", node).Uint32("twin", twin).Msg("node registered")
-
-	go func() {
-		for {
-			if err := public(ctx, node, redis, consumer); err != nil {
-				log.Error().Err(err).Msg("setting public config failed")
-				<-time.After(10 * time.Second)
-			}
-		}
-	}()
 
 	log.Info().Uint32("twin", twin).Msg("node has been registered")
 	idStub := stubs.NewIdentityManagerStub(redis)

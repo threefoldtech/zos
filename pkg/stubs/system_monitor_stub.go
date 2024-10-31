@@ -6,8 +6,9 @@ package stubs
 
 import (
 	"context"
+
 	zbus "github.com/threefoldtech/zbus"
-	pkg "github.com/threefoldtech/zos/pkg"
+	pkg "github.com/threefoldtech/zos4/pkg"
 )
 
 type SystemMonitorStub struct {
@@ -73,6 +74,22 @@ func (s *SystemMonitorStub) Disks(ctx context.Context) (<-chan pkg.DisksIOCounte
 		}
 	}()
 	return ch, nil
+}
+
+func (s *SystemMonitorStub) GetNodeFeatures(ctx context.Context) (ret0 []pkg.NodeFeature) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetNodeFeatures", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
 }
 
 func (s *SystemMonitorStub) Memory(ctx context.Context) (<-chan pkg.VirtualMemoryStat, error) {

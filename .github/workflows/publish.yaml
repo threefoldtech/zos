@@ -72,7 +72,7 @@ jobs:
       # will use the tag value (has to start with v)
       - name: Tagging
         uses: threefoldtech/publish-flist@master
-        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/zos-light')
         with:
           token: ${{ secrets.HUB_JWT }}
           action: tag
@@ -82,12 +82,13 @@ jobs:
 
       # only for main branch (devnet)
       # this basically releases this build to devnet
+      # TODO remove zos-light
       - name: Cross tagging (development)
-        if: success() && github.ref == 'refs/heads/main'
+        if: success() && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/zos-light')
         uses: threefoldtech/publish-flist@master
         with:
           token: ${{ secrets.HUB_JWT }}
           action: crosstag
           user: tf-zos
-          name: development
+          name: development-v4
           target: tf-autobuilder/${{ steps.tag.outputs.reference }}

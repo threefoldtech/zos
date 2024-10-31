@@ -1,0 +1,71 @@
+@startuml
+
+
+component "Host" {
+    component NIC as nic
+    () ZOS as zos
+    note left of zos
+    ZOS bridge, get the Ip address
+    assigned by physical network (dhcp)
+    end note
+
+    nic --> zos: attached
+
+    () "br-ndmz" as brndmz
+    note right of brndmz
+    ndmz bridge will always have <b>100.127.0.1</b>
+    end note
+    zos .right. brndmz: Natted
+
+    () "br-my" as brmy
+    () "b-<NR>" as bnr
+    () "m-<NR>" as bmy
+}
+
+component "ndmz" {
+    component public as pub
+    pub -up->brndmz: macvlan
+    note bottom of pub
+    always assigned static IP <b>100.127.0.2</b>
+    end note
+
+    component my0
+    note bottom of my0
+    created by mycelium process
+    end note
+
+
+    component nmy
+
+    nmy -up-> brmy: macvlan
+}
+
+
+component "n-<NR>" {
+    component public as npub
+    npub -up->brndmz: macvlan
+    note bottom of npub
+    gets assigned static IP by ZOS in the range <b>100.127.0.0/16</b>
+    end note
+
+    component my0 as nmy0
+    note bottom of nmy0
+    created by mycelium process
+    end note
+
+
+    component nmy as nnmy
+    nnmy -up-> bmy: macvlan
+
+    component private
+    private -up->bnr: macvlan
+}
+
+component "VM"
+
+VM --> bnr
+VM --> bmy
+@enduml
+
+
+@enduml

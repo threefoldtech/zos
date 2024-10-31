@@ -19,9 +19,9 @@ import (
 	"github.com/threefoldtech/0-fs/meta"
 	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/upgrade/hub"
-	"github.com/threefoldtech/zos/pkg/zinit"
+	"github.com/threefoldtech/zos4/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/upgrade/hub"
+	"github.com/threefoldtech/zos4/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
 )
@@ -200,9 +200,10 @@ func (u *Upgrader) nextUpdate() time.Duration {
 func (u *Upgrader) remote() (remote hub.TagLink, err error) {
 	mode := u.boot.RunMode()
 	// find all taglinks that matches the same run mode (ex: development)
+	envName := fmt.Sprintf("%s-v4", mode.String())
 	matches, err := u.hub.Find(
 		ZosRepo,
-		hub.MatchName(mode.String()),
+		hub.MatchName(envName),
 		hub.MatchType(hub.TypeTagLink),
 	)
 	if err != nil {
@@ -210,7 +211,7 @@ func (u *Upgrader) remote() (remote hub.TagLink, err error) {
 	}
 
 	if len(matches) != 1 {
-		return remote, fmt.Errorf("can't find taglink that matches '%s'", mode.String())
+		return remote, fmt.Errorf("can't find taglink that matches '%s'", envName)
 	}
 
 	return hub.NewTagLink(matches[0]), nil

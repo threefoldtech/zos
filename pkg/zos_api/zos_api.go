@@ -5,17 +5,18 @@ import (
 
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/capacity"
-	"github.com/threefoldtech/zos/pkg/diagnostics"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/capacity"
+	"github.com/threefoldtech/zos4/pkg/diagnostics"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 )
 
 type ZosAPI struct {
 	oracle                 *capacity.ResourceOracle
 	versionMonitorStub     *stubs.VersionMonitorStub
+	systemMonitorStub      *stubs.SystemMonitorStub
 	provisionStub          *stubs.ProvisionStub
-	networkerStub          *stubs.NetworkerStub
+	networkerLightStub     *stubs.NetworkerLightStub
 	statisticsStub         *stubs.StatisticsStub
 	storageStub            *stubs.StorageModuleStub
 	performanceMonitorStub *stubs.PerformanceMonitorStub
@@ -37,8 +38,9 @@ func NewZosAPI(manager substrate.Manager, client zbus.Client, msgBrokerCon strin
 	api := ZosAPI{
 		oracle:                 capacity.NewResourceOracle(storageModuleStub),
 		versionMonitorStub:     stubs.NewVersionMonitorStub(client),
+		systemMonitorStub:      stubs.NewSystemMonitorStub(client),
 		provisionStub:          stubs.NewProvisionStub(client),
-		networkerStub:          stubs.NewNetworkerStub(client),
+		networkerLightStub:     stubs.NewNetworkerLightStub(client),
 		statisticsStub:         stubs.NewStatisticsStub(client),
 		storageStub:            storageModuleStub,
 		performanceMonitorStub: stubs.NewPerformanceMonitorStub(client),

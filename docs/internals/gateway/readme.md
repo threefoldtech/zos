@@ -81,7 +81,7 @@ The `certResolver` option has two valid values, `resolver` and `dnsresolver`. Th
 
 The CNAME record is used to make all subdomains (reserved or not) resolve to the ip of the gateway. Generating a wildcard certificate requires adding a TXT record at `__acme-challenge.gatewaydomain.com`. The NS record is used to delegate this specific subdomain to the node. So if someone did `dig TXT __acme-challenge.gatewaydomain.com`, the query is served by the node, not the DNS provider used for the gateway domain.
 
-Traefik has, as a config parameter, multiple dns [providers](https://doc.traefik.io/traefik/https/acme/#providers) to communicate with when it wants to add the required TXT record. For non-supported providers, a bash script can be provided to do the record generation and clean up (i.e. External program). The bash [script](https://github.com/threefoldtech/zos/blob/main/pkg/gateway/static/cert.sh) starts dnsmasq managing a dns zone for the `__acme-challenge` subdomain with the given TXT record. It then kills the dnsmasq process and removes the config file during cleanup.
+Traefik has, as a config parameter, multiple dns [providers](https://doc.traefik.io/traefik/https/acme/#providers) to communicate with when it wants to add the required TXT record. For non-supported providers, a bash script can be provided to do the record generation and clean up (i.e. External program). The bash [script](https://github.com/threefoldtech/zos4/blob/main/pkg/gateway/static/cert.sh) starts dnsmasq managing a dns zone for the `__acme-challenge` subdomain with the given TXT record. It then kills the dnsmasq process and removes the config file during cleanup.
 ## Interface
 
 ```go

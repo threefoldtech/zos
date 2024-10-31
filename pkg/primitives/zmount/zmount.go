@@ -8,10 +8,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
-	"github.com/threefoldtech/zos/pkg/provision"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg/provision"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 )
 
 var (
@@ -103,7 +103,7 @@ func (p *Manager) zMountUpdateImpl(ctx context.Context, wl *gridtypes.WorkloadWi
 			continue
 		}
 
-		var data zos.ZMachine
+		var data zos.ZMachineLight
 		if err := json.Unmarshal(vm.Data, &data); err != nil {
 			return vol, provision.UnChanged(errors.Wrap(err, "failed to load vm information"))
 		}

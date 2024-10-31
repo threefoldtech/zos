@@ -8,9 +8,9 @@ import (
 
 	"github.com/pkg/errors"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zos4/pkg"
 
-	"github.com/threefoldtech/zos/pkg/kernel"
+	"github.com/threefoldtech/zos4/pkg/kernel"
 )
 
 const (
@@ -39,9 +39,8 @@ type Environment struct {
 	FlistURL string
 	BinRepo  string
 
-	FarmID pkg.FarmID
-	Orphan bool
-
+	FarmID       pkg.FarmID
+	Orphan       bool
 	FarmSecret   string
 	SubstrateURL []string
 	// IMPORTANT NOTICE:
@@ -50,6 +49,7 @@ type Environment struct {
 	RelayURL      []string
 	ActivationURL []string
 	GraphQL       []string
+	KycURL        string
 
 	// private vlan to join
 	// if set, zos will use this as its priv vlan
@@ -124,6 +124,7 @@ var (
 			"https://graphql.dev.grid.tf/graphql",
 			"https://graphql.02.dev.grid.tf/graphql",
 		},
+		KycURL: "https://kyc.dev.grid.tf",
 	}
 
 	envTest = Environment{
@@ -146,6 +147,7 @@ var (
 			"https://graphql.test.grid.tf/graphql",
 			"https://graphql.02.test.grid.tf/graphql",
 		},
+		KycURL: "https://kyc.test.grid.tf",
 	}
 
 	envQA = Environment{
@@ -168,6 +170,7 @@ var (
 			"https://graphql.qa.grid.tf/graphql",
 			"https://graphql.02.qa.grid.tf/graphql",
 		},
+		KycURL: "https://kyc.qa.grid.tf",
 	}
 
 	envProd = Environment{
@@ -193,6 +196,7 @@ var (
 			"https://graphql.grid.tf/graphql",
 			"https://graphql.02.grid.tf/graphql",
 		},
+		KycURL: "https://kyc.grid.tf",
 	}
 )
 
@@ -349,6 +353,5 @@ func getEnvironmentFromParams(params kernel.Params) (Environment, error) {
 	if e := os.Getenv("ZOS_BIN_REPO"); e != "" {
 		env.BinRepo = e
 	}
-
 	return env, nil
 }

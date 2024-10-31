@@ -1,0 +1,24 @@
+@startuml
+
+() "br-ndmz" as brndmz
+() "br-my" as brmy
+
+component "ndmz" {
+    component public as pub
+    pub -up->brndmz: macvlan
+    note bottom of pub
+    always assigned static IP <b>100.127.0.2</b>
+    end note
+
+    component my0
+    note bottom of my0
+    created by mycelium process
+    end note
+
+
+    component nmy
+
+    nmy -up-> brmy: macvlan
+}
+
+@enduml

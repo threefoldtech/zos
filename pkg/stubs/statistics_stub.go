@@ -6,9 +6,10 @@ package stubs
 
 import (
 	"context"
+
 	zbus "github.com/threefoldtech/zbus"
-	pkg "github.com/threefoldtech/zos/pkg"
-	gridtypes "github.com/threefoldtech/zos/pkg/gridtypes"
+	pkg "github.com/threefoldtech/zos4/pkg"
+	gridtypes "github.com/threefoldtech/zos4/pkg/gridtypes"
 )
 
 type StatisticsStub struct {

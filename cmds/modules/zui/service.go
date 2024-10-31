@@ -7,7 +7,7 @@ import (
 	"github.com/gizak/termui/v3/widgets"
 	"github.com/threefoldtech/zbus"
 
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 )
 
 const (
@@ -132,7 +132,7 @@ func getRegistrarStatus(ctx context.Context, client zbus.Client) string {
 }
 
 func getNetworkStatus(ctx context.Context, client zbus.Client) bool {
-	network := stubs.NewNetworkerStub(client)
+	network := stubs.NewNetworkerLightStub(client)
 
 	if err := network.Ready(ctx); err != nil {
 		return false

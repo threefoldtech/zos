@@ -7,19 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/shirou/gopsutil/cpu"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
 )
 
-//go:generate zbusc -module vmd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos/pkg+VMModule stubs/vmd_stub.go
-
-// Route structure
-type Route struct {
-	Net net.IPNet
-	// Gateway can be nil, in that
-	// case the device is used as a dev instead
-	Gateway net.IP
-}
+//go:generate zbusc -module vmd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos4/pkg+VMModule stubs/vmd_stub.go
 
 // VMIface structure
 type VMIface struct {
