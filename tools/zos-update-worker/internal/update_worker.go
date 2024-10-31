@@ -104,22 +104,24 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 	}
 	defer con.Close()
 
-	currentZosVersions, err := con.GetZosVersion()
+	currentZosVersion, err := con.GetZosVersion()
 	if err != nil {
 		return err
 	}
 
-	type ZosVersions struct {
-		Zos      string
-		ZosLight string
+	type ChainVersion struct {
+		SafeToUpgrade bool   `json:"safe_to_upgrade"`
+		Version       string `json:"version"`
 	}
-	versions := ZosVersions{}
 
-	err = json.Unmarshal([]byte(currentZosVersions), &versions)
+	var chainVersion ChainVersion
+	err = json.Unmarshal([]byte(currentZosVersion), &chainVersion)
 	if err != nil {
-		return err
+		log.Debug().Err(err).Msg("failed to unmarshal chain version")
+		chainVersion.Version = currentZosVersion
 	}
-	log.Debug().Msgf("getting substrate version %v for network %v", versions, network)
+
+	log.Debug().Msgf("getting substrate version %v for network %v", chainVersion.Version, network)
 
 	// now we need to find how dst is relative to src
 	path, err := filepath.Rel(w.dst, w.src)
@@ -128,16 +130,16 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 	}
 
 	//zos
-	zosCurrent := fmt.Sprintf("%v/.tag-%v", w.src, versions.Zos)
+	zosCurrent := fmt.Sprintf("%v/.tag-%v", w.src, chainVersion.Version)
 	zosLatest := fmt.Sprintf("%v/%v", w.dst, network)
 	// zos light
-	zosLightCurrent := fmt.Sprintf("%v/.tag-%v", w.src, versions.ZosLight)
+	zosLightCurrent := fmt.Sprintf("%v/.tag-%v", w.src, chainVersion.Version)
 	zosLightLatest := fmt.Sprintf("%v/%v-v4", w.dst, network)
 	// the link is like zosCurrent but it has the path relative from the symlink
 	// point of view (so relative to the symlink, how to reach zosCurrent)
 	// hence the link is instead used in all calls to symlink
-	zosLink := fmt.Sprintf("%v/.tag-%v", path, versions.Zos)
-	zosLightLink := fmt.Sprintf("%v/.tag-%v", path, versions.ZosLight)
+	zosLink := fmt.Sprintf("%v/.tag-%v", path, chainVersion.Version)
+	zosLightLink := fmt.Sprintf("%v/.tag-%v", path, chainVersion.Version)
 
 	// update links for both zos and zoslight
 	if err = w.updateLink(zosCurrent, zosLatest, zosLink); err != nil {
@@ -147,6 +149,11 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 }
 
 func (w *Worker) updateLink(current string, latest string, link string) error {
+	// check if current exists
+	if _, err := os.Lstat(current); err != nil {
+		return err
+	}
+
 	// check if symlink exists
 	dst, err := os.Readlink(latest)
 

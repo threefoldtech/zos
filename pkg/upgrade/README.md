@@ -2,9 +2,11 @@
 
 The upgrade module is responsible to keep a zos node always up to date.
 
-It checks the hub for new releases of zos packages.
+It checks the hub for new releases of zos packages. Also check version and `safe_to_upgrade` flag from the chain.
 
-If a new release is available, it will then update the packages and restart the updated module with the new binaries if required.
+If `safe_to_upgrade` is set to `false` and a new release is available then it will only update the [configured farms](https://github.com/threefoldtech/zos-config/blob/main/config.schema.json#L49)
+
+If `safe_to_upgrade` is set to `true` and a new release is available, it will then update the packages and restart the updated module with the new binaries if required.
 
 ## Usage
 
@@ -27,14 +29,14 @@ Then run the upgrader `upgrader.Run(ctx)`
 
 ## How it works
 
-The upgrader module has two running modes depeding on the booting method.
+The upgrader module has two running modes depending on the booting method.
 
 ### Bootstrap Method
 
 Running the upgrader on a node run with `bootstrap` will periodically check the hub for latest tag,
 and if that tag differs from the current one, it updates the local packages to latest.
 
-If the update failed, the upgrader would attempts to install the packages again every `10 secounds` until all packages are successfully updated to prevent partial updates.
+If the update failed, the upgrader would attempts to install the packages again every `10 seconds` until all packages are successfully updated to prevent partial updates.
 
 The upgrader runs periodically every hour to check for new updates.
 
