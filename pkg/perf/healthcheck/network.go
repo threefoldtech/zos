@@ -17,11 +17,9 @@ const defaultRequestTimeout = 5 * time.Second
 
 func networkCheck(ctx context.Context) []error {
 	env := environment.MustGet()
-	servicesUrl := []string{
-		env.ActivationURL, env.FlistURL,
-	}
+	servicesUrl := []string{env.FlistURL}
 	servicesUrl = append(append(servicesUrl, env.SubstrateURL...), env.RelayURL...)
-	servicesUrl = append(servicesUrl, env.GraphQL...)
+	servicesUrl = append(append(servicesUrl, env.ActivationURL...), env.GraphQL...)
 
 	var errors []error
 

@@ -556,8 +556,8 @@ github.com/stripe/safesql v0.2.0/go.mod h1:q7b2n0JmzM1mVGfcYpanfVb2j23cXZeWFxcIL
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/threefoldtech/0-fs v1.3.1-0.20240424140157-b488dfedcc56 h1:uWd8JfE8N3IM6Zw/LMr0+sRJl+G0YgqQmNDP8xXR0vw=
 github.com/threefoldtech/0-fs v1.3.1-0.20240424140157-b488dfedcc56/go.mod h1:lZjR32SiNo3dP70inVFxaLMyZjmKX1ucS+5O31dbPNM=
-github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240416134707-eb36aa90df2d h1:vWHR33VfphOahBlo3aGCE/eKPlfb4BCInhKidGkdp5s=
-github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240416134707-eb36aa90df2d/go.mod h1:dtDKAPiUDxAwIkfHV7xcAFZcOm+xwNIuOI1MLFS+MeQ=
+github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240827163226-d4e15e206974 h1:95Ox9WYNiwm3mVJeVF/lp7iCpVGA28AkU1atN893eDo=
+github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240827163226-d4e15e206974/go.mod h1:dtDKAPiUDxAwIkfHV7xcAFZcOm+xwNIuOI1MLFS+MeQ=
 github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.15.2 h1:6NsugITjq90ErPqa7+JGTYpaduh+eInyIxfy+eBvbIs=
 github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.15.2/go.mod h1:/Jf4SDtYO2cov3ZZQhyQqh+4o8UYYUrs+NDHWe/xUwY=
 github.com/threefoldtech/zbus v1.0.1 h1:3KaEpyOiDYAw+lrAyoQUGIvY9BcjVRXlQ1beBRqhRNk=
