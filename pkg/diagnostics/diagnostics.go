@@ -8,7 +8,7 @@ import (
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos4/pkg/utils"
 )
 
 const (

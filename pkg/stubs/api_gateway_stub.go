@@ -6,10 +6,11 @@ package stubs
 
 import (
 	"context"
+
 	types "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	tfchainclientgo "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	zbus "github.com/threefoldtech/zbus"
-	pkg "github.com/threefoldtech/zos/pkg"
+	pkg "github.com/threefoldtech/zos4/pkg"
 )
 
 type SubstrateGatewayStub struct {
@@ -63,7 +64,7 @@ func (s *SubstrateGatewayStub) CreateTwin(ctx context.Context, arg0 string, arg1
 	return
 }
 
-func (s *SubstrateGatewayStub) EnsureAccount(ctx context.Context, arg0 string, arg1 string, arg2 string) (ret0 tfchainclientgo.AccountInfo, ret1 error) {
+func (s *SubstrateGatewayStub) EnsureAccount(ctx context.Context, arg0 []string, arg1 string, arg2 string) (ret0 tfchainclientgo.AccountInfo, ret1 error) {
 	args := []interface{}{arg0, arg1, arg2}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "EnsureAccount", args...)
 	if err != nil {

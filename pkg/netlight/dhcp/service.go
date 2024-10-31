@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/zinit"
+	"github.com/threefoldtech/zos4/pkg/zinit"
 )
 
 const (

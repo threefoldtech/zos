@@ -1,4 +1,4 @@
-module github.com/threefoldtech/zos
+module github.com/threefoldtech/zos4
 
 go 1.21
 
@@ -45,7 +45,7 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/stretchr/testify v1.9.0
 	github.com/threefoldtech/0-fs v1.3.1-0.20240424140157-b488dfedcc56
-	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240416134707-eb36aa90df2d
+	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20240827163226-d4e15e206974
 	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.15.2
 	github.com/threefoldtech/zbus v1.0.1
 	github.com/tyler-smith/go-bip39 v1.1.0

@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/utils"
 )
 
 // PerformanceMonitor holds the module data

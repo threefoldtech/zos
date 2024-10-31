@@ -8,18 +8,18 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/upgrade"
+	"github.com/threefoldtech/zos4/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/upgrade"
 
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/identity"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/identity"
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/utils"
-	"github.com/threefoldtech/zos/pkg/version"
+	"github.com/threefoldtech/zos4/pkg/utils"
+	"github.com/threefoldtech/zos4/pkg/version"
 )
 
 const (

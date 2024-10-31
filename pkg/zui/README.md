@@ -4,11 +4,11 @@
 
 - At start up, it shows the state of the running services until all services are up.
 
-![image](https://github.com/threefoldtech/zos/assets/67752395/43f15965-d900-4cf6-9666-513a5b3fb847)
+![image](https://github.com/threefoldtech/zos4/assets/67752395/43f15965-d900-4cf6-9666-513a5b3fb847)
 
 - After all services are up, zui shows the network information and the usage of the node resources.
 
-![image](https://github.com/threefoldtech/zos/assets/67752395/e9186f75-2334-4c1e-a8ba-35af86eddee8)
+![image](https://github.com/threefoldtech/zos4/assets/67752395/e9186f75-2334-4c1e-a8ba-35af86eddee8)
 
 - It can also display the errors occurred in other modules.
 
@@ -50,7 +50,7 @@ sudo ./vm.sh -g -n node-01 -c "farmer_id=$(id) version=v3 printk.devmsg=on runmo
 
 ## Update zui display
 
-To update or display more information to zui you can update the module [here](https://github.com/threefoldtech/zos/tree/main/cmds/modules/zui)
+To update or display more information to zui you can update the module [here](https://github.com/threefoldtech/zos4/tree/main/cmds/modules/zui)
 
 - Monitor more or less resources by updating the `resourcesRender` in `zui/prov.go`
 

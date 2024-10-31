@@ -1,7 +1,7 @@
 package pkg
 
 //go:generate mkdir -p stubs
-//go:generate zbusc -module identityd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos/pkg+IdentityManager stubs/identity_stub.go
+//go:generate zbusc -module identityd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos4/pkg+IdentityManager stubs/identity_stub.go
 
 // Identifier is the interface that defines
 // how an object can be used as an identity

@@ -14,12 +14,12 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/netlight/macvlan"
-	"github.com/threefoldtech/zos/pkg/netlight/namespace"
-	"github.com/threefoldtech/zos/pkg/perf"
-	"github.com/threefoldtech/zos/pkg/perf/graphql"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/netlight/macvlan"
+	"github.com/threefoldtech/zos4/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos4/pkg/perf"
+	"github.com/threefoldtech/zos4/pkg/perf/graphql"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 	"github.com/vishvananda/netlink"
 )
 
@@ -179,7 +179,7 @@ func (p *publicIPValidationTask) validateIPs(publicIPs []substrate.PublicIP) (ma
 
 func isLeastValidNode(ctx context.Context, farmID uint32, substrateGateway *stubs.SubstrateGatewayStub) (bool, error) {
 	env := environment.MustGet()
-	gql := graphql.NewGraphQl(env.GraphQL)
+	gql := graphql.NewGraphQl(env.GraphQL...)
 
 	nodes, err := gql.GetUpNodes(ctx, 0, farmID, 0, false, false)
 	if err != nil {
@@ -202,7 +202,7 @@ func isLeastValidNode(ctx context.Context, farmID uint32, substrateGateway *stub
 	}
 
 	for _, node := range nodes {
-		if node.NodeID >= uint32(nodeID) {
+		if node.NodeID >= nodeID {
 			continue
 		}
 		n, err := substrateGateway.GetNode(ctx, node.NodeID)

@@ -11,9 +11,9 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/kernel"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/kernel"
 )
 
 var (

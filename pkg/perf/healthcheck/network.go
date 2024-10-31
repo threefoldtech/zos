@@ -9,18 +9,17 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/environment"
 )
 
 const defaultRequestTimeout = 5 * time.Second
 
 func networkCheck(ctx context.Context) []error {
 	env := environment.MustGet()
-	servicesUrl := []string{
-		env.ActivationURL, env.GraphQL, env.FlistURL,
-	}
+	servicesUrl := []string{env.FlistURL}
 	servicesUrl = append(append(servicesUrl, env.SubstrateURL...), env.RelayURL...)
+	servicesUrl = append(append(servicesUrl, env.ActivationURL...), env.GraphQL...)
 
 	var errors []error
 

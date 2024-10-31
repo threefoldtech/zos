@@ -11,17 +11,17 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/primitives/x25519"
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/netlight"
-	"github.com/threefoldtech/zos/pkg/netlight/nft"
-	"github.com/threefoldtech/zos/pkg/netlight/resource"
+	"github.com/threefoldtech/zos4/pkg/netlight"
+	"github.com/threefoldtech/zos4/pkg/netlight/nft"
+	"github.com/threefoldtech/zos4/pkg/netlight/resource"
 	"github.com/urfave/cli/v2"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/netlight/bootstrap"
-	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos4/pkg/netlight/bootstrap"
+	"github.com/threefoldtech/zos4/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/utils"
 )
 
 const (

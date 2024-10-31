@@ -9,8 +9,8 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
 )
 
 var _ pkg.SystemMonitor = (*systemMonitor)(nil)
@@ -207,10 +207,9 @@ func (n *systemMonitor) GetNodeFeatures() []pkg.NodeFeature {
 		pkg.NodeFeature(zos.ZDBType),
 		pkg.NodeFeature(zos.ZMountType),
 		pkg.NodeFeature(zos.VolumeType),
-		pkg.NodeFeature(zos.PublicIPv4Type),
-		pkg.NodeFeature(zos.PublicIPType),
 		pkg.NodeFeature(zos.QuantumSafeFSType),
 		pkg.NodeFeature(zos.ZLogsType),
+		pkg.NodeFeature("mycelium"),
 	}
 	return feat
 }

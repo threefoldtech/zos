@@ -16,10 +16,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/vm/cloudinit"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/vm/cloudinit"
 )
 
 const (
@@ -327,7 +327,7 @@ func (m *Module) withLogs(path string, err error) error {
 		return errors.Wrapf(err, "failed to tail machine logs: %s", tailErr)
 	}
 
-	return errors.Wrapf(err, string(logs))
+	return errors.Wrap(err, logs)
 }
 
 func (m *Module) checkDevicesUsed(devices []string) error {

@@ -16,7 +16,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/threefoldtech/zos/tools/zos-update-version/cmd"
+	"github.com/threefoldtech/zos4/tools/zos-update-version/cmd"
 )
 
 func main() {

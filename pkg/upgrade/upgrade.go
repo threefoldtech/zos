@@ -21,10 +21,10 @@ import (
 	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/upgrade/hub"
-	"github.com/threefoldtech/zos/pkg/zinit"
+	"github.com/threefoldtech/zos4/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/upgrade/hub"
+	"github.com/threefoldtech/zos4/pkg/zinit"
 
 	"github.com/rs/zerolog/log"
 )

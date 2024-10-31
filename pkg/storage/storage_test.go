@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
-	"github.com/threefoldtech/zos/pkg/storage/filesystem"
+	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg/storage/filesystem"
 )
 
 type testVolume struct {
@@ -416,7 +416,7 @@ func TestCacheResize(t *testing.T) {
 			Excl: 1,
 		},
 	}
-	vol.On("Limit", uint64(cacheSize)).Return(nil)
+	vol.On("Limit", cacheSize).Return(nil)
 	err := m.checkAndResizeCache(&vol, cacheSize)
 	require.NoError(t, err)
 
@@ -444,7 +444,7 @@ func TestCacheResize(t *testing.T) {
 			Excl: 0, // no files
 		},
 	}
-	vol.On("Limit", uint64(cacheSize)).Return(nil)
+	vol.On("Limit", cacheSize).Return(nil)
 	err = m.checkAndResizeCache(&vol, cacheSize)
 	require.NoError(t, err)
 
@@ -468,7 +468,7 @@ func TestCacheResize(t *testing.T) {
 			Excl: 91,
 		},
 	}
-	vol.On("Limit", uint64(100+cacheSize)).Return(nil)
+	vol.On("Limit", 100+cacheSize).Return(nil)
 	err = m.checkAndResizeCache(&vol, cacheSize)
 	require.NoError(t, err)
 

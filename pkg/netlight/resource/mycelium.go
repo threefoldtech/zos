@@ -13,8 +13,8 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/netlight/resource/peers"
-	"github.com/threefoldtech/zos/pkg/zinit"
+	"github.com/threefoldtech/zos4/pkg/netlight/resource/peers"
+	"github.com/threefoldtech/zos4/pkg/zinit"
 )
 
 const (
@@ -74,7 +74,7 @@ func inspectMyceliumFile(path string) (inspection MyceliumInspection, err error)
 
 // IP return the address in the 400::/7 subnet allocated by mycelium
 func (m *MyceliumInspection) IP() net.IP {
-	return net.IP(m.Address)
+	return m.Address
 }
 
 // Subnet return the 400::/64 subnet allocated by mycelium

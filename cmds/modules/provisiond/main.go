@@ -12,25 +12,25 @@ import (
 
 	"github.com/pkg/errors"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/capacity"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/events"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
-	"github.com/threefoldtech/zos/pkg/primitives"
-	"github.com/threefoldtech/zos/pkg/provision/storage"
-	fsStorage "github.com/threefoldtech/zos/pkg/provision/storage.fs"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/app"
+	"github.com/threefoldtech/zos4/pkg/capacity"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/events"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg/primitives"
+	"github.com/threefoldtech/zos4/pkg/provision/storage"
+	fsStorage "github.com/threefoldtech/zos4/pkg/provision/storage.fs"
 	"github.com/urfave/cli/v2"
 
-	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos4/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg/utils"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/provision"
+	"github.com/threefoldtech/zos4/pkg/provision"
 )
 
 const (
@@ -91,7 +91,7 @@ func integrityChecks(ctx context.Context, rootDir string) error {
 // runChecks starts provisiond with the special flag `--integrity` which runs some
 // checks and return an error if checks did not pass.
 // if an error is received the db files are cleaned
-func runChecks(ctx context.Context, rootDir string) error {
+func runChecks(ctx context.Context, rootDir string, cl zbus.Client) error {
 	log.Info().Msg("run integrity checks")
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -110,6 +110,13 @@ func runChecks(ctx context.Context, rootDir string) error {
 
 	log.Error().Str("stderr", buf.String()).Err(err).Msg("integrity check failed, resetting rrd db")
 
+	zui := stubs.NewZUIStub(cl)
+	if er := zui.PushErrors(ctx, "integrity", []string{
+		fmt.Sprintf("integrity check failed, resetting rrd db stderr=%s: %v", buf.String(), err),
+	}); er != nil {
+		log.Error().Err(er).Msg("failed to push errors to zui")
+	}
+
 	// other error, we can try to clean up and continue
 	return os.RemoveAll(filepath.Join(rootDir, metricsStorageDB))
 }
@@ -121,6 +128,14 @@ func action(cli *cli.Context) error {
 		integrity    bool   = cli.Bool("integrity")
 	)
 
+	server, err := zbus.NewRedisServer(serverName, msgBrokerCon, 1)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect to message broker")
+	}
+	cl, err := zbus.NewRedisClient(msgBrokerCon)
+	if err != nil {
+		return errors.Wrap(err, "fail to connect to message broker server")
+	}
 	ctx, _ := utils.WithSignal(context.Background())
 
 	if integrity {
@@ -132,7 +147,7 @@ func action(cli *cli.Context) error {
 	})
 
 	// run integrityChecks
-	if err := runChecks(ctx, rootDir); err != nil {
+	if err := runChecks(ctx, rootDir, cl); err != nil {
 		return errors.Wrap(err, "error running integrity checks")
 	}
 
@@ -158,15 +173,6 @@ func action(cli *cli.Context) error {
 		// we don't have a valid farmer id set
 		log.Info().Msg("orphan node, we won't provision anything at all")
 		select {}
-	}
-
-	server, err := zbus.NewRedisServer(serverName, msgBrokerCon, 1)
-	if err != nil {
-		return errors.Wrap(err, "failed to connect to message broker")
-	}
-	cl, err := zbus.NewRedisClient(msgBrokerCon)
-	if err != nil {
-		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
 	identity := stubs.NewIdentityManagerStub(cl)

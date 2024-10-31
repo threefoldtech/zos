@@ -34,7 +34,7 @@ go version && go env
 ```
 6. Go to your `zos` code `pkg` directory hosted from your MacOS development machine within your docker `/bin/bash`:
 ```bash
-cd /oss/github.com/threefoldtech/zos/pkg
+cd /oss/github.com/threefoldtech/zos4/pkg
 ```
 7. Install the dependencies for testing:
 ```bash

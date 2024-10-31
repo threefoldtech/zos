@@ -149,6 +149,11 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 }
 
 func (w *Worker) updateLink(current string, latest string, link string) error {
+	// check if current exists
+	if _, err := os.Lstat(current); err != nil {
+		return err
+	}
+
 	// check if symlink exists
 	dst, err := os.Readlink(latest)
 

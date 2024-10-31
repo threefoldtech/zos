@@ -1,12 +1,12 @@
 package pkg
 
 import (
-	"github.com/threefoldtech/zos/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
 )
 
 //go:generate mkdir -p stubs
 
-//go:generate zbusc -module qsfsd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos/pkg+QSFSD stubs/qsfsd_stub.go
+//go:generate zbusc -module qsfsd -version 0.0.1 -name manager -package stubs github.com/threefoldtech/zos4/pkg+QSFSD stubs/qsfsd_stub.go
 
 type QSFSMetrics struct {
 	Consumption map[string]NetMetric

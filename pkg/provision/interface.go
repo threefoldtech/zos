@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
 )
 
 // Twins is used to get twin public key

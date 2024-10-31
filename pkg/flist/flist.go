@@ -20,11 +20,11 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/netlight/namespace"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 )
 
 const (

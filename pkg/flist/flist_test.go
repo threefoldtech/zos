@@ -14,8 +14,8 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/gridtypes"
 )
 
 var templ = template.Must(template.New("script").Parse(`

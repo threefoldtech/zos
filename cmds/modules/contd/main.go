@@ -12,13 +12,13 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/container"
-	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zos4/pkg/container"
+	"github.com/threefoldtech/zos4/pkg/utils"
 )
 
 const module = "container"
 
-//Module is contd entry point
+// Module is contd entry point
 var Module cli.Command = cli.Command{
 	Name:  "contd",
 	Usage: "handles containers creations",

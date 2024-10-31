@@ -10,14 +10,14 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/netlight/bridge"
-	"github.com/threefoldtech/zos/pkg/netlight/ifaceutil"
-	"github.com/threefoldtech/zos/pkg/netlight/namespace"
-	"github.com/threefoldtech/zos/pkg/netlight/nft"
-	"github.com/threefoldtech/zos/pkg/netlight/options"
-	"github.com/threefoldtech/zos/pkg/netlight/tuntap"
-	"github.com/threefoldtech/zos/pkg/zinit"
+	"github.com/threefoldtech/zos4/pkg"
+	"github.com/threefoldtech/zos4/pkg/netlight/bridge"
+	"github.com/threefoldtech/zos4/pkg/netlight/ifaceutil"
+	"github.com/threefoldtech/zos4/pkg/netlight/namespace"
+	"github.com/threefoldtech/zos4/pkg/netlight/nft"
+	"github.com/threefoldtech/zos4/pkg/netlight/options"
+	"github.com/threefoldtech/zos4/pkg/netlight/tuntap"
+	"github.com/threefoldtech/zos4/pkg/zinit"
 	"github.com/vishvananda/netlink"
 )
 

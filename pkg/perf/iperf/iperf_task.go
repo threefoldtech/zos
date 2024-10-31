@@ -13,10 +13,10 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/netlight/iperf"
-	"github.com/threefoldtech/zos/pkg/perf"
-	"github.com/threefoldtech/zos/pkg/perf/graphql"
+	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/netlight/iperf"
+	"github.com/threefoldtech/zos4/pkg/perf"
+	"github.com/threefoldtech/zos4/pkg/perf/graphql"
 )
 
 const (
@@ -76,7 +76,7 @@ func (t *IperfTest) Jitter() uint32 {
 // Run runs the tcp test and returns the result
 func (t *IperfTest) Run(ctx context.Context) (interface{}, error) {
 	env := environment.MustGet()
-	g := graphql.NewGraphQl(env.GraphQL)
+	g := graphql.NewGraphQl(env.GraphQL...)
 
 	// get public up nodes
 	freeFarmNodes, err := g.GetUpNodes(ctx, 0, 1, 0, true, true)
@@ -151,7 +151,7 @@ func (t *IperfTest) runIperfTest(ctx context.Context, clientIP string, tcp bool)
 	operation := func() error {
 		res := runIperfCommand(ctx, opts)
 		if res.Error == errServerBusy {
-			return fmt.Errorf(errServerBusy)
+			return errors.New(errServerBusy)
 		}
 
 		report = res

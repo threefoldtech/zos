@@ -5,12 +5,12 @@ import (
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 )
 
-//go:generate zbusc -module api-gateway -version 0.0.1 -name api-gateway -package stubs github.com/threefoldtech/zos/pkg+SubstrateGateway stubs/api_gateway_stub.go
+//go:generate zbusc -module api-gateway -version 0.0.1 -name api-gateway -package stubs github.com/threefoldtech/zos4/pkg+SubstrateGateway stubs/api_gateway_stub.go
 
 type SubstrateGateway interface {
 	CreateNode(node substrate.Node) (uint32, error)
 	CreateTwin(relay string, pk []byte) (uint32, error)
-	EnsureAccount(activationURL string, termsAndConditionsLink string, termsAndConditionsHash string) (info substrate.AccountInfo, err error)
+	EnsureAccount(activationURL []string, termsAndConditionsLink string, termsAndConditionsHash string) (info substrate.AccountInfo, err error)
 	GetContract(id uint64) (substrate.Contract, SubstrateError)
 	GetContractIDByNameRegistration(name string) (uint64, SubstrateError)
 	GetFarm(id uint32) (substrate.Farm, error)

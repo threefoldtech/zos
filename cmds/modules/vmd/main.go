@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/cache"
-	"github.com/threefoldtech/zos/pkg/utils"
-	"github.com/threefoldtech/zos/pkg/vm"
+	"github.com/threefoldtech/zos4/pkg/cache"
+	"github.com/threefoldtech/zos4/pkg/utils"
+	"github.com/threefoldtech/zos4/pkg/vm"
 	"github.com/urfave/cli/v2"
 
 	"github.com/rs/zerolog/log"
