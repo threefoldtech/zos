@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 	"time"
@@ -10,34 +11,18 @@ import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/threefoldtech/zbus"
+	"github.com/threefoldtech/zos/pkg/perf"
+	"github.com/threefoldtech/zos/pkg/stubs"
 	"github.com/threefoldtech/zos/pkg/zinit"
 )
 
 const acceptableSkew = 10 * time.Minute
 
-// TimeServer represents a time server with its name and fetching function
-type TimeServer struct {
-	Name string
-	Func func() (time.Time, error)
-}
-
-// List of time servers
-var timeServers = []TimeServer{
-	{
-		Name: "worldtimeapi",
-		Func: getWorldTimeAPI,
-	},
-	{
-		Name: "worldclockapi",
-		Func: getWorldClockAPI,
-	},
-	{
-		Name: "timeapi.io",
-		Func: getTimeAPI,
-	},
-}
-
 func RunNTPCheck(ctx context.Context) {
+	operation := func() error {
+		return ntpCheck(ctx)
+	}
 	go func() {
 		for {
 			exp := backoff.NewExponentialBackOff()
@@ -45,7 +30,7 @@ func RunNTPCheck(ctx context.Context) {
 				log.Error().Err(err).Msg("failed to run ntp check")
 			}
 
-			if err := backoff.RetryNotify(ntpCheck, backoff.WithContext(exp, ctx), retryNotify); err != nil {
+			if err := backoff.RetryNotify(operation, backoff.WithContext(exp, ctx), retryNotify); err != nil {
 				log.Error().Err(err).Send()
 				continue
 			}
@@ -62,10 +47,14 @@ func RunNTPCheck(ctx context.Context) {
 	}()
 }
 
-func ntpCheck() error {
+func ntpCheck(ctx context.Context) error {
 	z := zinit.Default()
+	zcl, err := perf.TryGetZbusClient(ctx)
 
-	utcTime, err := getCurrentUTCTime()
+	if err != nil {
+		return fmt.Errorf("ntpCheck expects zbus client in the context and found none %w", err)
+	}
+	utcTime, err := getCurrentUTCTime(zcl)
 	if err != nil {
 		return err
 	}
@@ -79,7 +68,35 @@ func ntpCheck() error {
 	return nil
 }
 
-func getCurrentUTCTime() (time.Time, error) {
+func getCurrentUTCTime(zcl zbus.Client) (time.Time, error) {
+
+	// TimeServer represents a time server with its name and fetching function
+	type TimeServer struct {
+		Name string
+		Func func() (time.Time, error)
+	}
+
+	// List of time servers
+	var timeServers = []TimeServer{
+		{
+			Name: "tfchain",
+			Func: func() (time.Time, error) {
+				return getTimeChainWithZCL(zcl)
+			},
+		},
+		{
+			Name: "worldtimeapi",
+			Func: getWorldTimeAPI,
+		},
+		{
+			Name: "worldclockapi",
+			Func: getWorldClockAPI,
+		},
+		{
+			Name: "timeapi.io",
+			Func: getTimeAPI,
+		},
+	}
 	for _, server := range timeServers {
 		utcTime, err := server.Func()
 		if err == nil {
@@ -139,4 +156,9 @@ func getTimeAPI() (time.Time, error) {
 	}
 
 	return utcTime.DateTime, nil
+}
+
+func getTimeChainWithZCL(zcl zbus.Client) (time.Time, error) {
+	gw := stubs.NewSubstrateGatewayStub(zcl)
+	return gw.GetTime(context.Background())
 }
