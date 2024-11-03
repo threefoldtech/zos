@@ -79,12 +79,6 @@ func getCurrentUTCTime(zcl zbus.Client) (time.Time, error) {
 	// List of time servers
 	var timeServers = []TimeServer{
 		{
-			Name: "tfchain",
-			Func: func() (time.Time, error) {
-				return getTimeChainWithZCL(zcl)
-			},
-		},
-		{
 			Name: "worldtimeapi",
 			Func: getWorldTimeAPI,
 		},
@@ -95,6 +89,12 @@ func getCurrentUTCTime(zcl zbus.Client) (time.Time, error) {
 		{
 			Name: "timeapi.io",
 			Func: getTimeAPI,
+		},
+		{
+			Name: "tfchain",
+			Func: func() (time.Time, error) {
+				return getTimeChainWithZCL(zcl)
+			},
 		},
 	}
 	for _, server := range timeServers {
