@@ -1,0 +1,67 @@
+name: Zos Update Worker
+
+defaults:
+  run:
+    working-directory: tools/zos-update-worker
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  Explore-Packge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+
+      - name: Install GO
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          args: --timeout 3m --verbose
+          working-directory: tools/zos-update-worker
+
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1.3.0
+        with:
+          version: "2022.1.3"
+          working-directory: tools/zos-update-worker
+        env:
+          GO111MODULE: on
+
+      - name: gofmt
+        uses: Jerome1337/gofmt-action@v1.0.5
+        with:
+          gofmt-flags: "-l -d"
+          gofmt-path: "tools/zos-update-worker"
+
+      - name: Test
+        run: go test -v ./...
+
+      - name: Build zos update worker
+        run: |
+          cd tools/zos-update-worker
+          make build
+
+      - name: Get release
+        id: get_release
+        uses: bruceadams/get-release@v1.2.3
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Upload Release Asset for zos update worker
+        id: upload-release-asset-worker
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: tools/zos-update-worker/bin/zos-update-worker
+          asset_name: zos-update-worker
+          asset_content_type: application/x-pie-executable
