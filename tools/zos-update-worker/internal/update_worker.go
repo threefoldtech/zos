@@ -119,8 +119,8 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 	err = json.Unmarshal([]byte(currentZosVersion), &chainVersion)
 	if err != nil {
 		log.Debug().Err(err).Msg("failed to unmarshal chain version")
-		chainVersion.Version = currentZosVersion
-		chainVersion.VersionLight = currentZosVersion
+		// shouldn't fail for env that still not updated version format
+		return nil
 	}
 
 	log.Debug().Msgf("getting substrate version %v for network %v", chainVersion.Version, network)
@@ -135,7 +135,6 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 	zosCurrent := fmt.Sprintf("%v/.tag-%v", w.src, chainVersion.Version)
 	zosLatest := fmt.Sprintf("%v/%v", w.dst, network)
 	// zos light
-	// to handle the environments that aren't updated yet (mainnet)
 	zosLightCurrent := fmt.Sprintf("%v/.tag-%v", w.src, chainVersion.VersionLight)
 	zosLightLatest := fmt.Sprintf("%v/%v-v4", w.dst, network)
 	// the link is like zosCurrent but it has the path relative from the symlink
