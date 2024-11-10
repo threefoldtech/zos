@@ -50,7 +50,6 @@ func RunNTPCheck(ctx context.Context) {
 func ntpCheck(ctx context.Context) error {
 	z := zinit.Default()
 	zcl, err := perf.TryGetZbusClient(ctx)
-
 	if err != nil {
 		return fmt.Errorf("ntpCheck expects zbus client in the context and found none %w", err)
 	}
@@ -76,8 +75,14 @@ func getCurrentUTCTime(zcl zbus.Client) (time.Time, error) {
 		Func func() (time.Time, error)
 	}
 
-	// List of time servers
+	// List of time servers, and here not in the global vars, so we can inject zcl to pass to getTimeChainWithZCL
 	var timeServers = []TimeServer{
+		{
+			Name: "tfchain",
+			Func: func() (time.Time, error) {
+				return getTimeChainWithZCL(zcl)
+			},
+		},
 		{
 			Name: "worldtimeapi",
 			Func: getWorldTimeAPI,
@@ -90,16 +95,12 @@ func getCurrentUTCTime(zcl zbus.Client) (time.Time, error) {
 			Name: "timeapi.io",
 			Func: getTimeAPI,
 		},
-		{
-			Name: "tfchain",
-			Func: func() (time.Time, error) {
-				return getTimeChainWithZCL(zcl)
-			},
-		},
 	}
 	for _, server := range timeServers {
+		log.Info().Msg(fmt.Sprint("running NTP check against ", server.Name))
 		utcTime, err := server.Func()
 		if err == nil {
+			log.Info().Msg(fmt.Sprint("utc time from ", server.Name, ": ", utcTime))
 			return utcTime, nil
 		}
 		log.Error().Err(err).Str("server", server.Name).Msg("failed to get time from server")
@@ -132,13 +133,14 @@ func getWorldClockAPI() (time.Time, error) {
 	defer timeRes.Body.Close()
 
 	var utcTime struct {
-		CurrentDateTime time.Time `json:"currentDateTime"`
+		CurrentDateTime string `json:"currentDateTime"` // Changed to string, needs manual parsing
 	}
 	if err := json.NewDecoder(timeRes.Body).Decode(&utcTime); err != nil {
 		return time.Time{}, errors.Wrapf(err, "failed to decode date response from worldclockapi")
 	}
 
-	return utcTime.CurrentDateTime, nil
+	// Parse the time manually, handling the "Z"
+	return time.Parse("2006-01-02T15:04Z", utcTime.CurrentDateTime)
 }
 
 func getTimeAPI() (time.Time, error) {
@@ -149,13 +151,14 @@ func getTimeAPI() (time.Time, error) {
 	defer timeRes.Body.Close()
 
 	var utcTime struct {
-		DateTime time.Time `json:"dateTime"`
+		DateTime string `json:"dateTime"` // Changed to string, needs manual parsing
 	}
 	if err := json.NewDecoder(timeRes.Body).Decode(&utcTime); err != nil {
 		return time.Time{}, errors.Wrapf(err, "failed to decode date response from timeapi.io")
 	}
 
-	return utcTime.DateTime, nil
+	// Parse the time manually, handling the fractional seconds
+	return time.Parse("2006-01-02T15:04:05.999999", utcTime.DateTime)
 }
 
 func getTimeChainWithZCL(zcl zbus.Client) (time.Time, error) {
