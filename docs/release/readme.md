@@ -16,6 +16,8 @@ A `tag link` is a link that exists in a repo to a tag in another repo. We then u
 
 For example a `development` tag link from tf-zos will point to a tag (say `61cc487`) under tf-autobuilder. What does that mean? it means the development env zos is using this build tag, and the flists installed (and used by the zos nodes) in development are installed from that build tag.
 
+Before createing a new release we need to make sure that the chain(substrate client) is up to date.
+
 On creating a new release, the build tag will get that exact release version (say v3.20.0), instead of a commit short hash.
 
 For more details on how the system updates itself please check [upgrade documentation](../internals/identity/upgrade.md).
@@ -33,8 +35,6 @@ On creating a release it's exactly the same as above except the tag will be the 
 ```bash
 production -> ../tf-autobuilder/v3.4.5
 ```
-
-> NOTE: during the writing of this docs, not all networks are using this release pipeline and they might still using the old style. Hopefully this will phaseout as soon as possible to use the procedure described in this document.
 
 ## Creating the links
 
