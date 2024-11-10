@@ -3,8 +3,10 @@ package registrar
 import (
 	"context"
 	"crypto/ed25519"
+	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
@@ -144,6 +146,10 @@ func registerNode(
 		City:      info.Location.City,
 	}
 
+	if err := writeLocationOnFile(info.Location, geoip.LocationFile); err != nil {
+		return 0, 0, errors.Wrap(err, "failed to set location on disk")
+	}
+
 	log.Info().Str("id", mgr.NodeID(ctx).Identity()).Msg("start registration of the node")
 	log.Info().Msg("registering node on blockchain")
 
@@ -230,4 +236,14 @@ func ensureTwin(ctx context.Context, substrateGateway *stubs.SubstrateGatewayStu
 	}
 
 	return twinID, nil
+}
+
+func writeLocationOnFile(loc geoip.Location, filepath string) error {
+	file, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return errors.Wrap(err, "failed to open location file")
+	}
+	defer file.Close()
+
+	return json.NewEncoder(file).Encode(loc)
 }
