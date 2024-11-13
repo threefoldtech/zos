@@ -9,10 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	LocationFile = "/tmp/location"
-)
-
 // Location holds the result of a geoip request
 type Location struct {
 	Longitude   float64 `json:"longitude"`
