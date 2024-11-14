@@ -259,6 +259,20 @@ func (n *NodeClient) NetworkListInterfaces(ctx context.Context) (result map[stri
 	return
 }
 
+// AdminRebootNode return all physical devices on a node
+func (n *NodeClient) AdminRebootNode(ctx context.Context) error {
+	const cmd = "zos.admin.reboot"
+
+	return n.bus.Call(ctx, n.nodeTwin, cmd, nil, nil)
+}
+
+// AdminRestartService return all physical devices on a node
+func (n *NodeClient) AdminRestartService(ctx context.Context, service string) error {
+	const cmd = "zos.admin.restart"
+
+	return n.bus.Call(ctx, n.nodeTwin, cmd, service, nil)
+}
+
 // NetworkListAllInterfaces return all physical devices on a node
 func (n *NodeClient) NetworkListAllInterfaces(ctx context.Context) (result map[string]Interface, err error) {
 	const cmd = "zos.network.admin.interfaces"
