@@ -153,13 +153,21 @@ it means it can act like an access node to user private networks
 
 The next set of commands are ONLY possible to be called by the `farmer` only.
 
-### Reboot
+### Reboot Node
 
 | command |body| return|
 |---|---|---|
 | `zos.admin.reboot` | - | - |
 
 Stops all services then reboot the node
+
+### Restart Service
+
+| command |body| return|
+|---|---|---|
+| `zos.admin.reboot` | string | - |
+
+Restarts a service running on the node
 
 ### List Physical Interfaces
 
