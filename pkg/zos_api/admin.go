@@ -4,7 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/threefoldtech/zos/pkg/zinit"
 )
+
+func (g *ZosAPI) adminRebootHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	zinit := zinit.Default()
+
+	return nil, zinit.Reboot()
+}
 
 func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	// list all interfaces on node
