@@ -30,6 +30,12 @@ func NewSubstrateGateway(manager substrate.Manager, identity substrate.Identity)
 	return gw, nil
 }
 
+func (g *substrateGateway) GetZosVersion() (string, error) {
+	log.Debug().Str("method", "GetZosVersion").Msg("method called")
+
+	return g.sub.GetZosVersion()
+}
+
 func (g *substrateGateway) CreateNode(node substrate.Node) (uint32, error) {
 	log.Debug().
 		Str("method", "CreateNode").

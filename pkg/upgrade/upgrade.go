@@ -20,9 +20,10 @@ import (
 	"github.com/threefoldtech/0-fs/meta"
 	"github.com/threefoldtech/0-fs/rofs"
 	"github.com/threefoldtech/0-fs/storage"
-	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
+	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos4/pkg/app"
 	"github.com/threefoldtech/zos4/pkg/environment"
+	"github.com/threefoldtech/zos4/pkg/stubs"
 	"github.com/threefoldtech/zos4/pkg/upgrade/hub"
 	"github.com/threefoldtech/zos4/pkg/zinit"
 
@@ -53,23 +54,16 @@ const (
 
 type ChainVersion struct {
 	SafeToUpgrade bool   `json:"safe_to_upgrade"`
-	Version       string `json:"version"`
+	VersionLight  string `json:"version_light"`
 }
 
-func getRolloutConfig(env environment.Environment) (ChainVersion, []uint32, error) {
+func getRolloutConfig(ctx context.Context, gw *stubs.SubstrateGatewayStub) (ChainVersion, []uint32, error) {
 	config, err := environment.GetConfig()
 	if err != nil {
 		return ChainVersion{}, nil, errors.Wrap(err, "failed to get network config")
 	}
 
-	manager := substrate.NewManager(env.SubstrateURL...)
-
-	con, err := manager.Substrate()
-	if err != nil {
-		return ChainVersion{}, nil, err
-	}
-
-	v, err := con.GetZosVersion()
+	v, err := gw.GetZosVersion(ctx)
 	if err != nil {
 		return ChainVersion{}, nil, errors.Wrap(err, "failed to get zos version from chain")
 	}
@@ -80,7 +74,7 @@ func getRolloutConfig(env environment.Environment) (ChainVersion, []uint32, erro
 		log.Debug().Err(err).Msg("failed to unmarshal chain version and safe to upgrade flag")
 		chainVersion = ChainVersion{
 			SafeToUpgrade: true,
-			Version:       v,
+			VersionLight:  v,
 		}
 	}
 
@@ -92,6 +86,7 @@ func getRolloutConfig(env environment.Environment) (ChainVersion, []uint32, erro
 type Upgrader struct {
 	boot         Boot
 	zinit        *zinit.Client
+	zcl          zbus.Client
 	root         string
 	noZosUpgrade bool
 	hub          *hub.HubClient
@@ -107,6 +102,15 @@ type UpgraderOption func(u *Upgrader) error
 func NoZosUpgrade(o bool) UpgraderOption {
 	return func(u *Upgrader) error {
 		u.noZosUpgrade = o
+
+		return nil
+	}
+}
+
+// ZbusClient option, adds a zbus client to the upgrader
+func ZbusClient(cl zbus.Client) UpgraderOption {
+	return func(u *Upgrader) error {
+		u.zcl = cl
 
 		return nil
 	}
@@ -203,7 +207,7 @@ func (u *Upgrader) Run(ctx context.Context) error {
 	// if the booting method is bootstrap then we run update periodically
 	// after u.nextUpdate to make sure all the modules are always up to date
 	for {
-		err := u.update()
+		err := u.update(ctx)
 		if errors.Is(err, ErrRestartNeeded) {
 			return err
 		} else if err != nil {
@@ -256,7 +260,7 @@ func (u *Upgrader) remote() (remote hub.TagLink, err error) {
 	return hub.NewTagLink(matches[0]), nil
 }
 
-func (u *Upgrader) update() error {
+func (u *Upgrader) update(ctx context.Context) error {
 	// here we need to do a normal full update cycle
 	current, err := u.boot.Current()
 	if err != nil {
@@ -276,14 +280,15 @@ func (u *Upgrader) update() error {
 	}
 
 	env := environment.MustGet()
-	chainVer, testFarms, err := getRolloutConfig(env)
+	gw := stubs.NewSubstrateGatewayStub(u.zcl)
+	chainVer, testFarms, err := getRolloutConfig(ctx, gw)
 	if err != nil {
 		return errors.Wrap(err, "failed to get rollout config and version")
 	}
 
 	remoteVer := remote.Target[strings.LastIndex(remote.Target, "/")+1:]
 
-	if env.RunningMode != environment.RunningDev && remoteVer != chainVer.Version {
+	if env.RunningMode != environment.RunningDev && remoteVer != chainVer.VersionLight {
 		// nothing to do! hub version is not the same as the chain
 		return nil
 	}

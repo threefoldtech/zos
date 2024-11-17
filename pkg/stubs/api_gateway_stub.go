@@ -30,6 +30,25 @@ func NewSubstrateGatewayStub(client zbus.Client) *SubstrateGatewayStub {
 	}
 }
 
+func (s *SubstrateGatewayStub) GetZosVersion(ctx context.Context) (ret0 string, ret1 error) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "GetZosVersion", args...)
+	if err != nil {
+		panic(err)
+	}
+
+	result.PanicOnError()
+	ret1 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *SubstrateGatewayStub) CreateNode(ctx context.Context, arg0 tfchainclientgo.Node) (ret0 uint32, ret1 error) {
 	args := []interface{}{arg0}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "CreateNode", args...)
