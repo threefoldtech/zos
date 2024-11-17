@@ -6,7 +6,6 @@ package stubs
 
 import (
 	"context"
-
 	"time"
 
 	types "github.com/centrifuge/go-substrate-rpc-client/v4/types"
