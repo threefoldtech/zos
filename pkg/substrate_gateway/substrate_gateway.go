@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/rs/zerolog/log"
@@ -28,6 +29,12 @@ func NewSubstrateGateway(manager substrate.Manager, identity substrate.Identity)
 		identity: identity,
 	}
 	return gw, nil
+}
+
+func (g *substrateGateway) GetZosVersion() (string, error) {
+	log.Debug().Str("method", "GetZosVersion").Msg("method called")
+
+	return g.sub.GetZosVersion()
 }
 
 func (g *substrateGateway) CreateNode(node substrate.Node) (uint32, error) {
@@ -199,6 +206,11 @@ func (g *substrateGateway) UpdateNodeUptimeV2(uptime uint64, timestampHint uint6
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.sub.UpdateNodeUptimeV2(g.identity, uptime, timestampHint)
+}
+func (g *substrateGateway) GetTime() (time.Time, error) {
+	log.Trace().Str("method", "Time").Msg("method called")
+
+	return g.sub.Time()
 }
 
 func buildSubstrateError(err error) (serr pkg.SubstrateError) {
