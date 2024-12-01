@@ -36,6 +36,8 @@ const (
 	cacheGrowPercent   = 60
 	cacheShrinkPercent = 20
 	cacheCheckDuration = 5 * time.Minute
+
+	PXELABEL = "ZOSPXE"
 )
 
 var (
@@ -226,6 +228,13 @@ func (s *Module) initialize(ctx context.Context) error {
 
 	for _, device := range devices {
 		log.Debug().Msgf("device: %+v", device)
+
+		if device.Label == PXELABEL {
+			log.Error().Err(err).Str("device", device.Path).Msg("device has 'zospxe' label")
+			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
+			continue
+		}
+
 		pool, err := filesystem.NewBtrfsPool(device)
 		if err != nil {
 			log.Error().Err(err).Str("device", device.Path).Msg("failed to create pool on device")
