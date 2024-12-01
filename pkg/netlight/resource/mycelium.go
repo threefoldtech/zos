@@ -22,6 +22,7 @@ const (
 	MyceliumSeedDir = "/tmp/network/mycelium"
 
 	myceliumSeedLen = 6
+	HostMyceliumBr  = "br-hmy"
 )
 
 var (
@@ -145,7 +146,7 @@ func (m *MyceliumInspection) IPFor(seed []byte) (ip net.IPNet, gw net.IPNet, err
 	return
 }
 
-func setupMycelium(netNS ns.NetNS, mycelium string, seed []byte) error {
+func SetupMycelium(netNS ns.NetNS, mycelium string, seed []byte) error {
 	if err := os.MkdirAll(MyceliumSeedDir, 0744); err != nil {
 		return fmt.Errorf("failed to create seed temp location: %w", err)
 	}
@@ -160,9 +161,13 @@ func setupMycelium(netNS ns.NetNS, mycelium string, seed []byte) error {
 		return err
 	}
 
-	err = netNS.Do(func(nn ns.NetNS) error {
-		return setLinkAddr(mycelium, &gw)
-	})
+	if netNS != nil {
+		err = netNS.Do(func(nn ns.NetNS) error {
+			return setLinkAddr(mycelium, &gw)
+		})
+	} else {
+		err = setLinkAddr(mycelium, &gw)
+	}
 
 	if err != nil {
 		return err
@@ -178,17 +183,32 @@ func setupMycelium(netNS ns.NetNS, mycelium string, seed []byte) error {
 		return err
 	}
 
-	name := filepath.Base(netNS.Path())
-	if err := os.WriteFile(filepath.Join(MyceliumSeedDir, name), seed, 0444); err != nil {
-		return fmt.Errorf("failed to create seed file '%s': %w", name, err)
+	if netNS != nil {
+
+		name := filepath.Base(netNS.Path())
+		if err := os.WriteFile(filepath.Join(MyceliumSeedDir, name), seed, 0444); err != nil {
+			return fmt.Errorf("failed to create seed file '%s': %w", name, err)
+		}
+
+		return ensureMyceliumService(zinit.Default(), &name, list)
 	}
 
-	return ensureMyceliumService(zinit.Default(), name, list)
+	if err := os.WriteFile(filepath.Join(MyceliumSeedDir, HostMyceliumBr), seed, 0444); err != nil {
+		return fmt.Errorf("failed to create seed file '%s': %w", HostMyceliumBr, err)
+	}
+
+	return ensureMyceliumService(zinit.Default(), nil, list)
+
 }
 
 // Start creates a mycelium zinit service and starts it
-func ensureMyceliumService(z *zinit.Client, namespace string, peers []string) error {
-	zinitService := fmt.Sprintf("mycelium-%s", namespace)
+func ensureMyceliumService(z *zinit.Client, namespace *string, peers []string) error {
+
+	zinitService := "mycelium-host"
+
+	if namespace != nil {
+		zinitService = fmt.Sprintf("mycelium-%s", *namespace)
+	}
 	// service found.
 	// better if we just stop, forget and start over to make
 	// sure we using the right exec params
@@ -206,12 +226,19 @@ func ensureMyceliumService(z *zinit.Client, namespace string, peers []string) er
 	if err != nil {
 		return err
 	}
-
+	var cmd string
+	var keyPath string
+	if namespace != nil {
+		cmd = fmt.Sprintf("ip netns exec %s %s", *namespace, bin)
+		keyPath = filepath.Join(MyceliumSeedDir, *namespace)
+	} else {
+		cmd = bin
+		keyPath = filepath.Join(MyceliumSeedDir, HostMyceliumBr)
+	}
 	args := []string{
-		"ip", "netns", "exec", namespace,
-		bin,
+		cmd,
 		"--silent",
-		"--key-file", filepath.Join(MyceliumSeedDir, namespace),
+		"--key-file", keyPath,
 		"--tun-name", "my0",
 		"--peers",
 	}

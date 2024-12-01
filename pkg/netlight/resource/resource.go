@@ -59,7 +59,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 	for _, name := range bridges {
 		if !bridge.Exists(name) {
 			if _, err := bridge.New(name); err != nil {
-				return nil, fmt.Errorf("couldn't create bridge %s: %w", name, err)
+				return nil, fmt.Errorf("could not create bridge %s: %w", name, err)
 			}
 		}
 	}
@@ -162,7 +162,7 @@ func Create(name string, master *netlink.Bridge, ndmzIP *net.IPNet, ndmzGwIP *ne
 		return nil, fmt.Errorf("failed to apply nft rules for namespace '%s': %w", name, err)
 	}
 	rules.Close()
-	return &Resource{name}, setupMycelium(netNS, infMycelium, seed)
+	return &Resource{name}, SetupMycelium(netNS, infMycelium, seed)
 }
 
 func Delete(name string) error {
@@ -392,7 +392,7 @@ func (r *Resource) AttachMyceliumZDB(id string, zdbNS ns.NetNS) (err error) {
 	}
 
 	if !ifaceutil.Exists(linkName, zdbNS) {
-		zdbLink, err := ifaceutil.MakeVethPair(linkName, "mdmz", 1500, peerPrefix)
+		zdbLink, err := ifaceutil.MakeVethPair(linkName, HostMyceliumBr, 1500, peerPrefix)
 		if err != nil {
 			return fmt.Errorf("failed to create zdb link %s : %w", linkName, err)
 		}

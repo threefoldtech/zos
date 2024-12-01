@@ -397,7 +397,7 @@ func CreateNDMZBridge() (*netlink.Bridge, error) {
 func createNDMZBridge(name string, gw string) (*netlink.Bridge, error) {
 	if !bridge.Exists(name) {
 		if _, err := bridge.New(name); err != nil {
-			return nil, errors.Wrapf(err, "couldn't create bridge %s", name)
+			return nil, errors.Wrapf(err, "could not create bridge %s", name)
 		}
 	}
 

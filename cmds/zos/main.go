@@ -10,6 +10,7 @@ import (
 	apigateway "github.com/threefoldtech/zos4/cmds/modules/api_gateway"
 	"github.com/threefoldtech/zos4/cmds/modules/contd"
 	"github.com/threefoldtech/zos4/cmds/modules/flistd"
+	"github.com/threefoldtech/zos4/cmds/modules/gateway"
 	"github.com/threefoldtech/zos4/cmds/modules/netlightd"
 	"github.com/threefoldtech/zos4/cmds/modules/noded"
 	"github.com/threefoldtech/zos4/cmds/modules/powerd"
@@ -52,6 +53,7 @@ func main() {
 			&netlightd.Module,
 			&provisiond.Module,
 			&zbusdebug.Module,
+			&gateway.Module,
 			&powerd.Module,
 			&apigateway.Module,
 		},

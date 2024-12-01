@@ -48,6 +48,8 @@ func init() {
 	gridtypes.RegisterType(VolumeType, Volume{})
 	gridtypes.RegisterType(PublicIPv4Type, PublicIP4{})
 	gridtypes.RegisterType(PublicIPType, PublicIP{})
+	gridtypes.RegisterType(GatewayNameProxyType, GatewayNameProxy{})
+	gridtypes.RegisterType(GatewayFQDNProxyType, GatewayFQDNProxy{})
 	gridtypes.RegisterType(QuantumSafeFSType, QuantumSafeFS{})
 	gridtypes.RegisterType(ZLogsType, ZLogs{})
 }
