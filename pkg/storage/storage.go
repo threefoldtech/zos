@@ -197,6 +197,53 @@ func (s *Module) poolType(pool filesystem.Pool, vm bool) (zos.DeviceType, error)
 	return typ, nil
 }
 
+func (s *Module) mountPool(device filesystem.DeviceInfo, vm bool) {
+	log.Debug().Str("path", device.Path).Msg("mounting device")
+
+	if device.IsPXEPartition() {
+		log.Error().Str("device", device.Path).Msg("device has 'zospxe' label")
+		s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: fmt.Errorf("device is a PXE partition")})
+		return
+	}
+
+	pool, err := filesystem.NewBtrfsPool(device)
+	if err != nil {
+		log.Error().Err(err).Str("device", device.Path).Msg("failed to create pool on device")
+		s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
+		return
+	}
+
+	_, err = pool.Mount()
+	if err != nil {
+		log.Error().Err(err).Str("device", device.Path).Msg("failed to mount pool")
+		s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: pool.Name(), Err: err})
+		return
+	}
+
+	usage, err := pool.Usage()
+	if err != nil {
+		log.Error().Err(err).Str("pool", pool.Name()).Str("device", device.Path).Msg("failed to get usage of pool")
+	}
+
+	typ, err := s.poolType(pool, vm)
+	if err != nil {
+		log.Error().Str("device", device.Path).Err(err).Msg("failed to get device type")
+		s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
+		return
+	}
+
+	switch typ {
+	case zos.SSDDevice:
+		s.totalSSD += usage.Size
+		s.ssds = append(s.ssds, pool)
+	case zos.HDDDevice:
+		s.totalHDD += usage.Size
+		s.hdds = append(s.hdds, pool)
+	default:
+		log.Error().Str("type", string(typ)).Str("device", device.Path).Msg("unknown device type")
+	}
+}
+
 /*
 *
 initialize, must be called at least onetime each boot.
@@ -229,47 +276,13 @@ func (s *Module) initialize(ctx context.Context) error {
 	for _, device := range devices {
 		log.Debug().Msgf("device: %+v", device)
 
-		if device.Label == PXELABEL {
-			log.Error().Err(err).Str("device", device.Path).Msg("device has 'zospxe' label")
-			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
+		if len(device.Children) != 0 {
+			for _, part := range device.Children {
+				s.mountPool(part, vm)
+			}
 			continue
 		}
-
-		pool, err := filesystem.NewBtrfsPool(device)
-		if err != nil {
-			log.Error().Err(err).Str("device", device.Path).Msg("failed to create pool on device")
-			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
-			continue
-		}
-
-		_, err = pool.Mount()
-		if err != nil {
-			log.Error().Err(err).Str("device", device.Path).Msg("failed to mount pool")
-			s.brokenPools = append(s.brokenPools, pkg.BrokenPool{Label: pool.Name(), Err: err})
-			continue
-		}
-		usage, err := pool.Usage()
-		if err != nil {
-			log.Error().Err(err).Str("pool", pool.Name()).Str("device", device.Path).Msg("failed to get usage of pool")
-		}
-
-		typ, err := s.poolType(pool, vm)
-		if err != nil {
-			log.Error().Str("device", device.Path).Err(err).Msg("failed to get device type")
-			s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: err})
-			continue
-		}
-
-		switch typ {
-		case zos.SSDDevice:
-			s.totalSSD += usage.Size
-			s.ssds = append(s.ssds, pool)
-		case zos.HDDDevice:
-			s.totalHDD += usage.Size
-			s.hdds = append(s.hdds, pool)
-		default:
-			log.Error().Str("type", string(typ)).Str("device", device.Path).Msg("unknown device type")
-		}
+		s.mountPool(device, vm)
 	}
 
 	log.Info().

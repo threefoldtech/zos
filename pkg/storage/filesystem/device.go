@@ -51,12 +51,13 @@ type blockDevices struct {
 type DeviceInfo struct {
 	mgr DeviceManager
 
-	Path       string `json:"path"`
-	Label      string `json:"label"`
-	Size       uint64 `json:"size"`
-	Filesystem FSType `json:"fstype"`
-	Rota       bool   `json:"rota"`
-	Subsystems string `json:"subsystems"`
+	Path       string       `json:"path"`
+	Label      string       `json:"label"`
+	Size       uint64       `json:"size"`
+	Filesystem FSType       `json:"fstype"`
+	Rota       bool         `json:"rota"`
+	Subsystems string       `json:"subsystems"`
+	Children   []DeviceInfo `json:"children,omitempty"`
 }
 
 func (i *DeviceInfo) Name() string {
@@ -75,6 +76,10 @@ func (d *DeviceInfo) DetectType() (zos.DeviceType, error) {
 
 func (d *DeviceInfo) Mountpoint(ctx context.Context) (string, error) {
 	return d.mgr.Mountpoint(ctx, d.Path)
+}
+
+func (d *DeviceInfo) IsPXEPartition() bool {
+	return d.Label == "ZOSPXE"
 }
 
 // lsblkDeviceManager uses the lsblk utility to scann the disk for devices, and
@@ -187,6 +192,9 @@ func (l *lsblkDeviceManager) lsblk(ctx context.Context) ([]DeviceInfo, error) {
 
 	for i := range devices.BlockDevices {
 		devices.BlockDevices[i].mgr = l
+		for j := range devices.BlockDevices[i].Children {
+			devices.BlockDevices[i].Children[j].mgr = l
+		}
 	}
 
 	return devices.BlockDevices, nil
