@@ -53,7 +53,7 @@ func (p *btrfsPool) Device() DeviceInfo {
 }
 
 func (p *btrfsPool) prepare() error {
-	p.name = p.device.Label
+	p.name = p.device.UUID
 	if p.device.Used() {
 		// device already have filesystem
 		return nil

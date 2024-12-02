@@ -57,6 +57,7 @@ type DeviceInfo struct {
 	Filesystem FSType       `json:"fstype"`
 	Rota       bool         `json:"rota"`
 	Subsystems string       `json:"subsystems"`
+	UUID       string       `json:"uuid"`
 	Children   []DeviceInfo `json:"children,omitempty"`
 }
 
@@ -168,7 +169,7 @@ func (l *lsblkDeviceManager) lsblk(ctx context.Context) ([]DeviceInfo, error) {
 	args := []string{
 		"--json",
 		"-o",
-		"PATH,NAME,SIZE,SUBSYSTEMS,FSTYPE,LABEL,ROTA",
+		"PATH,NAME,SIZE,SUBSYSTEMS,FSTYPE,LABEL,ROTA,UUID",
 		"--bytes",
 		"--exclude",
 		"1,2,11",

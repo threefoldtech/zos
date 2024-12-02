@@ -36,8 +36,6 @@ const (
 	cacheGrowPercent   = 60
 	cacheShrinkPercent = 20
 	cacheCheckDuration = 5 * time.Minute
-
-	PXELABEL = "ZOSPXE"
 )
 
 var (
@@ -201,7 +199,7 @@ func (s *Module) mountPool(device filesystem.DeviceInfo, vm bool) {
 	log.Debug().Str("path", device.Path).Msg("mounting device")
 
 	if device.IsPXEPartition() {
-		log.Error().Str("device", device.Path).Msg("device has 'zospxe' label")
+		log.Info().Str("device", device.Path).Msg("device has 'ZOSPXE' label")
 		s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: fmt.Errorf("device is a PXE partition")})
 		return
 	}
