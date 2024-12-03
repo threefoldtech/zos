@@ -27,7 +27,6 @@ func TestCreatePublicNS(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	EnsurePublicSetup(pkg.StrIdentifier(""), nil, iface)
 	err := setupPublicNS(pkg.StrIdentifier(""), iface)
 	require.NoError(t, err)
 }
