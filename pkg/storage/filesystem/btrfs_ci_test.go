@@ -212,6 +212,9 @@ func TestBtrfsSingleCI(t *testing.T) {
 	loops := devices.Loops()
 
 	for _, dev := range loops {
+		dev.mgr = &lsblkDeviceManager{
+			executer: executerFunc(run),
+		}
 		pool, err := NewBtrfsPool(dev)
 		require.NoError(t, err)
 		basePoolTest(t, pool)
