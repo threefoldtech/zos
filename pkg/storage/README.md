@@ -8,7 +8,7 @@ Every volume which is managed by the storage module is mounted in `/mnt`.
 The name of the mountpoint is the label of the volume. For instance, a
 volume with label `volumelabel` will be mounted in `/mnt/volumelabel`. The volumes
 are mounted when the storage module is started, and remain mounted after that.
-In case the storae module exits in any way, there is no attempt to unmount
+In case the storage module exits in any way, there is no attempt to unmount
 any volume.
 
 Since filesystems are created as subvolumes within the "root" volumes, they
