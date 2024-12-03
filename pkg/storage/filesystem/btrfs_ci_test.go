@@ -158,7 +158,10 @@ func basePoolTest(t *testing.T, pool Pool) {
 
 		assert.Equal(t, path.Join("/mnt", pool.Name(), "subvol1"), volume.Path())
 	})
-	defer pool.RemoveVolume("subvol1")
+	defer func() {
+		err := pool.RemoveVolume("subvol1")
+		require.NoError(t, err)
+	}()
 
 	t.Run("test list volumes", func(t *testing.T) {
 		volumes, err := pool.Volumes()
