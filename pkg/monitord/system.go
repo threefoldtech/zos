@@ -11,6 +11,7 @@ import (
 	"github.com/shirou/gopsutil/net"
 	"github.com/threefoldtech/zos4/pkg"
 	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg/kernel"
 )
 
 var _ pkg.SystemMonitor = (*systemMonitor)(nil)
@@ -211,5 +212,10 @@ func (n *systemMonitor) GetNodeFeatures() []pkg.NodeFeature {
 		pkg.NodeFeature(zos.ZLogsType),
 		pkg.NodeFeature("mycelium"),
 	}
+	_, found := kernel.GetParams().GetOne("domain")
+	if found {
+		feat = append(feat, "gateway")
+	}
+
 	return feat
 }

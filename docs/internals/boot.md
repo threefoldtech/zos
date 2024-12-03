@@ -20,5 +20,8 @@ both `node-ready` and `boot` are not actual services, but instead they are there
 - `pub:mac`: this accepts two values `random` (default), and `swap`. This flag is only effective in case public-config is set (via the dashboard)
   - `random`: means the public interface will have a random (driven from the node id) mac address. this works perfectly well for `home` nodes
   - `swap`: this is useful in case the public ip used in the public-config of the node has to come from the mac address of the physical nic. this flag then will make sure the mac of the physical nic is used by the `public` namespace. This is useful in case you hosting the node in the cloud where the public ip is only allowed to work with the mac assigned to the node physical node
+- flags special for version 4
+  - version=v4 this indicates that is version 4 node
+  - domain=<node domain> this to specify the node domain this is a replacement for pubconfig in version3
 
 For more details of `VLAN` support in zos please read more [here](network/vlans.md)

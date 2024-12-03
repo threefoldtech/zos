@@ -4,6 +4,7 @@ import (
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zos4/pkg/gridtypes"
 	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zos4/pkg/primitives/gateway"
 	netlight "github.com/threefoldtech/zos4/pkg/primitives/network-light"
 	"github.com/threefoldtech/zos4/pkg/primitives/qsfs"
 	vmlight "github.com/threefoldtech/zos4/pkg/primitives/vm-light"
@@ -17,13 +18,15 @@ import (
 // NewPrimitivesProvisioner creates a new 0-OS provisioner
 func NewPrimitivesProvisioner(zbus zbus.Client) provision.Provisioner {
 	managers := map[gridtypes.WorkloadType]provision.Manager{
-		zos.ZMountType:        zmount.NewManager(zbus),
-		zos.ZLogsType:         zlogs.NewManager(zbus),
-		zos.QuantumSafeFSType: qsfs.NewManager(zbus),
-		zos.ZDBType:           zdb.NewManager(zbus),
-		zos.NetworkLightType:  netlight.NewManager(zbus),
-		zos.ZMachineLightType: vmlight.NewManager(zbus),
-		zos.VolumeType:        volume.NewManager(zbus),
+		zos.ZMountType:           zmount.NewManager(zbus),
+		zos.ZLogsType:            zlogs.NewManager(zbus),
+		zos.QuantumSafeFSType:    qsfs.NewManager(zbus),
+		zos.ZDBType:              zdb.NewManager(zbus),
+		zos.NetworkLightType:     netlight.NewManager(zbus),
+		zos.ZMachineLightType:    vmlight.NewManager(zbus),
+		zos.VolumeType:           volume.NewManager(zbus),
+		zos.GatewayNameProxyType: gateway.NewNameManager(zbus),
+		zos.GatewayFQDNProxyType: gateway.NewFQDNManager(zbus),
 	}
 
 	return provision.NewMapProvisioner(managers)

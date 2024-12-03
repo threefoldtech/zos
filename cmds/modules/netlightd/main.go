@@ -4,7 +4,6 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"time"
@@ -12,6 +11,8 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/primitives/x25519"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zos4/pkg/netlight"
+	"github.com/threefoldtech/zos4/pkg/netlight/bridge"
+	"github.com/threefoldtech/zos4/pkg/netlight/ifaceutil"
 	"github.com/threefoldtech/zos4/pkg/netlight/nft"
 	"github.com/threefoldtech/zos4/pkg/netlight/resource"
 	"github.com/urfave/cli/v2"
@@ -107,18 +108,27 @@ func action(cli *cli.Context) error {
 		return fmt.Errorf("failed to apply host nft rules: %w", err)
 	}
 	rules.Close()
-	bridge, err := netlight.CreateNDMZBridge()
+	_, err = netlight.CreateNDMZBridge()
 	if err != nil {
 		return fmt.Errorf("failed to create ndmz bridge: %w", err)
 	}
 
-	_, err = resource.Create("dmz", bridge, &net.IPNet{
-		IP:   net.ParseIP("100.127.0.2"),
-		Mask: net.CIDRMask(16, 32),
-	}, netlight.NDMZGwIP, nil, myceliumSeedFromIdentity(identity.PrivateKey(cli.Context)))
-
+	// create mycelium for host
+	hostMyCelium := "hmycelium"
+	if !bridge.Exists(resource.HostMyceliumBr) {
+		if _, err := bridge.New(resource.HostMyceliumBr); err != nil {
+			return fmt.Errorf("could not create bridge %s: %w", resource.HostMyceliumBr, err)
+		}
+	}
+	if !ifaceutil.Exists(hostMyCelium, nil) {
+		_, err := ifaceutil.MakeVethPair(hostMyCelium, resource.HostMyceliumBr, 1500, "")
+		if err != nil {
+			return fmt.Errorf("failed to create mycelium link: %w", err)
+		}
+	}
+	err = resource.SetupMycelium(nil, hostMyCelium, myceliumSeedFromIdentity(identity.PrivateKey(cli.Context)))
 	if err != nil {
-		return fmt.Errorf("failed to create ndmz resource: %w", err)
+		return fmt.Errorf("failed to setup mycelium on host: %w", err)
 	}
 
 	mod, err := netlight.NewNetworker()
