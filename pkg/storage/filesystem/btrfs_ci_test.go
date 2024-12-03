@@ -158,6 +158,7 @@ func basePoolTest(t *testing.T, pool Pool) {
 
 		assert.Equal(t, path.Join("/mnt", pool.Name(), "subvol1"), volume.Path())
 	})
+	defer pool.RemoveVolume("subvol1")
 
 	t.Run("test list volumes", func(t *testing.T) {
 		volumes, err := pool.Volumes()
@@ -172,23 +173,22 @@ func basePoolTest(t *testing.T, pool Pool) {
 		assert.Equal(t, uint64(1024*1024*1024), usage.Size)
 	})
 
-	//test exits given status code 2
-	// t.Run("test limit subvolume", func(t *testing.T) {
-	// 	usage, err := volume.Usage()
-	// 	require.NoError(t, err)
+	t.Run("test limit subvolume", func(t *testing.T) {
+		usage, err := volume.Usage()
+		require.NoError(t, err)
 
-	// 	// Note: an empty subvolume has an overhead of 16384 bytes
-	// 	assert.Equal(t, Usage{Used: 16384}, usage)
+		// Note: an empty subvolume has an overhead of 16384 bytes
+		assert.Equal(t, Usage{Used: 16384}, usage)
 
-	// 	err = volume.Limit(50 * 1024 * 1024)
-	// 	require.NoError(t, err)
+		err = volume.Limit(50 * 1024 * 1024)
+		require.NoError(t, err)
 
-	// 	usage, err = volume.Usage()
-	// 	require.NoError(t, err)
+		usage, err = volume.Usage()
+		require.NoError(t, err)
 
-	// 	// Note: an empty subvolume has an overhead of 16384 bytes
-	// 	assert.Equal(t, Usage{Used: 16384, Size: 50 * 1024 * 1024}, usage)
-	// })
+		// Note: an empty subvolume has an overhead of 16384 bytes
+		assert.Equal(t, Usage{Used: 16384, Size: 50 * 1024 * 1024}, usage)
+	})
 
 	t.Run("test remove subvolume", func(t *testing.T) {
 		err = pool.RemoveVolume("subvol1")
@@ -232,6 +232,9 @@ func TestCLeanUpQgroupsCI(t *testing.T) {
 	defer devices.Destroy()
 
 	loops := devices.Loops()
+	loops[0].mgr = &lsblkDeviceManager{
+		executer: executerFunc(run),
+	}
 	pool, err := NewBtrfsPool(loops[0])
 	require.NoError(t, err)
 
