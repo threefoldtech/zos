@@ -42,6 +42,8 @@ func (m *TestDeviceManager) Seektime(ctx context.Context, device string) (zos.De
 	return zos.DeviceType(args.String(0)), args.Error(1)
 }
 
+func (m *TestDeviceManager) ClearCache() {}
+
 func TestBtrfsCreatePoolExists(t *testing.T) {
 	require := require.New(t)
 	exe := &TestExecuter{}

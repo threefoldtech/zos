@@ -196,10 +196,10 @@ func (s *Module) poolType(pool filesystem.Pool, vm bool) (zos.DeviceType, error)
 }
 
 func (s *Module) mountPool(device filesystem.DeviceInfo, vm bool) {
-	log.Debug().Str("path", device.Path).Msg("mounting device")
+	log.Debug().Any("device", device).Msg("mounting device")
 
 	if device.IsPXEPartition() {
-		log.Info().Str("device", device.Path).Msg("device has 'ZOSPXE' label")
+		log.Debug().Str("device", device.Path).Msg("skip device has 'ZOSPXE' label")
 		s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: fmt.Errorf("device is a PXE partition")})
 		return
 	}
@@ -266,21 +266,45 @@ func (s *Module) initialize(ctx context.Context) error {
 	subCtx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
 	defer cancel()
 
-	devices, err := s.devices.Devices(subCtx)
+	allDevices, err := s.devices.Devices(subCtx)
 	if err != nil {
 		return err
 	}
 
-	for _, device := range devices {
-		log.Debug().Msgf("device: %+v", device)
+	validDevices := []filesystem.DeviceInfo{}
+	for _, dev := range allDevices {
+		log.Debug().Any("device", dev).Msg("processing device")
 
-		if len(device.Children) != 0 {
-			for _, part := range device.Children {
-				s.mountPool(part, vm)
-			}
+		if !dev.IsPartitioned() { // use it as a full disk
+			validDevices = append(validDevices, dev)
 			continue
 		}
-		s.mountPool(device, vm)
+
+		spaces, err := dev.GetUnallocatedSpaces(ctx)
+		if err != nil { // couldn't get unallocated for any reason, use its partitions as is
+			validDevices = append(validDevices, dev.Children...)
+			continue
+		}
+
+		for _, space := range spaces {
+			if err := dev.AllocateEmptySpace(ctx, space); err != nil {
+				log.Error().Err(err).Str("device", dev.Path).Msg("could not allocate empty space")
+				continue
+			}
+		}
+
+		newDevice, err := dev.RefreshDeviceInfo(ctx)
+		if err != nil {
+			log.Error().Err(err).Str("device", dev.Path).Msg("failed to refresh device info")
+			continue
+		}
+
+		validDevices = append(validDevices, newDevice.Children...)
+	}
+
+	log.Debug().Any("valid devices", validDevices).Send()
+	for _, dev := range validDevices {
+		s.mountPool(dev, vm)
 	}
 
 	log.Info().
