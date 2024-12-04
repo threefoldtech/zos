@@ -1,6 +1,6 @@
 # Geoip Module
 
-The `geoip` module provides a simple way to determine the geographical location of an IPv4 or IPv6 address.
+The `geoip` module provides a simple way to determine the geographical location of the system executing the code.
 This includes details such as longitude, latitude, country, city, and continent.
 
 ## Features

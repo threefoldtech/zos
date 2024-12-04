@@ -29,7 +29,6 @@ var (
 
 // Fetch retrieves the location of the system calling this function
 func Fetch() (Location, error) {
-
 	for _, url := range geoipURLs {
 		l, err := getLocation(url)
 		if err != nil {

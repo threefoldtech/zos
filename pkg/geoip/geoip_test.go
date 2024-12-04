@@ -5,75 +5,66 @@ import (
 	"testing"
 
 	"github.com/jarcoal/httpmock"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func Test_getLocation(t *testing.T) {
+func TestGetLocation(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	t.Run("running correct response", func(t *testing.T) {
-		for i := 0; i < len(geoipURLs); i++ {
-			httpmock.RegisterResponder("GET", geoipURLs[i],
+	require := require.New(t)
+
+	t.Run("test valid response", func(t *testing.T) {
+		l := Location{
+			Continent: "Africa",
+			Country:   "Egypt",
+			City:      "Cairo",
+		}
+
+		for _, url := range geoipURLs {
+			httpmock.RegisterResponder("GET", url,
 				func(req *http.Request) (*http.Response, error) {
-					l := Location{
-						Continent: "Africa",
-						Country:   "Egypt",
-						City:      "Cairo",
-					}
-					resp, err := httpmock.NewJsonResponse(200, l)
-					return resp, err
+					return httpmock.NewJsonResponse(200, l)
 				},
 			)
-			value, err := getLocation(geoipURLs[i])
-			assert.Equal(t, nil, err)
-			assert.Equal(t, "Egypt", value.Country)
-			assert.Equal(t, "Africa", value.Continent)
-			assert.Equal(t, "Cairo", value.City)
-			if err != nil {
-				t.Errorf("got %v", err)
-			}
+
+			resp, err := getLocation(url)
+			require.NoError(err)
+			require.Equal(resp, l)
 		}
 	})
 
-	t.Run("asserting wrong response code", func(t *testing.T) {
-		for i := 0; i < len(geoipURLs); i++ {
-			httpmock.RegisterResponder("GET", geoipURLs[i],
+	l := Location{
+		Continent: "Unknown",
+		Country:   "Unknown",
+		City:      "Unknown",
+	}
+
+	t.Run("test 404 status code", func(t *testing.T) {
+		for _, url := range geoipURLs {
+			httpmock.RegisterResponder("GET", url,
 				func(req *http.Request) (*http.Response, error) {
-					l := Location{
-						Continent: "Africa",
-						Country:   "Egypt",
-						City:      "Cairo",
-					}
-					resp, err := httpmock.NewJsonResponse(404, l)
-					return resp, err
+					return httpmock.NewJsonResponse(404, l)
 				},
 			)
-			value, err := getLocation(geoipURLs[i])
-			assert.NotEqual(t, err, nil)
-			assert.Equal(t, "Unknown", value.Country)
-			assert.Equal(t, "Unknown", value.Continent)
-			assert.Equal(t, "Unknown", value.City)
+
+			resp, err := getLocation(url)
+			require.Error(err)
+			require.Equal(resp, l)
 		}
 	})
 
-	t.Run("asserting sending wrong response data", func(t *testing.T) {
-		for i := 0; i < len(geoipURLs); i++ {
-			httpmock.RegisterResponder("GET", geoipURLs[i],
+	t.Run("test invalid response data", func(t *testing.T) {
+		for _, url := range geoipURLs {
+			httpmock.RegisterResponder("GET", url,
 				func(req *http.Request) (*http.Response, error) {
-					l := Location{
-						City: "Cairo",
-					}
-					resp, err := httpmock.NewJsonResponse(200, l.City)
+					resp, err := httpmock.NewJsonResponse(200, "Cairo")
 					return resp, err
 				},
 			)
-			value, err := getLocation(geoipURLs[i])
-			assert.NotEqual(t, err, nil)
-			assert.Equal(t, "Unknown", value.Country)
-			assert.Equal(t, "Unknown", value.Continent)
-			assert.Equal(t, "Unknown", value.City)
+			resp, err := getLocation(url)
+			require.Error(err)
+			require.Equal(resp, l)
 		}
 	})
-
 }
