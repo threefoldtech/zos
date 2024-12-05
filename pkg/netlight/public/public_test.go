@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/threefoldtech/zos4/pkg"
 	"github.com/threefoldtech/zos4/pkg/gridtypes"
+	"github.com/threefoldtech/zos4/pkg/netlight/bridge"
 	"github.com/threefoldtech/zos4/pkg/netlight/namespace"
 	"github.com/threefoldtech/zos4/pkg/netlight/types"
 )
@@ -27,6 +28,12 @@ func TestCreatePublicNS(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	err := setupPublicNS(pkg.StrIdentifier(""), iface)
+	_, err := bridge.New(PublicBridge)
+	require.NoError(t, err)
+	defer func() {
+		err = bridge.Delete(PublicBridge)
+		require.NoError(t, err)
+	}()
+	err = setupPublicNS(pkg.StrIdentifier(""), iface)
 	require.NoError(t, err)
 }

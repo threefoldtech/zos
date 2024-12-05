@@ -28,13 +28,9 @@ import (
 )
 
 const (
-	defaultRoot  = "/var/cache/modules/flist"
-	mib          = 1024 * 1024
-	md5HexLength = 32
-
-	defaultNamespace = "ndmz"
-	publicNamespace  = "public"
-
+	defaultRoot           = "/var/cache/modules/flist"
+	mib                   = 1024 * 1024
+	md5HexLength          = 32
 	defaultHubCallTimeout = 20 * time.Second
 )
 

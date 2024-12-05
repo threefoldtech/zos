@@ -23,6 +23,15 @@ func TestDeviceManagerScan(t *testing.T) {
 			},
 		}.Bytes(), nil)
 
+	// same call to lsblk but with UUID for better identification for partitions
+	exec.On("run", ctx, "lsblk", "--json", "-o", "PATH,NAME,SIZE,SUBSYSTEMS,FSTYPE,LABEL,ROTA,UUID", "--bytes", "--exclude", "1,2,11", "--path").
+		Return(TestMap{
+			"blockdevices": []TestMap{
+				{"subsystems": "block:scsi:pci", "path": "/tmp/dev1", "name": "dev1", "label": "test"},
+				{"subsystems": "block:scsi:pci", "path": "/tmp/dev2", "name": "dev2", "label": "test2"},
+			},
+		}.Bytes(), nil)
+
 	// then other calls per device for extended details
 	exec.On("run", ctx, "lsblk", "--json", "-o", "PATH,NAME,SIZE,SUBSYSTEMS,FSTYPE,LABEL,ROTA", "--bytes", "--exclude", "1,2,11", "--path", "/tmp/dev1").
 		Return(TestMap{

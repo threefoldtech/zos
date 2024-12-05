@@ -34,22 +34,28 @@ var (
 
 type TestDevices map[string]string
 
-func (d TestDevices) Loops() Devices {
+func (d TestDevices) Loops() (Devices, error) {
 	mgr := lsblkDeviceManager{
 		executer: executerFunc(run),
 	}
-	for _, loop := range d {
+	for loopTempPath, loop := range d {
+		size, err := FilesUsage(loopTempPath)
+		if err != nil {
+			return Devices{}, err
+		}
 		mgr.cache = append(mgr.cache, DeviceInfo{
 			Path: loop,
 			Rota: false,
+			Size: size,
 		})
+
 	}
 
 	devices, err := mgr.Devices(context.Background())
 	if err != nil {
-		panic(err)
+		return Devices{}, err
 	}
-	return devices
+	return devices, nil
 }
 
 func (d TestDevices) Destroy() {
@@ -173,20 +179,13 @@ func basePoolTest(t *testing.T, pool Pool) {
 	})
 
 	t.Run("test limit subvolume", func(t *testing.T) {
-		usage, err := volume.Usage()
-		require.NoError(t, err)
-
-		// Note: an empty subvolume has an overhead of 16384 bytes
-		assert.Equal(t, Usage{Used: 16384}, usage)
-
 		err = volume.Limit(50 * 1024 * 1024)
 		require.NoError(t, err)
 
-		usage, err = volume.Usage()
+		usage, err := volume.Usage()
 		require.NoError(t, err)
 
-		// Note: an empty subvolume has an overhead of 16384 bytes
-		assert.Equal(t, Usage{Used: 16384, Size: 50 * 1024 * 1024}, usage)
+		assert.Equal(t, Usage{Used: 50 * 1024 * 1024, Size: 50 * 1024 * 1024}, usage)
 	})
 
 	t.Run("test remove subvolume", func(t *testing.T) {
@@ -209,9 +208,12 @@ func TestBtrfsSingleCI(t *testing.T) {
 	require.NoError(t, err, "failed to initialize devices")
 
 	defer devices.Destroy()
-	loops := devices.Loops()
-
+	loops, err := devices.Loops()
+	require.NoError(t, err)
 	for _, dev := range loops {
+		dev.mgr = &lsblkDeviceManager{
+			executer: executerFunc(run),
+		}
 		pool, err := NewBtrfsPool(dev)
 		require.NoError(t, err)
 		basePoolTest(t, pool)
@@ -227,7 +229,11 @@ func TestCLeanUpQgroupsCI(t *testing.T) {
 	require.NoError(t, err, "failed to initialize devices")
 	defer devices.Destroy()
 
-	loops := devices.Loops()
+	loops, err := devices.Loops()
+	require.NoError(t, err)
+	loops[0].mgr = &lsblkDeviceManager{
+		executer: executerFunc(run),
+	}
 	pool, err := NewBtrfsPool(loops[0])
 	require.NoError(t, err)
 
@@ -249,7 +255,9 @@ func TestCLeanUpQgroupsCI(t *testing.T) {
 
 	qgroups, err := btrfsVol.utils.QGroupList(context.TODO(), pool.Path())
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(qgroups))
+
+	// it start with a volume of size 16384 by default
+	assert.Equal(t, 2, len(qgroups))
 	t.Logf("qgroups before delete: %v", qgroups)
 
 	_, ok = qgroups[fmt.Sprintf("0/%d", btrfsVol.id)]
@@ -262,5 +270,5 @@ func TestCLeanUpQgroupsCI(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf("remaining qgroups: %+v", qgroups)
-	assert.Equal(t, 0, len(qgroups), "qgroups should have been deleted with the subvolume")
+	assert.Equal(t, 1, len(qgroups), "qgroups should have been deleted with the subvolume")
 }
