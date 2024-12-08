@@ -42,9 +42,7 @@ const (
 	BtrfsFSType FSType = "btrfs"
 )
 
-var (
-	subvolFindmntOption = regexp.MustCompile(`(^|,)subvol=/($|,)`)
-)
+var subvolFindmntOption = regexp.MustCompile(`(^|,)subvol=/($|,)`)
 
 // blockDevices lsblk output
 type blockDevices struct {
@@ -142,7 +140,6 @@ func (d *DeviceInfo) AllocateEmptySpace(ctx context.Context, space DiskSpace) er
 }
 
 func (d *DeviceInfo) RefreshDeviceInfo(ctx context.Context) (DeviceInfo, error) {
-
 	// notify the kernel with the changed
 	if err := Partprobe(ctx); err != nil {
 		return DeviceInfo{}, err
@@ -155,9 +152,8 @@ func (d *DeviceInfo) RefreshDeviceInfo(ctx context.Context) (DeviceInfo, error) 
 }
 
 func isValidAsDevice(space DiskSpace) bool {
-	// empty space around and in-between partitions used for
-	// partitioning table metadata and partitions alignment
-	const minDeviceSizeBytes = 2 * 1024 * 1024 // 2 MB
+	// minimum acceptable device size could be used by zos
+	const minDeviceSizeBytes = 5 * 1024 * 1024 * 1024 // 5 GiB
 
 	spaceSize, err := strconv.ParseUint(strings.TrimSuffix(space.Size, "B"), 10, 64)
 	if err != nil {
@@ -253,7 +249,6 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 	}
 
 	return device, fmt.Errorf("device not found")
-
 }
 
 func (l *lsblkDeviceManager) lsblk(ctx context.Context) ([]DeviceInfo, error) {
@@ -326,7 +321,6 @@ func (l *lsblkDeviceManager) Mountpoint(ctx context.Context, device string) (str
 	}
 
 	return "", nil
-
 }
 
 func (l *lsblkDeviceManager) raw(ctx context.Context) ([]DeviceInfo, error) {
