@@ -38,9 +38,7 @@ const (
 	cacheCheckDuration = 5 * time.Minute
 )
 
-var (
-	_ pkg.StorageModule = (*Module)(nil)
-)
+var _ pkg.StorageModule = (*Module)(nil)
 
 // Module implements functionality for pkg.StorageModule
 type Module struct {
@@ -148,7 +146,6 @@ func (s *Module) dump() {
 		device := pool.Device()
 		log.Debug().Str("path", device.Path).Str("label", pool.Name()).Str("type", string(zos.HDDDevice)).Send()
 	}
-
 }
 
 // poolType gets the device type of a disk
@@ -266,23 +263,23 @@ func (s *Module) initialize(ctx context.Context) error {
 	subCtx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
 	defer cancel()
 
-	allDevices, err := s.devices.Devices(subCtx)
+	devices, err := s.devices.Devices(subCtx)
 	if err != nil {
 		return err
 	}
 
-	validDevices := []filesystem.DeviceInfo{}
-	for _, dev := range allDevices {
+	candidateDevices := []filesystem.DeviceInfo{}
+	for _, dev := range devices {
 		log.Debug().Any("device", dev).Msg("processing device")
 
 		if !dev.IsPartitioned() { // use it as a full disk
-			validDevices = append(validDevices, dev)
+			candidateDevices = append(candidateDevices, dev)
 			continue
 		}
 
 		spaces, err := dev.GetUnallocatedSpaces(ctx)
 		if err != nil { // couldn't get unallocated for any reason, use its partitions as is
-			validDevices = append(validDevices, dev.Children...)
+			candidateDevices = append(candidateDevices, dev.Children...)
 			continue
 		}
 
@@ -299,11 +296,11 @@ func (s *Module) initialize(ctx context.Context) error {
 			continue
 		}
 
-		validDevices = append(validDevices, newDevice.Children...)
+		candidateDevices = append(candidateDevices, newDevice.Children...)
 	}
 
-	log.Debug().Any("valid devices", validDevices).Send()
-	for _, dev := range validDevices {
+	log.Debug().Any("candidate devices", candidateDevices).Send()
+	for _, dev := range candidateDevices {
 		s.mountPool(dev, vm)
 	}
 
@@ -364,7 +361,6 @@ func (s *Module) Metrics() ([]pkg.PoolMetrics, error) {
 		for _, pool := range pools {
 			size := pool.Device().Size
 			used, err := s.poolUsage(pool)
-
 			if err != nil {
 				log.Error().Err(err).Msg("failed to check pool usage")
 				continue
@@ -783,7 +779,6 @@ type candidate struct {
 }
 
 func (s *Module) findCandidates(size gridtypes.Unit, policy Policy) ([]candidate, error) {
-
 	// Look for candidates in mounted pools first
 	candidates, err := s.checkForCandidates(size, policy)
 	if err != nil {
@@ -926,7 +921,6 @@ func (s *Module) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 			case ch <- values:
 			}
 		}
-
 	}()
 
 	return ch
