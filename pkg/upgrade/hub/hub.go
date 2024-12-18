@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/0-fs/meta"
@@ -65,15 +66,16 @@ func MatchType(typ FListType) FListFilter {
 
 // HubClient API for f-list
 type HubClient struct {
-	httpClient *http.Client
+	httpClient *retryablehttp.Client
 }
 
 // NewHubClient create new hub client with the passed option for the http client
 func NewHubClient(timeout time.Duration) *HubClient {
+	httpClient := retryablehttp.NewClient()
+	httpClient.RetryMax = 5
+	httpClient.HTTPClient.Timeout = timeout
 	return &HubClient{
-		httpClient: &http.Client{
-			Timeout: timeout,
-		},
+		httpClient: httpClient,
 	}
 }
 
