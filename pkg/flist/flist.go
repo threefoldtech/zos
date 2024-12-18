@@ -158,7 +158,7 @@ func newFlister(root string, storage volumeAllocator, commander commander, syste
 
 	httpClient := retryablehttp.NewClient()
 	httpClient.HTTPClient.Timeout = defaultHubCallTimeout
-	httpClient.RetryMax = 3
+	httpClient.RetryMax = 5
 	return &flistModule{
 		root:       root,
 		flist:      filepath.Join(root, "flist"),
@@ -740,7 +740,7 @@ func (f *flistModule) downloadInNamespace(name, u string) (resp *http.Response, 
 				return con, nil
 			},
 		}
-		cl.RetryMax = 3
+		cl.RetryMax = 5
 
 		resp, err = cl.Get(u)
 		return err

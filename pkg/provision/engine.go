@@ -1215,7 +1215,7 @@ func isTwinVerified(twinID uint32) (verified bool, err error) {
 
 	cl := retryablehttp.NewClient()
 	cl.HTTPClient.Timeout = defaultHttpTimeout
-	cl.RetryMax = 3
+	cl.RetryMax = 5
 
 	response, err := cl.Do(&retryablehttp.Request{Request: request})
 	if err != nil {

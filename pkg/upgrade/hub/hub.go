@@ -297,9 +297,10 @@ func (b *Regular) Files(repo string) ([]FileInfo, error) {
 	}
 
 	u.Path = filepath.Join("api", "flist", repo, b.Name)
-	cl := &http.Client{
-		Timeout: defaultHubCallTimeout,
-	}
+
+	cl := retryablehttp.NewClient()
+	cl.RetryMax = 5
+	cl.HTTPClient.Timeout = defaultHubCallTimeout
 
 	response, err := cl.Get(u.String())
 	if err != nil {

@@ -54,7 +54,7 @@ func GetConfig() (base Config, err error) {
 func GetConfigForMode(mode RunMode) (Config, error) {
 	httpClient := retryablehttp.NewClient()
 	httpClient.HTTPClient.Timeout = defaultHttpTimeout
-	httpClient.RetryMax = 3
+	httpClient.RetryMax = 5
 
 	return getConfig(mode, baseExtendedURL, httpClient)
 }
