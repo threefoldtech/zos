@@ -45,7 +45,7 @@ func (c *Client) Shutdown(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	response, err := c.client.Do(&retryablehttp.Request{Request: request})
+	response, err := c.client.StandardClient().Do(request)
 	if err != nil {
 		return errors.Wrap(err, "error calling machine shutdown")
 	}
@@ -63,7 +63,7 @@ func (c *Client) Pause(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	response, err := c.client.Do(&retryablehttp.Request{Request: request})
+	response, err := c.client.StandardClient().Do(request)
 	if err != nil {
 		return errors.Wrap(err, "error calling machine pause")
 	}
@@ -81,7 +81,7 @@ func (c *Client) Resume(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	response, err := c.client.Do(&retryablehttp.Request{Request: request})
+	response, err := c.client.StandardClient().Do(request)
 	if err != nil {
 		return errors.Wrap(err, "error calling machine pause")
 	}
@@ -102,7 +102,7 @@ func (c *Client) Inspect(ctx context.Context) (VMData, error) {
 	}
 	request.Header.Add("content-type", "application/json")
 
-	response, err := c.client.Do(&retryablehttp.Request{Request: request})
+	response, err := c.client.StandardClient().Do(request)
 	if err != nil {
 		return VMData{}, errors.Wrap(err, "error calling machine info")
 	}
