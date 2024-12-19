@@ -351,7 +351,7 @@ func (c *Module) Exec(ns string, containerID string, timeout time.Duration, args
 	}
 	pr, err := t.Exec(createctx, taskID.String(), &p, cio.NullIO)
 	if err != nil {
-		return errors.Wrap(err, "failed to exec new porcess")
+		return errors.Wrap(err, "failed to exec new process")
 	}
 	if err := pr.Start(createctx); err != nil {
 		return errors.Wrap(err, "failed to start process")

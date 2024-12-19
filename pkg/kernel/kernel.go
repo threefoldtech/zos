@@ -63,7 +63,7 @@ func (k Params) IsDebug() bool {
 	return k.Exists(Debug)
 }
 
-// GPUDisabled checks if gpu is diabled
+// GPUDisabled checks if gpu is disabled
 func (k Params) IsGPUDisabled() bool {
 	return k.Exists(DisableGPU)
 }

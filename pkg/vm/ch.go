@@ -74,7 +74,7 @@ func (m *Machine) Run(ctx context.Context, socket, logs string) (pkg.MachineInfo
 		"--memory": {fmt.Sprintf("%s,shared=on", m.Config.Mem.String())},
 
 		"--console":    {"off"},
-		"--serial":     {"pty"}, // we use pty here for the cloud console to be able to read the vm console, in case of debuging or we need stdout logging we use tty
+		"--serial":     {"pty"}, // we use pty here for the cloud console to be able to read the vm console, in case of debugging or we need stdout logging we use tty
 		"--api-socket": {socket},
 	}
 

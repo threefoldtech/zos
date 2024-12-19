@@ -13,7 +13,7 @@ import (
 )
 
 // Prefix is a string used as prefix in the filesystem volume used
-// to storge 0-db namespaces
+// to storage 0-db namespaces
 const (
 	Prefix = "zdb"
 )
