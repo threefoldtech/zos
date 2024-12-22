@@ -68,7 +68,6 @@ func action(cli *cli.Context) error {
 		return fmt.Errorf("failed to create substrate manager: %w", err)
 	}
 
-	router := peer.NewRouter()
 	gw, err := substrategw.NewSubstrateGateway(manager, id)
 	if err != nil {
 		return fmt.Errorf("failed to create api gateway: %w", err)
@@ -96,6 +95,8 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create zos api: %w", err)
 	}
+
+	router := peer.NewRouter()
 	api.SetupRoutes(router)
 
 	pair, err := id.KeyPair()
@@ -105,7 +106,7 @@ func action(cli *cli.Context) error {
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
-	backoff.Retry(func() error {
+	if err = backoff.Retry(func() error {
 		_, err = peer.NewPeer(
 			ctx,
 			hex.EncodeToString(pair.Seed()),
@@ -117,9 +118,10 @@ func action(cli *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to start a new rmb peer: %w", err)
 		}
-
 		return nil
-	}, bo)
+	}, bo); err != nil {
+		return err
+	}
 
 	log.Info().
 		Str("broker", msgBrokerCon).

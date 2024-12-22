@@ -8,7 +8,7 @@ import (
 	"github.com/threefoldtech/zos/pkg/zinit"
 )
 
-func (g *ZosAPI) adminRestartHandler(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) adminRestartServiceHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var service string
 	if err := json.Unmarshal(payload, &service); err != nil {
 		return nil, fmt.Errorf("failed to decode input, expecting string: %w", err)
@@ -23,6 +23,23 @@ func (g *ZosAPI) adminRebootHandler(ctx context.Context, payload []byte) (interf
 	zinit := zinit.Default()
 
 	return nil, zinit.Reboot()
+}
+
+func (g *ZosAPI) adminRestartAllHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	zinit := zinit.Default()
+
+	services, err := zinit.List()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list node services, expecting string: %w", err)
+	}
+
+	for _, service := range services {
+		if err := zinit.Restart(service.String()); err != nil {
+			return nil, fmt.Errorf("failed to reboot service %s, expecting string: %w", service.String(), err)
+		}
+	}
+
+	return nil, nil
 }
 
 func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
