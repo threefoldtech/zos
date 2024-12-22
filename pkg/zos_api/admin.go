@@ -16,11 +16,7 @@ func (g *ZosAPI) adminRestartHandler(ctx context.Context, payload []byte) (inter
 
 	zinit := zinit.Default()
 
-	if err := zinit.Stop(service); err != nil {
-		return nil, err
-	}
-
-	return nil, zinit.Start(service)
+	return nil, zinit.Restart(service)
 }
 
 func (g *ZosAPI) adminRebootHandler(ctx context.Context, payload []byte) (interface{}, error) {

@@ -45,9 +45,9 @@ const (
 	ServiceStateSuccess = "success"
 	// ServiceStateError is return when we a service exit with an error (exit code != 0)
 	ServiceStateError = "error"
-	//ServiceStateFailure is set of zinit can not spawn a service in the first place
-	//due to a missing executable for example. Unlike `error` which is returned if the
-	//service itself exits with an error.
+	// ServiceStateFailure is set of zinit can not spawn a service in the first place
+	// due to a missing executable for example. Unlike `error` which is returned if the
+	// service itself exits with an error.
 	ServiceStateFailure = "failure"
 )
 
@@ -204,7 +204,6 @@ type ServiceStatus struct {
 func (c *Client) List() (out map[string]ServiceState, err error) {
 	err = c.cmd("list", &out)
 	return
-
 }
 
 // Status returns the status of a service
@@ -308,6 +307,11 @@ func (c *Client) Start(service string) error {
 // Stop stops a service
 func (c *Client) Stop(service string) error {
 	return c.cmd(fmt.Sprintf("stop %s", service), nil)
+}
+
+// Re restarts a service.
+func (c *Client) Restart(service string) error {
+	return c.cmd(fmt.Sprintf("restart %s", service), nil)
 }
 
 // StartWait starts a service and wait until its running, or until the timeout
