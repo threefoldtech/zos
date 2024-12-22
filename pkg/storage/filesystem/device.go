@@ -127,7 +127,7 @@ func (d *DeviceInfo) GetUnallocatedSpaces(ctx context.Context) ([]DiskSpace, err
 
 func (d *DeviceInfo) AllocateEmptySpace(ctx context.Context, space DiskSpace) error {
 	args := []string{
-		d.Path, "mkpart", "primary", space.Start, space.End,
+		d.Path, "mkpart", "primary", string(BtrfsFSType), space.Start, space.End,
 	}
 
 	output, err := exec.CommandContext(ctx, "parted", args...).CombinedOutput()
