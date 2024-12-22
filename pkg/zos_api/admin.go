@@ -42,6 +42,17 @@ func (g *ZosAPI) adminRestartAllHandler(ctx context.Context, payload []byte) (in
 	return nil, nil
 }
 
+func (g *ZosAPI) adminShowLogs(ctx context.Context, payload []byte) (interface{}, error) {
+	var n int
+	if err := json.Unmarshal(payload, &n); err != nil {
+		return nil, fmt.Errorf("failed to decode input, expecting string: %w", err)
+	}
+
+	zinit := zinit.Default()
+
+	return zinit.Log(n)
+}
+
 func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	// list all interfaces on node
 	type Interface struct {

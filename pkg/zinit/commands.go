@@ -206,6 +206,34 @@ func (c *Client) List() (out map[string]ServiceState, err error) {
 	return
 }
 
+// List returns all the service monitored and their status
+func (c *Client) Log(n int) (out string, err error) {
+	cmd1 := exec.Command("zinit", "log", "-s")
+	cmd2 := exec.Command("tail", "-n", fmt.Sprint(n))
+
+	cmd2.Stdin, err = cmd1.StdoutPipe()
+	if err != nil {
+		return
+	}
+
+	err = cmd1.Start()
+	if err != nil {
+		return
+	}
+
+	output, err := cmd2.Output()
+	if err != nil {
+		return
+	}
+
+	err = cmd1.Wait()
+	if err != nil {
+		return
+	}
+
+	return string(output), err
+}
+
 // Status returns the status of a service
 func (c *Client) Status(service string) (result ServiceStatus, err error) {
 	err = c.cmd(fmt.Sprintf("status %s", service), &result)
