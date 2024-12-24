@@ -3,7 +3,6 @@ package nft
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"os/exec"
 
@@ -41,7 +40,19 @@ func Apply(r io.Reader, ns string) error {
 // the same lan network
 func DropTrafficToLAN() error {
 	mac, err := getDefaultGwMac()
-	slog.Info("returned", "mac", mac.String(), "err", err)
+	log.Debug().Str("mac", mac.String()).Err(err).Msg("default gw return")
+
+	cmd := exec.Command("nft", "add", "rule", "inet", "filter", "forward",
+		"ether", "daddr", "!=", mac.String(), "drop")
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Error().Err(err).Str("output", string(out)).Msg("error during nft")
+		if eerr, ok := err.(*exec.ExitError); ok {
+			return errors.Wrapf(err, "failed to execute nft: %v", string(eerr.Stderr))
+		}
+		return errors.Wrap(err, "failed to execute nft")
+	}
 	return nil
 }
 
@@ -78,5 +89,5 @@ func getDefaultGwMac() (net.HardwareAddr, error) {
 		}
 	}
 
-	return nil, nil
+	return nil, errors.New("failed to get default gw")
 }

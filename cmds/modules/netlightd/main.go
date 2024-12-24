@@ -132,7 +132,7 @@ func action(cli *cli.Context) error {
 	}
 
 	if err := nft.DropTrafficToLAN(); err != nil {
-		return errors.New("failed to drop traffic to lan")
+		return fmt.Errorf("failed to drop traffic to lan: %w", err)
 	}
 
 	mod, err := netlight.NewNetworker()
