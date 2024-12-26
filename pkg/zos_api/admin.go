@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/threefoldtech/zos/pkg/zinit"
 )
@@ -42,7 +44,7 @@ func (g *ZosAPI) adminRestartAllHandler(ctx context.Context, payload []byte) (in
 	return nil, nil
 }
 
-func (g *ZosAPI) adminShowLogs(ctx context.Context, payload []byte) (interface{}, error) {
+func (g *ZosAPI) adminShowLogsHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var n int
 	if err := json.Unmarshal(payload, &n); err != nil {
 		return nil, fmt.Errorf("failed to decode input, expecting string: %w", err)
@@ -51,6 +53,11 @@ func (g *ZosAPI) adminShowLogs(ctx context.Context, payload []byte) (interface{}
 	zinit := zinit.Default()
 
 	return zinit.Log(n)
+}
+
+func (g *ZosAPI) adminShowResolveHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	path := filepath.Join("/etc", "resolv.conf")
+	return os.ReadFile(path)
 }
 
 func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
