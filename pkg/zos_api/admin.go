@@ -60,6 +60,10 @@ func (g *ZosAPI) adminShowResolveHandler(ctx context.Context, payload []byte) (i
 	return os.ReadFile(path)
 }
 
+func (g *ZosAPI) adminShowOpenConnectionsHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	return g.statisticsStub.OpenConnections(ctx)
+}
+
 func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	// list all interfaces on node
 	type Interface struct {
