@@ -36,14 +36,8 @@ func Apply(r io.Reader, ns string) error {
 	return nil
 }
 
-// DropTrafficToLAN drops all the outgoing traffic to any peers on
-// the same lan network
-func DropTrafficToLAN() error {
-	mac, err := getDefaultGwMac()
-	log.Debug().Str("mac", mac.String()).Err(err).Msg("default gw return")
-
-	cmd := exec.Command("nft", "add", "rule", "inet", "filter", "forward",
-		"ether", "daddr", "!=", mac.String(), "drop")
+func applyNftRule(rule []string) error {
+	cmd := exec.Command(rule[0], rule[1:]...)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -53,6 +47,38 @@ func DropTrafficToLAN() error {
 		}
 		return errors.Wrap(err, "failed to execute nft")
 	}
+	return nil
+}
+
+// DropTrafficToLAN drops all the outgoing traffic to any peers on
+// the same lan network, but allow dicovery port for ygg/myc by accepting
+// traffic to/from dest/src ports.
+func DropTrafficToLAN() error {
+	rules := [][]string{
+		// @th,0,16 and @th,16,16 is raw expression for sport/dport in transport header
+		// used due to limitation on the installed nft v0.9.1
+		{
+			"nft", "add", "rule", "inet", "filter", "forward",
+			"meta", "l4proto", "{tcp, udp}", "@th,0,16", "{9651, 9650}", "accept",
+		},
+		{
+			"nft", "add", "rule", "inet", "filter", "forward",
+			"meta", "l4proto", "{tcp, udp}", "@th,16,16", "{9651, 9650}", "accept",
+		},
+	}
+	mac, err := getDefaultGwMac()
+	log.Debug().Str("mac", mac.String()).Err(err).Msg("default gw return")
+	rules = append(rules, []string{
+		"nft", "add", "rule", "inet", "filter", "forward",
+		"ether", "daddr", "!=", mac.String(), "drop",
+	})
+
+	for _, rule := range rules {
+		if err := applyNftRule(rule); err != nil {
+			return fmt.Errorf("failed to apply nft rule: %w", err)
+		}
+	}
+
 	return nil
 }
 
