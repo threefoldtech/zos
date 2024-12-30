@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -25,6 +27,8 @@ type DeviceManager interface {
 	Mountpoint(ctx context.Context, device string) (string, error)
 	// Seektime checks device seektime
 	Seektime(ctx context.Context, device string) (zos.DeviceType, error)
+	// ClearCache clears the cached devices to refresh
+	ClearCache()
 }
 
 // Devices represents a list of cached in memory devices
@@ -38,9 +42,7 @@ const (
 	BtrfsFSType FSType = "btrfs"
 )
 
-var (
-	subvolFindmntOption = regexp.MustCompile(`(^|,)subvol=/($|,)`)
-)
+var subvolFindmntOption = regexp.MustCompile(`(^|,)subvol=/($|,)`)
 
 // blockDevices lsblk output
 type blockDevices struct {
@@ -59,6 +61,14 @@ type DeviceInfo struct {
 	Subsystems string       `json:"subsystems"`
 	UUID       string       `json:"uuid"`
 	Children   []DeviceInfo `json:"children,omitempty"`
+}
+
+type DiskSpace struct {
+	Number int    `json:"number"`
+	Start  string `json:"start"`
+	End    string `json:"end"`
+	Type   string `json:"type"`
+	Size   string `json:"size"`
 }
 
 func (i *DeviceInfo) Name() string {
@@ -83,6 +93,81 @@ func (d *DeviceInfo) IsPXEPartition() bool {
 	return d.Label == "ZOSPXE"
 }
 
+func (d *DeviceInfo) IsPartitioned() bool {
+	return len(d.Children) != 0
+}
+
+func (d *DeviceInfo) GetUnallocatedSpaces(ctx context.Context) ([]DiskSpace, error) {
+	args := []string{
+		"--json", d.Path, "unit", "B", "print", "free",
+	}
+	output, err := exec.CommandContext(ctx, "parted", args...).CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("parted command error: %w", err)
+	}
+
+	var diskData struct {
+		Disk struct {
+			Partitions []DiskSpace `json:"partitions"`
+		} `json:"disk"`
+	}
+	if err := json.Unmarshal(output, &diskData); err != nil {
+		return nil, fmt.Errorf("failed to parse parted output: %v", err)
+	}
+
+	validSpaces := []DiskSpace{}
+	for _, part := range diskData.Disk.Partitions {
+		if isValidAsDevice(part) {
+			validSpaces = append(validSpaces, part)
+		}
+	}
+
+	return validSpaces, nil
+}
+
+func (d *DeviceInfo) AllocateEmptySpace(ctx context.Context, space DiskSpace) error {
+	args := []string{
+		d.Path, "mkpart", "primary", string(BtrfsFSType), space.Start, space.End,
+	}
+
+	output, err := exec.CommandContext(ctx, "parted", args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("parted command error: %w", err)
+	}
+	log.Debug().Str("output", string(output)).Msg("allocate empty space parted command")
+
+	return nil
+}
+
+func (d *DeviceInfo) RefreshDeviceInfo(ctx context.Context) (DeviceInfo, error) {
+	// notify the kernel with the changed
+	if err := Partprobe(ctx); err != nil {
+		return DeviceInfo{}, err
+	}
+
+	// remove the cache
+	d.mgr.ClearCache()
+
+	return d.mgr.Device(ctx, d.Path)
+}
+
+func isValidAsDevice(space DiskSpace) bool {
+	// minimum acceptable device size could be used by zos
+	const minDeviceSizeBytes = 5 * 1024 * 1024 * 1024 // 5 GiB
+
+	spaceSize, err := strconv.ParseUint(strings.TrimSuffix(space.Size, "B"), 10, 64)
+	if err != nil {
+		log.Debug().Err(err).Msg("failed converting space size")
+		return false
+	}
+
+	if space.Type == "free" &&
+		spaceSize >= minDeviceSizeBytes {
+		return true
+	}
+	return false
+}
+
 // lsblkDeviceManager uses the lsblk utility to scann the disk for devices, and
 // caches the result.
 //
@@ -104,6 +189,10 @@ func defaultDeviceManager(exec executer) DeviceManager {
 	}
 
 	return m
+}
+
+func (l *lsblkDeviceManager) ClearCache() {
+	l.cache = nil
 }
 
 // Devices gets available block devices
@@ -160,7 +249,6 @@ func (l *lsblkDeviceManager) Device(ctx context.Context, path string) (device De
 	}
 
 	return device, fmt.Errorf("device not found")
-
 }
 
 func (l *lsblkDeviceManager) lsblk(ctx context.Context) ([]DeviceInfo, error) {
@@ -233,7 +321,6 @@ func (l *lsblkDeviceManager) Mountpoint(ctx context.Context, device string) (str
 	}
 
 	return "", nil
-
 }
 
 func (l *lsblkDeviceManager) raw(ctx context.Context) ([]DeviceInfo, error) {

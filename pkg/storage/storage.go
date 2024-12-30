@@ -38,9 +38,7 @@ const (
 	cacheCheckDuration = 5 * time.Minute
 )
 
-var (
-	_ pkg.StorageModule = (*Module)(nil)
-)
+var _ pkg.StorageModule = (*Module)(nil)
 
 // Module implements functionality for pkg.StorageModule
 type Module struct {
@@ -148,7 +146,6 @@ func (s *Module) dump() {
 		device := pool.Device()
 		log.Debug().Str("path", device.Path).Str("label", pool.Name()).Str("type", string(zos.HDDDevice)).Send()
 	}
-
 }
 
 // poolType gets the device type of a disk
@@ -196,10 +193,10 @@ func (s *Module) poolType(pool filesystem.Pool, vm bool) (zos.DeviceType, error)
 }
 
 func (s *Module) mountPool(device filesystem.DeviceInfo, vm bool) {
-	log.Debug().Str("path", device.Path).Msg("mounting device")
+	log.Debug().Any("device", device).Msg("mounting device")
 
 	if device.IsPXEPartition() {
-		log.Info().Str("device", device.Path).Msg("device has 'ZOSPXE' label")
+		log.Debug().Str("device", device.Path).Msg("skip device has 'ZOSPXE' label")
 		s.brokenDevices = append(s.brokenDevices, pkg.BrokenDevice{Path: device.Path, Err: fmt.Errorf("device is a PXE partition")})
 		return
 	}
@@ -271,16 +268,40 @@ func (s *Module) initialize(ctx context.Context) error {
 		return err
 	}
 
-	for _, device := range devices {
-		log.Debug().Msgf("device: %+v", device)
+	candidateDevices := []filesystem.DeviceInfo{}
+	for _, dev := range devices {
+		log.Debug().Any("device", dev).Msg("processing device")
 
-		if len(device.Children) != 0 {
-			for _, part := range device.Children {
-				s.mountPool(part, vm)
-			}
+		if !dev.IsPartitioned() { // use it as a full disk
+			candidateDevices = append(candidateDevices, dev)
 			continue
 		}
-		s.mountPool(device, vm)
+
+		spaces, err := dev.GetUnallocatedSpaces(ctx)
+		if err != nil { // couldn't get unallocated for any reason, use its partitions as is
+			candidateDevices = append(candidateDevices, dev.Children...)
+			continue
+		}
+
+		for _, space := range spaces {
+			if err := dev.AllocateEmptySpace(ctx, space); err != nil {
+				log.Error().Err(err).Str("device", dev.Path).Msg("could not allocate empty space")
+				continue
+			}
+		}
+
+		newDevice, err := dev.RefreshDeviceInfo(ctx)
+		if err != nil {
+			log.Error().Err(err).Str("device", dev.Path).Msg("failed to refresh device info")
+			continue
+		}
+
+		candidateDevices = append(candidateDevices, newDevice.Children...)
+	}
+
+	log.Debug().Any("candidate devices", candidateDevices).Send()
+	for _, dev := range candidateDevices {
+		s.mountPool(dev, vm)
 	}
 
 	log.Info().
@@ -340,7 +361,6 @@ func (s *Module) Metrics() ([]pkg.PoolMetrics, error) {
 		for _, pool := range pools {
 			size := pool.Device().Size
 			used, err := s.poolUsage(pool)
-
 			if err != nil {
 				log.Error().Err(err).Msg("failed to check pool usage")
 				continue
@@ -759,7 +779,6 @@ type candidate struct {
 }
 
 func (s *Module) findCandidates(size gridtypes.Unit, policy Policy) ([]candidate, error) {
-
 	// Look for candidates in mounted pools first
 	candidates, err := s.checkForCandidates(size, policy)
 	if err != nil {
@@ -902,7 +921,6 @@ func (s *Module) Monitor(ctx context.Context) <-chan pkg.PoolsStats {
 			case ch <- values:
 			}
 		}
-
 	}()
 
 	return ch
