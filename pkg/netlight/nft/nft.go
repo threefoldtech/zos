@@ -37,6 +37,9 @@ func Apply(r io.Reader, ns string) error {
 }
 
 func applyNftRule(rule []string) error {
+	if len(rule) == 0 {
+		return errors.New("invalid nft rule")
+	}
 	cmd := exec.Command(rule[0], rule[1:]...)
 
 	out, err := cmd.CombinedOutput()
