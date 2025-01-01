@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/environment"
@@ -72,7 +73,7 @@ func manageSSHKeys() error {
 
 	for _, user := range authorizedUsers {
 		fetchKey := func() error {
-			res, err := http.Get(fmt.Sprintf("https://github.com/%s.keys", user))
+			res, err := retryablehttp.Get(fmt.Sprintf("https://github.com/%s.keys", user))
 
 			if err != nil {
 				return fmt.Errorf("failed to fetch user keys: %+w", err)

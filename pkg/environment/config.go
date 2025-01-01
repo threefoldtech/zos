@@ -56,7 +56,7 @@ func GetConfigForMode(mode RunMode) (Config, error) {
 	httpClient.HTTPClient.Timeout = defaultHttpTimeout
 	httpClient.RetryMax = 5
 
-	return getConfig(mode, baseExtendedURL, httpClient)
+	return getConfig(mode, baseExtendedURL, httpClient.StandardClient())
 }
 
 func uniqueStr(slice []string) []string {
@@ -71,7 +71,7 @@ func uniqueStr(slice []string) []string {
 	return list
 }
 
-func getConfig(run RunMode, url string, httpClient *retryablehttp.Client) (ext Config, err error) {
+func getConfig(run RunMode, url string, httpClient *http.Client) (ext Config, err error) {
 	if !strings.HasSuffix(url, "/") {
 		url += "/"
 	}
