@@ -107,7 +107,7 @@ func (r *ContractEventHandler) sync(ctx context.Context) error {
 			action = r.engine.Pause
 		}
 
-		if err := action(ctx, dl.TwinID, dl.ContractID); err != nil {
+		if err := action(dl.TwinID, dl.ContractID); err != nil {
 			log.Error().Err(err).Msg("failed to change contract state")
 		}
 	}
@@ -176,7 +176,7 @@ func (r *ContractEventHandler) Run(ctx context.Context) error {
 				action = r.engine.Pause
 			}
 
-			if err := action(ctx, event.TwinId, event.Contract); err != nil {
+			if err := action(event.TwinId, event.Contract); err != nil {
 				log.Error().Err(err).
 					Uint32("twin", event.TwinId).
 					Uint64("contract", event.Contract).

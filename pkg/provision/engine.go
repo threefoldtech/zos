@@ -361,7 +361,7 @@ func (e *NativeEngine) Provision(ctx context.Context, deployment gridtypes.Deplo
 }
 
 // Pause deployment
-func (e *NativeEngine) Pause(ctx context.Context, twin uint32, id uint64) error {
+func (e *NativeEngine) Pause(twin uint32, id uint64) error {
 	deployment, err := e.storage.Get(twin, id)
 	if err != nil {
 		return err
@@ -381,7 +381,7 @@ func (e *NativeEngine) Pause(ctx context.Context, twin uint32, id uint64) error 
 }
 
 // Resume deployment
-func (e *NativeEngine) Resume(ctx context.Context, twin uint32, id uint64) error {
+func (e *NativeEngine) Resume(twin uint32, id uint64) error {
 	deployment, err := e.storage.Get(twin, id)
 	if err != nil {
 		return err

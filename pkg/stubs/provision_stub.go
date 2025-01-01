@@ -159,3 +159,33 @@ func (s *ProvisionStub) ListPublicIPs(ctx context.Context) (ret0 []string, ret1 
 	}
 	return
 }
+
+func (s *ProvisionStub) Pause(ctx context.Context, arg0 uint32, arg1 uint64) (ret0 error) {
+	args := []interface{}{arg0, arg1}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "Pause", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret0 = result.CallError()
+	loader := zbus.Loader{}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *ProvisionStub) Resume(ctx context.Context, arg0 uint32, arg1 uint64) (ret0 error) {
+	args := []interface{}{arg0, arg1}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "Resume", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret0 = result.CallError()
+	loader := zbus.Loader{}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}

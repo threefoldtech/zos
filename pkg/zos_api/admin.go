@@ -64,6 +64,32 @@ func (g *ZosAPI) adminShowOpenConnectionsHandler(ctx context.Context, payload []
 	return g.statisticsStub.OpenConnections(ctx)
 }
 
+func (g *ZosAPI) adminStopWorkloadHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	var args struct {
+		TwinID     uint32 `json:"twin_id"`
+		WorkloadID uint64 `json:"workload_id"`
+	}
+
+	if err := json.Unmarshal(payload, &args); err != nil {
+		return nil, fmt.Errorf("failed to decode input, expecting twin id and workload id: %w", err)
+	}
+
+	return nil, g.provisionStub.Pause(ctx, args.TwinID, args.WorkloadID)
+}
+
+func (g *ZosAPI) adminResumeWorkloadHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	var args struct {
+		TwinID     uint32 `json:"twin_id"`
+		WorkloadID uint64 `json:"workload_id"`
+	}
+
+	if err := json.Unmarshal(payload, &args); err != nil {
+		return nil, fmt.Errorf("failed to decode input, expecting twin id and workload id: %w", err)
+	}
+
+	return nil, g.provisionStub.Resume(ctx, args.TwinID, args.WorkloadID)
+}
+
 func (g *ZosAPI) adminInterfacesHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	// list all interfaces on node
 	type Interface struct {
