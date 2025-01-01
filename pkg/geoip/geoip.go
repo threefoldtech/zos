@@ -49,7 +49,7 @@ func getLocation(geoIPService string) (Location, error) {
 		City:      "Unknown",
 	}
 
-	defaultHTTPClient.HTTPClient.Timeout = 10* time.Second
+	defaultHTTPClient.HTTPClient.Timeout = 10 * time.Second
 	defaultHTTPClient.RetryMax = 5
 	resp, err := defaultHTTPClient.Get(geoIPService)
 	if err != nil {
