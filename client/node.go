@@ -259,23 +259,82 @@ func (n *NodeClient) NetworkListInterfaces(ctx context.Context) (result map[stri
 	return
 }
 
-// AdminRebootNode return all physical devices on a node
+// AdminRebootNode stops all the running services and reboots the node
 func (n *NodeClient) AdminRebootNode(ctx context.Context) error {
 	const cmd = "zos.admin.reboot"
 
 	return n.bus.Call(ctx, n.nodeTwin, cmd, nil, nil)
 }
 
-// AdminRestartService return all physical devices on a node
+// AdminRestartService restarts a zinit service
 func (n *NodeClient) AdminRestartService(ctx context.Context, service string) error {
 	const cmd = "zos.admin.restart"
 
 	return n.bus.Call(ctx, n.nodeTwin, cmd, service, nil)
 }
 
+// AdminRestartAll restarts all zinit services
+func (n *NodeClient) AdminRestartAll(ctx context.Context) error {
+	const cmd = "zos.admin.restart_all"
+
+	return n.bus.Call(ctx, n.nodeTwin, cmd, nil, nil)
+}
+
+// AdminShowLogs returns a l lines of zinit logs
+func (n *NodeClient) AdminShowLogs(ctx context.Context, l int) (logs []byte, err error) {
+	const cmd = "zos.admin.show_logs"
+
+	err = n.bus.Call(ctx, n.nodeTwin, cmd, l, &logs)
+	return
+}
+
+// AdminShowResolve return the content of /etc/resolv.conf
+func (n *NodeClient) AdminShowResolve(ctx context.Context) (res []byte, err error) {
+	const cmd = "zos.admin.show_resolve"
+
+	err = n.bus.Call(ctx, n.nodeTwin, cmd, nil, &res)
+	return
+}
+
+// AdminShowOpenConnections return information about all open connections in the node
+func (n *NodeClient) AdminShowOpenConnections(ctx context.Context) (res []byte, err error) {
+	const cmd = "zos.admin.show_open_connections"
+
+	err = n.bus.Call(ctx, n.nodeTwin, cmd, nil, &res)
+	return
+}
+
+// AdminStopWorkload stops a workload
+func (n *NodeClient) AdminStopWorkload(ctx context.Context, twinID uint32, wlID uint64) error {
+	const cmd = "zos.admin.stop_workload"
+	args := struct {
+		TwinID     uint32 `json:"twin_id"`
+		WorkloadID uint64 `json:"workload_id"`
+	}{
+		TwinID:     twinID,
+		WorkloadID: wlID,
+	}
+
+	return n.bus.Call(ctx, n.nodeTwin, cmd, args, nil)
+}
+
+// AdminResumeWorkload stops a workload
+func (n *NodeClient) AdminResumeWorkload(ctx context.Context, twinID uint32, wlID uint64) error {
+	const cmd = "zos.admin.resume_workload"
+	args := struct {
+		TwinID     uint32 `json:"twin_id"`
+		WorkloadID uint64 `json:"workload_id"`
+	}{
+		TwinID:     twinID,
+		WorkloadID: wlID,
+	}
+
+	return n.bus.Call(ctx, n.nodeTwin, cmd, args, nil)
+}
+
 // NetworkListAllInterfaces return all physical devices on a node
 func (n *NodeClient) NetworkListAllInterfaces(ctx context.Context) (result map[string]Interface, err error) {
-	const cmd = "zos.network.admin.interfaces"
+	const cmd = "zos.admin.interfaces"
 
 	err = n.bus.Call(ctx, n.nodeTwin, cmd, nil, &result)
 
@@ -285,14 +344,14 @@ func (n *NodeClient) NetworkListAllInterfaces(ctx context.Context) (result map[s
 // NetworkSetPublicExitDevice select which physical interface to use as an exit device
 // setting `iface` to `zos` will then make node run in a single nic setup.
 func (n *NodeClient) NetworkSetPublicExitDevice(ctx context.Context, iface string) error {
-	const cmd = "zos.network.admin.set_public_nic"
+	const cmd = "zos.admin.set_public_nic"
 
 	return n.bus.Call(ctx, n.nodeTwin, cmd, iface, nil)
 }
 
 // NetworkGetPublicExitDevice gets the current dual nic setup of the node.
 func (n *NodeClient) NetworkGetPublicExitDevice(ctx context.Context) (exit ExitDevice, err error) {
-	const cmd = "zos.network.admin.get_public_nic"
+	const cmd = "zos.admin.get_public_nic"
 
 	err = n.bus.Call(ctx, n.nodeTwin, cmd, nil, &exit)
 	return

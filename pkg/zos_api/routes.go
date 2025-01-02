@@ -49,9 +49,9 @@ func (g *ZosAPI) SetupRoutes(router *peer.Router) {
 	admin.WithHandler("restart", g.adminRestartServiceHandler)
 	admin.WithHandler("restart_all", g.adminRestartAllHandler)
 
-	admin.WithHandler("logs", g.adminShowLogsHandler)
+	admin.WithHandler("show_logs", g.adminShowLogsHandler)
 	admin.WithHandler("show_resolve", g.adminShowResolveHandler)
-	admin.WithHandler("get_open_connections", g.adminShowOpenConnectionsHandler)
+	admin.WithHandler("show_open_connections", g.adminShowOpenConnectionsHandler)
 
 	admin.WithHandler("stop_workload", g.adminStopWorkloadHandler)
 	admin.WithHandler("resume_workload", g.adminResumeWorkloadHandler)
