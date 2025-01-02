@@ -280,7 +280,7 @@ func (n *NodeClient) AdminRestartAll(ctx context.Context) error {
 	return n.bus.Call(ctx, n.nodeTwin, cmd, nil, nil)
 }
 
-// AdminShowLogs returns a l lines of zinit logs
+// AdminShowLogs returns l lines of zinit logs
 func (n *NodeClient) AdminShowLogs(ctx context.Context, l int) (logs []byte, err error) {
 	const cmd = "zos.admin.show_logs"
 

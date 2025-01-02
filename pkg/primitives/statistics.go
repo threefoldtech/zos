@@ -236,9 +236,7 @@ func (s *statsStream) Total() gridtypes.Capacity {
 }
 
 func (s *statsStream) OpenConnections() ([]byte, error) {
-	args := []string{"-ptn", "state", "established"}
-	cmd := exec.Command("ss", args...)
-	return cmd.Output()
+	return exec.Command("ss", "-ptn", "state", "established").Output()
 }
 
 func (s *statsStream) openConnectionsCount() (int, error) {

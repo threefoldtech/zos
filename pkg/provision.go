@@ -32,7 +32,6 @@ type Statistics interface {
 	GetCounters() (Counters, error)
 	ListGPUs() ([]GPUInfo, error)
 	OpenConnections() ([]byte, error)
-	// Pause(id gridtypes.WorkloadID) error
 }
 
 type Counters struct {

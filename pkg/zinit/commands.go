@@ -207,7 +207,7 @@ func (c *Client) List() (out map[string]ServiceState, err error) {
 }
 
 // List returns all the service monitored and their status
-func (c *Client) Log(n int) (out string, err error) {
+func (c *Client) Log(n int) (out []byte, err error) {
 	cmd1 := exec.Command("zinit", "log", "-s")
 	cmd2 := exec.Command("tail", "-n", fmt.Sprint(n))
 
@@ -231,7 +231,7 @@ func (c *Client) Log(n int) (out string, err error) {
 		return
 	}
 
-	return string(output), err
+	return output, err
 }
 
 // Status returns the status of a service

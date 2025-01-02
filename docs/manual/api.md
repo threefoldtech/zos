@@ -84,7 +84,8 @@ so `used = user_used + system`, while `system` is only the amount of resourced r
 | `zos.storage.pools` | - |`[]Pool`|
 
 List all node pools with their types, size and used space
-where
+
+Where
 
 ```json
 Pool {
@@ -151,7 +152,7 @@ it means it can act like an access node to user private networks
 
 ## Admin
 
-The next set of commands are ONLY possible to be called by the `farmer` only.
+The next set of commands are ONLY possible to be called by the `farmer` owning the node.
 
 ### Reboot Node
 
@@ -159,21 +160,87 @@ The next set of commands are ONLY possible to be called by the `farmer` only.
 |---|---|---|
 | `zos.admin.reboot` | - | - |
 
-Stops all services then reboot the node
+Stops all services then reboots the node
 
 ### Restart Service
 
 | command |body| return|
 |---|---|---|
-| `zos.admin.reboot` | string | - |
+| `zos.admin.restart` | string | - |
 
 Restarts a service running on the node
+
+### Restart All Services
+
+| command |body| return|
+|---|---|---|
+| `zos.admin.restart_all` | - | - |
+
+Restarts all zinit services running on the node
+
+### Show Logs
+
+| command |body| return|
+|---|---|---|
+| `zos.admin.show_logs` | int | []byte |
+
+Shows a number of lines of zinit logs
+
+### Show Resolve
+
+| command |body| return|
+|---|---|---|
+| `zos.admin.show_resolve` | - | []byte |
+
+Shows the content of /etc/resolv.conf
+
+### Show Open Connections
+
+| command |body| return|
+|---|---|---|
+| `zos.admin.show_open_connections` | - | []byte |
+
+Shows information about all open connections in the node
+
+### Stop Workload
+
+| command |body| return|
+|---|---|---|
+| `zos.admin.Stop` | `Args`  | - |
+
+Where
+
+```json
+Args {
+    "twin_id": "uint32",
+    "workload_id": "uint64",
+}
+```
+
+Stops a workload
+
+### Resume Workload
+
+| command |body| return|
+|---|---|---|
+| `zos.admin.resume` | `Args`  | - |
+
+Where
+
+```json
+Args {
+    "twin_id": "uint32",
+    "workload_id": "uint64",
+}
+```
+
+Resumes a stopped workload
 
 ### List Physical Interfaces
 
 | command |body| return|
 |---|---|---|
-| `zos.network.admin.interfaces` | - |`map[string]Interface` |
+| `zos.admin.interfaces` | - |`map[string]Interface` |
 
 Where
 
@@ -191,7 +258,7 @@ Those interfaces then can be used as an input to `set_public_nic`
 
 | command |body| return|
 |---|---|---|
-| `zos.network.admin.get_public_nic` | - |`ExitDevice` |
+| `zos.admin.get_public_nic` | - |`ExitDevice` |
 
 Where
 
@@ -209,7 +276,7 @@ returns the interface used by public traffic (for user workloads)
 
 | command |body| return|
 |---|---|---|
-| `zos.network.admin.set_public_nic` | `name` |- |
+| `zos.admin.set_public_nic` | `name` |- |
 
 name must be one of (free) names returned by `zos.network.admin.interfaces`
 
@@ -238,7 +305,6 @@ name must be one of (free) names returned by `zos.network.admin.interfaces`
 | command |body| return|
 |---|---|---|
 | `zos.system.node_features_get` | - |`[]NodeFeature` |
-
 
 Where
 
