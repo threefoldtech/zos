@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os/exec"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -31,9 +34,7 @@ func GetCapacity(ctx context.Context) gridtypes.Capacity {
 	return val.(gridtypes.Capacity)
 }
 
-var (
-	_ provision.Provisioner = (*Statistics)(nil)
-)
+var _ provision.Provisioner = (*Statistics)(nil)
 
 type Reserved func() (gridtypes.Capacity, error)
 
@@ -146,7 +147,6 @@ func (s *Statistics) hasEnoughCapacity(wl *gridtypes.WorkloadWithID) (gridtypes.
 		id, _ := gridtypes.NewWorkloadID(dl_.TwinID, dl_.ContractID, wl_.Name)
 		return id == wl.ID
 	})
-
 	if err != nil {
 		return used, errors.Wrap(err, "failed to get available memory")
 	}
@@ -155,7 +155,7 @@ func (s *Statistics) hasEnoughCapacity(wl *gridtypes.WorkloadWithID) (gridtypes.
 		return used, fmt.Errorf("cannot fulfil required memory size %d bytes out of usable %d bytes", required.MRU, usable)
 	}
 
-	//check other resources as well?
+	// check other resources as well?
 	return used, nil
 }
 
@@ -235,6 +235,21 @@ func (s *statsStream) Total() gridtypes.Capacity {
 	return s.stats.Total()
 }
 
+func (s *statsStream) OpenConnections() ([]byte, error) {
+	args := []string{"-ptn", "state", "established"}
+	cmd := exec.Command("ss", args...)
+	return cmd.Output()
+}
+
+func (s *statsStream) openConnectionsCount() (int, error) {
+	cmd := exec.Command("/bin/sh", "-c", "ss -ptn state established | wc -l")
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(strings.TrimSpace(string(out)))
+}
+
 func (s *statsStream) Workloads() (int, error) {
 	capacity, err := s.stats.storage.Capacity()
 	if err != nil {
@@ -253,10 +268,17 @@ func (s *statsStream) GetCounters() (pkg.Counters, error) {
 	if err != nil {
 		return pkg.Counters{}, err
 	}
+
+	connCount, err := s.openConnectionsCount()
+	if err != nil {
+		return pkg.Counters{}, err
+	}
+
 	return pkg.Counters{
-		Total:  s.stats.Total(),
-		Used:   activeCounters.cap,
-		System: reserved,
+		Total:          s.stats.Total(),
+		Used:           activeCounters.cap,
+		System:         reserved,
+		OpenConnecions: connCount,
 		Users: pkg.UsersCounters{
 			Deployments:             activeCounters.deployments,
 			Workloads:               activeCounters.workloads,
@@ -296,10 +318,6 @@ func (s *statsStream) ListGPUs() ([]pkg.GPUInfo, error) {
 	devices, err := capacity.ListPCI(capacity.GPU)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list available devices")
-	}
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to list active deployments")
 	}
 
 	used, err := usedGpus()

@@ -45,9 +45,9 @@ const (
 	ServiceStateSuccess = "success"
 	// ServiceStateError is return when we a service exit with an error (exit code != 0)
 	ServiceStateError = "error"
-	//ServiceStateFailure is set of zinit can not spawn a service in the first place
-	//due to a missing executable for example. Unlike `error` which is returned if the
-	//service itself exits with an error.
+	// ServiceStateFailure is set of zinit can not spawn a service in the first place
+	// due to a missing executable for example. Unlike `error` which is returned if the
+	// service itself exits with an error.
 	ServiceStateFailure = "failure"
 )
 
@@ -204,7 +204,34 @@ type ServiceStatus struct {
 func (c *Client) List() (out map[string]ServiceState, err error) {
 	err = c.cmd("list", &out)
 	return
+}
 
+// List returns all the service monitored and their status
+func (c *Client) Log(n int) (out string, err error) {
+	cmd1 := exec.Command("zinit", "log", "-s")
+	cmd2 := exec.Command("tail", "-n", fmt.Sprint(n))
+
+	cmd2.Stdin, err = cmd1.StdoutPipe()
+	if err != nil {
+		return
+	}
+
+	err = cmd1.Start()
+	if err != nil {
+		return
+	}
+
+	output, err := cmd2.Output()
+	if err != nil {
+		return
+	}
+
+	err = cmd1.Wait()
+	if err != nil {
+		return
+	}
+
+	return string(output), err
 }
 
 // Status returns the status of a service
@@ -308,6 +335,11 @@ func (c *Client) Start(service string) error {
 // Stop stops a service
 func (c *Client) Stop(service string) error {
 	return c.cmd(fmt.Sprintf("stop %s", service), nil)
+}
+
+// Re restarts a service.
+func (c *Client) Restart(service string) error {
+	return c.cmd(fmt.Sprintf("restart %s", service), nil)
 }
 
 // StartWait starts a service and wait until its running, or until the timeout

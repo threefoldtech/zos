@@ -20,6 +20,8 @@ type Provision interface {
 	Changes(twin uint32, contractID uint64) ([]gridtypes.Workload, error)
 	ListPublicIPs() ([]string, error)
 	ListPrivateIPs(twin uint32, network gridtypes.Name) ([]string, error)
+	Pause(twin uint32, id uint64) error
+	Resume(twin uint32, id uint64) error
 }
 
 type Statistics interface {
@@ -29,6 +31,8 @@ type Statistics interface {
 	Workloads() (int, error)
 	GetCounters() (Counters, error)
 	ListGPUs() ([]GPUInfo, error)
+	OpenConnections() ([]byte, error)
+	// Pause(id gridtypes.WorkloadID) error
 }
 
 type Counters struct {
@@ -40,6 +44,8 @@ type Counters struct {
 	System gridtypes.Capacity `json:"system"`
 	// Users statistics by zos
 	Users UsersCounters `json:"users"`
+	// OpenConnecions number of open connections in the node
+	OpenConnecions int `json:"open_connections"`
 }
 
 // UsersCounters the expected counters for deployments and workloads

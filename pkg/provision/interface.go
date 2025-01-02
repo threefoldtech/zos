@@ -19,8 +19,8 @@ type Engine interface {
 	// and will be processes later
 	Provision(ctx context.Context, wl gridtypes.Deployment) error
 	Deprovision(ctx context.Context, twin uint32, id uint64, reason string) error
-	Pause(ctx context.Context, twin uint32, id uint64) error
-	Resume(ctx context.Context, twin uint32, id uint64) error
+	Pause(twin uint32, id uint64) error
+	Resume(twin uint32, id uint64) error
 	Update(ctx context.Context, update gridtypes.Deployment) error
 	Storage() Storage
 	Twins() Twins
@@ -61,7 +61,7 @@ var (
 	// ErrDeploymentConflict returned if deployment cannot be stored because
 	// it conflicts with another deployment
 	ErrDeploymentConflict = fmt.Errorf("conflict")
-	//ErrDeploymentNotExists returned if object not exists
+	// ErrDeploymentNotExists returned if object not exists
 	ErrDeploymentNotExists = fmt.Errorf("deployment does not exist")
 	// ErrWorkloadNotExist returned by storage if workload does not exist
 	ErrWorkloadNotExist = fmt.Errorf("workload does not exist")
@@ -78,10 +78,12 @@ var (
 )
 
 // Field interface
-type Field interface{}
-type VersionField struct {
-	Version uint32
-}
+type (
+	Field        interface{}
+	VersionField struct {
+		Version uint32
+	}
+)
 
 type DescriptionField struct {
 	Description string
