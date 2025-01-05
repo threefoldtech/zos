@@ -45,6 +45,17 @@ func (g *ZosAPI) SetupRoutes(router *peer.Router) {
 
 	admin := root.SubRoute("admin")
 	admin.Use(g.authorized)
+	admin.WithHandler("reboot", g.adminRebootHandler)
+	admin.WithHandler("restart", g.adminRestartServiceHandler)
+	admin.WithHandler("restart_all", g.adminRestartAllHandler)
+
+	admin.WithHandler("show_logs", g.adminShowLogsHandler)
+	admin.WithHandler("show_resolve", g.adminShowResolveHandler)
+	admin.WithHandler("show_open_connections", g.adminShowOpenConnectionsHandler)
+
+	admin.WithHandler("stop_workload", g.adminStopWorkloadHandler)
+	admin.WithHandler("resume_workload", g.adminResumeWorkloadHandler)
+
 	admin.WithHandler("interfaces", g.adminInterfacesHandler)
 	admin.WithHandler("set_public_nic", g.adminSetPublicNICHandler)
 	admin.WithHandler("get_public_nic", g.adminGetPublicNICHandler)

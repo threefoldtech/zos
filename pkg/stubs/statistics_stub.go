@@ -79,6 +79,23 @@ func (s *StatisticsStub) ListGPUs(ctx context.Context) (ret0 []pkg.GPUInfo, ret1
 	return
 }
 
+func (s *StatisticsStub) OpenConnections(ctx context.Context) (ret0 []uint8, ret1 error) {
+	args := []interface{}{}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "OpenConnections", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	ret1 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *StatisticsStub) ReservedStream(ctx context.Context) (<-chan gridtypes.Capacity, error) {
 	ch := make(chan gridtypes.Capacity, 1)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "ReservedStream")
