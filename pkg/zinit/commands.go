@@ -337,7 +337,7 @@ func (c *Client) Stop(service string) error {
 	return c.cmd(fmt.Sprintf("stop %s", service), nil)
 }
 
-// Re restarts a service.
+// Restart restarts a service.
 func (c *Client) Restart(service string) error {
 	return c.cmd(fmt.Sprintf("restart %s", service), nil)
 }

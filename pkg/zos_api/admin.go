@@ -7,8 +7,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zos/pkg/zinit"
 )
+
+func (g *ZosAPI) adminRebootHandler(ctx context.Context, payload []byte) (interface{}, error) {
+	zinit := zinit.Default()
+
+	return nil, zinit.Reboot()
+}
 
 func (g *ZosAPI) adminRestartServiceHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	var service string
@@ -21,12 +28,6 @@ func (g *ZosAPI) adminRestartServiceHandler(ctx context.Context, payload []byte)
 	return nil, zinit.Restart(service)
 }
 
-func (g *ZosAPI) adminRebootHandler(ctx context.Context, payload []byte) (interface{}, error) {
-	zinit := zinit.Default()
-
-	return nil, zinit.Reboot()
-}
-
 func (g *ZosAPI) adminRestartAllHandler(ctx context.Context, payload []byte) (interface{}, error) {
 	zinit := zinit.Default()
 
@@ -35,9 +36,10 @@ func (g *ZosAPI) adminRestartAllHandler(ctx context.Context, payload []byte) (in
 		return nil, fmt.Errorf("failed to list node services, expecting string: %w", err)
 	}
 
-	for _, service := range services {
-		if err := zinit.Restart(service.String()); err != nil {
-			return nil, fmt.Errorf("failed to reboot service %s, expecting string: %w", service.String(), err)
+	for service := range services {
+		log.Debug().Str("service", service).Send()
+		if err := zinit.Restart(service); err != nil {
+			return nil, fmt.Errorf("failed to reboot service %s, expecting string: %w", service, err)
 		}
 	}
 
