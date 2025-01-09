@@ -336,7 +336,7 @@ func (s *statsStream) ListGPUs() ([]pkg.GPUInfo, error) {
 }
 
 func (s *statsStream) openConnectionsCount() (int, error) {
-	cmd := exec.Command("/bin/sh", "-c", "ss -ptn state established | wc -l")
+	cmd := exec.Command("/bin/sh", "-c", "ss -tnH state established | wc -l")
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, err
