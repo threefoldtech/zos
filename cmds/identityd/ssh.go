@@ -18,7 +18,7 @@ import (
 
 var (
 	mainNetFarms = []pkg.FarmID{
-		1, 79, 77, 76,
+		1, 79, 77, 76, 3997,
 	}
 )
 
