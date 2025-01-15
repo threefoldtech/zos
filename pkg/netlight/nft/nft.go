@@ -1,6 +1,7 @@
 package nft
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
@@ -35,74 +36,43 @@ func Apply(r io.Reader, ns string) error {
 	return nil
 }
 
-func applyNftRule(rule []string) error {
-	if len(rule) == 0 {
-		return errors.New("invalid nft rule")
-	}
-	cmd := exec.Command(rule[0], rule[1:]...)
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Error().Err(err).Str("output", string(out)).Msg("error during nft")
-		if eerr, ok := err.(*exec.ExitError); ok {
-			return errors.Wrapf(err, "failed to execute nft: %v", string(eerr.Stderr))
-		}
-		return errors.Wrap(err, "failed to execute nft")
-	}
-	return nil
-}
-
 // DropTrafficToLAN drops all the outgoing traffic to any peers on
 // the same lan network, but allow dicovery port for ygg/myc by accepting
 // traffic to/from dest/src ports.
+// @th,0,16 and @th,16,16 is raw expression for sport/dport in transport header
+// used due to limitation on the installed nft v0.9.1
 func DropTrafficToLAN() error {
-	rules := [][]string{
-		// @th,0,16 and @th,16,16 is raw expression for sport/dport in transport header
-		// used due to limitation on the installed nft v0.9.1
-		{
-			"nft", "add", "rule", "inet", "filter", "forward",
-			"meta", "l4proto", "{tcp, udp}", "@th,0,16", "{9651, 9650}", "accept",
-		},
-		{
-			"nft", "add", "rule", "inet", "filter", "forward",
-			"meta", "l4proto", "{tcp, udp}", "@th,16,16", "{9651, 9650}", "accept",
-		},
-	}
 	dgw, err := getDefaultGW()
 	if err != nil {
-		return fmt.Errorf("faild to find default gateway: %w", err)
+		return fmt.Errorf("failed to find default gateway: %w", err)
 	}
 
 	if !dgw.IP.IsPrivate() {
-		return errors.New("default gateway is a public ip, skip nft rules")
+		log.Warn().Msg("skip LAN security. default gateway is public")
+		return nil
 	}
 
-	log.Debug().Str("ip", dgw.IP.String()).Msg("allow traffic to default gateway")
-	rules = append(rules, []string{
-		"nft", "add", "rule", "inet", "filter", "forward",
-		"ip", "daddr", string(dgw.IP.String()), "accept",
-	})
+	ipAddr := dgw.IP.String()
+	netAddr := getNetworkRange(dgw)
+	macAddr := dgw.HardwareAddr.String()
+	log.Debug().
+		Str("ipAddr", ipAddr).
+		Str("netAddr", netAddr).
+		Str("macAddr", macAddr).
+		Msg("drop traffic to lan with the default gateway")
 
-	net := getNetworkRange(dgw)
-	log.Debug().Str("net", net).Msg("accept traffic if not to")
-	rules = append(rules, []string{
-		"nft", "add", "rule", "inet", "filter", "forward",
-		"ip", "daddr", "!=", net, "accept",
-	})
+	var buf bytes.Buffer
+	buf.WriteString("table inet filter {\n")
+	buf.WriteString("  chain forward {\n")
+	buf.WriteString("    meta l4proto { tcp, udp } @th,0,16 { 9651, 9650 } accept;\n")
+	buf.WriteString("    meta l4proto { tcp, udp } @th,16,16 { 9651, 9650 } accept;\n")
+	buf.WriteString(fmt.Sprintf("    ip daddr %s accept;\n", ipAddr))
+	buf.WriteString(fmt.Sprintf("    ip daddr != %s accept;\n", netAddr))
+	buf.WriteString(fmt.Sprintf("    ether daddr != %s drop;\n", macAddr))
+	buf.WriteString("  }\n")
+	buf.WriteString("}\n")
 
-	log.Debug().Str("mac", dgw.HardwareAddr.String()).Msg("drop traffic if not to")
-	rules = append(rules, []string{
-		"nft", "add", "rule", "inet", "filter", "forward",
-		"ether", "daddr", "!=", dgw.HardwareAddr.String(), "drop",
-	})
-
-	for _, rule := range rules {
-		if err := applyNftRule(rule); err != nil {
-			return fmt.Errorf("failed to apply nft rule: %w", err)
-		}
-	}
-
-	return nil
+	return Apply(&buf, "")
 }
 
 func getDefaultGW() (netlink.Neigh, error) {
