@@ -11,7 +11,6 @@ import (
 	"github.com/threefoldtech/zos/pkg/environment"
 	"github.com/threefoldtech/zos/pkg/network/dhcp"
 	"github.com/threefoldtech/zos/pkg/network/mycelium"
-	"github.com/threefoldtech/zos/pkg/network/nft"
 	"github.com/threefoldtech/zos/pkg/network/public"
 	"github.com/threefoldtech/zos/pkg/network/types"
 	"github.com/threefoldtech/zos/pkg/zinit"
@@ -91,10 +90,6 @@ func action(cli *cli.Context) error {
 
 	if err := ensureHostFw(ctx); err != nil {
 		return errors.Wrap(err, "failed to host firewall rules")
-	}
-
-	if err := nft.DropTrafficToLAN(); err != nil {
-		return fmt.Errorf("failed to drop traffic to lan: %w", err)
 	}
 
 	public.SetPersistence(root)
