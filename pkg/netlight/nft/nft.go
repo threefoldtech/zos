@@ -3,7 +3,6 @@ package nft
 import (
 	"fmt"
 	"io"
-	"net"
 	"os/exec"
 
 	"github.com/rs/zerolog/log"
@@ -69,11 +68,32 @@ func DropTrafficToLAN() error {
 			"meta", "l4proto", "{tcp, udp}", "@th,16,16", "{9651, 9650}", "accept",
 		},
 	}
-	mac, err := getDefaultGwMac()
-	log.Debug().Str("mac", mac.String()).Err(err).Msg("default gw return")
+	dgw, err := getDefaultGW()
+	if err != nil {
+		return fmt.Errorf("faild to find default gateway: %w", err)
+	}
+
+	if !dgw.IP.IsPrivate() {
+		return errors.New("default gateway is a public ip, skip nft rules")
+	}
+
+	log.Debug().Str("ip", dgw.IP.String()).Msg("allow traffic to default gateway")
 	rules = append(rules, []string{
 		"nft", "add", "rule", "inet", "filter", "forward",
-		"ether", "daddr", "!=", mac.String(), "drop",
+		"ip", "daddr", string(dgw.IP.String()), "accept",
+	})
+
+	net := getNetworkRange(dgw)
+	log.Debug().Str("net", net).Msg("accept traffic if not to")
+	rules = append(rules, []string{
+		"nft", "add", "rule", "inet", "filter", "forward",
+		"ip", "daddr", "!=", net, "accept",
+	})
+
+	log.Debug().Str("mac", dgw.HardwareAddr.String()).Msg("drop traffic if not to")
+	rules = append(rules, []string{
+		"nft", "add", "rule", "inet", "filter", "forward",
+		"ether", "daddr", "!=", dgw.HardwareAddr.String(), "drop",
 	})
 
 	for _, rule := range rules {
@@ -85,10 +105,10 @@ func DropTrafficToLAN() error {
 	return nil
 }
 
-func getDefaultGwMac() (net.HardwareAddr, error) {
+func getDefaultGW() (netlink.Neigh, error) {
 	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list routes: %v", err)
+		return netlink.Neigh{}, fmt.Errorf("failed to list routes: %v", err)
 	}
 
 	var defaultRoute *netlink.Route
@@ -100,23 +120,32 @@ func getDefaultGwMac() (net.HardwareAddr, error) {
 	}
 
 	if defaultRoute == nil {
-		return nil, fmt.Errorf("default route not found")
+		return netlink.Neigh{}, fmt.Errorf("default route not found")
 	}
 
 	if defaultRoute.Gw == nil {
-		return nil, fmt.Errorf("default route has no gateway")
+		return netlink.Neigh{}, fmt.Errorf("default route has no gateway")
 	}
 
 	neighs, err := netlink.NeighList(0, netlink.FAMILY_V4)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list neighbors: %v", err)
+		return netlink.Neigh{}, fmt.Errorf("failed to list neighbors: %v", err)
 	}
 
 	for _, neigh := range neighs {
 		if neigh.IP.Equal(defaultRoute.Gw) {
-			return neigh.HardwareAddr, nil
+			return neigh, nil
 		}
 	}
 
-	return nil, errors.New("failed to get default gw")
+	return netlink.Neigh{}, errors.New("failed to get default gw")
+}
+
+func getNetworkRange(ip netlink.Neigh) string {
+	mask := ip.IP.DefaultMask()
+	network := ip.IP.Mask(mask)
+	ones, _ := mask.Size()
+	networkRange := fmt.Sprintf("%s/%d", network.String(), ones)
+
+	return networkRange
 }
