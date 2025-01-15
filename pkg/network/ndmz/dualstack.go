@@ -558,6 +558,10 @@ func applyFirewall() error {
 		return errors.Wrap(err, "failed to apply nft rule set")
 	}
 
+	if err := nft.DropTrafficToLAN(dmzNamespace); err != nil {
+		return errors.Wrap(err, "failed to drop traffic to lan")
+	}
+
 	return nil
 }
 
