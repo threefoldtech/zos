@@ -64,14 +64,20 @@ func DropTrafficToLAN(namesapce string) error {
 	var buf bytes.Buffer
 	buf.WriteString("table inet filter {\n")
 	buf.WriteString("  chain forward {\n")
+	// allow traffic on sport ygg/myc discovery ports
 	buf.WriteString("    meta l4proto { tcp, udp } @th,0,16 { 9651, 9650 } accept;\n")
+	// allow traffic on dport ygg/myc discovery ports
 	buf.WriteString("    meta l4proto { tcp, udp } @th,16,16 { 9651, 9650 } accept;\n")
+	// allow traffic to the default gateway
 	buf.WriteString(fmt.Sprintf("    ip daddr %s accept;\n", ipAddr))
+	// allow traffic to any ip not in the network range
 	buf.WriteString(fmt.Sprintf("    ip daddr != %s accept;\n", netAddr))
+	// only drop traffic if it destined to mac addr other than the default gateway
 	buf.WriteString(fmt.Sprintf("    ether daddr != %s drop;\n", macAddr))
 	buf.WriteString("  }\n")
 	buf.WriteString("}\n")
 
+	// applied on the ndmz namespace
 	return Apply(&buf, namesapce)
 }
 
