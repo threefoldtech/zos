@@ -36,6 +36,25 @@ func Apply(r io.Reader, ns string) error {
 	return nil
 }
 
+func flushChain(ns, table, chain string) error {
+	args := []string{"flush", "chain", table, chain}
+	var cmd *exec.Cmd
+
+	if ns != "" {
+		cmd = exec.Command("ip", "netns", "exec", ns, "nft")
+		cmd.Args = append(cmd.Args, args...)
+	} else {
+		cmd = exec.Command("nft", args...)
+	}
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrapf(err, "failed to flush nft chain: %v", string(out))
+	}
+
+	return nil
+}
+
 // DropTrafficToLAN drops all the outgoing traffic to any peers on
 // the same lan network, but allow dicovery port for ygg/myc by accepting
 // traffic to/from dest/src ports.
@@ -45,6 +64,11 @@ func DropTrafficToLAN() error {
 	dgw, err := getDefaultGW()
 	if err != nil {
 		return fmt.Errorf("failed to find default gateway: %w", err)
+	}
+
+	// apply anyway even the if the gateway is private; to clean the previous rules
+	if err := flushChain("", "inet filter", "forward"); err != nil {
+		return err
 	}
 
 	if !dgw.IP.IsPrivate() {
