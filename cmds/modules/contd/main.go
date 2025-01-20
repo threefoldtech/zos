@@ -12,8 +12,8 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos4/pkg/container"
-	"github.com/threefoldtech/zos4/pkg/utils"
+	"github.com/threefoldtech/zosbase/pkg/container"
+	"github.com/threefoldtech/zosbase/pkg/utils"
 )
 
 const module = "container"

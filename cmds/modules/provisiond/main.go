@@ -12,25 +12,26 @@ import (
 
 	"github.com/pkg/errors"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
-	"github.com/threefoldtech/zos4/pkg"
-	"github.com/threefoldtech/zos4/pkg/app"
-	"github.com/threefoldtech/zos4/pkg/capacity"
-	"github.com/threefoldtech/zos4/pkg/environment"
-	"github.com/threefoldtech/zos4/pkg/events"
-	"github.com/threefoldtech/zos4/pkg/gridtypes"
-	"github.com/threefoldtech/zos4/pkg/gridtypes/zos"
-	"github.com/threefoldtech/zos4/pkg/primitives"
-	"github.com/threefoldtech/zos4/pkg/provision/storage"
-	fsStorage "github.com/threefoldtech/zos4/pkg/provision/storage.fs"
+	"github.com/threefoldtech/zosbase/pkg"
+	"github.com/threefoldtech/zosbase/pkg/app"
+	"github.com/threefoldtech/zosbase/pkg/capacity"
+	"github.com/threefoldtech/zosbase/pkg/environment"
+	"github.com/threefoldtech/zosbase/pkg/events"
+	gridtypes "github.com/threefoldtech/zosbase/pkg/gridtypes"
+	"github.com/threefoldtech/zosbase/pkg/gridtypes/zos"
+	"github.com/threefoldtech/zosbase/pkg/primitives"
+	"github.com/threefoldtech/zosbase/pkg/provision/storage"
+	fsStorage "github.com/threefoldtech/zosbase/pkg/provision/storage.fs"
+
 	"github.com/urfave/cli/v2"
 
-	"github.com/threefoldtech/zos4/pkg/stubs"
-	"github.com/threefoldtech/zos4/pkg/utils"
+	"github.com/threefoldtech/zosbase/pkg/stubs"
+	"github.com/threefoldtech/zosbase/pkg/utils"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos4/pkg/provision"
+	provision "github.com/threefoldtech/zosbase/pkg/provision"
 )
 
 const (
