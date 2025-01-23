@@ -470,7 +470,7 @@ func (g *gatewayModule) ensureGateway(ctx context.Context, forceResstart bool) (
 	}
 
 	if running && forceResstart {
-		// note: a kill is basically a singal to traefik process to
+		// note: a kill is basically a signal to traefik process to
 		// die. but zinit will restart it again anyway. so this is
 		// enough to force restart it.
 		if err := z.Kill(traefikService, zinit.SIGTERM); err != nil {
