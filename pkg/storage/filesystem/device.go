@@ -218,7 +218,8 @@ func (l *lsblkDeviceManager) Mountpoint(ctx context.Context, device string) (str
 	}
 
 	for _, m := range mounts.Filesystems {
-		if subvolFindmntOption.MatchString(m.Options) {
+		//if subvolFindmntOption.MatchString(m.Options) {
+		if m.Source == device {
 			return m.Target, nil
 		}
 	}
