@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 
+	"github.com/threefoldtech/zos/pkg"
 	"github.com/threefoldtech/zos/pkg/perf"
 	"github.com/threefoldtech/zos/pkg/stubs"
 )
@@ -30,7 +31,7 @@ func NewTask() perf.Task {
 
 // ID returns task ID.
 func (c *CPUBenchmarkTask) ID() string {
-	return "cpu-benchmark"
+	return pkg.CpuBenchmarkTaskName
 }
 
 // Cron returns task cron schedule.
