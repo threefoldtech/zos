@@ -59,7 +59,6 @@ var Module cli.Command = cli.Command{
 }
 
 func registerationServer(ctx context.Context, msgBrokerCon string, env environment.Environment, info registrar.RegistrationInfo) error {
-
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
@@ -90,6 +89,11 @@ func action(cli *cli.Context) error {
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
+	}
+
+	consumer, err := events.NewConsumer(msgBrokerCon, module)
+	if err != nil {
+		return errors.Wrap(err, "failed to to create event consumer")
 	}
 
 	if printID {
@@ -216,7 +220,7 @@ func action(cli *cli.Context) error {
 	}
 	go events.Start(ctx)
 
-	system, err := monitord.NewSystemMonitor(node, 2*time.Second)
+	system, err := monitord.NewSystemMonitor(node, 2*time.Second, redis)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize system monitor")
 	}
@@ -231,6 +235,15 @@ func action(cli *cli.Context) error {
 	server.Register(zbus.ObjectID{Name: "performance-monitor", Version: "0.0.1"}, perfMon)
 
 	log.Info().Uint32("node", node).Uint32("twin", twin).Msg("node registered")
+
+	go func() {
+		for {
+			if err := startPublicConfigWatcher(ctx, node, redis, consumer); err != nil {
+				log.Error().Err(err).Msg("setting public config failed")
+				<-time.After(10 * time.Second)
+			}
+		}
+	}()
 
 	log.Info().Uint32("twin", twin).Msg("node has been registered")
 	idStub := stubs.NewIdentityManagerStub(redis)
