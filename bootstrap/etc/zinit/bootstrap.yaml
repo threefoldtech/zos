@@ -1,0 +1,5 @@
+exec: /sbin/bootstrap
+oneshot: true
+log: stdout # to see the logs on terminal
+after:
+  - internet
