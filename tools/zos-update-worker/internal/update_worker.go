@@ -138,7 +138,7 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 	// zos light
 	if chainVersion.VersionLight != "" {
 		zosLightCurrent := fmt.Sprintf("%v/.tag-%v", w.src, chainVersion.VersionLight)
-		zosLightLatest := fmt.Sprintf("%v/%v-v4", w.dst, network)
+		zosLightLatest := fmt.Sprintf("%v/%v-v3light", w.dst, network)
 		zosLightLink := fmt.Sprintf("%v/.tag-%v", path, chainVersion.VersionLight)
 		if err = w.updateLink(zosLightCurrent, zosLightLatest, zosLightLink); err != nil {
 			return err

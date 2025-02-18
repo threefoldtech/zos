@@ -1,4 +1,4 @@
-module github.com/threefoldtech/zos/tools/zos-update-version
+module github.com/threefoldtech/zosbase/tools/zos-update-version
 
 go 1.21
 

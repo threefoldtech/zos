@@ -20,8 +20,8 @@ import (
 	"github.com/threefoldtech/zos/cmds/modules/vmd"
 	"github.com/threefoldtech/zos/cmds/modules/zbusdebug"
 	"github.com/threefoldtech/zos/cmds/modules/zui"
-	"github.com/threefoldtech/zos/pkg/app"
-	"github.com/threefoldtech/zos/pkg/version"
+	"github.com/threefoldtech/zosbase/pkg/app"
+	"github.com/threefoldtech/zosbase/pkg/version"
 	"github.com/urfave/cli/v2"
 )
 

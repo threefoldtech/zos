@@ -7,7 +7,7 @@ import (
 	"github.com/gizak/termui/v3/widgets"
 	"github.com/threefoldtech/zbus"
 
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zosbase/pkg/stubs"
 )
 
 const (
