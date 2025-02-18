@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"github.com/threefoldtech/zos/pkg/qsfsd"
-	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zosbase/pkg/qsfsd"
+	"github.com/threefoldtech/zosbase/pkg/utils"
 	"github.com/urfave/cli/v2"
 
 	"github.com/rs/zerolog/log"

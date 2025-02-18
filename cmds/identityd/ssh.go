@@ -12,9 +12,9 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/kernel"
+	"github.com/threefoldtech/zosbase/pkg"
+	"github.com/threefoldtech/zosbase/pkg/environment"
+	"github.com/threefoldtech/zosbase/pkg/kernel"
 )
 
 var (

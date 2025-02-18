@@ -8,9 +8,9 @@ import (
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg"
-	"github.com/threefoldtech/zos/pkg/events"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zosbase/pkg"
+	"github.com/threefoldtech/zosbase/pkg/events"
+	"github.com/threefoldtech/zosbase/pkg/stubs"
 )
 
 func setPublicConfig(ctx context.Context, cl zbus.Client, cfg *substrate.PublicConfig) error {

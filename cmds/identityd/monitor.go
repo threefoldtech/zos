@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/threefoldtech/zos/pkg"
+	"github.com/threefoldtech/zosbase/pkg"
 )
 
 type monitorStream struct {

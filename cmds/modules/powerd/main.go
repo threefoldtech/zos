@@ -8,11 +8,11 @@ import (
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/environment"
-	"github.com/threefoldtech/zos/pkg/events"
-	"github.com/threefoldtech/zos/pkg/power"
-	"github.com/threefoldtech/zos/pkg/stubs"
-	"github.com/threefoldtech/zos/pkg/utils"
+	"github.com/threefoldtech/zosbase/pkg/environment"
+	"github.com/threefoldtech/zosbase/pkg/events"
+	"github.com/threefoldtech/zosbase/pkg/power"
+	"github.com/threefoldtech/zosbase/pkg/stubs"
+	"github.com/threefoldtech/zosbase/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
 

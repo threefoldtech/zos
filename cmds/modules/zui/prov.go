@@ -8,8 +8,8 @@ import (
 	"github.com/gizak/termui/v3/widgets"
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zos/pkg/gridtypes"
-	"github.com/threefoldtech/zos/pkg/stubs"
+	"github.com/threefoldtech/zosbase/pkg/gridtypes"
+	"github.com/threefoldtech/zosbase/pkg/stubs"
 )
 
 const (
