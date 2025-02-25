@@ -32,7 +32,12 @@ func (n *networker) MigrateZdbMacvlanToVeth() error {
 	if err != nil {
 		return fmt.Errorf("failed to list namespaces with prefix %q: %w", zdbNsPrefix, err)
 	}
-	if len(netNss) != 1 {
+
+	if len(netNss) < 1 {
+		return nil
+	}
+
+	if len(netNss) > 1 {
 		return fmt.Errorf("should find only one namespace with prefix %q, found %v", zdbNsPrefix, len(netNss))
 	}
 
