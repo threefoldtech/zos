@@ -73,7 +73,7 @@ pub fn install(cfg: &config::Config) -> Result<()> {
     let mut listname = runmode.clone();
     match cfg.version {
         Version::V3 => {}
-        Version::V4 => listname = format!("{}-v4", runmode),
+        Version::V3Light => listname = format!("{}-v3light", runmode),
     }
     // we need to list all taglinks
     let mut tag = None;

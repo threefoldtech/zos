@@ -28,7 +28,7 @@ impl Display for RunMode {
 #[derive(Debug)]
 pub enum Version {
     V3,
-    V4,
+    V3Light,
 }
 
 fn runmode() -> Result<RunMode> {
@@ -65,7 +65,7 @@ fn version() -> Result<Version> {
         Some(input) => match input {
             Some(input) => match input.as_ref() {
                 "v3" => Version::V3,
-                "v4" => Version::V4,
+                "v3light" => Version::V3Light,
                 m => {
                     bail!("unknown version: {}", m);
                 }
