@@ -34,6 +34,9 @@ const (
 //go:embed nft/rules.nft
 var nftRules embed.FS
 
+//go:embed nft/lansecurity.tmpl
+var securityRules string
+
 // Module is entry point for module
 var Module cli.Command = cli.Command{
 	Name:  "netlightd",
@@ -111,6 +114,11 @@ func action(cli *cli.Context) error {
 		return fmt.Errorf("failed to apply host nft rules: %w", err)
 	}
 	rules.Close()
+
+	if err := nft.DropTrafficToLAN(securityRules); err != nil {
+		return fmt.Errorf("failed to drop traffic to lan: %w", err)
+	}
+
 	_, err = netlight.CreateNDMZBridge()
 	if err != nil {
 		return fmt.Errorf("failed to create ndmz bridge: %w", err)
@@ -133,10 +141,6 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to setup mycelium on host: %w", err)
 	}
-
-	// if err := nft.DropTrafficToLAN(); err != nil {
-	// 	return fmt.Errorf("failed to drop traffic to lan: %w", err)
-	// }
 
 	mod, err := netlight.NewNetworker()
 	if err != nil {
