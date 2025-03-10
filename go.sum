@@ -546,6 +546,8 @@ github.com/threefoldtech/zosbase v0.1.2 h1:JTwL3FFpYCmsGKsNSzXSDAsuL26LmXDjjGXaG
 github.com/threefoldtech/zosbase v0.1.2/go.mod h1:rxc49wA04S4IsBOYe0omVO7nu7GXridueh2PJh34gSo=
 github.com/threefoldtech/zosbase v0.1.3-0.20250310105717-bb132c3be10d h1:pMuSAM/NPD5GhheJRY8KUEdfwNdSSEBwwLnP+WADEvY=
 github.com/threefoldtech/zosbase v0.1.3-0.20250310105717-bb132c3be10d/go.mod h1:rxc49wA04S4IsBOYe0omVO7nu7GXridueh2PJh34gSo=
+github.com/threefoldtech/zosbase v0.1.3-0.20250310155434-097d1a0f59f3 h1:/qsDPVSzHUcr98btXPoqL7Sl9eqYhgD1wZLavwEYkrw=
+github.com/threefoldtech/zosbase v0.1.3-0.20250310155434-097d1a0f59f3/go.mod h1:rxc49wA04S4IsBOYe0omVO7nu7GXridueh2PJh34gSo=
 github.com/tinylib/msgp v1.1.5 h1:2gXmtWueD2HefZHQe1QOy9HVzmFrLOVvsXwXBQ0ayy0=
 github.com/tinylib/msgp v1.1.5/go.mod h1:eQsjooMTnV42mHu917E26IogZ2930nFyBQdofk10Udg=
 github.com/tklauser/go-sysconf v0.3.11 h1:89WgdJhk5SNwJfu+GKyYveZ4IaJ7xAkecBo+KdJV0CM=
