@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/threefoldtech/zosbase/pkg/environment"
+	"github.com/threefoldtech/zosbase/pkg/netbase/nft"
 	"github.com/threefoldtech/zosbase/pkg/network/dhcp"
 	"github.com/threefoldtech/zosbase/pkg/network/mycelium"
 	"github.com/threefoldtech/zosbase/pkg/network/public"
@@ -136,6 +137,10 @@ func action(cli *cli.Context) error {
 	networker, err := network.NewNetworker(identity, dmz, ygg, mycelium)
 	if err != nil {
 		return errors.Wrap(err, "error creating network manager")
+	}
+
+	if err := nft.DropTrafficToLAN(dmz.Namespace()); err != nil {
+		return errors.Wrap(err, "failed to drop traffic to lan")
 	}
 
 	log.Info().Msg("start zbus server")
