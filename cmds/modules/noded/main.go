@@ -59,7 +59,6 @@ var Module cli.Command = cli.Command{
 }
 
 func registerationServer(ctx context.Context, msgBrokerCon string, env environment.Environment, info registrar.RegistrationInfo) error {
-
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
@@ -221,7 +220,7 @@ func action(cli *cli.Context) error {
 	}
 	go events.Start(ctx)
 
-	system, err := monitord.NewSystemMonitor(node, 2*time.Second)
+	system, err := monitord.NewSystemMonitor(node, 2*time.Second, redis)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize system monitor")
 	}
