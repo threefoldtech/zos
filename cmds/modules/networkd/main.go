@@ -138,6 +138,10 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "error creating network manager")
 	}
 
+	// if err := nft.DropTrafficToLAN(dmz.Namespace()); err != nil {
+	// 	return errors.Wrap(err, "failed to drop traffic to lan")
+	// }
+
 	log.Info().Msg("start zbus server")
 	if err := startZBusServer(ctx, broker, networker); err != nil {
 		return errors.Wrap(err, "unexpected error")
