@@ -3,6 +3,10 @@ CONTAINERD_CHECKSUM="1ac525600fe7ba6ef76cf8a833153768"
 CONTAINERD_LINK="https://github.com/containerd/containerd/archive/refs/tags/v${CONTAINERD_VERSION}.tar.gz"
 
 dependencies_containerd() {
+    export DEBIAN_FRONTEND=noninteractive 
+    export DEBCONF_NONINTERACTIVE_SEEN=true
+
+
     apt-get install -y btrfs-progs libbtrfs-dev libseccomp-dev build-essential pkg-config
 
     if [ -z $GOPATH ] || [ ! -z $CI ]; then
