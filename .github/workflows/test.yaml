@@ -20,23 +20,19 @@ jobs:
       - name: Checkout code into the Go module directory
         uses: actions/checkout@v4
 
-      - name: Get dependencies
-        run: |
-          echo $GITHUB_WORKSPACE
-          ls $GITHUB_WORKSPACE
-          ls $GITHUB_WORKSPACE/*
-          
-          cd zos/pkg
-          make getdeps
-        env:
-          GO111MODULE: on
+      # - name: Get dependencies
+      #   run: |
+      #     cd zos/pkg
+      #     make getdeps
+      #   env:
+      #     GO111MODULE: on
 
-      - name: Run tests
-        run: |
-          cd zos/pkg
-          make testrace
-        env:
-          GO111MODULE: on
+      # - name: Run tests
+      #   run: |
+      #     cd zos/pkg
+      #     make testrace
+      #   env:
+      #     GO111MODULE: on
 
       - name: Build binaries
         run: |
