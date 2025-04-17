@@ -1,6 +1,11 @@
 QSFS_VERSION="0.2.0-rc2"
 QSFS_IMAGE="ghcr.io/threefoldtech/qsfs"
 
+ensure_dependencies() {
+    apt-get update
+    apt-get install -y docker.io
+}
+
 download_qsfs() {
     echo "download qsfs"
     download_docker_image ${QSFS_IMAGE}:${QSFS_VERSION} qsfs-${QSFS_VERSION}.tar
@@ -22,6 +27,7 @@ install_qsfs() {
 build_qsfs() {
     pushd "${DISTDIR}"
 
+    ensure_dependencies
     download_qsfs
     popd
 

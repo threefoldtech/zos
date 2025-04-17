@@ -3,6 +3,9 @@ RUNC_CHECKSUM="ae8e2ac9335b8606eeccd2e7c031350a"
 RUNC_LINK="https://github.com/opencontainers/runc/archive/refs/tags/v${RUNC_VERSION}.tar.gz"
 
 dependencies_runc() {
+    export DEBIAN_FRONTEND=noninteractive 
+    export DEBCONF_NONINTERACTIVE_SEEN=true
+    
     apt-get install -y btrfs-progs libbtrfs-dev libseccomp-dev build-essential pkg-config
 
     if [ -z $GOPATH ] || [ ! -z $CI ]; then
