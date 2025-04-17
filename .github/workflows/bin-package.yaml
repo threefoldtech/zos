@@ -21,7 +21,8 @@ on:
 jobs:
   builder:
     name: builder
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    container: ubuntu:20.04
     steps:
       - name: Checkout code into the Go module directory
         uses: actions/checkout@v1
@@ -32,6 +33,7 @@ jobs:
       # and then accessed later in the workflow
       - name: Set tag of build
         id: tag
+        shell: bash
         run: |
           ref="${{ github.ref }}"
           if [ "${{ github.ref_type }}" = "tag" ]; then
@@ -41,14 +43,16 @@ jobs:
             echo "reference=${reference:0:7}" >> $GITHUB_OUTPUT
           fi
       - name: Setup basesystem
+        shell: bash
         run: |
           cd bins
-          sudo -E ./bins-extra.sh --package basesystem
+          ./bins-extra.sh --package basesystem
       - name: Build package (${{ inputs.package }})
         id: package
+        shell: bash
         run: |
           cd bins
-          sudo -E ./bins-extra.sh --package ${{ inputs.package }}
+          ./bins-extra.sh --package ${{ inputs.package }}
       - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
         if: success()
         uses: threefoldtech/publish-flist@master
