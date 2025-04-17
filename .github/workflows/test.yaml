@@ -22,21 +22,21 @@ jobs:
 
       - name: Get dependencies
         run: |
-          cd pkg
+          cd zos/pkg
           make getdeps
         env:
           GO111MODULE: on
 
       - name: Run tests
         run: |
-          cd pkg
+          cd zos/pkg
           make testrace
         env:
           GO111MODULE: on
 
       - name: Build binaries
         run: |
-          cd cmds
+          cd zos/cmds
           make
         env:
           GO111MODULE: on
