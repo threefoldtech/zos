@@ -17,19 +17,20 @@ on:
 jobs:
   builder:
     name: builder
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    container: ubuntu:20.04
     steps:
       - name: Checkout code into the Go module directory
         uses: actions/checkout@v1
       - name: Setup basesystem
         run: |
           cd bins
-          sudo -E ./bins-extra.sh --package basesystem
+          ./bins-extra.sh --package basesystem
       - name: Build package (${{ inputs.package }})
         id: package
         run: |
           cd bins
-          sudo -E ./bins-extra.sh --package ${{ inputs.package }}
+          ./bins-extra.sh --package ${{ inputs.package }}
       - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
         if: success()
         uses: threefoldtech/publish-flist@master
