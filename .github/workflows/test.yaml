@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Get dependencies
+        working-directory: /home/runner/work/zos/zos
         run: |
           cd zos/pkg
           make getdeps
@@ -28,6 +29,7 @@ jobs:
           GO111MODULE: on
 
       - name: Run tests
+        working-directory: /home/runner/work/zos/zos
         run: |
           cd zos/pkg
           make testrace
@@ -35,6 +37,7 @@ jobs:
           GO111MODULE: on
 
       - name: Build binaries
+        working-directory: /home/runner/work/zos/zos
         run: |
           cd zos/cmds
           make
