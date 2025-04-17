@@ -46,13 +46,13 @@ jobs:
         shell: bash
         run: |
           cd bins
-          sudo -E ./bins-extra.sh --package basesystem
+          ./bins-extra.sh --package basesystem
       - name: Build package (${{ inputs.package }})
         id: package
         shell: bash
         run: |
           cd bins
-          sudo -E ./bins-extra.sh --package ${{ inputs.package }}
+          ./bins-extra.sh --package ${{ inputs.package }}
       - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
         if: success()
         uses: threefoldtech/publish-flist@master
