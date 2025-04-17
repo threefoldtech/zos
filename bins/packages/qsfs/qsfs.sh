@@ -27,6 +27,7 @@ install_qsfs() {
 build_qsfs() {
     pushd "${DISTDIR}"
 
+    ensure_dependencies
     download_qsfs
     popd
 
