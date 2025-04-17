@@ -18,18 +18,20 @@ jobs:
           sudo apt-get install -y libjansson-dev libhiredis-dev
 
       - name: Checkout code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
       - name: Get dependencies
-        working-directory: /home/runner/work/zos/zos
         run: |
+          echo $GITHUB_WORKSPACE
+          ls $GITHUB_WORKSPACE
+          ls $GITHUB_WORKSPACE/*
+          
           cd zos/pkg
           make getdeps
         env:
           GO111MODULE: on
 
       - name: Run tests
-        working-directory: /home/runner/work/zos/zos
         run: |
           cd zos/pkg
           make testrace
@@ -37,7 +39,6 @@ jobs:
           GO111MODULE: on
 
       - name: Build binaries
-        working-directory: /home/runner/work/zos/zos
         run: |
           cd zos/cmds
           make
