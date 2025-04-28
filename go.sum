@@ -552,6 +552,8 @@ github.com/threefoldtech/zbus v1.0.1 h1:3KaEpyOiDYAw+lrAyoQUGIvY9BcjVRXlQ1beBRqh
 github.com/threefoldtech/zbus v1.0.1/go.mod h1:E/v/xEvG/l6z/Oj0aDkuSUXFm/1RVJkhKBwDTAIdsHo=
 github.com/threefoldtech/zosbase v0.1.6 h1:YtCmXyr749gnOooYTEYE1KjBkEm66I0M1K1ZmKCgkOg=
 github.com/threefoldtech/zosbase v0.1.6/go.mod h1:KxGjwtJMPYm/mrg6KZ1cPIadAwfLekFh9kc3Rz95PaE=
+github.com/threefoldtech/zosbase v0.1.7 h1:CHZ6xW4Obsvi9w83u6+y8zAvVn7t+qRDHPUhBVT7bZU=
+github.com/threefoldtech/zosbase v0.1.7/go.mod h1:KxGjwtJMPYm/mrg6KZ1cPIadAwfLekFh9kc3Rz95PaE=
 github.com/tinylib/msgp v1.1.5 h1:2gXmtWueD2HefZHQe1QOy9HVzmFrLOVvsXwXBQ0ayy0=
 github.com/tinylib/msgp v1.1.5/go.mod h1:eQsjooMTnV42mHu917E26IogZ2930nFyBQdofk10Udg=
 github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFAEVmqU=
