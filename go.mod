@@ -17,7 +17,7 @@ require (
 	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20241127100051-77e684bcb1b2
 	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.16.1-0.20241229121208-76ac3fea5e67
 	github.com/threefoldtech/zbus v1.0.1
-	github.com/threefoldtech/zosbase v0.1.6
+	github.com/threefoldtech/zosbase v0.1.7
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
 	gopkg.in/yaml.v2 v2.4.0
 )
