@@ -550,8 +550,8 @@ github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.16.1-0.20241229121208-76ac3
 github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.16.1-0.20241229121208-76ac3fea5e67/go.mod h1:93SROfr+QjgaJ5/jIWtIpLkhaD8Pv8WbdfwvwMNG2p4=
 github.com/threefoldtech/zbus v1.0.1 h1:3KaEpyOiDYAw+lrAyoQUGIvY9BcjVRXlQ1beBRqhRNk=
 github.com/threefoldtech/zbus v1.0.1/go.mod h1:E/v/xEvG/l6z/Oj0aDkuSUXFm/1RVJkhKBwDTAIdsHo=
-github.com/threefoldtech/zosbase v0.1.6 h1:YtCmXyr749gnOooYTEYE1KjBkEm66I0M1K1ZmKCgkOg=
-github.com/threefoldtech/zosbase v0.1.6/go.mod h1:KxGjwtJMPYm/mrg6KZ1cPIadAwfLekFh9kc3Rz95PaE=
+github.com/threefoldtech/zosbase v0.1.8 h1:Oe3LVeliJb8Qt9rFKOY3t5hYdwPI3JfSyvdOJ2dG3IA=
+github.com/threefoldtech/zosbase v0.1.8/go.mod h1:KxGjwtJMPYm/mrg6KZ1cPIadAwfLekFh9kc3Rz95PaE=
 github.com/tinylib/msgp v1.1.5 h1:2gXmtWueD2HefZHQe1QOy9HVzmFrLOVvsXwXBQ0ayy0=
 github.com/tinylib/msgp v1.1.5/go.mod h1:eQsjooMTnV42mHu917E26IogZ2930nFyBQdofk10Udg=
 github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFAEVmqU=

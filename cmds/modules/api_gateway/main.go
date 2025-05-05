@@ -112,7 +112,7 @@ func action(cli *cli.Context) error {
 			manager,
 			router.Serve,
 			peer.WithKeyType(peer.KeyTypeEd25519),
-			peer.WithRelay(environment.MustGet().RelayURL...),
+			peer.WithRelay(environment.GetRelaysURLs()...),
 			peer.WithInMemoryExpiration(6*60*60), // 6 hours
 		)
 		if err != nil {
