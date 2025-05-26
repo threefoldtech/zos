@@ -27,3 +27,7 @@ net:
 run:
 	@echo "Running your node"
 	sudo ./vm.sh -g -n node-01 -c "farmer_id=$(id) version=v3 printk.devmsg=on runmode=dev nomodeset ssh-user=$(user)"
+
+run-gpu:
+	@echo "Running your node"
+	sudo ./vm_gpu.sh -g -n node-01 -c "farmer_id=$(id) version=v3 printk.devmsg=on runmode=dev nomodeset ssh-user=$(user)"
