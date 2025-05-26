@@ -1,6 +1,6 @@
 # Run 0-OS in a VM using qemu
 
-| For a quick development docs check [here](../docs/development/README.md)
+| For a quick development docs check [here](https://github.com/threefoldtech/zosbase/blob/main/docs/development/quickstart.md)
 
 This folder contains a script that you can use to run 0-OS in a VM using qemu.
 
@@ -169,3 +169,21 @@ Note: `double quotes around the flags after -c are very important`
 ## inspecting the cmdline Arguments
 
 can be done using `cat /proc/cmdline`
+
+## To boot gpu node
+
+### check your gpus
+
+```lspci | grep -i vga``` you will find each gpu start with pci.ids like "01:00.0"
+
+It will print your available gpus you should have at least one gpu that will not be passed to the qemu vm so you can still use in your current machine because gpu that will be passed will be unlinked from your current device.
+
+to unlink gpus you can simply run ```./setup-vfio.sh``` script but after updating it with your pci.ids also it works only with nvidia gpus **require to restart machine after**
+
+to revert the unlinking run ```./revert-vfio.sh``` **require to restart machine after**
+
+### now run your vm
+
+update vfio-pci with your pci.ids in  ```qemu-system-x86_64```
+
+```make run-gpu id=<your_farm_id> user=<your_github_username>```
