@@ -1,0 +1,3 @@
+exec: api-receiver --broker unix:///var/run/redis.sock
+after:
+  - networkd

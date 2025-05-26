@@ -13,8 +13,9 @@ require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/joncrlsn/dque v0.0.0-20200702023911-3e80e3146ce5
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20241127100051-77e684bcb1b2
+	github.com/threefoldtech/tfgrid-sdk-go/messenger v0.0.0-00010101000000-000000000000
 	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.16.1-0.20241229121208-76ac3fea5e67
 	github.com/threefoldtech/zbus v1.0.1
 	github.com/threefoldtech/zosbase v0.1.9
@@ -39,7 +40,7 @@ require (
 	github.com/containerd/ttrpc v1.1.0 // indirect
 	github.com/containerd/typeurl v1.0.2 // indirect
 	github.com/containernetworking/cni v0.8.1 // indirect
-	github.com/containernetworking/plugins v0.9.1 // indirect
+	github.com/containernetworking/plugins v0.9.1
 	github.com/dave/jennifer v1.3.0 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/decred/base58 v1.0.5 // indirect
@@ -80,7 +81,7 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b // indirect
 )
 
@@ -132,6 +133,7 @@ require (
 	github.com/safchain/ethtool v0.0.0-20201023143004-874930cb3ce0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/threefoldtech/tfgrid-sdk-go/myc-msg-sdk v0.0.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
@@ -143,13 +145,13 @@ require (
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
 	golang.zx2c4.com/wireguard v0.0.20200320 // indirect
-	gonum.org/v1/gonum v0.15.0 // indirect
+	gonum.org/v1/gonum v0.16.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20210917145530-b395a37504d4 // indirect
 	google.golang.org/grpc v1.70.0 // indirect
-	google.golang.org/protobuf v1.36.4 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/djherbis/times.v1 v1.2.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -165,3 +167,11 @@ require (
 )
 
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
+
+replace github.com/threefoldtech/zosbase => /home/omar/github.com/threefoldtech/zosbase
+
+replace github.com/threefoldtech/tfchain/clients/tfchain-client-go => /home/omar/github.com/threefoldtech/tfchain/clients/tfchain-client-go
+
+replace github.com/threefoldtech/tfgrid-sdk-go/messenger => /home/omar/github.com/threefoldtech/tfgrid-sdk-go/messenger
+
+replace github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go => /home/omar/github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go

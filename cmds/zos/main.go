@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	apireceiver "github.com/threefoldtech/zos/cmds/modules/api-receiver"
 	apigateway "github.com/threefoldtech/zos/cmds/modules/api_gateway"
 	"github.com/threefoldtech/zos/cmds/modules/contd"
 	"github.com/threefoldtech/zos/cmds/modules/flistd"
@@ -58,6 +59,7 @@ func main() {
 			&qsfsd.Module,
 			&powerd.Module,
 			&apigateway.Module,
+			&apireceiver.Module,
 		},
 		Before: func(c *cli.Context) error {
 			if c.Bool("debug") {
