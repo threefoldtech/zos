@@ -17,7 +17,7 @@ install_wget() {
 
 	mkdir -p "${ROOTDIR}/usr/bin"
 
-	cp -f ${DISTDIR}/wget-${WGET_VERSION} wget
+	cp ${DISTDIR}/wget-${WGET_VERSION} ${ROOTDIR}/usr/bin/wget
 	chmod +x ${ROOTDIR}/usr/bin/*
 }
 
