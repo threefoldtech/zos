@@ -45,6 +45,7 @@ jobs:
       - name: Setup basesystem
         shell: bash
         run: |
+          apt update
           cd bins
           ./bins-extra.sh --package basesystem
       - name: Build package (${{ inputs.package }})
@@ -54,7 +55,7 @@ jobs:
           cd bins
           ./bins-extra.sh --package ${{ inputs.package }}
       - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success()
+        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         uses: threefoldtech/publish-flist@master
         with:
           token: ${{ secrets.token }}
