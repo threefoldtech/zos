@@ -89,12 +89,12 @@ jobs:
       package: nnc
     secrets:
       token: ${{ secrets.HUB_JWT }}
-  tpm:
-    uses: ./.github/workflows/bin-package-18.04.yaml
-    with:
-      package: tpm
-    secrets:
-      token: ${{ secrets.HUB_JWT }}
+  # tpm:
+  #   uses: ./.github/workflows/bin-package-18.04.yaml
+  #   with:
+  #     package: tpm
+  #   secrets:
+  #     token: ${{ secrets.HUB_JWT }}
   qsfs:
     uses: ./.github/workflows/bin-package-no-tag.yaml
     with:
