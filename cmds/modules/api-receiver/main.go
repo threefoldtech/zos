@@ -1,17 +1,15 @@
 package apireceiver
 
 import (
-	"context"
 	"crypto/ed25519"
 	"fmt"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/tfgrid-sdk-go/messenger"
 	"github.com/threefoldtech/zosbase/pkg/api"
+	"github.com/threefoldtech/zosbase/pkg/environment"
 	"github.com/threefoldtech/zosbase/pkg/handlers"
-	"github.com/threefoldtech/zosbase/pkg/network/namespace"
 	"github.com/threefoldtech/zosbase/pkg/stubs"
 	"github.com/urfave/cli/v2"
 
@@ -51,14 +49,18 @@ func action(cli *cli.Context) error {
 		return err
 	}
 
-	man := substrate.NewManager("chain")
+	man, err := environment.GetSubstrate()
+	if err != nil {
+		return fmt.Errorf("failed to get substrate manager: %w", err)
+	}
 
+	ctx := cli.Context
 	msg, err := messenger.NewMessenger(
 		"",
 		60,
 		man,
 		messenger.WithIdentity(id),
-		// messenger.WithAutoUpdateTwin(true),
+		messenger.WithAutoUpdateTwin(false),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create substrate manager: %w", err)
@@ -70,12 +72,11 @@ func action(cli *cli.Context) error {
 	hdrs := handlers.NewRpcHandler(a)
 	handlers.RegisterHandlers(server, hdrs)
 
-	netns, err := namespace.GetByName("ndmz")
-	if err != nil {
-		return fmt.Errorf("failed to get network namespace %s: %w", "ndmz", err)
+	if err := server.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start server: %w", err)
 	}
-	defer netns.Close()
-	return netns.Do(func(_ ns.NetNS) error {
-		return server.Start(context.Background())
-	})
+
+	// block forever
+	<-ctx.Done()
+	return nil
 }
