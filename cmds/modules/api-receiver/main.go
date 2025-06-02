@@ -8,8 +8,8 @@ import (
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/tfgrid-sdk-go/messenger"
 	"github.com/threefoldtech/zosbase/pkg/api"
+	"github.com/threefoldtech/zosbase/pkg/api/jsonrpc"
 	"github.com/threefoldtech/zosbase/pkg/environment"
-	"github.com/threefoldtech/zosbase/pkg/handlers"
 	"github.com/threefoldtech/zosbase/pkg/stubs"
 	"github.com/urfave/cli/v2"
 
@@ -53,24 +53,23 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get substrate manager: %w", err)
 	}
-
 	ctx := cli.Context
-	msg, err := messenger.NewMessenger(
-		"",
-		60,
-		man,
+
+	msgr, err := messenger.NewMessenger(
+		messenger.WithEnableTwinIdentity(false),
+		messenger.WithSubstrateManager(man),
 		messenger.WithIdentity(id),
-		messenger.WithAutoUpdateTwin(false),
 	)
+
 	if err != nil {
 		return fmt.Errorf("failed to create substrate manager: %w", err)
 	}
-	defer msg.Close()
+	defer msgr.Close()
 
-	server := messenger.NewJSONRPCServer(msg)
+	server := messenger.NewJSONRPCServer(msgr)
 
-	hdrs := handlers.NewRpcHandler(a)
-	handlers.RegisterHandlers(server, hdrs)
+	hdrs := jsonrpc.NewRpcHandler(a)
+	jsonrpc.RegisterHandlers(server, hdrs)
 
 	if err := server.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
