@@ -7,11 +7,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	apireceiver "github.com/threefoldtech/zos/cmds/modules/api-receiver"
 	apigateway "github.com/threefoldtech/zos/cmds/modules/api_gateway"
 	"github.com/threefoldtech/zos/cmds/modules/contd"
 	"github.com/threefoldtech/zos/cmds/modules/flistd"
 	"github.com/threefoldtech/zos/cmds/modules/gateway"
+	"github.com/threefoldtech/zos/cmds/modules/myceliumrx"
 	"github.com/threefoldtech/zos/cmds/modules/networkd"
 	"github.com/threefoldtech/zos/cmds/modules/noded"
 	"github.com/threefoldtech/zos/cmds/modules/powerd"
@@ -59,7 +59,7 @@ func main() {
 			&qsfsd.Module,
 			&powerd.Module,
 			&apigateway.Module,
-			&apireceiver.Module,
+			&myceliumrx.Module,
 		},
 		Before: func(c *cli.Context) error {
 			if c.Bool("debug") {

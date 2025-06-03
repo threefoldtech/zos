@@ -1,4 +1,4 @@
-package apireceiver
+package myceliumrx
 
 import (
 	"crypto/ed25519"
@@ -18,7 +18,7 @@ import (
 
 // Module is entry point for module
 var Module cli.Command = cli.Command{
-	Name:  "api-receiver",
+	Name:  "myceliumrx",
 	Usage: "handles mycelium messages",
 	Flags: []cli.Flag{
 		&cli.StringFlag{

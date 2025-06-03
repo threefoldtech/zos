@@ -1,3 +1,0 @@
-exec: ip netns exec ndmz api-receiver --broker unix:///var/run/redis.sock
-after:
-  - networkd
