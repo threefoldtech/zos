@@ -1,0 +1,3 @@
+exec: ip netns exec ndmz myceliumrx --broker unix:///var/run/redis.sock
+after:
+  - networkd
