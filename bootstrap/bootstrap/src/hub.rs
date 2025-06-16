@@ -6,7 +6,7 @@ use std::fs::{write, OpenOptions};
 use std::io::copy;
 use std::path::Path;
 
-const HUB: &str = "https://hub.grid.tf";
+const HUB: &str = "https://hub.threefold.me";
 
 pub struct Repo {
     name: String,
