@@ -4,7 +4,7 @@
 readonly SOCKET="/tmp/virtiofs.sock"
 readonly CH_API_SOCKET="/tmp/ch-api.sock"
 readonly OVERLAYFS="/tmp/overlay"
-readonly CCFLIST="https://hub.grid.tf/tf-autobuilder/cloud-container-9dba60e.flist"
+readonly CCFLIST="https://hub.threefold.me/tf-autobuilder/cloud-container-9dba60e.flist"
 readonly MACHINE_TYPE="machine"
 readonly CONTAINER_TYPE="container"
 
