@@ -95,7 +95,7 @@ func check() error {
 
 		// we only care about possibility of establishing a connection
 		// so just establishing a connection then close it is good enough
-		for _, address := range []string{"bootstrap.grid.tf:http", "hub.grid.tf:http"} {
+		for _, address := range []string{"bootstrap.threefold.me:http", "hub.threefold.me:http"} {
 			log.Info().Str("trying out address", address).Msg("testing internet connection.")
 			con, err := net.Dial("tcp", address)
 			if err != nil {
