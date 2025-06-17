@@ -64,6 +64,8 @@ jobs:
           user: tf-autobuilder
           root: archive
           name: zos:${{ steps.version.outputs.version }}.flist
+          baseurl: "https://hub.threefold.me"
+          backend: "hub.threefold.me:9980"
 
       # we tag only if and only if we merged to main
       # in that case the tag will be the short sha.
@@ -71,18 +73,20 @@ jobs:
       # will use the tag value (has to start with v)
       - name: Tagging
         uses: threefoldtech/publish-flist@master
-        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix-zos-urls' || startsWith(github.ref, 'refs/tags/v'))
         with:
           token: ${{ secrets.HUB_JWT }}
           action: tag
           user: tf-autobuilder
           name: ${{ steps.tag.outputs.reference }}/zos.flist
           target: tf-autobuilder/zos:${{ steps.version.outputs.version }}.flist
+          baseurl: "https://hub.threefold.me"
+          backend: "hub.threefold.me:9980"
 
       # only for main branch (devnet)
       # this basically releases this build to devnet
       - name: Cross tagging (development)
-        if: success() && github.ref == 'refs/heads/main'
+        if: success() && (github.ref == 'refs/heads/main'|| github.ref == 'refs/heads/fix-zos-urls')
         uses: threefoldtech/publish-flist@master
         with:
           token: ${{ secrets.HUB_JWT }}
@@ -90,3 +94,5 @@ jobs:
           user: tf-zos
           name: development
           target: tf-autobuilder/${{ steps.tag.outputs.reference }}
+          baseurl: "https://hub.threefold.me"
+          backend: "hub.threefold.me:9980"

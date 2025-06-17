@@ -8,7 +8,7 @@ zinit:
 
 kernel:
 	@echo "Download 0-OS kernel"
-	wget https://bootstrap.grid.tf/kernel/net/dev.efi
+	wget https://bootstrap.threefold.me/kernel/net/dev.efi
 
 start:
 	bash vm.sh -n node1 -c "runmode=dev farmer_id=$(FARMERID)"
