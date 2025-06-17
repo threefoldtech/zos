@@ -20,6 +20,8 @@ impl Zfs {
 
         let mut child = Command::new("g8ufs")
             .arg("--ro")
+            .arg("--storage-url")
+            .arg("redis://hub.threefold.me:9900")
             .arg("--cache")
             .arg(backend.as_ref())
             .arg("--meta")
