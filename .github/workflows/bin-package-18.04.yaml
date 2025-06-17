@@ -48,15 +48,19 @@ jobs:
         with:
           token: ${{ secrets.token }}
           action: publish
+          baseurl: "https://hub.threefold.me"
+          backend: "hub.threefold.me:9980"
           user: tf-autobuilder
           root: bins/releases/${{ inputs.package }}
           name: ${{ steps.package.outputs.name }}.flist
       - name: Tagging
         uses: threefoldtech/publish-flist@master
-        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: success() && (github.ref == 'refs/heads/main' ||  github.ref == 'refs/heads/fix-zos-urls' || startsWith(github.ref, 'refs/tags/v'))
         with:
           token: ${{ secrets.token }}
           action: tag
+          baseurl: "https://hub.threefold.me"
+          backend: "hub.threefold.me:9980"
           user: tf-autobuilder
           name: ${{ steps.tag.outputs.reference }}/${{ inputs.package }}.flist
           target: tf-autobuilder/${{ steps.package.outputs.name }}.flist
