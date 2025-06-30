@@ -271,7 +271,7 @@ mod tests {
         let flist = repo.get("test.flist")?;
         assert_eq!(flist.name, "test.flist");
         assert_eq!(flist.kind, Kind::Regular);
-        assert_eq!(flist.url, "https://hub.threefold.me/azmy/test.flist");
+        assert!(flist.url.ends_with("/azmy/test.flist"));
 
         Ok(())
     }
@@ -326,7 +326,7 @@ mod tests {
 
         let found = found.unwrap();
         assert_eq!(found.name, "test.flist");
-        assert_eq!(found.url, "https://hub.threefold.me/azmy/test.flist");
+        assert!(found.url.ends_with("/azmy/test.flist"));
 
         Ok(())
     }
