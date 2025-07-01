@@ -58,7 +58,7 @@ var Module cli.Command = cli.Command{
 	Action: action,
 }
 
-func registerationServer(ctx context.Context, msgBrokerCon string, env environment.Environment, info registrar.RegistrationInfo) error {
+func registerationServer(ctx context.Context, msgBrokerCon string, info registrar.RegistrationInfo) error {
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
@@ -69,7 +69,7 @@ func registerationServer(ctx context.Context, msgBrokerCon string, env environme
 		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
-	registrar := registrar.NewRegistrar(ctx, redis, env, info)
+	registrar := registrar.NewRegistrar(ctx, redis, info)
 	server.Register(zbus.ObjectID{Name: "registrar", Version: "0.0.1"}, registrar)
 	log.Debug().Msg("object registered")
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
@@ -159,7 +159,7 @@ func action(cli *cli.Context) error {
 		WithSecureBoot(secureBoot).
 		WithVirtualized(len(hypervisor) != 0)
 
-	go registerationServer(ctx, msgBrokerCon, env, info)
+	go registerationServer(ctx, msgBrokerCon, info)
 	log.Info().Msg("start perf scheduler")
 
 	perfMon, err := perf.NewPerformanceMonitor(msgBrokerCon)
