@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -241,6 +242,29 @@ func action(cli *cli.Context) error {
 			if err := public(ctx, node, redis, consumer); err != nil {
 				log.Error().Err(err).Msg("setting public config failed")
 				<-time.After(10 * time.Second)
+			}
+		}
+	}()
+
+	// monitor node env updates in substrate url
+	go func() {
+		for {
+			<-time.After(10 * time.Minute)
+			newEnv, err := environment.Get()
+			if err != nil {
+				log.Error().Err(err).Msg("failed to get updated config")
+				continue
+			}
+			if !slices.Equal(env.SubstrateURL, newEnv.SubstrateURL) {
+				sub, err = environment.GetSubstrate()
+				if err != nil {
+					log.Error().Err(err).Msg("failed to get updated substrate manager")
+				}
+
+				env = newEnv
+				events.UpdateSubstrateManager(sub)
+				log.Debug().Strs("substrate_urls", newEnv.SubstrateURL).Msg("updated substrate events handler to use new substrate urls")
+
 			}
 		}
 	}()
