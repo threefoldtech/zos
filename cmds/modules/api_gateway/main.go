@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
@@ -113,6 +112,8 @@ func action(cli *cli.Context) error {
 	bo.MaxElapsedTime = 0
 
 	peerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	backoff.Retry(func() error {
 		_, err = peer.NewPeer(
 			peerCtx,
@@ -135,47 +136,16 @@ func action(cli *cli.Context) error {
 		Uint("worker nr", workerNr).
 		Msg("starting api-gateway module")
 
-	updatePeer := func(ctx context.Context, updatedSubURLs, updatedRelayURLs []string) (substrate.Manager, error) {
-		var newManager substrate.Manager
-
-		if !slices.Equal(subURLs, updatedSubURLs) {
-			newManager, err = environment.GetSubstrate()
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to create substrate manager")
-			}
-			err = gw.UpdateSubstrateGatewayConnection(manager)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to update substrate gateway with new manager")
-			}
-
-		}
-
-		_, err = peer.NewPeer(
-			peerCtx,
-			hex.EncodeToString(pair.Seed()),
-			newManager,
-			router.Serve,
-			peer.WithKeyType(peer.KeyTypeEd25519),
-			peer.WithRelay(relayURLs...),
-			peer.WithInMemoryExpiration(6*60*60), // 6 hours
-		)
-		if err != nil {
-			errors.Wrapf(err, "failed to start a new rmb peer")
-		}
-		return newManager, nil
-	}
-
 	// block forever
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-peerCtx.Done():
-			return nil
+			// check if we need to run an update on the peer and only do the update if all the changes are done successfully
 		case <-time.After(10 * time.Minute):
 			env, err := environment.Get()
-			// skip update if any problem causing the update to fail
 			if err != nil {
+				// skip update if we can't get env
 				log.Debug().Err(err).Msg("failed to load node environment")
 				continue
 			}
@@ -183,31 +153,58 @@ func action(cli *cli.Context) error {
 			updatedSubURLs := env.SubstrateURL
 			updatedRelayURLs := environment.GetRelaysURLs()
 
-			// continue if the urls did not change
-			if slices.Equal(subURLs, updatedSubURLs) || !slices.Equal(relayURLs, updatedRelayURLs) {
+			// make sure urls are sorted for comparison
+			slices.Sort(subURLs)
+			slices.Sort(relayURLs)
+			slices.Sort(updatedSubURLs)
+			slices.Sort(updatedRelayURLs)
+
+			// skip update if the urls did not change
+			if slices.Equal(subURLs, updatedSubURLs) && slices.Equal(relayURLs, updatedRelayURLs) {
+				continue
+			}
+
+			log.Debug().Strs("relays_urls", updatedRelayURLs).Strs("substrate_urls", env.SubstrateURL).Msg("detected new update in configuration")
+
+			manager, err = environment.GetSubstrate()
+			if err != nil {
+				// skip update if can't get sub manager
+				log.Debug().Err(err).Msg("failed to get substrate manager")
 				continue
 			}
 
 			newPeerCtx, newCancel := context.WithCancel(ctx)
-
-			newManager, err := updatePeer(newPeerCtx, updatedSubURLs, updatedRelayURLs)
-			if err != nil {
+			if _, err = peer.NewPeer(
+				newPeerCtx,
+				hex.EncodeToString(pair.Seed()),
+				manager,
+				router.Serve,
+				peer.WithKeyType(peer.KeyTypeEd25519),
+				peer.WithRelay(updatedRelayURLs...),
+				peer.WithInMemoryExpiration(6*60*60), // 6 hours
+			); err != nil {
 				newCancel()
-				log.Debug().Err(err).Send()
+				log.Debug().Err(err).Msg("failed to start a new rmb peer")
 				continue
 			}
 
-			// only update urls and cancel the context after peer is created successfully
-			cancel()
+			if !slices.Equal(subURLs, updatedSubURLs) {
+				err = gw.UpdateSubstrateGatewayConnection(manager)
+				if err != nil {
+					newCancel()
+					log.Debug().Err(err).Msg("failed to update substrate gateway with new manager")
+					continue
+				}
+			}
 
+			cancel()
 			peerCtx = newPeerCtx
 			cancel = newCancel
 
-			subURLs = updatedSubURLs
 			relayURLs = updatedRelayURLs
+			subURLs = updatedSubURLs
 
-			manager = newManager
-			log.Debug().Strs("relays_urls", updatedRelayURLs).Strs("substrate_urls", updatedSubURLs).Msg("updating substrate and relay urls")
+			log.Debug().Strs("relays_urls", relayURLs).Strs("substrate_urls", subURLs).Msg("updated substrate and relay urls")
 		}
 	}
 }
