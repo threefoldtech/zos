@@ -250,15 +250,18 @@ func action(cli *cli.Context) error {
 	go func() {
 		for {
 			<-time.After(10 * time.Minute)
+
 			newEnv, err := environment.Get()
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get updated config")
 				continue
 			}
+
 			if !slices.Equal(env.SubstrateURL, newEnv.SubstrateURL) {
 				sub, err = environment.GetSubstrate()
 				if err != nil {
-					log.Error().Err(err).Msg("failed to get updated substrate manager")
+					log.Debug().Err(err).Msg("failed to get updated substrate manager")
+					continue
 				}
 
 				env = newEnv
