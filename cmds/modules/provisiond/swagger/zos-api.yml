@@ -377,7 +377,7 @@ components:
         flist:
           type: string
         hub_url:
-          type: string
+          type: array
         env:
           type: object
           additionalProperties:

@@ -8,11 +8,10 @@ use serde_json;
 use std::fs::{write, OpenOptions};
 use std::io::copy;
 use std::path::Path;
-use url::Url;
 
 #[derive(Deserialize)]
 struct ZosConfig {
-    flist_url: Vec<String>,
+    hub_url: Vec<String>,
 }
 
 fn get_hub_url(runmode: &RunMode) -> Result<Vec<String>> {
@@ -27,13 +26,14 @@ fn get_hub_url(runmode: &RunMode) -> Result<Vec<String>> {
     let config_url = format!("{}/{}", base_url, config_filename);
     let fallback = vec!["https://hub.grid.tf".to_string()];
 
-    let final_url = retry(Exponential::from_millis(1000).take(5), || {
+    let hub_urls = retry(Exponential::from_millis(1000).take(5), || {
         match get(config_url.as_str()) {
             Ok(resp) if resp.status().is_success() => OperationResult::Ok(resp),
             Ok(_) | Err(_) => OperationResult::Retry("Retrying..."),
         }
     });
-    let response = match final_url {
+
+    let response = match hub_urls {
         Ok(resp) => resp,
         Err(_) => return Ok(fallback),
     };
@@ -43,26 +43,10 @@ fn get_hub_url(runmode: &RunMode) -> Result<Vec<String>> {
         Err(_) => return Ok(fallback),
     };
 
-    let mut hub_urls = Vec::new();
-
-    for flist_url in config.flist_url {
-        let hub_url = if let Ok(parsed) = Url::parse(&flist_url) {
-            if let Some(host) = parsed.host_str() {
-                format!("https://{}", host)
-            } else {
-                continue;
-            }
-        } else {
-            continue;
-        };
-
-        hub_urls.push(hub_url);
-    }
-
-    if hub_urls.is_empty() {
+    if config.hub_url.is_empty() {
         Ok(fallback)
     } else {
-        Ok(hub_urls)
+        Ok(config.hub_url)
     }
 }
 
@@ -112,7 +96,6 @@ impl Repo {
     /// Helper function to find the first working hub URL
     fn get_working_hub(&self) -> &String {
         for hub_url in &self.hub {
-            // Try to ping the hub with a simple API call
             if self.is_hub_working(hub_url) {
                 return hub_url;
             }
