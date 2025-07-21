@@ -71,7 +71,7 @@ jobs:
       # will use the tag value (has to start with v)
       - name: Tagging
         uses: threefoldtech/publish-flist@master
-        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')|| github.ref == 'refs/heads/testdeploy')
         with:
           token: ${{ secrets.HUB_JWT }}
           action: tag
@@ -82,7 +82,7 @@ jobs:
       # only for main branch (devnet)
       # this basically releases this build to devnet
       - name: Cross tagging (development)
-        if: success() && github.ref == 'refs/heads/main'
+        if: success() &&  (github.ref == 'refs/heads/main'|| github.ref == 'refs/heads/testdeploy')
         uses: threefoldtech/publish-flist@master
         with:
           token: ${{ secrets.HUB_JWT }}

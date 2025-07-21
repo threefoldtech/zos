@@ -55,7 +55,7 @@ jobs:
           cd bins
           ./bins-extra.sh --package ${{ inputs.package }}
       - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
-        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/testdeploy' || startsWith(github.ref, 'refs/tags/v'))
         uses: threefoldtech/publish-flist@master
         with:
           token: ${{ secrets.token }}
@@ -65,7 +65,7 @@ jobs:
           name: ${{ steps.package.outputs.name }}.flist
       - name: Tagging
         uses: threefoldtech/publish-flist@master
-        if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: success() && (github.ref == 'refs/heads/main'  || github.ref == 'refs/heads/testdeploy'|| startsWith(github.ref, 'refs/tags/v'))
         with:
           token: ${{ secrets.token }}
           action: tag
