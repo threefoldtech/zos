@@ -64,8 +64,6 @@ jobs:
           user: tf-autobuilder
           root: archive
           name: zos:${{ steps.version.outputs.version }}.flist
-          baseurl: "https://hub.threefold.me"
-          backend: "hub.threefold.me:9980"
 
       # we tag only if and only if we merged to main
       # in that case the tag will be the short sha.
@@ -81,8 +79,6 @@ jobs:
           user: tf-autobuilder
           name: ${{ steps.tag.outputs.reference }}/zos.flist
           target: tf-autobuilder/zos:${{ steps.version.outputs.version }}.flist
-          baseurl: "https://hub.threefold.me"
-          backend: "hub.threefold.me:9980"
 
       # only for main branch (devnet)
       # this basically releases this build to devnet
@@ -96,5 +92,3 @@ jobs:
           user: tf-zos
           name: development
           target: tf-autobuilder/${{ steps.tag.outputs.reference }}
-          baseurl: "https://hub.threefold.me"
-          backend: "hub.threefold.me:9980"

@@ -40,8 +40,6 @@ jobs:
           root: archive
           token: ${{ secrets.HUB_JWT }}
           name: ${{ steps.setname.outputs.build }}
-          baseurl: "https://hub.threefold.me"
-          backend: "hub.threefold.me:9980"
       - name: Symlink flist (development)
         if: success()
         uses: threefoldtech/publish-flist@master
@@ -51,8 +49,6 @@ jobs:
           token: ${{ secrets.HUB_JWT }}
           name: ${{ steps.setname.outputs.build }}
           target: bootstrap:development.flist
-          baseurl: "https://hub.threefold.me"
-          backend: "hub.threefold.me:9980"
       - name: Symlink flist (release)
         if: success() && github.ref == 'refs/heads/main'
         uses: threefoldtech/publish-flist@master
@@ -62,5 +58,3 @@ jobs:
           token: ${{ secrets.HUB_JWT }}
           name: ${{ steps.setname.outputs.build }}
           target: bootstrap:latest.flist
-          baseurl: "https://hub.threefold.me"
-          backend: "hub.threefold.me:9980"

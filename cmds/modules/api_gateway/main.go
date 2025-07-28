@@ -97,7 +97,6 @@ func action(cli *cli.Context) error {
 		}
 	}()
 
-	// no need to restart zos-api here as it only tries to get farm and twin, donesn't mentain any open connections
 	api, err := zosapi.NewZosAPI(manager, redis, msgBrokerCon)
 	if err != nil {
 		return fmt.Errorf("failed to create zos api: %w", err)
@@ -112,6 +111,7 @@ func action(cli *cli.Context) error {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
 
+    // this peer is used to allow the node to restart the peer without the need to cancel the module context
 	peerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
