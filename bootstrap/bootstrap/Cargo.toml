@@ -21,6 +21,7 @@ openssl-sys = "*"
 walkdir = "2"
 clap = "2.33"
 exec = "0.3"
+url = "2.5.4"
 
 [features]
 # Force openssl-sys to staticly link in the openssl library. Necessary when

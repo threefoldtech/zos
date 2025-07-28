@@ -34,7 +34,7 @@ pub fn update(_cfg: &config::Config) -> Result<()> {
 // the actual system bootstrap.
 fn update_bootstrap() -> Result<()> {
     // we are running in a tmpfs workdir in this method
-    let repo = hub::Repo::new("tf-autobuilder");
+    let repo = hub::Repo::new("tf-autobuilder")?;
     let name = BOOTSTAP_FLIST;
 
     let flist = retry::retry(retry::delay::Exponential::from_millis(200), || {
@@ -66,7 +66,7 @@ fn update_bootstrap() -> Result<()> {
 
 ///install installs all binaries from the tf-zos-bins repo
 pub fn install(cfg: &config::Config) -> Result<()> {
-    let repo = Repo::new(ZOS_REPO);
+    let repo = Repo::new(ZOS_REPO)?;
 
     let runmode = cfg.runmode.to_string();
 
@@ -99,7 +99,7 @@ pub fn install(cfg: &config::Config) -> Result<()> {
                 tag.write(FLIST_TAG_FILE)?;
 
                 let (repo, tag) = tag.tag_link();
-                let client = Repo::new(repo);
+                let client = Repo::new(repo)?;
                 let packages = client.list_tag(tag)?.context("tag is not found")?;
 
                 // new style setup, just install every thing.

@@ -1,15 +1,58 @@
+use crate::config::RunMode;
 use anyhow::Result;
 use reqwest::{blocking::get, StatusCode};
+use retry::delay::Exponential;
+use retry::{retry, OperationResult};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fs::{write, OpenOptions};
 use std::io::copy;
 use std::path::Path;
 
-const HUB: &str = "https://hub.threefold.me";
+#[derive(Deserialize)]
+struct ZosConfig {
+    hub_url: Vec<String>,
+}
+
+fn get_hub_url(runmode: &RunMode) -> Result<Vec<String>> {
+    let base_url = "https://github.com/threefoldtech/zos-config/raw/main/";
+    let config_filename = match runmode {
+        RunMode::Prod => "production.json",
+        RunMode::Dev => "development.json",
+        RunMode::Test => "testing.json",
+        RunMode::QA => "qa.json",
+    };
+
+    let config_url = format!("{}/{}", base_url, config_filename);
+    let fallback = vec!["https://hub.grid.tf".to_string()];
+
+    let hub_urls = retry(Exponential::from_millis(1000).take(5), || {
+        match get(config_url.as_str()) {
+            Ok(resp) if resp.status().is_success() => OperationResult::Ok(resp),
+            Ok(_) | Err(_) => OperationResult::Retry("Retrying..."),
+        }
+    });
+
+    let response = match hub_urls {
+        Ok(resp) => resp,
+        Err(_) => return Ok(fallback),
+    };
+
+    let config: ZosConfig = match response.json() {
+        Ok(config) => config,
+        Err(_) => return Ok(fallback),
+    };
+
+    if config.hub_url.is_empty() {
+        Ok(fallback)
+    } else {
+        Ok(config.hub_url)
+    }
+}
 
 pub struct Repo {
     name: String,
+    hub: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -38,17 +81,41 @@ pub struct Flist {
 }
 
 impl Repo {
-    pub fn new<T>(name: T) -> Repo
+    pub fn new<T>(name: T) -> Result<Repo>
     where
         T: AsRef<str>,
     {
-        Repo {
+        let config = crate::config::Config::current()?;
+        let hub = get_hub_url(&config.runmode)?;
+        Ok(Repo {
             name: String::from(name.as_ref()),
+            hub,
+        })
+    }
+
+    /// Helper function to find the first working hub URL
+    fn get_working_hub(&self) -> &String {
+        for hub_url in &self.hub {
+            if self.is_hub_working(hub_url) {
+                return hub_url;
+            }
+        }
+
+        &self.hub[0]
+    }
+
+    /// Check if a specific hub URL is working
+    fn is_hub_working(&self, hub_url: &str) -> bool {
+        let health_url = format!("{}/api/flist", hub_url);
+
+        match get(&health_url) {
+            Ok(response) => response.status().is_success(),
+            Err(_) => false,
         }
     }
 
     pub fn list(&self) -> Result<Vec<Flist>> {
-        let url = format!("{}/api/flist/{}", HUB, self.name,);
+        let url = format!("{}/api/flist/{}", self.get_working_hub(), self.name,);
 
         let response = get(&url)?;
         let mut info: Vec<Flist> = match response.status() {
@@ -56,7 +123,7 @@ impl Repo {
             s => bail!("failed to get flist info: {}", s),
         };
         for flist in info.iter_mut() {
-            flist.url = format!("{}/{}/{}", HUB, self.name, flist.name);
+            flist.url = format!("{}/{}/{}", self.get_working_hub(), self.name, flist.name);
         }
 
         Ok(info)
@@ -65,7 +132,12 @@ impl Repo {
     pub fn list_tag<S: AsRef<str>>(&self, tag: S) -> Result<Option<Vec<Flist>>> {
         let tag = tag.as_ref();
 
-        let url = format!("{}/api/flist/{}/tags/{}", HUB, self.name, tag);
+        let url = format!(
+            "{}/api/flist/{}/tags/{}",
+            self.get_working_hub(),
+            self.name,
+            tag
+        );
         let response = get(&url)?;
         let mut info: Vec<Flist> = match response.status() {
             StatusCode::OK => response.json()?,
@@ -90,7 +162,7 @@ impl Repo {
                 Some(target) => target,
             };
 
-            flist.url = format!("{}/{}", HUB, target);
+            flist.url = format!("{}/{}", self.get_working_hub(), target);
         }
 
         Ok(Some(info))
@@ -101,14 +173,24 @@ impl Repo {
     where
         T: AsRef<str>,
     {
-        let url = format!("{}/api/flist/{}/{}/light", HUB, self.name, flist.as_ref());
+        let url = format!(
+            "{}/api/flist/{}/{}/light",
+            self.get_working_hub(),
+            self.name,
+            flist.as_ref()
+        );
 
         let response = get(&url)?;
         let mut info: Flist = match response.status() {
             StatusCode::OK => response.json()?,
             s => bail!("failed to get flist info: {}", s),
         };
-        info.url = format!("{}/{}/{}", HUB, self.name, flist.as_ref());
+        info.url = format!(
+            "{}/{}/{}",
+            self.get_working_hub(),
+            self.name,
+            flist.as_ref()
+        );
         Ok(info)
     }
 }
@@ -168,18 +250,18 @@ mod tests {
     use super::*;
     #[test]
     fn test_get_flist() -> Result<()> {
-        let repo = Repo::new(String::from("azmy"));
+        let repo = Repo::new(String::from("azmy"))?;
         let flist = repo.get("test.flist")?;
         assert_eq!(flist.name, "test.flist");
         assert_eq!(flist.kind, Kind::Regular);
-        assert_eq!(flist.url, "https://hub.threefold.me/azmy/test.flist");
+        assert!(flist.url.ends_with("/azmy/test.flist"));
 
         Ok(())
     }
 
     #[test]
     fn test_list_tag() -> Result<()> {
-        let repo = Repo::new(String::from("tf-autobuilder"));
+        let repo = Repo::new(String::from("tf-autobuilder"))?;
 
         let list = repo.list_tag("3b51aa5")?;
 
@@ -195,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_download_flist() -> Result<()> {
-        let repo = Repo::new(String::from("azmy"));
+        let repo = Repo::new(String::from("azmy"))?;
         let flist = repo.get("test.flist")?;
         let temp = "/tmp/hub-download-test.flist";
         flist.download(temp)?;
@@ -214,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_list_repo() -> Result<()> {
-        let repo = Repo::new(String::from("azmy"));
+        let repo = Repo::new(String::from("azmy"))?;
         let lists = repo.list()?;
 
         let mut found: Option<&Flist> = None;
@@ -227,7 +309,7 @@ mod tests {
 
         let found = found.unwrap();
         assert_eq!(found.name, "test.flist");
-        assert_eq!(found.url, "https://hub.threefold.me/azmy/test.flist");
+        assert!(found.url.ends_with("/azmy/test.flist"));
 
         Ok(())
     }

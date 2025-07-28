@@ -100,6 +100,12 @@ func runChecks(ctx context.Context, rootDir string, cl zbus.Client) error {
 	var buf bytes.Buffer
 	cmd.Stderr = &buf
 
+	zui := stubs.NewZUIStub(cl)
+	// empty out zui errors for powerd
+	if zuiErr := zui.PushErrors(ctx, "integrity", []string{}); zuiErr != nil {
+		log.Info().Err(zuiErr).Send()
+	}
+
 	cmd.CombinedOutput()
 	err := cmd.Run()
 	if err == context.Canceled {
@@ -110,7 +116,6 @@ func runChecks(ctx context.Context, rootDir string, cl zbus.Client) error {
 
 	log.Error().Str("stderr", buf.String()).Err(err).Msg("integrity check failed, resetting rrd db")
 
-	zui := stubs.NewZUIStub(cl)
 	if er := zui.PushErrors(ctx, "integrity", []string{
 		fmt.Sprintf("integrity check failed, resetting rrd db stderr=%s: %v", buf.String(), err),
 	}); er != nil {
