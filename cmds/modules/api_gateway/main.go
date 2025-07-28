@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	substrate "github.com/threefoldtech/tfchain/clients/tfchain-client-go"
 	"github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go/peer"
@@ -143,6 +144,11 @@ func action(cli *cli.Context) error {
 			return nil
 			// check if we need to run an update on the peer and only do the update if all the changes are done successfully
 		case <-time.After(10 * time.Minute):
+			// if we can get time from substrate then we don't need to update the connection
+			if _, err := gw.GetTime(); err == nil {
+				continue
+			}
+
 			env, err := environment.Get()
 			if err != nil {
 				// skip update if we can't get env
@@ -164,35 +170,18 @@ func action(cli *cli.Context) error {
 				continue
 			}
 
-			log.Debug().Strs("relays_urls", updatedRelayURLs).Strs("substrate_urls", env.SubstrateURL).Msg("detected new update in configuration")
-
-			manager, err = environment.GetSubstrate()
-			if err != nil {
-				// skip update if can't get sub manager
-				log.Debug().Err(err).Msg("failed to get substrate manager")
-				continue
-			}
-
 			newPeerCtx, newCancel := context.WithCancel(ctx)
-			if _, err = peer.NewPeer(
-				newPeerCtx,
-				hex.EncodeToString(pair.Seed()),
-				manager,
-				router.Serve,
-				peer.WithKeyType(peer.KeyTypeEd25519),
-				peer.WithRelay(updatedRelayURLs...),
-				peer.WithInMemoryExpiration(6*60*60), // 6 hours
-			); err != nil {
+			if err := updatePeer(newPeerCtx, updatedSubURLs, updatedRelayURLs, pair.Seed(), router.Serve); err != nil {
+				log.Debug().Err(err).Send()
 				newCancel()
-				log.Debug().Err(err).Msg("failed to start a new rmb peer")
 				continue
 			}
 
 			if !slices.Equal(subURLs, updatedSubURLs) {
 				err = gw.UpdateSubstrateGatewayConnection(manager)
 				if err != nil {
-					newCancel()
 					log.Debug().Err(err).Msg("failed to update substrate gateway with new manager")
+					newCancel()
 					continue
 				}
 			}
@@ -203,8 +192,31 @@ func action(cli *cli.Context) error {
 
 			relayURLs = updatedRelayURLs
 			subURLs = updatedSubURLs
-
 			log.Debug().Strs("relays_urls", relayURLs).Strs("substrate_urls", subURLs).Msg("updated substrate and relay urls")
 		}
 	}
+}
+
+func updatePeer(ctx context.Context, subURLs, relayURLs []string, seed []byte, serve peer.Handler) error {
+	log.Debug().Strs("relays_urls", relayURLs).Strs("substrate_urls", subURLs).Msg("detected new update in configuration")
+
+	manager, err := environment.GetSubstrate()
+	if err != nil {
+		// skip update if can't get sub manager
+		return errors.Wrap(err, "failed to get substrate manager")
+	}
+
+	if _, err = peer.NewPeer(
+		ctx,
+		hex.EncodeToString(seed),
+		manager,
+		serve,
+		peer.WithKeyType(peer.KeyTypeEd25519),
+		peer.WithRelay(relayURLs...),
+		peer.WithInMemoryExpiration(6*60*60), // 6 hours
+	); err != nil {
+		return errors.Wrap(err, "failed to start a new rmb peer")
+	}
+
+	return nil
 }

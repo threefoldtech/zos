@@ -86,6 +86,7 @@ func action(cli *cli.Context) error {
 		printNet     bool   = cli.Bool("net")
 	)
 	env := environment.MustGet()
+	subURLs := env.SubstrateURL
 
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
@@ -251,20 +252,33 @@ func action(cli *cli.Context) error {
 		for {
 			<-time.After(10 * time.Minute)
 
-			newEnv, err := environment.Get()
-			if err != nil {
-				log.Error().Err(err).Msg("failed to get updated config")
+			cl, _, err := sub.Raw()
+			if err == nil {
+				// skip update if the connection is working properly
+				cl.Client.Close()
 				continue
 			}
 
-			if !slices.Equal(env.SubstrateURL, newEnv.SubstrateURL) {
-				sub, err = environment.GetSubstrate()
+			// update only if the substrate connection is not healty
+			newEnv, err := environment.Get()
+			if err != nil {
+				log.Debug().Err(err).Msg("failed to get updated config")
+				continue
+			}
+
+			newSubURLs := newEnv.SubstrateURL
+			slices.Sort(subURLs)
+			slices.Sort(newSubURLs)
+
+			if !slices.Equal(subURLs, newSubURLs) {
+				newSub, err := environment.GetSubstrate()
 				if err != nil {
 					log.Debug().Err(err).Msg("failed to get updated substrate manager")
 					continue
 				}
 
-				env = newEnv
+				sub = newSub
+				subURLs = newSubURLs
 				events.UpdateSubstrateManager(sub)
 				log.Debug().Strs("substrate_urls", newEnv.SubstrateURL).Msg("updated substrate events handler to use new substrate urls")
 
