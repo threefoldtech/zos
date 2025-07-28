@@ -26,8 +26,6 @@ jobs:
         with:
           token: ${{ secrets.HUB_JWT }}
           action: crosslink
-          baseurl: "https://hub.threefold.me"
-          backend: "hub.threefold.me:9980"
           user: tf-zos
           name: zos:${{ github.event.inputs.grid }}-3:latest.flist
           target: tf-autobuilder/zos:${{ github.event.inputs.version }}.flist

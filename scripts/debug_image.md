@@ -19,7 +19,7 @@ sudo -i
 ./install_deps
 
 # run image from a directory
-./debug_image.sh -d --image https://hub.threefold.me/omarabdulaziz.3bot/ubuntu-jammy.flist
+./debug_image.sh -d --image https://hub.grid.tf/omarabdulaziz.3bot/ubuntu-jammy.flist
 ```
 
 ## Image Types
@@ -28,7 +28,7 @@ sudo -i
     the creation tutorial [here](../docs/manual/zmachine/zmachine.md)
 
 - Container: Contains only the rootfs.
-    in this case wil use kernel and initramfs from cloud container [flist](https://hub.threefold.me/tf-autobuilder/cloud-container-9dba60e.flist.md)
+    in this case wil use kernel and initramfs from cloud container [flist](https://hub.grid.tf/tf-autobuilder/cloud-container-9dba60e.flist.md)
 
 ## Flags
 
