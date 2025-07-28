@@ -111,7 +111,7 @@ func action(cli *cli.Context) error {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
 
-    // this peer is used to allow the node to restart the peer without the need to cancel the module context
+	// this ctx is used to allow the node to restart the peer without leaving any unwanted open connections
 	peerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -144,11 +144,7 @@ func action(cli *cli.Context) error {
 			return nil
 			// check if we need to run an update on the peer and only do the update if all the changes are done successfully
 		case <-time.After(10 * time.Minute):
-			// if we can get time from substrate then we don't need to update the connection
-			if _, err := gw.GetTime(); err == nil {
-				continue
-			}
-
+			log.Debug().Msg("checking for updates in zos config")
 			env, err := environment.Get()
 			if err != nil {
 				// skip update if we can't get env
@@ -165,9 +161,17 @@ func action(cli *cli.Context) error {
 			slices.Sort(updatedSubURLs)
 			slices.Sort(updatedRelayURLs)
 
-			// skip update if the urls did not change
+			// skip update if substrate and relay urls did not change
 			if slices.Equal(subURLs, updatedSubURLs) && slices.Equal(relayURLs, updatedRelayURLs) {
 				continue
+			}
+
+			// skip update if the old substrate connection is working fine
+			if !slices.Equal(subURLs, updatedSubURLs) {
+				if _, err := gw.GetTime(); err == nil {
+					log.Debug().Msg("the open connection is already working, no update needed")
+					continue
+				}
 			}
 
 			newPeerCtx, newCancel := context.WithCancel(ctx)
