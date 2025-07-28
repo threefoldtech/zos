@@ -252,9 +252,11 @@ func action(cli *cli.Context) error {
 		for {
 			<-time.After(10 * time.Minute)
 
+			log.Debug().Msg("checking for updates in zos config")
 			cl, _, err := sub.Raw()
 			if err == nil {
 				// skip update if the connection is working properly
+				log.Debug().Msg("the open connection is working, no update needed")
 				cl.Client.Close()
 				continue
 			}
