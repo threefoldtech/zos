@@ -252,14 +252,15 @@ func action(cli *cli.Context) error {
 		for {
 			<-time.After(10 * time.Minute)
 
-			log.Debug().Msg("checking for updates in zos config")
+			log.Debug().Msg("checking if node is maintaining a healty substrate connection")
 			cl, _, err := sub.Raw()
 			if err == nil {
 				// skip update if the connection is working properly
-				log.Debug().Msg("the open connection is working, no update needed")
+				log.Debug().Msg("the open connection is healty, no update needed")
 				cl.Client.Close()
 				continue
 			}
+			log.Debug().Err(err).Msg("used substrate manager is not healty, trying to update it")
 
 			// update only if the substrate connection is not healty
 			newEnv, err := environment.Get()
@@ -272,19 +273,21 @@ func action(cli *cli.Context) error {
 			slices.Sort(subURLs)
 			slices.Sort(newSubURLs)
 
-			if !slices.Equal(subURLs, newSubURLs) {
-				newSub, err := environment.GetSubstrate()
-				if err != nil {
-					log.Debug().Err(err).Msg("failed to get updated substrate manager")
-					continue
-				}
-
-				sub = newSub
-				subURLs = newSubURLs
-				events.UpdateSubstrateManager(sub)
-				log.Debug().Strs("substrate_urls", newEnv.SubstrateURL).Msg("updated substrate events handler to use new substrate urls")
-
+			if slices.Equal(subURLs, newSubURLs) {
+				log.Debug().Msg("zos-config doesn't have updated config to update the node with")
+				continue
 			}
+
+			newSub, err := environment.GetSubstrate()
+			if err != nil {
+				log.Debug().Err(err).Msg("failed to get updated substrate manager")
+				continue
+			}
+
+			sub = newSub
+			subURLs = newSubURLs
+			events.UpdateSubstrateManager(sub)
+			log.Debug().Strs("substrate_urls", newEnv.SubstrateURL).Msg("updated substrate events handler to use new substrate urls")
 		}
 	}()
 
