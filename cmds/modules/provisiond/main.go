@@ -81,7 +81,6 @@ var Module cli.Command = cli.Command{
 // state
 func integrityChecks(ctx context.Context, rootDir string) error {
 	err := ReportChecks(filepath.Join(rootDir, metricsStorageDB))
-
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
@@ -101,9 +100,15 @@ func runChecks(ctx context.Context, rootDir string, cl zbus.Client) error {
 	var buf bytes.Buffer
 	cmd.Stderr = &buf
 
+	zui := stubs.NewZUIStub(cl)
+	// empty out zui errors for registrar
+	if zuiErr := zui.PushErrors(ctx, "integrity", []string{}); zuiErr != nil {
+		log.Info().Err(zuiErr).Send()
+	}
+
 	cmd.CombinedOutput()
 	err := cmd.Run()
-	if err == context.Canceled {
+	if errors.Is(err, context.Canceled) {
 		return err
 	} else if err == nil {
 		return nil
@@ -111,7 +116,6 @@ func runChecks(ctx context.Context, rootDir string, cl zbus.Client) error {
 
 	log.Error().Str("stderr", buf.String()).Err(err).Msg("integrity check failed, resetting rrd db")
 
-	zui := stubs.NewZUIStub(cl)
 	if er := zui.PushErrors(ctx, "integrity", []string{
 		fmt.Sprintf("integrity check failed, resetting rrd db stderr=%s: %v", buf.String(), err),
 	}); er != nil {
@@ -181,7 +185,7 @@ func action(cli *cli.Context) error {
 
 	// the v1 endpoint will be used by all components to register endpoints
 	// that are specific for that component
-	//v1 := router.PathPrefix("/api/v1").Subrouter()
+	// v1 := router.PathPrefix("/api/v1").Subrouter()
 	// keep track of resource units reserved and amount of workloads provisionned
 
 	// to store reservation locally on the node
@@ -313,7 +317,7 @@ func action(cli *cli.Context) error {
 			zos.PublicIPv4Type,
 			zos.PublicIPType,
 			zos.ZMachineLightType,
-			zos.ZLogsType, //make sure zlogs comes after zmachine
+			zos.ZLogsType, // make sure zlogs comes after zmachine
 		),
 		// if this is a node reboot, the node needs to
 		// recreate all reservations. so we set rerun = true
@@ -323,7 +327,6 @@ func action(cli *cli.Context) error {
 		// capacity on chain.
 		provision.WithCallback(setter.Callback),
 	)
-
 	if err != nil {
 		return errors.Wrap(err, "failed to instantiate provision engine")
 	}
@@ -345,6 +348,7 @@ func action(cli *cli.Context) error {
 	// call the runtime upgrade before running engine
 	if err := provisioners.Initialize(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to run provisioners initializers")
+		return err
 	}
 
 	// spawn the engine
