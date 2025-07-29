@@ -16,130 +16,130 @@ jobs:
     with:
       package: containerd
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   runc:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: runc
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   virtwhat:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: virtwhat
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   yggdrasil:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: yggdrasil
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   rfs:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: rfs
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   hdparm:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: hdparm
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   corex:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: corex
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   shimlogs:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: shimlogs
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   cloudhypervisor:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: cloudhypervisor
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   tailstream:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: tailstream
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   virtiofsd:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: virtiofsd
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   vector:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: vector
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   nnc:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: nnc
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   # tpm:
   #   uses: ./.github/workflows/bin-package-18.04.yaml
   #   with:
   #     package: tpm
   #   secrets:
-  #     token: ${{ secrets.HUB_JWT }}
+  #     token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   qsfs:
     uses: ./.github/workflows/bin-package-no-tag.yaml
     with:
       package: qsfs
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   traefik:
     uses: ./.github/workflows/bin-package-no-tag.yaml
     with:
       package: traefik
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   cloudconsole:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: cloudconsole
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   misc:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: misc
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   iperf:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: iperf
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   cpubench:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: cpubench
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   mycelium:
     uses: ./.github/workflows/bin-package.yaml
     with:
       package: mycelium
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}
   mdadm:
     uses: ./.github/workflows/bin-package-18.04.yaml
     with:
       package: mdadm
     secrets:
-      token: ${{ secrets.HUB_JWT }}
+      token: ${{ secrets.HUB_AUTOMATION_TOKEN }}

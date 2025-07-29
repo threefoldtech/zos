@@ -24,7 +24,8 @@ jobs:
       - name: Symlink flist (development)
         uses: threefoldtech/publish-flist@master
         with:
-          token: ${{ secrets.HUB_JWT }}
+          threefold: ${{ secrets.HUB_AUTOMATION_TOKEN }}
+          baseurl: "https://hub.grid.tf"
           action: crosslink
           user: tf-zos
           name: zos:${{ github.event.inputs.grid }}-3:latest.flist

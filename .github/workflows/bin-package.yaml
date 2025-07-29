@@ -58,7 +58,8 @@ jobs:
         if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         uses: threefoldtech/publish-flist@master
         with:
-          token: ${{ secrets.token }}
+          threefold: ${{ secrets.token }}
+          baseurl: "https://hub.grid.tf"
           action: publish
           user: tf-autobuilder
           root: bins/releases/${{ inputs.package }}
@@ -67,7 +68,8 @@ jobs:
         uses: threefoldtech/publish-flist@master
         if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') ||  github.ref == 'refs/heads/main_new')
         with:
-          token: ${{ secrets.token }}
+          threefold: ${{ secrets.token }}
+          baseurl: "https://hub.grid.tf"
           action: tag
           user: tf-autobuilder
           name: ${{ steps.tag.outputs.reference }}/${{ inputs.package }}.flist

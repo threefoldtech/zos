@@ -35,7 +35,8 @@ jobs:
         if: success()
         uses: threefoldtech/publish-flist@master
         with:
-          token: ${{ secrets.token }}
+          threefold: ${{ secrets.token }}
+          baseurl: "https://hub.grid.tf"
           action: publish
           user: tf-autobuilder
           root: bins/releases/${{ inputs.package }}
