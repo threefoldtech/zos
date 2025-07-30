@@ -13,7 +13,7 @@ dependencies_lshw() {
 extract_lshw() {
     if [ ! -d "lshw-${LSHW_VERSION}" ]; then
         echo "[+] extracting: lshw-${LSHW_VERSION}"
-        tar -xf ${DISTDIR}/lshw-${LSHW_VERSION}.tar.gz -C . 
+        tar -xf ${DISTDIR}/lshw-${LSHW_VERSION}.tar.gz -C ${WORKDIR} 
     fi
 }
 
