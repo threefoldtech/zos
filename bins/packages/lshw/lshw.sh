@@ -3,7 +3,7 @@ LSHW_CHECKSUM="5805eba5f31886582fff673c5dccdb3b"
 LSHW_LINK="https://github.com/lyonel/lshw/archive/refs/tags/${LSHW_VERSION}.tar.gz"
 
 download_lshw() {
-    download_file $LSHW_LINK $LSHW_CHECKSUM lshw-${LSHW_VERSION}.tar.gz
+    download_file ${LSHW_LINK} ${LSHW_CHECKSUM} lshw-${LSHW_VERSION}.tar.gz
 }
 
 dependencies_lshw() {
@@ -23,8 +23,8 @@ prepare_lshw() {
 
 compile_lshw() {
     pushd src
-    make -C core ${MAKEOPTS} VERSION="${LSHW_VERSION}"
-    make ${MAKEOPTS} VERSION="${LSHW_VERSION}" LDFLAGS="-static -L./core/" CXXFLAGS="-g -Wall -I./core/ -fno-pie"
+    # Build static binary
+    make static
     popd
 }
 
@@ -35,7 +35,8 @@ install_lshw() {
     mkdir -p "${ROOTDIR}/usr/share/man/man1"
     mkdir -p "${ROOTDIR}/usr/share/lshw"
     
-    cp src/lshw "${ROOTDIR}/usr/sbin/"
+    # Install the static binary
+    cp src/lshw-static "${ROOTDIR}/usr/sbin/lshw"
     chmod +x "${ROOTDIR}/usr/sbin/lshw"
     
     cp src/lshw.1 "${ROOTDIR}/usr/share/man/man1/"
