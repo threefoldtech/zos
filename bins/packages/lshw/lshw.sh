@@ -19,6 +19,7 @@ extract_lshw() {
 
 prepare_lshw() {
     echo "[+] configuring lshw"
+    github_name "lshw-${LSHW_VERSION}"
 }
 
 compile_lshw() {
