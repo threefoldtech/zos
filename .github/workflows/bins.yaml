@@ -95,6 +95,12 @@ jobs:
   #     package: tpm
   #   secrets:
   #     token: ${{ secrets.HUB_JWT }}
+  lshw:
+    uses: ./.github/workflows/bin-package.yaml
+    with:
+      package: lshw
+    secrets:
+      token: ${{ secrets.HUB_JWT }}
   qsfs:
     uses: ./.github/workflows/bin-package-no-tag.yaml
     with:
