@@ -14,7 +14,7 @@ struct ZosConfig {
     hub_urls: Vec<String>,
 }
 
-fn get_hub_url(runmode: &RunMode) -> Result<Vec<String>> {
+fn get_hub_urls(runmode: &RunMode) -> Result<Vec<String>> {
     let base_url = "https://github.com/threefoldtech/zos-config/raw/main/";
     let config_filename = match runmode {
         RunMode::Prod => "production.json",
@@ -43,10 +43,10 @@ fn get_hub_url(runmode: &RunMode) -> Result<Vec<String>> {
         Err(_) => return Ok(fallback),
     };
 
-    if config.hub_url.is_empty() {
+    if config.hub_urls.is_empty() {
         Ok(fallback)
     } else {
-        Ok(config.hub_url)
+        Ok(config.hub_urls)
     }
 }
 
@@ -86,7 +86,7 @@ impl Repo {
         T: AsRef<str>,
     {
         let config = crate::config::Config::current()?;
-        let hub = get_hub_url(&config.runmode)?;
+        let hub = get_hub_urls(&config.runmode)?;
         Ok(Repo {
             name: String::from(name.as_ref()),
             hub,
