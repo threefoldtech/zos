@@ -11,7 +11,7 @@ use std::path::Path;
 
 #[derive(Deserialize)]
 struct ZosConfig {
-    hub_url: Vec<String>,
+    hub_urls: Vec<String>,
 }
 
 fn get_hub_url(runmode: &RunMode) -> Result<Vec<String>> {
