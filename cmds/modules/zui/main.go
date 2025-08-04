@@ -108,6 +108,7 @@ func action(ctx *cli.Context) error {
 		log.Error().Err(err).Msg("failed to start services renderer")
 	}
 
+	var isInitialized atomic.Bool
 	go func() {
 		<-done
 
@@ -129,6 +130,8 @@ func action(ctx *cli.Context) error {
 		if err := resourcesRender(client, resources, &flag); err != nil {
 			log.Error().Err(err).Msg("failed to start resources renderer")
 		}
+
+		isInitialized.Store(true)
 	}()
 
 	mod := zui.New(ctx.Context, errorsParagraph, &flag)
@@ -142,6 +145,10 @@ func action(ctx *cli.Context) error {
 	}()
 
 	render := func() {
+		if !isInitialized.Load() {
+			ui.Render(header, services, errorsParagraph)
+			return
+		}
 		ui.Render(header, services, netgrid, resources, errorsParagraph)
 	}
 
