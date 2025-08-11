@@ -56,6 +56,7 @@ jobs:
           ./bins-extra.sh --package ${{ inputs.package }}
       - name: Publish flist (tf-autobuilder, ${{ steps.package.outputs.name }})
         if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/testdeploy' || startsWith(github.ref, 'refs/tags/v'))
+
         uses: threefoldtech/publish-flist@master
         with:
           token: ${{ secrets.token }}

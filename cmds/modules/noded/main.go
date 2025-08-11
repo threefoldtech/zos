@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -58,7 +59,7 @@ var Module cli.Command = cli.Command{
 	Action: action,
 }
 
-func registerationServer(ctx context.Context, msgBrokerCon string, env environment.Environment, info registrar.RegistrationInfo) error {
+func registerationServer(ctx context.Context, msgBrokerCon string, info registrar.RegistrationInfo) error {
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
 		return errors.Wrap(err, "fail to connect to message broker server")
@@ -69,7 +70,7 @@ func registerationServer(ctx context.Context, msgBrokerCon string, env environme
 		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
-	registrar := registrar.NewRegistrar(ctx, redis, env, info)
+	registrar := registrar.NewRegistrar(ctx, redis, info)
 	server.Register(zbus.ObjectID{Name: "registrar", Version: "0.0.1"}, registrar)
 	log.Debug().Msg("object registered")
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
@@ -85,6 +86,7 @@ func action(cli *cli.Context) error {
 		printNet     bool   = cli.Bool("net")
 	)
 	env := environment.MustGet()
+	subURLs := env.SubstrateURL
 
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
 	if err != nil {
@@ -159,7 +161,7 @@ func action(cli *cli.Context) error {
 		WithSecureBoot(secureBoot).
 		WithVirtualized(len(hypervisor) != 0)
 
-	go registerationServer(ctx, msgBrokerCon, env, info)
+	go registerationServer(ctx, msgBrokerCon, info)
 	log.Info().Msg("start perf scheduler")
 
 	perfMon, err := perf.NewPerformanceMonitor(msgBrokerCon)
@@ -242,6 +244,50 @@ func action(cli *cli.Context) error {
 				log.Error().Err(err).Msg("setting public config failed")
 				<-time.After(10 * time.Second)
 			}
+		}
+	}()
+
+	// monitor node env updates in substrate url
+	go func() {
+		for {
+			<-time.After(10 * time.Minute)
+
+			log.Debug().Msg("checking if node is maintaining a healty substrate connection")
+			cl, _, err := sub.Raw()
+			if err == nil {
+				// skip update if the connection is working properly
+				log.Debug().Msg("the open connection is healty, no update needed")
+				cl.Client.Close()
+				continue
+			}
+			log.Debug().Err(err).Msg("used substrate manager is not healty, trying to update it")
+
+			// update only if the substrate connection is not healty
+			newEnv, err := environment.Get()
+			if err != nil {
+				log.Debug().Err(err).Msg("failed to get updated config")
+				continue
+			}
+
+			newSubURLs := newEnv.SubstrateURL
+			slices.Sort(subURLs)
+			slices.Sort(newSubURLs)
+
+			if slices.Equal(subURLs, newSubURLs) {
+				log.Debug().Msg("zos-config doesn't have updated config to update the node with")
+				continue
+			}
+
+			newSub, err := environment.GetSubstrate()
+			if err != nil {
+				log.Debug().Err(err).Msg("failed to get updated substrate manager")
+				continue
+			}
+
+			sub = newSub
+			subURLs = newSubURLs
+			events.UpdateSubstrateManager(sub)
+			log.Debug().Strs("substrate_urls", newEnv.SubstrateURL).Msg("updated substrate events handler to use new substrate urls")
 		}
 	}()
 
