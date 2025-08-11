@@ -111,12 +111,10 @@ func action(cli *cli.Context) error {
 	bo.MaxElapsedTime = 0
 
 	// this ctx is used to allow the node to restart the peer without leaving any unwanted open connections
-	peerCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+	currentPeerCtx, cancel := context.WithCancel(ctx)
 	backoff.Retry(func() error {
 		_, err = peer.NewPeer(
-			peerCtx,
+			currentPeerCtx,
 			hex.EncodeToString(pair.Seed()),
 			manager,
 			router.Serve,
@@ -125,6 +123,9 @@ func action(cli *cli.Context) error {
 			peer.WithInMemoryExpiration(6*60*60), // 6 hours
 		)
 		if err != nil {
+			if cancel != nil {
+				cancel()
+			}
 			return fmt.Errorf("failed to start a new rmb peer: %w", err)
 		}
 
@@ -143,16 +144,6 @@ func action(cli *cli.Context) error {
 			return nil
 			// check if we need to run an update on the peer and only do the update if all the changes are done successfully
 		case <-time.After(10 * time.Minute):
-
-			log.Debug().Msg("checking if node is maintaining a healty substrate connection")
-			cl, _, err := manager.Raw()
-			if err == nil {
-				// skip update if the connection is working properly
-				log.Debug().Msg("the open connection is healty, no update needed")
-				cl.Client.Close()
-				continue
-			}
-
 			env, err := environment.Get()
 			if err != nil {
 				// skip update if we can't get env
@@ -176,42 +167,42 @@ func action(cli *cli.Context) error {
 			}
 
 			log.Debug().Strs("relays_urls", updatedRelayURLs).Strs("substrate_urls", updatedSubURLs).Msg("detected new update in configuration")
-			newPeerCtx, newCancel := context.WithCancel(ctx)
 
-			newManager, err := environment.GetSubstrate()
+			manager, err = environment.GetSubstrate()
 			if err != nil {
 				// skip update if can't get sub manager
 				log.Debug().Err(err).Msg("failed to get substrate manager")
 				continue
 			}
-
-			if _, err = peer.NewPeer(
-				newPeerCtx,
-				hex.EncodeToString(pair.Seed()),
-				newManager,
-				router.Serve,
-				peer.WithKeyType(peer.KeyTypeEd25519),
-				peer.WithRelay(updatedRelayURLs...),
-				peer.WithInMemoryExpiration(6*60*60), // 6 hours
-			); err != nil {
-				log.Debug().Err(err).Msg("failed to start a new rmb peer")
-				continue
+			// cancel the current peer to create new one with updated urls
+			if cancel != nil {
+				log.Debug().Msg("cancelling current peer context to create a new one with updated urls")
+				cancel()
 			}
 
-			if !slices.Equal(subURLs, updatedSubURLs) {
-				err = gw.UpdateSubstrateGatewayConnection(newManager)
+			currentPeerCtx, cancel = context.WithCancel(ctx)
+			backoff.Retry(func() error {
+				_, err = peer.NewPeer(
+					currentPeerCtx,
+					hex.EncodeToString(pair.Seed()),
+					manager,
+					router.Serve,
+					peer.WithKeyType(peer.KeyTypeEd25519),
+					peer.WithRelay(updatedRelayURLs...),
+					peer.WithInMemoryExpiration(6*60*60), // 6 hours
+				)
 				if err != nil {
-					log.Debug().Err(err).Msg("failed to update substrate gateway with new manager")
-					newCancel()
-					continue
+					if cancel != nil {
+
+						// cancel the context to avoid any unwanted open connections
+						cancel()
+					}
+					return fmt.Errorf("failed to start a new rmb peer: %w", err)
+
 				}
-			}
+				return nil
+			}, bo)
 
-			cancel()
-			peerCtx = newPeerCtx
-			cancel = newCancel
-
-			manager = newManager
 			relayURLs = updatedRelayURLs
 			subURLs = updatedSubURLs
 
