@@ -13,7 +13,7 @@ table inet filter {
 
 	chain prerouting {
 		type filter hook prerouting priority filter; policy accept;
-		meta nfproto ipv4 iifname "b-*" tcp dport { 25, 465, 587 } reject with icmp type admin-prohibited
+		meta nfproto ipv4 iifname "b-*" tcp dport {25} reject with icmp type admin-prohibited
 	}
 }
 table arp filter {
