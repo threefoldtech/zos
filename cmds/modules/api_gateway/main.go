@@ -64,9 +64,9 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	subURLs := environment.MustGet().SubstrateURL
-	relayURLs := environment.GetRelaysURLs()
+	env := environment.MustGet()
+	subURLs := env.SubstrateURL
+	relayURLs := env.RelaysURLs
 	manager, err := environment.GetSubstrate()
 	if err != nil {
 		return fmt.Errorf("failed to create substrate manager: %w", err)
@@ -152,7 +152,7 @@ func action(cli *cli.Context) error {
 			}
 
 			updatedSubURLs := env.SubstrateURL
-			updatedRelayURLs := environment.GetRelaysURLs()
+			updatedRelayURLs := environment.MustGet().RelaysURLs
 
 			// make sure urls are sorted for comparison
 			slices.Sort(subURLs)
