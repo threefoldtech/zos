@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.34.0
 	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20250703093252-e7500b106618
-	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.16.9-0.20250810145443-9543dbca41df
+	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.16.9-0.20250820184355-b0364f34a442
 	github.com/threefoldtech/zbus v1.0.1
 	github.com/threefoldtech/zosbase v0.1.11-0.20250729092219-8aa23b682790
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
