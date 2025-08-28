@@ -1,5 +1,5 @@
-IPERF_VERSION="3.14"
-IPERF_CHECKSUM="9ef3769b601d79250bb1593b0146dbcb"
+IPERF_VERSION="3.19.1"
+IPERF_CHECKSUM="967de64f73d2884b8a1d82b2b83a27d7"
 IPERF_LINK="https://github.com/userdocs/iperf3-static/releases/download/${IPERF_VERSION}/iperf3-amd64"
 
 download_iperf() {
