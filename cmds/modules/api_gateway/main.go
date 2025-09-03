@@ -152,7 +152,7 @@ func action(cli *cli.Context) error {
 			}
 
 			updatedSubURLs := env.SubstrateURL
-			updatedRelayURLs := environment.MustGet().RelaysURLs
+			updatedRelayURLs := env.RelaysURLs
 
 			// make sure urls are sorted for comparison
 			slices.Sort(subURLs)
