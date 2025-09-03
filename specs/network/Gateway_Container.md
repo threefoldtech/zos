@@ -188,7 +188,7 @@ The network setup we envisioned needed to be
 - Easy to reason about
 - Most of all, easy to debug in case something goes wrong
 
-There so many combinations and incantations possible (this is the the case now, but will be even more so in the future) that having to maintain a living object with many relationships in terms of adding and/or deleting is not really mpossible, but very (extremely?) difficult and prone to errors. 
+There so many combinations and incantations possible (this is the case now, but will be even more so in the future) that having to maintain a living object with many relationships in terms of adding and/or deleting is not really mpossible, but very (extremely?) difficult and prone to errors. 
 These errors can be User Errors, which can be fixable, but the most important problem is the possibility of discrepance between what is effectively live in a system and what is modeled in the database.
 A part from that problem, to add insult to injury, upgrading a network with new features or different approaches, would add an increased complexity in migration of networks from one version(or form) to another. That as well in the model, as trying to reimplement the model to reality.
 The more, a DataBase as single source of thruth adds the necessity to secure that database (with replacations, High Availability and all problems that are associated with maintianing databases). Needless to say, that is a problem that needs to be avoided like it were the plague. 
