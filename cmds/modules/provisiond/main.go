@@ -365,6 +365,7 @@ func action(cli *cli.Context) error {
 	// call the runtime upgrade before running engine
 	if err := provisioners.Initialize(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to run provisioners initializers")
+		return err
 	}
 
 	// spawn the engine

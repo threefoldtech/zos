@@ -5,6 +5,8 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
+	"slices"
+	"time"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
@@ -62,7 +64,9 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
+	env := environment.MustGet()
+	subURLs := env.SubstrateURL
+	relayURLs := env.RelaysURLs
 	manager, err := environment.GetSubstrate()
 	if err != nil {
 		return fmt.Errorf("failed to create substrate manager: %w", err)
@@ -105,17 +109,23 @@ func action(cli *cli.Context) error {
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
+
+	// this ctx is used to allow the node to restart the peer without leaving any unwanted open connections
+	currentPeerCtx, cancel := context.WithCancel(ctx)
 	backoff.Retry(func() error {
 		_, err = peer.NewPeer(
-			ctx,
+			currentPeerCtx,
 			hex.EncodeToString(pair.Seed()),
 			manager,
 			router.Serve,
 			peer.WithKeyType(peer.KeyTypeEd25519),
-			peer.WithRelay(environment.GetRelaysURLs()...),
+			peer.WithRelay(relayURLs...),
 			peer.WithInMemoryExpiration(6*60*60), // 6 hours
 		)
 		if err != nil {
+			if cancel != nil {
+				cancel()
+			}
 			return fmt.Errorf("failed to start a new rmb peer: %w", err)
 		}
 
@@ -128,6 +138,75 @@ func action(cli *cli.Context) error {
 		Msg("starting api-gateway module")
 
 	// block forever
-	<-ctx.Done()
-	return nil
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+			// check if we need to run an update on the peer and only do the update if all the changes are done successfully
+		case <-time.After(10 * time.Minute):
+			env, err := environment.Get()
+			if err != nil {
+				// skip update if we can't get env
+				log.Debug().Err(err).Msg("failed to load node environment")
+				continue
+			}
+
+			updatedSubURLs := env.SubstrateURL
+			updatedRelayURLs := env.RelaysURLs
+
+			// make sure urls are sorted for comparison
+			slices.Sort(subURLs)
+			slices.Sort(relayURLs)
+			slices.Sort(updatedSubURLs)
+			slices.Sort(updatedRelayURLs)
+
+			// skip update if substrate and relay urls did not change
+			if slices.Equal(subURLs, updatedSubURLs) && slices.Equal(relayURLs, updatedRelayURLs) {
+				log.Debug().Msg("zos-config doesn't have updated config to update the node with")
+				continue
+			}
+
+			log.Debug().Strs("relays_urls", updatedRelayURLs).Strs("substrate_urls", updatedSubURLs).Msg("detected new update in configuration")
+
+			manager, err = environment.GetSubstrate()
+			if err != nil {
+				// skip update if can't get sub manager
+				log.Debug().Err(err).Msg("failed to get substrate manager")
+				continue
+			}
+			// cancel the current peer to create new one with updated urls
+			if cancel != nil {
+				log.Debug().Msg("cancelling current peer context to create a new one with updated urls")
+				cancel()
+			}
+
+			currentPeerCtx, cancel = context.WithCancel(ctx)
+			backoff.Retry(func() error {
+				_, err = peer.NewPeer(
+					currentPeerCtx,
+					hex.EncodeToString(pair.Seed()),
+					manager,
+					router.Serve,
+					peer.WithKeyType(peer.KeyTypeEd25519),
+					peer.WithRelay(updatedRelayURLs...),
+					peer.WithInMemoryExpiration(6*60*60), // 6 hours
+				)
+				if err != nil {
+					if cancel != nil {
+
+						// cancel the context to avoid any unwanted open connections
+						cancel()
+					}
+					return fmt.Errorf("failed to start a new rmb peer: %w", err)
+
+				}
+				return nil
+			}, bo)
+
+			relayURLs = updatedRelayURLs
+			subURLs = updatedSubURLs
+
+			log.Debug().Strs("relays_urls", relayURLs).Strs("substrate_urls", subURLs).Msg("updated substrate and relay urls")
+		}
+	}
 }
