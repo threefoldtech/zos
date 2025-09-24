@@ -56,11 +56,11 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 	}
 
 	go func() {
-		registrarLable := "registrar"
+		registrarLabel := "registrar"
 		zui := stubs.NewZUIStub(c)
 
 		// empty out zui errors for registrar
-		if zuiErr := zui.PushErrors(ctx, registrarLable, []string{}); zuiErr != nil {
+		if zuiErr := zui.PushErrors(ctx, registrarLabel, []string{}); zuiErr != nil {
 			log.Info().Err(zuiErr).Send()
 		}
 
@@ -80,12 +80,16 @@ func headerRenderer(ctx context.Context, c zbus.Client, h *widgets.Paragraph, r 
 					nodeID = green(err.Error())
 				} else {
 					nodeID = red(fmt.Sprintf("%d (unregistered)", node))
-					if zuiErr := zui.PushErrors(ctx, registrarLable, []string{err.Error()}); zuiErr != nil {
+					if zuiErr := zui.PushErrors(ctx, registrarLabel, []string{err.Error()}); zuiErr != nil {
 						log.Info().Err(zuiErr).Send()
 					}
 				}
 			} else {
 				nodeID = green(fmt.Sprint(node))
+				// Clear registrar errors when registration succeeds
+				if zuiErr := zui.PushErrors(ctx, registrarLabel, []string{}); zuiErr != nil {
+					log.Info().Err(zuiErr).Send()
+				}
 			}
 
 			cache := green("OK")
