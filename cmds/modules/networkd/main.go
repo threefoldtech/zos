@@ -72,6 +72,10 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to cleanupUnusedLinks")
 	}
 
+	if err := network.CleanupOrphanedNamespaces(); err != nil {
+		return errors.Wrap(err, "failed to CleanupOrphanedNamespaces")
+	}
+
 	if err := bootstrap.DefaultBridgeValid(); err != nil {
 		return errors.Wrap(err, "invalid setup")
 	}
