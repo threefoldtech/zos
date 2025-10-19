@@ -19,7 +19,11 @@ import (
 
 var (
 	mainNetFarms = []pkg.FarmID{
-		1, 79, 77, 76,
+		1,    // FreeFarm
+		76,   // GreenEdge-Enterprise-Frankfurt1
+		77,   // GreenEdge-Enterprise-StGallen1
+		79,   // GreenEdgeAustria-Enterprise-Salzburg1
+		1994, // Naiein_000
 	}
 )
 
