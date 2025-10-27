@@ -75,7 +75,6 @@ func action(cli *cli.Context) error {
 	utils.OnDone(ctx, func(_ error) {
 		log.Info().Msg("shutting down")
 	})
-
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
 		return errors.Wrap(err, "unexpected error")
 	}
