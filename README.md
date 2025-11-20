@@ -19,7 +19,7 @@ If you want to contribute read the [contribution guideline](CONTRIBUTING.md) and
 
 ## Grid Networks
 
-0-OS is deployed on 3 different "flavor" of network:
+0-OS is deployed on 4 different "flavor" of network:
 
 - **production network**: Released of stable version. Used to run the real grid with real money. Cannot be reset ever. Only stable and battle tested feature reach this level. You can find the [dashboard here](https://dashboard.grid.tf/)
 - **test network**: Mostly stable features that need to be tested at scale, allow preview and test of new features. Always the latest and greatest. This network can be reset sometimes, but should be relatively stable. You can find the [dashboard here](https://dashboard.test.grid.tf/)
