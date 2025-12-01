@@ -18,6 +18,7 @@ import (
 	"github.com/threefoldtech/zos/cmds/modules/qsfsd"
 	"github.com/threefoldtech/zos/cmds/modules/storaged"
 	"github.com/threefoldtech/zos/cmds/modules/vmd"
+	"github.com/threefoldtech/zos/cmds/modules/vmtestd"
 	"github.com/threefoldtech/zos/cmds/modules/zbusdebug"
 	"github.com/threefoldtech/zos/cmds/modules/zui"
 	"github.com/threefoldtech/zosbase/pkg/app"
@@ -50,6 +51,7 @@ func main() {
 			&flistd.Module,
 			&contd.Module,
 			&vmd.Module,
+			&vmtestd.Module,
 			&noded.Module,
 			&networkd.Module,
 			&provisiond.Module,

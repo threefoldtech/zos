@@ -1,0 +1,9 @@
+exec: vmtestd --broker unix:///var/run/redis.sock --root /var/cache/modules/vmtestd
+after:
+  - boot
+  - vmd
+  - flistd
+  - noded
+  - provisiond
+  - storaged
+  - networkd
