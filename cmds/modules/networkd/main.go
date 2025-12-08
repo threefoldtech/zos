@@ -68,11 +68,12 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to migrate older dhcp service")
 	}
 
-	if err := network.CleanupUnusedLinks(); err != nil {
-		return errors.Wrap(err, "failed to cleanupUnusedLinks")
-	}
+	// NOTE: all cleanup are done, future deprovisioning will not need to do this
+	// if err := network.CleanupUnusedLinks(); err != nil {
+	// 	return errors.Wrap(err, "failed to cleanupUnusedLinks")
+	// }
 
-	network.CleanupOrphanedNamespaces()
+	// network.CleanupOrphanedNamespaces()
 
 	if err := bootstrap.DefaultBridgeValid(); err != nil {
 		return errors.Wrap(err, "invalid setup")
