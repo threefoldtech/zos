@@ -16,6 +16,7 @@ import (
 	"github.com/threefoldtech/zosbase/pkg/environment"
 	"github.com/threefoldtech/zosbase/pkg/identity"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zosbase/pkg/utils"
@@ -71,10 +72,12 @@ func main() {
 	client, err := zbus.NewRedisClient(broker)
 
 	if farm {
+		zerolog.SetGlobalLevel(zerolog.Disabled)
 		env := environment.MustGet()
 		fmt.Println(env.FarmID)
 		os.Exit(0)
 	} else if net {
+		zerolog.SetGlobalLevel(zerolog.Disabled)
 		env := environment.MustGet()
 		fmt.Println(env.RunningMode.String())
 		os.Exit(0)
