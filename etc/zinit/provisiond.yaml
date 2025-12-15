@@ -1,6 +1,7 @@
 # provisind runs inside ndmz. the ndmz has rules to accept connection to
 # provisiond address :2021
 exec: provisiond --broker unix:///var/run/redis.sock --root /var/cache/modules/provisiond
+test: zbusdebug --module provision
 after:
   - boot
   - flistd

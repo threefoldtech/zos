@@ -1,4 +1,5 @@
 exec: qsfsd --broker unix:///var/run/redis.sock --root /var/cache/modules/qsfsd
+test: zbusdebug --module qsfsd
 after:
   - boot
   - contd
