@@ -1,5 +1,5 @@
 MYCELIUM_VERSION="0.6.1"
-MYCELIUM_CHECKSUM="160f367228ff6a8a933ff0a55209d010"
+MYCELIUM_CHECKSUM="db532d4d7e0d975ee7e8128bdc9ad8b9"
 MYCELIUM_LINK="https://github.com/threefoldtech/mycelium/releases/download/v${MYCELIUM_VERSION}/mycelium-x86_64-unknown-linux-musl.tar.gz"
 
 download_mycelium() {
