@@ -20,8 +20,8 @@ import (
 	"github.com/threefoldtech/zosbase/pkg/perf"
 	"github.com/threefoldtech/zosbase/pkg/perf/cpubench"
 	"github.com/threefoldtech/zosbase/pkg/perf/healthcheck"
-	"github.com/threefoldtech/zosbase/pkg/perf/iperf"
 	"github.com/threefoldtech/zosbase/pkg/perf/publicip"
+	"github.com/threefoldtech/zosbase/pkg/perf/speedtest"
 	"github.com/threefoldtech/zosbase/pkg/registrar"
 	"github.com/threefoldtech/zosbase/pkg/stubs"
 	"github.com/threefoldtech/zosbase/pkg/utils"
@@ -174,7 +174,7 @@ func action(cli *cli.Context) error {
 	}
 	ctx = perf.WithZbusClient(ctx, zcl)
 	healthcheck.RunNTPCheck(ctx)
-	perfMon.AddTask(iperf.NewTask())
+	perfMon.AddTask(speedtest.NewTask())
 	perfMon.AddTask(cpubench.NewTask())
 	perfMon.AddTask(publicip.NewTask())
 	perfMon.AddTask(healthcheck.NewTask())

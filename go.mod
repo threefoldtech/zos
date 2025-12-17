@@ -134,6 +134,7 @@ require (
 	github.com/rs/cors v1.10.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/safchain/ethtool v0.0.0-20201023143004-874930cb3ce0 // indirect
+	github.com/showwin/speedtest-go v1.7.10 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
@@ -170,3 +171,5 @@ require (
 )
 
 replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.7.1-0.20190205005809-0d3efadf0154+incompatible
+
+replace github.com/threefoldtech/zosbase => ../zosbase
