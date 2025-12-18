@@ -17,7 +17,7 @@ require (
 	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20250929084418-b950278ead30
 	github.com/threefoldtech/tfgrid-sdk-go/rmb-sdk-go v0.17.5
 	github.com/threefoldtech/zbus v1.0.1
-	github.com/threefoldtech/zosbase v1.0.5
+	github.com/threefoldtech/zosbase v1.0.6
 	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -31,7 +31,6 @@ require (
 	github.com/Microsoft/hcsshim v0.8.25 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/alexflint/go-filemutex v1.1.0 // indirect
-	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/containerd/cgroups v1.0.3 // indirect
 	github.com/containerd/containerd v1.5.18 // indirect
 	github.com/containerd/continuity v0.3.0 // indirect
@@ -144,6 +143,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/xxtea/xxtea-go v0.0.0-20170828040851-35c4b17eecf6 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	go.etcd.io/bbolt v1.3.5 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/mock v0.5.2 // indirect
