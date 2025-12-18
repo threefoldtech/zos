@@ -1,5 +1,5 @@
 exec: containerd
-test: ctr version
+test: sh -c "ctr version && zbusdebug --module container"
 after:
   - node-ready
 
