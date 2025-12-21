@@ -1,4 +1,5 @@
 exec: vmd --broker unix:///var/run/redis.sock
+test: zbusdebug --module vmd
 after:
   - boot
   - networkd

@@ -1,4 +1,5 @@
 exec: flistd --broker unix:///var/run/redis.sock --root /var/cache/modules/flistd
+test: zbusdebug --module flist
 after:
   - boot
   # identityd is added to make sure all binaries are up to date

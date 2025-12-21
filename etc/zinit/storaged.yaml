@@ -1,5 +1,5 @@
 exec: storaged --broker unix:///var/run/redis.sock
 # we only consider the storaged is running only if the /var/cache is mounted
-test: mountpoint /var/cache
+test: sh -c "mountpoint /var/cache && zbusdebug --module storage"
 after:
   - node-ready
