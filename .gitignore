@@ -20,3 +20,7 @@ qemu/*.efi
 
 # c object
 *.o
+
+# go work
+go.work
+go.work.sum
