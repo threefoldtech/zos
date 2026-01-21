@@ -1,4 +1,4 @@
-exec: ip netns exec ndmz noded --broker unix:///var/run/redis.sock
+exec: noded --broker unix:///var/run/redis.sock
 test: zbusdebug --module node
 after:
   - boot

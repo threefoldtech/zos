@@ -1,5 +1,4 @@
 exec: gateway --broker unix:///var/run/redis.sock --root /var/cache/modules/gateway
-test: zbusdebug --module gateway
 after:
   - boot
   - networkd

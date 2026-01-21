@@ -13,24 +13,8 @@ import (
 	"github.com/threefoldtech/zosbase/pkg/stubs"
 )
 
-func setPublicConfig(ctx context.Context, cl zbus.Client, cfg *substrate.PublicConfig) error {
-	log.Info().Msg("setting node public config")
-	netMgr := stubs.NewNetworkerStub(cl)
-
-	if cfg == nil {
-		return netMgr.UnsetPublicConfig(ctx)
-	}
-
-	pub, err := pkg.PublicConfigFrom(*cfg)
-	if err != nil {
-		return errors.Wrap(err, "failed to create public config from setup")
-	}
-
-	return netMgr.SetPublicConfig(ctx, pub)
-}
-
 // public sets and watches changes to public config on chain and tries to apply the provided setup
-func public(ctx context.Context, nodeID uint32, cl zbus.Client, events *events.RedisConsumer) error {
+func startPublicConfigWatcher(ctx context.Context, nodeID uint32, cl zbus.Client, events *events.RedisConsumer) error {
 	ch, err := events.PublicConfig(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to subscribe to node events")
@@ -75,4 +59,20 @@ reapply:
 			}
 		}
 	}
+}
+
+func setPublicConfig(ctx context.Context, cl zbus.Client, cfg *substrate.PublicConfig) error {
+	log.Info().Msg("setting node public config")
+	netMgr := stubs.NewNetworkerStub(cl)
+
+	if cfg == nil {
+		return netMgr.UnSetPublicConfig(ctx)
+	}
+
+	pub, err := pkg.PublicConfigFrom(*cfg)
+	if err != nil {
+		return errors.Wrap(err, "failed to create public config from setup")
+	}
+
+	return netMgr.SetPublicConfig(ctx, pub)
 }

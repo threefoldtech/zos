@@ -62,6 +62,11 @@ createdisks() {
     qemu-img create -f qcow2 $vmdir/vdc.qcow2 500G
     qemu-img create -f qcow2 $vmdir/vdd.qcow2 500G
     qemu-img create -f qcow2 $vmdir/vde.qcow2 500G
+    qemu-img create -f qcow2 $vmdir/vdc1.qcow2 500G
+    qemu-img create -f qcow2 $vmdir/vdc2.qcow2 500G
+    qemu-img create -f qcow2 $vmdir/vdc3.qcow2 500G
+    qemu-img create -f qcow2 $vmdir/vdc4.qcow2 500G
+    qemu-img create -f qcow2 $vmdir/vdc5.qcow2 500G
 
 }
 

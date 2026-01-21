@@ -2,8 +2,6 @@ package zui
 
 import (
 	"context"
-	"fmt"
-	"net"
 	"strings"
 
 	ui "github.com/gizak/termui/v3"
@@ -22,29 +20,11 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 
 	table.Rows = [][]string{
 		{"ZOS", loading},
-		{"DMZ", loading},
-		{"YGG", loading},
-		{"PUB", loading},
 		{"DUL", loading},
 	}
-
+	table.Rows[1][1] = "single" // light has only single stack setup
 	stub := stubs.NewNetworkerStub(client)
 	zos, err := stub.ZOSAddresses(ctx)
-	if err != nil {
-		return err
-	}
-
-	dmz, err := stub.DMZAddresses(ctx)
-	if err != nil {
-		return err
-	}
-
-	ygg, err := stub.YggAddresses(ctx)
-	if err != nil {
-		return err
-	}
-
-	pub, err := stub.PublicAddresses(ctx)
 	if err != nil {
 		return err
 	}
@@ -77,28 +57,8 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 		for {
 			render.Signal()
 			table.ColumnWidths = []int{6, table.Size().X - 9}
-			select {
-			case a := <-zos:
-				table.Rows[0][1] = toString(a)
-			case a := <-dmz:
-				table.Rows[1][1] = toString(a)
-			case a := <-ygg:
-				table.Rows[2][1] = toString(a)
-			case a := <-pub:
-				str := "no public config"
-				if a.HasPublicConfig {
-					str = toString([]net.IPNet{a.IPv4.IPNet, a.IPv6.IPNet})
-				}
-				table.Rows[3][1] = str
-			}
+			table.Rows[0][1] = toString(<-zos)
 
-			exit, err := stub.GetPublicExitDevice(ctx)
-			dual := exit.String()
-			if err != nil {
-				dual = fmt.Sprintf("error: %s", err)
-			}
-
-			table.Rows[4][1] = dual
 		}
 	}()
 

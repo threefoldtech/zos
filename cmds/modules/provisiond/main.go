@@ -331,9 +331,11 @@ func action(cli *cli.Context) error {
 			zos.VolumeType,
 			zos.QuantumSafeFSType,
 			zos.NetworkType,
+			zos.NetworkLightType,
 			zos.PublicIPv4Type,
 			zos.PublicIPType,
 			zos.ZMachineType,
+			zos.ZMachineLightType,
 			zos.ZLogsType, // make sure zlogs comes after zmachine
 		),
 		// if this is a node reboot, the node needs to

@@ -166,43 +166,44 @@ func (r *Reporter) getVmMetrics(ctx context.Context, slot rrd.Slot) error {
 	return nil
 }
 
-// getNetworkMetrics will collect network consumption for network resource and store it in the given slot
-func (r *Reporter) getNetworkMetrics(ctx context.Context, slot rrd.Slot) error {
-	log.Debug().Msg("collecting networking metrics")
-	stub := stubs.NewNetworkerStub(r.cl)
+// // getNetworkMetrics will collect network consumption for network resource and store it in the given slot
+// func (r *Reporter) getNetworkMetrics(ctx context.Context, slot rrd.Slot) error {
+// 	log.Debug().Msg("collecting networking metrics")
+// 	stub := stubs.NewNetworkerStub(r.cl)
 
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
-	defer cancel()
-	metrics, err := stub.Metrics(ctx)
-	if err != nil {
-		return err
-	}
+// 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+// 	defer cancel()
+// 	metrics, err := stub.Metrics(ctx)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	for wl, consumption := range metrics {
-		nu := consumption.Nu()
-		log.Debug().Str("network", wl).Uint64("computed", uint64(nu)).Msgf("consumption: %+v", consumption)
-		if err := slot.Counter(wl, float64(nu)); err != nil {
-			return errors.Wrapf(err, "failed to store metrics for '%s'", wl)
-		}
-	}
+// 	for wl, consumption := range metrics {
+// 		nu := consumption.Nu()
+// 		log.Debug().Str("network", wl).Uint64("computed", uint64(nu)).Msgf("consumption: %+v", consumption)
+// 		if err := slot.Counter(wl, float64(nu)); err != nil {
+// 			return errors.Wrapf(err, "failed to store metrics for '%s'", wl)
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // getVmMetrics will collect network consumption every 5 min and store
 // it in the rrd database.
 func (r *Reporter) getGwMetrics(ctx context.Context, slot rrd.Slot) error {
-	log.Debug().Msg("collecting networking metrics")
+	log.Debug().Msg("collecting gateway networking metrics")
 	gw := stubs.NewGatewayStub(r.cl)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	metrics, err := gw.Metrics(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get gateway metrics")
 	}
 	requests := metrics.Request
 	responses := metrics.Response
+	log.Debug().Int("requests", len(requests)).Int("responses", len(responses)).Msg("gateway metrics received")
 
 	sums := make(map[string]float64)
 	for wl, v := range requests {
@@ -213,6 +214,8 @@ func (r *Reporter) getGwMetrics(ctx context.Context, slot rrd.Slot) error {
 	for wl, v := range responses {
 		sums[wl] = v
 	}
+
+	log.Debug().Int("workloads", len(sums)).Msg("gateway metrics aggregated")
 
 	for wl, nu := range sums {
 		log.Debug().Str("gw", wl).Uint64("computed", uint64(nu)).Msg("consumption")
