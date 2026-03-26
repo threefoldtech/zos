@@ -106,11 +106,12 @@ func runChecks(ctx context.Context, rootDir string, cl zbus.Client) error {
 		log.Info().Err(zuiErr).Send()
 	}
 
-	cmd.CombinedOutput()
+	_, _ = cmd.CombinedOutput()
 	err := cmd.Run()
-	if err == context.Canceled {
+	switch err {
+	case context.Canceled:
 		return err
-	} else if err == nil {
+	case nil:
 		return nil
 	}
 
@@ -128,9 +129,9 @@ func runChecks(ctx context.Context, rootDir string, cl zbus.Client) error {
 
 func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string = cli.String("broker")
-		rootDir      string = cli.String("root")
-		integrity    bool   = cli.Bool("integrity")
+		msgBrokerCon = cli.String("broker")
+		rootDir      = cli.String("root")
+		integrity    = cli.Bool("integrity")
 	)
 
 	server, err := zbus.NewRedisServer(serverName, msgBrokerCon, 1)
@@ -194,7 +195,7 @@ func action(cli *cli.Context) error {
 	network := stubs.NewNetworkerStub(cl)
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
-	backoff.RetryNotify(func() error {
+	_ = backoff.RetryNotify(func() error {
 		return network.Ready(cli.Context)
 	}, bo, func(err error, d time.Duration) {
 		log.Error().Err(err).Msg("networkd is not ready yet")
@@ -348,14 +349,14 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "failed to instantiate provision engine")
 	}
 
-	server.Register(
+	_ = server.Register(
 		zbus.ObjectID{Name: provisionModule, Version: "0.0.1"},
 		pkg.Provision(engine),
 	)
 
-	server.Register(
+	_ = server.Register(
 		zbus.ObjectID{Name: statisticsModule, Version: "0.0.1"},
-		pkg.Statistics(primitives.NewStatisticsStream(statistics)),
+		primitives.NewStatisticsStream(statistics),
 	)
 
 	log.Info().

@@ -52,8 +52,8 @@ var (
 
 func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string = cli.String("broker")
-		module       string = cli.String("module")
+		msgBrokerCon = cli.String("broker")
+		module       = cli.String("module")
 	)
 
 	cl, err := zbus.NewRedisClient(msgBrokerCon)
@@ -99,7 +99,7 @@ func printModuleStatus(ctx context.Context, cl zbus.Client, module string) error
 	enc := yaml.NewEncoder(os.Stdout)
 	defer enc.Close()
 
-	enc.Encode(status)
+	_ = enc.Encode(status)
 	fmt.Println()
 	return nil
 }
