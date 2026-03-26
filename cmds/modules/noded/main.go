@@ -71,7 +71,7 @@ func registerationServer(ctx context.Context, msgBrokerCon string, info registra
 	}
 
 	registrar := registrar.NewRegistrar(ctx, redis, info)
-	server.Register(zbus.ObjectID{Name: "registrar", Version: "0.0.1"}, registrar)
+	_ = server.Register(zbus.ObjectID{Name: "registrar", Version: "0.0.1"}, registrar)
 	log.Debug().Msg("object registered")
 	if err := server.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatal().Err(err).Msg("unexpected error exited registrar")
@@ -81,9 +81,9 @@ func registerationServer(ctx context.Context, msgBrokerCon string, info registra
 
 func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string = cli.String("broker")
-		printID      bool   = cli.Bool("id")
-		printNet     bool   = cli.Bool("net")
+		msgBrokerCon = cli.String("broker")
+		printID      = cli.Bool("id")
+		printNet     = cli.Bool("net")
 	)
 	env := environment.MustGet()
 	subURLs := env.SubstrateURL
@@ -161,7 +161,11 @@ func action(cli *cli.Context) error {
 		WithSecureBoot(secureBoot).
 		WithVirtualized(len(hypervisor) != 0)
 
-	go registerationServer(ctx, msgBrokerCon, info)
+	go func() {
+		if err := registerationServer(ctx, msgBrokerCon, info); err != nil {
+			log.Error().Err(err).Msg("registration server failed")
+		}
+	}()
 	log.Info().Msg("start perf scheduler")
 
 	perfMon, err := perf.NewPerformanceMonitor(msgBrokerCon)
@@ -232,9 +236,9 @@ func action(cli *cli.Context) error {
 		log.Fatal().Err(err).Msg("failed to initialize host monitor")
 	}
 
-	server.Register(zbus.ObjectID{Name: "host", Version: "0.0.1"}, host)
-	server.Register(zbus.ObjectID{Name: "system", Version: "0.0.1"}, system)
-	server.Register(zbus.ObjectID{Name: "performance-monitor", Version: "0.0.1"}, perfMon)
+	_ = server.Register(zbus.ObjectID{Name: "host", Version: "0.0.1"}, host)
+	_ = server.Register(zbus.ObjectID{Name: "system", Version: "0.0.1"}, system)
+	_ = server.Register(zbus.ObjectID{Name: "performance-monitor", Version: "0.0.1"}, perfMon)
 
 	log.Info().Uint32("node", node).Uint32("twin", twin).Msg("node registered")
 

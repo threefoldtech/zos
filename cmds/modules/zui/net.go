@@ -52,7 +52,7 @@ func addressRender(ctx context.Context, table *widgets.Table, client zbus.Client
 	toString := func(al pkg.NetlinkAddresses) string {
 		var buf strings.Builder
 		for _, a := range al {
-			if a.IP == nil || len(a.IP) == 0 {
+			if len(a.IP) == 0 {
 				continue
 			}
 

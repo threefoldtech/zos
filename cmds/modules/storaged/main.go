@@ -38,8 +38,8 @@ var Module cli.Command = cli.Command{
 
 func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string = cli.String("broker")
-		workerNr     uint   = cli.Uint("workers")
+		msgBrokerCon = cli.String("broker")
+		workerNr     = cli.Uint("workers")
 	)
 
 	storageModule, err := storage.New(cli.Context)
@@ -53,7 +53,7 @@ func action(cli *cli.Context) error {
 		return errors.Wrap(err, "fail to connect to message broker server")
 	}
 
-	server.Register(zbus.ObjectID{Name: "storage", Version: "0.0.1"}, storageModule)
+	_ = server.Register(zbus.ObjectID{Name: "storage", Version: "0.0.1"}, storageModule)
 
 	log.Info().
 		Str("broker", msgBrokerCon).

@@ -48,9 +48,9 @@ var Module cli.Command = cli.Command{
 
 func action(cli *cli.Context) error {
 	var (
-		moduleRoot   string = cli.String("root")
-		msgBrokerCon string = cli.String("broker")
-		workerNr     uint   = cli.Uint("workers")
+		moduleRoot   = cli.String("root")
+		msgBrokerCon = cli.String("broker")
+		workerNr     = cli.Uint("workers")
 	)
 
 	redis, err := zbus.NewRedisClient(msgBrokerCon)
@@ -66,7 +66,7 @@ func action(cli *cli.Context) error {
 	}
 
 	mod := flist.New(moduleRoot, storage)
-	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, mod)
+	_ = server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, mod)
 
 	ctx, _ := utils.WithSignal(context.Background())
 
