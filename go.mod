@@ -20,15 +20,15 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-
 require (
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/ChainSafe/go-schnorrkel v1.1.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.11.7 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/alexflint/go-filemutex v1.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/containerd v1.7.30 // indirect
 	github.com/containerd/continuity v0.4.4 // indirect
@@ -50,6 +50,7 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gtank/merlin v0.1.1 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hasura/go-graphql-client v0.10.0 // indirect
@@ -66,6 +67,7 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/threefoldtech/0-fs v1.3.1-0.20240424140157-b488dfedcc56 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
+	github.com/vedhavyas/go-subkey/v2 v2.0.0 // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
 	github.com/whs/nacl-sealed-box v0.0.0-20180930164530-92b9ba845d8d // indirect
@@ -75,13 +77,12 @@ require (
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b // indirect
+	google.golang.org/grpc v1.77.0 // indirect
 )
 
 require (
-	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/containerd/api v1.8.0 // indirect
 	github.com/containerd/errdefs v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
@@ -151,7 +152,6 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/vedhavyas/go-subkey v1.0.3 // indirect
-	github.com/vedhavyas/go-subkey/v2 v2.0.0 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	github.com/xxtea/xxtea-go v0.0.0-20170828040851-35c4b17eecf6 // indirect
@@ -171,7 +171,6 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20231211222908-989df2bf70f3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
-	google.golang.org/grpc v1.77.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/djherbis/times.v1 v1.2.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect

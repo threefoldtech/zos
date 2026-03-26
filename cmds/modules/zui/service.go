@@ -147,12 +147,12 @@ func getStatisticsStatus(ctx context.Context, client zbus.Client) {
 
 func getContainerdStatus(ctx context.Context, client zbus.Client) {
 	statistics := stubs.NewContainerModuleStub(client)
-	statistics.ListNS(ctx)
+	_, _ = statistics.ListNS(ctx)
 }
 
 func getStoragedStatus(ctx context.Context, client zbus.Client) {
 	storaged := stubs.NewStorageModuleStub(client)
-	storaged.Devices(ctx)
+	_, _ = storaged.Devices(ctx)
 }
 
 func getNodedStatus(ctx context.Context, client zbus.Client) {

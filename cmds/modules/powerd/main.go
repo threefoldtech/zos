@@ -36,8 +36,8 @@ var Module cli.Command = cli.Command{
 
 func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string = cli.String("broker")
-		powerdLabel  string = "powerd"
+		msgBrokerCon = cli.String("broker")
+		powerdLabel  = "powerd"
 	)
 
 	ctx, _ := utils.WithSignal(cli.Context)

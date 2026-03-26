@@ -54,8 +54,8 @@ var Module cli.Command = cli.Command{
 
 func action(cli *cli.Context) error {
 	var (
-		root   string = cli.String("root")
-		broker string = cli.String("broker")
+		root   = cli.String("root")
+		broker = cli.String("broker")
 	)
 
 	if err := os.MkdirAll(root, 0755); err != nil {
@@ -159,7 +159,7 @@ func startZBusServer(ctx context.Context, broker string, networker pkg.Networker
 		log.Error().Err(err).Msgf("fail to connect to message broker server")
 	}
 
-	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, networker)
+	_ = server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, networker)
 
 	log.Info().
 		Str("broker", broker).

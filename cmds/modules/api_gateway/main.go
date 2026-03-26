@@ -44,8 +44,8 @@ var Module cli.Command = cli.Command{
 
 func action(cli *cli.Context) error {
 	var (
-		msgBrokerCon string = cli.String("broker")
-		workerNr     uint   = cli.Uint("workers")
+		msgBrokerCon = cli.String("broker")
+		workerNr     = cli.Uint("workers")
 	)
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
@@ -78,7 +78,7 @@ func action(cli *cli.Context) error {
 		return fmt.Errorf("failed to create api gateway: %w", err)
 	}
 
-	server.Register(zbus.ObjectID{Name: "api-gateway", Version: "0.0.1"}, gw)
+	_ = server.Register(zbus.ObjectID{Name: "api-gateway", Version: "0.0.1"}, gw)
 
 	ctx, _ := utils.WithSignal(context.Background())
 	utils.OnDone(ctx, func(_ error) {
@@ -112,7 +112,7 @@ func action(cli *cli.Context) error {
 
 	// this ctx is used to allow the node to restart the peer without leaving any unwanted open connections
 	currentPeerCtx, cancel := context.WithCancel(ctx)
-	backoff.Retry(func() error {
+	_ = backoff.Retry(func() error {
 		_, err = peer.NewPeer(
 			currentPeerCtx,
 			hex.EncodeToString(pair.Seed()),
@@ -181,7 +181,7 @@ func action(cli *cli.Context) error {
 			}
 
 			currentPeerCtx, cancel = context.WithCancel(ctx)
-			backoff.Retry(func() error {
+			_ = backoff.Retry(func() error {
 				_, err = peer.NewPeer(
 					currentPeerCtx,
 					hex.EncodeToString(pair.Seed()),
