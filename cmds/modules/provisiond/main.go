@@ -230,9 +230,9 @@ func action(cli *cli.Context) error {
 		}
 	}
 
-	if err := store.CleanDeleted(); err != nil {
-		log.Error().Err(err).Msg("failed to purge deleted deployments history")
-	}
+	// if err := store.CleanDeleted(); err != nil {
+	// 	log.Error().Err(err).Msg("failed to purge deleted deployments history")
+	// }
 
 	provisioners := primitives.NewPrimitivesProvisioner(cl)
 
