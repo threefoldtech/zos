@@ -1,6 +1,6 @@
-VIRTWHAT_VERSION="1.27-1"
-VIRTWHAT_CHECKSUM="7ce5ae03f93aef3be3161a0f3ee8d26a"
-VIRTWHAT_LINK="https://github.com/deepin-community/virt-what/archive/refs/tags/${VIRTWHAT_VERSION}.tar.gz"
+VIRTWHAT_VERSION="1.27"
+VIRTWHAT_CHECKSUM="0d392f4623fe747400b0a14c0942e2ec"
+VIRTWHAT_LINK="https://people.redhat.com/~rjones/virt-what/files/virt-what-${VIRTWHAT_VERSION}.tar.gz"
 
 download_virtwhat() {
     download_file ${VIRTWHAT_LINK} ${VIRTWHAT_CHECKSUM} virt-what-${VIRTWHAT_VERSION}.tar.gz
