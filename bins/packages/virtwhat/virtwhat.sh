@@ -1,7 +1,6 @@
-# VIRTWHAT_Git
-VIRTWHAT_VERSION="d163be0"
-VIRTWHAT_CHECKSUM="d84c9a51e2869fbe949a83adf7f80b56"
-VIRTWHAT_LINK="http://git.annexia.org/?p=virt-what.git;a=snapshot;h=${VIRTWHAT_VERSION};sf=tgz"
+VIRTWHAT_VERSION="1.27"
+VIRTWHAT_CHECKSUM="0d392f4623fe747400b0a14c0942e2ec"
+VIRTWHAT_LINK="https://people.redhat.com/~rjones/virt-what/files/virt-what-${VIRTWHAT_VERSION}.tar.gz"
 
 download_virtwhat() {
     download_file ${VIRTWHAT_LINK} ${VIRTWHAT_CHECKSUM} "virt-what-${VIRTWHAT_VERSION}.tar.gz"
