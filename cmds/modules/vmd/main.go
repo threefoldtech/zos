@@ -74,9 +74,9 @@ func copyDepth1(src, dst string) error {
 
 func action(cli *cli.Context) error {
 	var (
-		moduleRoot   string = cli.String("root")
-		msgBrokerCon string = cli.String("broker")
-		workerNr     uint   = cli.Uint("workers")
+		moduleRoot   = cli.String("root")
+		msgBrokerCon = cli.String("broker")
+		workerNr     = cli.Uint("workers")
 	)
 
 	if err := os.MkdirAll(moduleRoot, 0755); err != nil {
@@ -140,7 +140,7 @@ func action(cli *cli.Context) error {
 		log.Error().Err(err).Msg("failed to clean up deprecated module root")
 	}
 
-	server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, mod)
+	_ = server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, mod)
 
 	ctx, _ := utils.WithSignal(context.Background())
 	utils.OnDone(ctx, func(_ error) {

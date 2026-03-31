@@ -16,13 +16,6 @@ import (
 
 const module string = "zui"
 
-func trimFloat64(a []float64, size int) []float64 {
-	if len(a) > size {
-		return a[len(a)-size:]
-	}
-	return a
-}
-
 // signalFlag is a safe flag
 type signalFlag int32
 
@@ -58,8 +51,8 @@ var Module cli.Command = cli.Command{
 
 func action(ctx *cli.Context) error {
 	var (
-		msgBrokerCon string = ctx.String("broker")
-		workerNr     uint   = ctx.Uint("workers")
+		msgBrokerCon = ctx.String("broker")
+		workerNr     = ctx.Uint("workers")
 	)
 
 	client, err := zbus.NewRedisClient(msgBrokerCon)
@@ -126,7 +119,7 @@ func action(ctx *cli.Context) error {
 		if err := netRender(client, netgrid, &flag); err != nil {
 			log.Error().Err(err).Msg("failed to start net renderer")
 		}
-		
+
 		if err := resourcesRender(client, resources, &flag); err != nil {
 			log.Error().Err(err).Msg("failed to start resources renderer")
 		}
@@ -135,7 +128,7 @@ func action(ctx *cli.Context) error {
 
 	mod := zui.New(ctx.Context, errorsParagraph, &flag)
 
-	server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, mod)
+	_ = server.Register(zbus.ObjectID{Name: module, Version: "0.0.1"}, mod)
 
 	go func() {
 		if err := server.Run(ctx.Context); err != nil && err != context.Canceled {

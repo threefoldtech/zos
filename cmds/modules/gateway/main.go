@@ -43,9 +43,9 @@ var Module cli.Command = cli.Command{
 
 func action(cli *cli.Context) error {
 	var (
-		moduleRoot   string = cli.String("root")
-		msgBrokerCon string = cli.String("broker")
-		workerNr     uint   = cli.Uint("workers")
+		moduleRoot   = cli.String("root")
+		msgBrokerCon = cli.String("broker")
+		workerNr     = cli.Uint("workers")
 	)
 
 	server, err := zbus.NewRedisServer(module, msgBrokerCon, workerNr)
@@ -62,7 +62,7 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to construct gateway object")
 	}
-	server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, mod)
+	_ = server.Register(zbus.ObjectID{Name: "manager", Version: "0.0.1"}, mod)
 
 	ctx, cancel := utils.WithSignal(context.Background())
 	defer cancel()
