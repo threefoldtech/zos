@@ -3,13 +3,10 @@ VIRTWHAT_CHECKSUM="0d392f4623fe747400b0a14c0942e2ec"
 VIRTWHAT_LINK="https://people.redhat.com/~rjones/virt-what/files/virt-what-${VIRTWHAT_VERSION}.tar.gz"
 
 download_virtwhat() {
-    download_file ${VIRTWHAT_LINK} ${VIRTWHAT_CHECKSUM} virt-what-${VIRTWHAT_VERSION}.tar.gz
+    download_file ${VIRTWHAT_LINK} ${VIRTWHAT_CHECKSUM} "virt-what-${VIRTWHAT_VERSION}.tar.gz"
 }
 
 extract_virtwhat() {
-    echo "[+] extracting virt-what"
-
-    rm -rf ${WORKDIR}/*
     tar -xf ${DISTDIR}/virt-what-${VIRTWHAT_VERSION}.tar.gz -C ${WORKDIR}
 }
 
@@ -20,25 +17,25 @@ prepare_virtwhat() {
 
 compile_virtwhat() {
     echo "[+] compile virt-what"
+    pushd ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}
     autoreconf -i
     autoconf
     ./configure
     make
-
-    echo "[+] building virt-what images"
+    popd
 }
 
 install_virtwhat() {
     echo "[+] install virt-what"
 
     mkdir -p "${ROOTDIR}/usr/bin"
-    cp virt-what ${ROOTDIR}/usr/bin/virt-what
-    cp virt-what-cpuid-helper ${ROOTDIR}/usr/bin/virt-what-cpuid-helper
+
+
+    cp ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}/virt-what ${ROOTDIR}/usr/bin/virt-what
+    cp ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}/virt-what-cpuid-helper ${ROOTDIR}/usr/bin/virt-what-cpuid-helper
 
     chmod +x ${ROOTDIR}/usr/bin/virt-what
     chmod +x ${ROOTDIR}/usr/bin/virt-what-cpuid-helper
-
-    echo "[+] install virt-what images"
 }
 
 build_virtwhat() {
@@ -48,7 +45,7 @@ build_virtwhat() {
     extract_virtwhat
 
     popd
-    pushd ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}
+    pushd ${WORKDIR}
 
     prepare_virtwhat
     compile_virtwhat
