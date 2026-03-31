@@ -1,13 +1,15 @@
-# VIRTWHAT_Git
-VIRTWHAT_VERSION="d163be0"
-VIRTWHAT_CHECKSUM="d84c9a51e2869fbe949a83adf7f80b56"
-VIRTWHAT_LINK="http://git.annexia.org/?p=virt-what.git;a=snapshot;h=${VIRTWHAT_VERSION};sf=tgz"
+VIRTWHAT_VERSION="1.27-1"
+VIRTWHAT_CHECKSUM="7ce5ae03f93aef3be3161a0f3ee8d26a"
+VIRTWHAT_LINK="https://github.com/deepin-community/virt-what/archive/refs/tags/${VIRTWHAT_VERSION}.tar.gz"
 
 download_virtwhat() {
-    download_file ${VIRTWHAT_LINK} ${VIRTWHAT_CHECKSUM} "virt-what-${VIRTWHAT_VERSION}.tar.gz"
+    download_file ${VIRTWHAT_LINK} ${VIRTWHAT_CHECKSUM} virt-what-${VIRTWHAT_VERSION}.tar.gz
 }
 
 extract_virtwhat() {
+    echo "[+] extracting virt-what"
+
+    rm -rf ${WORKDIR}/*
     tar -xf ${DISTDIR}/virt-what-${VIRTWHAT_VERSION}.tar.gz -C ${WORKDIR}
 }
 
@@ -18,25 +20,25 @@ prepare_virtwhat() {
 
 compile_virtwhat() {
     echo "[+] compile virt-what"
-    pushd ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}
     autoreconf -i
     autoconf
     ./configure
     make
-    popd
+
+    echo "[+] building virt-what images"
 }
 
 install_virtwhat() {
     echo "[+] install virt-what"
 
     mkdir -p "${ROOTDIR}/usr/bin"
-
-
-    cp ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}/virt-what ${ROOTDIR}/usr/bin/virt-what
-    cp ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}/virt-what-cpuid-helper ${ROOTDIR}/usr/bin/virt-what-cpuid-helper
+    cp virt-what ${ROOTDIR}/usr/bin/virt-what
+    cp virt-what-cpuid-helper ${ROOTDIR}/usr/bin/virt-what-cpuid-helper
 
     chmod +x ${ROOTDIR}/usr/bin/virt-what
     chmod +x ${ROOTDIR}/usr/bin/virt-what-cpuid-helper
+
+    echo "[+] install virt-what images"
 }
 
 build_virtwhat() {
@@ -46,7 +48,7 @@ build_virtwhat() {
     extract_virtwhat
 
     popd
-    pushd ${WORKDIR}
+    pushd ${WORKDIR}/virt-what-${VIRTWHAT_VERSION}
 
     prepare_virtwhat
     compile_virtwhat
@@ -54,4 +56,3 @@ build_virtwhat() {
 
     popd
 }
-
