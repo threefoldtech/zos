@@ -21,6 +21,7 @@ import (
 	"github.com/threefoldtech/zosbase/pkg/perf/cpubench"
 	"github.com/threefoldtech/zosbase/pkg/perf/healthcheck"
 	"github.com/threefoldtech/zosbase/pkg/perf/iperf"
+	"github.com/threefoldtech/zosbase/pkg/perf/provisiontest"
 	"github.com/threefoldtech/zosbase/pkg/perf/publicip"
 	"github.com/threefoldtech/zosbase/pkg/registrar"
 	"github.com/threefoldtech/zosbase/pkg/stubs"
@@ -177,6 +178,7 @@ func action(cli *cli.Context) error {
 	perfMon.AddTask(iperf.NewTask())
 	perfMon.AddTask(cpubench.NewTask())
 	perfMon.AddTask(publicip.NewTask())
+	perfMon.AddTask(provisiontest.NewTask())
 	perfMon.AddTask(healthcheck.NewTask())
 
 	if err = perfMon.Run(ctx); err != nil {
