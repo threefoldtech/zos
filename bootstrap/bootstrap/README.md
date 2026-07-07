@@ -16,7 +16,7 @@ will do a multiple stage bootstrap. Currently this is only two stages:
 
 ## How to works
 
-- Bootstrap is used by [0-initramfs](https://github.com/threefoldtech/0-initramfs/blob/development-zos-v3/packages/modules.sh) to basically add `internet` and `bootstrap` services to the base image
+- Bootstrap is used by [0-initramfs](https://github.com/threefoldtech/zos_initramfs/blob/development-zos-v3/packages/modules.sh) to basically add `internet` and `bootstrap` services to the base image
 - After internet service is fully started, bootstrap will start to download flists needed for zos node to work properly
 - As described above bootstrap run in two stages:
   - The first stage is used to update bootstrap itself, and it is done like that to avoid re-building the image if we only changed the bootstrap code. this update is basically done from `tf-autobuilder` repo in the [hub/tf-autobuilder](https://hub.grid.tf/tf-autobuilder) and download the latest bootstrap flist

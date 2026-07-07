@@ -15,7 +15,7 @@ struct ZosConfig {
 }
 
 fn get_hub_urls(runmode: &RunMode) -> Result<Vec<String>> {
-    let base_url = "https://github.com/threefoldtech/zos-config/raw/main/";
+    let base_url = "https://github.com/threefoldtech/zos_config/raw/main/";
     let config_filename = match runmode {
         RunMode::Prod => "production.json",
         RunMode::Dev => "development.json",
