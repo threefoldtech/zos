@@ -22,7 +22,7 @@ This will download the latest prebuilt kernel from our server.
 
 In order to use the full power of theses scripts, you'll need in addition:
 
-- A self compiled version of [z-init](https://github.com/threefoldtech/zos_zinit/)
+- A self compiled version of [z-init](https://github.com/threefoldtech/zinit/)
 - All the binaries from this repository compiled
 - A working qemu with ipv6 internet reachability
 

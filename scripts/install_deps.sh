@@ -6,7 +6,7 @@ CHV_URL="https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/
 RUSTUP_URL="https://sh.rustup.rs"
 VIRTIOFSD_REPO="https://gitlab.com/muhamad.azmy/virtiofsd/-/jobs/6547244336/artifacts/download?file_type=archive"
 RFS_VERSION="v1.1.1"
-RFS_URL="https://github.com/threefoldtech/zos_rfs/releases/download/${RFS_VERSION}/rfs"
+RFS_URL="https://github.com/threefoldtech/rfs/releases/download/${RFS_VERSION}/rfs"
 
 install_chv() {
     echo "Installing cloud-hypervisor ${CHV_VERSION} ..."
