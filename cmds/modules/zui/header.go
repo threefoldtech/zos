@@ -12,10 +12,10 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosbase/pkg/app"
-	"github.com/threefoldtech/zosbase/pkg/environment"
-	"github.com/threefoldtech/zosbase/pkg/registrar"
-	"github.com/threefoldtech/zosbase/pkg/stubs"
+	"github.com/threefoldtech/zos_base/pkg/app"
+	"github.com/threefoldtech/zos_base/pkg/environment"
+	"github.com/threefoldtech/zos_base/pkg/registrar"
+	"github.com/threefoldtech/zos_base/pkg/stubs"
 )
 
 func green(s string) string {
