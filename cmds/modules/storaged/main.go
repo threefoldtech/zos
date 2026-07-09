@@ -8,8 +8,8 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zosbase/pkg/storage"
-	"github.com/threefoldtech/zosbase/pkg/utils"
+	"github.com/threefoldtech/zos_base/pkg/storage"
+	"github.com/threefoldtech/zos_base/pkg/utils"
 )
 
 const (

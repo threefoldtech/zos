@@ -11,17 +11,17 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
 
-	"github.com/threefoldtech/zosbase/pkg/app"
-	"github.com/threefoldtech/zosbase/pkg/environment"
-	"github.com/threefoldtech/zosbase/pkg/network/bootstrap"
-	"github.com/threefoldtech/zosbase/pkg/network/bridge"
-	"github.com/threefoldtech/zosbase/pkg/network/dhcp"
-	"github.com/threefoldtech/zosbase/pkg/network/ifaceutil"
-	"github.com/threefoldtech/zosbase/pkg/network/options"
-	"github.com/threefoldtech/zosbase/pkg/network/types"
-	"github.com/threefoldtech/zosbase/pkg/zinit"
+	"github.com/threefoldtech/zos_base/pkg/app"
+	"github.com/threefoldtech/zos_base/pkg/environment"
+	"github.com/threefoldtech/zos_base/pkg/network/bootstrap"
+	"github.com/threefoldtech/zos_base/pkg/network/bridge"
+	"github.com/threefoldtech/zos_base/pkg/network/dhcp"
+	"github.com/threefoldtech/zos_base/pkg/network/ifaceutil"
+	"github.com/threefoldtech/zos_base/pkg/network/options"
+	"github.com/threefoldtech/zos_base/pkg/network/types"
+	"github.com/threefoldtech/zos_base/pkg/zinit"
 
-	"github.com/threefoldtech/zosbase/pkg/version"
+	"github.com/threefoldtech/zos_base/pkg/version"
 )
 
 func main() {
