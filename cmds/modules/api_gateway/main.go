@@ -42,6 +42,36 @@ var Module cli.Command = cli.Command{
 	Action: action,
 }
 
+// spawnPeer creates an rmb peer bound to a fresh child context derived from parent and
+// returns that child's cancel func, so the caller can tear the peer down later (e.g. to
+// rebuild it with new relay urls) without leaving open relay connections behind.
+//
+// It retries NewPeer indefinitely — the node can't serve rmb without a peer. It must NOT
+// cancel peerCtx on a failed attempt: NewPeer only starts its background goroutines after
+// all of its error paths, so a failed attempt leaves nothing to clean up, and cancelling
+// here would poison peerCtx — every subsequent retry (and the eventual live peer) would be
+// built on an already-cancelled context and would never receive.
+func spawnPeer(parent context.Context, seed string, manager substrate.Manager, handler peer.Handler, relayURLs []string) context.CancelFunc {
+	peerCtx, cancel := context.WithCancel(parent)
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
+	_ = backoff.Retry(func() error {
+		if _, err := peer.NewPeer(
+			peerCtx,
+			seed,
+			manager,
+			handler,
+			peer.WithKeyType(peer.KeyTypeEd25519),
+			peer.WithRelay(relayURLs...),
+			peer.WithInMemoryExpiration(6*60*60), // 6 hours
+		); err != nil {
+			return fmt.Errorf("failed to start a new rmb peer: %w", err)
+		}
+		return nil
+	}, bo)
+	return cancel
+}
+
 func action(cli *cli.Context) error {
 	var (
 		msgBrokerCon = cli.String("broker")
@@ -106,31 +136,11 @@ func action(cli *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	seed := hex.EncodeToString(pair.Seed())
 
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
-
-	// this ctx is used to allow the node to restart the peer without leaving any unwanted open connections
-	currentPeerCtx, cancel := context.WithCancel(ctx)
-	_ = backoff.Retry(func() error {
-		_, err = peer.NewPeer(
-			currentPeerCtx,
-			hex.EncodeToString(pair.Seed()),
-			manager,
-			router.Serve,
-			peer.WithKeyType(peer.KeyTypeEd25519),
-			peer.WithRelay(relayURLs...),
-			peer.WithInMemoryExpiration(6*60*60), // 6 hours
-		)
-		if err != nil {
-			if cancel != nil {
-				cancel()
-			}
-			return fmt.Errorf("failed to start a new rmb peer: %w", err)
-		}
-
-		return nil
-	}, bo)
+	// cancel tears the current peer down (closing its relay connections) so it can be
+	// rebuilt when the relay/substrate configuration changes.
+	cancel := spawnPeer(ctx, seed, manager, router.Serve, relayURLs)
 
 	log.Info().
 		Str("broker", msgBrokerCon).
@@ -174,34 +184,11 @@ func action(cli *cli.Context) error {
 				log.Debug().Err(err).Msg("failed to get substrate manager")
 				continue
 			}
-			// cancel the current peer to create new one with updated urls
-			if cancel != nil {
-				log.Debug().Msg("cancelling current peer context to create a new one with updated urls")
-				cancel()
-			}
+			// tear the current peer down and rebuild it with the updated urls
+			log.Debug().Msg("cancelling current peer context to create a new one with updated urls")
+			cancel()
 
-			currentPeerCtx, cancel = context.WithCancel(ctx)
-			_ = backoff.Retry(func() error {
-				_, err = peer.NewPeer(
-					currentPeerCtx,
-					hex.EncodeToString(pair.Seed()),
-					manager,
-					router.Serve,
-					peer.WithKeyType(peer.KeyTypeEd25519),
-					peer.WithRelay(updatedRelayURLs...),
-					peer.WithInMemoryExpiration(6*60), // 1 hours
-				)
-				if err != nil {
-					if cancel != nil {
-
-						// cancel the context to avoid any unwanted open connections
-						cancel()
-					}
-					return fmt.Errorf("failed to start a new rmb peer: %w", err)
-
-				}
-				return nil
-			}, bo)
+			cancel = spawnPeer(ctx, seed, manager, router.Serve, updatedRelayURLs)
 
 			relayURLs = updatedRelayURLs
 			subURLs = updatedSubURLs
