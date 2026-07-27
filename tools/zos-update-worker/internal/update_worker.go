@@ -123,6 +123,15 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 		return nil
 	}
 
+	// During a canary rollout (safe_to_upgrade == false) the version is delivered only to
+	// the configured test farms by the node upgrader. Keep the network `latest` symlink
+	// pointing at the last GA version so freshly bootstrapped nodes (and non-canary nodes)
+	// don't pick up the canary version.
+	if !chainVersion.SafeToUpgrade {
+		log.Debug().Msgf("skipping %v latest link update: version %v is not marked safe to upgrade yet", network, chainVersion.Version)
+		return nil
+	}
+
 	log.Debug().Msgf("getting substrate version %v for network %v", chainVersion.Version, network)
 
 	// now we need to find how dst is relative to src
