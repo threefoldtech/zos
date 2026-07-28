@@ -92,6 +92,13 @@ func checkNetwork(network Network) error {
 	return nil
 }
 
+// ChainVersion is the zos version document published on chain.
+type ChainVersion struct {
+	SafeToUpgrade bool   `json:"safe_to_upgrade"`
+	Version       string `json:"version"`
+	VersionLight  string `json:"version_light"`
+}
+
 // updateZosVersion updates the latest zos flist for a specific network with the updated zos version
 func (w *Worker) updateZosVersion(network Network, manager client.Manager) error {
 	if err := checkNetwork(network); err != nil {
@@ -109,24 +116,22 @@ func (w *Worker) updateZosVersion(network Network, manager client.Manager) error
 		return err
 	}
 
-	type ChainVersion struct {
-		SafeToUpgrade bool   `json:"safe_to_upgrade"`
-		Version       string `json:"version"`
-		VersionLight  string `json:"version_light"`
-	}
-
 	var chainVersion ChainVersion
-	err = json.Unmarshal([]byte(currentZosVersion), &chainVersion)
-	if err != nil {
+	if err := json.Unmarshal([]byte(currentZosVersion), &chainVersion); err != nil {
 		log.Debug().Err(err).Msg("failed to unmarshal chain version")
 		// shouldn't fail for env that still not updated version format
 		return nil
 	}
 
-	// During a canary rollout (safe_to_upgrade == false) the version is delivered only to
-	// the configured test farms by the node upgrader. Keep the network `latest` symlink
-	// pointing at the last GA version so freshly bootstrapped nodes (and non-canary nodes)
-	// don't pick up the canary version.
+	return w.applyVersion(network, chainVersion)
+}
+
+// applyVersion points the network `latest` flist links at chainVersion, but only when the
+// chain marks it safe_to_upgrade. During a canary rollout (safe_to_upgrade == false) the
+// link is held at the last GA version so freshly bootstrapped nodes and non-canary nodes
+// don't pick up the canary version; canary farms receive it via the node upgrader, which
+// targets the chain version tag directly.
+func (w *Worker) applyVersion(network Network, chainVersion ChainVersion) error {
 	if !chainVersion.SafeToUpgrade {
 		log.Debug().Msgf("skipping %v latest link update: version %v is not marked safe to upgrade yet", network, chainVersion.Version)
 		return nil
