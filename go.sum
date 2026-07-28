@@ -478,8 +478,8 @@ github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20260302124210
 github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20260302124210-526158ffbc00/go.mod h1:cOL5YgHUmDG5SAXrsZxFjUECRQQuAqOoqvXhZG5sEUw=
 github.com/threefoldtech/zbus v1.0.1 h1:3KaEpyOiDYAw+lrAyoQUGIvY9BcjVRXlQ1beBRqhRNk=
 github.com/threefoldtech/zbus v1.0.1/go.mod h1:E/v/xEvG/l6z/Oj0aDkuSUXFm/1RVJkhKBwDTAIdsHo=
-github.com/threefoldtech/zos_base v1.1.1 h1:sNOrhmQA13mPOck5GCdwpmH+R5xfzcfKCuXzxdsK5pI=
-github.com/threefoldtech/zos_base v1.1.1/go.mod h1:0OlU/EWyLlcm4a5fBYuOTOJ1K0PH53of6bZ392O60Qs=
+github.com/threefoldtech/zos_base v1.1.2 h1:EEHzmprK5ujB63xR4LWkEiIffVBFQBcr645WEeHD4x0=
+github.com/threefoldtech/zos_base v1.1.2/go.mod h1:0OlU/EWyLlcm4a5fBYuOTOJ1K0PH53of6bZ392O60Qs=
 github.com/threefoldtech/zos_sdk_go/rmb-sdk-go v0.18.0 h1:CD8/yd0pAZINF93PHDODn2e+M6d5f6x6ECfpQac4kgw=
 github.com/threefoldtech/zos_sdk_go/rmb-sdk-go v0.18.0/go.mod h1:OI3omGvjs88MXvOKSfYULhxweQWSz6jvQuUHDTI98gw=
 github.com/tinylib/msgp v1.1.5 h1:2gXmtWueD2HefZHQe1QOy9HVzmFrLOVvsXwXBQ0ayy0=
