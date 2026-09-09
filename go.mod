@@ -14,7 +14,7 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/threefoldtech/tfchain/clients/tfchain-client-go v0.0.0-20260302124210-526158ffbc00
 	github.com/threefoldtech/zbus v1.0.1
-	github.com/threefoldtech/zos_base v1.1.3-0.20260826123602-7a636274cecc
+	github.com/threefoldtech/zos_base v1.1.3
 	github.com/threefoldtech/zos_sdk_go/rmb-sdk-go v0.18.0
 	github.com/urfave/cli/v2 v2.27.5
 	gopkg.in/yaml.v2 v2.4.0
